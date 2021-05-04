@@ -4,14 +4,101 @@ use codespan_reporting::term;
 use codespan_reporting::term::termcolor::{BufferWriter, ColorChoice, StandardStream};
 use fathom::lang::FileId;
 use fathom::pass::{core_to_pretty, core_to_surface, surface_to_core, surface_to_doc};
-use std::fs;
-use std::path::PathBuf;
+use libtest_mimic::{Outcome, Test};
+use std::fmt::Write;
+use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::{env, fs};
+use walkdir::WalkDir;
 
 mod directives;
 mod snapshot;
 
 use self::directives::ExpectedDiagnostic;
+
+/// Recursively walk over test files under a file path.
+pub fn walk_files(root: impl AsRef<Path>) -> impl Iterator<Item = PathBuf> {
+    WalkDir::new(root)
+        .into_iter()
+        .filter_map(|dir_entry| dir_entry.ok())
+        .filter(|dir_entry| dir_entry.file_type().is_file())
+        .map(|dir_entry| dir_entry.into_path())
+}
+
+fn is_fathom_path(path: &Path) -> bool {
+    matches!(path.extension(), Some(ext) if ext == "fathom")
+}
+
+pub fn extract_test(path: PathBuf) -> Option<Test<PathBuf>> {
+    is_fathom_path(&path).then(|| Test {
+        name: path.display().to_string(),
+        kind: String::new(),
+        is_ignored: false,
+        is_bench: false,
+        data: path,
+    })
+}
+
+pub fn run_test(
+    pikelet_path: &'static str,
+) -> impl Fn(&Test<PathBuf>) -> Outcome + 'static + Send + Sync {
+    move |test| run_test_impl(pikelet_path, test)
+}
+
+fn run_test_impl(pikelet_path: &str, test: &Test<PathBuf>) -> Outcome {
+    let path = test.data.display().to_string();
+    let output = Command::new(pikelet_path)
+        .arg("check")
+        .arg("--validate-core")
+        .arg(format!("--format-file={}", path))
+        .output();
+
+    let output = match output {
+        Ok(output) => output,
+        Err(error) => {
+            return Outcome::Failed {
+                msg: Some(format!("Error running {}: {}", pikelet_path, error)),
+            };
+        }
+    };
+
+    if output.status.success() && output.stdout.is_empty() && output.stderr.is_empty() {
+        Outcome::Passed
+    } else {
+        let mut msg = String::new();
+
+        writeln!(msg).unwrap();
+        writeln!(msg, "Errors encountered:").unwrap();
+        writeln!(msg).unwrap();
+        if !output.status.success() {
+            writeln!(msg, "  • Unexpected status").unwrap();
+        }
+        if !output.stdout.is_empty() {
+            writeln!(msg, "  • Unexpected stdout").unwrap();
+        }
+        if !output.stderr.is_empty() {
+            writeln!(msg, "  • Unexpected stderr").unwrap();
+        }
+
+        if !output.status.success() {
+            writeln!(msg).unwrap();
+            writeln!(msg, "---- {} status ----", test.name).unwrap();
+            writeln!(msg, "{}", output.status).unwrap();
+        }
+        if !output.stdout.is_empty() {
+            writeln!(msg).unwrap();
+            writeln!(msg, "---- {} stdout ----", test.name).unwrap();
+            msg.push_str(String::from_utf8_lossy(&output.stdout).trim_end());
+        }
+        if !output.stderr.is_empty() {
+            writeln!(msg).unwrap();
+            writeln!(msg, "---- {} stderr ----", test.name).unwrap();
+            msg.push_str(String::from_utf8_lossy(&output.stderr).trim_end());
+        }
+
+        Outcome::Failed { msg: Some(msg) }
+    }
+}
 
 lazy_static::lazy_static! {
     static ref CARGO_METADATA: json::JsonValue = {
@@ -45,7 +132,7 @@ lazy_static::lazy_static! {
 
 pub fn run_integration_test(test_name: &str, fathom_path: &str) {
     let mut files = SimpleFiles::new();
-    let mut test = Test::setup(&mut files, test_name, fathom_path);
+    let mut test = TestData::setup(&mut files, test_name, fathom_path);
 
     // Run stages
 
@@ -67,7 +154,7 @@ pub fn run_integration_test(test_name: &str, fathom_path: &str) {
     test.finish(&files);
 }
 
-struct Test {
+struct TestData {
     test_name: String,
     term_config: codespan_reporting::term::Config,
     input_fathom_path: PathBuf,
@@ -78,8 +165,12 @@ struct Test {
     found_messages: Vec<fathom::reporting::Message>,
 }
 
-impl Test {
-    fn setup(files: &mut SimpleFiles<String, String>, test_name: &str, fathom_path: &str) -> Test {
+impl TestData {
+    fn setup(
+        files: &mut SimpleFiles<String, String>,
+        test_name: &str,
+        fathom_path: &str,
+    ) -> TestData {
         // Set up output streams
 
         let term_config = term::Config::default();
@@ -116,7 +207,7 @@ impl Test {
             directives
         };
 
-        Test {
+        TestData {
             test_name: test_name.to_owned(),
             term_config,
             input_fathom_path,
