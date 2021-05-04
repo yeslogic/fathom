@@ -13,6 +13,10 @@ name = "fathom"
 path = "src/main.rs"
 
 [[test]]
+name = "cli"
+path = "tests/cli/lib.rs"
+
+[[test]]
 name = "source_tests"
 harness = false
 

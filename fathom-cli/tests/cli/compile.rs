@@ -3,7 +3,7 @@ use predicates::prelude::*;
 use std::process::Command;
 
 #[test]
-fn compile_rust_is_not_implemented() -> anyhow::Result<()> {
+fn target_rust_is_not_implemented() -> anyhow::Result<()> {
     let mut cmd = Command::cargo_bin("fathom")?;
 
     cmd.args(&[

@@ -3,7 +3,7 @@ use predicates::prelude::*;
 use std::process::Command;
 
 #[test]
-fn data_missing_format_file() -> anyhow::Result<()> {
+fn missing_format_file() -> anyhow::Result<()> {
     let mut cmd = Command::cargo_bin("fathom")?;
 
     cmd.args(&[
@@ -26,7 +26,7 @@ fn data_missing_format_file() -> anyhow::Result<()> {
 }
 
 #[test]
-fn data_stl_cube() -> anyhow::Result<()> {
+fn stl_cube() -> anyhow::Result<()> {
     let mut cmd = Command::cargo_bin("fathom")?;
 
     cmd.args(&[
@@ -46,7 +46,7 @@ fn data_stl_cube() -> anyhow::Result<()> {
 }
 
 #[test]
-fn data_stl_cube_validate_core() -> anyhow::Result<()> {
+fn stl_cube_validate_core() -> anyhow::Result<()> {
     let mut cmd = Command::cargo_bin("fathom")?;
 
     cmd.args(&[
