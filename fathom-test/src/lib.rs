@@ -1,7 +1,7 @@
 use codespan_reporting::diagnostic::{Diagnostic, LabelStyle, Severity};
 use codespan_reporting::files::{Files, SimpleFiles};
 use codespan_reporting::term;
-use codespan_reporting::term::termcolor::{BufferWriter, ColorChoice, StandardStream};
+use codespan_reporting::term::termcolor::{BufferWriter, ColorChoice};
 use fathom::lang::FileId;
 use fathom::pass::{core_to_pretty, core_to_surface, surface_to_core, surface_to_doc};
 use libtest_mimic::{Outcome, Test};
@@ -16,6 +16,33 @@ mod snapshot;
 
 use self::directives::ExpectedDiagnostic;
 
+lazy_static::lazy_static! {
+    static ref CARGO_METADATA: json::JsonValue = {
+        let output = Command::new(env!("CARGO"))
+            .arg("metadata")
+            .arg("--no-deps")
+            .arg("--format-version=1")
+            .output();
+
+        match output {
+            Err(error) => panic!("error executing `cargo metadata`: {}", error),
+            Ok(output) => match json::parse(&String::from_utf8_lossy(&output.stdout)) {
+                Err(error) => panic!("error parsing `cargo metadata`: {}", error),
+                Ok(metadata) => metadata,
+            }
+        }
+    };
+
+    static ref CARGO_TARGET_DIR: PathBuf = PathBuf::from(CARGO_METADATA["target_directory"].as_str().unwrap());
+    static ref CARGO_WORKSPACE_ROOT: PathBuf = PathBuf::from(CARGO_METADATA["workspace_root"].as_str().unwrap());
+    static ref CARGO_DEPS_DIR: PathBuf = CARGO_TARGET_DIR.join("debug").join("deps");
+    static ref CARGO_INCREMENTAL_DIR: PathBuf = CARGO_TARGET_DIR.join("debug").join("incremental");
+    static ref CARGO_FATHOM_RT_RLIB: PathBuf = CARGO_TARGET_DIR.join("debug").join("libfathom_runtime.rlib");
+    static ref CARGO_FATHOM_TEST_UTIL_RLIB: PathBuf = CARGO_TARGET_DIR.join("debug").join("libfathom_test_util.rlib");
+
+    static ref GLOBALS: fathom::lang::core::Globals = fathom::lang::core::Globals::default();
+}
+
 /// Recursively walk over test files under a file path.
 pub fn walk_files(root: impl AsRef<Path>) -> impl Iterator<Item = PathBuf> {
     WalkDir::new(root)
@@ -29,42 +56,65 @@ fn is_fathom_path(path: &Path) -> bool {
     matches!(path.extension(), Some(ext) if ext == "fathom")
 }
 
-pub fn extract_test(path: PathBuf) -> Option<Test<PathBuf>> {
-    is_fathom_path(&path).then(|| Test {
-        name: path.display().to_string(),
-        kind: String::new(),
-        is_ignored: false,
-        is_bench: false,
-        data: path,
-    })
+pub enum TestData {
+    Simple(PathBuf),
+    Full(PathBuf),
+}
+
+pub fn extract_simple_test(path: PathBuf) -> Option<Test<TestData>> {
+    if is_fathom_path(&path) {
+        Some(Test {
+            name: path.display().to_string(),
+            kind: String::new(),
+            is_ignored: false,
+            is_bench: false,
+            data: TestData::Simple(path),
+        })
+    } else {
+        None
+    }
+}
+
+pub fn extract_full_test(path: PathBuf) -> Option<Test<TestData>> {
+    if is_fathom_path(&path) {
+        Some(Test {
+            name: path.display().to_string(),
+            kind: String::new(),
+            is_ignored: false,
+            is_bench: false,
+            data: TestData::Full(path),
+        })
+    } else {
+        None
+    }
 }
 
 pub fn run_test(
-    pikelet_path: &'static str,
-) -> impl Fn(&Test<PathBuf>) -> Outcome + 'static + Send + Sync {
-    move |test| run_test_impl(pikelet_path, test)
+    pikelet_bin: &'static str,
+) -> impl Fn(&Test<TestData>) -> Outcome + 'static + Send + Sync {
+    move |test| match &test.data {
+        TestData::Simple(format_file) => run_simple_test(pikelet_bin, test, format_file),
+        TestData::Full(format_file) => run_full_test(pikelet_bin, test, format_file),
+    }
 }
 
-fn run_test_impl(pikelet_path: &str, test: &Test<PathBuf>) -> Outcome {
-    let path = test.data.display().to_string();
-    let output = Command::new(pikelet_path)
+fn run_simple_test(pikelet_bin: &str, test: &Test<TestData>, format_file: &Path) -> Outcome {
+    let output = Command::new(pikelet_bin)
         .arg("check")
         .arg("--validate-core")
-        .arg(format!("--format-file={}", path))
+        .arg(format!("--format-file={}", format_file.display()))
         .output();
 
     let output = match output {
         Ok(output) => output,
         Err(error) => {
             return Outcome::Failed {
-                msg: Some(format!("Error running {}: {}", pikelet_path, error)),
+                msg: Some(format!("Error running {}: {}", pikelet_bin, error)),
             };
         }
     };
 
-    if output.status.success() && output.stdout.is_empty() && output.stderr.is_empty() {
-        Outcome::Passed
-    } else {
+    if !output.status.success() || !output.stdout.is_empty() || !output.stderr.is_empty() {
         let mut msg = String::new();
 
         writeln!(msg).unwrap();
@@ -96,141 +146,109 @@ fn run_test_impl(pikelet_path: &str, test: &Test<PathBuf>) -> Outcome {
             msg.push_str(String::from_utf8_lossy(&output.stderr).trim_end());
         }
 
-        Outcome::Failed { msg: Some(msg) }
+        return Outcome::Failed { msg: Some(msg) };
     }
+
+    Outcome::Passed
 }
 
-lazy_static::lazy_static! {
-    static ref CARGO_METADATA: json::JsonValue = {
-        let output = Command::new(env!("CARGO"))
-            .arg("metadata")
-            .arg("--no-deps")
-            .arg("--format-version=1")
-            .output();
+fn run_full_test(_pikelet_bin: &str, test: &Test<TestData>, format_file: &Path) -> Outcome {
+    let mut files = SimpleFiles::new();
+    let term_config = term::Config::default();
 
-        match output {
-            Err(error) => panic!("error executing `cargo metadata`: {}", error),
-            Ok(output) => match json::parse(&String::from_utf8_lossy(&output.stdout)) {
-                Err(error) => panic!("error parsing `cargo metadata`: {}", error),
-                Ok(metadata) => metadata,
-            }
+    // Build snapshot file base
+    // TODO: reconfigure snapshot directories to make this less cursed?
+    let snapshot_file = PathBuf::from("tests/snapshots") // FIXME: blgergh
+        .join(format_file.strip_prefix("tests/input").unwrap()) // FIXME: blgergh
+        .with_extension("");
+
+    // Load the format file
+    let format_file_id = match fs::read_to_string(&format_file) {
+        Ok(source) => files.add(format_file.display().to_string(), source),
+        Err(error) => {
+            let msg = format!("Failed to read `{}`: {}", format_file.display(), error);
+            return Outcome::Failed { msg: Some(msg) };
         }
     };
 
-    static ref CARGO_TARGET_DIR: PathBuf = PathBuf::from(CARGO_METADATA["target_directory"].as_str().unwrap());
-    static ref CARGO_WORKSPACE_ROOT: PathBuf = PathBuf::from(CARGO_METADATA["workspace_root"].as_str().unwrap());
-    static ref CARGO_DEPS_DIR: PathBuf = CARGO_TARGET_DIR.join("debug").join("deps");
-    static ref CARGO_INCREMENTAL_DIR: PathBuf = CARGO_TARGET_DIR.join("debug").join("incremental");
-    static ref CARGO_FATHOM_RT_RLIB: PathBuf = CARGO_TARGET_DIR.join("debug").join("libfathom_runtime.rlib");
-    static ref CARGO_FATHOM_TEST_UTIL_RLIB: PathBuf = CARGO_TARGET_DIR.join("debug").join("libfathom_test_util.rlib");
+    // Extract the directives from the source code
 
-    static ref INPUT_DIR: PathBuf = CARGO_WORKSPACE_ROOT.join("tests").join("input");
-    static ref SNAPSHOTS_DIR: PathBuf = CARGO_WORKSPACE_ROOT.join("tests").join("snapshots");
+    let directives = {
+        let directive_lexer = directives::Lexer::new(&files, format_file_id);
+        let mut directive_parser = directives::Parser::new(&files, format_file_id);
+        directive_parser.expect_directives(directive_lexer);
+        let (directives, diagnostics) = directive_parser.finish();
 
-    static ref GLOBALS: fathom::lang::core::Globals = fathom::lang::core::Globals::default();
-}
+        // Check for errors in the directives
+        if !diagnostics.is_empty() {
+            let mut msg = String::new();
 
-pub fn run_integration_test(test_name: &str, fathom_path: &str) {
-    let mut files = SimpleFiles::new();
-    let mut test = TestData::setup(&mut files, test_name, fathom_path);
+            writeln!(msg).unwrap();
+            writeln!(msg, "Failed to parse test directives:").unwrap();
+            writeln!(msg).unwrap();
 
-    // Run stages
+            let mut buffer = BufferWriter::stderr(ColorChoice::Auto).buffer();
+            for diagnostic in diagnostics {
+                term::emit(&mut buffer, &term_config, &files, &diagnostic).unwrap();
+            }
 
-    eprintln!();
+            writeln!(msg, "---- {} stderr ----", test.name).unwrap();
+            msg.push_str(String::from_utf8_lossy(&buffer.as_slice()).trim_end());
 
-    // SKIP
-    if let Some(reason) = &test.directives.skip {
-        eprintln!("Skipped: {}", reason);
-        return;
+            return Outcome::Failed { msg: Some(msg) };
+        }
+
+        directives
+    };
+
+    // Check if we should ignore the test
+    if let Some(_reason) = directives.skip {
+        return Outcome::Ignored;
     }
 
-    let surface_module = test.parse_surface(&files);
-    test.compile_doc(&surface_module);
-    let core_module = test.surface_to_core(&files, &surface_module);
-    test.roundtrip_surface_to_core(&files, &core_module);
-    test.roundtrip_core_to_pretty(&mut files, &core_module);
-    test.binary_parse_tests();
+    // Run test stages
 
-    test.finish(&files);
+    let mut full_test = FullTest {
+        files,
+        term_config,
+        format_file,
+        format_file_id,
+        snapshot_file,
+        directives,
+        failed_checks: Vec::new(),
+        found_messages: Vec::new(),
+    };
+
+    let surface_module = full_test.parse_surface();
+    full_test.compile_doc(&surface_module);
+    let core_module = full_test.surface_to_core(&surface_module);
+    full_test.roundtrip_surface_to_core(&core_module);
+    full_test.roundtrip_core_to_pretty(&core_module);
+    full_test.binary_parse_tests();
+
+    full_test.finish()
 }
 
-struct TestData {
-    test_name: String,
+struct FullTest<'a> {
+    files: SimpleFiles<String, String>,
     term_config: codespan_reporting::term::Config,
-    input_fathom_path: PathBuf,
-    input_fathom_file_id: FileId,
-    snapshot_filename: PathBuf,
+    format_file: &'a Path,
+    format_file_id: FileId,
+    snapshot_file: PathBuf,
     directives: directives::Directives,
     failed_checks: Vec<&'static str>,
     found_messages: Vec<fathom::reporting::Message>,
 }
 
-impl TestData {
-    fn setup(
-        files: &mut SimpleFiles<String, String>,
-        test_name: &str,
-        fathom_path: &str,
-    ) -> TestData {
-        // Set up output streams
-
-        let term_config = term::Config::default();
-        let stdout = StandardStream::stdout(ColorChoice::Auto);
-
-        // Set up files
-
-        let input_fathom_path = INPUT_DIR.join(fathom_path);
-        let snapshot_filename = SNAPSHOTS_DIR.join(fathom_path).with_extension("");
-        let source = fs::read_to_string(&input_fathom_path).unwrap_or_else(|error| {
-            panic!("error reading `{}`: {}", input_fathom_path.display(), error)
-        });
-        let input_fathom_file_id = files.add(input_fathom_path.display().to_string(), source);
-
-        // Extract the directives from the source code
-
-        let directives = {
-            let (directives, diagnostics) = {
-                let lexer = directives::Lexer::new(&files, input_fathom_file_id);
-                let mut parser = directives::Parser::new(&files, input_fathom_file_id);
-                parser.expect_directives(lexer);
-                parser.finish()
-            };
-
-            if !diagnostics.is_empty() {
-                let writer = &mut stdout.lock();
-                for diagnostic in diagnostics {
-                    term::emit(writer, &term_config, files, &diagnostic).unwrap();
-                }
-
-                panic!("failed to parse diagnostics");
-            }
-
-            directives
-        };
-
-        TestData {
-            test_name: test_name.to_owned(),
-            term_config,
-            input_fathom_path,
-            input_fathom_file_id,
-            snapshot_filename,
-            directives,
-            failed_checks: Vec::new(),
-            found_messages: Vec::new(),
-        }
-    }
-
-    fn parse_surface(
-        &mut self,
-        files: &SimpleFiles<String, String>,
-    ) -> fathom::lang::surface::Module {
-        let file_id = self.input_fathom_file_id;
-        let source = files.source(file_id).unwrap();
+impl<'a> FullTest<'a> {
+    fn parse_surface(&mut self) -> fathom::lang::surface::Module {
+        let file_id = self.format_file_id;
+        let source = self.files.source(file_id).unwrap();
         fathom::lang::surface::Module::parse(file_id, source, &mut self.found_messages)
     }
 
     fn surface_to_core(
         &mut self,
-        files: &SimpleFiles<String, String>,
         surface_module: &fathom::lang::surface::Module,
     ) -> fathom::lang::core::Module {
         let mut context = surface_to_core::Context::new(&GLOBALS);
@@ -250,7 +268,7 @@ impl TestData {
 
             for message in &validation_messages {
                 let diagnostic = message.to_diagnostic(&pretty_arena);
-                term::emit(&mut buffer, &self.term_config, files, &diagnostic).unwrap();
+                term::emit(&mut buffer, &self.term_config, &self.files, &diagnostic).unwrap();
             }
 
             eprintln!("  • surface_to_core: typing");
@@ -263,11 +281,7 @@ impl TestData {
         core_module
     }
 
-    fn roundtrip_surface_to_core(
-        &mut self,
-        files: &SimpleFiles<String, String>,
-        core_module: &fathom::lang::core::Module,
-    ) {
+    fn roundtrip_surface_to_core(&mut self, core_module: &fathom::lang::core::Module) {
         let mut context = surface_to_core::Context::new(&GLOBALS);
         let mut core_to_surface_context = core_to_surface::Context::new();
         let surface_module = context.from_module(&core_to_surface_context.from_module(core_module));
@@ -282,7 +296,7 @@ impl TestData {
 
             for message in &elaboration_messages {
                 let diagnostic = message.to_diagnostic(&pretty_arena);
-                term::emit(&mut buffer, &self.term_config, files, &diagnostic).unwrap();
+                term::emit(&mut buffer, &self.term_config, &self.files, &diagnostic).unwrap();
             }
 
             eprintln!("  • roundtrip_surface_to_core: surface_to_core");
@@ -325,11 +339,7 @@ impl TestData {
         }
     }
 
-    fn roundtrip_core_to_pretty(
-        &mut self,
-        files: &mut SimpleFiles<String, String>,
-        core_module: &fathom::lang::core::Module,
-    ) {
+    fn roundtrip_core_to_pretty(&mut self, core_module: &fathom::lang::core::Module) {
         let arena = pretty::Arena::new();
 
         let pretty_core_module = {
@@ -337,7 +347,7 @@ impl TestData {
             doc.pretty(100).to_string()
         };
 
-        let snapshot_core_fathom_path = self.snapshot_filename.with_extension("core.fathom");
+        let snapshot_core_fathom_path = self.snapshot_file.with_extension("core.fathom");
         if let Err(error) =
             snapshot::compare(&snapshot_core_fathom_path, &pretty_core_module.as_bytes())
         {
@@ -351,12 +361,12 @@ impl TestData {
         }
 
         let mut core_parse_messages = Vec::new();
-        let core_file_id = files.add(
+        let core_file_id = self.files.add(
             snapshot_core_fathom_path.display().to_string(),
             pretty_core_module.clone(),
         );
         let parsed_core_module = {
-            let source = files.source(core_file_id).unwrap();
+            let source = self.files.source(core_file_id).unwrap();
             fathom::lang::core::Module::parse(core_file_id, source, &mut core_parse_messages)
         };
         let pretty_parsed_core_module = {
@@ -373,7 +383,7 @@ impl TestData {
 
             for message in &core_parse_messages {
                 let diagnostic = message.to_diagnostic(&pretty_arena);
-                term::emit(&mut buffer, &self.term_config, files, &diagnostic).unwrap();
+                term::emit(&mut buffer, &self.term_config, &self.files, &diagnostic).unwrap();
             }
 
             eprintln!("  • roundtrip_pretty_core: parse core");
@@ -406,16 +416,18 @@ impl TestData {
         // Test compiled output against rustc
         let temp_dir = assert_fs::TempDir::new().unwrap();
 
-        let rs_path = match &self.input_fathom_path.with_extension("rs") {
+        let rs_path = match &self.format_file.with_extension("rs") {
             input_rs_path if input_rs_path.exists() => input_rs_path.clone(),
             _ => return,
         };
 
         let mut rustc_command = Command::new("rustc");
 
+        const CRATE_NAME: &str = "test";
+
         rustc_command
             .arg(format!("--out-dir={}", temp_dir.path().display()))
-            .arg(format!("--crate-name={}", self.test_name))
+            .arg(format!("--crate-name={}", CRATE_NAME))
             .arg("--test")
             .arg("--color=always")
             .arg("--edition=2018")
@@ -490,8 +502,7 @@ impl TestData {
             }
         }
 
-        let test_path = temp_dir.path().join(&self.test_name);
-        let display_path = test_path.display();
+        let test_path = temp_dir.path().join(CRATE_NAME);
         match Command::new(&test_path).arg("--color=always").output() {
             Ok(output) => {
                 if !output.status.success() {
@@ -500,10 +511,10 @@ impl TestData {
 
                     eprintln!("  • binary_parse_tests: rust test output");
                     eprintln!();
-                    eprintln_indented(4, "", &format!("---- {} stdout ----", display_path));
+                    eprintln_indented(4, "", &format!("---- {} stdout ----", test_path.display()));
                     eprintln_indented(4, "| ", &String::from_utf8_lossy(&output.stdout));
                     eprintln!();
-                    eprintln_indented(4, "", &format!("---- {} stderr ----", display_path));
+                    eprintln_indented(4, "", &format!("---- {} stderr ----", test_path.display()));
                     eprintln_indented(4, "| ", &String::from_utf8_lossy(&output.stderr));
                     eprintln!();
                 }
@@ -513,7 +524,7 @@ impl TestData {
 
                 eprintln!("  • binary_parse_tests: execute test");
                 eprintln!();
-                eprintln_indented(4, "", &format!("---- {} error ----", display_path));
+                eprintln_indented(4, "", &format!("---- {} error ----", test_path.display()));
                 eprintln_indented(4, "| ", &error.to_string());
                 eprintln!();
             }
@@ -526,9 +537,7 @@ impl TestData {
             .from_module(&mut output, surface_module)
             .unwrap();
 
-        if let Err(error) =
-            snapshot::compare(&self.snapshot_filename.with_extension("html"), &output)
-        {
+        if let Err(error) = snapshot::compare(&self.snapshot_file.with_extension("html"), &output) {
             self.failed_checks.push("compile_doc: snapshot");
 
             eprintln!("  • compile_doc: snapshot");
@@ -539,7 +548,7 @@ impl TestData {
         }
     }
 
-    fn finish(mut self, files: &SimpleFiles<String, String>) {
+    fn finish(mut self) -> Outcome {
         // Ensure that no unexpected diagnostics and no expected diagnostics remain
 
         let pretty_arena = pretty::Arena::new();
@@ -550,7 +559,7 @@ impl TestData {
             .collect();
 
         retain_unexpected(
-            files,
+            &self.files,
             &mut found_diagnostics,
             &mut self.directives.expected_diagnostics,
         );
@@ -566,7 +575,7 @@ impl TestData {
 
             let mut buffer = BufferWriter::stderr(ColorChoice::Auto).buffer();
             for diagnostic in &found_diagnostics {
-                term::emit(&mut buffer, &self.term_config, files, diagnostic).unwrap();
+                term::emit(&mut buffer, &self.term_config, &self.files, diagnostic).unwrap();
             }
 
             eprintln_indented(4, "", "---- found diagnostics ----");
@@ -592,7 +601,7 @@ impl TestData {
 
                 eprintln!(
                     "    | {}:{}: {}: {}",
-                    self.input_fathom_path.display(),
+                    self.format_file.display(),
                     expected.location.line_number,
                     severity,
                     expected.pattern,
@@ -603,14 +612,17 @@ impl TestData {
         }
 
         if !self.failed_checks.is_empty() {
-            eprintln!("failed {} checks:", self.failed_checks.len());
-            for check in self.failed_checks {
-                eprintln!("    {}", check);
-            }
-            eprintln!();
+            let mut msg = String::new();
 
-            panic!("failed {}", self.test_name);
+            writeln!(msg, "failed {} checks:", self.failed_checks.len()).unwrap();
+            for check in self.failed_checks {
+                writeln!(msg, "    • {}", check).unwrap();
+            }
+
+            return Outcome::Failed { msg: Some(msg) };
         }
+
+        Outcome::Passed
     }
 }
 
