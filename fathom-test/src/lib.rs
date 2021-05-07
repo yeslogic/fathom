@@ -154,17 +154,16 @@ fn run_full_test(_pikelet_bin: &str, test: &Test<TestData>, format_file: &Path) 
 
         // Check for errors in the directives
         if !diagnostics.is_empty() {
-            let mut msg = String::new();
-
-            writeln!(msg).unwrap();
-            writeln!(msg, "Failed to parse test directives:").unwrap();
-            writeln!(msg).unwrap();
-
             let mut buffer = BufferWriter::stderr(ColorChoice::Auto).buffer();
             for diagnostic in diagnostics {
                 term::emit(&mut buffer, &term_config, &files, &diagnostic).unwrap();
             }
 
+            let mut msg = String::new();
+
+            writeln!(msg).unwrap();
+            writeln!(msg, "Failed to parse test directives:").unwrap();
+            writeln!(msg).unwrap();
             writeln!(msg, "---- {} stderr ----", test.name).unwrap();
             msg.push_str(String::from_utf8_lossy(&buffer.as_slice()).trim_end());
 
@@ -199,7 +198,7 @@ fn run_full_test(_pikelet_bin: &str, test: &Test<TestData>, format_file: &Path) 
     full_test.roundtrip_core_to_pretty(&core_module);
     full_test.binary_parse_tests();
 
-    full_test.finish()
+    full_test.finish(&test.name)
 }
 
 struct FullTest<'a> {
@@ -209,7 +208,7 @@ struct FullTest<'a> {
     format_file_id: FileId,
     snapshot_file: PathBuf,
     directives: directives::Directives,
-    failed_checks: Vec<&'static str>,
+    failed_checks: Vec<(&'static str, String)>,
     found_messages: Vec<fathom::reporting::Message>,
 }
 
@@ -234,8 +233,6 @@ impl<'a> FullTest<'a> {
         let validation_messages = context.drain_messages().collect::<Vec<_>>();
 
         if !validation_messages.is_empty() {
-            self.failed_checks.push("surface_to_core: typing");
-
             let pretty_arena = pretty::Arena::new();
             let mut buffer = BufferWriter::stderr(ColorChoice::Auto).buffer();
 
@@ -244,11 +241,13 @@ impl<'a> FullTest<'a> {
                 term::emit(&mut buffer, &self.term_config, &self.files, &diagnostic).unwrap();
             }
 
-            eprintln!("  • surface_to_core: typing");
-            eprintln!();
-            eprintln!("    ---- found diagnostics ----");
-            eprintln_indented(4, "| ", &String::from_utf8_lossy(buffer.as_slice()));
-            eprintln!();
+            let mut msg = String::new();
+
+            writeln!(msg).unwrap();
+            writeln!(msg, "---- found diagnostics ----").unwrap();
+            msg.push_str(String::from_utf8_lossy(&buffer.as_slice()).trim_end());
+
+            self.failed_checks.push(("surface_to_core: typing", msg));
         }
 
         core_module
@@ -261,9 +260,6 @@ impl<'a> FullTest<'a> {
         let elaboration_messages = context.drain_messages().collect::<Vec<_>>();
 
         if !elaboration_messages.is_empty() {
-            self.failed_checks
-                .push("roundtrip_surface_to_core: surface_to_core");
-
             let pretty_arena = pretty::Arena::new();
             let mut buffer = BufferWriter::stderr(ColorChoice::Auto).buffer();
 
@@ -272,11 +268,14 @@ impl<'a> FullTest<'a> {
                 term::emit(&mut buffer, &self.term_config, &self.files, &diagnostic).unwrap();
             }
 
-            eprintln!("  • roundtrip_surface_to_core: surface_to_core");
-            eprintln!();
-            eprintln!("    ---- found diagnostics ----");
-            eprintln_indented(4, "| ", &String::from_utf8_lossy(buffer.as_slice()));
-            eprintln!();
+            let mut msg = String::new();
+
+            writeln!(msg).unwrap();
+            writeln!(msg, "---- found diagnostics ----").unwrap();
+            msg.push_str(String::from_utf8_lossy(&buffer.as_slice()).trim_end());
+
+            self.failed_checks
+                .push(("roundtrip_surface_to_core: surface_to_core", msg));
         }
 
         if surface_module != *core_module {
@@ -292,23 +291,18 @@ impl<'a> FullTest<'a> {
                 doc.pretty(100).to_string()
             };
 
-            self.failed_checks
-                .push("roundtrip_surface_to_core: core != surface_to_core(core_to_surface(core))");
+            let mut msg = String::new();
 
-            eprintln!(
-                "  • roundtrip_surface_to_core: core != surface_to_core(core_to_surface(core))",
-            );
-            eprintln!();
-            eprintln!("    ---- core ----");
-            for line in pretty_core_module.lines() {
-                eprintln_indented(4, "| ", line);
-            }
-            eprintln!();
-            eprintln!("    ---- surface_to_core(core_to_surface(core)) ----");
-            for line in pretty_surface_module.lines() {
-                eprintln_indented(4, "| ", line);
-            }
-            eprintln!();
+            writeln!(msg, "---- core ----").unwrap();
+            msg.push_str(pretty_core_module.trim_end());
+            writeln!(msg).unwrap();
+            writeln!(msg, "---- surface_to_core(core_to_surface(core)) ----").unwrap();
+            msg.push_str(pretty_surface_module.trim_end());
+
+            self.failed_checks.push((
+                "roundtrip_surface_to_core: core != surface_to_core(core_to_surface(core))",
+                msg,
+            ));
         }
     }
 
@@ -324,13 +318,14 @@ impl<'a> FullTest<'a> {
         if let Err(error) =
             snapshot::compare(&snapshot_core_fathom_path, &pretty_core_module.as_bytes())
         {
-            self.failed_checks.push("roundtrip_pretty_core: snapshot");
+            let mut msg = String::new();
 
-            eprintln!("  • roundtrip_pretty_core: snapshot");
-            eprintln!();
-            eprintln!("    ---- snapshot error ----");
-            eprintln_indented(4, "", &error.to_string());
-            eprintln!();
+            writeln!(msg).unwrap();
+            writeln!(msg, "---- snapshot error ----").unwrap();
+            msg.push_str(error.to_string().trim_end());
+
+            self.failed_checks
+                .push(("roundtrip_pretty_core: snapshot", msg));
         }
 
         let mut core_parse_messages = Vec::new();
@@ -349,8 +344,6 @@ impl<'a> FullTest<'a> {
         };
 
         if !core_parse_messages.is_empty() {
-            self.failed_checks.push("roundtrip_pretty_core: parse core");
-
             let pretty_arena = pretty::Arena::new();
             let mut buffer = BufferWriter::stderr(ColorChoice::Auto).buffer();
 
@@ -359,29 +352,28 @@ impl<'a> FullTest<'a> {
                 term::emit(&mut buffer, &self.term_config, &self.files, &diagnostic).unwrap();
             }
 
-            eprintln!("  • roundtrip_pretty_core: parse core");
-            eprintln!();
-            eprintln!("    ---- found diagnostics ----");
-            eprintln_indented(4, "| ", &String::from_utf8_lossy(buffer.as_slice()));
-            eprintln!();
+            let mut msg = String::new();
+
+            writeln!(msg).unwrap();
+            writeln!(msg, "---- found diagnostics ----").unwrap();
+            msg.push_str(String::from_utf8_lossy(&buffer.as_slice()).trim_end());
+
+            self.failed_checks
+                .push(("roundtrip_pretty_core: parse core", msg));
         }
 
         if parsed_core_module != *core_module {
-            self.failed_checks
-                .push("roundtrip_pretty_core: core != parse(pretty(core))");
+            let mut msg = String::new();
 
-            eprintln!("  • roundtrip_pretty_core: core != parse(pretty(core))");
-            eprintln!();
-            eprintln!("    ---- core ----");
-            for line in pretty_core_module.lines() {
-                eprintln_indented(4, "| ", line);
-            }
-            eprintln!();
-            eprintln!("    ---- parse(pretty(core)) ----");
-            for line in pretty_parsed_core_module.lines() {
-                eprintln_indented(4, "| ", line);
-            }
-            eprintln!();
+            writeln!(msg).unwrap();
+            writeln!(msg, "---- core ----").unwrap();
+            msg.push_str(pretty_core_module.trim_end());
+            writeln!(msg).unwrap();
+            writeln!(msg, "---- parse(pretty(core)) ----").unwrap();
+            msg.push_str(pretty_parsed_core_module.trim_end());
+
+            self.failed_checks
+                .push(("roundtrip_pretty_core: core != parse(pretty(core))", msg));
         }
     }
 
@@ -420,47 +412,48 @@ impl<'a> FullTest<'a> {
             .arg(&rust_source_file)
             .output();
 
-        fn eprintln_output(name: &str, output: &std::process::Output) {
+        fn render_output(name: &str, output: &std::process::Output) -> String {
+            let mut msg = String::new();
+
             if !output.status.success() {
-                eprintln!("    ---- {} status ----", name);
-                eprintln_indented(4, "| ", &output.status.to_string());
-                eprintln!();
+                writeln!(msg).unwrap();
+                writeln!(msg, "---- {} status ----", name).unwrap();
+                msg.push_str(output.status.to_string().trim_end());
             }
             if !output.stdout.is_empty() {
-                eprintln!("    ---- {} stdout ----", name);
-                eprintln_indented(4, "| ", &String::from_utf8_lossy(&output.stdout));
-                eprintln!();
+                writeln!(msg).unwrap();
+                writeln!(msg, "---- {} stdout ----", name).unwrap();
+                msg.push_str(String::from_utf8_lossy(&output.stdout).trim_end());
             }
             if !output.stderr.is_empty() {
-                eprintln!("    ---- {} stderr ----", name);
-                eprintln_indented(4, "| ", &String::from_utf8_lossy(&output.stderr));
-                eprintln!();
+                writeln!(msg).unwrap();
+                writeln!(msg, "---- {} stderr ----", name).unwrap();
+                msg.push_str(String::from_utf8_lossy(&output.stderr).trim_end());
             }
+
+            msg
         }
 
         let output = match output {
             Ok(output) => output,
             Err(error) => {
-                self.failed_checks.push("binary_parse_tests: execute rustc");
+                let mut msg = String::new();
 
-                eprintln!("  • binary_parse_tests: execute rustc");
-                eprintln!();
-                eprintln!("    ---- rustc error ----");
-                eprintln_indented(4, "", &error.to_string());
-                eprintln!();
+                writeln!(msg).unwrap();
+                writeln!(msg, "---- rustc error ----").unwrap();
+                msg.push_str(&error.to_string());
 
+                self.failed_checks
+                    .push(("binary_parse_tests: execute rustc", msg));
                 return;
             }
         };
 
         if !output.status.success() || !output.stdout.is_empty() || !output.stderr.is_empty() {
-            self.failed_checks
-                .push("binary_parse_tests: rust compile output");
-
-            eprintln!("  • binary_parse_tests: rust compile output");
-            eprintln!();
-            eprintln_output("rustc", &output);
-
+            self.failed_checks.push((
+                "binary_parse_tests: rust compile output",
+                render_output("rustc", &output),
+            ));
             return;
         }
 
@@ -473,26 +466,23 @@ impl<'a> FullTest<'a> {
         let output = match Command::new(&test_exe).arg("--color=always").output() {
             Ok(output) => output,
             Err(error) => {
-                self.failed_checks.push("binary_parse_tests: execute test");
+                let mut msg = String::new();
 
-                eprintln!("  • binary_parse_tests: execute test");
-                eprintln!();
-                eprintln!("    ---- {} error ----", test_exe.display());
-                eprintln_indented(4, "| ", &error.to_string());
-                eprintln!();
+                writeln!(msg).unwrap();
+                writeln!(msg, "---- {} error ----", test_exe.display()).unwrap();
+                msg.push_str(&error.to_string());
 
+                self.failed_checks
+                    .push(("binary_parse_tests: execute test", msg));
                 return;
             }
         };
 
         if !output.status.success() || !output.stderr.is_empty() {
-            self.failed_checks
-                .push("binary_parse_tests: rust test output");
-
-            eprintln!("  • binary_parse_tests: rust test output");
-            eprintln!();
-            eprintln_output(test_exe.to_str().unwrap(), &output);
-
+            self.failed_checks.push((
+                "binary_parse_tests: rust test output",
+                render_output(test_exe.to_str().unwrap(), &output),
+            ));
             return;
         }
     }
@@ -504,17 +494,17 @@ impl<'a> FullTest<'a> {
             .unwrap();
 
         if let Err(error) = snapshot::compare(&self.snapshot_file.with_extension("html"), &output) {
-            self.failed_checks.push("compile_doc: snapshot");
+            let mut msg = String::new();
 
-            eprintln!("  • compile_doc: snapshot");
-            eprintln!();
-            eprintln!("    ---- snapshot error ----");
-            eprintln_indented(4, "", &error.to_string());
-            eprintln!();
+            writeln!(msg).unwrap();
+            writeln!(msg, "---- snapshot error ----").unwrap();
+            msg.push_str(&error.to_string());
+
+            self.failed_checks.push(("compile_doc: snapshot", msg));
         }
     }
 
-    fn finish(mut self) -> Outcome {
+    fn finish(mut self, test_name: &str) -> Outcome {
         // Ensure that no unexpected diagnostics and no expected diagnostics remain
 
         let pretty_arena = pretty::Arena::new();
@@ -531,31 +521,24 @@ impl<'a> FullTest<'a> {
         );
 
         if !found_diagnostics.is_empty() {
-            self.failed_checks.push("unexpected_diagnostics");
-
-            eprintln!("Unexpected diagnostics found:");
-            eprintln!();
-
-            // Use a buffer so that this doesn't get printed interleaved with the
-            // test status output.
-
             let mut buffer = BufferWriter::stderr(ColorChoice::Auto).buffer();
             for diagnostic in &found_diagnostics {
                 term::emit(&mut buffer, &self.term_config, &self.files, diagnostic).unwrap();
             }
 
-            eprintln!("    ---- found diagnostics ----");
-            eprintln_indented(4, "| ", &String::from_utf8_lossy(buffer.as_slice()));
-            eprintln!();
+            let mut msg = String::new();
+
+            writeln!(msg).unwrap();
+            writeln!(msg, "---- found diagnostics ----").unwrap();
+            msg.push_str(String::from_utf8_lossy(&buffer.as_slice()).trim_end());
+
+            self.failed_checks.push(("unexpected_diagnostics", msg));
         }
 
         if !self.directives.expected_diagnostics.is_empty() {
-            self.failed_checks.push("expected_diagnostics");
+            let mut msg = String::new();
 
-            eprintln!("Expected diagnostics not found:");
-            eprintln!();
-
-            eprintln!("    ---- expected diagnostics ----");
+            writeln!(msg, "---- expected diagnostics ----").unwrap();
             for expected in &self.directives.expected_diagnostics {
                 let severity = match expected.severity {
                     Severity::Bug => "bug",
@@ -565,24 +548,36 @@ impl<'a> FullTest<'a> {
                     Severity::Help => "help",
                 };
 
-                eprintln!(
-                    "    | {}:{}: {}: {}",
+                writeln!(
+                    msg,
+                    "{}:{}: {}: {}",
                     self.format_file.display(),
                     expected.location.line_number,
                     severity,
                     expected.pattern,
-                );
+                )
+                .unwrap();
             }
-
-            eprintln!();
+            self.failed_checks.push(("expected_diagnostics", msg));
         }
 
         if !self.failed_checks.is_empty() {
             let mut msg = String::new();
 
-            writeln!(msg, "failed {} checks:", self.failed_checks.len()).unwrap();
-            for check in self.failed_checks {
-                writeln!(msg, "    • {}", check).unwrap();
+            writeln!(msg, "Found {} failures:", self.failed_checks.len()).unwrap();
+
+            for (check_name, details) in &self.failed_checks {
+                writeln!(msg, "    {}:", check_name).unwrap();
+                for line in details.lines() {
+                    writeln!(msg, "        {}", line).unwrap();
+                }
+                writeln!(msg).unwrap();
+            }
+
+            writeln!(msg).unwrap();
+            writeln!(msg, "    failures in {}:", test_name).unwrap();
+            for (check_name, _) in &self.failed_checks {
+                writeln!(msg, "        {}", check_name).unwrap();
             }
 
             return Outcome::Failed { msg: Some(msg) };
@@ -654,16 +649,4 @@ fn is_expected(
                 && expected_diagnostic.pattern.is_match(found_message)
         }
     })
-}
-
-fn eprintln_indented(indent: usize, prefix: &str, output: &str) {
-    for line in output.lines() {
-        eprintln!(
-            "{space: >indent$}{prefix}{line}",
-            space = "",
-            indent = indent,
-            prefix = prefix,
-            line = line,
-        );
-    }
 }
