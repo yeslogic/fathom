@@ -17,29 +17,6 @@ mod snapshot;
 use self::directives::ExpectedDiagnostic;
 
 lazy_static::lazy_static! {
-    static ref CARGO_METADATA: json::JsonValue = {
-        let output = Command::new(env!("CARGO"))
-            .arg("metadata")
-            .arg("--no-deps")
-            .arg("--format-version=1")
-            .output();
-
-        match output {
-            Err(error) => panic!("error executing `cargo metadata`: {}", error),
-            Ok(output) => match json::parse(&String::from_utf8_lossy(&output.stdout)) {
-                Err(error) => panic!("error parsing `cargo metadata`: {}", error),
-                Ok(metadata) => metadata,
-            }
-        }
-    };
-
-    static ref CARGO_TARGET_DIR: PathBuf = PathBuf::from(CARGO_METADATA["target_directory"].as_str().unwrap());
-    static ref CARGO_WORKSPACE_ROOT: PathBuf = PathBuf::from(CARGO_METADATA["workspace_root"].as_str().unwrap());
-    static ref CARGO_DEPS_DIR: PathBuf = CARGO_TARGET_DIR.join("debug").join("deps");
-    static ref CARGO_INCREMENTAL_DIR: PathBuf = CARGO_TARGET_DIR.join("debug").join("incremental");
-    static ref CARGO_FATHOM_RT_RLIB: PathBuf = CARGO_TARGET_DIR.join("debug").join("libfathom_runtime.rlib");
-    static ref CARGO_FATHOM_TEST_UTIL_RLIB: PathBuf = CARGO_TARGET_DIR.join("debug").join("libfathom_test_util.rlib");
-
     static ref GLOBALS: fathom::lang::core::Globals = fathom::lang::core::Globals::default();
 }
 
@@ -50,10 +27,6 @@ pub fn walk_files(root: impl AsRef<Path>) -> impl Iterator<Item = PathBuf> {
         .filter_map(|dir_entry| dir_entry.ok())
         .filter(|dir_entry| dir_entry.file_type().is_file())
         .map(|dir_entry| dir_entry.into_path())
-}
-
-fn is_fathom_path(path: &Path) -> bool {
-    matches!(path.extension(), Some(ext) if ext == "fathom")
 }
 
 pub enum TestData {
@@ -273,7 +246,7 @@ impl<'a> FullTest<'a> {
 
             eprintln!("  • surface_to_core: typing");
             eprintln!();
-            eprintln_indented(4, "", "---- found diagnostics ----");
+            eprintln!("    ---- found diagnostics ----");
             eprintln_indented(4, "| ", &String::from_utf8_lossy(buffer.as_slice()));
             eprintln!();
         }
@@ -301,7 +274,7 @@ impl<'a> FullTest<'a> {
 
             eprintln!("  • roundtrip_surface_to_core: surface_to_core");
             eprintln!();
-            eprintln_indented(4, "", "---- found diagnostics ----");
+            eprintln!("    ---- found diagnostics ----");
             eprintln_indented(4, "| ", &String::from_utf8_lossy(buffer.as_slice()));
             eprintln!();
         }
@@ -326,12 +299,12 @@ impl<'a> FullTest<'a> {
                 "  • roundtrip_surface_to_core: core != surface_to_core(core_to_surface(core))",
             );
             eprintln!();
-            eprintln_indented(4, "", "---- core ----");
+            eprintln!("    ---- core ----");
             for line in pretty_core_module.lines() {
                 eprintln_indented(4, "| ", line);
             }
             eprintln!();
-            eprintln_indented(4, "", "---- surface_to_core(core_to_surface(core)) ----");
+            eprintln!("    ---- surface_to_core(core_to_surface(core)) ----");
             for line in pretty_surface_module.lines() {
                 eprintln_indented(4, "| ", line);
             }
@@ -355,7 +328,7 @@ impl<'a> FullTest<'a> {
 
             eprintln!("  • roundtrip_pretty_core: snapshot");
             eprintln!();
-            eprintln_indented(4, "", "---- snapshot error ----");
+            eprintln!("    ---- snapshot error ----");
             eprintln_indented(4, "", &error.to_string());
             eprintln!();
         }
@@ -388,7 +361,7 @@ impl<'a> FullTest<'a> {
 
             eprintln!("  • roundtrip_pretty_core: parse core");
             eprintln!();
-            eprintln_indented(4, "", "---- found diagnostics ----");
+            eprintln!("    ---- found diagnostics ----");
             eprintln_indented(4, "| ", &String::from_utf8_lossy(buffer.as_slice()));
             eprintln!();
         }
@@ -399,12 +372,12 @@ impl<'a> FullTest<'a> {
 
             eprintln!("  • roundtrip_pretty_core: core != parse(pretty(core))");
             eprintln!();
-            eprintln_indented(4, "", "---- core ----");
+            eprintln!("    ---- core ----");
             for line in pretty_core_module.lines() {
                 eprintln_indented(4, "| ", line);
             }
             eprintln!();
-            eprintln_indented(4, "", "---- parse(pretty(core)) ----");
+            eprintln!("    ---- parse(pretty(core)) ----");
             for line in pretty_parsed_core_module.lines() {
                 eprintln_indented(4, "| ", line);
             }
@@ -413,121 +386,114 @@ impl<'a> FullTest<'a> {
     }
 
     fn binary_parse_tests(&mut self) {
-        // Test compiled output against rustc
+        let rust_source_file = self.format_file.with_extension("rs");
+        if !rust_source_file.exists() {
+            return;
+        }
+
+        let dependencies = &["fathom-runtime", "fathom-test-util"];
+
+        // Ensure that dependencies have been built prior to building the test
+        for package_name in dependencies {
+            Command::new(env!("CARGO"))
+                .args(&["build", "--package", package_name])
+                .output()
+                .unwrap();
+        }
+
+        let test_name = "binary_parser_test";
+        let target_dir = target_dir();
         let temp_dir = assert_fs::TempDir::new().unwrap();
 
-        let rs_path = match &self.format_file.with_extension("rs") {
-            input_rs_path if input_rs_path.exists() => input_rs_path.clone(),
-            _ => return,
-        };
-
-        let mut rustc_command = Command::new("rustc");
-
-        const CRATE_NAME: &str = "test";
-
-        rustc_command
-            .arg(format!("--out-dir={}", temp_dir.path().display()))
-            .arg(format!("--crate-name={}", CRATE_NAME))
+        // Build the test harness
+        let output = Command::new("rustc")
             .arg("--test")
-            .arg("--color=always")
             .arg("--edition=2018")
-            // Manually pass shared cargo directories
-            .arg("-C")
-            .arg(format!("incremental={}", CARGO_INCREMENTAL_DIR.display()))
-            .arg("-L")
-            .arg(format!("dependency={}", CARGO_DEPS_DIR.display()))
-            // Add `fathom-runtime` to the dependencies
-            .arg("--extern")
-            .arg(format!("fathom_runtime={}", CARGO_FATHOM_RT_RLIB.display()));
+            .arg(format!("--out-dir={}", temp_dir.display()))
+            .arg(format!("--crate-name={}", test_name))
+            .args(&["-L", target_dir.join("deps").to_str().unwrap()])
+            .args(dependencies.iter().flat_map(|package_name| {
+                let name = heck::SnakeCase::to_snake_case(*package_name);
+                let rlib = target_dir.join(format!("lib{}.rlib", name));
+                vec!["--extern".into(), format!("{}={}", name, rlib.display())]
+            }))
+            .arg(&rust_source_file)
+            .output();
 
-        // Ensure that fathom-runtime is present at `CARGO_FATHOM_RT_RLIB`
-        Command::new(env!("CARGO"))
-            .arg("build")
-            .arg("--package=fathom-runtime")
-            .output()
-            .unwrap();
-
-        // Ensure that fathom-test-util is present at `CARGO_FATHOM_TEST_UTIL_RLIB`
-        Command::new(env!("CARGO"))
-            .arg("build")
-            .arg("--package=fathom-test-util")
-            .output()
-            .unwrap();
-
-        // Add `fathom-test-util` to the dependencies
-        rustc_command.arg("--extern").arg(format!(
-            "fathom_test_util={}",
-            CARGO_FATHOM_TEST_UTIL_RLIB.display(),
-        ));
-
-        match rustc_command.arg(&rs_path).output() {
-            Ok(output) => {
-                if !output.status.success()
-                    || !output.stdout.is_empty()
-                    || !output.stderr.is_empty()
-                {
-                    self.failed_checks
-                        .push("binary_parse_tests: rust compile output");
-
-                    eprintln!("  • binary_parse_tests: rust compile output");
-                    eprintln!();
-                }
-
-                if !output.status.success() {
-                    eprintln_indented(4, "", "---- rustc status ----");
-                    eprintln_indented(4, "| ", &output.status.to_string());
-                    eprintln!();
-                }
-
-                if !output.stdout.is_empty() {
-                    eprintln_indented(4, "", "---- rustc stdout ----");
-                    eprintln_indented(4, "| ", &String::from_utf8_lossy(&output.stdout));
-                    eprintln!();
-                }
-
-                if !output.stderr.is_empty() {
-                    eprintln_indented(4, "", "---- rustc stderr ----");
-                    eprintln_indented(4, "| ", &String::from_utf8_lossy(&output.stderr));
-                    eprintln!();
-                }
+        fn eprintln_output(name: &str, output: &std::process::Output) {
+            if !output.status.success() {
+                eprintln!("    ---- {} status ----", name);
+                eprintln_indented(4, "| ", &output.status.to_string());
+                eprintln!();
             }
+            if !output.stdout.is_empty() {
+                eprintln!("    ---- {} stdout ----", name);
+                eprintln_indented(4, "| ", &String::from_utf8_lossy(&output.stdout));
+                eprintln!();
+            }
+            if !output.stderr.is_empty() {
+                eprintln!("    ---- {} stderr ----", name);
+                eprintln_indented(4, "| ", &String::from_utf8_lossy(&output.stderr));
+                eprintln!();
+            }
+        }
+
+        let output = match output {
+            Ok(output) => output,
             Err(error) => {
                 self.failed_checks.push("binary_parse_tests: execute rustc");
 
                 eprintln!("  • binary_parse_tests: execute rustc");
                 eprintln!();
-                eprintln_indented(4, "", "---- rustc error ----");
+                eprintln!("    ---- rustc error ----");
                 eprintln_indented(4, "", &error.to_string());
                 eprintln!();
+
+                return;
             }
+        };
+
+        if !output.status.success() || !output.stdout.is_empty() || !output.stderr.is_empty() {
+            self.failed_checks
+                .push("binary_parse_tests: rust compile output");
+
+            eprintln!("  • binary_parse_tests: rust compile output");
+            eprintln!();
+            eprintln_output("rustc", &output);
+
+            return;
         }
 
-        let test_path = temp_dir.path().join(CRATE_NAME);
-        match Command::new(&test_path).arg("--color=always").output() {
-            Ok(output) => {
-                if !output.status.success() {
-                    self.failed_checks
-                        .push("binary_parse_tests: rust test output");
+        // Run the test harness
 
-                    eprintln!("  • binary_parse_tests: rust test output");
-                    eprintln!();
-                    eprintln_indented(4, "", &format!("---- {} stdout ----", test_path.display()));
-                    eprintln_indented(4, "| ", &String::from_utf8_lossy(&output.stdout));
-                    eprintln!();
-                    eprintln_indented(4, "", &format!("---- {} stderr ----", test_path.display()));
-                    eprintln_indented(4, "| ", &String::from_utf8_lossy(&output.stderr));
-                    eprintln!();
-                }
-            }
+        let test_exe = temp_dir
+            .join(test_name)
+            .with_extension(env::consts::EXE_SUFFIX);
+
+        let output = match Command::new(&test_exe).arg("--color=always").output() {
+            Ok(output) => output,
             Err(error) => {
                 self.failed_checks.push("binary_parse_tests: execute test");
 
                 eprintln!("  • binary_parse_tests: execute test");
                 eprintln!();
-                eprintln_indented(4, "", &format!("---- {} error ----", test_path.display()));
+                eprintln!("    ---- {} error ----", test_exe.display());
                 eprintln_indented(4, "| ", &error.to_string());
                 eprintln!();
+
+                return;
             }
+        };
+
+        if !output.status.success() || !output.stderr.is_empty() {
+            self.failed_checks
+                .push("binary_parse_tests: rust test output");
+
+            eprintln!("  • binary_parse_tests: rust test output");
+            eprintln!();
+            eprintln_output(test_exe.to_str().unwrap(), &output);
+
+            return;
         }
     }
 
@@ -542,7 +508,7 @@ impl<'a> FullTest<'a> {
 
             eprintln!("  • compile_doc: snapshot");
             eprintln!();
-            eprintln_indented(4, "", "---- snapshot error ----");
+            eprintln!("    ---- snapshot error ----");
             eprintln_indented(4, "", &error.to_string());
             eprintln!();
         }
@@ -578,7 +544,7 @@ impl<'a> FullTest<'a> {
                 term::emit(&mut buffer, &self.term_config, &self.files, diagnostic).unwrap();
             }
 
-            eprintln_indented(4, "", "---- found diagnostics ----");
+            eprintln!("    ---- found diagnostics ----");
             eprintln_indented(4, "| ", &String::from_utf8_lossy(buffer.as_slice()));
             eprintln!();
         }
@@ -589,7 +555,7 @@ impl<'a> FullTest<'a> {
             eprintln!("Expected diagnostics not found:");
             eprintln!();
 
-            eprintln_indented(4, "", "---- expected diagnostics ----");
+            eprintln!("    ---- expected diagnostics ----");
             for expected in &self.directives.expected_diagnostics {
                 let severity = match expected.severity {
                     Severity::Bug => "bug",
@@ -624,6 +590,24 @@ impl<'a> FullTest<'a> {
 
         Outcome::Passed
     }
+}
+
+/// Returns the target directory for the test binary
+// Adapted from: https://github.com/rust-lang/cargo/blob/485670b3983b52289a2f353d589c57fae2f60f82/tests/testsuite/support/mod.rs#L507-L524
+fn target_dir() -> PathBuf {
+    env::current_exe()
+        .map(|mut path| {
+            path.pop();
+            if path.ends_with("deps") {
+                path.pop();
+            }
+            path
+        })
+        .unwrap()
+}
+
+fn is_fathom_path(path: &Path) -> bool {
+    matches!(path.extension(), Some(ext) if ext == "fathom")
 }
 
 fn retain_unexpected(

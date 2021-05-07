@@ -13,11 +13,11 @@ license = "Apache-2.0"
 [dependencies]
 assert_fs = "1.0"
 codespan-reporting =  "0.11"
+difference = "2.0"
 fathom = { path = "../fathom" }
 fathom-runtime = { path = "../fathom-runtime" }
 fathom-test-util = { path = "../fathom-test-util" }
-difference = "2.0"
-json = "0.12"
+heck = "0.3.2"
 lazy_static = "1.4"
 pretty = "0.10"
 regex = "1.4"
