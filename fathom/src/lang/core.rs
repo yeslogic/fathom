@@ -325,16 +325,17 @@ impl Default for Globals {
 ///
 /// [de-bruijn-index]: https://en.wikipedia.org/wiki/De_Bruijn_index
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
-pub struct LocalIndex(pub u32);
+pub struct LocalIndex(u32);
 
 impl LocalIndex {
-    /// Convert a local index to a local level in the current environment.
-    ///
-    /// `None` is returned if the local environment is not large enough to
-    /// contain the local variable.
-    pub fn to_level(self, size: LocalSize) -> Option<LocalLevel> {
-        Some(LocalLevel(u32::checked_sub(size.0, self.0 + 1)?))
+    pub fn to_usize(self) -> usize {
+        self.0 as usize
     }
+}
+
+/// An infinite iterator of local indices.
+pub fn local_indices() -> impl Iterator<Item = LocalIndex> {
+    (0..).map(LocalIndex)
 }
 
 /// A de Bruijn level in the local environment.
@@ -358,12 +359,8 @@ impl LocalIndex {
 pub struct LocalLevel(u32);
 
 impl LocalLevel {
-    /// Convert a local level to a local index in the current environment.
-    ///
-    /// `None` is returned if the local environment is not large enough to
-    /// contain the local variable.
-    pub fn to_index(self, size: LocalSize) -> Option<LocalIndex> {
-        Some(LocalIndex(u32::checked_sub(size.0, self.0 + 1)?))
+    pub fn to_usize(self) -> usize {
+        self.0 as usize
     }
 }
 
@@ -374,6 +371,10 @@ impl LocalLevel {
 pub struct LocalSize(u32);
 
 impl LocalSize {
+    pub fn to_usize(self) -> usize {
+        self.0 as usize
+    }
+
     /// Increments the local environment size by one.
     ///
     /// This is usually used for 'stepping inside a binder' during read-back.
@@ -384,6 +385,22 @@ impl LocalSize {
     /// Return the level of the next variable to be added to the environment.
     pub fn next_level(self) -> LocalLevel {
         LocalLevel(self.0)
+    }
+
+    /// Convert a local index to a local level in the current environment.
+    ///
+    /// `None` is returned if the environment is not large enough to
+    /// contain the local variable.
+    pub fn index_to_level(self, index: LocalIndex) -> Option<LocalLevel> {
+        Some(LocalLevel(self.0.checked_sub(index.0)?.checked_sub(1)?))
+    }
+
+    /// Convert a local level to a local index in the current environment.
+    ///
+    /// `None` is returned if the environment is not large enough to
+    /// contain the local variable.
+    pub fn level_to_index(self, level: LocalLevel) -> Option<LocalIndex> {
+        Some(LocalIndex(self.0.checked_sub(level.0)?.checked_sub(1)?))
     }
 }
 
@@ -404,7 +421,7 @@ impl<Entry: Clone> Locals<Entry> {
 
     /// Get the size of the environment.
     pub fn size(&self) -> LocalSize {
-        LocalSize(self.entries.len() as u32) // FIXME: Check for overflow?
+        LocalSize(self.entries.len() as u32)
     }
 
     /// Returns `true` if there are no entries in the environment.
@@ -414,13 +431,13 @@ impl<Entry: Clone> Locals<Entry> {
 
     /// Lookup an entry in the environment.
     pub fn get(&self, index: LocalIndex) -> Option<&Entry> {
-        let index = index.to_level(self.size())?;
-        self.entries.get(index.0 as usize)
+        let level = self.size().index_to_level(index)?;
+        self.entries.get(level.to_usize())
     }
 
     /// Push an entry onto the environment.
     pub fn push(&mut self, entry: Entry) {
-        self.entries.push_back(entry);
+        self.entries.push_back(entry); // FIXME: Check for overflow?
     }
 
     /// Pop an entry off the environment.
@@ -428,24 +445,14 @@ impl<Entry: Clone> Locals<Entry> {
         self.entries.pop_back()
     }
 
-    /// Pop a number of entries off the environment.
-    pub fn pop_many(&mut self, count: usize) {
-        let count = self.entries.len().saturating_sub(count);
-        self.entries.truncate(count);
+    /// Truncate an environment to a certain length.
+    pub fn truncate(&mut self, local_size: LocalSize) {
+        self.entries.truncate(local_size.to_usize());
     }
 
     /// Clear the entries from the environment.
     pub fn clear(&mut self) {
         self.entries.clear();
-    }
-
-    /// Returns a reverse iterator over the entries in the environment and the
-    /// indices where those entries were bound.
-    pub fn iter_rev(&self) -> impl Iterator<Item = (LocalIndex, &Entry)> {
-        (self.entries.iter().rev()).scan(0, |current_index, entry| {
-            let local_index = LocalIndex(std::mem::replace(current_index, *current_index + 1));
-            Some((local_index, entry))
-        })
     }
 }
 

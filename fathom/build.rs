@@ -1,9 +1,5 @@
-extern crate lalrpop;
-
-fn main() {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     lalrpop::Configuration::new()
         .always_use_colors()
-        .use_cargo_dir_conventions()
-        .process()
-        .unwrap();
+        .process_current_dir()
 }

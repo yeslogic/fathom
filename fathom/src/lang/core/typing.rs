@@ -9,7 +9,7 @@ use std::sync::Arc;
 
 use crate::lang::core::semantics::{self, Elim, Value};
 use crate::lang::core::{
-    Globals, ItemData, LocalLevel, Locals, Module, Primitive, Sort, Term, TermData,
+    Globals, ItemData, LocalIndex, LocalSize, Locals, Module, Primitive, Sort, Term, TermData,
 };
 use crate::lang::Location;
 use crate::reporting::{CoreTypingMessage, Message};
@@ -33,37 +33,43 @@ pub fn rule(sort0: Sort, sort1: Sort) -> Sort {
 }
 
 /// Contextual information to be used during validation.
-pub struct Context<'me> {
+pub struct Context<'globals> {
     /// The global environment.
-    globals: &'me Globals,
+    globals: &'globals Globals,
     /// Top-level item declarations.
     item_declarations: HashMap<String, Arc<Value>>,
     /// Top-level item definitions.
     item_definitions: HashMap<String, semantics::Item>,
     /// Local variable declarations.
-    local_declarations: Locals<Arc<Value>>,
+    local_declarations: Vec<Arc<Value>>,
     /// Local variable definitions.
     local_definitions: Locals<Arc<Value>>,
     /// Diagnostic messages collected during type checking.
     messages: Vec<Message>,
 }
 
-impl<'me> Context<'me> {
+impl<'globals> Context<'globals> {
     /// Create a new context.
-    pub fn new(globals: &'me Globals) -> Context<'me> {
+    pub fn new(globals: &'globals Globals) -> Context<'globals> {
         Context {
             globals,
             item_declarations: HashMap::new(),
             item_definitions: HashMap::new(),
-            local_declarations: Locals::new(),
+            local_declarations: Vec::new(),
             local_definitions: Locals::new(),
             messages: Vec::new(),
         }
     }
 
-    /// Get the next level to be used for a local entry.
-    fn next_level(&self) -> LocalLevel {
-        self.local_declarations.size().next_level()
+    /// Get the number of entries in the context.
+    fn size(&self) -> LocalSize {
+        self.local_definitions.size()
+    }
+
+    /// Get the type of a variable.
+    fn get_local_type(&self, local_index: LocalIndex) -> Option<&Arc<Value>> {
+        let local_level = self.size().index_to_level(local_index)?;
+        self.local_declarations.get(local_level.to_usize())
     }
 
     /// Push a local entry.
@@ -74,7 +80,7 @@ impl<'me> Context<'me> {
 
     /// Push a local parameter.
     fn push_local_param(&mut self, r#type: Arc<Value>) -> Arc<Value> {
-        let value = Arc::new(Value::local(self.next_level(), Vec::new()));
+        let value = Arc::new(Value::local(self.size().next_level(), Vec::new()));
         self.push_local(value.clone(), r#type);
         value
     }
@@ -86,10 +92,10 @@ impl<'me> Context<'me> {
         self.local_definitions.pop();
     }
 
-    /// Pop the given number of local entries.
-    fn pop_many_locals(&mut self, count: usize) {
-        self.local_declarations.pop_many(count);
-        self.local_definitions.pop_many(count);
+    /// Truncate number of local entries to the given size.
+    fn truncate_locals(&mut self, local_size: LocalSize) {
+        self.local_declarations.truncate(local_size.to_usize());
+        self.local_definitions.truncate(local_size);
     }
 
     /// Store a diagnostic message in the context for later reporting.
@@ -177,6 +183,8 @@ impl<'me> Context<'me> {
                 ItemData::StructType(struct_type) => {
                     use std::collections::HashSet;
 
+                    let initial_size = self.size();
+
                     // Check parameters
                     for (_, param_type) in struct_type.params.iter() {
                         self.synth_sort(param_type);
@@ -207,7 +215,7 @@ impl<'me> Context<'me> {
                     }
 
                     // Clean up the type checking context
-                    self.pop_many_locals(struct_type.params.len() + seen_field_labels.len());
+                    self.truncate_locals(initial_size);
 
                     // Build up the return type
                     let mut r#type = type_type;
@@ -226,6 +234,8 @@ impl<'me> Context<'me> {
                 ItemData::StructFormat(struct_format) => {
                     use std::collections::HashSet;
 
+                    let initial_size = self.size();
+
                     // Check parameters
                     for (_, param_type) in struct_format.params.iter() {
                         self.synth_sort(param_type);
@@ -243,7 +253,7 @@ impl<'me> Context<'me> {
                     // Check the field declarations
                     for field in struct_format.fields.iter() {
                         self.check_type(&field.type_, &format_type);
-                        let field_type = semantics::apply_repr(self.eval(&field.type_));
+                        let field_type = semantics::repr(self.eval(&field.type_));
 
                         if seen_field_labels.insert(field.label.data.clone()) {
                             self.push_local_param(field_type);
@@ -256,7 +266,7 @@ impl<'me> Context<'me> {
                     }
 
                     // Clean up the type checking context
-                    self.pop_many_locals(struct_format.params.len() + seen_field_labels.len());
+                    self.truncate_locals(initial_size);
 
                     // Build up the return type
                     let mut r#type = format_type;
@@ -297,7 +307,7 @@ impl<'me> Context<'me> {
     /// Validate that that a term is a well-formed type.
     #[debug_ensures(self.item_declarations.len() == old(self.item_declarations.len()))]
     #[debug_ensures(self.item_definitions.len() == old(self.item_definitions.len()))]
-    #[debug_ensures(self.local_declarations.size() == old(self.local_declarations.size()))]
+    #[debug_ensures(self.local_declarations.len() == old(self.local_declarations.len()))]
     #[debug_ensures(self.local_definitions.size() == old(self.local_definitions.size()))]
     pub fn synth_sort(&mut self, term: &Term) -> Option<Sort> {
         match self.synth_type(term).as_ref() {
@@ -316,7 +326,7 @@ impl<'me> Context<'me> {
     /// Validate that a term is an element of the given type.
     #[debug_ensures(self.item_declarations.len() == old(self.item_declarations.len()))]
     #[debug_ensures(self.item_definitions.len() == old(self.item_definitions.len()))]
-    #[debug_ensures(self.local_declarations.size() == old(self.local_declarations.size()))]
+    #[debug_ensures(self.local_declarations.len() == old(self.local_declarations.len()))]
     #[debug_ensures(self.local_definitions.size() == old(self.local_definitions.size()))]
     pub fn check_type(&mut self, term: &Term, expected_type: &Arc<Value>) {
         match (&term.data, expected_type.as_ref()) {
@@ -330,10 +340,9 @@ impl<'me> Context<'me> {
                 let field_declarations = match self.force_field_declarations(expected_type) {
                     Some(field_declarations) => field_declarations,
                     None => {
-                        let expected_type = self.read_back(expected_type);
                         self.push_message(CoreTypingMessage::UnexpectedStructTerm {
                             term_location: term.location,
-                            expected_type,
+                            expected_type: self.read_back(expected_type),
                         });
                         return;
                     }
@@ -458,7 +467,7 @@ impl<'me> Context<'me> {
     /// Synthesize the type of a term.
     #[debug_ensures(self.item_declarations.len() == old(self.item_declarations.len()))]
     #[debug_ensures(self.item_definitions.len() == old(self.item_definitions.len()))]
-    #[debug_ensures(self.local_declarations.size() == old(self.local_declarations.size()))]
+    #[debug_ensures(self.local_declarations.len() == old(self.local_declarations.len()))]
     #[debug_ensures(self.local_definitions.size() == old(self.local_definitions.size()))]
     pub fn synth_type(&mut self, term: &Term) -> Arc<Value> {
         match &term.data {
@@ -482,7 +491,7 @@ impl<'me> Context<'me> {
                     Arc::new(Value::Error)
                 }
             },
-            TermData::Local(local_index) => match self.local_declarations.get(*local_index) {
+            TermData::Local(local_index) => match self.get_local_type(*local_index) {
                 Some(r#type) => r#type.clone(),
                 None => {
                     self.push_message(CoreTypingMessage::LocalIndexNotFound {
@@ -567,10 +576,9 @@ impl<'me> Context<'me> {
                     }
                 }
 
-                let head_type = self.read_back(&head_type);
                 self.push_message(CoreTypingMessage::FieldNotFound {
                     head_location: head.location,
-                    head_type,
+                    head_type: self.read_back(&head_type),
                     label: label.clone(),
                 });
                 Arc::new(Value::Error)

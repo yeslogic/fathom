@@ -57,30 +57,29 @@ pub struct FieldDeclarations {
 impl FieldDeclarations {
     /// Apply a callback to each of the entries in the record closure.
     pub fn for_each_field(
-        self,
+        mut self,
         globals: &Globals,
         items: &HashMap<String, Item>,
         mut on_field: impl FnMut(&Located<String>, Option<Arc<Value>>) -> Arc<Value>,
     ) {
         let mut has_errors = false;
-        let mut locals = self.locals;
 
         for field_declaration in self.fields.iter() {
             if has_errors {
                 // Run the callback in a degraded state
                 on_field(&field_declaration.label, None);
             } else {
-                let r#type = eval(globals, items, &mut locals, &field_declaration.type_);
+                let r#type = eval(globals, items, &mut self.locals, &field_declaration.type_);
                 // Run the callback on the type, applying `repr` if necessary
                 let value = match self.is_format {
                     false => on_field(&field_declaration.label, Some(r#type)),
-                    true => on_field(&field_declaration.label, Some(apply_repr(r#type))),
+                    true => on_field(&field_declaration.label, Some(repr(r#type))),
                 };
                 match value.as_ref() {
                     // An error was seen! Switch to a degraded state.
                     Value::Error => has_errors = true,
                     // Add the value of the field to the local context
-                    _ => locals.push(value),
+                    _ => self.locals.push(value),
                 }
             }
         }
@@ -88,26 +87,22 @@ impl FieldDeclarations {
 
     /// Get the type of a field declaration.
     pub fn get_field_type(
-        self,
+        mut self,
         globals: &Globals,
         items: &HashMap<String, Item>,
         head: Arc<Value>,
         label: &str,
     ) -> Option<Arc<Value>> {
-        let mut locals = self.locals;
-
         for field_declaration in self.fields.iter() {
             if field_declaration.label.data == label {
-                let r#type = eval(globals, items, &mut locals, &field_declaration.type_);
+                let r#type = eval(globals, items, &mut self.locals, &field_declaration.type_);
                 return match self.is_format {
-                    true => Some(apply_repr(r#type)),
+                    true => Some(repr(r#type)),
                     false => Some(r#type),
                 };
             } else {
-                locals.push(apply_struct_elim(
-                    head.clone(),
-                    &field_declaration.label.data,
-                ));
+                let value = struct_elim(head.clone(), &field_declaration.label.data);
+                self.locals.push(value);
             }
         }
 
@@ -297,7 +292,7 @@ pub fn eval(
         TermData::Local(local_index) => match locals.get(*local_index) {
             Some(value) => value.clone(),
             None => {
-                let local_level = local_index.to_level(locals.size()).unwrap();
+                let local_level = locals.size().index_to_level(*local_index).unwrap();
                 Arc::new(Value::local(local_level, Vec::new()))
             }
         },
@@ -314,7 +309,7 @@ pub fn eval(
         TermData::FunctionElim(head, argument) => {
             let head = eval(globals, items, locals, head);
             let argument = eval(globals, items, locals, argument);
-            apply_function_elim(head, argument)
+            function_elim(head, argument)
         }
 
         TermData::StructTerm(field_definitions) => {
@@ -332,7 +327,7 @@ pub fn eval(
         }
         TermData::StructElim(head, field) => {
             let head = eval(globals, items, locals, head);
-            apply_struct_elim(head, field)
+            struct_elim(head, field)
         }
 
         TermData::ArrayTerm(elem_terms) => {
@@ -347,11 +342,11 @@ pub fn eval(
         TermData::Primitive(primitive) => Arc::new(Value::Primitive(primitive.clone())),
         TermData::BoolElim(head, if_true, if_false) => {
             let head = eval(globals, items, locals, head);
-            apply_bool_elim(globals, items, locals, head, if_true, if_false)
+            bool_elim(globals, items, locals, head, if_true, if_false)
         }
         TermData::IntElim(head, branches, default) => {
             let head = eval(globals, items, locals, head);
-            apply_int_elim(globals, items, locals, head, branches, default)
+            int_elim(globals, items, locals, head, branches, default)
         }
 
         TermData::FormatType => Arc::new(Value::FormatType),
@@ -362,9 +357,9 @@ pub fn eval(
     }
 }
 
-fn apply_function_elim(mut head: Arc<Value>, argument: Arc<Value>) -> Arc<Value> {
+fn function_elim(mut head: Arc<Value>, argument: Arc<Value>) -> Arc<Value> {
     match Arc::make_mut(&mut head) {
-        Value::Repr => apply_repr(argument),
+        Value::Repr => repr(argument),
         Value::Stuck(_, elims) => {
             elims.push(Elim::Function(argument));
             head
@@ -373,7 +368,7 @@ fn apply_function_elim(mut head: Arc<Value>, argument: Arc<Value>) -> Arc<Value>
     }
 }
 
-pub fn apply_struct_elim(mut head: Arc<Value>, field_name: &str) -> Arc<Value> {
+fn struct_elim(mut head: Arc<Value>, field_name: &str) -> Arc<Value> {
     match Arc::make_mut(&mut head) {
         Value::StructTerm(fields) => match fields.get(field_name) {
             Some(field) => field.clone(),
@@ -388,7 +383,7 @@ pub fn apply_struct_elim(mut head: Arc<Value>, field_name: &str) -> Arc<Value> {
 }
 
 #[debug_ensures(locals.size() == old(locals.size()))]
-fn apply_bool_elim(
+fn bool_elim(
     globals: &Globals,
     items: &HashMap<String, Item>,
     locals: &mut Locals<Arc<Value>>,
@@ -415,7 +410,7 @@ fn apply_bool_elim(
 }
 
 #[debug_ensures(locals.size() == old(locals.size()))]
-fn apply_int_elim(
+fn int_elim(
     globals: &Globals,
     items: &HashMap<String, Item>,
     locals: &mut Locals<Arc<Value>>,
@@ -436,8 +431,8 @@ fn apply_int_elim(
     }
 }
 
-pub fn apply_repr(mut argument: Arc<Value>) -> Arc<Value> {
-    match Arc::make_mut(&mut argument) {
+pub fn repr(mut head: Arc<Value>) -> Arc<Value> {
+    match Arc::make_mut(&mut head) {
         Value::Stuck(Head::Global(name), elims) => match (name.as_str(), elims.as_slice()) {
             ("U8", []) => Arc::new(Value::global("Int", Vec::new())),
             ("U16Be", []) => Arc::new(Value::global("Int", Vec::new())),
@@ -462,7 +457,7 @@ pub fn apply_repr(mut argument: Arc<Value>) -> Arc<Value> {
                     "Array",
                     vec![
                         Elim::Function(len.clone()),
-                        Elim::Function(apply_repr(elem_type.clone())),
+                        Elim::Function(repr(elem_type.clone())),
                     ],
                 ))
             }
@@ -476,7 +471,7 @@ pub fn apply_repr(mut argument: Arc<Value>) -> Arc<Value> {
         },
         Value::Stuck(_, elims) => {
             elims.push(Elim::Repr);
-            argument
+            head
         }
         _ => Arc::new(Value::Error),
     }
@@ -493,9 +488,9 @@ fn read_back_neutral(
     let head = match head {
         Head::Global(global_name) => Term::generated(TermData::Global(global_name.clone())),
         Head::Item(item_name) => Term::generated(TermData::Item(item_name.clone())),
-        Head::Local(local_level) => {
-            Term::generated(TermData::Local(local_level.to_index(local_size).unwrap()))
-        }
+        Head::Local(local_level) => Term::generated(TermData::Local(
+            local_size.level_to_index(*local_level).unwrap(),
+        )),
         Head::Error => Term::generated(TermData::Error),
     };
 

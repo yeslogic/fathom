@@ -23,15 +23,15 @@ use crate::pass::core_to_surface;
 use crate::reporting::{Message, SurfaceToCoreMessage};
 
 /// Contextual information to be used during elaboration.
-pub struct Context<'me> {
+pub struct Context<'globals> {
     /// The global environment.
-    globals: &'me core::Globals,
+    globals: &'globals core::Globals,
     /// Top-level item declarations.
     item_declarations: HashMap<String, Arc<Value>>,
     /// Top-level item definitions.
     item_definitions: HashMap<String, semantics::Item>,
     /// Local variable declarations.
-    local_declarations: core::Locals<(String, Arc<Value>)>,
+    local_declarations: Vec<(String, Arc<Value>)>,
     /// Local variable definitions.
     local_definitions: core::Locals<Arc<Value>>,
     /// Core-to-surface distillation context.
@@ -40,36 +40,36 @@ pub struct Context<'me> {
     messages: Vec<Message>,
 }
 
-impl<'me> Context<'me> {
+impl<'globals> Context<'globals> {
     /// Create a new context.
-    pub fn new(globals: &'me core::Globals) -> Context<'me> {
+    pub fn new(globals: &'globals core::Globals) -> Context<'globals> {
         Context {
             globals,
             item_declarations: HashMap::new(),
             item_definitions: HashMap::new(),
-            local_declarations: core::Locals::new(),
+            local_declarations: Vec::new(),
             local_definitions: core::Locals::new(),
             core_to_surface: core_to_surface::Context::new(),
             messages: Vec::new(),
         }
     }
 
-    /// Get the next level to be used for a local entry.
-    fn next_level(&self) -> core::LocalLevel {
-        self.local_declarations.size().next_level()
+    /// Get the number of local entries in the context.
+    fn size(&self) -> core::LocalSize {
+        self.local_definitions.size()
     }
 
     /// Get the most recently bound local variable of a given name.
     ///
     /// Returns the [`core::LocalIndex`] of the variable at the current binding
     /// depth and the type that the variable was bound with.
-    fn get_local(&self, name: &str) -> Option<(core::LocalIndex, &Arc<Value>)> {
-        for (local_index, (decl_name, r#type)) in self.local_declarations.iter_rev() {
-            if decl_name == name {
-                return Some((local_index, r#type));
-            }
-        }
-        None
+    fn get_local(&self, name: &str) -> Option<(&Arc<Value>, core::LocalIndex)> {
+        Iterator::zip(core::local_indices(), self.local_declarations.iter().rev()).find_map(
+            |(index, (decl_name, r#type))| match decl_name == name {
+                true => Some((r#type, index)),
+                false => None,
+            },
+        )
     }
 
     /// Push a local entry.
@@ -81,7 +81,7 @@ impl<'me> Context<'me> {
 
     /// Push a local parameter.
     fn push_local_param(&mut self, name: String, r#type: Arc<Value>) -> Arc<Value> {
-        let value = Arc::new(Value::local(self.next_level(), Vec::new()));
+        let value = Arc::new(Value::local(self.size().next_level(), Vec::new()));
         self.push_local(name, value.clone(), r#type);
         value
     }
@@ -94,11 +94,11 @@ impl<'me> Context<'me> {
         self.core_to_surface.pop_local();
     }
 
-    /// Pop the given number of local entries.
-    fn pop_many_locals(&mut self, count: usize) {
-        self.local_declarations.pop_many(count);
-        self.local_definitions.pop_many(count);
-        self.core_to_surface.pop_many_locals(count);
+    /// Truncate number of local entries to the given size.
+    fn truncate_locals(&mut self, local_size: core::LocalSize) {
+        self.local_declarations.truncate(local_size.to_usize());
+        self.local_definitions.truncate(local_size);
+        self.core_to_surface.truncate_locals(local_size);
     }
 
     /// Store a diagnostic message in the context for later reporting.
@@ -187,8 +187,7 @@ impl<'me> Context<'me> {
     /// [`Value`]: crate::lang::core::semantics::Value
     /// [`surface::Term`]: crate::lang::surface::Term
     pub fn read_back_to_surface(&mut self, value: &Value) -> Term {
-        let core_term = self.read_back(value);
-        self.core_to_surface(&core_term)
+        self.core_to_surface(&self.read_back(value))
     }
 
     /// Translate a surface module into a core module,
@@ -305,6 +304,9 @@ impl<'me> Context<'me> {
     ) -> (core::ItemData, semantics::ItemData, Arc<Value>) {
         use std::collections::hash_map::Entry;
 
+        // Remember the initial size, for later cleanup.
+        let initial_size = self.size();
+
         // Elaborate the parameters into the core language
         let mut params = Vec::with_capacity(struct_type.params.len());
         for (param_name, param_type) in &struct_type.params {
@@ -354,7 +356,7 @@ impl<'me> Context<'me> {
         }
 
         // Clean up the elaboration context
-        self.pop_many_locals(params.len() + seen_field_labels.len());
+        self.truncate_locals(initial_size);
 
         // Build up the return type
         let mut r#type = type_type;
@@ -382,6 +384,9 @@ impl<'me> Context<'me> {
         struct_type: &StructType,
     ) -> (core::ItemData, semantics::ItemData, Arc<Value>) {
         use std::collections::hash_map::Entry;
+
+        // Remember the initial size, for later cleanup.
+        let initial_size = self.size();
 
         // Elaborate the parameters into the core language
         let mut params = Vec::with_capacity(struct_type.params.len());
@@ -411,7 +416,7 @@ impl<'me> Context<'me> {
             match seen_field_labels.entry(field.label.data.clone()) {
                 Entry::Vacant(entry) => {
                     let core_type = Arc::new(core_type);
-                    let r#type = semantics::apply_repr(self.eval(&core_type));
+                    let r#type = semantics::repr(self.eval(&core_type));
 
                     core_field_declarations.push(core::FieldDeclaration {
                         doc: field.doc.clone(),
@@ -432,7 +437,7 @@ impl<'me> Context<'me> {
         }
 
         // Clean up the elaboration context
-        self.pop_many_locals(params.len() + seen_field_labels.len());
+        self.truncate_locals(initial_size);
 
         // Build up the return type
         let mut r#type = format_type;
@@ -458,7 +463,7 @@ impl<'me> Context<'me> {
     /// Validate that a surface term is a type, and translate it into the core syntax.
     #[debug_ensures(self.item_declarations.len() == old(self.item_declarations.len()))]
     #[debug_ensures(self.item_definitions.len() == old(self.item_definitions.len()))]
-    #[debug_ensures(self.local_declarations.size() == old(self.local_declarations.size()))]
+    #[debug_ensures(self.local_declarations.len() == old(self.local_declarations.len()))]
     #[debug_ensures(self.local_definitions.size() == old(self.local_definitions.size()))]
     pub fn is_type(&mut self, surface_term: &Term) -> (core::Term, Option<core::Sort>) {
         let (core_term, core_type) = self.synth_type(surface_term);
@@ -486,7 +491,7 @@ impl<'me> Context<'me> {
     /// core syntax.
     #[debug_ensures(self.item_declarations.len() == old(self.item_declarations.len()))]
     #[debug_ensures(self.item_definitions.len() == old(self.item_definitions.len()))]
-    #[debug_ensures(self.local_declarations.size() == old(self.local_declarations.size()))]
+    #[debug_ensures(self.local_declarations.len() == old(self.local_declarations.len()))]
     #[debug_ensures(self.local_definitions.size() == old(self.local_definitions.size()))]
     pub fn check_type(&mut self, surface_term: &Term, expected_type: &Arc<Value>) -> core::Term {
         match (&surface_term.data, expected_type.as_ref()) {
@@ -719,12 +724,12 @@ impl<'me> Context<'me> {
     /// Synthesize the type of a surface term, and elaborate it into the core syntax.
     #[debug_ensures(self.item_declarations.len() == old(self.item_declarations.len()))]
     #[debug_ensures(self.item_definitions.len() == old(self.item_definitions.len()))]
-    #[debug_ensures(self.local_declarations.size() == old(self.local_declarations.size()))]
+    #[debug_ensures(self.local_declarations.len() == old(self.local_declarations.len()))]
     #[debug_ensures(self.local_definitions.size() == old(self.local_definitions.size()))]
     pub fn synth_type(&mut self, surface_term: &Term) -> (core::Term, Arc<Value>) {
         match &surface_term.data {
             TermData::Name(name) => {
-                if let Some((index, r#type)) = self.get_local(name) {
+                if let Some((r#type, index)) = self.get_local(name) {
                     let term_data = core::TermData::Local(index);
                     let core_term = core::Term::new(surface_term.location, term_data);
                     return (core_term, r#type.clone());

@@ -5,7 +5,7 @@
 //! the user.
 
 use crate::lang::core::{
-    Item, ItemData, LocalIndex, Locals, Module, Primitive, Sort, Term, TermData,
+    Item, ItemData, LocalIndex, LocalSize, Locals, Module, Primitive, Sort, Term, TermData,
 };
 use crate::lang::{surface, Located};
 
@@ -15,17 +15,21 @@ pub struct Context {
 }
 
 impl Context {
+    /// Create a new context.
     pub fn new() -> Context {
         Context {
             local_names: Locals::new(),
         }
     }
 
+    /// Get the number of local entries in the context.
+    fn size(&self) -> LocalSize {
+        self.local_names.size()
+    }
+
     /// Get the surface name of a local binding.
     fn get_local(&self, index: LocalIndex) -> Option<&str> {
-        self.local_names
-            .get(index)
-            .map(|local_name| local_name.as_str())
+        self.local_names.get(index).map(String::as_str)
     }
 
     /// Push a local entry.
@@ -40,8 +44,8 @@ impl Context {
     }
 
     /// Pop the given number of local entries.
-    pub fn pop_many_locals(&mut self, count: usize) {
-        self.local_names.pop_many(count);
+    pub fn truncate_locals(&mut self, local_size: LocalSize) {
+        self.local_names.truncate(local_size);
     }
 
     pub fn from_module(&mut self, module: &Module) -> surface::Module {
@@ -73,6 +77,9 @@ impl Context {
                 })
             }
             ItemData::StructType(struct_type) => {
+                // Remember the initial size, for later cleanup.
+                let initial_size = self.size();
+
                 let mut params = Vec::with_capacity(struct_type.params.len());
                 for (param_name, param_type) in struct_type.params.iter() {
                     params.push((param_name.clone(), self.from_term(param_type)));
@@ -92,7 +99,8 @@ impl Context {
                     });
                 }
 
-                self.pop_many_locals(params.len() + field_declarations.len());
+                // Clean up the distillation context
+                self.truncate_locals(initial_size);
 
                 surface::ItemData::StructType(surface::StructType {
                     doc: struct_type.doc.clone(),
@@ -103,6 +111,9 @@ impl Context {
                 })
             }
             ItemData::StructFormat(struct_format) => {
+                // Remember the initial size, for later cleanup.
+                let initial_size = self.size();
+
                 let mut params = Vec::with_capacity(struct_format.params.len());
                 for (param_name, param_type) in struct_format.params.iter() {
                     params.push((param_name.clone(), self.from_term(param_type)));
@@ -122,7 +133,8 @@ impl Context {
                     });
                 }
 
-                self.pop_many_locals(params.len() + field_declarations.len());
+                // Clean up the distillation context
+                self.truncate_locals(initial_size);
 
                 surface::ItemData::StructType(surface::StructType {
                     doc: struct_format.doc.clone(),
