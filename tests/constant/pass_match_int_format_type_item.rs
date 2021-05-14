@@ -6,7 +6,7 @@ use fathom_test_util::fathom::lang::core::{self, binary};
 
 fathom_test_util::core_module!(
     FIXTURE,
-    "../../snapshots/constant/pass_match_int_format_type_item.core.fathom"
+    "./snapshots/pass_match_int_format_type_item.core.fathom"
 );
 
 #[test]

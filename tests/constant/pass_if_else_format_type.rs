@@ -4,10 +4,7 @@ use fathom_runtime::{F64Be, FormatWriter, ReadError, ReadScope, U8};
 use fathom_test_util::fathom::lang::core::semantics::Value;
 use fathom_test_util::fathom::lang::core::{self, binary};
 
-fathom_test_util::core_module!(
-    FIXTURE,
-    "../../snapshots/constant/pass_if_else_format_type.core.fathom"
-);
+fathom_test_util::core_module!(FIXTURE, "./snapshots/pass_if_else_format_type.core.fathom");
 
 #[test]
 fn eof_inner() {

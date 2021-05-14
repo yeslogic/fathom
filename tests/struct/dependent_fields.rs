@@ -1,23 +1,23 @@
 #![cfg(test)]
 
-use fathom_runtime::{FormatWriter, ReadError, ReadScope, I8, U8};
+use fathom_runtime::{FormatWriter, ReadError, ReadScope, U32Be, U8};
 use fathom_test_util::fathom::lang::core::semantics::Value;
 use fathom_test_util::fathom::lang::core::{self, binary};
 use std::collections::BTreeMap;
 use std::iter::FromIterator;
 use std::sync::Arc;
 
-fathom_test_util::core_module!(FIXTURE, "../../snapshots/struct/pass_pair.core.fathom");
+fathom_test_util::core_module!(FIXTURE, "./snapshots/dependent_fields.core.fathom");
 
 #[test]
-fn eof_first() {
+fn eof_len() {
     let writer = FormatWriter::new(vec![]);
 
     let globals = core::Globals::default();
     let mut reader = ReadScope::new(writer.buffer()).reader();
     let mut read_context = binary::read::Context::new(&globals, &FIXTURE);
 
-    match read_context.read_item(&mut reader, &"PairFormat") {
+    match read_context.read_item(&mut reader, &"ArrayFormat") {
         Err(ReadError::Eof(_)) => {}
         Err(err) => panic!("eof error expected, found: {:?}", err),
         Ok(_) => panic!("error expected, found: Ok(_)"),
@@ -27,15 +27,16 @@ fn eof_first() {
 }
 
 #[test]
-fn eof_second() {
+fn eof_data() {
     let mut writer = FormatWriter::new(vec![]);
-    writer.write::<U8>(255); // PairFormat::first
+    writer.write::<U32Be>(255); // ArrayFormat::len
+    writer.write::<U32Be>(1); // ArrayFormat::data[0]
 
     let globals = core::Globals::default();
     let mut reader = ReadScope::new(writer.buffer()).reader();
     let mut read_context = binary::read::Context::new(&globals, &FIXTURE);
 
-    match read_context.read_item(&mut reader, &"PairFormat") {
+    match read_context.read_item(&mut reader, &"ArrayFormat") {
         Err(ReadError::Eof(_)) => {}
         Err(err) => panic!("eof error expected, found: {:?}", err),
         Ok(_) => panic!("error expected, found: Ok(_)"),
@@ -45,10 +46,12 @@ fn eof_second() {
 }
 
 #[test]
-fn valid_pair() {
+fn valid_array_format() {
     let mut writer = FormatWriter::new(vec![]);
-    writer.write::<U8>(31); // PairFormat::first
-    writer.write::<I8>(-30); // PairFormat::second
+    writer.write::<U32Be>(3); // ArrayFormat::len
+    writer.write::<U32Be>(1); // ArrayFormat::data[0]
+    writer.write::<U32Be>(2); // ArrayFormat::data[1]
+    writer.write::<U32Be>(3); // ArrayFormat::data[2]
 
     let globals = core::Globals::default();
     let mut reader = ReadScope::new(writer.buffer()).reader();
@@ -56,11 +59,18 @@ fn valid_pair() {
 
     fathom_test_util::assert_is_equal!(
         globals,
-        read_context.read_item(&mut reader, &"PairFormat").unwrap(),
+        read_context.read_item(&mut reader, &"ArrayFormat").unwrap(),
         (
             Value::StructTerm(BTreeMap::from_iter(vec![
-                ("first".to_owned(), Arc::new(Value::int(31))),
-                ("second".to_owned(), Arc::new(Value::int(-30))),
+                ("len".to_owned(), Arc::new(Value::int(3))),
+                (
+                    "data".to_owned(),
+                    Arc::new(Value::ArrayTerm(vec![
+                        Arc::new(Value::int(1)),
+                        Arc::new(Value::int(2)),
+                        Arc::new(Value::int(3)),
+                    ])),
+                ),
             ])),
             Vec::new(),
         ),
@@ -70,10 +80,9 @@ fn valid_pair() {
 }
 
 #[test]
-fn valid_pair_trailing() {
+fn valid_array_format_trailing() {
     let mut writer = FormatWriter::new(vec![]);
-    writer.write::<U8>(255); // PairFormat::first
-    writer.write::<I8>(-30); // PairFormat::second
+    writer.write::<U32Be>(0); // ArrayFormat::len
     writer.write::<U8>(42);
 
     let globals = core::Globals::default();
@@ -82,11 +91,11 @@ fn valid_pair_trailing() {
 
     fathom_test_util::assert_is_equal!(
         globals,
-        read_context.read_item(&mut reader, &"PairFormat").unwrap(),
+        read_context.read_item(&mut reader, &"ArrayFormat").unwrap(),
         (
             Value::StructTerm(BTreeMap::from_iter(vec![
-                ("first".to_owned(), Arc::new(Value::int(255))),
-                ("second".to_owned(), Arc::new(Value::int(-30))),
+                ("len".to_owned(), Arc::new(Value::int(0))),
+                ("data".to_owned(), Arc::new(Value::ArrayTerm(Vec::new()))),
             ])),
             Vec::new(),
         ),

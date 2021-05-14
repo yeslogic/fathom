@@ -1,12 +1,12 @@
 #![cfg(test)]
 
-use fathom_runtime::{F64Be, FormatWriter, ReadError, ReadScope, U8};
+use fathom_runtime::{F64Le, FormatWriter, ReadError, ReadScope, U8};
 use fathom_test_util::fathom::lang::core::semantics::Value;
 use fathom_test_util::fathom::lang::core::{self, binary};
 
 fathom_test_util::core_module!(
     FIXTURE,
-    "../../snapshots/constant/pass_if_else_format_type_item.core.fathom"
+    "./snapshots/pass_match_int_format_type.core.fathom"
 );
 
 #[test]
@@ -29,7 +29,7 @@ fn eof_inner() {
 #[test]
 fn valid_test() {
     let mut writer = FormatWriter::new(vec![]);
-    writer.write::<F64Be>(23.64e10); // Test::inner
+    writer.write::<F64Le>(23.64e10); // Test::inner
 
     let globals = core::Globals::default();
     let mut reader = ReadScope::new(writer.buffer()).reader();
@@ -47,7 +47,7 @@ fn valid_test() {
 #[test]
 fn valid_test_trailing() {
     let mut writer = FormatWriter::new(vec![]);
-    writer.write::<F64Be>(781.453298); // Test::inner
+    writer.write::<F64Le>(781.453298); // Test::inner
     writer.write::<U8>(42);
 
     let globals = core::Globals::default();

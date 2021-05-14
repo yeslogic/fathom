@@ -5,10 +5,7 @@ use fathom_test_util::fathom::lang::core::semantics::Value;
 use fathom_test_util::fathom::lang::core::{self, binary};
 use std::sync::Arc;
 
-fathom_test_util::core_module!(
-    FIXTURE,
-    "../../snapshots/constant/pass_format_array.core.fathom"
-);
+fathom_test_util::core_module!(FIXTURE, "./snapshots/pass_format_array.core.fathom");
 
 #[test]
 fn eof_inner() {

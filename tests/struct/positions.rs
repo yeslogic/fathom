@@ -7,7 +7,7 @@ use std::collections::BTreeMap;
 use std::iter::FromIterator;
 use std::sync::Arc;
 
-fathom_test_util::core_module!(FIXTURE, "../../snapshots/struct/positions.core.fathom");
+fathom_test_util::core_module!(FIXTURE, "./snapshots/positions.core.fathom");
 
 #[test]
 fn eof_inner() {

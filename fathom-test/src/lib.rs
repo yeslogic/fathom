@@ -24,6 +24,7 @@ lazy_static::lazy_static! {
 pub fn walk_files(root: impl AsRef<Path>) -> impl Iterator<Item = PathBuf> {
     WalkDir::new(root)
         .into_iter()
+        .filter_entry(|dir_entry| !dir_entry.path().ends_with("snapshots"))
         .filter_map(|dir_entry| dir_entry.ok())
         .filter(|dir_entry| dir_entry.file_type().is_file())
         .map(|dir_entry| dir_entry.into_path())
@@ -105,10 +106,8 @@ fn run_full_test(_fathom_exe: &str, format_file: &Path) -> Outcome {
     let term_config = term::Config::default();
 
     // Build snapshot file base
-    // TODO: reconfigure snapshot directories to make this less cursed?
-    let snapshot_file = PathBuf::from("tests/snapshots") // FIXME: blgergh
-        .join(format_file.strip_prefix("tests/input").unwrap()) // FIXME: blgergh
-        .with_extension("");
+    let snapshot_dir = format_file.parent().unwrap().join("snapshots");
+    let snapshot_file = snapshot_dir.join(format_file.file_stem().unwrap());
 
     // Load the format file
     let format_file_id = match fs::read_to_string(&format_file) {

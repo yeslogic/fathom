@@ -6,7 +6,7 @@ use fathom_test_util::fathom::lang::core::{self, binary};
 use std::collections::BTreeMap;
 use std::iter::FromIterator;
 
-fathom_test_util::core_module!(FIXTURE, "../../snapshots/struct/pass_empty.core.fathom");
+fathom_test_util::core_module!(FIXTURE, "./snapshots/pass_empty.core.fathom");
 
 #[test]
 fn valid_empty() {
