@@ -21,13 +21,14 @@ lazy_static::lazy_static! {
 }
 
 /// Recursively walk over test files under a file path.
-pub fn walk_files(root: impl AsRef<Path>) -> impl Iterator<Item = PathBuf> {
+pub fn find_fathom_files(root: impl AsRef<Path>) -> impl Iterator<Item = PathBuf> {
     WalkDir::new(root)
         .into_iter()
-        .filter_entry(|dir_entry| !dir_entry.path().ends_with("snapshots"))
-        .filter_map(|dir_entry| dir_entry.ok())
-        .filter(|dir_entry| dir_entry.file_type().is_file())
-        .map(|dir_entry| dir_entry.into_path())
+        .filter_entry(|entry| !entry.path().ends_with("snapshots"))
+        .filter_map(|entry| entry.ok())
+        .filter(|entry| entry.file_type().is_file())
+        .filter(|entry| matches!(entry.path().extension(), Some(ext) if ext == "fathom"))
+        .map(|entry| entry.into_path())
 }
 
 pub enum TestData {
@@ -35,31 +36,23 @@ pub enum TestData {
     Full(PathBuf),
 }
 
-pub fn extract_simple_test(path: PathBuf) -> Option<Test<TestData>> {
-    if is_fathom_path(&path) {
-        Some(Test {
-            name: path.display().to_string(),
-            kind: String::new(),
-            is_ignored: false,
-            is_bench: false,
-            data: TestData::Simple(path),
-        })
-    } else {
-        None
+pub fn simple_test(path: PathBuf) -> Test<TestData> {
+    Test {
+        name: path.display().to_string(),
+        kind: String::new(),
+        is_ignored: false,
+        is_bench: false,
+        data: TestData::Simple(path),
     }
 }
 
-pub fn extract_full_test(path: PathBuf) -> Option<Test<TestData>> {
-    if is_fathom_path(&path) {
-        Some(Test {
-            name: path.display().to_string(),
-            kind: String::new(),
-            is_ignored: false,
-            is_bench: false,
-            data: TestData::Full(path),
-        })
-    } else {
-        None
+pub fn full_test(path: PathBuf) -> Test<TestData> {
+    Test {
+        name: path.display().to_string(),
+        kind: String::new(),
+        is_ignored: false,
+        is_bench: false,
+        data: TestData::Full(path),
     }
 }
 
@@ -497,10 +490,6 @@ fn target_dir() -> PathBuf {
             path
         })
         .unwrap()
-}
-
-fn is_fathom_path(path: &Path) -> bool {
-    matches!(path.extension(), Some(ext) if ext == "fathom")
 }
 
 fn retain_unexpected(
