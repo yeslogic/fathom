@@ -57,6 +57,60 @@ struct Offset32 (base : Pos) (format : Format) : Format {
 }
 
 
+// # OpenType Tables
+
+// # Digital Signature Table (DSIG)
+//
+// ## References
+//
+// - https://docs.microsoft.com/en-us/typography/opentype/spec/dsig
+
+struct SignatureBlockFormat1 : Format {
+    /// Reserved for future use; set to zero.
+    // TODO: reserved1 : Reserved U16Be 0,
+    reserved1 : U16Be,
+    /// Reserved for future use; set to zero.
+    // TODO: reserved2 : Reserved U16Be 0,
+    reserved2 : U16Be,
+    /// Length (in bytes) of the PKCS#7 packet in the signature field.
+    signature_length : U32Be,
+    /// PKCS#7 packet
+    signature : FormatArray signature_length U8,
+}
+
+// TODO: requires union types
+// union SignatureBlock : Format {
+//     SignatureBlockFormat1,
+// }
+
+const SignatureBlock = SignatureBlockFormat1;
+
+struct SignatureRecord (digital_signature_start : Pos) : Format {
+    /// Format of the signature
+    format : U32Be,
+    /// Length of signature in bytes
+    length : U32Be,
+    /// Offset to the signature block from the beginning of the table
+    offset : Offset32 digital_signature_start SignatureBlock,
+}
+
+/// # Digital Signature Table (DSIG)
+struct DigitalSignatureTable (length : Int) : Format {
+    start : CurrentPos,
+
+    /// Version number of the DSIG table (0x00000001)
+    version : U32Be, // TODO: constrain version
+    /// Number of signatures in the table
+    num_signatures : U16Be,
+    /// permission flags Bit 0: cannot be resigned Bits 1-7: Reserved (Set to 0)
+    // TODO: flags : Reserved U16Be 0
+    flags : U16Be,
+    /// Array of signature records
+    signature_records : FormatArray num_signatures (SignatureRecord start),
+}
+
+
+
 // # OpenType Top Level Organization
 //
 // ## References
@@ -76,6 +130,94 @@ struct Offset32 (base : Pos) (format : Format) : Format {
 struct FontTable (tag : repr Tag) (length : Int) : Format {
     // TODO: match on `tag`
 }
+
+// TODO: requires array patterns and functions
+// FontTable (tag : repr Tag) (length : Int) : Format = match tag {
+//     // Required Tables
+//     // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#required-tables
+//     "cmap" =>Table CharMap,                      // Character to glyph mapping
+//     "head" => FontHeaderTable,                   // Font header
+//     "hhea" => HorizontalHeaderTable,             // Horizontal header
+//     "hmtx" => UnknownTable,                      // Horizontal metrics // TODO: Depends on `num_glyphs` and `number_of_h_metrics` from "hhea"
+//     "maxp" => MaximumProfileTable,               // Maximum profile
+//     "name" => NamingTable,                       // Naming table
+//     "OS/2" => Os2Table,                          // OS/2 and Windows specific metrics
+//     "post" => PostScriptTable,                   // PostScript information
+//
+//     // Tables Related to TrueType Outlines
+//     // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#tables-related-to-truetype-outlines
+//
+//     "cvt " => ControlValueTable length,          // Control Value Table (optional table)
+//     "fpgm" => FontProgramTable length,           // Font program (optional table)
+//     "glyf" => UnknownTable,                      // Glyph data // TODO: Depends on `num_glyphs` from "maxp"
+//     "loca" => UnknownTable,                      // Index to location // TODO: Depends on `num_glyphs` from "maxp", offset to "glyph", `index_to_loc_format` from "head"
+//     "prep" => ControlValueProgramTable length,   // CVT Program (optional table)
+//     "gasp" => GridFittingScanConversionTable,    // Grid-fitting/Scan-conversion (optional table)
+//
+//     // Tables Related to CFF Outlines
+//     // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#tables-related-to-cff-outlines
+//     "CFF " => UnknownTable,                      // Compact Font Format 1.0
+//     "CFF2" => UnknownTable,                      // Compact Font Format 2.0
+//     "VORG" => VerticalOriginTable,               // Vertical Origin (optional table)
+//
+//     // Table Related to SVG Outlines
+//     // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#table-related-to-svg-outlines
+//     "SVG " => SvgTable,                          // The SVG (Scalable Vector Graphics) table
+//
+//     // Tables Related to Bitmap Glyphs
+//     // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#tables-related-to-bitmap-glyphs
+//     "EBDT" => EmbeddedBitmapDataTable,           // Embedded bitmap data // TODO: Depends on "EBLC" table
+//     "EBLC" => EmbeddedBitmapLocationDataTable,   // Embedded bitmap location data // TODO: Depends on "EBDT" table start position
+//     "EBSC" => EmbeddedBitmapScalingDataTable,    // Embedded bitmap scaling data
+//     "CBDT" => UnknownTable,                      // Color bitmap data
+//     "CBLC" => UnknownTable,                      // Color bitmap location data
+//     "sbix" => UnknownTable,                      // Standard bitmap graphics
+//
+//     // Advanced Typographic Tables
+//     // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#advanced-typographic-tables
+//     "BASE" => BaselineDataTable,                 // Baseline data
+//     "GDEF" => GlyphDefinitionDataTable,          // Glyph definition data
+//     "GPOS" => GlyphPositioningDataTable,         // Glyph positioning data
+//     "GSUB" => GlyphSubstitutionDataTable,        // Glyph substitution data
+//     "JSTF" => JustificationDataTable,            // Justification data
+//     "MATH" => MathLayoutDataTable,               // Math layout data
+//
+//     // Tables used for OpenType Font Variations
+//     // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#tables-used-for-opentype-font-variations
+//     "avar" => AxisVariationsTable,               // Axis variations
+//     "cvar" => ControlValueVariationsTable,       // CVT variations (TrueType outlines only)
+//     "fvar" => FontVariationsTable,               // Font variations
+//     "gvar" => UnknownTable,                      // Glyph variations (TrueType outlines only)
+//     "HVAR" => UnknownTable,                      // Horizontal metrics variations
+//     "MVAR" => UnknownTable,                      // Metrics variations
+//     // "STAT" => StyleAttributesTable,              // Style attributes (required for variable fonts, optional for non-variable fonts)
+//     "VVAR" => UnknownTable,                      // Vertical metrics variations
+//
+//     // Tables Related to Color Fonts
+//     // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#tables-related-to-color-fonts
+//     "COLR" => ColorTable,                        // Color table
+//     "CPAL" => ColorPaletteTable,                 // Color palette table
+//     // "CBDT" => UnknownTable,                      // Color bitmap data
+//     // "CBLC" => UnknownTable,                      // Color bitmap location data
+//     // "sbix" => UnknownTable,                      // Standard bitmap graphics
+//     // "SVG " => SvgTable,                          // The SVG (Scalable Vector Graphics) table
+//
+//     // Other OpenType Tables
+//     // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#other-opentype-tables
+//     "DSIG" => DigitalSignatureTable length,      // Digital signature
+//     "hdmx" => UnknownTable,                      // Horizontal device metrics // TODO: Depends on `num_glyphs` from "maxp"
+//     "kern" => KerningTable,                      // Kerning
+//     "LTSH" => LinearThresholdTable,              // Linear threshold data // TODO: Depends on `num_glyphs` from "maxp"
+//     "MERG" => MergeTable,                        // Merge
+//     "meta" => MetadataTable,                     // Metadata
+//     "STAT" => StyleAttributesTable,              // Style attributes
+//     "PCLT" => Pcl5Table,                         // PCL 5 data
+//     "VDMX" => VerticalDeviceMetricsTable,        // Vertical device metrics
+//     "vhea" => VerticalHeaderTable,               // Vertical Metrics header
+//     "vmtx" => UnknownTable,                      // Vertical Metrics // TODO: Depends on `num_glyphs` from "maxp" and `num_of_long_vertical_metrics` from "vhea"
+//
+//     _ => UnknownTable,
+// }
 
 /// # Table Record
 ///
@@ -131,6 +273,63 @@ struct TableDirectory (file_start : Pos) : Format {
     table_records : FormatArray num_tables (TableRecord file_start),
 }
 
+
+// # Font Collections
+//
+//
+// ## References
+//
+// - https://docs.microsoft.com/en-us/typography/opentype/spec/otff#organization-of-an-opentype-font
+
+// TODO: requires union types
+// /// # TTC Header
+// ///
+// /// ## References
+// ///
+// /// - https://docs.microsoft.com/en-us/typography/opentype/spec/otff#ttc-header
+// union TtcHeader (file_start : Pos) : Format {
+//     TtcHeader1 file_start,
+//     TtcHeader2 file_start,
+// }
+
+struct TtcHeader1 (file_start : Pos) : Format {
+    /// Font Collection ID
+    ttc_tag : Tag,
+    /// Major version of the TTC Header, = 1
+    major_version : U16Be,      // TODO: where `major_version == 1`
+    /// Minor version of the TTC Header, = 0
+    minor_version : U16Be,      // TODO: constrain version
+    /// Number of fonts in TTC
+    num_fonts : U32Be,
+    /// Array of offsets to the `TableDirectory` for each font from the beginning of the file
+    offset_tables : FormatArray num_fonts (Offset32 file_start (TableDirectory file_start)),
+}
+
+struct TtcHeader2 (file_start : Pos) : Format {
+    /// Font Collection ID
+    ttc_tag : Tag,
+    /// Major version of the TTC Header, = 2
+    major_version : U16Be,      // TODO: where `major_version == 2`
+    /// Minor version of the TTC Header, = 0
+    minor_version : U16Be,      // TODO: constrain version
+    /// Number of fonts in TTC
+    num_fonts : U32Be,
+    /// Array of offsets to the `TableDirectory` for each font from the beginning of the file
+    offset_tables : FormatArray num_fonts (Offset32 file_start (TableDirectory file_start)),
+    /// Tag indicating that a DSIG table exists, 0x44534947 ('DSIG') (null if no signature)
+    digital_signature_tag : U32Be, // FIXME: Optional Tag?
+    /// The length (in bytes) of the DSIG table (null if no signature)
+    digital_signature_length : U32Be,
+    /// The offset (in bytes) of the DSIG table from the beginning of the TTC file
+    digital_signature_offset : Offset32 file_start (DigitalSignatureTable digital_signature_length),
+}
+
+
+// TODO: requires union types
+// union OpenType (file_start : Pos) : Format {
+//     TableDirectory file_start,
+//     TtcHeader file_start,
+// }
 
 /// # OpenType file
 ///
