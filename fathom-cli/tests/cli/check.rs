@@ -3,7 +3,7 @@ use predicates::prelude::*;
 use std::process::Command;
 
 #[test]
-fn check_missing_format_file() -> anyhow::Result<()> {
+fn missing_format_file() -> anyhow::Result<()> {
     let mut cmd = Command::cargo_bin("fathom")?;
 
     cmd.args(&["check", "--format-file=../examples/nope.fathom"]);
@@ -22,7 +22,7 @@ fn check_missing_format_file() -> anyhow::Result<()> {
 }
 
 #[test]
-fn check_stl() -> anyhow::Result<()> {
+fn stl() -> anyhow::Result<()> {
     let mut cmd = Command::cargo_bin("fathom")?;
 
     cmd.args(&["check", "--format-file=../examples/stl.fathom"]);
@@ -36,7 +36,7 @@ fn check_stl() -> anyhow::Result<()> {
 }
 
 #[test]
-fn check_stl_validate_core() -> anyhow::Result<()> {
+fn stl_validate_core() -> anyhow::Result<()> {
     let mut cmd = Command::cargo_bin("fathom")?;
 
     cmd.args(&[
@@ -54,7 +54,7 @@ fn check_stl_validate_core() -> anyhow::Result<()> {
 }
 
 #[test]
-fn check_stl_emit_core() -> anyhow::Result<()> {
+fn stl_emit_core() -> anyhow::Result<()> {
     let mut cmd = Command::cargo_bin("fathom")?;
 
     cmd.args(&[

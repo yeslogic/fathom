@@ -84,9 +84,9 @@ impl fmt::Display for SnapshotError {
                 for diff in &changeset.diffs {
                     match diff {
                         // TODO: Colored diffs
-                        Diff::Same(data) => write_lines(f, "      ", data)?,
-                        Diff::Add(data) => write_lines(f, "    + ", data)?,
-                        Diff::Rem(data) => write_lines(f, "    - ", data)?,
+                        Diff::Same(data) => write_lines(f, "  ", data)?,
+                        Diff::Add(data) => write_lines(f, "+ ", data)?,
+                        Diff::Rem(data) => write_lines(f, "- ", data)?,
                     }
                 }
                 writeln!(f)?;

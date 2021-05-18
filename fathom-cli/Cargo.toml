@@ -12,6 +12,14 @@ license = "Apache-2.0"
 name = "fathom"
 path = "src/main.rs"
 
+[[test]]
+name = "cli"
+path = "tests/cli/lib.rs"
+
+[[test]]
+name = "source_tests"
+harness = false
+
 [dependencies]
 anyhow = "1.0"
 codespan-reporting = "0.11"
@@ -22,4 +30,6 @@ exitcode = "1.1.2"
 
 [dev-dependencies]
 assert_cmd = "1"
+fathom-test = { path = "../fathom-test" }
+libtest-mimic = "0.3.0"
 predicates = "1"
