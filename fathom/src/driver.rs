@@ -11,38 +11,22 @@ use crate::lang::{core, surface, FileId};
 use crate::pass::{core_to_pretty, surface_to_core, surface_to_doc, surface_to_pretty};
 use crate::reporting::Message;
 
+pub mod diagnostic;
+
 lazy_static::lazy_static! {
     static ref GLOBALS: core::Globals = core::Globals::default();
-}
-
-/// The width of the terminal to use when printing diagnostics.
-#[derive(Debug, Copy, Clone)]
-pub enum TermWidth {
-    /// Detect wrapping from the terminal width
-    Auto,
-    /// No wrapping
-    None,
-    /// Explicit terminal width
-    Explicit(u16),
-}
-
-impl TermWidth {
-    fn compute(self) -> usize {
-        match self {
-            TermWidth::Auto => termsize::get().map_or(usize::MAX, |size| usize::from(size.cols)),
-            TermWidth::None => usize::MAX,
-            TermWidth::Explicit(count) => usize::from(count),
-        }
-    }
 }
 
 /// Fathom compiler driver
 pub struct Driver {
     validate_core: bool,
+
     emit_core: bool,
     emit_width: TermWidth,
     emit_writer: Box<dyn WriteColor>,
+
     codespan_config: codespan_reporting::term::Config,
+    diagnostic_style: diagnostic::Style,
     diagnostic_writer: Box<dyn WriteColor>,
 
     files: SimpleFiles<String, String>,
@@ -57,10 +41,13 @@ impl Driver {
     pub fn new() -> Driver {
         Driver {
             validate_core: false,
+
             emit_core: false,
             emit_width: TermWidth::Auto,
             emit_writer: Box::new(BufferedStandardStream::stdout(ColorChoice::Auto)),
+
             codespan_config: codespan_reporting::term::Config::default(),
+            diagnostic_style: diagnostic::Style::Human,
             diagnostic_writer: Box::new(BufferedStandardStream::stderr(ColorChoice::Auto)),
 
             files: SimpleFiles::new(),
@@ -81,7 +68,7 @@ impl Driver {
         self.validate_core = validate_core;
     }
 
-    /// Set the width to use for printing diagnostics.
+    /// Set the width to use when emitting data and intermediate languages.
     pub fn set_emit_width(&mut self, emit_width: TermWidth) {
         self.emit_width = emit_width;
     }
@@ -89,6 +76,11 @@ impl Driver {
     /// Set the writer to use when emitting data and intermediate languages
     pub fn set_emit_writer(&mut self, stream: impl 'static + WriteColor) {
         self.emit_writer = Box::new(stream) as Box<dyn WriteColor>;
+    }
+
+    /// Set the diagnostic style to use when rendering diagnostics.
+    pub fn set_diagnostic_style(&mut self, diagnostic_style: diagnostic::Style) {
+        self.diagnostic_style = diagnostic_style;
     }
 
     /// Set the writer to use when rendering diagnostics
@@ -246,6 +238,27 @@ impl Driver {
         }
 
         core_module
+    }
+}
+
+/// The width of the terminal to use when printing diagnostics.
+#[derive(Debug, Copy, Clone)]
+pub enum TermWidth {
+    /// Detect wrapping from the terminal width
+    Auto,
+    /// No wrapping
+    None,
+    /// Explicit terminal width
+    Explicit(u16),
+}
+
+impl TermWidth {
+    fn compute(self) -> usize {
+        match self {
+            TermWidth::Auto => termsize::get().map_or(usize::MAX, |size| usize::from(size.cols)),
+            TermWidth::None => usize::MAX,
+            TermWidth::Explicit(count) => usize::from(count),
+        }
     }
 }
 

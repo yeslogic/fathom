@@ -1,5 +1,5 @@
 use codespan_reporting::term::termcolor::ColorChoice;
-use fathom::driver::TermWidth;
+use fathom::driver::{diagnostic, TermWidth};
 use structopt::StructOpt;
 
 mod commands;
@@ -17,6 +17,16 @@ pub struct Options {
         parse(try_from_str = parse_color_choice),
     )]
     color: ColorChoice,
+    /// How diagnostics are rendered
+    #[structopt(
+        long = "diagnostic-style",
+        name = "STYLE",
+        default_value = "human",
+        case_insensitive = true,
+        possible_values = &["human", "json"],
+        parse(try_from_str = parse_diagnostic_style),
+    )]
+    diagnostic_style: diagnostic::Style,
     /// The width of terminal to use when wrapping diagnostic output
     #[structopt(
         long = "term-width",
@@ -27,6 +37,7 @@ pub struct Options {
         parse(try_from_str = parse_term_width),
     )]
     term_width: TermWidth,
+
     #[structopt(subcommand)]
     command: Command,
 }
@@ -56,6 +67,14 @@ fn parse_color_choice(src: &str) -> Result<ColorChoice, &'static str> {
         () if src.eq_ignore_ascii_case("ansi") => Ok(ColorChoice::AlwaysAnsi),
         () if src.eq_ignore_ascii_case("never") => Ok(ColorChoice::Never),
         () => Err("valid values: auto, always, ansi, never"),
+    }
+}
+
+fn parse_diagnostic_style(src: &str) -> Result<diagnostic::Style, &'static str> {
+    match () {
+        () if src.eq_ignore_ascii_case("human") => Ok(diagnostic::Style::Human),
+        () if src.eq_ignore_ascii_case("json") => Ok(diagnostic::Style::Json),
+        () => Err("valid values: human, json"),
     }
 }
 
