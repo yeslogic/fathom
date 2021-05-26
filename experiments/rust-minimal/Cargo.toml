@@ -1,0 +1,14 @@
+[package]
+name = "fathom-minimal"
+version = "0.1.0"
+authors = ["Brendan Zabarauskas <bjzaba@yahoo.com.au>"]
+edition = "2018"
+publish = false
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+fxhash = "0.2"
+string-interner = "0.12"
+structopt = "0.3"
+typed-arena = "2.0"
