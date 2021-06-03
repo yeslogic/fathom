@@ -31,13 +31,11 @@
 //   - [ ] pretty printing
 //   - [ ] integration tests
 
-#![warn(rust_2018_idioms)]
-
 pub type Symbol = string_interner::symbol::SymbolU16;
 pub type Interner = string_interner::StringInterner<
     Symbol,
     string_interner::backend::BucketBackend<Symbol>,
-    fxhash::FxHasher32,
+    std::hash::BuildHasherDefault<fxhash::FxHasher32>,
 >;
 
 /// De-bruijn index
@@ -339,6 +337,8 @@ pub mod core {
 }
 
 pub mod surface {
+    use lalrpop_util::lalrpop_mod;
+
     use crate::Symbol;
 
     pub type TermRef<'arena> = &'arena Term<'arena>;
@@ -351,6 +351,46 @@ pub mod surface {
         FunIntro(Symbol, TermRef<'arena>),
         FunElim(TermRef<'arena>, TermRef<'arena>),
     }
+
+    mod lexer {
+        use logos::Logos;
+
+        #[derive(Clone, Debug, Logos)]
+        pub enum Token<'source> {
+            #[regex(r"[a-zA-Z_][a-zA-Z0-9_]*")]
+            Ident(&'source str),
+
+            #[token("fun")]
+            KeywordFun,
+            #[token("let")]
+            KeywordLet,
+            #[token("in")]
+            KeywordIn,
+
+            #[token(":")]
+            Colon,
+            #[token("=")]
+            Equals,
+            #[token("=>")]
+            EqualsGreater,
+            #[token("->")]
+            HyphenGreater,
+
+            #[token("(")]
+            OpenParen,
+            #[token(")")]
+            CloseParen,
+
+            #[error]
+            #[regex(r"\p{Whitespace}", logos::skip)]
+            #[regex(r"//(.*)\n", logos::skip)]
+            Error,
+        }
+    }
+
+    lalrpop_mod!(grammar);
+
+    // TODO: pretty print terms
 }
 
 pub mod elaboration {
@@ -370,9 +410,9 @@ pub mod elaboration {
     }
 
     impl<'arena> Context<'arena> {
-        pub fn new(term_arena: &'arena Arena<core::Term<'arena>>) -> Context<'arena> {
+        pub fn new(arena: &'arena Arena<core::Term<'arena>>) -> Context<'arena> {
             Context {
-                arena: term_arena,
+                arena,
                 types: Vec::new(),
                 env: ValueEnv::new(),
                 messages: Vec::new(),
@@ -547,4 +587,8 @@ pub mod elaboration {
             }
         }
     }
+}
+
+pub mod distillation {
+    // TODO: distill terms from core to surface
 }

@@ -1,0 +1,71 @@
+use typed_arena::Arena;
+
+use crate::Interner;
+use crate::surface::Term;
+use crate::surface::lexer::Token;
+
+grammar<'arena, 'source>(interner: &mut Interner, arena: &'arena Arena<Term<'arena>>);
+
+extern {
+    type Location = usize;
+
+    enum Token<'source> {
+        "ident" => Token::Ident(<&'source str>),
+
+        "fun" => Token::KeywordFun,
+        "let" => Token::KeywordLet,
+        "in" => Token::KeywordIn,
+
+        "(" => Token::OpenParen,
+        ")" => Token::CloseParen,
+
+        ":" => Token::Colon,
+        "=" => Token::Equals,
+        "=>" => Token::EqualsGreater,
+        "->" => Token::HyphenGreater,
+    }
+}
+
+pub Term : Term<'arena> = {
+    ArrowTerm,
+    "let" <name: "ident"> ":" <def_type: ArrowTerm> "=" <def_expr: ArrowTerm> "in" <body_expr: Term> => {
+        Term::Let(
+            interner.get_or_intern(name),
+            arena.alloc(def_type),
+            arena.alloc(def_expr),
+            arena.alloc(body_expr),
+        )
+    },
+};
+
+ArrowTerm: Term<'arena> = {
+    AppTerm,
+    "("<name: "ident"> ":" <input_type: Term> ")" "->"  <output_type: ArrowTerm> => {
+        Term::FunType(
+            interner.get_or_intern(name),
+            arena.alloc(input_type),
+            arena.alloc(output_type),
+        )
+    },
+    "fun" <name: "ident"> "=>" <output_type: ArrowTerm> => {
+        Term::FunIntro(
+            interner.get_or_intern(name),
+            arena.alloc(output_type),
+        )
+    },
+};
+
+AppTerm: Term<'arena> = {
+    AtomicTerm,
+    <head_expr: AppTerm> <input_expr: AtomicTerm> => {
+        Term::FunElim(
+            arena.alloc(head_expr),
+            arena.alloc(input_expr),
+        )
+    },
+};
+
+AtomicTerm : Term<'arena> = {
+    <name: "ident"> => Term::Var(interner.get_or_intern(name)),
+    "(" <term: Term> ")" => term,
+};
