@@ -161,24 +161,28 @@ pub mod core {
             Fun(Arc<Value<'arena>>),
         }
 
+        /// A closure that will be later evaluated in the presence of an input expression.
         #[derive(Clone)]
         pub struct Closure<'arena> {
+            /// Captured environment.
             env: ValueEnv<'arena>,
-            term: TermRef<'arena>,
+            /// The body expression.
+            body_expr: TermRef<'arena>,
         }
 
         impl<'arena> Closure<'arena> {
-            pub fn new(env: ValueEnv<'arena>, term: TermRef<'arena>) -> Closure<'arena> {
-                Closure { env, term }
+            pub fn new(env: ValueEnv<'arena>, body_expr: TermRef<'arena>) -> Closure<'arena> {
+                Closure { env, body_expr }
             }
 
+            /// Apply an input to the closure.
             pub fn apply(
                 &self,
                 input_expr: Arc<Value<'arena>>,
             ) -> Result<Arc<Value<'arena>>, EvalError> {
                 let mut env = self.env.clone(); // FIXME: ValueEnv::clone
-                env.push_entry(input_expr);
-                eval(&mut env, self.term)
+                env.push_entry(input_expr); // Add the input expression to the environment
+                eval(&mut env, self.body_expr) // Evaluate the body expression
             }
         }
 
@@ -400,7 +404,7 @@ pub mod surface {
         ) -> impl 'source + Iterator<Item = Result<Spanned<Token<'source>, usize>, ()>> {
             Token::lexer(source)
                 .spanned()
-                .map(move |(token, range)| match token {
+                .map(|(token, range)| match token {
                     Token::Error => Err(()),
                     token => Ok((range.start, token, range.end)),
                 })
@@ -420,13 +424,17 @@ pub mod surface {
         FunElim(TermRef<'arena>, TermRef<'arena>),
     }
 
+    // TODO: Convert to an internal error message
+    pub type ParseError<'source> = lalrpop_util::ParseError<usize, lexer::Token<'source>, ()>;
+
     impl<'arena> Term<'arena> {
+        /// Parse a term from the `source` string, interning strings to the
+        /// supplied `interner` and allocating nodes to the `arena`.
         pub fn parse<'source>(
             interner: &mut StringInterner,
             arena: &'arena Arena<Term<'arena>>,
             source: &'source str,
-        ) -> Result<Term<'arena>, lalrpop_util::ParseError<usize, lexer::Token<'source>, ()>>
-        {
+        ) -> Result<Term<'arena>, ParseError<'source>> {
             grammar::TermParser::new().parse(interner, arena, lexer::tokens(source))
         }
     }
