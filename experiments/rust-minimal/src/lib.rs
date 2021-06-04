@@ -12,16 +12,18 @@
 //   - [x] let expressions
 //   - [x] dependent functions
 //   - [ ] dependent records
+//   - [ ] top-level items
+//   - [ ] recursive definitions
 //   - [ ] binary format descriptions
 //     - [ ] error formats
 //     - [ ] map formats
 //     - [ ] pure formats
 //     - [ ] bind formats
 // - implementation
-//   - [ ] command line interface
-//   - [ ] parser
+//   - [x] command line interface
+//   - [x] parser
 //   - [ ] source location tracking
-//   - [ ] string interning
+//   - [x] string interning
 //   - [x] arena allocation
 //   - [x] normalisation-by-evaluation
 //      - [ ] improved closure representation
@@ -131,6 +133,8 @@ pub mod core {
     pub mod semantics {
         use std::sync::Arc;
 
+        use typed_arena::Arena;
+
         use crate::core::{Term, TermRef};
         use crate::{Env, EnvLen, GlobalVar, Symbol};
 
@@ -182,11 +186,11 @@ pub mod core {
         }
 
         pub fn normalise<'in_arena, 'out_arena>(
-            alloc: &dyn Fn(Term<'out_arena>) -> TermRef<'out_arena>,
+            arena: &'out_arena Arena<Term<'out_arena>>,
             env: &mut ValueEnv<'in_arena>,
             term: &Term<'in_arena>,
         ) -> Result<Term<'out_arena>, EvalError> {
-            readback(alloc, env.len(), eval(env, term)?.as_ref())
+            readback(arena, env.len(), eval(env, term)?.as_ref())
         }
 
         pub fn eval<'arena>(
@@ -239,7 +243,7 @@ pub mod core {
 
         /// Read a [value][`Value`] back into a [term][`Term`].
         pub fn readback<'in_arena, 'out_arena>(
-            alloc: &dyn Fn(Term<'out_arena>) -> TermRef<'out_arena>,
+            arena: &'out_arena Arena<Term<'out_arena>>,
             env_len: EnvLen,
             value: &Value<'in_arena>,
         ) -> Result<Term<'out_arena>, EvalError> {
@@ -249,8 +253,8 @@ pub mod core {
                     for elim in elims {
                         head_expr = match elim {
                             Elim::Fun(input_expr) => {
-                                let input_expr = readback(alloc, env_len, input_expr)?;
-                                Term::FunElim(alloc(head_expr), alloc(input_expr))
+                                let input_expr = readback(arena, env_len, input_expr)?;
+                                Term::FunElim(arena.alloc(head_expr), arena.alloc(input_expr))
                             }
                         };
                     }
@@ -258,19 +262,23 @@ pub mod core {
                 }
                 Value::Universe => Ok(Term::Universe),
                 Value::FunType(name, input_type, output_type) => {
-                    let input_type = readback(alloc, env_len, input_type)?;
+                    let input_type = readback(arena, env_len, input_type)?;
                     let var = Arc::new(Value::Stuck(env_len.next_global(), Vec::new()));
                     let output_type = output_type.apply(var)?;
-                    let output_type = readback(alloc, env_len.add_param(), &output_type)?;
+                    let output_type = readback(arena, env_len.add_param(), &output_type)?;
 
-                    Ok(Term::FunType(*name, alloc(input_type), alloc(output_type)))
+                    Ok(Term::FunType(
+                        *name,
+                        arena.alloc(input_type),
+                        arena.alloc(output_type),
+                    ))
                 }
                 Value::FunIntro(name, output_expr) => {
                     let var = Arc::new(Value::Stuck(env_len.next_global(), Vec::new()));
                     let output_expr = output_expr.apply(var)?;
-                    let output_expr = readback(alloc, env_len.add_param(), &output_expr)?;
+                    let output_expr = readback(arena, env_len.add_param(), &output_expr)?;
 
-                    Ok(Term::FunIntro(*name, alloc(output_expr)))
+                    Ok(Term::FunIntro(*name, arena.alloc(output_expr)))
                 }
             }
         }
@@ -338,21 +346,11 @@ pub mod core {
 
 pub mod surface {
     use lalrpop_util::lalrpop_mod;
+    use typed_arena::Arena;
 
-    use crate::Symbol;
+    use crate::{Interner, Symbol};
 
-    pub type TermRef<'arena> = &'arena Term<'arena>;
-
-    pub enum Term<'arena> {
-        Var(Symbol),
-        Let(Symbol, TermRef<'arena>, TermRef<'arena>, TermRef<'arena>),
-        Universe,
-        FunType(Symbol, TermRef<'arena>, TermRef<'arena>),
-        FunIntro(Symbol, TermRef<'arena>),
-        FunElim(TermRef<'arena>, TermRef<'arena>),
-    }
-
-    mod lexer {
+    pub mod lexer {
         use logos::Logos;
 
         #[derive(Clone, Debug, Logos)]
@@ -386,9 +384,44 @@ pub mod surface {
             #[regex(r"//(.*)\n", logos::skip)]
             Error,
         }
+
+        pub type Spanned<Tok, Loc> = (Loc, Tok, Loc);
+
+        pub fn tokens<'source>(
+            source: &'source str,
+        ) -> impl 'source + Iterator<Item = Result<Spanned<Token<'source>, usize>, ()>> {
+            Token::lexer(source)
+                .spanned()
+                .map(move |(token, range)| match token {
+                    Token::Error => Err(()),
+                    token => Ok((range.start, token, range.end)),
+                })
+        }
     }
 
     lalrpop_mod!(grammar);
+
+    pub type TermRef<'arena> = &'arena Term<'arena>;
+
+    pub enum Term<'arena> {
+        Var(Symbol),
+        Let(Symbol, TermRef<'arena>, TermRef<'arena>, TermRef<'arena>),
+        Universe,
+        FunType(Symbol, TermRef<'arena>, TermRef<'arena>),
+        FunIntro(Symbol, TermRef<'arena>),
+        FunElim(TermRef<'arena>, TermRef<'arena>),
+    }
+
+    impl<'arena> Term<'arena> {
+        pub fn parse<'source>(
+            interner: &mut Interner,
+            arena: &'arena Arena<Term<'arena>>,
+            source: &'source str,
+        ) -> Result<Term<'arena>, lalrpop_util::ParseError<usize, lexer::Token<'source>, ()>>
+        {
+            grammar::TermParser::new().parse(interner, arena, lexer::tokens(source))
+        }
+    }
 
     // TODO: pretty print terms
 }
@@ -447,10 +480,10 @@ pub mod elaboration {
 
         pub fn normalize<'out_arena>(
             &mut self,
-            alloc: &dyn Fn(core::Term<'out_arena>) -> core::TermRef<'out_arena>,
+            arena: &'out_arena Arena<core::Term<'out_arena>>,
             term: &core::Term<'arena>,
         ) -> Option<core::Term<'out_arena>> {
-            semantics::normalise(alloc, &mut self.env, term).ok() // FIXME: record error
+            semantics::normalise(arena, &mut self.env, term).ok() // FIXME: record error
         }
 
         pub fn eval(&mut self, term: &core::Term<'arena>) -> Option<Arc<Value<'arena>>> {
