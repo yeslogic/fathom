@@ -8,6 +8,7 @@ grammar<'arena, 'source>(interner: &mut Interner, arena: &'arena Arena<Term<'are
 
 extern {
     type Location = usize;
+    type Error = ();
 
     enum Token<'source> {
         "ident" => Token::Ident(<&'source str>),
