@@ -31,20 +31,25 @@
 //   - [ ] pretty printing
 //   - [ ] integration tests
 
-pub type Symbol = string_interner::symbol::SymbolU16;
-pub type Interner = string_interner::StringInterner<
-    Symbol,
-    string_interner::backend::BucketBackend<Symbol>,
+/// Interned strings.
+pub type StringId = string_interner::symbol::SymbolU16;
+
+/// String interner.
+pub type StringInterner = string_interner::StringInterner<
+    StringId,
+    string_interner::backend::BucketBackend<StringId>,
     std::hash::BuildHasherDefault<fxhash::FxHasher32>,
 >;
 
 /// De-bruijn index
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct LocalVar(u16);
+
 /// De-bruijn level
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct GlobalVar(u16);
-/// Length of the environment
+
+/// Length of the environment.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct EnvLen(u16);
 
@@ -111,17 +116,18 @@ impl<Entry> Env<Entry> {
     }
 }
 
+/// Core language.
 pub mod core {
-    use crate::{LocalVar, Symbol};
+    use crate::{LocalVar, StringId};
 
     pub type TermRef<'arena> = &'arena Term<'arena>;
 
     pub enum Term<'arena> {
         Var(LocalVar),
-        Let(Symbol, TermRef<'arena>, TermRef<'arena>, TermRef<'arena>),
+        Let(StringId, TermRef<'arena>, TermRef<'arena>, TermRef<'arena>),
         Universe,
-        FunType(Symbol, TermRef<'arena>, TermRef<'arena>),
-        FunIntro(Symbol, TermRef<'arena>),
+        FunType(StringId, TermRef<'arena>, TermRef<'arena>),
+        FunIntro(StringId, TermRef<'arena>),
         FunElim(TermRef<'arena>, TermRef<'arena>),
         // RecordType(Vec<StringId>, &'arena [Term<'arena>]),
         // RecordIntro(Vec<StringId>, &'arena [Term<'arena>]),
@@ -134,7 +140,7 @@ pub mod core {
         use typed_arena::Arena;
 
         use crate::core::{Term, TermRef};
-        use crate::{Env, EnvLen, GlobalVar, Symbol};
+        use crate::{Env, EnvLen, GlobalVar, StringId};
 
         pub type ValueEnv<'arena> = Env<Arc<Value<'arena>>>;
 
@@ -144,8 +150,8 @@ pub mod core {
             /// attempting to [evaluate][`eval`] an open [term][`Term`].
             Stuck(GlobalVar, Vec<Elim<'arena>>),
             Universe,
-            FunType(Symbol, Arc<Value<'arena>>, Closure<'arena>),
-            FunIntro(Symbol, Closure<'arena>),
+            FunType(StringId, Arc<Value<'arena>>, Closure<'arena>),
+            FunIntro(StringId, Closure<'arena>),
         }
 
         /// A pending elimination to be reduced if the [head][`Head`] of a
@@ -281,7 +287,10 @@ pub mod core {
             }
         }
 
-        /// Conversion check.
+        /// Check that one value is computationally equal to another value.
+        ///
+        /// This is sometimes referred to as 'conversion checking', or checking
+        /// for 'definitional equality'.
         pub fn is_equal(
             env_len: EnvLen,
             value0: &Arc<Value<'_>>,
@@ -342,11 +351,12 @@ pub mod core {
     }
 }
 
+/// Surface language.
 pub mod surface {
     use lalrpop_util::lalrpop_mod;
     use typed_arena::Arena;
 
-    use crate::{Interner, Symbol};
+    use crate::{StringId, StringInterner};
 
     pub mod lexer {
         use logos::Logos;
@@ -402,17 +412,17 @@ pub mod surface {
     pub type TermRef<'arena> = &'arena Term<'arena>;
 
     pub enum Term<'arena> {
-        Var(Symbol),
-        Let(Symbol, TermRef<'arena>, TermRef<'arena>, TermRef<'arena>),
+        Var(StringId),
+        Let(StringId, TermRef<'arena>, TermRef<'arena>, TermRef<'arena>),
         Universe,
-        FunType(Symbol, TermRef<'arena>, TermRef<'arena>),
-        FunIntro(Symbol, TermRef<'arena>),
+        FunType(StringId, TermRef<'arena>, TermRef<'arena>),
+        FunIntro(StringId, TermRef<'arena>),
         FunElim(TermRef<'arena>, TermRef<'arena>),
     }
 
     impl<'arena> Term<'arena> {
         pub fn parse<'source>(
-            interner: &mut Interner,
+            interner: &mut StringInterner,
             arena: &'arena Arena<Term<'arena>>,
             source: &'source str,
         ) -> Result<Term<'arena>, lalrpop_util::ParseError<usize, lexer::Token<'source>, ()>>
@@ -424,23 +434,34 @@ pub mod surface {
     // TODO: pretty print terms
 }
 
+/// Bidirectional elaboration of the surface language into the core language.
 pub mod elaboration {
     use std::convert::TryInto;
     use std::sync::Arc;
-
     use typed_arena::Arena;
 
     use crate::core::semantics::{self, Value, ValueEnv};
-    use crate::{core, surface, LocalVar, Symbol};
+    use crate::{core, surface, LocalVar, StringId};
 
+    /// Elaboration context.
     pub struct Context<'arena> {
+        /// Arena used for storing elaborated terms.
         arena: &'arena Arena<core::Term<'arena>>,
-        types: Vec<(Symbol, Arc<Value<'arena>>)>,
+        /// Type environment.
+        ///
+        /// Name-type pairs will be added here.
+        types: Vec<(StringId, Arc<Value<'arena>>)>,
+        /// Value environment.
+        ///
+        /// The values stored in this environment correspond to the the types in
+        /// the type environment.
         env: ValueEnv<'arena>,
+        /// Diagnostic messages encountered during elaboration.
         messages: Vec<String>,
     }
 
     impl<'arena> Context<'arena> {
+        /// Construct a new elaboration context, backed by the supplied arena.
         pub fn new(arena: &'arena Arena<core::Term<'arena>>) -> Context<'arena> {
             Context {
                 arena,
@@ -452,7 +473,7 @@ pub mod elaboration {
 
         fn push_entry(
             &mut self,
-            name: Symbol,
+            name: StringId,
             value: Arc<Value<'arena>>,
             r#type: Arc<Value<'arena>>,
         ) {
@@ -460,7 +481,7 @@ pub mod elaboration {
             self.env.push_entry(value);
         }
 
-        fn push_param(&mut self, name: Symbol, r#type: Arc<Value<'arena>>) -> Arc<Value<'arena>> {
+        fn push_param(&mut self, name: StringId, r#type: Arc<Value<'arena>>) -> Arc<Value<'arena>> {
             let value = Arc::new(Value::Stuck(self.env.len().next_global(), Vec::new()));
             self.push_entry(name, value.clone(), r#type);
             value
@@ -496,6 +517,9 @@ pub mod elaboration {
             semantics::is_equal(self.env.len(), value0, value1).ok() // FIXME: record error
         }
 
+        /// Check that a surface term conforms to the given type.
+        ///
+        /// Returns the elaborated term.
         pub fn check(
             &mut self,
             surface_term: surface::TermRef<'_>,
@@ -540,6 +564,9 @@ pub mod elaboration {
             }
         }
 
+        /// Synthesize the type of the given surface term.
+        ///
+        /// Returns the elaborated term and its type.
         pub fn synth(
             &mut self,
             surface_term: surface::TermRef<'_>,
