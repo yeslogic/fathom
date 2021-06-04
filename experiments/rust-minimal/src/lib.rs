@@ -33,20 +33,25 @@
 //   - [ ] pretty printing
 //   - [ ] integration tests
 
-pub type Symbol = string_interner::symbol::SymbolU16;
-pub type Interner = string_interner::StringInterner<
-    Symbol,
-    string_interner::backend::BucketBackend<Symbol>,
+/// Interned strings.
+pub type StringId = string_interner::symbol::SymbolU16;
+
+/// String interner.
+pub type StringInterner = string_interner::StringInterner<
+    StringId,
+    string_interner::backend::BucketBackend<StringId>,
     std::hash::BuildHasherDefault<fxhash::FxHasher32>,
 >;
 
 /// De-bruijn index
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct LocalVar(u16);
+
 /// De-bruijn level
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct GlobalVar(u16);
-/// Length of the environment
+
+/// Length of the environment.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct EnvLen(u16);
 
@@ -78,9 +83,6 @@ pub struct Env<Entry> {
     // - maybe some sort of chunked tree structure?
     // - could also use a linked list but idk
     // - `im::Vector` is ergonomic, but a bit chonky
-    //
-    // - no clue if it is possible, but it would be funny if we could abuse
-    //   lifetime subtyping to prevent the use of mis-bound variables...
     entries: Vec<Entry>,
 }
 
@@ -113,68 +115,101 @@ impl<Entry> Env<Entry> {
     }
 }
 
+/// Core language.
 pub mod core {
-    use crate::{LocalVar, Symbol};
+    use crate::{LocalVar, StringId};
 
     pub type TermRef<'arena> = &'arena Term<'arena>;
 
+    /// Core language terms.
     pub enum Term<'arena> {
+        /// Variable occurrences.
         Var(LocalVar),
-        Let(Symbol, TermRef<'arena>, TermRef<'arena>, TermRef<'arena>),
+        /// Let expressions.
+        Let(StringId, TermRef<'arena>, TermRef<'arena>, TermRef<'arena>),
+        /// The type of types.
         Universe,
-        FunType(Symbol, TermRef<'arena>, TermRef<'arena>),
-        FunIntro(Symbol, TermRef<'arena>),
+        /// Dependent function types.
+        ///
+        /// Also known as: pi types, dependent product types.
+        FunType(StringId, TermRef<'arena>, TermRef<'arena>),
+        /// Function introductions.
+        ///
+        /// Also known as: lambda expressions, anonymous functions.
+        FunIntro(StringId, TermRef<'arena>),
+        /// Function eliminations.
+        ///
+        /// Also known as: function applications.
         FunElim(TermRef<'arena>, TermRef<'arena>),
-        // RecordType(Vec<StringId>, &'arena [Term<'arena>]),
-        // RecordIntro(Vec<StringId>, &'arena [Term<'arena>]),
+        // RecordType(&'arena [StringId], &'arena [Term<'arena>]),
+        // RecordIntro(&'arena [StringId], &'arena [Term<'arena>]),
         // RecordElim(TermRef<'arena>, StringId),
     }
 
+    /// The semantics of the core language, implemented through the use of
+    /// normalization-by-evaluation.
     pub mod semantics {
         use std::sync::Arc;
 
         use typed_arena::Arena;
 
         use crate::core::{Term, TermRef};
-        use crate::{Env, EnvLen, GlobalVar, Symbol};
+        use crate::{Env, EnvLen, GlobalVar, StringId};
 
         pub type ValueEnv<'arena> = Env<Arc<Value<'arena>>>;
 
+        /// Values in weak-head-normal form.
         #[derive(Clone)]
         pub enum Value<'arena> {
-            /// A spine of [`Elim`]s that cannot reduce further as a result of
-            /// attempting to [evaluate][`eval`] an open [term][`Term`].
+            /// A value whose computation has stopped as a result of trying to
+            /// [evaluate][`eval`] an open [term][`Term`].
             Stuck(GlobalVar, Vec<Elim<'arena>>),
+            /// Universes.
             Universe,
-            FunType(Symbol, Arc<Value<'arena>>, Closure<'arena>),
-            FunIntro(Symbol, Closure<'arena>),
+            /// Dependent function types.
+            FunType(StringId, Arc<Value<'arena>>, Closure<'arena>),
+            /// Function introductions.
+            FunIntro(StringId, Closure<'arena>),
+            // RecordType(&'arena [StringId], Telescope<'arena>),
+            // RecordIntro(&'arena [StringId], Telescope<'arena>),
         }
 
         /// A pending elimination to be reduced if the [head][`Head`] of a
         /// [stuck value][`Value::Stuck`] becomes known.
         #[derive(Clone)]
         pub enum Elim<'arena> {
+            /// Function eliminations.
             Fun(Arc<Value<'arena>>),
+            // Record(StringId),
         }
 
+        /// A closure is a term and a captured environment that will be later
+        /// evaluated
+        /// that will be later evaluated in the presence of an input expression.
         #[derive(Clone)]
         pub struct Closure<'arena> {
+            /// Captured environment.
             env: ValueEnv<'arena>,
-            term: TermRef<'arena>,
+            /// The body expression.
+            ///
+            /// This can be evaluated using the captured environment with an
+            /// expression pushed onto it.
+            body_expr: TermRef<'arena>,
         }
 
         impl<'arena> Closure<'arena> {
-            pub fn new(env: ValueEnv<'arena>, term: TermRef<'arena>) -> Closure<'arena> {
-                Closure { env, term }
+            pub fn new(env: ValueEnv<'arena>, body_expr: TermRef<'arena>) -> Closure<'arena> {
+                Closure { env, body_expr }
             }
 
+            /// Apply an input to the closure.
             pub fn apply(
                 &self,
                 input_expr: Arc<Value<'arena>>,
             ) -> Result<Arc<Value<'arena>>, EvalError> {
                 let mut env = self.env.clone(); // FIXME: ValueEnv::clone
-                env.push_entry(input_expr);
-                eval(&mut env, self.term)
+                env.push_entry(input_expr); // Add the input expression to the environment
+                eval(&mut env, self.body_expr) // Evaluate the body expression
             }
         }
 
@@ -283,7 +318,12 @@ pub mod core {
             }
         }
 
-        /// Conversion check.
+        /// Check that one value is [computationally equal] to another value.
+        ///
+        /// This is sometimes referred to as 'conversion checking', or checking
+        /// for 'definitional equality'.
+        ///
+        /// [computationally equal]: https://ncatlab.org/nlab/show/equality#computational_equality
         pub fn is_equal(
             env_len: EnvLen,
             value0: &Arc<Value<'_>>,
@@ -322,7 +362,7 @@ pub mod core {
                     is_equal(env_len.add_param(), &output_expr0, &output_expr1)
                 }
 
-                // Eta-rules
+                // Eta-conversion
                 (Value::FunIntro(_, output_expr), _) => {
                     let var = Arc::new(Value::Stuck(env_len.next_global(), Vec::new()));
                     let value0 = output_expr.apply(var.clone())?;
@@ -344,11 +384,12 @@ pub mod core {
     }
 }
 
+/// Surface language.
 pub mod surface {
     use lalrpop_util::lalrpop_mod;
     use typed_arena::Arena;
 
-    use crate::{Interner, Symbol};
+    use crate::{StringId, StringInterner};
 
     pub mod lexer {
         use logos::Logos;
@@ -392,7 +433,7 @@ pub mod surface {
         ) -> impl 'source + Iterator<Item = Result<Spanned<Token<'source>, usize>, ()>> {
             Token::lexer(source)
                 .spanned()
-                .map(move |(token, range)| match token {
+                .map(|(token, range)| match token {
                     Token::Error => Err(()),
                     token => Ok((range.start, token, range.end)),
                 })
@@ -404,21 +445,25 @@ pub mod surface {
     pub type TermRef<'arena> = &'arena Term<'arena>;
 
     pub enum Term<'arena> {
-        Var(Symbol),
-        Let(Symbol, TermRef<'arena>, TermRef<'arena>, TermRef<'arena>),
+        Var(StringId),
+        Let(StringId, TermRef<'arena>, TermRef<'arena>, TermRef<'arena>),
         Universe,
-        FunType(Symbol, TermRef<'arena>, TermRef<'arena>),
-        FunIntro(Symbol, TermRef<'arena>),
+        FunType(StringId, TermRef<'arena>, TermRef<'arena>),
+        FunIntro(StringId, TermRef<'arena>),
         FunElim(TermRef<'arena>, TermRef<'arena>),
     }
 
+    // TODO: Convert to an internal error message
+    pub type ParseError<'source> = lalrpop_util::ParseError<usize, lexer::Token<'source>, ()>;
+
     impl<'arena> Term<'arena> {
+        /// Parse a term from the `source` string, interning strings to the
+        /// supplied `interner` and allocating nodes to the `arena`.
         pub fn parse<'source>(
-            interner: &mut Interner,
+            interner: &mut StringInterner,
             arena: &'arena Arena<Term<'arena>>,
             source: &'source str,
-        ) -> Result<Term<'arena>, lalrpop_util::ParseError<usize, lexer::Token<'source>, ()>>
-        {
+        ) -> Result<Term<'arena>, ParseError<'source>> {
             grammar::TermParser::new().parse(interner, arena, lexer::tokens(source))
         }
     }
@@ -426,23 +471,34 @@ pub mod surface {
     // TODO: pretty print terms
 }
 
+/// Bidirectional elaboration of the surface language into the core language.
 pub mod elaboration {
     use std::convert::TryInto;
     use std::sync::Arc;
-
     use typed_arena::Arena;
 
     use crate::core::semantics::{self, Value, ValueEnv};
-    use crate::{core, surface, LocalVar, Symbol};
+    use crate::{core, surface, LocalVar, StringId};
 
+    /// Elaboration context.
     pub struct Context<'arena> {
+        /// Arena used for storing elaborated terms.
         arena: &'arena Arena<core::Term<'arena>>,
-        types: Vec<(Symbol, Arc<Value<'arena>>)>,
+        /// Type environment.
+        ///
+        /// Name-type pairs will be added here.
+        types: Vec<(StringId, Arc<Value<'arena>>)>,
+        /// Value environment.
+        ///
+        /// The values stored in this environment correspond to the the types in
+        /// the type environment.
         env: ValueEnv<'arena>,
+        /// Diagnostic messages encountered during elaboration.
         messages: Vec<String>,
     }
 
     impl<'arena> Context<'arena> {
+        /// Construct a new elaboration context, backed by the supplied arena.
         pub fn new(arena: &'arena Arena<core::Term<'arena>>) -> Context<'arena> {
             Context {
                 arena,
@@ -454,7 +510,7 @@ pub mod elaboration {
 
         fn push_entry(
             &mut self,
-            name: Symbol,
+            name: StringId,
             value: Arc<Value<'arena>>,
             r#type: Arc<Value<'arena>>,
         ) {
@@ -462,7 +518,7 @@ pub mod elaboration {
             self.env.push_entry(value);
         }
 
-        fn push_param(&mut self, name: Symbol, r#type: Arc<Value<'arena>>) -> Arc<Value<'arena>> {
+        fn push_param(&mut self, name: StringId, r#type: Arc<Value<'arena>>) -> Arc<Value<'arena>> {
             let value = Arc::new(Value::Stuck(self.env.len().next_global(), Vec::new()));
             self.push_entry(name, value.clone(), r#type);
             value
@@ -498,6 +554,9 @@ pub mod elaboration {
             semantics::is_equal(self.env.len(), value0, value1).ok() // FIXME: record error
         }
 
+        /// Check that a surface term conforms to the given type.
+        ///
+        /// Returns the elaborated term in the core language.
         pub fn check(
             &mut self,
             surface_term: surface::TermRef<'_>,
@@ -542,6 +601,9 @@ pub mod elaboration {
             }
         }
 
+        /// Synthesize the type of the given surface term.
+        ///
+        /// Returns the elaborated term in the core language and its type.
         pub fn synth(
             &mut self,
             surface_term: surface::TermRef<'_>,

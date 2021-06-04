@@ -1,4 +1,4 @@
-use fathom_minimal::{elaboration, surface, Interner};
+use fathom_minimal::{elaboration, surface, StringInterner};
 use structopt::StructOpt;
 use typed_arena::Arena;
 
@@ -13,7 +13,7 @@ enum Options {
 fn main() {
     match Options::from_args() {
         Options::Normalise { term } => {
-            let mut interner = Interner::new();
+            let mut interner = StringInterner::new();
             let surface_arena = Arena::new();
             let core_arena = Arena::new();
 
@@ -25,7 +25,7 @@ fn main() {
             // TODO: Pretty print term and type
         }
         Options::Type { term } => {
-            let mut interner = Interner::new();
+            let mut interner = StringInterner::new();
             let surface_arena = Arena::new();
             let core_arena = Arena::new();
 
