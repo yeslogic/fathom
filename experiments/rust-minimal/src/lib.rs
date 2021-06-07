@@ -587,6 +587,14 @@ pub mod elaboration {
             semantics::is_equal(self.expr_env.len(), value0, value1).ok() // FIXME: record error
         }
 
+        fn apply_closure(
+            &mut self,
+            closure: &semantics::Closure<'arena>,
+            input_expr: Arc<Value<'arena>>,
+        ) -> Option<Arc<Value<'arena>>> {
+            closure.apply(input_expr).ok() // FIXME: record error
+        }
+
         /// Check that a surface term conforms to the given type.
         ///
         /// Returns the elaborated term in the core language.
@@ -604,26 +612,32 @@ pub mod elaboration {
                     let def_expr_value = self.eval(&def_expr)?;
 
                     self.push_binding(*name, def_expr_value, def_type_value);
-                    let body_expr = self.check(body_expr, expected_type)?; // FIXME: pop if error occured
+                    let body_expr = self.check(body_expr, expected_type); // FIXME: pop if error occured
                     self.pop_binding();
 
-                    Some(core::Term::Let(
-                        *name,
-                        self.arena.alloc(def_expr),
-                        self.arena.alloc(def_type),
-                        self.arena.alloc(body_expr),
-                    ))
+                    body_expr.map(|body_expr| {
+                        core::Term::Let(
+                            *name,
+                            self.arena.alloc(def_expr),
+                            self.arena.alloc(def_type),
+                            self.arena.alloc(body_expr),
+                        )
+                    })
                 }
                 (
                     surface::Term::FunIntro(name, output_expr),
                     Value::FunType(_, input_type, output_type),
                 ) => {
                     let input_expr = self.push_param(*name, input_type.clone());
-                    let output_type = output_type.apply(input_expr).ok()?; // FIXME: record error
-                    let output_expr = self.check(output_expr, &output_type)?;
-                    self.pop_binding(); // FIXME: pop if error occurred
+                    let output_expr = {
+                        let output_type = self.apply_closure(output_type, input_expr);
+                        output_type.and_then(|output_type| self.check(output_expr, &output_type))
+                    };
+                    self.pop_binding();
 
-                    Some(core::Term::FunIntro(*name, self.arena.alloc(output_expr)))
+                    output_expr.map(|output_expr| {
+                        core::Term::FunIntro(*name, self.arena.alloc(output_expr))
+                    })
                 }
                 (_, _) => match self.synth(surface_term)? {
                     (core_term, synth_type) if self.is_equal(&synth_type, expected_type)? => {
@@ -662,17 +676,19 @@ pub mod elaboration {
                     let def_expr_value = self.eval(&def_expr)?;
 
                     self.push_binding(*name, def_expr_value, def_type_value);
-                    let (body_expr, body_type) = self.synth(body_expr)?; // FIXME: pop if error occured
+                    let body_expr = self.synth(body_expr);
                     self.pop_binding();
 
-                    let r#let = core::Term::Let(
-                        *name,
-                        self.arena.alloc(def_expr),
-                        self.arena.alloc(def_type),
-                        self.arena.alloc(body_expr),
-                    );
+                    body_expr.map(|(body_expr, body_type)| {
+                        let let_expr = core::Term::Let(
+                            *name,
+                            self.arena.alloc(def_expr),
+                            self.arena.alloc(def_type),
+                            self.arena.alloc(body_expr),
+                        );
 
-                    Some((r#let, body_type))
+                        (let_expr, body_type)
+                    })
                 }
                 surface::Term::Universe => Some((core::Term::Universe, Arc::new(Value::Universe))),
                 surface::Term::FunType(name, input_type, output_type) => {
@@ -680,16 +696,18 @@ pub mod elaboration {
                     let input_type_value = self.eval(&input_type)?;
 
                     self.push_param(*name, input_type_value);
-                    let output_type = self.check(output_type, &Arc::new(Value::Universe))?; // FIXME: avoid temporary Arc
-                    self.pop_binding(); // FIXME: pop if error occured
+                    let output_type = self.check(output_type, &Arc::new(Value::Universe)); // FIXME: avoid temporary Arc
+                    self.pop_binding();
 
-                    let fun_type = core::Term::FunType(
-                        *name,
-                        self.arena.alloc(input_type),
-                        self.arena.alloc(output_type),
-                    );
+                    output_type.map(|output_type| {
+                        let fun_type = core::Term::FunType(
+                            *name,
+                            self.arena.alloc(input_type),
+                            self.arena.alloc(output_type),
+                        );
 
-                    Some((fun_type, Arc::new(Value::Universe)))
+                        (fun_type, Arc::new(Value::Universe))
+                    })
                 }
                 surface::Term::FunIntro(_, _) => {
                     self.report("error: ambiguous function introduction")
@@ -701,7 +719,7 @@ pub mod elaboration {
                             let input_expr = self.check(input_expr, input_type)?;
                             let input_expr_value = self.eval(&input_expr)?;
 
-                            let output_type = output_type.apply(input_expr_value).ok()?; // FIXME: record error
+                            let output_type = self.apply_closure(output_type, input_expr_value)?;
 
                             let fun_elim = core::Term::FunElim(
                                 self.arena.alloc(head_expr),
