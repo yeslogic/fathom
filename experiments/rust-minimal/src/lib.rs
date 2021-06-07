@@ -487,6 +487,9 @@ pub mod surface {
         FunType(StringId, TermRef<'arena>, TermRef<'arena>),
         FunIntro(StringId, TermRef<'arena>),
         FunElim(TermRef<'arena>, TermRef<'arena>),
+        // RecordType(&'arena [(StringId, TermRef<'arena>)])
+        // RecordTerm(&'arena [(StringId, TermRef<'arena>)])
+        // RecordElim(TermRef<'arena>, StringId)
     }
 
     // TODO: Convert to an internal error message
@@ -747,12 +750,23 @@ pub mod distillation {
             Context {}
         }
 
-        pub fn check(&mut self, _core_term: &core::Term<'_>) -> surface::Term<'_> {
-            todo!()
+        pub fn check(&mut self, core_term: &core::Term<'_>) -> surface::Term<'_> {
+            match core_term {
+                core::Term::Let(_, _, _, _) => todo!(),
+                core::Term::FunIntro(_, _) => todo!(),
+                _ => self.synth(core_term),
+            }
         }
 
-        pub fn synth(&mut self, _core_term: &core::Term<'_>) -> surface::Term<'_> {
-            todo!()
+        pub fn synth(&mut self, core_term: &core::Term<'_>) -> surface::Term<'_> {
+            match core_term {
+                core::Term::Var(_) => todo!(),
+                core::Term::Let(_, _, _, _) => todo!(),
+                core::Term::Universe => surface::Term::Universe,
+                core::Term::FunType(_, _, _) => todo!(),
+                core::Term::FunIntro(_, _) => todo!(),
+                core::Term::FunElim(_, _) => todo!(),
+            }
         }
     }
 }
