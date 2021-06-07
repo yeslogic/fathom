@@ -9,6 +9,7 @@ publish = false
 
 [dependencies]
 fxhash = "0.2"
+itertools = "0.10"
 lalrpop-util = "0.19.5"
 logos = "0.12"
 string-interner = "0.12"
