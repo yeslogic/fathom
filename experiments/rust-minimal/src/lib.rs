@@ -734,6 +734,25 @@ pub mod elaboration {
     }
 }
 
+/// Distillation of the core language into the surface language.
 pub mod distillation {
-    // TODO: distill terms from core to surface
+    use crate::{core, surface};
+
+    /// Distillation context.
+    pub struct Context {}
+
+    impl Context {
+        /// Construct a new distillation context.
+        pub fn new() -> Context {
+            Context {}
+        }
+
+        pub fn check(&mut self, _core_term: &core::Term<'_>) -> surface::Term<'_> {
+            todo!()
+        }
+
+        pub fn synth(&mut self, _core_term: &core::Term<'_>) -> surface::Term<'_> {
+            todo!()
+        }
+    }
 }
