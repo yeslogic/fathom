@@ -43,81 +43,119 @@ pub type StringInterner = string_interner::StringInterner<
     std::hash::BuildHasherDefault<fxhash::FxHasher32>,
 >;
 
-/// De-bruijn index
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub struct LocalVar(u16);
+/// Core language.
+pub mod core {
+    use crate::StringId;
 
-/// De-bruijn level
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub struct GlobalVar(u16);
+    /// A [de Bruijn index][de-bruijn-index] in the current [environment].
+    ///
+    /// De Bruijn indices describe an occurrence of a variable in terms of the
+    /// number of binders between the occurrence and its associated binder.
+    /// For example:
+    ///
+    /// | Representation    | Example (S combinator)  |
+    /// | ----------------- | ----------------------- |
+    /// | Named             | `λx. λy. λz. x z (y z)` |
+    /// | De Bruijn indices | `λ_. λ_. λ_. 2 0 (1 0)` |
+    ///
+    /// This is a helpful representation because it allows us to easily compare
+    /// terms for equivalence based on their binding structure without maintaining a
+    /// list of name substitutions. For example we want `λx. x` to be the same as
+    /// `λy. y`. With de Bruijn indices these would both be described as `λ 0`.
+    ///
+    /// [environment]: `Env`
+    /// [de-bruijn-index]: https://en.wikipedia.org/wiki/De_Bruijn_index
+    #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+    pub struct LocalVar(u16);
 
-/// Length of the environment.
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub struct EnvLen(u16);
-
-impl EnvLen {
-    fn local_to_global(self, local: LocalVar) -> Option<GlobalVar> {
-        Some(GlobalVar(self.0.checked_sub(local.0)?.checked_sub(1)?))
+    pub fn local_vars() -> impl Iterator<Item = LocalVar> {
+        (0..).map(LocalVar)
     }
 
-    fn global_to_local(self, global: GlobalVar) -> Option<LocalVar> {
-        Some(LocalVar(self.0.checked_sub(global.0)?.checked_sub(1)?))
-    }
+    /// A de Bruijn level in the current [environment].
+    ///
+    /// This describes an occurrence of a variable by counting the binders inwards
+    /// from the top of the term until the occurrence is reached. For example:
+    ///
+    /// | Representation    | Example (S combinator)  |
+    /// | ----------------- | ----------------------- |
+    /// | Named             | `λx. λy. λz. x z (y z)` |
+    /// | De Bruijn levels  | `λ_. λ_. λ_. 0 2 (1 2)` |
+    ///
+    /// Levels are used in [values][semantics::Value] because they are not context-
+    /// dependent (this is in contrast to [indices][LocalVar]). Because of this,
+    /// we're able to sidestep the need for expensive variable shifting in the
+    /// semantics. More information can be found in Soham Chowdhury's blog post,
+    /// “[Real-world type theory I: untyped normalisation by evaluation for λ-calculus][untyped-nbe-for-lc]”.
+    ///
+    /// [environment]: `Env`
+    /// [untyped-nbe-for-lc]: https://colimit.net/posts/normalisation-by-evaluation/
+    #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+    pub struct GlobalVar(u16);
 
-    fn next_global(self) -> GlobalVar {
-        GlobalVar(self.0)
-    }
+    /// Length of the environment.
+    #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+    pub struct EnvLen(u16);
 
-    fn add_param(self) -> EnvLen {
-        EnvLen(self.0 + 1) // FIXME: overflow?
-    }
-}
+    impl EnvLen {
+        pub fn local_to_global(self, local: LocalVar) -> Option<GlobalVar> {
+            Some(GlobalVar(self.0.checked_sub(local.0)?.checked_sub(1)?))
+        }
 
-/// A generic environment
-#[derive(Clone)]
-pub struct Env<Entry> {
-    // TODO: figure out a better representation for this:
-    //
-    // - should avoid clones if possible
-    // - allow for fast, in-place pushes on the end of an immutable list?
-    // - maybe some sort of chunked tree structure?
-    // - could also use a linked list but idk
-    // - `im::Vector` is ergonomic, but a bit chonky
-    entries: Vec<Entry>,
-}
+        pub fn global_to_local(self, global: GlobalVar) -> Option<LocalVar> {
+            Some(LocalVar(self.0.checked_sub(global.0)?.checked_sub(1)?))
+        }
 
-impl<Entry> Env<Entry> {
-    fn new() -> Env<Entry> {
-        Env {
-            entries: Vec::new(),
+        pub fn next_global(self) -> GlobalVar {
+            GlobalVar(self.0)
+        }
+
+        pub fn add_param(self) -> EnvLen {
+            EnvLen(self.0 + 1) // FIXME: check overflow?
         }
     }
 
-    fn len(&self) -> EnvLen {
-        EnvLen(self.entries.len() as u16)
+    /// A generic environment
+    #[derive(Clone)]
+    pub struct Env<Entry> {
+        // TODO: figure out a better representation for this:
+        //
+        // - should avoid clones if possible
+        // - allow for fast, in-place pushes on the end of an immutable list?
+        // - maybe some sort of chunked tree structure?
+        // - could also use a linked list but idk
+        // - `im::Vector` is ergonomic, but a bit chonky
+        entries: Vec<Entry>,
     }
 
-    fn get_global(&self, global: GlobalVar) -> Option<&Entry> {
-        self.entries.get(global.0 as usize)
-    }
+    impl<Entry> Env<Entry> {
+        pub fn new() -> Env<Entry> {
+            Env {
+                entries: Vec::new(),
+            }
+        }
 
-    fn get_local(&self, local: LocalVar) -> Option<&Entry> {
-        self.get_global(self.len().local_to_global(local)?)
-    }
+        pub fn len(&self) -> EnvLen {
+            EnvLen(self.entries.len() as u16)
+        }
 
-    fn push_entry(&mut self, entry: Entry) {
-        // FIXME: check if `self.entries.len()` exceeds `u16::MAX`
-        self.entries.push(entry);
-    }
+        pub fn get_global(&self, global: GlobalVar) -> Option<&Entry> {
+            self.entries.get(global.0 as usize)
+        }
 
-    fn pop_entry(&mut self) {
-        self.entries.pop();
-    }
-}
+        pub fn get_local(&self, local: LocalVar) -> Option<&Entry> {
+            self.get_global(self.len().local_to_global(local)?)
+        }
 
-/// Core language.
-pub mod core {
-    use crate::{LocalVar, StringId};
+        pub fn push_entry(&mut self, entry: Entry) {
+            // FIXME: check if `self.entries.len()` exceeds `u16::MAX`
+            self.entries.push(entry);
+        }
+
+        pub fn pop_entry(&mut self) {
+            self.entries.pop();
+        }
+    }
 
     pub type TermRef<'arena> = &'arena Term<'arena>;
 
@@ -153,8 +191,8 @@ pub mod core {
 
         use typed_arena::Arena;
 
-        use crate::core::{Term, TermRef};
-        use crate::{Env, EnvLen, GlobalVar, StringId};
+        use crate::core::{Env, EnvLen, GlobalVar, Term, TermRef};
+        use crate::StringId;
 
         pub type ValueEnv<'arena> = Env<Arc<Value<'arena>>>;
 
@@ -477,7 +515,7 @@ pub mod elaboration {
     use typed_arena::Arena;
 
     use crate::core::semantics::{self, Value, ValueEnv};
-    use crate::{core, surface, LocalVar, StringId};
+    use crate::{core, surface, StringId};
 
     /// Elaboration context.
     pub struct Context<'arena> {
@@ -605,13 +643,13 @@ pub mod elaboration {
         ) -> Option<(core::Term<'arena>, Arc<Value<'arena>>)> {
             match surface_term {
                 surface::Term::Var(var_name) => {
-                    for (local, name, r#type) in itertools::izip!(
-                        (0..).map(LocalVar),
+                    for (local_var, name, r#type) in itertools::izip!(
+                        core::local_vars(),
                         self.name_env.iter().rev(),
                         self.type_env.iter().rev(),
                     ) {
                         if name == var_name {
-                            return Some((core::Term::Var(local), r#type.clone()));
+                            return Some((core::Term::Var(local_var), r#type.clone()));
                         }
                     }
                     self.report("error: unknown variable")
