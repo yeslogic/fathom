@@ -488,6 +488,9 @@ pub mod surface {
         FunType(StringId, TermRef<'arena>, TermRef<'arena>),
         FunIntro(StringId, TermRef<'arena>),
         FunElim(TermRef<'arena>, TermRef<'arena>),
+        // RecordType(&'arena [(StringId, TermRef<'arena>)])
+        // RecordTerm(&'arena [(StringId, TermRef<'arena>)])
+        // RecordElim(TermRef<'arena>, StringId)
     }
 
     // TODO: Convert to an internal error message
@@ -735,6 +738,119 @@ pub mod elaboration {
     }
 }
 
+/// Distillation of the core language into the surface language.
 pub mod distillation {
-    // TODO: distill terms from core to surface
+    use typed_arena::Arena;
+
+    use crate::{core, surface, StringId};
+
+    /// Distillation context.
+    pub struct Context<'arena> {
+        arena: &'arena Arena<surface::Term<'arena>>,
+        names: Vec<StringId>,
+    }
+
+    impl<'arena> Context<'arena> {
+        /// Construct a new distillation context.
+        pub fn new(arena: &'arena Arena<surface::Term<'arena>>) -> Context<'arena> {
+            Context {
+                arena,
+                names: Vec::new(),
+            }
+        }
+
+        fn get_name(&self, local_var: core::LocalVar) -> StringId {
+            // *self.names.get(todo!()).unwrap()
+            todo!()
+        }
+
+        fn push_binding(&mut self, name: StringId) -> StringId {
+            // TODO: choose optimal name
+            self.names.push(name);
+            name
+        }
+
+        fn pop_binding(&mut self) {
+            self.names.pop();
+        }
+
+        pub fn check(&mut self, core_term: &core::Term<'_>) -> surface::Term<'arena> {
+            match core_term {
+                core::Term::Let(name, def_type, def_expr, body_expr) => {
+                    let def_type = self.synth(def_type);
+                    let def_expr = self.synth(def_expr);
+
+                    let name = self.push_binding(*name);
+                    let body_expr = self.check(body_expr);
+                    self.pop_binding();
+
+                    surface::Term::Let(
+                        name,
+                        self.arena.alloc(def_type),
+                        self.arena.alloc(def_expr),
+                        self.arena.alloc(body_expr),
+                    )
+                }
+                core::Term::FunIntro(name, output_expr) => {
+                    let name = self.push_binding(*name);
+                    let output_expr = self.check(output_expr);
+                    self.pop_binding();
+
+                    surface::Term::FunIntro(name, self.arena.alloc(output_expr))
+                }
+                _ => self.synth(core_term),
+            }
+        }
+
+        pub fn synth(&mut self, core_term: &core::Term<'_>) -> surface::Term<'arena> {
+            match core_term {
+                core::Term::Var(local_var) => surface::Term::Var(self.get_name(*local_var)),
+                core::Term::Let(name, def_type, def_expr, body_expr) => {
+                    let def_type = self.synth(def_type);
+                    let def_expr = self.synth(def_expr);
+
+                    let name = self.push_binding(*name);
+                    let body_expr = self.synth(body_expr);
+                    self.pop_binding();
+
+                    surface::Term::Let(
+                        name,
+                        self.arena.alloc(def_type),
+                        self.arena.alloc(def_expr),
+                        self.arena.alloc(body_expr),
+                    )
+                }
+                core::Term::Universe => surface::Term::Universe,
+                core::Term::FunType(name, input_type, output_type) => {
+                    let input_type = self.check(input_type);
+
+                    let name = self.push_binding(*name);
+                    let output_type = self.check(output_type);
+                    self.pop_binding();
+
+                    surface::Term::FunType(
+                        name,
+                        self.arena.alloc(input_type),
+                        self.arena.alloc(output_type),
+                    )
+                }
+                core::Term::FunIntro(name, output_expr) => {
+                    let name = self.push_binding(*name);
+                    let output_expr = self.synth(output_expr);
+                    self.pop_binding();
+
+                    surface::Term::FunIntro(name, self.arena.alloc(output_expr))
+                }
+                core::Term::FunElim(head_expr, input_expr) => {
+                    let head_expr = self.synth(head_expr);
+                    let input_expr = self.synth(input_expr);
+
+                    surface::Term::FunElim(
+                        self.arena.alloc(head_expr),
+                        self.arena.alloc(input_expr),
+                    )
+                }
+            }
+        }
+    }
 }
