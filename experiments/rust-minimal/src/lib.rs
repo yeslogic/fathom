@@ -81,9 +81,6 @@ pub struct Env<Entry> {
     // - maybe some sort of chunked tree structure?
     // - could also use a linked list but idk
     // - `im::Vector` is ergonomic, but a bit chonky
-    //
-    // - no clue if it is possible, but it would be funny if we could abuse
-    //   lifetime subtyping to prevent the use of mis-bound variables...
     entries: Vec<Entry>,
 }
 
@@ -122,18 +119,33 @@ pub mod core {
 
     pub type TermRef<'arena> = &'arena Term<'arena>;
 
+    /// Core language terms.
     pub enum Term<'arena> {
+        /// Variable occurrences.
         Var(LocalVar),
+        /// Let expressions.
         Let(StringId, TermRef<'arena>, TermRef<'arena>, TermRef<'arena>),
+        /// The type of types.
         Universe,
+        /// Dependent function types.
+        ///
+        /// Also known as: pi types, dependent product types.
         FunType(StringId, TermRef<'arena>, TermRef<'arena>),
+        /// Function introductions.
+        ///
+        /// Also known as: lambda expressions, anonymous functions.
         FunIntro(StringId, TermRef<'arena>),
+        /// Function eliminations.
+        ///
+        /// Also known as: function applications.
         FunElim(TermRef<'arena>, TermRef<'arena>),
-        // RecordType(Vec<StringId>, &'arena [Term<'arena>]),
-        // RecordIntro(Vec<StringId>, &'arena [Term<'arena>]),
+        // RecordType(&'arena [StringId], &'arena [Term<'arena>]),
+        // RecordIntro(&'arena [StringId], &'arena [Term<'arena>]),
         // RecordElim(TermRef<'arena>, StringId),
     }
 
+    /// The semantics of the core language, implemented through the use of
+    /// normalization-by-evaluation.
     pub mod semantics {
         use std::sync::Arc;
 
@@ -144,29 +156,42 @@ pub mod core {
 
         pub type ValueEnv<'arena> = Env<Arc<Value<'arena>>>;
 
+        /// Values in weak-head-normal form.
         #[derive(Clone)]
         pub enum Value<'arena> {
-            /// A spine of [`Elim`]s that cannot reduce further as a result of
-            /// attempting to [evaluate][`eval`] an open [term][`Term`].
+            /// A value whose computation has stopped as a result of trying to
+            /// [evaluate][`eval`] an open [term][`Term`].
             Stuck(GlobalVar, Vec<Elim<'arena>>),
+            /// Universes.
             Universe,
+            /// Dependent function types.
             FunType(StringId, Arc<Value<'arena>>, Closure<'arena>),
+            /// Function introductions.
             FunIntro(StringId, Closure<'arena>),
+            // RecordType(&'arena [StringId], Telescope<'arena>),
+            // RecordIntro(&'arena [StringId], Telescope<'arena>),
         }
 
         /// A pending elimination to be reduced if the [head][`Head`] of a
         /// [stuck value][`Value::Stuck`] becomes known.
         #[derive(Clone)]
         pub enum Elim<'arena> {
+            /// Function eliminations.
             Fun(Arc<Value<'arena>>),
+            // Record(StringId),
         }
 
-        /// A closure that will be later evaluated in the presence of an input expression.
+        /// A closure is a term and a captured environment that will be later
+        /// evaluated
+        /// that will be later evaluated in the presence of an input expression.
         #[derive(Clone)]
         pub struct Closure<'arena> {
             /// Captured environment.
             env: ValueEnv<'arena>,
             /// The body expression.
+            ///
+            /// This can be evaluated using the captured environment with an
+            /// expression pushed onto it.
             body_expr: TermRef<'arena>,
         }
 
@@ -291,10 +316,12 @@ pub mod core {
             }
         }
 
-        /// Check that one value is computationally equal to another value.
+        /// Check that one value is [computationally equal] to another value.
         ///
         /// This is sometimes referred to as 'conversion checking', or checking
         /// for 'definitional equality'.
+        ///
+        /// [computationally equal]: https://ncatlab.org/nlab/show/equality#computational_equality
         pub fn is_equal(
             env_len: EnvLen,
             value0: &Arc<Value<'_>>,
@@ -333,7 +360,7 @@ pub mod core {
                     is_equal(env_len.add_param(), &output_expr0, &output_expr1)
                 }
 
-                // Eta-rules
+                // Eta-conversion
                 (Value::FunIntro(_, output_expr), _) => {
                     let var = Arc::new(Value::Stuck(env_len.next_global(), Vec::new()));
                     let value0 = output_expr.apply(var.clone())?;
@@ -527,7 +554,7 @@ pub mod elaboration {
 
         /// Check that a surface term conforms to the given type.
         ///
-        /// Returns the elaborated term.
+        /// Returns the elaborated term in the core language.
         pub fn check(
             &mut self,
             surface_term: surface::TermRef<'_>,
@@ -574,7 +601,7 @@ pub mod elaboration {
 
         /// Synthesize the type of the given surface term.
         ///
-        /// Returns the elaborated term and its type.
+        /// Returns the elaborated term in the core language and its type.
         pub fn synth(
             &mut self,
             surface_term: surface::TermRef<'_>,
