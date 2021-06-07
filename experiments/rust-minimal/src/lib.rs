@@ -262,7 +262,7 @@ pub mod core {
             }
         }
 
-        pub fn fun_elim<'arena>(
+        fn fun_elim<'arena>(
             mut head_expr: Arc<Value<'arena>>,
             input_expr: Arc<Value<'arena>>,
         ) -> Result<Arc<Value<'arena>>, EvalError> {
@@ -473,7 +473,6 @@ pub mod surface {
 
 /// Bidirectional elaboration of the surface language into the core language.
 pub mod elaboration {
-    use std::convert::TryInto;
     use std::sync::Arc;
     use typed_arena::Arena;
 
@@ -484,15 +483,12 @@ pub mod elaboration {
     pub struct Context<'arena> {
         /// Arena used for storing elaborated terms.
         arena: &'arena Arena<core::Term<'arena>>,
+        /// Name environment.
+        name_env: Vec<StringId>,
         /// Type environment.
-        ///
-        /// Name-type pairs will be added here.
-        types: Vec<(StringId, Arc<Value<'arena>>)>,
-        /// Value environment.
-        ///
-        /// The values stored in this environment correspond to the the types in
-        /// the type environment.
-        env: ValueEnv<'arena>,
+        type_env: Vec<Arc<Value<'arena>>>,
+        /// An environment of evaluated expressions.
+        expr_env: ValueEnv<'arena>,
         /// Diagnostic messages encountered during elaboration.
         messages: Vec<String>,
     }
@@ -502,31 +498,34 @@ pub mod elaboration {
         pub fn new(arena: &'arena Arena<core::Term<'arena>>) -> Context<'arena> {
             Context {
                 arena,
-                types: Vec::new(),
-                env: ValueEnv::new(),
+                name_env: Vec::new(),
+                type_env: Vec::new(),
+                expr_env: ValueEnv::new(),
                 messages: Vec::new(),
             }
         }
 
-        fn push_entry(
+        fn push_binding(
             &mut self,
             name: StringId,
             value: Arc<Value<'arena>>,
             r#type: Arc<Value<'arena>>,
         ) {
-            self.types.push((name, r#type));
-            self.env.push_entry(value);
+            self.name_env.push(name);
+            self.type_env.push(r#type);
+            self.expr_env.push_entry(value);
         }
 
         fn push_param(&mut self, name: StringId, r#type: Arc<Value<'arena>>) -> Arc<Value<'arena>> {
-            let value = Arc::new(Value::Stuck(self.env.len().next_global(), Vec::new()));
-            self.push_entry(name, value.clone(), r#type);
+            let value = Arc::new(Value::Stuck(self.expr_env.len().next_global(), Vec::new()));
+            self.push_binding(name, value.clone(), r#type);
             value
         }
 
-        fn pop_entry(&mut self) {
-            self.types.pop();
-            self.env.pop_entry();
+        fn pop_binding(&mut self) {
+            self.name_env.pop();
+            self.type_env.pop();
+            self.expr_env.pop_entry();
         }
 
         fn report<T>(&mut self, message: impl Into<String>) -> Option<T> {
@@ -539,19 +538,15 @@ pub mod elaboration {
             arena: &'out_arena Arena<core::Term<'out_arena>>,
             term: &core::Term<'arena>,
         ) -> Option<core::Term<'out_arena>> {
-            semantics::normalise(arena, &mut self.env, term).ok() // FIXME: record error
+            semantics::normalise(arena, &mut self.expr_env, term).ok() // FIXME: record error
         }
 
-        pub fn eval(&mut self, term: &core::Term<'arena>) -> Option<Arc<Value<'arena>>> {
-            semantics::eval(&mut self.env, term).ok() // FIXME: record error
+        fn eval(&mut self, term: &core::Term<'arena>) -> Option<Arc<Value<'arena>>> {
+            semantics::eval(&mut self.expr_env, term).ok() // FIXME: record error
         }
 
-        pub fn is_equal(
-            &mut self,
-            value0: &Arc<Value<'_>>,
-            value1: &Arc<Value<'_>>,
-        ) -> Option<bool> {
-            semantics::is_equal(self.env.len(), value0, value1).ok() // FIXME: record error
+        fn is_equal(&mut self, value0: &Arc<Value<'_>>, value1: &Arc<Value<'_>>) -> Option<bool> {
+            semantics::is_equal(self.expr_env.len(), value0, value1).ok() // FIXME: record error
         }
 
         /// Check that a surface term conforms to the given type.
@@ -570,9 +565,9 @@ pub mod elaboration {
                     let def_expr = self.check(def_expr, &def_type_value)?;
                     let def_expr_value = self.eval(&def_expr)?;
 
-                    self.push_entry(*name, def_expr_value, def_type_value);
+                    self.push_binding(*name, def_expr_value, def_type_value);
                     let body_expr = self.check(body_expr, expected_type)?; // FIXME: pop if error occured
-                    self.pop_entry();
+                    self.pop_binding();
 
                     Some(core::Term::Let(
                         *name,
@@ -588,7 +583,7 @@ pub mod elaboration {
                     let input_expr = self.push_param(*name, input_type.clone());
                     let output_type = output_type.apply(input_expr).ok()?; // FIXME: record error
                     let output_expr = self.check(output_expr, &output_type)?;
-                    self.pop_entry(); // FIXME: pop if error occurred
+                    self.pop_binding(); // FIXME: pop if error occurred
 
                     Some(core::Term::FunIntro(*name, self.arena.alloc(output_expr)))
                 }
@@ -610,15 +605,16 @@ pub mod elaboration {
         ) -> Option<(core::Term<'arena>, Arc<Value<'arena>>)> {
             match surface_term {
                 surface::Term::Var(var_name) => {
-                    for (i, (name, r#type)) in self.types.iter().rev().enumerate() {
+                    for (local, name, r#type) in itertools::izip!(
+                        (0..).map(LocalVar),
+                        self.name_env.iter().rev(),
+                        self.type_env.iter().rev(),
+                    ) {
                         if name == var_name {
-                            return match i.try_into() {
-                                Ok(i) => Some((core::Term::Var(LocalVar(i)), r#type.clone())),
-                                Err(_) => self.report("bug: local index out of range"),
-                            };
+                            return Some((core::Term::Var(local), r#type.clone()));
                         }
                     }
-                    self.report("error: variable out of scope")
+                    self.report("error: unknown variable")
                 }
                 surface::Term::Let(name, def_type, def_expr, body_expr) => {
                     let def_type = self.check(def_type, &Arc::new(Value::Universe))?; // FIXME: avoid temporary Arc
@@ -627,9 +623,9 @@ pub mod elaboration {
                     let def_expr = self.check(def_expr, &def_type_value)?;
                     let def_expr_value = self.eval(&def_expr)?;
 
-                    self.push_entry(*name, def_expr_value, def_type_value);
+                    self.push_binding(*name, def_expr_value, def_type_value);
                     let (body_expr, body_type) = self.synth(body_expr)?; // FIXME: pop if error occured
-                    self.pop_entry();
+                    self.pop_binding();
 
                     let r#let = core::Term::Let(
                         *name,
@@ -647,7 +643,7 @@ pub mod elaboration {
 
                     self.push_param(*name, input_type_value);
                     let output_type = self.check(output_type, &Arc::new(Value::Universe))?; // FIXME: avoid temporary Arc
-                    self.pop_entry(); // FIXME: pop if error occured
+                    self.pop_binding(); // FIXME: pop if error occured
 
                     let fun_type = core::Term::FunType(
                         *name,
