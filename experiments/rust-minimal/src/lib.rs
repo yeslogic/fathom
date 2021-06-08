@@ -64,7 +64,7 @@ pub mod core {
     ///
     /// [environment]: `Env`
     /// [de-bruijn-index]: https://en.wikipedia.org/wiki/De_Bruijn_index
-    #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
     pub struct LocalVar(u16);
 
     pub fn local_vars() -> impl Iterator<Item = LocalVar> {
@@ -89,11 +89,11 @@ pub mod core {
     ///
     /// [environment]: `Env`
     /// [untyped-nbe-for-lc]: https://colimit.net/posts/normalisation-by-evaluation/
-    #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
     pub struct GlobalVar(u16);
 
     /// Length of the environment.
-    #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
     pub struct EnvLen(u16);
 
     impl EnvLen {
@@ -115,7 +115,7 @@ pub mod core {
     }
 
     /// A generic environment
-    #[derive(Clone)]
+    #[derive(Debug, Clone)]
     pub struct Env<Entry> {
         /// The entries in the environment.
         ///
@@ -161,6 +161,7 @@ pub mod core {
     pub type TermRef<'arena> = &'arena Term<'arena>;
 
     /// Core language terms.
+    #[derive(Debug, Clone)]
     pub enum Term<'arena> {
         /// Variable occurrences.
         Var(LocalVar),
@@ -198,7 +199,7 @@ pub mod core {
         pub type ValueEnv<'arena> = Env<Arc<Value<'arena>>>;
 
         /// Values in weak-head-normal form.
-        #[derive(Clone)]
+        #[derive(Debug, Clone)]
         pub enum Value<'arena> {
             /// A value whose computation has stopped as a result of trying to
             /// [evaluate][`eval`] an open [term][`Term`].
@@ -215,7 +216,7 @@ pub mod core {
 
         /// A pending elimination to be reduced if the [head][`Head`] of a
         /// [stuck value][`Value::Stuck`] becomes known.
-        #[derive(Clone)]
+        #[derive(Debug, Clone)]
         pub enum Elim<'arena> {
             /// Function eliminations.
             Fun(Arc<Value<'arena>>),
@@ -225,7 +226,7 @@ pub mod core {
         /// A closure is a term and a captured environment that will be later
         /// evaluated
         /// that will be later evaluated in the presence of an input expression.
-        #[derive(Clone)]
+        #[derive(Debug, Clone)]
         pub struct Closure<'arena> {
             /// Captured environment.
             env: ValueEnv<'arena>,
@@ -481,6 +482,7 @@ pub mod surface {
 
     pub type TermRef<'arena> = &'arena Term<'arena>;
 
+    #[derive(Debug, Clone)]
     pub enum Term<'arena> {
         Var(StringId),
         Let(StringId, TermRef<'arena>, TermRef<'arena>, TermRef<'arena>),
