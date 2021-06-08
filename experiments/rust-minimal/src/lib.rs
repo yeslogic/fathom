@@ -545,6 +545,19 @@ pub mod elaboration {
             }
         }
 
+        fn get_binding(&self, name: StringId) -> Option<(core::LocalVar, &Arc<Value<'arena>>)> {
+            let mut bindings = itertools::izip!(
+                core::local_vars(),
+                self.name_env.iter().rev(),
+                self.type_env.iter().rev(),
+            );
+
+            bindings.find_map(|(local_var, n, r#type)| match name == *n {
+                true => Some((local_var, r#type)),
+                false => None,
+            })
+        }
+
         fn push_binding(
             &mut self,
             name: StringId,
@@ -568,9 +581,12 @@ pub mod elaboration {
             self.expr_env.pop();
         }
 
-        fn report<T>(&mut self, message: impl Into<String>) -> Option<T> {
+        fn push_message(&mut self, message: impl Into<String>) {
             self.messages.push(message.into());
-            None
+        }
+
+        pub fn drain_messages<'this>(&'this mut self) -> impl 'this + Iterator<Item = String> {
+            self.messages.drain(..)
         }
 
         pub fn normalize<'out_arena>(
@@ -614,7 +630,7 @@ pub mod elaboration {
                     let def_expr_value = self.eval(&def_expr)?;
 
                     self.push_binding(*name, def_expr_value, def_type_value);
-                    let body_expr = self.check(body_expr, expected_type); // FIXME: pop if error occured
+                    let body_expr = self.check(body_expr, expected_type);
                     self.pop_binding();
 
                     body_expr.map(|body_expr| {
@@ -641,12 +657,16 @@ pub mod elaboration {
                         core::Term::FunIntro(*name, self.arena.alloc(output_expr))
                     })
                 }
-                (_, _) => match self.synth(surface_term)? {
-                    (core_term, synth_type) if self.is_equal(&synth_type, expected_type)? => {
+                (_, _) => {
+                    let (core_term, synth_type) = self.synth(surface_term)?;
+
+                    if self.is_equal(&synth_type, expected_type)? {
                         Some(core_term)
+                    } else {
+                        self.push_message("error: type mismatch");
+                        None
                     }
-                    (_, _) => self.report("error: type mismatch"),
-                },
+                }
             }
         }
 
@@ -658,18 +678,13 @@ pub mod elaboration {
             surface_term: surface::TermRef<'_>,
         ) -> Option<(core::Term<'arena>, Arc<Value<'arena>>)> {
             match surface_term {
-                surface::Term::Var(var_name) => {
-                    for (local_var, name, r#type) in itertools::izip!(
-                        core::local_vars(),
-                        self.name_env.iter().rev(),
-                        self.type_env.iter().rev(),
-                    ) {
-                        if name == var_name {
-                            return Some((core::Term::Var(local_var), r#type.clone()));
-                        }
+                surface::Term::Var(var_name) => match self.get_binding(*var_name) {
+                    Some((local_var, r#type)) => Some((core::Term::Var(local_var), r#type.clone())),
+                    None => {
+                        self.push_message("error: unknown variable");
+                        None
                     }
-                    self.report("error: unknown variable")
-                }
+                },
                 surface::Term::Let(name, def_type, def_expr, body_expr) => {
                     let def_type = self.check(def_type, &Arc::new(Value::Universe))?; // FIXME: avoid temporary Arc
                     let def_type_value = self.eval(&def_type)?;
@@ -712,7 +727,8 @@ pub mod elaboration {
                     })
                 }
                 surface::Term::FunIntro(_, _) => {
-                    self.report("error: ambiguous function introduction")
+                    self.push_message("error: ambiguous function introduction");
+                    None
                 }
                 surface::Term::FunElim(head_expr, input_expr) => {
                     let (head_expr, head_type) = self.synth(head_expr)?;
@@ -730,7 +746,10 @@ pub mod elaboration {
 
                             Some((fun_elim, output_type))
                         }
-                        _ => self.report("error: expected a function type"),
+                        _ => {
+                            self.push_message("error: expected a function type");
+                            None
+                        }
                     }
                 }
             }
