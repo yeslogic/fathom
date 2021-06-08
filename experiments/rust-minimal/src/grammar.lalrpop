@@ -16,6 +16,7 @@ extern {
         "fun" => Token::KeywordFun,
         "let" => Token::KeywordLet,
         "in" => Token::KeywordIn,
+        "Type" => Token::KeywordType,
 
         "(" => Token::OpenParen,
         ")" => Token::CloseParen,
@@ -68,5 +69,6 @@ AppTerm: Term<'arena> = {
 
 AtomicTerm : Term<'arena> = {
     <name: "ident"> => Term::Var(interner.get_or_intern(name)),
+    "Type" => Term::Universe,
     "(" <term: Term> ")" => term,
 };
