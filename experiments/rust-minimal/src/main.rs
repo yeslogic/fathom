@@ -19,10 +19,18 @@ fn main() {
 
             let mut context = elaboration::Context::new(&core_arena);
             let surface_term = surface::Term::parse(&mut interner, &surface_arena, &term).unwrap();
-            let (core_term, r#type) = context.synth(&surface_term).unwrap();
-            let core_term = context.normalize(&core_arena, &core_term).unwrap();
 
-            // TODO: Pretty print term and type
+            if let Some((core_term, r#type)) = context.synth(&surface_term) {
+                if let Some(core_term) = context.normalize(&core_arena, &core_term) {
+                    // TODO: Pretty print term and type
+                    dbg!(core_term);
+                    dbg!(r#type);
+                }
+            }
+
+            for message in context.drain_messages() {
+                println!("{}", message);
+            }
         }
         Options::Type { term } => {
             let mut interner = StringInterner::new();
@@ -31,9 +39,14 @@ fn main() {
 
             let mut context = elaboration::Context::new(&core_arena);
             let surface_term = surface::Term::parse(&mut interner, &surface_arena, &term).unwrap();
-            let (_, r#type) = context.synth(&surface_term).unwrap();
+            if let Some((_, r#type)) = context.synth(&surface_term) {
+                // TODO: Pretty print type
+                dbg!(r#type);
+            }
 
-            // TODO: Pretty print type
+            for message in context.drain_messages() {
+                println!("{}", message);
+            }
         }
     }
 }
