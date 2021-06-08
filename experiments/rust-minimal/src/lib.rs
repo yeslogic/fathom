@@ -12,13 +12,15 @@
 //   - [x] let expressions
 //   - [x] dependent functions
 //   - [ ] dependent records
+//   - [ ] top-level items
+//   - [ ] recursive definitions
 //   - [ ] binary format descriptions
 //     - [ ] error formats
 //     - [ ] map formats
 //     - [ ] pure formats
 //     - [ ] bind formats
 // - implementation
-//   - [ ] command line interface
+//   - [x] command line interface
 //   - [x] parser
 //   - [ ] source location tracking
 //   - [x] string interning
