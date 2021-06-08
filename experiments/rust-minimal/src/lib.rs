@@ -443,6 +443,8 @@ pub mod surface {
             KeywordLet,
             #[token("in")]
             KeywordIn,
+            #[token("Type")]
+            KeywordType,
 
             #[token(":")]
             Colon,
@@ -780,7 +782,7 @@ pub mod distillation {
             }
         }
 
-        fn get_name(&self, local_var: core::LocalVar) -> StringId {
+        fn get_name(&self, _local_var: core::LocalVar) -> StringId {
             // *self.names.get(todo!()).unwrap()
             todo!()
         }
