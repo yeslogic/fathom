@@ -26,7 +26,6 @@
 //   - [x] string interning
 //   - [x] arena allocation
 //   - [x] normalisation-by-evaluation
-//      - [ ] improved closure representation
 //   - [x] elaborator
 //     - [ ] error recovery
 //   - [ ] distiller
@@ -118,20 +117,18 @@ pub mod core {
     /// A generic environment
     #[derive(Clone)]
     pub struct Env<Entry> {
-        // TODO: figure out a better representation for this:
-        //
-        // - should avoid clones if possible
-        // - allow for fast, in-place pushes on the end of an immutable list?
-        // - maybe some sort of chunked tree structure?
-        // - could also use a linked list but idk
-        // - `im::Vector` is ergonomic, but a bit chonky
-        entries: Vec<Entry>,
+        /// The entries in the environment.
+        ///
+        /// An `rpds::Vector` is used instead of an `im::Vector` as it's a bit
+        /// more compact, which is important as we tend to clone environments
+        /// often, and they contribute to the size of values.
+        entries: rpds::VectorSync<Entry>,
     }
 
     impl<Entry> Env<Entry> {
         pub fn new() -> Env<Entry> {
             Env {
-                entries: Vec::new(),
+                entries: rpds::Vector::new_sync(),
             }
         }
 
@@ -139,21 +136,25 @@ pub mod core {
             EnvLen(self.entries.len() as u16)
         }
 
-        pub fn get_global(&self, global: GlobalVar) -> Option<&Entry> {
-            self.entries.get(global.0 as usize)
+        pub fn get(&self, local: LocalVar) -> Option<&Entry> {
+            let global_var = self.len().local_to_global(local)?;
+            self.entries.get(global_var.0 as usize)
         }
 
-        pub fn get_local(&self, local: LocalVar) -> Option<&Entry> {
-            self.get_global(self.len().local_to_global(local)?)
+        pub fn push_clone(&self, entry: Entry) -> Env<Entry> {
+            assert!(self.entries.len() < u16::MAX as usize);
+            Env {
+                entries: self.entries.push_back(entry),
+            }
         }
 
-        pub fn push_entry(&mut self, entry: Entry) {
-            // FIXME: check if `self.entries.len()` exceeds `u16::MAX`
-            self.entries.push(entry);
+        pub fn push(&mut self, entry: Entry) {
+            assert!(self.entries.len() < u16::MAX as usize);
+            self.entries.push_back_mut(entry);
         }
 
-        pub fn pop_entry(&mut self) {
-            self.entries.pop();
+        pub fn pop(&mut self) {
+            self.entries.drop_last_mut();
         }
     }
 
@@ -245,9 +246,7 @@ pub mod core {
                 &self,
                 input_expr: Arc<Value<'arena>>,
             ) -> Result<Arc<Value<'arena>>, EvalError> {
-                let mut env = self.env.clone(); // FIXME: ValueEnv::clone
-                env.push_entry(input_expr); // Add the input expression to the environment
-                eval(&mut env, self.body_expr) // Evaluate the body expression
+                eval(&mut self.env.push_clone(input_expr), self.body_expr)
             }
         }
 
@@ -271,25 +270,25 @@ pub mod core {
             term: &Term<'arena>,
         ) -> Result<Arc<Value<'arena>>, EvalError> {
             match term {
-                Term::Var(local) => match env.get_local(*local) {
+                Term::Var(local) => match env.get(*local) {
                     Some(value) => Ok(value.clone()),
                     None => Err(EvalError::MisboundLocal),
                 },
                 Term::Let(_, _, expr, body_expr) => {
                     let expr = eval(env, expr)?;
-                    env.push_entry(expr);
+                    env.push(expr);
                     let body_expr = eval(env, body_expr);
-                    env.pop_entry();
+                    env.pop();
                     body_expr
                 }
                 Term::Universe => Ok(Arc::new(Value::Universe)),
                 Term::FunType(name, input_type, output_type) => {
                     let input_type = eval(env, input_type)?;
-                    let output_type = Closure::new(env.clone(), output_type); // FIXME: ValueEnv::clone
+                    let output_type = Closure::new(env.clone(), output_type);
                     Ok(Arc::new(Value::FunType(*name, input_type, output_type)))
                 }
                 Term::FunIntro(name, output_expr) => {
-                    let output_expr = Closure::new(env.clone(), output_expr); // FIXME: ValueEnv::clone
+                    let output_expr = Closure::new(env.clone(), output_expr);
                     Ok(Arc::new(Value::FunIntro(*name, output_expr)))
                 }
                 Term::FunElim(head_expr, input_expr) => {
@@ -551,7 +550,7 @@ pub mod elaboration {
         ) {
             self.name_env.push(name);
             self.type_env.push(r#type);
-            self.expr_env.push_entry(value);
+            self.expr_env.push(value);
         }
 
         fn push_param(&mut self, name: StringId, r#type: Arc<Value<'arena>>) -> Arc<Value<'arena>> {
@@ -563,7 +562,7 @@ pub mod elaboration {
         fn pop_binding(&mut self) {
             self.name_env.pop();
             self.type_env.pop();
-            self.expr_env.pop_entry();
+            self.expr_env.pop();
         }
 
         fn report<T>(&mut self, message: impl Into<String>) -> Option<T> {
