@@ -46,6 +46,9 @@ pub type StringInterner = string_interner::StringInterner<
 pub mod core {
     use crate::StringId;
 
+    /// Underlying variable representation.
+    type RawVar = u16;
+
     /// A [de Bruijn index][de-bruijn-index] in the current [environment].
     ///
     /// De Bruijn indices describe an occurrence of a variable in terms of the
@@ -65,7 +68,7 @@ pub mod core {
     /// [environment]: `Env`
     /// [de-bruijn-index]: https://en.wikipedia.org/wiki/De_Bruijn_index
     #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-    pub struct LocalVar(u16);
+    pub struct LocalVar(RawVar);
 
     pub fn local_vars() -> impl Iterator<Item = LocalVar> {
         (0..).map(LocalVar)
@@ -90,11 +93,11 @@ pub mod core {
     /// [environment]: `Env`
     /// [untyped-nbe-for-lc]: https://colimit.net/posts/normalisation-by-evaluation/
     #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-    pub struct GlobalVar(u16);
+    pub struct GlobalVar(RawVar);
 
-    /// Length of the environment.
+    /// The length of an environment.
     #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-    pub struct EnvLen(u16);
+    pub struct EnvLen(RawVar);
 
     impl EnvLen {
         pub fn local_to_global(self, local: LocalVar) -> Option<GlobalVar> {
@@ -114,9 +117,46 @@ pub mod core {
         }
     }
 
-    /// A generic environment
+    /// A uniquely owned environment.
     #[derive(Debug, Clone)]
-    pub struct Env<Entry> {
+    pub struct UniqueEnv<Entry> {
+        /// The entries in the environment.
+        entries: Vec<Entry>,
+    }
+
+    impl<Entry> UniqueEnv<Entry> {
+        pub fn new() -> UniqueEnv<Entry> {
+            UniqueEnv {
+                entries: Vec::new(),
+            }
+        }
+
+        pub fn len(&self) -> EnvLen {
+            EnvLen(self.entries.len() as RawVar)
+        }
+
+        pub fn get(&self, local: LocalVar) -> Option<&Entry> {
+            let global_var = self.len().local_to_global(local)?;
+            self.entries.get(global_var.0 as usize)
+        }
+
+        pub fn push(&mut self, entry: Entry) {
+            assert!(self.entries.len() < u16::MAX as usize);
+            self.entries.push(entry);
+        }
+
+        pub fn pop(&mut self) {
+            self.entries.pop();
+        }
+
+        pub fn iter<'this>(&'this self) -> impl 'this + DoubleEndedIterator<Item = &'this Entry> {
+            self.entries.iter()
+        }
+    }
+
+    /// A persistent environment with structural sharing.
+    #[derive(Debug, Clone)]
+    pub struct SharedEnv<Entry> {
         /// The entries in the environment.
         ///
         /// An `rpds::Vector` is used instead of an `im::Vector` as it's a bit
@@ -125,9 +165,9 @@ pub mod core {
         entries: rpds::VectorSync<Entry>,
     }
 
-    impl<Entry> Env<Entry> {
-        pub fn new() -> Env<Entry> {
-            Env {
+    impl<Entry> SharedEnv<Entry> {
+        pub fn new() -> SharedEnv<Entry> {
+            SharedEnv {
                 entries: rpds::Vector::new_sync(),
             }
         }
@@ -141,9 +181,9 @@ pub mod core {
             self.entries.get(global_var.0 as usize)
         }
 
-        pub fn push_clone(&self, entry: Entry) -> Env<Entry> {
+        pub fn push_clone(&self, entry: Entry) -> SharedEnv<Entry> {
             assert!(self.entries.len() < u16::MAX as usize);
-            Env {
+            SharedEnv {
                 entries: self.entries.push_back(entry),
             }
         }
@@ -186,17 +226,15 @@ pub mod core {
         // RecordElim(TermRef<'arena>, StringId),
     }
 
-    /// The semantics of the core language, implemented through the use of
-    /// normalization-by-evaluation.
+    /// The semantics of the core language, implemented using
+    /// _normalization by evaluation_.
     pub mod semantics {
         use std::sync::Arc;
 
         use typed_arena::Arena;
 
-        use crate::core::{Env, EnvLen, GlobalVar, Term, TermRef};
+        use crate::core::{EnvLen, GlobalVar, SharedEnv, Term, TermRef};
         use crate::StringId;
-
-        pub type ValueEnv<'arena> = Env<Arc<Value<'arena>>>;
 
         /// Values in weak-head-normal form.
         #[derive(Debug, Clone)]
@@ -229,7 +267,7 @@ pub mod core {
         #[derive(Debug, Clone)]
         pub struct Closure<'arena> {
             /// Captured environment.
-            env: ValueEnv<'arena>,
+            env: SharedEnv<Arc<Value<'arena>>>,
             /// The body expression.
             ///
             /// This can be evaluated using the captured environment with an
@@ -238,7 +276,10 @@ pub mod core {
         }
 
         impl<'arena> Closure<'arena> {
-            pub fn new(env: ValueEnv<'arena>, body_expr: TermRef<'arena>) -> Closure<'arena> {
+            pub fn new(
+                env: SharedEnv<Arc<Value<'arena>>>,
+                body_expr: TermRef<'arena>,
+            ) -> Closure<'arena> {
                 Closure { env, body_expr }
             }
 
@@ -260,14 +301,14 @@ pub mod core {
 
         pub fn normalise<'in_arena, 'out_arena>(
             arena: &'out_arena Arena<Term<'out_arena>>,
-            env: &mut ValueEnv<'in_arena>,
+            env: &mut SharedEnv<Arc<Value<'in_arena>>>,
             term: &Term<'in_arena>,
         ) -> Result<Term<'out_arena>, EvalError> {
             readback(arena, env.len(), eval(env, term)?.as_ref())
         }
 
         pub fn eval<'arena>(
-            env: &mut ValueEnv<'arena>,
+            env: &mut SharedEnv<Arc<Value<'arena>>>,
             term: &Term<'arena>,
         ) -> Result<Arc<Value<'arena>>, EvalError> {
             match term {
@@ -520,7 +561,7 @@ pub mod elaboration {
     use std::sync::Arc;
     use typed_arena::Arena;
 
-    use crate::core::semantics::{self, Value, ValueEnv};
+    use crate::core::semantics::{self, Value};
     use crate::{core, surface, StringId};
 
     /// Elaboration context.
@@ -528,11 +569,11 @@ pub mod elaboration {
         /// Arena used for storing elaborated terms.
         arena: &'arena Arena<core::Term<'arena>>,
         /// Name environment.
-        name_env: Vec<StringId>,
+        name_env: core::UniqueEnv<StringId>,
         /// Type environment.
-        type_env: Vec<Arc<Value<'arena>>>,
+        type_env: core::UniqueEnv<Arc<Value<'arena>>>,
         /// An environment of evaluated expressions.
-        expr_env: ValueEnv<'arena>,
+        expr_env: core::SharedEnv<Arc<Value<'arena>>>,
         /// Diagnostic messages encountered during elaboration.
         messages: Vec<String>,
     }
@@ -542,9 +583,9 @@ pub mod elaboration {
         pub fn new(arena: &'arena Arena<core::Term<'arena>>) -> Context<'arena> {
             Context {
                 arena,
-                name_env: Vec::new(),
-                type_env: Vec::new(),
-                expr_env: ValueEnv::new(),
+                name_env: core::UniqueEnv::new(),
+                type_env: core::UniqueEnv::new(),
+                expr_env: core::SharedEnv::new(),
                 messages: Vec::new(),
             }
         }
@@ -769,8 +810,10 @@ pub mod distillation {
 
     /// Distillation context.
     pub struct Context<'arena> {
+        /// Arena for storing distilled terms.
         arena: &'arena Arena<surface::Term<'arena>>,
-        names: Vec<StringId>,
+        /// Name environment.
+        names: core::UniqueEnv<StringId>,
     }
 
     impl<'arena> Context<'arena> {
@@ -778,18 +821,16 @@ pub mod distillation {
         pub fn new(arena: &'arena Arena<surface::Term<'arena>>) -> Context<'arena> {
             Context {
                 arena,
-                names: Vec::new(),
+                names: core::UniqueEnv::new(),
             }
         }
 
-        fn get_name(&self, _local_var: core::LocalVar) -> StringId {
-            // *self.names.get(todo!()).unwrap()
-            todo!()
+        fn get_name(&self, local_var: core::LocalVar) -> Option<StringId> {
+            self.names.get(local_var).copied()
         }
 
         fn push_binding(&mut self, name: StringId) -> StringId {
-            // TODO: choose optimal name
-            self.names.push(name);
+            self.names.push(name); // TODO: ensure we chose a correctly bound name
             name
         }
 
@@ -827,7 +868,10 @@ pub mod distillation {
 
         pub fn synth(&mut self, core_term: &core::Term<'_>) -> surface::Term<'arena> {
             match core_term {
-                core::Term::Var(local_var) => surface::Term::Var(self.get_name(*local_var)),
+                core::Term::Var(local_var) => match self.get_name(*local_var) {
+                    Some(name) => surface::Term::Var(name),
+                    None => todo!("misbound variable"), // TODO: error?
+                },
                 core::Term::Let(name, def_type, def_expr, body_expr) => {
                     let def_type = self.synth(def_type);
                     let def_expr = self.synth(def_expr);
