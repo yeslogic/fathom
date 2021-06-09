@@ -341,12 +341,18 @@ pub mod core {
             }
         }
 
+        /// Apply a function elimination to an expression, performing
+        /// [beta-reduction] if possible.
+        ///
+        /// [beta-reduction]: https://ncatlab.org/nlab/show/beta-reduction
         fn fun_elim<'arena>(
             mut head_expr: Arc<Value<'arena>>,
             input_expr: Arc<Value<'arena>>,
         ) -> Result<Arc<Value<'arena>>, EvalError> {
             match Arc::make_mut(&mut head_expr) {
+                // Beta-reduction
                 Value::FunIntro(_, output_expr) => output_expr.apply(input_expr),
+                // The computation is stuck, preventing further reduction
                 Value::Stuck(_, elims) => {
                     elims.push(Elim::Fun(input_expr));
                     Ok(head_expr)
@@ -402,7 +408,10 @@ pub mod core {
         /// This is sometimes referred to as 'conversion checking', or checking
         /// for 'definitional equality'.
         ///
+        /// We perform [eta-conversion] here, if possible.
+        ///
         /// [computationally equal]: https://ncatlab.org/nlab/show/equality#computational_equality
+        /// [eta-conversion]: https://ncatlab.org/nlab/show/eta-conversion
         pub fn is_equal(
             env_len: EnvLen,
             value0: &Arc<Value<'_>>,
