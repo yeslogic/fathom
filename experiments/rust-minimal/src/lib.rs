@@ -22,13 +22,14 @@
 // - implementation
 //   - [x] command line interface
 //   - [x] parser
+//   - [ ] pretty printing
 //   - [ ] source location tracking
 //   - [x] string interning
 //   - [x] arena allocation
 //   - [x] normalisation-by-evaluation
 //   - [x] elaborator
 //     - [ ] error recovery
-//   - [ ] distiller
+//   - [x] distiller
 //   - [ ] pretty printing
 //   - [ ] integration tests
 
@@ -120,7 +121,6 @@ pub mod core {
     /// A uniquely owned environment.
     #[derive(Debug, Clone)]
     pub struct UniqueEnv<Entry> {
-        /// The entries in the environment.
         entries: Vec<Entry>,
     }
 
@@ -157,11 +157,9 @@ pub mod core {
     /// A persistent environment with structural sharing.
     #[derive(Debug, Clone)]
     pub struct SharedEnv<Entry> {
-        /// The entries in the environment.
-        ///
-        /// An `rpds::Vector` is used instead of an `im::Vector` as it's a bit
-        /// more compact, which is important as we tend to clone environments
-        /// often, and they contribute to the size of values.
+        // An `rpds::Vector` is used instead of an `im::Vector` as it's a bit
+        // more compact. This is important because we tend to clone environments
+        // often, and they contribute to the overall size of values.
         entries: rpds::VectorSync<Entry>,
     }
 
@@ -475,6 +473,7 @@ pub mod core {
 /// Surface language.
 pub mod surface {
     use lalrpop_util::lalrpop_mod;
+    use pretty::{DocAllocator, DocBuilder};
     use typed_arena::Arena;
 
     use crate::{StringId, StringInterner};
@@ -560,9 +559,68 @@ pub mod surface {
         ) -> Result<Term<'arena>, ParseError<'source>> {
             grammar::TermParser::new().parse(interner, arena, lexer::tokens(source))
         }
-    }
 
-    // TODO: pretty print terms
+        pub fn to_doc<'doc, D, A>(
+            &self,
+            interner: &'doc StringInterner,
+            alloc: &'doc D,
+        ) -> DocBuilder<'doc, D, A>
+        where
+            D: DocAllocator<'doc, A>,
+            D::Doc: Clone,
+            A: Clone,
+        {
+            // FIXME: precedences
+            // FIXME: indentation/grouping
+
+            const ERROR: &str = "<ERROR>";
+
+            match self {
+                Term::Var(name) => alloc.text(interner.resolve(*name).unwrap_or(ERROR)),
+                Term::Let(def_name, def_type, def_expr, body_expr) => (alloc.nil())
+                    .append(alloc.text("let"))
+                    .append(alloc.space())
+                    .append(alloc.text(interner.resolve(*def_name).unwrap_or(ERROR)))
+                    .append(alloc.space())
+                    .append(alloc.text(":"))
+                    .append(alloc.space())
+                    .append(def_type.to_doc(interner, alloc))
+                    .append(alloc.space())
+                    .append(alloc.text("="))
+                    .append(alloc.space())
+                    .append(def_expr.to_doc(interner, alloc))
+                    .append(alloc.space())
+                    .append(alloc.text("in"))
+                    .append(alloc.space())
+                    .append(body_expr.to_doc(interner, alloc)),
+                Term::Universe => alloc.text("Type"),
+                Term::FunType(input_name, input_type, output_type) => (alloc.nil())
+                    .append(alloc.text("("))
+                    .append(alloc.text(interner.resolve(*input_name).unwrap_or(ERROR)))
+                    .append(alloc.space())
+                    .append(alloc.text(":"))
+                    .append(alloc.space())
+                    .append(input_type.to_doc(interner, alloc))
+                    .append(alloc.text(")"))
+                    .append(alloc.space())
+                    .append(alloc.text("->"))
+                    .append(alloc.space())
+                    .append(output_type.to_doc(interner, alloc)),
+                Term::FunIntro(input_name, output_expr) => (alloc.nil())
+                    .append(alloc.text("fun"))
+                    .append(alloc.space())
+                    .append(alloc.text(interner.resolve(*input_name).unwrap_or(ERROR)))
+                    .append(alloc.space())
+                    .append(alloc.text("=>"))
+                    .append(alloc.space())
+                    .append(output_expr.to_doc(interner, alloc)),
+                Term::FunElim(head_expr, input_expr) => (alloc.nil())
+                    .append(head_expr.to_doc(interner, alloc))
+                    .append(alloc.space())
+                    .append(input_expr.to_doc(interner, alloc)),
+            }
+        }
+    }
 }
 
 /// Bidirectional elaboration of the surface language into the core language.
@@ -801,7 +859,7 @@ pub mod elaboration {
                             Some((fun_elim, output_type))
                         }
                         _ => {
-                            self.push_message("error: expected a function type");
+                            self.push_message("error: argument to applied non-function");
                             None
                         }
                     }
