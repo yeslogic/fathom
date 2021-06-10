@@ -560,16 +560,11 @@ pub mod surface {
             grammar::TermParser::new().parse(interner, arena, lexer::tokens(source))
         }
 
-        pub fn to_doc<'doc, D, A>(
+        pub fn pretty<'doc, D: DocAllocator<'doc>>(
             &self,
             interner: &'doc StringInterner,
             alloc: &'doc D,
-        ) -> DocBuilder<'doc, D, A>
-        where
-            D: DocAllocator<'doc, A>,
-            D::Doc: Clone,
-            A: Clone,
-        {
+        ) -> DocBuilder<'doc, D> {
             // FIXME: precedences
             // FIXME: indentation/grouping
 
@@ -584,15 +579,15 @@ pub mod surface {
                     .append(alloc.space())
                     .append(alloc.text(":"))
                     .append(alloc.space())
-                    .append(def_type.to_doc(interner, alloc))
+                    .append(def_type.pretty(interner, alloc))
                     .append(alloc.space())
                     .append(alloc.text("="))
                     .append(alloc.space())
-                    .append(def_expr.to_doc(interner, alloc))
+                    .append(def_expr.pretty(interner, alloc))
                     .append(alloc.space())
                     .append(alloc.text("in"))
                     .append(alloc.space())
-                    .append(body_expr.to_doc(interner, alloc)),
+                    .append(body_expr.pretty(interner, alloc)),
                 Term::Universe => alloc.text("Type"),
                 Term::FunType(input_name, input_type, output_type) => (alloc.nil())
                     .append(alloc.text("("))
@@ -600,12 +595,12 @@ pub mod surface {
                     .append(alloc.space())
                     .append(alloc.text(":"))
                     .append(alloc.space())
-                    .append(input_type.to_doc(interner, alloc))
+                    .append(input_type.pretty(interner, alloc))
                     .append(alloc.text(")"))
                     .append(alloc.space())
                     .append(alloc.text("->"))
                     .append(alloc.space())
-                    .append(output_type.to_doc(interner, alloc)),
+                    .append(output_type.pretty(interner, alloc)),
                 Term::FunIntro(input_name, output_expr) => (alloc.nil())
                     .append(alloc.text("fun"))
                     .append(alloc.space())
@@ -613,11 +608,11 @@ pub mod surface {
                     .append(alloc.space())
                     .append(alloc.text("=>"))
                     .append(alloc.space())
-                    .append(output_expr.to_doc(interner, alloc)),
+                    .append(output_expr.pretty(interner, alloc)),
                 Term::FunElim(head_expr, input_expr) => (alloc.nil())
-                    .append(head_expr.to_doc(interner, alloc))
+                    .append(head_expr.pretty(interner, alloc))
                     .append(alloc.space())
-                    .append(input_expr.to_doc(interner, alloc)),
+                    .append(input_expr.pretty(interner, alloc)),
             }
         }
     }
@@ -709,8 +704,16 @@ pub mod elaboration {
             semantics::normalise(arena, &mut self.expr_env, term).ok() // FIXME: record error
         }
 
-        fn eval(&mut self, term: &core::Term<'arena>) -> Option<Arc<Value<'arena>>> {
+        pub fn eval(&mut self, term: &core::Term<'arena>) -> Option<Arc<Value<'arena>>> {
             semantics::eval(&mut self.expr_env, term).ok() // FIXME: record error
+        }
+
+        pub fn readback<'out_arena>(
+            &mut self,
+            arena: &'out_arena Arena<core::Term<'out_arena>>,
+            value: &Arc<Value<'arena>>,
+        ) -> Option<core::Term<'out_arena>> {
+            semantics::readback(arena, self.expr_env.len(), value).ok() // FIXME: record error
         }
 
         fn is_equal(&mut self, value0: &Arc<Value<'_>>, value1: &Arc<Value<'_>>) -> Option<bool> {
