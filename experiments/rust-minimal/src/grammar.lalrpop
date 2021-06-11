@@ -29,10 +29,10 @@ extern {
 }
 
 pub Term : Term<'arena> = {
-    ArrowTerm,
-    "let" <name: "ident"> ":" <def_type: ArrowTerm> "=" <def_expr: ArrowTerm> "in" <body_expr: Term> => {
+    FunTerm,
+    "let" <def_name: "ident"> ":" <def_type: FunTerm> "=" <def_expr: FunTerm> "in" <body_expr: Term> => {
         Term::Let(
-            interner.get_or_intern(name),
+            interner.get_or_intern(def_name),
             arena.alloc(def_type),
             arena.alloc(def_expr),
             arena.alloc(body_expr),
@@ -40,18 +40,18 @@ pub Term : Term<'arena> = {
     },
 };
 
-ArrowTerm: Term<'arena> = {
+FunTerm: Term<'arena> = {
     AppTerm,
-    "("<name: "ident"> ":" <input_type: Term> ")" "->"  <output_type: ArrowTerm> => {
+    "("<input_name: "ident"> ":" <input_type: Term> ")" "->"  <output_type: FunTerm> => {
         Term::FunType(
-            interner.get_or_intern(name),
+            interner.get_or_intern(input_name),
             arena.alloc(input_type),
             arena.alloc(output_type),
         )
     },
-    "fun" <name: "ident"> "=>" <output_type: ArrowTerm> => {
+    "fun" <input_name: "ident"> "=>" <output_type: FunTerm> => {
         Term::FunIntro(
-            interner.get_or_intern(name),
+            interner.get_or_intern(input_name),
             arena.alloc(output_type),
         )
     },
