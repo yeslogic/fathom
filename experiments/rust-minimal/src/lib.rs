@@ -314,9 +314,9 @@ pub mod core {
                     Some(value) => Ok(value.clone()),
                     None => Err(EvalError::MisboundLocal),
                 },
-                Term::Let(_, _, expr, body_expr) => {
-                    let expr = eval(env, expr)?;
-                    env.push(expr);
+                Term::Let(_, _, def_expr, body_expr) => {
+                    let def_expr = eval(env, def_expr)?;
+                    env.push(def_expr);
                     let body_expr = eval(env, body_expr);
                     env.pop();
                     body_expr
@@ -751,8 +751,8 @@ pub mod elaboration {
                     body_expr.map(|body_expr| {
                         core::Term::Let(
                             *name,
-                            self.arena.alloc(def_expr),
                             self.arena.alloc(def_type),
+                            self.arena.alloc(def_expr),
                             self.arena.alloc(body_expr),
                         )
                     })
@@ -814,8 +814,8 @@ pub mod elaboration {
                     body_expr.map(|(body_expr, body_type)| {
                         let let_expr = core::Term::Let(
                             *name,
-                            self.arena.alloc(def_expr),
                             self.arena.alloc(def_type),
+                            self.arena.alloc(def_expr),
                             self.arena.alloc(body_expr),
                         );
 
