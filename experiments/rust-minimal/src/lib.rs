@@ -322,14 +322,18 @@ pub mod core {
                     body_expr
                 }
                 Term::Universe => Ok(Arc::new(Value::Universe)),
-                Term::FunType(name, input_type, output_type) => {
+                Term::FunType(input_name, input_type, output_type) => {
                     let input_type = eval(env, input_type)?;
                     let output_type = Closure::new(env.clone(), output_type);
-                    Ok(Arc::new(Value::FunType(*name, input_type, output_type)))
+                    Ok(Arc::new(Value::FunType(
+                        *input_name,
+                        input_type,
+                        output_type,
+                    )))
                 }
-                Term::FunIntro(name, output_expr) => {
+                Term::FunIntro(input_name, output_expr) => {
                     let output_expr = Closure::new(env.clone(), output_expr);
-                    Ok(Arc::new(Value::FunIntro(*name, output_expr)))
+                    Ok(Arc::new(Value::FunIntro(*input_name, output_expr)))
                 }
                 Term::FunElim(head_expr, input_expr) => {
                     let head_expr = eval(env, head_expr)?;
@@ -379,24 +383,24 @@ pub mod core {
                     Ok(head_expr)
                 }
                 Value::Universe => Ok(Term::Universe),
-                Value::FunType(name, input_type, output_type) => {
+                Value::FunType(input_name, input_type, output_type) => {
                     let input_type = readback(arena, env_len, input_type)?;
                     let var = Arc::new(Value::Stuck(env_len.next_global(), Vec::new()));
                     let output_type = output_type.apply(var)?;
                     let output_type = readback(arena, env_len.add_param(), &output_type)?;
 
                     Ok(Term::FunType(
-                        *name,
+                        *input_name,
                         arena.alloc(input_type),
                         arena.alloc(output_type),
                     ))
                 }
-                Value::FunIntro(name, output_expr) => {
+                Value::FunIntro(input_name, output_expr) => {
                     let var = Arc::new(Value::Stuck(env_len.next_global(), Vec::new()));
                     let output_expr = output_expr.apply(var)?;
                     let output_expr = readback(arena, env_len.add_param(), &output_expr)?;
 
-                    Ok(Term::FunIntro(*name, arena.alloc(output_expr)))
+                    Ok(Term::FunIntro(*input_name, arena.alloc(output_expr)))
                 }
             }
         }
@@ -737,20 +741,20 @@ pub mod elaboration {
             expected_type: &Arc<Value<'arena>>,
         ) -> Option<core::Term<'arena>> {
             match (surface_term, expected_type.as_ref()) {
-                (surface::Term::Let(name, def_type, def_expr, body_expr), _) => {
+                (surface::Term::Let(def_name, def_type, def_expr, body_expr), _) => {
                     let def_type = self.check(def_type, &Arc::new(Value::Universe))?; // FIXME: avoid temporary Arc
                     let def_type_value = self.eval(&def_type)?;
 
                     let def_expr = self.check(def_expr, &def_type_value)?;
                     let def_expr_value = self.eval(&def_expr)?;
 
-                    self.push_binding(*name, def_expr_value, def_type_value);
+                    self.push_binding(*def_name, def_expr_value, def_type_value);
                     let body_expr = self.check(body_expr, expected_type);
                     self.pop_binding();
 
                     body_expr.map(|body_expr| {
                         core::Term::Let(
-                            *name,
+                            *def_name,
                             self.arena.alloc(def_type),
                             self.arena.alloc(def_expr),
                             self.arena.alloc(body_expr),
@@ -758,10 +762,10 @@ pub mod elaboration {
                     })
                 }
                 (
-                    surface::Term::FunIntro(name, output_expr),
+                    surface::Term::FunIntro(input_name, output_expr),
                     Value::FunType(_, input_type, output_type),
                 ) => {
-                    let input_expr = self.push_param(*name, input_type.clone());
+                    let input_expr = self.push_param(*input_name, input_type.clone());
                     let output_expr = {
                         let output_type = self.apply_closure(output_type, input_expr);
                         output_type.and_then(|output_type| self.check(output_expr, &output_type))
@@ -769,7 +773,7 @@ pub mod elaboration {
                     self.pop_binding();
 
                     output_expr.map(|output_expr| {
-                        core::Term::FunIntro(*name, self.arena.alloc(output_expr))
+                        core::Term::FunIntro(*input_name, self.arena.alloc(output_expr))
                     })
                 }
                 (_, _) => {
@@ -823,17 +827,17 @@ pub mod elaboration {
                     })
                 }
                 surface::Term::Universe => Some((core::Term::Universe, Arc::new(Value::Universe))),
-                surface::Term::FunType(name, input_type, output_type) => {
+                surface::Term::FunType(input_name, input_type, output_type) => {
                     let input_type = self.check(input_type, &Arc::new(Value::Universe))?; // FIXME: avoid temporary Arc
                     let input_type_value = self.eval(&input_type)?;
 
-                    self.push_param(*name, input_type_value);
+                    self.push_param(*input_name, input_type_value);
                     let output_type = self.check(output_type, &Arc::new(Value::Universe)); // FIXME: avoid temporary Arc
                     self.pop_binding();
 
                     output_type.map(|output_type| {
                         let fun_type = core::Term::FunType(
-                            *name,
+                            *input_name,
                             self.arena.alloc(input_type),
                             self.arena.alloc(output_type),
                         );
@@ -910,27 +914,27 @@ pub mod distillation {
 
         pub fn check(&mut self, core_term: &core::Term<'_>) -> surface::Term<'arena> {
             match core_term {
-                core::Term::Let(name, def_type, def_expr, body_expr) => {
+                core::Term::Let(def_name, def_type, def_expr, body_expr) => {
                     let def_type = self.synth(def_type);
                     let def_expr = self.synth(def_expr);
 
-                    let name = self.push_binding(*name);
+                    let def_name = self.push_binding(*def_name);
                     let body_expr = self.check(body_expr);
                     self.pop_binding();
 
                     surface::Term::Let(
-                        name,
+                        def_name,
                         self.arena.alloc(def_type),
                         self.arena.alloc(def_expr),
                         self.arena.alloc(body_expr),
                     )
                 }
-                core::Term::FunIntro(name, output_expr) => {
-                    let name = self.push_binding(*name);
+                core::Term::FunIntro(input_name, output_expr) => {
+                    let input_name = self.push_binding(*input_name);
                     let output_expr = self.check(output_expr);
                     self.pop_binding();
 
-                    surface::Term::FunIntro(name, self.arena.alloc(output_expr))
+                    surface::Term::FunIntro(input_name, self.arena.alloc(output_expr))
                 }
                 _ => self.synth(core_term),
             }
@@ -942,41 +946,41 @@ pub mod distillation {
                     Some(name) => surface::Term::Var(name),
                     None => todo!("misbound variable"), // TODO: error?
                 },
-                core::Term::Let(name, def_type, def_expr, body_expr) => {
+                core::Term::Let(def_name, def_type, def_expr, body_expr) => {
                     let def_type = self.synth(def_type);
                     let def_expr = self.synth(def_expr);
 
-                    let name = self.push_binding(*name);
+                    let def_name = self.push_binding(*def_name);
                     let body_expr = self.synth(body_expr);
                     self.pop_binding();
 
                     surface::Term::Let(
-                        name,
+                        def_name,
                         self.arena.alloc(def_type),
                         self.arena.alloc(def_expr),
                         self.arena.alloc(body_expr),
                     )
                 }
                 core::Term::Universe => surface::Term::Universe,
-                core::Term::FunType(name, input_type, output_type) => {
+                core::Term::FunType(input_name, input_type, output_type) => {
                     let input_type = self.check(input_type);
 
-                    let name = self.push_binding(*name);
+                    let input_name = self.push_binding(*input_name);
                     let output_type = self.check(output_type);
                     self.pop_binding();
 
                     surface::Term::FunType(
-                        name,
+                        input_name,
                         self.arena.alloc(input_type),
                         self.arena.alloc(output_type),
                     )
                 }
-                core::Term::FunIntro(name, output_expr) => {
-                    let name = self.push_binding(*name);
+                core::Term::FunIntro(input_name, output_expr) => {
+                    let input_name = self.push_binding(*input_name);
                     let output_expr = self.synth(output_expr);
                     self.pop_binding();
 
-                    surface::Term::FunIntro(name, self.arena.alloc(output_expr))
+                    surface::Term::FunIntro(input_name, self.arena.alloc(output_expr))
                 }
                 core::Term::FunElim(head_expr, input_expr) => {
                     let head_expr = self.synth(head_expr);
