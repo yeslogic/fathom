@@ -494,8 +494,6 @@ pub mod surface {
             KeywordFun,
             #[token("let")]
             KeywordLet,
-            #[token("in")]
-            KeywordIn,
             #[token("Type")]
             KeywordType,
 
@@ -507,6 +505,8 @@ pub mod surface {
             EqualsGreater,
             #[token("->")]
             HyphenGreater,
+            #[token(";")]
+            Semicolon,
 
             #[token("(")]
             OpenParen,
@@ -588,8 +588,7 @@ pub mod surface {
                     .append(alloc.text("="))
                     .append(alloc.space())
                     .append(def_expr.pretty(interner, alloc))
-                    .append(alloc.space())
-                    .append(alloc.text("in"))
+                    .append(alloc.text(";"))
                     .append(alloc.space())
                     .append(body_expr.pretty(interner, alloc)),
                 Term::Universe => alloc.text("Type"),

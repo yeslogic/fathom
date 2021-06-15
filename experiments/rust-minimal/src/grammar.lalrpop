@@ -15,7 +15,6 @@ extern {
 
         "fun" => Token::KeywordFun,
         "let" => Token::KeywordLet,
-        "in" => Token::KeywordIn,
         "Type" => Token::KeywordType,
 
         "(" => Token::OpenParen,
@@ -25,12 +24,13 @@ extern {
         "=" => Token::Equals,
         "=>" => Token::EqualsGreater,
         "->" => Token::HyphenGreater,
+        ";" => Token::Semicolon,
     }
 }
 
 pub Term : Term<'arena> = {
     FunTerm,
-    "let" <def_name: "ident"> ":" <def_type: FunTerm> "=" <def_expr: FunTerm> "in" <body_expr: Term> => {
+    "let" <def_name: "ident"> ":" <def_type: FunTerm> "=" <def_expr: FunTerm> ";" <body_expr: Term> => {
         Term::Let(
             interner.get_or_intern(def_name),
             arena.alloc(def_type),
