@@ -125,30 +125,36 @@ pub mod core {
     }
 
     impl<Entry> UniqueEnv<Entry> {
+        /// Construct a new, empty environment.
         pub fn new() -> UniqueEnv<Entry> {
             UniqueEnv {
                 entries: Vec::new(),
             }
         }
 
+        /// The length of the environment.
         pub fn len(&self) -> EnvLen {
             EnvLen(self.entries.len() as RawVar)
         }
 
+        /// Lookup an entry in the environment.
         pub fn get(&self, local: LocalVar) -> Option<&Entry> {
             let global_var = self.len().local_to_global(local)?;
             self.entries.get(global_var.0 as usize)
         }
 
+        /// Push an entry onto the environment.
         pub fn push(&mut self, entry: Entry) {
             assert!(self.entries.len() < u16::MAX as usize);
             self.entries.push(entry);
         }
 
+        /// Pop an entry off the environment.
         pub fn pop(&mut self) {
             self.entries.pop();
         }
 
+        /// Iterate over the elements in the environment.
         pub fn iter<'this>(&'this self) -> impl 'this + DoubleEndedIterator<Item = &'this Entry> {
             self.entries.iter()
         }
@@ -158,27 +164,38 @@ pub mod core {
     #[derive(Debug, Clone)]
     pub struct SharedEnv<Entry> {
         // An `rpds::Vector` is used instead of an `im::Vector` as it's a bit
-        // more compact. This is important because we tend to clone environments
-        // often, and they contribute to the overall size of values.
+        // more compact. We assume this is important because we tend to clone
+        // environments often, and they contribute to the overall size of values.
+        //
+        // TODO: validate these assumptions by benchmarking
+        //       against the following internal representations:
+        //
+        // - `Vec<_>`
+        // - `im::Vector<_>`
+        // - `Arc<im::Vector<_>>`
         entries: rpds::VectorSync<Entry>,
     }
 
     impl<Entry> SharedEnv<Entry> {
+        /// Construct a new, empty environment.
         pub fn new() -> SharedEnv<Entry> {
             SharedEnv {
                 entries: rpds::Vector::new_sync(),
             }
         }
 
+        /// The length of the environment.
         pub fn len(&self) -> EnvLen {
             EnvLen(self.entries.len() as u16)
         }
 
+        /// Lookup an entry in the environment.
         pub fn get(&self, local: LocalVar) -> Option<&Entry> {
             let global_var = self.len().local_to_global(local)?;
             self.entries.get(global_var.0 as usize)
         }
 
+        /// Push an entry onto a clone of the environment.
         pub fn push_clone(&self, entry: Entry) -> SharedEnv<Entry> {
             assert!(self.entries.len() < u16::MAX as usize);
             SharedEnv {
@@ -186,11 +203,13 @@ pub mod core {
             }
         }
 
+        /// Push an entry onto the environment.
         pub fn push(&mut self, entry: Entry) {
             assert!(self.entries.len() < u16::MAX as usize);
             self.entries.push_back_mut(entry);
         }
 
+        /// Pop an entry off the environment.
         pub fn pop(&mut self) {
             self.entries.drop_last_mut();
         }
@@ -247,7 +266,7 @@ pub mod core {
             /// Function introductions.
             FunIntro(StringId, Closure<'arena>),
             // RecordType(&'arena [StringId], Telescope<'arena>),
-            // RecordIntro(&'arena [StringId], Telescope<'arena>),
+            // RecordIntro(&'arena [StringId], Vec<Arc<Value<'arena>>>),
         }
 
         /// A pending elimination to be reduced if the [head][`Head`] of a
