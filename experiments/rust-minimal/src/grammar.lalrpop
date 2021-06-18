@@ -1,6 +1,6 @@
 use typed_arena::Arena;
 
-use crate::StringInterner;
+use crate::{StringId, StringInterner};
 use crate::surface::Term;
 use crate::surface::lexer::Token;
 
@@ -28,11 +28,11 @@ extern {
     }
 }
 
-pub Term : Term<'arena> = {
+pub Term: Term<'arena> = {
     FunTerm,
-    "let" <def_name: "ident"> ":" <def_type: FunTerm> "=" <def_expr: FunTerm> ";" <body_expr: Term> => {
+    "let" <def_name: Name> ":" <def_type: FunTerm> "=" <def_expr: FunTerm> ";" <body_expr: Term> => {
         Term::Let(
-            interner.get_or_intern(def_name),
+            def_name,
             arena.alloc(def_type),
             arena.alloc(def_expr),
             arena.alloc(body_expr),
@@ -42,16 +42,16 @@ pub Term : Term<'arena> = {
 
 FunTerm: Term<'arena> = {
     AppTerm,
-    "("<input_name: "ident"> ":" <input_type: Term> ")" "->"  <output_type: FunTerm> => {
+    "("<input_name: Name> ":" <input_type: Term> ")" "->"  <output_type: FunTerm> => {
         Term::FunType(
-            interner.get_or_intern(input_name),
+            input_name,
             arena.alloc(input_type),
             arena.alloc(output_type),
         )
     },
-    "fun" <input_name: "ident"> "=>" <output_type: FunTerm> => {
+    "fun" <input_name: Name> "=>" <output_type: FunTerm> => {
         Term::FunIntro(
-            interner.get_or_intern(input_name),
+            input_name,
             arena.alloc(output_type),
         )
     },
@@ -67,8 +67,13 @@ AppTerm: Term<'arena> = {
     },
 };
 
-AtomicTerm : Term<'arena> = {
-    <name: "ident"> => Term::Var(interner.get_or_intern(name)),
+AtomicTerm: Term<'arena> = {
+    <name: Name> => Term::Var(name),
     "Type" => Term::Universe,
     "(" <term: Term> ")" => term,
+};
+
+#[inline]
+Name: StringId = {
+    <"ident"> => interner.get_or_intern(<>),
 };
