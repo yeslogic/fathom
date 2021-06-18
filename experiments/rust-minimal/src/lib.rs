@@ -497,7 +497,6 @@ pub mod core {
 /// Surface language.
 pub mod surface {
     use lalrpop_util::lalrpop_mod;
-    use pretty::{DocAllocator, DocBuilder};
     use typed_arena::Arena;
 
     use crate::{StringId, StringInterner};
@@ -583,63 +582,105 @@ pub mod surface {
         ) -> Result<Term<'arena>, ParseError<'source>> {
             grammar::TermParser::new().parse(interner, arena, lexer::tokens(source))
         }
+    }
 
-        pub fn pretty<'doc, D: DocAllocator<'doc>>(
-            &self,
+    pub mod pretty {
+        use pretty::{DocAllocator, DocBuilder};
+
+        use crate::surface::Term;
+        use crate::{StringId, StringInterner};
+
+        pub struct Context<'doc, D> {
             interner: &'doc StringInterner,
             alloc: &'doc D,
-        ) -> DocBuilder<'doc, D> {
-            // FIXME: precedences
-            // FIXME: indentation/grouping
+        }
 
-            const ERROR: &str = "<ERROR>";
+        impl<'doc, D> std::ops::Deref for Context<'doc, D> {
+            type Target = &'doc D;
 
-            match self {
-                Term::Var(name) => alloc.text(interner.resolve(*name).unwrap_or(ERROR)),
-                Term::Let(def_name, def_type, def_expr, body_expr) => alloc.concat([
-                    alloc.text("let"),
-                    alloc.space(),
-                    alloc.text(interner.resolve(*def_name).unwrap_or(ERROR)),
-                    alloc.space(),
-                    alloc.text(":"),
-                    alloc.softline(),
-                    def_type.pretty(interner, alloc),
-                    alloc.space(),
-                    alloc.text("="),
-                    alloc.softline(),
-                    def_expr.pretty(interner, alloc),
-                    alloc.text(";"),
-                    alloc.line(),
-                    body_expr.pretty(interner, alloc),
-                ]),
-                Term::Universe => alloc.text("Type"),
-                Term::FunType(input_name, input_type, output_type) => alloc.concat([
-                    alloc.text("("),
-                    alloc.text(interner.resolve(*input_name).unwrap_or(ERROR)),
-                    alloc.space(),
-                    alloc.text(":"),
-                    alloc.softline(),
-                    input_type.pretty(interner, alloc),
-                    alloc.text(")"),
-                    alloc.space(),
-                    alloc.text("->"),
-                    alloc.softline(),
-                    output_type.pretty(interner, alloc),
-                ]),
-                Term::FunIntro(input_name, output_expr) => alloc.concat([
-                    alloc.text("fun"),
-                    alloc.space(),
-                    alloc.text(interner.resolve(*input_name).unwrap_or(ERROR)),
-                    alloc.space(),
-                    alloc.text("=>"),
-                    alloc.space(),
-                    output_expr.pretty(interner, alloc),
-                ]),
-                Term::FunElim(head_expr, input_expr) => alloc.concat([
-                    head_expr.pretty(interner, alloc),
-                    alloc.space(),
-                    input_expr.pretty(interner, alloc),
-                ]),
+            // FIXME: `&&'doc D` is a bit ick... egh
+            fn deref(&self) -> &&'doc D {
+                &self.alloc
+            }
+        }
+
+        impl<'doc, D> Context<'doc, D>
+        where
+            D: DocAllocator<'doc>,
+        {
+            pub fn new(interner: &'doc StringInterner, alloc: &'doc D) -> Context<'doc, D> {
+                Context { interner, alloc }
+            }
+
+            pub fn name(&self, name: StringId) -> DocBuilder<'doc, D> {
+                self.text(self.interner.resolve(name).unwrap_or("<ERROR>"))
+            }
+
+            pub fn ann(&self, expr: &Term<'_>, r#type: &Term<'_>) -> DocBuilder<'doc, D> {
+                self.concat([
+                    self.concat([self.term(&expr), self.space(), self.text(":")])
+                        .group(),
+                    self.softline(),
+                    self.term(&r#type),
+                ])
+            }
+
+            // FIXME: precedences, indentation, and grouping
+            pub fn term(&self, term: &Term<'_>) -> DocBuilder<'doc, D> {
+                match term {
+                    Term::Var(name) => self.name(*name),
+                    Term::Let(def_name, def_type, def_expr, body_expr) => self.concat([
+                        self.concat([
+                            self.text("let"),
+                            self.space(),
+                            self.name(*def_name),
+                            self.space(),
+                            self.text(":"),
+                            self.softline(),
+                            self.term(def_type),
+                            self.space(),
+                            self.text("="),
+                            self.softline(),
+                            self.term(def_expr),
+                            self.text(";"),
+                        ])
+                        .group(),
+                        self.line(),
+                        self.term(body_expr),
+                    ]),
+                    Term::Universe => self.text("Type"),
+                    Term::FunType(input_name, input_type, output_type) => self.concat([
+                        self.concat([
+                            self.text("("),
+                            self.name(*input_name),
+                            self.space(),
+                            self.text(":"),
+                            self.softline(),
+                            self.term(input_type),
+                            self.text(")"),
+                            self.space(),
+                            self.text("->"),
+                        ])
+                        .group(),
+                        self.softline(),
+                        self.term(output_type),
+                    ]),
+                    Term::FunIntro(input_name, output_expr) => self.concat([
+                        self.concat([
+                            self.text("fun"),
+                            self.space(),
+                            self.name(*input_name),
+                            self.space(),
+                            self.text("=>"),
+                        ])
+                        .group(),
+                        self.space(),
+                        self.term(output_expr),
+                    ]),
+                    Term::FunElim(head_expr, input_expr) => {
+                        self.concat([self.term(head_expr), self.space(), self.term(input_expr)])
+                    }
+                }
             }
         }
     }
