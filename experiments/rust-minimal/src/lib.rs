@@ -595,46 +595,50 @@ pub mod surface {
 
             match self {
                 Term::Var(name) => alloc.text(interner.resolve(*name).unwrap_or(ERROR)),
-                Term::Let(def_name, def_type, def_expr, body_expr) => (alloc.nil())
-                    .append(alloc.text("let"))
-                    .append(alloc.space())
-                    .append(alloc.text(interner.resolve(*def_name).unwrap_or(ERROR)))
-                    .append(alloc.space())
-                    .append(alloc.text(":"))
-                    .append(alloc.softline())
-                    .append(def_type.pretty(interner, alloc))
-                    .append(alloc.space())
-                    .append(alloc.text("="))
-                    .append(alloc.softline())
-                    .append(def_expr.pretty(interner, alloc))
-                    .append(alloc.text(";"))
-                    .append(alloc.line())
-                    .append(body_expr.pretty(interner, alloc)),
+                Term::Let(def_name, def_type, def_expr, body_expr) => alloc.concat([
+                    alloc.text("let"),
+                    alloc.space(),
+                    alloc.text(interner.resolve(*def_name).unwrap_or(ERROR)),
+                    alloc.space(),
+                    alloc.text(":"),
+                    alloc.softline(),
+                    def_type.pretty(interner, alloc),
+                    alloc.space(),
+                    alloc.text("="),
+                    alloc.softline(),
+                    def_expr.pretty(interner, alloc),
+                    alloc.text(";"),
+                    alloc.line(),
+                    body_expr.pretty(interner, alloc),
+                ]),
                 Term::Universe => alloc.text("Type"),
-                Term::FunType(input_name, input_type, output_type) => (alloc.nil())
-                    .append(alloc.text("("))
-                    .append(alloc.text(interner.resolve(*input_name).unwrap_or(ERROR)))
-                    .append(alloc.space())
-                    .append(alloc.text(":"))
-                    .append(alloc.softline())
-                    .append(input_type.pretty(interner, alloc))
-                    .append(alloc.text(")"))
-                    .append(alloc.space())
-                    .append(alloc.text("->"))
-                    .append(alloc.softline())
-                    .append(output_type.pretty(interner, alloc)),
-                Term::FunIntro(input_name, output_expr) => (alloc.nil())
-                    .append(alloc.text("fun"))
-                    .append(alloc.space())
-                    .append(alloc.text(interner.resolve(*input_name).unwrap_or(ERROR)))
-                    .append(alloc.space())
-                    .append(alloc.text("=>"))
-                    .append(alloc.space())
-                    .append(output_expr.pretty(interner, alloc)),
-                Term::FunElim(head_expr, input_expr) => (alloc.nil())
-                    .append(head_expr.pretty(interner, alloc))
-                    .append(alloc.space())
-                    .append(input_expr.pretty(interner, alloc)),
+                Term::FunType(input_name, input_type, output_type) => alloc.concat([
+                    alloc.text("("),
+                    alloc.text(interner.resolve(*input_name).unwrap_or(ERROR)),
+                    alloc.space(),
+                    alloc.text(":"),
+                    alloc.softline(),
+                    input_type.pretty(interner, alloc),
+                    alloc.text(")"),
+                    alloc.space(),
+                    alloc.text("->"),
+                    alloc.softline(),
+                    output_type.pretty(interner, alloc),
+                ]),
+                Term::FunIntro(input_name, output_expr) => alloc.concat([
+                    alloc.text("fun"),
+                    alloc.space(),
+                    alloc.text(interner.resolve(*input_name).unwrap_or(ERROR)),
+                    alloc.space(),
+                    alloc.text("=>"),
+                    alloc.space(),
+                    output_expr.pretty(interner, alloc),
+                ]),
+                Term::FunElim(head_expr, input_expr) => alloc.concat([
+                    head_expr.pretty(interner, alloc),
+                    alloc.space(),
+                    input_expr.pretty(interner, alloc),
+                ]),
             }
         }
     }
@@ -675,16 +679,10 @@ pub mod elaboration {
         }
 
         fn get_binding(&self, name: StringId) -> Option<(core::LocalVar, &Arc<Value<'arena>>)> {
-            let mut bindings = itertools::izip!(
-                core::local_vars(),
-                self.name_env.iter().rev(),
-                self.type_env.iter().rev(),
-            );
+            let bindings = Iterator::zip(core::local_vars(), self.type_env.iter().rev());
 
-            bindings.find_map(|(local_var, n, r#type)| match name == *n {
-                true => Some((local_var, r#type)),
-                false => None,
-            })
+            Iterator::zip(self.name_env.iter().rev(), bindings)
+                .find_map(|(n, binding)| (name == *n).then(|| binding))
         }
 
         fn push_binding(
