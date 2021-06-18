@@ -79,21 +79,12 @@ fn main() {
 
             if let Some((term, r#type)) = context.synth(&surface_term) {
                 if let Some(r#type) = context.readback(&core_arena, &r#type) {
-                    use pretty::DocAllocator;
-
                     let mut context = distillation::Context::new(&surface_arena);
                     let term = context.check(&term);
                     let r#type = context.synth(&r#type);
 
-                    let doc = (pretty_arena.nil())
-                        .append(term.pretty(&interner, &pretty_arena))
-                        .append(pretty_arena.space())
-                        .append(pretty_arena.text(":"))
-                        .group()
-                        .append(pretty_arena.softline())
-                        .append(r#type.pretty(&interner, &pretty_arena))
-                        .group()
-                        .into_doc();
+                    let context = surface::pretty::Context::new(&interner, &pretty_arena);
+                    let doc = context.ann(&term, &r#type).into_doc();
 
                     println!("{}", doc.pretty(usize::MAX));
                 }
@@ -107,21 +98,12 @@ fn main() {
                     context.normalize(&core_arena, &term),
                     context.readback(&core_arena, &r#type),
                 ) {
-                    use pretty::DocAllocator;
-
                     let mut context = distillation::Context::new(&surface_arena);
                     let term = context.check(&term);
                     let r#type = context.synth(&r#type);
 
-                    let doc = (pretty_arena.nil())
-                        .append(term.pretty(&interner, &pretty_arena))
-                        .append(pretty_arena.space())
-                        .append(pretty_arena.text(":"))
-                        .group()
-                        .append(pretty_arena.softline())
-                        .append(r#type.pretty(&interner, &pretty_arena))
-                        .group()
-                        .into_doc();
+                    let context = surface::pretty::Context::new(&interner, &pretty_arena);
+                    let doc = context.ann(&term, &r#type).into_doc();
 
                     println!("{}", doc.pretty(usize::MAX));
                 }
@@ -135,7 +117,8 @@ fn main() {
                     let mut context = distillation::Context::new(&surface_arena);
                     let r#type = context.synth(&r#type);
 
-                    let doc = r#type.pretty(&interner, &pretty_arena).into_doc();
+                    let context = surface::pretty::Context::new(&interner, &pretty_arena);
+                    let doc = context.term(&r#type).into_doc();
 
                     println!("{}", doc.pretty(usize::MAX));
                 }
