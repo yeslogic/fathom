@@ -12,6 +12,7 @@
 //   - [x] let expressions
 //   - [x] dependent functions
 //   - [ ] dependent records
+//   - [ ] holes
 //   - [ ] top-level items
 //   - [ ] recursive definitions
 //   - [ ] binary format descriptions
