@@ -223,8 +223,10 @@ pub mod core {
     pub enum Term<'arena> {
         /// Variable occurrences.
         Var(LocalVar),
+        /// Annotated expressions.
+        Ann(TermRef<'arena>, TermRef<'arena>),
         /// Let expressions.
-        Let(StringId, TermRef<'arena>, TermRef<'arena>, TermRef<'arena>),
+        Let(StringId, TermRef<'arena>, TermRef<'arena>),
         /// The type of types.
         Universe,
         /// Dependent function types.
@@ -349,7 +351,8 @@ pub mod core {
                     Some(value) => Ok(value.clone()),
                     None => Err(EvalError::MisboundLocal),
                 },
-                Term::Let(_, _, def_expr, body_expr) => {
+                Term::Ann(expr, _) => eval(env, expr),
+                Term::Let(_, def_expr, body_expr) => {
                     let def_expr = eval(env, def_expr)?;
                     env.push(def_expr);
                     let body_expr = eval(env, body_expr);
@@ -577,7 +580,13 @@ pub mod surface {
     #[derive(Debug, Clone)]
     pub enum Term<'arena> {
         Var(StringId),
-        Let(StringId, TermRef<'arena>, TermRef<'arena>, TermRef<'arena>),
+        Ann(TermRef<'arena>, TermRef<'arena>),
+        Let(
+            StringId,
+            Option<TermRef<'arena>>,
+            TermRef<'arena>,
+            TermRef<'arena>,
+        ),
         Universe,
         FunType(StringId, TermRef<'arena>, TermRef<'arena>),
         FunIntro(StringId, TermRef<'arena>),
@@ -664,16 +673,22 @@ pub mod surface {
             pub fn term(&self, term: &Term<'_>) -> DocBuilder<'doc, D> {
                 match term {
                     Term::Var(name) => self.name(*name),
+                    Term::Ann(expr, r#type) => self.ann(expr, r#type),
                     Term::Let(def_name, def_type, def_expr, body_expr) => self.concat([
                         self.concat([
                             self.text("let"),
                             self.space(),
                             self.name(*def_name),
                             self.space(),
-                            self.text(":"),
-                            self.softline(),
-                            self.term(def_type),
-                            self.space(),
+                            match def_type {
+                                None => self.nil(),
+                                Some(def_type) => self.concat([
+                                    self.text(":"),
+                                    self.softline(),
+                                    self.term(def_type),
+                                    self.space(),
+                                ]),
+                            },
                             self.text("="),
                             self.softline(),
                             self.term(def_expr),
@@ -686,6 +701,8 @@ pub mod surface {
                     Term::Universe => self.text("Type"),
                     Term::FunType(input_name, input_type, output_type) => self.concat([
                         self.concat([
+                            self.text("fun"),
+                            self.space(),
                             self.text("("),
                             self.name(*input_name),
                             self.space(),
@@ -834,10 +851,22 @@ pub mod elaboration {
         ) -> Option<core::Term<'arena>> {
             match (surface_term, expected_type.as_ref()) {
                 (surface::Term::Let(def_name, def_type, def_expr, body_expr), _) => {
-                    let def_type = self.check(def_type, &Arc::new(Value::Universe))?; // FIXME: avoid temporary Arc
-                    let def_type_value = self.eval(&def_type)?;
+                    let (def_expr, def_type_value) = match def_type {
+                        None => self.synth(def_expr)?,
+                        Some(def_type) => {
+                            let def_type = self.check(def_type, &Arc::new(Value::Universe))?; // FIXME: avoid temporary Arc
+                            let def_type_value = self.eval(&def_type)?;
 
-                    let def_expr = self.check(def_expr, &def_type_value)?;
+                            let def_expr = self.check(def_expr, &def_type_value)?;
+                            let def_expr = core::Term::Ann(
+                                self.arena.alloc_term(def_expr),
+                                self.arena.alloc_term(def_type),
+                            );
+
+                            (def_expr, def_type_value)
+                        }
+                    };
+
                     let def_expr_value = self.eval(&def_expr)?;
 
                     self.push_binding(*def_name, def_expr_value, def_type_value);
@@ -847,7 +876,6 @@ pub mod elaboration {
                     body_expr.map(|body_expr| {
                         core::Term::Let(
                             *def_name,
-                            self.arena.alloc_term(def_type),
                             self.arena.alloc_term(def_expr),
                             self.arena.alloc_term(body_expr),
                         )
@@ -896,21 +924,43 @@ pub mod elaboration {
                         None
                     }
                 },
-                surface::Term::Let(name, def_type, def_expr, body_expr) => {
-                    let def_type = self.check(def_type, &Arc::new(Value::Universe))?; // FIXME: avoid temporary Arc
-                    let def_type_value = self.eval(&def_type)?;
+                surface::Term::Ann(expr, r#type) => {
+                    let r#type = self.check(r#type, &Arc::new(Value::Universe))?; // FIXME: avoid temporary Arc
+                    let type_value = self.eval(&r#type)?;
 
-                    let def_expr = self.check(def_expr, &def_type_value)?;
+                    let expr = self.check(expr, &type_value)?;
+
+                    Some((
+                        core::Term::Ann(self.arena.alloc_term(expr), self.arena.alloc_term(r#type)),
+                        type_value,
+                    ))
+                }
+                surface::Term::Let(def_name, def_type, def_expr, body_expr) => {
+                    let (def_expr, def_type_value) = match def_type {
+                        None => self.synth(def_expr)?,
+                        Some(def_type) => {
+                            let def_type = self.check(def_type, &Arc::new(Value::Universe))?; // FIXME: avoid temporary Arc
+                            let def_type_value = self.eval(&def_type)?;
+
+                            let def_expr = self.check(def_expr, &def_type_value)?;
+                            let def_expr = core::Term::Ann(
+                                self.arena.alloc_term(def_expr),
+                                self.arena.alloc_term(def_type),
+                            );
+
+                            (def_expr, def_type_value)
+                        }
+                    };
+
                     let def_expr_value = self.eval(&def_expr)?;
 
-                    self.push_binding(*name, def_expr_value, def_type_value);
+                    self.push_binding(*def_name, def_expr_value, def_type_value);
                     let body_expr = self.synth(body_expr);
                     self.pop_binding();
 
                     body_expr.map(|(body_expr, body_type)| {
                         let let_expr = core::Term::Let(
-                            *name,
-                            self.arena.alloc_term(def_type),
+                            *def_name,
                             self.arena.alloc_term(def_expr),
                             self.arena.alloc_term(body_expr),
                         );
@@ -1004,9 +1054,11 @@ pub mod distillation {
 
         pub fn check(&mut self, core_term: &core::Term<'_>) -> surface::Term<'arena> {
             match core_term {
-                core::Term::Let(def_name, def_type, def_expr, body_expr) => {
-                    let def_type = self.synth(def_type);
-                    let def_expr = self.synth(def_expr);
+                core::Term::Let(def_name, def_expr, body_expr) => {
+                    let (def_expr, def_type) = match self.synth(def_expr) {
+                        surface::Term::Ann(expr, r#type) => (expr, Some(r#type)),
+                        expr => (self.arena.alloc_term(expr) as &_, None),
+                    };
 
                     let def_name = self.push_binding(*def_name);
                     let body_expr = self.check(body_expr);
@@ -1014,8 +1066,8 @@ pub mod distillation {
 
                     surface::Term::Let(
                         def_name,
-                        self.arena.alloc_term(def_type),
-                        self.arena.alloc_term(def_expr),
+                        def_type,
+                        def_expr,
                         self.arena.alloc_term(body_expr),
                     )
                 }
@@ -1036,9 +1088,17 @@ pub mod distillation {
                     Some(name) => surface::Term::Var(name),
                     None => todo!("misbound variable"), // TODO: error?
                 },
-                core::Term::Let(def_name, def_type, def_expr, body_expr) => {
-                    let def_type = self.synth(def_type);
-                    let def_expr = self.synth(def_expr);
+                core::Term::Ann(expr, r#type) => {
+                    let r#type = self.synth(r#type);
+                    let expr = self.check(expr);
+
+                    surface::Term::Ann(self.arena.alloc_term(expr), self.arena.alloc_term(r#type))
+                }
+                core::Term::Let(def_name, def_expr, body_expr) => {
+                    let (def_expr, def_type) = match self.synth(def_expr) {
+                        surface::Term::Ann(expr, r#type) => (expr, Some(r#type)),
+                        expr => (self.arena.alloc_term(expr) as &_, None),
+                    };
 
                     let def_name = self.push_binding(*def_name);
                     let body_expr = self.synth(body_expr);
@@ -1046,8 +1106,8 @@ pub mod distillation {
 
                     surface::Term::Let(
                         def_name,
-                        self.arena.alloc_term(def_type),
-                        self.arena.alloc_term(def_expr),
+                        def_type,
+                        def_expr,
                         self.arena.alloc_term(body_expr),
                     )
                 }
