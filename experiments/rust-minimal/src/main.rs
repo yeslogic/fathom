@@ -66,12 +66,17 @@ impl From<&str> for Input {
     }
 }
 
+const MAX_PRETTY_WIDTH: usize = 80;
+
 fn main() {
     let mut interner = StringInterner::new();
     let surface_arena = Arena::new();
     let core_arena = Arena::new();
     let pretty_arena = pretty::Arena::<()>::new();
     let mut context = elaboration::Context::new(&core_arena);
+
+    let term_width = termsize::get().map_or(usize::MAX, |size| usize::from(size.cols));
+    let pretty_width = std::cmp::min(term_width, MAX_PRETTY_WIDTH);
 
     match Options::from_args() {
         Options::Elab(Args { surface_term }) => {
@@ -86,7 +91,7 @@ fn main() {
                     let context = surface::pretty::Context::new(&interner, &pretty_arena);
                     let doc = context.ann(&term, &r#type).into_doc();
 
-                    println!("{}", doc.pretty(usize::MAX));
+                    println!("{}", doc.pretty(pretty_width));
                 }
             }
         }
@@ -105,7 +110,7 @@ fn main() {
                     let context = surface::pretty::Context::new(&interner, &pretty_arena);
                     let doc = context.ann(&term, &r#type).into_doc();
 
-                    println!("{}", doc.pretty(usize::MAX));
+                    println!("{}", doc.pretty(pretty_width));
                 }
             }
         }
@@ -120,7 +125,7 @@ fn main() {
                     let context = surface::pretty::Context::new(&interner, &pretty_arena);
                     let doc = context.term(&r#type).into_doc();
 
-                    println!("{}", doc.pretty(usize::MAX));
+                    println!("{}", doc.pretty(pretty_width));
                 }
             }
         }
