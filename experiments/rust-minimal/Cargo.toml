@@ -15,6 +15,7 @@ pretty = "0.10"
 rpds = "0.9"
 string-interner = "0.12"
 structopt = "0.3"
+termsize = "0.1.6"
 typed-arena = "2.0"
 
 [build-dependencies]
