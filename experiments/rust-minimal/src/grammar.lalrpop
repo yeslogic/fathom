@@ -1,10 +1,8 @@
-use typed_arena::Arena;
-
 use crate::{StringId, StringInterner};
-use crate::surface::Term;
+use crate::surface::{Arena, Term};
 use crate::surface::lexer::Token;
 
-grammar<'arena, 'source>(interner: &mut StringInterner, arena: &'arena Arena<Term<'arena>>);
+grammar<'arena, 'source>(interner: &mut StringInterner, arena: &'arena Arena<'arena>);
 
 extern {
     type Location = usize;
@@ -33,9 +31,9 @@ pub Term: Term<'arena> = {
     "let" <def_name: Name> ":" <def_type: FunTerm> "=" <def_expr: FunTerm> ";" <body_expr: Term> => {
         Term::Let(
             def_name,
-            arena.alloc(def_type),
-            arena.alloc(def_expr),
-            arena.alloc(body_expr),
+            arena.alloc_term(def_type),
+            arena.alloc_term(def_expr),
+            arena.alloc_term(body_expr),
         )
     },
 };
@@ -45,14 +43,14 @@ FunTerm: Term<'arena> = {
     "("<input_name: Name> ":" <input_type: Term> ")" "->"  <output_type: FunTerm> => {
         Term::FunType(
             input_name,
-            arena.alloc(input_type),
-            arena.alloc(output_type),
+            arena.alloc_term(input_type),
+            arena.alloc_term(output_type),
         )
     },
     "fun" <input_name: Name> "=>" <output_type: FunTerm> => {
         Term::FunIntro(
             input_name,
-            arena.alloc(output_type),
+            arena.alloc_term(output_type),
         )
     },
 };
@@ -61,8 +59,8 @@ AppTerm: Term<'arena> = {
     AtomicTerm,
     <head_expr: AppTerm> <input_expr: AtomicTerm> => {
         Term::FunElim(
-            arena.alloc(head_expr),
-            arena.alloc(input_expr),
+            arena.alloc_term(head_expr),
+            arena.alloc_term(input_expr),
         )
     },
 };
