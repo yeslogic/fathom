@@ -1,4 +1,4 @@
-use fathom_minimal::{core, distillation, elaboration, surface, StringInterner};
+use fathom_minimal::{core, surface, StringInterner};
 use std::io::Read;
 use std::path::PathBuf;
 use structopt::StructOpt;
@@ -72,7 +72,7 @@ fn main() {
     let surface_arena = surface::Arena::new();
     let core_arena = core::Arena::new();
     let pretty_arena = pretty::Arena::<()>::new();
-    let mut context = elaboration::Context::new(&core_arena);
+    let mut context = surface::elaboration::Context::new(&core_arena);
 
     let term_width = termsize::get().map_or(usize::MAX, |size| usize::from(size.cols));
     let pretty_width = std::cmp::min(term_width, MAX_PRETTY_WIDTH);
@@ -83,7 +83,7 @@ fn main() {
 
             if let Some((term, r#type)) = context.synth(&surface_term) {
                 if let Some(r#type) = context.readback(&core_arena, &r#type) {
-                    let mut context = distillation::Context::new(&surface_arena);
+                    let mut context = surface::distillation::Context::new(&surface_arena);
                     let term = context.check(&term);
                     let r#type = context.synth(&r#type);
 
@@ -102,7 +102,7 @@ fn main() {
                     context.normalize(&core_arena, &term),
                     context.readback(&core_arena, &r#type),
                 ) {
-                    let mut context = distillation::Context::new(&surface_arena);
+                    let mut context = surface::distillation::Context::new(&surface_arena);
                     let term = context.check(&term);
                     let r#type = context.synth(&r#type);
 
@@ -118,7 +118,7 @@ fn main() {
 
             if let Some((_, r#type)) = context.synth(&surface_term) {
                 if let Some(r#type) = context.readback(&core_arena, &r#type) {
-                    let mut context = distillation::Context::new(&surface_arena);
+                    let mut context = surface::distillation::Context::new(&surface_arena);
                     let r#type = context.synth(&r#type);
 
                     let context = surface::pretty::Context::new(&interner, &pretty_arena);
