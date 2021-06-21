@@ -736,414 +736,432 @@ pub mod surface {
             }
         }
     }
-}
 
-/// Bidirectional elaboration of the surface language into the core language.
-pub mod elaboration {
-    use std::sync::Arc;
+    /// Bidirectional elaboration of the surface language into the core language.
+    pub mod elaboration {
+        use std::sync::Arc;
 
-    use crate::core::semantics::{self, Value};
-    use crate::{core, surface, StringId};
+        use crate::core::semantics::{self, Value};
+        use crate::{core, surface, StringId};
 
-    /// Elaboration context.
-    pub struct Context<'arena> {
-        /// Arena used for storing elaborated terms.
-        arena: &'arena core::Arena<'arena>,
-        /// Name environment.
-        name_env: core::UniqueEnv<StringId>,
-        /// Type environment.
-        type_env: core::UniqueEnv<Arc<Value<'arena>>>,
-        /// An environment of evaluated expressions.
-        expr_env: core::SharedEnv<Arc<Value<'arena>>>,
-        /// Diagnostic messages encountered during elaboration.
-        messages: Vec<String>,
-    }
-
-    impl<'arena> Context<'arena> {
-        /// Construct a new elaboration context, backed by the supplied arena.
-        pub fn new(arena: &'arena core::Arena<'arena>) -> Context<'arena> {
-            Context {
-                arena,
-                name_env: core::UniqueEnv::new(),
-                type_env: core::UniqueEnv::new(),
-                expr_env: core::SharedEnv::new(),
-                messages: Vec::new(),
-            }
+        /// Elaboration context.
+        pub struct Context<'arena> {
+            /// Arena used for storing elaborated terms.
+            arena: &'arena core::Arena<'arena>,
+            /// Name environment.
+            name_env: core::UniqueEnv<StringId>,
+            /// Type environment.
+            type_env: core::UniqueEnv<Arc<Value<'arena>>>,
+            /// An environment of evaluated expressions.
+            expr_env: core::SharedEnv<Arc<Value<'arena>>>,
+            /// Diagnostic messages encountered during elaboration.
+            messages: Vec<String>,
         }
 
-        fn get_binding(&self, name: StringId) -> Option<(core::LocalVar, &Arc<Value<'arena>>)> {
-            let bindings = Iterator::zip(core::local_vars(), self.type_env.iter().rev());
-
-            Iterator::zip(self.name_env.iter().rev(), bindings)
-                .find_map(|(n, binding)| (name == *n).then(|| binding))
-        }
-
-        fn push_binding(
-            &mut self,
-            name: StringId,
-            value: Arc<Value<'arena>>,
-            r#type: Arc<Value<'arena>>,
-        ) {
-            self.name_env.push(name);
-            self.type_env.push(r#type);
-            self.expr_env.push(value);
-        }
-
-        fn push_param(&mut self, name: StringId, r#type: Arc<Value<'arena>>) -> Arc<Value<'arena>> {
-            let value = Arc::new(Value::Stuck(self.expr_env.len().next_global(), Vec::new()));
-            self.push_binding(name, value.clone(), r#type);
-            value
-        }
-
-        fn pop_binding(&mut self) {
-            self.name_env.pop();
-            self.type_env.pop();
-            self.expr_env.pop();
-        }
-
-        fn push_message(&mut self, message: impl Into<String>) {
-            self.messages.push(message.into());
-        }
-
-        pub fn drain_messages<'this>(&'this mut self) -> impl 'this + Iterator<Item = String> {
-            self.messages.drain(..)
-        }
-
-        pub fn normalize<'out_arena>(
-            &mut self,
-            arena: &'out_arena core::Arena<'out_arena>,
-            term: &core::Term<'arena>,
-        ) -> Option<core::Term<'out_arena>> {
-            semantics::normalise(arena, &mut self.expr_env, term).ok() // FIXME: record error
-        }
-
-        pub fn eval(&mut self, term: &core::Term<'arena>) -> Option<Arc<Value<'arena>>> {
-            semantics::eval(&mut self.expr_env, term).ok() // FIXME: record error
-        }
-
-        pub fn readback<'out_arena>(
-            &mut self,
-            arena: &'out_arena core::Arena<'out_arena>,
-            value: &Arc<Value<'arena>>,
-        ) -> Option<core::Term<'out_arena>> {
-            semantics::readback(arena, self.expr_env.len(), value).ok() // FIXME: record error
-        }
-
-        fn is_equal(&mut self, value0: &Arc<Value<'_>>, value1: &Arc<Value<'_>>) -> Option<bool> {
-            semantics::is_equal(self.expr_env.len(), value0, value1).ok() // FIXME: record error
-        }
-
-        fn apply_closure(
-            &mut self,
-            closure: &semantics::Closure<'arena>,
-            input_expr: Arc<Value<'arena>>,
-        ) -> Option<Arc<Value<'arena>>> {
-            closure.apply(input_expr).ok() // FIXME: record error
-        }
-
-        /// Check that a surface term conforms to the given type.
-        ///
-        /// Returns the elaborated term in the core language.
-        pub fn check(
-            &mut self,
-            surface_term: surface::TermRef<'_>,
-            expected_type: &Arc<Value<'arena>>,
-        ) -> Option<core::Term<'arena>> {
-            match (surface_term, expected_type.as_ref()) {
-                (surface::Term::Let(def_name, def_type, def_expr, body_expr), _) => {
-                    let (def_expr, def_type_value) = match def_type {
-                        None => self.synth(def_expr)?,
-                        Some(def_type) => {
-                            let def_type = self.check(def_type, &Arc::new(Value::Universe))?; // FIXME: avoid temporary Arc
-                            let def_type_value = self.eval(&def_type)?;
-
-                            let def_expr = self.check(def_expr, &def_type_value)?;
-                            let def_expr = core::Term::Ann(
-                                self.arena.alloc_term(def_expr),
-                                self.arena.alloc_term(def_type),
-                            );
-
-                            (def_expr, def_type_value)
-                        }
-                    };
-
-                    let def_expr_value = self.eval(&def_expr)?;
-
-                    self.push_binding(*def_name, def_expr_value, def_type_value);
-                    let body_expr = self.check(body_expr, expected_type);
-                    self.pop_binding();
-
-                    body_expr.map(|body_expr| {
-                        core::Term::Let(
-                            *def_name,
-                            self.arena.alloc_term(def_expr),
-                            self.arena.alloc_term(body_expr),
-                        )
-                    })
-                }
-                (
-                    surface::Term::FunIntro(input_name, output_expr),
-                    Value::FunType(_, input_type, output_type),
-                ) => {
-                    let input_expr = self.push_param(*input_name, input_type.clone());
-                    let output_expr = {
-                        let output_type = self.apply_closure(output_type, input_expr);
-                        output_type.and_then(|output_type| self.check(output_expr, &output_type))
-                    };
-                    self.pop_binding();
-
-                    output_expr.map(|output_expr| {
-                        core::Term::FunIntro(*input_name, self.arena.alloc_term(output_expr))
-                    })
-                }
-                (_, _) => {
-                    let (core_term, synth_type) = self.synth(surface_term)?;
-
-                    if self.is_equal(&synth_type, expected_type)? {
-                        Some(core_term)
-                    } else {
-                        self.push_message("error: type mismatch");
-                        None
-                    }
+        impl<'arena> Context<'arena> {
+            /// Construct a new elaboration context, backed by the supplied arena.
+            pub fn new(arena: &'arena core::Arena<'arena>) -> Context<'arena> {
+                Context {
+                    arena,
+                    name_env: core::UniqueEnv::new(),
+                    type_env: core::UniqueEnv::new(),
+                    expr_env: core::SharedEnv::new(),
+                    messages: Vec::new(),
                 }
             }
-        }
 
-        /// Synthesize the type of the given surface term.
-        ///
-        /// Returns the elaborated term in the core language and its type.
-        pub fn synth(
-            &mut self,
-            surface_term: surface::TermRef<'_>,
-        ) -> Option<(core::Term<'arena>, Arc<Value<'arena>>)> {
-            match surface_term {
-                surface::Term::Var(var_name) => match self.get_binding(*var_name) {
-                    Some((local_var, r#type)) => Some((core::Term::Var(local_var), r#type.clone())),
-                    None => {
-                        self.push_message("error: unknown variable");
-                        None
-                    }
-                },
-                surface::Term::Ann(expr, r#type) => {
-                    let r#type = self.check(r#type, &Arc::new(Value::Universe))?; // FIXME: avoid temporary Arc
-                    let type_value = self.eval(&r#type)?;
+            fn get_binding(&self, name: StringId) -> Option<(core::LocalVar, &Arc<Value<'arena>>)> {
+                let bindings = Iterator::zip(core::local_vars(), self.type_env.iter().rev());
 
-                    let expr = self.check(expr, &type_value)?;
+                Iterator::zip(self.name_env.iter().rev(), bindings)
+                    .find_map(|(n, binding)| (name == *n).then(|| binding))
+            }
 
-                    Some((
-                        core::Term::Ann(self.arena.alloc_term(expr), self.arena.alloc_term(r#type)),
-                        type_value,
-                    ))
-                }
-                surface::Term::Let(def_name, def_type, def_expr, body_expr) => {
-                    let (def_expr, def_type_value) = match def_type {
-                        None => self.synth(def_expr)?,
-                        Some(def_type) => {
-                            let def_type = self.check(def_type, &Arc::new(Value::Universe))?; // FIXME: avoid temporary Arc
-                            let def_type_value = self.eval(&def_type)?;
+            fn push_binding(
+                &mut self,
+                name: StringId,
+                value: Arc<Value<'arena>>,
+                r#type: Arc<Value<'arena>>,
+            ) {
+                self.name_env.push(name);
+                self.type_env.push(r#type);
+                self.expr_env.push(value);
+            }
 
-                            let def_expr = self.check(def_expr, &def_type_value)?;
-                            let def_expr = core::Term::Ann(
+            fn push_param(
+                &mut self,
+                name: StringId,
+                r#type: Arc<Value<'arena>>,
+            ) -> Arc<Value<'arena>> {
+                let value = Arc::new(Value::Stuck(self.expr_env.len().next_global(), Vec::new()));
+                self.push_binding(name, value.clone(), r#type);
+                value
+            }
+
+            fn pop_binding(&mut self) {
+                self.name_env.pop();
+                self.type_env.pop();
+                self.expr_env.pop();
+            }
+
+            fn push_message(&mut self, message: impl Into<String>) {
+                self.messages.push(message.into());
+            }
+
+            pub fn drain_messages<'this>(&'this mut self) -> impl 'this + Iterator<Item = String> {
+                self.messages.drain(..)
+            }
+
+            pub fn normalize<'out_arena>(
+                &mut self,
+                arena: &'out_arena core::Arena<'out_arena>,
+                term: &core::Term<'arena>,
+            ) -> Option<core::Term<'out_arena>> {
+                semantics::normalise(arena, &mut self.expr_env, term).ok() // FIXME: record error
+            }
+
+            pub fn eval(&mut self, term: &core::Term<'arena>) -> Option<Arc<Value<'arena>>> {
+                semantics::eval(&mut self.expr_env, term).ok() // FIXME: record error
+            }
+
+            pub fn readback<'out_arena>(
+                &mut self,
+                arena: &'out_arena core::Arena<'out_arena>,
+                value: &Arc<Value<'arena>>,
+            ) -> Option<core::Term<'out_arena>> {
+                semantics::readback(arena, self.expr_env.len(), value).ok() // FIXME: record error
+            }
+
+            fn is_equal(
+                &mut self,
+                value0: &Arc<Value<'_>>,
+                value1: &Arc<Value<'_>>,
+            ) -> Option<bool> {
+                semantics::is_equal(self.expr_env.len(), value0, value1).ok() // FIXME: record error
+            }
+
+            fn apply_closure(
+                &mut self,
+                closure: &semantics::Closure<'arena>,
+                input_expr: Arc<Value<'arena>>,
+            ) -> Option<Arc<Value<'arena>>> {
+                closure.apply(input_expr).ok() // FIXME: record error
+            }
+
+            /// Check that a surface term conforms to the given type.
+            ///
+            /// Returns the elaborated term in the core language.
+            pub fn check(
+                &mut self,
+                surface_term: surface::TermRef<'_>,
+                expected_type: &Arc<Value<'arena>>,
+            ) -> Option<core::Term<'arena>> {
+                match (surface_term, expected_type.as_ref()) {
+                    (surface::Term::Let(def_name, def_type, def_expr, body_expr), _) => {
+                        let (def_expr, def_type_value) = match def_type {
+                            None => self.synth(def_expr)?,
+                            Some(def_type) => {
+                                let def_type = self.check(def_type, &Arc::new(Value::Universe))?; // FIXME: avoid temporary Arc
+                                let def_type_value = self.eval(&def_type)?;
+
+                                let def_expr = self.check(def_expr, &def_type_value)?;
+                                let def_expr = core::Term::Ann(
+                                    self.arena.alloc_term(def_expr),
+                                    self.arena.alloc_term(def_type),
+                                );
+
+                                (def_expr, def_type_value)
+                            }
+                        };
+
+                        let def_expr_value = self.eval(&def_expr)?;
+
+                        self.push_binding(*def_name, def_expr_value, def_type_value);
+                        let body_expr = self.check(body_expr, expected_type);
+                        self.pop_binding();
+
+                        body_expr.map(|body_expr| {
+                            core::Term::Let(
+                                *def_name,
                                 self.arena.alloc_term(def_expr),
-                                self.arena.alloc_term(def_type),
-                            );
+                                self.arena.alloc_term(body_expr),
+                            )
+                        })
+                    }
+                    (
+                        surface::Term::FunIntro(input_name, output_expr),
+                        Value::FunType(_, input_type, output_type),
+                    ) => {
+                        let input_expr = self.push_param(*input_name, input_type.clone());
+                        let output_expr = self
+                            .apply_closure(output_type, input_expr)
+                            .and_then(|output_type| self.check(output_expr, &output_type));
+                        self.pop_binding();
 
-                            (def_expr, def_type_value)
-                        }
-                    };
+                        output_expr.map(|output_expr| {
+                            core::Term::FunIntro(*input_name, self.arena.alloc_term(output_expr))
+                        })
+                    }
+                    (_, _) => {
+                        let (core_term, synth_type) = self.synth(surface_term)?;
 
-                    let def_expr_value = self.eval(&def_expr)?;
-
-                    self.push_binding(*def_name, def_expr_value, def_type_value);
-                    let body_expr = self.synth(body_expr);
-                    self.pop_binding();
-
-                    body_expr.map(|(body_expr, body_type)| {
-                        let let_expr = core::Term::Let(
-                            *def_name,
-                            self.arena.alloc_term(def_expr),
-                            self.arena.alloc_term(body_expr),
-                        );
-
-                        (let_expr, body_type)
-                    })
-                }
-                surface::Term::Universe => Some((core::Term::Universe, Arc::new(Value::Universe))),
-                surface::Term::FunType(input_name, input_type, output_type) => {
-                    let input_type = self.check(input_type, &Arc::new(Value::Universe))?; // FIXME: avoid temporary Arc
-                    let input_type_value = self.eval(&input_type)?;
-
-                    self.push_param(*input_name, input_type_value);
-                    let output_type = self.check(output_type, &Arc::new(Value::Universe)); // FIXME: avoid temporary Arc
-                    self.pop_binding();
-
-                    output_type.map(|output_type| {
-                        let fun_type = core::Term::FunType(
-                            *input_name,
-                            self.arena.alloc_term(input_type),
-                            self.arena.alloc_term(output_type),
-                        );
-
-                        (fun_type, Arc::new(Value::Universe))
-                    })
-                }
-                surface::Term::FunIntro(_, _) => {
-                    self.push_message("error: ambiguous function introduction");
-                    None
-                }
-                surface::Term::FunElim(head_expr, input_expr) => {
-                    let (head_expr, head_type) = self.synth(head_expr)?;
-                    match head_type.as_ref() {
-                        Value::FunType(_, input_type, output_type) => {
-                            let input_expr = self.check(input_expr, input_type)?;
-                            let input_expr_value = self.eval(&input_expr)?;
-
-                            let output_type = self.apply_closure(output_type, input_expr_value)?;
-
-                            let fun_elim = core::Term::FunElim(
-                                self.arena.alloc_term(head_expr),
-                                self.arena.alloc_term(input_expr),
-                            );
-
-                            Some((fun_elim, output_type))
-                        }
-                        _ => {
-                            self.push_message("error: argument to applied non-function");
+                        if self.is_equal(&synth_type, expected_type)? {
+                            Some(core_term)
+                        } else {
+                            self.push_message("error: type mismatch");
                             None
                         }
                     }
                 }
             }
-        }
-    }
-}
 
-/// Distillation of the core language into the surface language.
-pub mod distillation {
-    use crate::{core, surface, StringId};
+            /// Synthesize the type of the given surface term.
+            ///
+            /// Returns the elaborated term in the core language and its type.
+            pub fn synth(
+                &mut self,
+                surface_term: surface::TermRef<'_>,
+            ) -> Option<(core::Term<'arena>, Arc<Value<'arena>>)> {
+                match surface_term {
+                    surface::Term::Var(var_name) => match self.get_binding(*var_name) {
+                        Some((local_var, r#type)) => {
+                            Some((core::Term::Var(local_var), r#type.clone()))
+                        }
+                        None => {
+                            self.push_message("error: unknown variable");
+                            None
+                        }
+                    },
+                    surface::Term::Ann(expr, r#type) => {
+                        let r#type = self.check(r#type, &Arc::new(Value::Universe))?; // FIXME: avoid temporary Arc
+                        let type_value = self.eval(&r#type)?;
 
-    /// Distillation context.
-    pub struct Context<'arena> {
-        /// Arena for storing distilled terms.
-        arena: &'arena surface::Arena<'arena>,
-        /// Name environment.
-        names: core::UniqueEnv<StringId>,
-    }
+                        let expr = self.check(expr, &type_value)?;
 
-    impl<'arena> Context<'arena> {
-        /// Construct a new distillation context.
-        pub fn new(arena: &'arena surface::Arena<'arena>) -> Context<'arena> {
-            Context {
-                arena,
-                names: core::UniqueEnv::new(),
+                        Some((
+                            core::Term::Ann(
+                                self.arena.alloc_term(expr),
+                                self.arena.alloc_term(r#type),
+                            ),
+                            type_value,
+                        ))
+                    }
+                    surface::Term::Let(def_name, def_type, def_expr, body_expr) => {
+                        let (def_expr, def_type_value) = match def_type {
+                            None => self.synth(def_expr)?,
+                            Some(def_type) => {
+                                let def_type = self.check(def_type, &Arc::new(Value::Universe))?; // FIXME: avoid temporary Arc
+                                let def_type_value = self.eval(&def_type)?;
+
+                                let def_expr = self.check(def_expr, &def_type_value)?;
+                                let def_expr = core::Term::Ann(
+                                    self.arena.alloc_term(def_expr),
+                                    self.arena.alloc_term(def_type),
+                                );
+
+                                (def_expr, def_type_value)
+                            }
+                        };
+
+                        let def_expr_value = self.eval(&def_expr)?;
+
+                        self.push_binding(*def_name, def_expr_value, def_type_value);
+                        let body_expr = self.synth(body_expr);
+                        self.pop_binding();
+
+                        body_expr.map(|(body_expr, body_type)| {
+                            let let_expr = core::Term::Let(
+                                *def_name,
+                                self.arena.alloc_term(def_expr),
+                                self.arena.alloc_term(body_expr),
+                            );
+
+                            (let_expr, body_type)
+                        })
+                    }
+                    surface::Term::Universe => {
+                        Some((core::Term::Universe, Arc::new(Value::Universe)))
+                    }
+                    surface::Term::FunType(input_name, input_type, output_type) => {
+                        let input_type = self.check(input_type, &Arc::new(Value::Universe))?; // FIXME: avoid temporary Arc
+                        let input_type_value = self.eval(&input_type)?;
+
+                        self.push_param(*input_name, input_type_value);
+                        let output_type = self.check(output_type, &Arc::new(Value::Universe)); // FIXME: avoid temporary Arc
+                        self.pop_binding();
+
+                        output_type.map(|output_type| {
+                            let fun_type = core::Term::FunType(
+                                *input_name,
+                                self.arena.alloc_term(input_type),
+                                self.arena.alloc_term(output_type),
+                            );
+
+                            (fun_type, Arc::new(Value::Universe))
+                        })
+                    }
+                    surface::Term::FunIntro(_, _) => {
+                        self.push_message("error: ambiguous function introduction");
+                        None
+                    }
+                    surface::Term::FunElim(head_expr, input_expr) => {
+                        let (head_expr, head_type) = self.synth(head_expr)?;
+                        match head_type.as_ref() {
+                            Value::FunType(_, input_type, output_type) => {
+                                let input_expr = self.check(input_expr, input_type)?;
+                                let input_expr_value = self.eval(&input_expr)?;
+
+                                let output_type =
+                                    self.apply_closure(output_type, input_expr_value)?;
+
+                                let fun_elim = core::Term::FunElim(
+                                    self.arena.alloc_term(head_expr),
+                                    self.arena.alloc_term(input_expr),
+                                );
+
+                                Some((fun_elim, output_type))
+                            }
+                            _ => {
+                                self.push_message("error: argument to applied non-function");
+                                None
+                            }
+                        }
+                    }
+                }
             }
         }
+    }
 
-        fn get_name(&self, local_var: core::LocalVar) -> Option<StringId> {
-            self.names.get(local_var).copied()
+    /// Distillation of the core language into the surface language.
+    pub mod distillation {
+        use crate::{core, surface, StringId};
+
+        /// Distillation context.
+        pub struct Context<'arena> {
+            /// Arena for storing distilled terms.
+            arena: &'arena surface::Arena<'arena>,
+            /// Name environment.
+            names: core::UniqueEnv<StringId>,
         }
 
-        fn push_binding(&mut self, name: StringId) -> StringId {
-            self.names.push(name); // TODO: ensure we chose a correctly bound name
-            name
-        }
-
-        fn pop_binding(&mut self) {
-            self.names.pop();
-        }
-
-        pub fn check(&mut self, core_term: &core::Term<'_>) -> surface::Term<'arena> {
-            match core_term {
-                core::Term::Ann(expr, _) => {
-                    // Avoid adding extraneous type annotations!
-                    self.check(expr)
+        impl<'arena> Context<'arena> {
+            /// Construct a new distillation context.
+            pub fn new(arena: &'arena surface::Arena<'arena>) -> Context<'arena> {
+                Context {
+                    arena,
+                    names: core::UniqueEnv::new(),
                 }
-                core::Term::Let(def_name, def_expr, body_expr) => {
-                    let (def_expr, def_type) = match self.synth(def_expr) {
-                        surface::Term::Ann(expr, r#type) => (expr, Some(r#type)),
-                        expr => (self.arena.alloc_term(expr) as &_, None),
-                    };
-
-                    let def_name = self.push_binding(*def_name);
-                    let body_expr = self.check(body_expr);
-                    self.pop_binding();
-
-                    surface::Term::Let(
-                        def_name,
-                        def_type,
-                        def_expr,
-                        self.arena.alloc_term(body_expr),
-                    )
-                }
-                core::Term::FunIntro(input_name, output_expr) => {
-                    let input_name = self.push_binding(*input_name);
-                    let output_expr = self.check(output_expr);
-                    self.pop_binding();
-
-                    surface::Term::FunIntro(input_name, self.arena.alloc_term(output_expr))
-                }
-                _ => self.synth(core_term),
             }
-        }
 
-        pub fn synth(&mut self, core_term: &core::Term<'_>) -> surface::Term<'arena> {
-            match core_term {
-                core::Term::Var(local_var) => match self.get_name(*local_var) {
-                    Some(name) => surface::Term::Var(name),
-                    None => todo!("misbound variable"), // TODO: error?
-                },
-                core::Term::Ann(expr, r#type) => {
-                    let r#type = self.synth(r#type);
-                    let expr = self.check(expr);
+            fn get_name(&self, local_var: core::LocalVar) -> Option<StringId> {
+                self.names.get(local_var).copied()
+            }
 
-                    surface::Term::Ann(self.arena.alloc_term(expr), self.arena.alloc_term(r#type))
+            fn push_binding(&mut self, name: StringId) -> StringId {
+                self.names.push(name); // TODO: ensure we chose a correctly bound name
+                name
+            }
+
+            fn pop_binding(&mut self) {
+                self.names.pop();
+            }
+
+            pub fn check(&mut self, core_term: &core::Term<'_>) -> surface::Term<'arena> {
+                match core_term {
+                    core::Term::Ann(expr, _) => {
+                        // Avoid adding extraneous type annotations!
+                        self.check(expr)
+                    }
+                    core::Term::Let(def_name, def_expr, body_expr) => {
+                        let (def_expr, def_type) = match self.synth(def_expr) {
+                            surface::Term::Ann(expr, r#type) => (expr, Some(r#type)),
+                            expr => (self.arena.alloc_term(expr) as &_, None),
+                        };
+
+                        let def_name = self.push_binding(*def_name);
+                        let body_expr = self.check(body_expr);
+                        self.pop_binding();
+
+                        surface::Term::Let(
+                            def_name,
+                            def_type,
+                            def_expr,
+                            self.arena.alloc_term(body_expr),
+                        )
+                    }
+                    core::Term::FunIntro(input_name, output_expr) => {
+                        let input_name = self.push_binding(*input_name);
+                        let output_expr = self.check(output_expr);
+                        self.pop_binding();
+
+                        surface::Term::FunIntro(input_name, self.arena.alloc_term(output_expr))
+                    }
+                    _ => self.synth(core_term),
                 }
-                core::Term::Let(def_name, def_expr, body_expr) => {
-                    let (def_expr, def_type) = match self.synth(def_expr) {
-                        surface::Term::Ann(expr, r#type) => (expr, Some(r#type)),
-                        expr => (self.arena.alloc_term(expr) as &_, None),
-                    };
+            }
 
-                    let def_name = self.push_binding(*def_name);
-                    let body_expr = self.synth(body_expr);
-                    self.pop_binding();
+            pub fn synth(&mut self, core_term: &core::Term<'_>) -> surface::Term<'arena> {
+                match core_term {
+                    core::Term::Var(local_var) => match self.get_name(*local_var) {
+                        Some(name) => surface::Term::Var(name),
+                        None => todo!("misbound variable"), // TODO: error?
+                    },
+                    core::Term::Ann(expr, r#type) => {
+                        let r#type = self.synth(r#type);
+                        let expr = self.check(expr);
 
-                    surface::Term::Let(
-                        def_name,
-                        def_type,
-                        def_expr,
-                        self.arena.alloc_term(body_expr),
-                    )
-                }
-                core::Term::Universe => surface::Term::Universe,
-                core::Term::FunType(input_name, input_type, output_type) => {
-                    let input_type = self.check(input_type);
+                        surface::Term::Ann(
+                            self.arena.alloc_term(expr),
+                            self.arena.alloc_term(r#type),
+                        )
+                    }
+                    core::Term::Let(def_name, def_expr, body_expr) => {
+                        let (def_expr, def_type) = match self.synth(def_expr) {
+                            surface::Term::Ann(expr, r#type) => (expr, Some(r#type)),
+                            expr => (self.arena.alloc_term(expr) as &_, None),
+                        };
 
-                    let input_name = self.push_binding(*input_name);
-                    let output_type = self.check(output_type);
-                    self.pop_binding();
+                        let def_name = self.push_binding(*def_name);
+                        let body_expr = self.synth(body_expr);
+                        self.pop_binding();
 
-                    surface::Term::FunType(
-                        input_name,
-                        self.arena.alloc_term(input_type),
-                        self.arena.alloc_term(output_type),
-                    )
-                }
-                core::Term::FunIntro(input_name, output_expr) => {
-                    let input_name = self.push_binding(*input_name);
-                    let output_expr = self.synth(output_expr);
-                    self.pop_binding();
+                        surface::Term::Let(
+                            def_name,
+                            def_type,
+                            def_expr,
+                            self.arena.alloc_term(body_expr),
+                        )
+                    }
+                    core::Term::Universe => surface::Term::Universe,
+                    core::Term::FunType(input_name, input_type, output_type) => {
+                        let input_type = self.check(input_type);
 
-                    surface::Term::FunIntro(input_name, self.arena.alloc_term(output_expr))
-                }
-                core::Term::FunElim(head_expr, input_expr) => {
-                    let head_expr = self.synth(head_expr);
-                    let input_expr = self.synth(input_expr);
+                        let input_name = self.push_binding(*input_name);
+                        let output_type = self.check(output_type);
+                        self.pop_binding();
 
-                    surface::Term::FunElim(
-                        self.arena.alloc_term(head_expr),
-                        self.arena.alloc_term(input_expr),
-                    )
+                        surface::Term::FunType(
+                            input_name,
+                            self.arena.alloc_term(input_type),
+                            self.arena.alloc_term(output_type),
+                        )
+                    }
+                    core::Term::FunIntro(input_name, output_expr) => {
+                        let input_name = self.push_binding(*input_name);
+                        let output_expr = self.synth(output_expr);
+                        self.pop_binding();
+
+                        surface::Term::FunIntro(input_name, self.arena.alloc_term(output_expr))
+                    }
+                    core::Term::FunElim(head_expr, input_expr) => {
+                        let head_expr = self.synth(head_expr);
+                        let input_expr = self.synth(input_expr);
+
+                        surface::Term::FunElim(
+                            self.arena.alloc_term(head_expr),
+                            self.arena.alloc_term(input_expr),
+                        )
+                    }
                 }
             }
         }
