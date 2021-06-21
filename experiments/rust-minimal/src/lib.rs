@@ -1054,6 +1054,10 @@ pub mod distillation {
 
         pub fn check(&mut self, core_term: &core::Term<'_>) -> surface::Term<'arena> {
             match core_term {
+                core::Term::Ann(expr, _) => {
+                    // Avoid adding extraneous type annotations!
+                    self.check(expr)
+                }
                 core::Term::Let(def_name, def_expr, body_expr) => {
                     let (def_expr, def_type) = match self.synth(def_expr) {
                         surface::Term::Ann(expr, r#type) => (expr, Some(r#type)),
