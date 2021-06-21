@@ -244,14 +244,29 @@ pub mod core {
         // RecordElim(TermRef<'arena>, StringId),
     }
 
+    /// Arena for storing data related to [`Term`]s.
+    pub struct Arena<'arena> {
+        terms: typed_arena::Arena<Term<'arena>>,
+    }
+
+    impl<'arena> Arena<'arena> {
+        pub fn new() -> Arena<'arena> {
+            Arena {
+                terms: typed_arena::Arena::new(),
+            }
+        }
+
+        pub fn alloc_term(&self, term: Term<'arena>) -> &mut Term<'arena> {
+            self.terms.alloc(term)
+        }
+    }
+
     /// The semantics of the core language, implemented using
     /// _normalization by evaluation_.
     pub mod semantics {
         use std::sync::Arc;
 
-        use typed_arena::Arena;
-
-        use crate::core::{EnvLen, GlobalVar, SharedEnv, Term, TermRef};
+        use crate::core::{Arena, EnvLen, GlobalVar, SharedEnv, Term, TermRef};
         use crate::StringId;
 
         /// Values in weak-head-normal form.
@@ -318,7 +333,7 @@ pub mod core {
         }
 
         pub fn normalise<'in_arena, 'out_arena>(
-            arena: &'out_arena Arena<Term<'out_arena>>,
+            arena: &'out_arena Arena<'out_arena>,
             env: &mut SharedEnv<Arc<Value<'in_arena>>>,
             term: &Term<'in_arena>,
         ) -> Result<Term<'out_arena>, EvalError> {
@@ -385,7 +400,7 @@ pub mod core {
 
         /// Read a [value][`Value`] back into a [term][`Term`].
         pub fn readback<'in_arena, 'out_arena>(
-            arena: &'out_arena Arena<Term<'out_arena>>,
+            arena: &'out_arena Arena<'out_arena>,
             env_len: EnvLen,
             value: &Value<'in_arena>,
         ) -> Result<Term<'out_arena>, EvalError> {
@@ -396,7 +411,10 @@ pub mod core {
                         head_expr = match elim {
                             Elim::Fun(input_expr) => {
                                 let input_expr = readback(arena, env_len, input_expr)?;
-                                Term::FunElim(arena.alloc(head_expr), arena.alloc(input_expr))
+                                Term::FunElim(
+                                    arena.alloc_term(head_expr),
+                                    arena.alloc_term(input_expr),
+                                )
                             }
                         };
                     }
@@ -411,8 +429,8 @@ pub mod core {
 
                     Ok(Term::FunType(
                         *input_name,
-                        arena.alloc(input_type),
-                        arena.alloc(output_type),
+                        arena.alloc_term(input_type),
+                        arena.alloc_term(output_type),
                     ))
                 }
                 Value::FunIntro(input_name, output_expr) => {
@@ -420,7 +438,7 @@ pub mod core {
                     let output_expr = output_expr.apply(var)?;
                     let output_expr = readback(arena, env_len.add_param(), &output_expr)?;
 
-                    Ok(Term::FunIntro(*input_name, arena.alloc(output_expr)))
+                    Ok(Term::FunIntro(*input_name, arena.alloc_term(output_expr)))
                 }
             }
         }
@@ -497,7 +515,6 @@ pub mod core {
 /// Surface language.
 pub mod surface {
     use lalrpop_util::lalrpop_mod;
-    use typed_arena::Arena;
 
     use crate::{StringId, StringInterner};
 
@@ -556,6 +573,7 @@ pub mod surface {
 
     pub type TermRef<'arena> = &'arena Term<'arena>;
 
+    /// Surface terms.
     #[derive(Debug, Clone)]
     pub enum Term<'arena> {
         Var(StringId),
@@ -577,10 +595,27 @@ pub mod surface {
         /// supplied `interner` and allocating nodes to the `arena`.
         pub fn parse<'source>(
             interner: &mut StringInterner,
-            arena: &'arena Arena<Term<'arena>>,
+            arena: &'arena Arena<'arena>,
             source: &'source str,
         ) -> Result<Term<'arena>, ParseError<'source>> {
             grammar::TermParser::new().parse(interner, arena, lexer::tokens(source))
+        }
+    }
+
+    /// Arena for storing data related to [`Term`]s.
+    pub struct Arena<'arena> {
+        terms: typed_arena::Arena<Term<'arena>>,
+    }
+
+    impl<'arena> Arena<'arena> {
+        pub fn new() -> Arena<'arena> {
+            Arena {
+                terms: typed_arena::Arena::new(),
+            }
+        }
+
+        pub fn alloc_term(&self, term: Term<'arena>) -> &mut Term<'arena> {
+            self.terms.alloc(term)
         }
     }
 
@@ -689,7 +724,6 @@ pub mod surface {
 /// Bidirectional elaboration of the surface language into the core language.
 pub mod elaboration {
     use std::sync::Arc;
-    use typed_arena::Arena;
 
     use crate::core::semantics::{self, Value};
     use crate::{core, surface, StringId};
@@ -697,7 +731,7 @@ pub mod elaboration {
     /// Elaboration context.
     pub struct Context<'arena> {
         /// Arena used for storing elaborated terms.
-        arena: &'arena Arena<core::Term<'arena>>,
+        arena: &'arena core::Arena<'arena>,
         /// Name environment.
         name_env: core::UniqueEnv<StringId>,
         /// Type environment.
@@ -710,7 +744,7 @@ pub mod elaboration {
 
     impl<'arena> Context<'arena> {
         /// Construct a new elaboration context, backed by the supplied arena.
-        pub fn new(arena: &'arena Arena<core::Term<'arena>>) -> Context<'arena> {
+        pub fn new(arena: &'arena core::Arena<'arena>) -> Context<'arena> {
             Context {
                 arena,
                 name_env: core::UniqueEnv::new(),
@@ -760,7 +794,7 @@ pub mod elaboration {
 
         pub fn normalize<'out_arena>(
             &mut self,
-            arena: &'out_arena Arena<core::Term<'out_arena>>,
+            arena: &'out_arena core::Arena<'out_arena>,
             term: &core::Term<'arena>,
         ) -> Option<core::Term<'out_arena>> {
             semantics::normalise(arena, &mut self.expr_env, term).ok() // FIXME: record error
@@ -772,7 +806,7 @@ pub mod elaboration {
 
         pub fn readback<'out_arena>(
             &mut self,
-            arena: &'out_arena Arena<core::Term<'out_arena>>,
+            arena: &'out_arena core::Arena<'out_arena>,
             value: &Arc<Value<'arena>>,
         ) -> Option<core::Term<'out_arena>> {
             semantics::readback(arena, self.expr_env.len(), value).ok() // FIXME: record error
@@ -813,9 +847,9 @@ pub mod elaboration {
                     body_expr.map(|body_expr| {
                         core::Term::Let(
                             *def_name,
-                            self.arena.alloc(def_type),
-                            self.arena.alloc(def_expr),
-                            self.arena.alloc(body_expr),
+                            self.arena.alloc_term(def_type),
+                            self.arena.alloc_term(def_expr),
+                            self.arena.alloc_term(body_expr),
                         )
                     })
                 }
@@ -831,7 +865,7 @@ pub mod elaboration {
                     self.pop_binding();
 
                     output_expr.map(|output_expr| {
-                        core::Term::FunIntro(*input_name, self.arena.alloc(output_expr))
+                        core::Term::FunIntro(*input_name, self.arena.alloc_term(output_expr))
                     })
                 }
                 (_, _) => {
@@ -876,9 +910,9 @@ pub mod elaboration {
                     body_expr.map(|(body_expr, body_type)| {
                         let let_expr = core::Term::Let(
                             *name,
-                            self.arena.alloc(def_type),
-                            self.arena.alloc(def_expr),
-                            self.arena.alloc(body_expr),
+                            self.arena.alloc_term(def_type),
+                            self.arena.alloc_term(def_expr),
+                            self.arena.alloc_term(body_expr),
                         );
 
                         (let_expr, body_type)
@@ -896,8 +930,8 @@ pub mod elaboration {
                     output_type.map(|output_type| {
                         let fun_type = core::Term::FunType(
                             *input_name,
-                            self.arena.alloc(input_type),
-                            self.arena.alloc(output_type),
+                            self.arena.alloc_term(input_type),
+                            self.arena.alloc_term(output_type),
                         );
 
                         (fun_type, Arc::new(Value::Universe))
@@ -917,8 +951,8 @@ pub mod elaboration {
                             let output_type = self.apply_closure(output_type, input_expr_value)?;
 
                             let fun_elim = core::Term::FunElim(
-                                self.arena.alloc(head_expr),
-                                self.arena.alloc(input_expr),
+                                self.arena.alloc_term(head_expr),
+                                self.arena.alloc_term(input_expr),
                             );
 
                             Some((fun_elim, output_type))
@@ -936,21 +970,19 @@ pub mod elaboration {
 
 /// Distillation of the core language into the surface language.
 pub mod distillation {
-    use typed_arena::Arena;
-
     use crate::{core, surface, StringId};
 
     /// Distillation context.
     pub struct Context<'arena> {
         /// Arena for storing distilled terms.
-        arena: &'arena Arena<surface::Term<'arena>>,
+        arena: &'arena surface::Arena<'arena>,
         /// Name environment.
         names: core::UniqueEnv<StringId>,
     }
 
     impl<'arena> Context<'arena> {
         /// Construct a new distillation context.
-        pub fn new(arena: &'arena Arena<surface::Term<'arena>>) -> Context<'arena> {
+        pub fn new(arena: &'arena surface::Arena<'arena>) -> Context<'arena> {
             Context {
                 arena,
                 names: core::UniqueEnv::new(),
@@ -982,9 +1014,9 @@ pub mod distillation {
 
                     surface::Term::Let(
                         def_name,
-                        self.arena.alloc(def_type),
-                        self.arena.alloc(def_expr),
-                        self.arena.alloc(body_expr),
+                        self.arena.alloc_term(def_type),
+                        self.arena.alloc_term(def_expr),
+                        self.arena.alloc_term(body_expr),
                     )
                 }
                 core::Term::FunIntro(input_name, output_expr) => {
@@ -992,7 +1024,7 @@ pub mod distillation {
                     let output_expr = self.check(output_expr);
                     self.pop_binding();
 
-                    surface::Term::FunIntro(input_name, self.arena.alloc(output_expr))
+                    surface::Term::FunIntro(input_name, self.arena.alloc_term(output_expr))
                 }
                 _ => self.synth(core_term),
             }
@@ -1014,9 +1046,9 @@ pub mod distillation {
 
                     surface::Term::Let(
                         def_name,
-                        self.arena.alloc(def_type),
-                        self.arena.alloc(def_expr),
-                        self.arena.alloc(body_expr),
+                        self.arena.alloc_term(def_type),
+                        self.arena.alloc_term(def_expr),
+                        self.arena.alloc_term(body_expr),
                     )
                 }
                 core::Term::Universe => surface::Term::Universe,
@@ -1029,8 +1061,8 @@ pub mod distillation {
 
                     surface::Term::FunType(
                         input_name,
-                        self.arena.alloc(input_type),
-                        self.arena.alloc(output_type),
+                        self.arena.alloc_term(input_type),
+                        self.arena.alloc_term(output_type),
                     )
                 }
                 core::Term::FunIntro(input_name, output_expr) => {
@@ -1038,15 +1070,15 @@ pub mod distillation {
                     let output_expr = self.synth(output_expr);
                     self.pop_binding();
 
-                    surface::Term::FunIntro(input_name, self.arena.alloc(output_expr))
+                    surface::Term::FunIntro(input_name, self.arena.alloc_term(output_expr))
                 }
                 core::Term::FunElim(head_expr, input_expr) => {
                     let head_expr = self.synth(head_expr);
                     let input_expr = self.synth(input_expr);
 
                     surface::Term::FunElim(
-                        self.arena.alloc(head_expr),
-                        self.arena.alloc(input_expr),
+                        self.arena.alloc_term(head_expr),
+                        self.arena.alloc_term(input_expr),
                     )
                 }
             }

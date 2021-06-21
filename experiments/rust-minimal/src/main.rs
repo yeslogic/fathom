@@ -1,8 +1,7 @@
-use fathom_minimal::{distillation, elaboration, surface, StringInterner};
+use fathom_minimal::{core, distillation, elaboration, surface, StringInterner};
 use std::io::Read;
 use std::path::PathBuf;
 use structopt::StructOpt;
-use typed_arena::Arena;
 
 /// CLI for the programming language prototype.
 #[derive(StructOpt)]
@@ -70,8 +69,8 @@ const MAX_PRETTY_WIDTH: usize = 80;
 
 fn main() {
     let mut interner = StringInterner::new();
-    let surface_arena = Arena::new();
-    let core_arena = Arena::new();
+    let surface_arena = surface::Arena::new();
+    let core_arena = core::Arena::new();
     let pretty_arena = pretty::Arena::<()>::new();
     let mut context = elaboration::Context::new(&core_arena);
 
@@ -139,7 +138,7 @@ fn main() {
 
 fn parse_term<'arena>(
     interner: &mut StringInterner,
-    arena: &'arena Arena<surface::Term<'arena>>,
+    arena: &'arena surface::Arena<'arena>,
     term: &Input,
 ) -> surface::Term<'arena> {
     // FIXME: error handling
