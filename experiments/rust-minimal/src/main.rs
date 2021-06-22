@@ -9,14 +9,14 @@ use structopt::StructOpt;
 
 Using arguments
 
-    fathom-minimal elab --surface-term=example-file
-    fathom-minimal normalise --surface-term=example-file
+    fathom-minimal elab --surface-term=example.txt
+    fathom-minimal normalise --surface-term=example.txt
 
 Using pipes and redirects
 
     echo "fun (A : Type) -> fun (a : A) -> A" | fathom-minimal elab
-    cat example-file | fathom-minimal elab
-    fathom-minimal elab < example-file
+    cat example.txt | fathom-minimal elab
+    fathom-minimal elab < example.txt
 
 Using heredocs
 
