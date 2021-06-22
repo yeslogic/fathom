@@ -1,0 +1,7 @@
+let id : fun (A : Type) -> fun (a : A) -> A
+  = fun A => fun a => a;
+
+let always : fun (A : Type) -> fun (B : Type) -> fun (a : A) -> fun (b : B) -> A
+  = fun A => fun B => fun a => fun B => a;
+
+Type
