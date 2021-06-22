@@ -519,7 +519,9 @@ pub mod surface {
 
     use crate::{StringId, StringInterner};
 
-    pub mod lexer {
+    // FIXME: lexer should be private! LALRPOP's exports are somewhat broken though.
+    //        See: https://github.com/lalrpop/lalrpop/pull/584#issuecomment-856731852
+    pub(crate) mod lexer {
         use logos::Logos;
 
         #[derive(Clone, Debug, Logos)]
