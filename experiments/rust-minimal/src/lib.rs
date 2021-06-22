@@ -216,34 +216,32 @@ pub mod core {
         }
     }
 
-    pub type TermRef<'arena> = &'arena Term<'arena>;
-
     /// Core language terms.
     #[derive(Debug, Clone)]
     pub enum Term<'arena> {
         /// Variable occurrences.
         Var(LocalVar),
         /// Annotated expressions.
-        Ann(TermRef<'arena>, TermRef<'arena>),
+        Ann(&'arena Term<'arena>, &'arena Term<'arena>),
         /// Let expressions.
-        Let(StringId, TermRef<'arena>, TermRef<'arena>),
+        Let(StringId, &'arena Term<'arena>, &'arena Term<'arena>),
         /// The type of types.
         Universe,
         /// Dependent function types.
         ///
         /// Also known as: pi types, dependent product types.
-        FunType(StringId, TermRef<'arena>, TermRef<'arena>),
+        FunType(StringId, &'arena Term<'arena>, &'arena Term<'arena>),
         /// Function introductions.
         ///
         /// Also known as: lambda expressions, anonymous functions.
-        FunIntro(StringId, TermRef<'arena>),
+        FunIntro(StringId, &'arena Term<'arena>),
         /// Function eliminations.
         ///
         /// Also known as: function applications.
-        FunElim(TermRef<'arena>, TermRef<'arena>),
+        FunElim(&'arena Term<'arena>, &'arena Term<'arena>),
         // RecordType(&'arena [StringId], &'arena [Term<'arena>]),
         // RecordIntro(&'arena [StringId], &'arena [Term<'arena>]),
-        // RecordElim(TermRef<'arena>, StringId),
+        // RecordElim(&'arena Term<'arena>, StringId),
     }
 
     /// Arena for storing data related to [`Term`]s.
@@ -268,7 +266,7 @@ pub mod core {
     pub mod semantics {
         use std::sync::Arc;
 
-        use crate::core::{Arena, EnvLen, GlobalVar, SharedEnv, Term, TermRef};
+        use crate::core::{Arena, EnvLen, GlobalVar, SharedEnv, Term};
         use crate::StringId;
 
         /// Values in weak-head-normal form.
@@ -307,13 +305,13 @@ pub mod core {
             ///
             /// This can be evaluated using the captured environment with an
             /// expression pushed onto it.
-            body_expr: TermRef<'arena>,
+            body_expr: &'arena Term<'arena>,
         }
 
         impl<'arena> Closure<'arena> {
             pub fn new(
                 env: SharedEnv<Arc<Value<'arena>>>,
-                body_expr: TermRef<'arena>,
+                body_expr: &'arena Term<'arena>,
             ) -> Closure<'arena> {
                 Closure { env, body_expr }
             }
@@ -574,30 +572,28 @@ pub mod surface {
 
     lalrpop_mod!(grammar);
 
-    pub type TermRef<'arena> = &'arena Term<'arena>;
+    // TODO: Convert to an internal error message
+    pub type ParseError<'source> = lalrpop_util::ParseError<usize, lexer::Token<'source>, ()>;
 
     /// Surface terms.
     #[derive(Debug, Clone)]
     pub enum Term<'arena> {
         Var(StringId),
-        Ann(TermRef<'arena>, TermRef<'arena>),
+        Ann(&'arena Term<'arena>, &'arena Term<'arena>),
         Let(
             StringId,
-            Option<TermRef<'arena>>,
-            TermRef<'arena>,
-            TermRef<'arena>,
+            Option<&'arena Term<'arena>>,
+            &'arena Term<'arena>,
+            &'arena Term<'arena>,
         ),
         Universe,
-        FunType(StringId, TermRef<'arena>, TermRef<'arena>),
-        FunIntro(StringId, TermRef<'arena>),
-        FunElim(TermRef<'arena>, TermRef<'arena>),
-        // RecordType(&'arena [(StringId, TermRef<'arena>)])
-        // RecordTerm(&'arena [(StringId, TermRef<'arena>)])
-        // RecordElim(TermRef<'arena>, StringId)
+        FunType(StringId, &'arena Term<'arena>, &'arena Term<'arena>),
+        FunIntro(StringId, &'arena Term<'arena>),
+        FunElim(&'arena Term<'arena>, &'arena Term<'arena>),
+        // RecordType(&'arena [(StringId, &'arena Term<'arena>)])
+        // RecordTerm(&'arena [(StringId, &'arena Term<'arena>)])
+        // RecordElim(&'arena Term<'arena>, StringId)
     }
-
-    // TODO: Convert to an internal error message
-    pub type ParseError<'source> = lalrpop_util::ParseError<usize, lexer::Token<'source>, ()>;
 
     impl<'arena> Term<'arena> {
         /// Parse a term from the `source` string, interning strings to the
@@ -853,7 +849,7 @@ pub mod surface {
             /// Returns the elaborated term in the core language.
             pub fn check(
                 &mut self,
-                surface_term: surface::TermRef<'_>,
+                surface_term: &surface::Term<'_>,
                 expected_type: &Arc<Value<'arena>>,
             ) -> Option<core::Term<'arena>> {
                 match (surface_term, expected_type.as_ref()) {
@@ -920,7 +916,7 @@ pub mod surface {
             /// Returns the elaborated term in the core language and its type.
             pub fn synth(
                 &mut self,
-                surface_term: surface::TermRef<'_>,
+                surface_term: &surface::Term<'_>,
             ) -> Option<(core::Term<'arena>, Arc<Value<'arena>>)> {
                 match surface_term {
                     surface::Term::Var(var_name) => match self.get_binding(*var_name) {
