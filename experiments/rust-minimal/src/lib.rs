@@ -1030,7 +1030,7 @@ pub mod surface {
         }
     }
 
-    /// Distillation of the core language into the surface language.
+    /// Bidirectional distillation of the core language into the surface language.
     pub mod distillation {
         use crate::{core, surface, StringId};
 
@@ -1064,6 +1064,7 @@ pub mod surface {
                 self.names.pop();
             }
 
+            /// Distill a core term into a surface term, in a 'checkable' context.
             pub fn check(&mut self, core_term: &core::Term<'_>) -> surface::Term<'arena> {
                 match core_term {
                     core::Term::Ann(expr, _) => {
@@ -1098,6 +1099,7 @@ pub mod surface {
                 }
             }
 
+            /// Distill a core term into a surface term, in a 'synthesizable' context.
             pub fn synth(&mut self, core_term: &core::Term<'_>) -> surface::Term<'arena> {
                 match core_term {
                     core::Term::Var(local_var) => match self.get_name(*local_var) {
