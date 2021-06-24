@@ -131,7 +131,7 @@ fn main() {
     }
 
     // Print diagnostics to stderr
-    for message in context.drain_messages() {
+    for (_, message) in context.drain_messages() {
         eprintln!("{}", message);
     }
 }
