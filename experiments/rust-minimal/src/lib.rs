@@ -372,12 +372,12 @@ pub mod core {
                     None => Err(EvalError::MisboundLocal),
                 },
                 Term::Ann(expr, _) => eval(env, expr),
-                Term::Let(_, def_expr, body_expr) => {
+                Term::Let(_, def_expr, output_expr) => {
                     let def_expr = eval(env, def_expr)?;
                     env.push(def_expr);
-                    let body_expr = eval(env, body_expr);
+                    let output_expr = eval(env, output_expr);
                     env.pop();
-                    body_expr
+                    output_expr
                 }
                 Term::Universe => Ok(Arc::new(Value::Universe)),
                 Term::FunType(input_name, input_type, output_type) => {
@@ -656,7 +656,7 @@ pub mod surface {
             match self {
                 Term::Var(range, _) => range.end(),
                 Term::Ann(expr, _) => expr.end(),
-                Term::Let(_, _, _, _, output_type) => output_type.end(),
+                Term::Let(_, _, _, _, output_expr) => output_expr.end(),
                 Term::Universe(range) => range.end(),
                 Term::FunType(_, _, _, output_type) => output_type.end(),
                 Term::FunIntro(_, _, output_expr) => output_expr.end(),
@@ -755,7 +755,7 @@ pub mod surface {
                 match term {
                     Term::Var(_, name) => self.name(*name),
                     Term::Ann(expr, r#type) => self.ann(expr, r#type),
-                    Term::Let(_, (_, def_name), def_type, def_expr, body_expr) => self.paren(
+                    Term::Let(_, (_, def_name), def_type, def_expr, output_expr) => self.paren(
                         prec > Prec::Let,
                         self.concat([
                             self.concat([
@@ -779,7 +779,7 @@ pub mod surface {
                             ])
                             .group(),
                             self.line(),
-                            self.term_prec(Prec::Let, body_expr),
+                            self.term_prec(Prec::Let, output_expr),
                         ]),
                     ),
                     Term::Universe(_) => self.text("Type"),
@@ -954,7 +954,7 @@ pub mod surface {
                 expected_type: &Arc<Value<'arena>>,
             ) -> Option<core::Term<'arena>> {
                 match (surface_term, expected_type.as_ref()) {
-                    (surface::Term::Let(_, (_, def_name), def_type, def_expr, body_expr), _) => {
+                    (surface::Term::Let(_, (_, def_name), def_type, def_expr, output_expr), _) => {
                         let (def_expr, def_type_value) = match def_type {
                             None => self.synth(def_expr)?,
                             Some(def_type) => {
@@ -974,14 +974,14 @@ pub mod surface {
                         let def_expr_value = self.eval(&def_expr)?;
 
                         self.push_binding(*def_name, def_expr_value, def_type_value);
-                        let body_expr = self.check(body_expr, expected_type);
+                        let output_expr = self.check(output_expr, expected_type);
                         self.pop_binding();
 
-                        body_expr.map(|body_expr| {
+                        output_expr.map(|output_expr| {
                             core::Term::Let(
                                 *def_name,
                                 self.arena.alloc_term(def_expr),
-                                self.arena.alloc_term(body_expr),
+                                self.arena.alloc_term(output_expr),
                             )
                         })
                     }
@@ -1043,7 +1043,7 @@ pub mod surface {
                             type_value,
                         ))
                     }
-                    surface::Term::Let(_, (_, def_name), def_type, def_expr, body_expr) => {
+                    surface::Term::Let(_, (_, def_name), def_type, def_expr, output_expr) => {
                         let (def_expr, def_type_value) = match def_type {
                             None => self.synth(def_expr)?,
                             Some(def_type) => {
@@ -1063,17 +1063,17 @@ pub mod surface {
                         let def_expr_value = self.eval(&def_expr)?;
 
                         self.push_binding(*def_name, def_expr_value, def_type_value);
-                        let body_expr = self.synth(body_expr);
+                        let output_expr = self.synth(output_expr);
                         self.pop_binding();
 
-                        body_expr.map(|(body_expr, body_type)| {
+                        output_expr.map(|(output_expr, output_type)| {
                             let let_expr = core::Term::Let(
                                 *def_name,
                                 self.arena.alloc_term(def_expr),
-                                self.arena.alloc_term(body_expr),
+                                self.arena.alloc_term(output_expr),
                             );
 
-                            (let_expr, body_type)
+                            (let_expr, output_type)
                         })
                     }
                     surface::Term::Universe(_) => {
@@ -1179,14 +1179,14 @@ pub mod surface {
                         // Avoid adding extraneous type annotations!
                         self.check(expr)
                     }
-                    core::Term::Let(def_name, def_expr, body_expr) => {
+                    core::Term::Let(def_name, def_expr, output_expr) => {
                         let (def_expr, def_type) = match self.synth(def_expr) {
                             surface::Term::Ann(expr, r#type) => (expr, Some(r#type)),
                             expr => (self.arena.alloc_term(expr) as &_, None),
                         };
 
                         let def_name = self.push_binding(*def_name);
-                        let body_expr = self.check(body_expr);
+                        let output_expr = self.check(output_expr);
                         self.pop_binding();
 
                         surface::Term::Let(
@@ -1194,7 +1194,7 @@ pub mod surface {
                             (PLACEHOLDER_RANGE, def_name),
                             def_type,
                             def_expr,
-                            self.arena.alloc_term(body_expr),
+                            self.arena.alloc_term(output_expr),
                         )
                     }
                     core::Term::FunIntro(input_name, output_expr) => {
@@ -1228,14 +1228,14 @@ pub mod surface {
                             self.arena.alloc_term(r#type),
                         )
                     }
-                    core::Term::Let(def_name, def_expr, body_expr) => {
+                    core::Term::Let(def_name, def_expr, output_expr) => {
                         let (def_expr, def_type) = match self.synth(def_expr) {
                             surface::Term::Ann(expr, r#type) => (expr, Some(r#type)),
                             expr => (self.arena.alloc_term(expr) as &_, None),
                         };
 
                         let def_name = self.push_binding(*def_name);
-                        let body_expr = self.synth(body_expr);
+                        let output_expr = self.synth(output_expr);
                         self.pop_binding();
 
                         surface::Term::Let(
@@ -1243,7 +1243,7 @@ pub mod surface {
                             (PLACEHOLDER_RANGE, def_name),
                             def_type,
                             def_expr,
-                            self.arena.alloc_term(body_expr),
+                            self.arena.alloc_term(output_expr),
                         )
                     }
                     core::Term::Universe => surface::Term::Universe(PLACEHOLDER_RANGE),
