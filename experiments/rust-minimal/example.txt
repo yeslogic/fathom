@@ -1,7 +1,46 @@
+// Combinators
+
 let id : fun (A : Type) -> fun (a : A) -> A
   = fun A => fun a => a;
 
 let always : fun (A : Type) -> fun (B : Type) -> fun (a : A) -> fun (b : B) -> A
   = fun A => fun B => fun a => fun B => a;
+
+
+// Lists
+
+let List : fun (Elem : Type) -> Type
+  = fun Elem =>
+    fun (List : Type) ->
+    fun (cons : fun (head : Elem) -> fun (tail : List) -> List) ->
+    fun (nil : List) ->
+      List;
+
+let nil : fun (Elem : Type) -> List Elem
+  = fun Elem => fun List => fun cons => fun nil => nil;
+
+let cons : fun (Elem : Type) -> fun (head : Elem) -> fun (tail : List Elem) -> List Elem
+  = fun Elem => fun head => fun tail => fun List => fun cons => fun nil =>
+      cons head (tail List cons nil);
+
+
+// Booleans
+
+let Bool : Type
+  = fun (Bool : Type) ->
+    fun (true : Bool) ->
+    fun (false : Bool) ->
+      Bool;
+
+let true : Bool
+  = fun Bool => fun true => fun false => true;
+
+let false : Bool
+  = fun Bool => fun true => fun false => false;
+
+let not : fun (bool : Bool) -> Bool
+  = fun bool => fun Bool => fun true => fun false =>
+      bool Bool false true;
+
 
 Type
