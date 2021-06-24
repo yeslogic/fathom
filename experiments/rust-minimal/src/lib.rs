@@ -24,7 +24,7 @@
 //   - [x] command line interface
 //   - [x] parser
 //   - [ ] pretty printing
-//   - [ ] source location tracking
+//   - [x] source location tracking
 //   - [x] string interning
 //   - [x] arena allocation
 //   - [x] normalisation-by-evaluation
@@ -43,6 +43,28 @@ pub type StringInterner = string_interner::StringInterner<
     string_interner::backend::BucketBackend<StringId>,
     std::hash::BuildHasherDefault<fxhash::FxHasher32>,
 >;
+
+pub type BytePos = usize;
+
+#[derive(Debug, Copy, Clone)]
+pub struct ByteRange {
+    start: BytePos,
+    end: BytePos,
+}
+
+impl ByteRange {
+    pub const fn new(start: BytePos, end: BytePos) -> ByteRange {
+        ByteRange { start, end }
+    }
+
+    pub const fn start(&self) -> BytePos {
+        self.start
+    }
+
+    pub const fn end(&self) -> BytePos {
+        self.start
+    }
+}
 
 /// Core language.
 pub mod core {
@@ -517,7 +539,7 @@ pub mod core {
 pub mod surface {
     use lalrpop_util::lalrpop_mod;
 
-    use crate::{StringId, StringInterner};
+    use crate::{BytePos, ByteRange, StringId, StringInterner};
 
     // FIXME: lexer should be private! LALRPOP's exports are somewhat broken though.
     //        See: https://github.com/lalrpop/lalrpop/pull/584#issuecomment-856731852
@@ -580,17 +602,23 @@ pub mod surface {
     /// Surface terms.
     #[derive(Debug, Clone)]
     pub enum Term<'arena> {
-        Var(StringId),
+        Var(ByteRange, StringId),
         Ann(&'arena Term<'arena>, &'arena Term<'arena>),
         Let(
-            StringId,
+            BytePos,
+            (ByteRange, StringId),
             Option<&'arena Term<'arena>>,
             &'arena Term<'arena>,
             &'arena Term<'arena>,
         ),
-        Universe,
-        FunType(StringId, &'arena Term<'arena>, &'arena Term<'arena>),
-        FunIntro(StringId, &'arena Term<'arena>),
+        Universe(ByteRange),
+        FunType(
+            BytePos,
+            (ByteRange, StringId),
+            &'arena Term<'arena>,
+            &'arena Term<'arena>,
+        ),
+        FunIntro(BytePos, (ByteRange, StringId), &'arena Term<'arena>),
         FunElim(&'arena Term<'arena>, &'arena Term<'arena>),
         // RecordType(&'arena [(StringId, &'arena Term<'arena>)])
         // RecordTerm(&'arena [(StringId, &'arena Term<'arena>)])
@@ -606,6 +634,34 @@ pub mod surface {
             source: &'source str,
         ) -> Result<Term<'arena>, ParseError<'source>> {
             grammar::TermParser::new().parse(interner, arena, lexer::tokens(source))
+        }
+
+        pub fn range(&self) -> ByteRange {
+            ByteRange::new(self.start(), self.end())
+        }
+
+        fn start(&self) -> BytePos {
+            match self {
+                Term::Var(range, _) => range.start(),
+                Term::Ann(expr, _) => expr.start(),
+                Term::Let(start, _, _, _, _) => *start,
+                Term::Universe(range) => range.start(),
+                Term::FunType(start, _, _, _) => *start,
+                Term::FunIntro(start, _, _) => *start,
+                Term::FunElim(head_expr, _) => head_expr.start(),
+            }
+        }
+
+        fn end(&self) -> BytePos {
+            match self {
+                Term::Var(range, _) => range.end(),
+                Term::Ann(expr, _) => expr.end(),
+                Term::Let(_, _, _, _, output_type) => output_type.end(),
+                Term::Universe(range) => range.end(),
+                Term::FunType(_, _, _, output_type) => output_type.end(),
+                Term::FunIntro(_, _, output_expr) => output_expr.end(),
+                Term::FunElim(_, input_expr) => input_expr.end(),
+            }
         }
     }
 
@@ -670,9 +726,9 @@ pub mod surface {
             // FIXME: precedences, indentation, and grouping
             pub fn term(&self, term: &Term<'_>) -> DocBuilder<'doc, D> {
                 match term {
-                    Term::Var(name) => self.name(*name),
+                    Term::Var(_, name) => self.name(*name),
                     Term::Ann(expr, r#type) => self.ann(expr, r#type),
-                    Term::Let(def_name, def_type, def_expr, body_expr) => self.concat([
+                    Term::Let(_, (_, def_name), def_type, def_expr, body_expr) => self.concat([
                         self.concat([
                             self.text("let"),
                             self.space(),
@@ -696,8 +752,8 @@ pub mod surface {
                         self.line(),
                         self.term(body_expr),
                     ]),
-                    Term::Universe => self.text("Type"),
-                    Term::FunType(input_name, input_type, output_type) => self.concat([
+                    Term::Universe(_) => self.text("Type"),
+                    Term::FunType(_, (_, input_name), input_type, output_type) => self.concat([
                         self.concat([
                             self.text("fun"),
                             self.space(),
@@ -715,7 +771,7 @@ pub mod surface {
                         self.softline(),
                         self.term(output_type),
                     ]),
-                    Term::FunIntro(input_name, output_expr) => self.concat([
+                    Term::FunIntro(_, (_, input_name), output_expr) => self.concat([
                         self.concat([
                             self.text("fun"),
                             self.space(),
@@ -740,7 +796,7 @@ pub mod surface {
         use std::sync::Arc;
 
         use crate::core::semantics::{self, Value};
-        use crate::{core, surface, StringId};
+        use crate::{core, surface, ByteRange, StringId};
 
         /// Elaboration context.
         pub struct Context<'arena> {
@@ -753,7 +809,7 @@ pub mod surface {
             /// An environment of evaluated expressions.
             expr_env: core::SharedEnv<Arc<Value<'arena>>>,
             /// Diagnostic messages encountered during elaboration.
-            messages: Vec<String>,
+            messages: Vec<(ByteRange, String)>,
         }
 
         impl<'arena> Context<'arena> {
@@ -802,11 +858,13 @@ pub mod surface {
                 self.expr_env.pop();
             }
 
-            fn push_message(&mut self, message: impl Into<String>) {
-                self.messages.push(message.into());
+            fn push_message(&mut self, range: ByteRange, message: impl Into<String>) {
+                self.messages.push((range, message.into()));
             }
 
-            pub fn drain_messages<'this>(&'this mut self) -> impl 'this + Iterator<Item = String> {
+            pub fn drain_messages<'this>(
+                &'this mut self,
+            ) -> impl 'this + Iterator<Item = (ByteRange, String)> {
                 self.messages.drain(..)
             }
 
@@ -855,7 +913,7 @@ pub mod surface {
                 expected_type: &Arc<Value<'arena>>,
             ) -> Option<core::Term<'arena>> {
                 match (surface_term, expected_type.as_ref()) {
-                    (surface::Term::Let(def_name, def_type, def_expr, body_expr), _) => {
+                    (surface::Term::Let(_, (_, def_name), def_type, def_expr, body_expr), _) => {
                         let (def_expr, def_type_value) = match def_type {
                             None => self.synth(def_expr)?,
                             Some(def_type) => {
@@ -887,7 +945,7 @@ pub mod surface {
                         })
                     }
                     (
-                        surface::Term::FunIntro(input_name, output_expr),
+                        surface::Term::FunIntro(_, (_, input_name), output_expr),
                         Value::FunType(_, input_type, output_type),
                     ) => {
                         let input_expr = self.push_param(*input_name, input_type.clone());
@@ -906,7 +964,7 @@ pub mod surface {
                         if self.is_equal(&synth_type, expected_type)? {
                             Some(core_term)
                         } else {
-                            self.push_message("error: type mismatch");
+                            self.push_message(surface_term.range(), "error: type mismatch");
                             None
                         }
                     }
@@ -921,12 +979,12 @@ pub mod surface {
                 surface_term: &surface::Term<'_>,
             ) -> Option<(core::Term<'arena>, Arc<Value<'arena>>)> {
                 match surface_term {
-                    surface::Term::Var(var_name) => match self.get_binding(*var_name) {
+                    surface::Term::Var(_, var_name) => match self.get_binding(*var_name) {
                         Some((local_var, r#type)) => {
                             Some((core::Term::Var(local_var), r#type.clone()))
                         }
                         None => {
-                            self.push_message("error: unknown variable");
+                            self.push_message(surface_term.range(), "error: unknown variable");
                             None
                         }
                     },
@@ -944,7 +1002,7 @@ pub mod surface {
                             type_value,
                         ))
                     }
-                    surface::Term::Let(def_name, def_type, def_expr, body_expr) => {
+                    surface::Term::Let(_, (_, def_name), def_type, def_expr, body_expr) => {
                         let (def_expr, def_type_value) = match def_type {
                             None => self.synth(def_expr)?,
                             Some(def_type) => {
@@ -977,10 +1035,10 @@ pub mod surface {
                             (let_expr, body_type)
                         })
                     }
-                    surface::Term::Universe => {
+                    surface::Term::Universe(_) => {
                         Some((core::Term::Universe, Arc::new(Value::Universe)))
                     }
-                    surface::Term::FunType(input_name, input_type, output_type) => {
+                    surface::Term::FunType(_, (_, input_name), input_type, output_type) => {
                         let input_type = self.check(input_type, &Arc::new(Value::Universe))?; // FIXME: avoid temporary Arc
                         let input_type_value = self.eval(&input_type)?;
 
@@ -998,8 +1056,11 @@ pub mod surface {
                             (fun_type, Arc::new(Value::Universe))
                         })
                     }
-                    surface::Term::FunIntro(_, _) => {
-                        self.push_message("error: ambiguous function introduction");
+                    surface::Term::FunIntro(_, _, _) => {
+                        self.push_message(
+                            surface_term.range(),
+                            "error: ambiguous function introduction",
+                        );
                         None
                     }
                     surface::Term::FunElim(head_expr, input_expr) => {
@@ -1020,7 +1081,10 @@ pub mod surface {
                                 Some((fun_elim, output_type))
                             }
                             _ => {
-                                self.push_message("error: argument to applied non-function");
+                                self.push_message(
+                                    surface_term.range(),
+                                    "error: argument to applied non-function",
+                                );
                                 None
                             }
                         }
@@ -1032,7 +1096,10 @@ pub mod surface {
 
     /// Bidirectional distillation of the core language into the surface language.
     pub mod distillation {
-        use crate::{core, surface, StringId};
+        use crate::{core, surface, BytePos, ByteRange, StringId};
+
+        const PLACEHOLDER_POS: BytePos = 0;
+        const PLACEHOLDER_RANGE: ByteRange = ByteRange::new(PLACEHOLDER_POS, PLACEHOLDER_POS);
 
         /// Distillation context.
         pub struct Context<'arena> {
@@ -1082,7 +1149,8 @@ pub mod surface {
                         self.pop_binding();
 
                         surface::Term::Let(
-                            def_name,
+                            PLACEHOLDER_POS,
+                            (PLACEHOLDER_RANGE, def_name),
                             def_type,
                             def_expr,
                             self.arena.alloc_term(body_expr),
@@ -1093,7 +1161,11 @@ pub mod surface {
                         let output_expr = self.check(output_expr);
                         self.pop_binding();
 
-                        surface::Term::FunIntro(input_name, self.arena.alloc_term(output_expr))
+                        surface::Term::FunIntro(
+                            PLACEHOLDER_POS,
+                            (PLACEHOLDER_RANGE, input_name),
+                            self.arena.alloc_term(output_expr),
+                        )
                     }
                     _ => self.synth(core_term),
                 }
@@ -1103,7 +1175,7 @@ pub mod surface {
             pub fn synth(&mut self, core_term: &core::Term<'_>) -> surface::Term<'arena> {
                 match core_term {
                     core::Term::Var(local_var) => match self.get_name(*local_var) {
-                        Some(name) => surface::Term::Var(name),
+                        Some(name) => surface::Term::Var(PLACEHOLDER_RANGE, name),
                         None => todo!("misbound variable"), // TODO: error?
                     },
                     core::Term::Ann(expr, r#type) => {
@@ -1126,13 +1198,14 @@ pub mod surface {
                         self.pop_binding();
 
                         surface::Term::Let(
-                            def_name,
+                            PLACEHOLDER_POS,
+                            (PLACEHOLDER_RANGE, def_name),
                             def_type,
                             def_expr,
                             self.arena.alloc_term(body_expr),
                         )
                     }
-                    core::Term::Universe => surface::Term::Universe,
+                    core::Term::Universe => surface::Term::Universe(PLACEHOLDER_RANGE),
                     core::Term::FunType(input_name, input_type, output_type) => {
                         let input_type = self.check(input_type);
 
@@ -1141,7 +1214,8 @@ pub mod surface {
                         self.pop_binding();
 
                         surface::Term::FunType(
-                            input_name,
+                            PLACEHOLDER_POS,
+                            (PLACEHOLDER_RANGE, input_name),
                             self.arena.alloc_term(input_type),
                             self.arena.alloc_term(output_type),
                         )
@@ -1151,7 +1225,11 @@ pub mod surface {
                         let output_expr = self.synth(output_expr);
                         self.pop_binding();
 
-                        surface::Term::FunIntro(input_name, self.arena.alloc_term(output_expr))
+                        surface::Term::FunIntro(
+                            PLACEHOLDER_POS,
+                            (PLACEHOLDER_RANGE, input_name),
+                            self.arena.alloc_term(output_expr),
+                        )
                     }
                     core::Term::FunElim(head_expr, input_expr) => {
                         let head_expr = self.synth(head_expr);

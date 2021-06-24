@@ -1,4 +1,4 @@
-use crate::{StringId, StringInterner};
+use crate::{ByteRange, StringId, StringInterner};
 use crate::surface::{Arena, Term};
 use crate::surface::lexer::Token;
 
@@ -35,8 +35,9 @@ pub Term: Term<'arena> = {
             arena.alloc_term(type_),
         )
     },
-    "let" <def_name: Name> <def_type: (":" < FunTerm>)?> "=" <def_expr: FunTerm> ";" <body_expr: Term> => {
+    <start: @L> "let" <def_name: RangedName> <def_type: (":" < FunTerm>)?> "=" <def_expr: FunTerm> ";" <body_expr: Term> => {
         Term::Let(
+            start,
             def_name,
             def_type.map(|def_type| arena.alloc_term(def_type) as &_),
             arena.alloc_term(def_expr),
@@ -47,15 +48,17 @@ pub Term: Term<'arena> = {
 
 FunTerm: Term<'arena> = {
     AppTerm,
-    "fun" "("<input_name: Name> ":" <input_type: Term> ")" "->"  <output_type: FunTerm> => {
+    <start: @L> "fun" "("<input_name: RangedName> ":" <input_type: Term> ")" "->"  <output_type: FunTerm> => {
         Term::FunType(
+            start,
             input_name,
             arena.alloc_term(input_type),
             arena.alloc_term(output_type),
         )
     },
-    "fun" <input_name: Name> "=>" <output_type: FunTerm> => {
+    <start: @L> "fun" <input_name: RangedName> "=>" <output_type: FunTerm> => {
         Term::FunIntro(
+            start,
             input_name,
             arena.alloc_term(output_type),
         )
@@ -73,12 +76,17 @@ AppTerm: Term<'arena> = {
 };
 
 AtomicTerm: Term<'arena> = {
-    <name: Name> => Term::Var(name),
-    "Type" => Term::Universe,
+    <start: @L> <name: Name> <end: @R> => Term::Var(ByteRange::new(start, end), name),
+    <start: @L> "Type" <end: @R> => Term::Universe(ByteRange::new(start, end)),
     "(" <term: Term> ")" => term,
 };
 
 #[inline]
 Name: StringId = {
     <"ident"> => interner.get_or_intern(<>),
+};
+
+#[inline]
+RangedName: (ByteRange, StringId) = {
+    <start: @L> <name: Name> <end: @R> => (ByteRange::new(start, end), name),
 };
