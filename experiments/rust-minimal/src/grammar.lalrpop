@@ -27,15 +27,19 @@ extern {
 }
 
 pub Term: Term<'arena> = {
-    FunTerm,
+    LetTerm,
     // FIXME: LALRPOP does not accept raw identifiers (see: https://github.com/lalrpop/lalrpop/issues/613)
-    <expr: FunTerm> ":" <type_: Term> => {
+    <expr: LetTerm> ":" <type_: Term> => {
         Term::Ann(
             arena.alloc_term(expr),
             arena.alloc_term(type_),
         )
     },
-    <start: @L> "let" <def_name: RangedName> <def_type: (":" < FunTerm>)?> "=" <def_expr: FunTerm> ";" <body_expr: Term> => {
+};
+
+LetTerm: Term<'arena> = {
+    FunTerm,
+    <start: @L> "let" <def_name: RangedName> <def_type: (":" <FunTerm>)?> "=" <def_expr: LetTerm> ";" <body_expr: LetTerm> => {
         Term::Let(
             start,
             def_name,
@@ -48,7 +52,7 @@ pub Term: Term<'arena> = {
 
 FunTerm: Term<'arena> = {
     AppTerm,
-    <start: @L> "fun" "("<input_name: RangedName> ":" <input_type: Term> ")" "->"  <output_type: FunTerm> => {
+    <start: @L> "fun" "(" <input_name: RangedName> ":" <input_type: Term> ")" "->"  <output_type: LetTerm> => {
         Term::FunType(
             start,
             input_name,
@@ -56,7 +60,7 @@ FunTerm: Term<'arena> = {
             arena.alloc_term(output_type),
         )
     },
-    <start: @L> "fun" <input_name: RangedName> "=>" <output_type: FunTerm> => {
+    <start: @L> "fun" <input_name: RangedName> "=>" <output_type: LetTerm> => {
         Term::FunIntro(
             start,
             input_name,
