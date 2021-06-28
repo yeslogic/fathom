@@ -307,6 +307,12 @@ pub mod core {
             // RecordIntro(&'arena [StringId], Vec<Arc<Value<'arena>>>),
         }
 
+        impl<'arena> Value<'arena> {
+            pub fn var(global: GlobalVar) -> Value<'arena> {
+                Value::Stuck(global, Vec::new())
+            }
+        }
+
         /// A pending elimination to be reduced if the [head][`Head`] of a
         /// [stuck value][`Value::Stuck`] becomes known.
         #[derive(Debug, Clone)]
@@ -446,7 +452,7 @@ pub mod core {
                 Value::Universe => Ok(Term::Universe),
                 Value::FunType(input_name, input_type, output_type) => {
                     let input_type = readback(arena, env_len, input_type)?;
-                    let var = Arc::new(Value::Stuck(env_len.next_global(), Vec::new()));
+                    let var = Arc::new(Value::var(env_len.next_global()));
                     let output_type = output_type.apply(var)?;
                     let output_type = readback(arena, env_len.add_param(), &output_type)?;
 
@@ -457,7 +463,7 @@ pub mod core {
                     ))
                 }
                 Value::FunIntro(input_name, output_expr) => {
-                    let var = Arc::new(Value::Stuck(env_len.next_global(), Vec::new()));
+                    let var = Arc::new(Value::var(env_len.next_global()));
                     let output_expr = output_expr.apply(var)?;
                     let output_expr = readback(arena, env_len.add_param(), &output_expr)?;
 
@@ -499,14 +505,14 @@ pub mod core {
                     Value::FunType(_, input_type0, output_type0),
                     Value::FunType(_, input_type1, output_type1),
                 ) => Ok(is_equal(env_len, input_type0, input_type1)? && {
-                    let var = Arc::new(Value::Stuck(env_len.next_global(), Vec::new()));
+                    let var = Arc::new(Value::var(env_len.next_global()));
                     let output_type0 = output_type0.apply(var.clone())?;
                     let output_type1 = output_type1.apply(var)?;
 
                     is_equal(env_len.add_param(), &output_type0, &output_type1)?
                 }),
                 (Value::FunIntro(_, output_expr0), Value::FunIntro(_, output_expr1)) => {
-                    let var = Arc::new(Value::Stuck(env_len.next_global(), Vec::new()));
+                    let var = Arc::new(Value::var(env_len.next_global()));
                     let output_expr0 = output_expr0.apply(var.clone())?;
                     let output_expr1 = output_expr1.apply(var)?;
 
@@ -515,14 +521,14 @@ pub mod core {
 
                 // Eta-conversion
                 (Value::FunIntro(_, output_expr), _) => {
-                    let var = Arc::new(Value::Stuck(env_len.next_global(), Vec::new()));
+                    let var = Arc::new(Value::var(env_len.next_global()));
                     let value0 = output_expr.apply(var.clone())?;
                     let value1 = fun_elim(value1.clone(), var)?;
 
                     is_equal(env_len.add_param(), &value0, &value1)
                 }
                 (_, Value::FunIntro(_, output_expr)) => {
-                    let var = Arc::new(Value::Stuck(env_len.next_global(), Vec::new()));
+                    let var = Arc::new(Value::var(env_len.next_global()));
                     let value0 = fun_elim(value0.clone(), var.clone())?;
                     let value1 = output_expr.apply(var)?;
 
@@ -872,27 +878,31 @@ pub mod surface {
                     .find_map(|(n, binding)| (name == *n).then(|| binding))
             }
 
+            /// Push a concrete binder onto the environment.
             fn push_binding(
                 &mut self,
                 name: StringId,
-                value: Arc<Value<'arena>>,
+                expr: Arc<Value<'arena>>,
                 r#type: Arc<Value<'arena>>,
             ) {
                 self.name_env.push(name);
                 self.type_env.push(r#type);
-                self.expr_env.push(value);
+                self.expr_env.push(expr);
             }
 
+            /// Push an abstract/opaque binder onto the environment.
             fn push_param(
                 &mut self,
                 name: StringId,
                 r#type: Arc<Value<'arena>>,
             ) -> Arc<Value<'arena>> {
-                let value = Arc::new(Value::Stuck(self.expr_env.len().next_global(), Vec::new()));
-                self.push_binding(name, value.clone(), r#type);
-                value
+                // Create a variable that refers to itself (once pushed onto the environment).
+                let expr = Arc::new(Value::var(self.expr_env.len().next_global()));
+                self.push_binding(name, expr.clone(), r#type);
+                expr
             }
 
+            /// Pop a binder off the environment.
             fn pop_binding(&mut self) {
                 self.name_env.pop();
                 self.type_env.pop();
