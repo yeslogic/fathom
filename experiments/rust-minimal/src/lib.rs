@@ -322,34 +322,27 @@ pub mod core {
             // Record(StringId),
         }
 
-        /// A closure is a term and a captured environment that will be later
-        /// evaluated
-        /// that will be later evaluated in the presence of an input expression.
+        /// A closure is a term that can later be instantiated with a value.
         #[derive(Debug, Clone)]
         pub struct Closure<'arena> {
-            /// Captured environment.
             env: SharedEnv<Arc<Value<'arena>>>,
-            /// The body expression.
-            ///
-            /// This can be evaluated using the captured environment with an
-            /// expression pushed onto it.
-            body_expr: &'arena Term<'arena>,
+            term: &'arena Term<'arena>,
         }
 
         impl<'arena> Closure<'arena> {
             pub fn new(
                 env: SharedEnv<Arc<Value<'arena>>>,
-                body_expr: &'arena Term<'arena>,
+                term: &'arena Term<'arena>,
             ) -> Closure<'arena> {
-                Closure { env, body_expr }
+                Closure { env, term }
             }
 
-            /// Apply an input to the closure.
+            /// Instantiate the closure with a value.
             pub fn apply(
                 &self,
-                input_expr: Arc<Value<'arena>>,
+                value: Arc<Value<'arena>>,
             ) -> Result<Arc<Value<'arena>>, EvalError> {
-                eval(&mut self.env.push_clone(input_expr), self.body_expr)
+                eval(&mut self.env.push_clone(value), self.term)
             }
         }
 
