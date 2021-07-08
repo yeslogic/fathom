@@ -15,14 +15,15 @@ extern {
         "let" => Token::KeywordLet,
         "Type" => Token::KeywordType,
 
-        "(" => Token::OpenParen,
-        ")" => Token::CloseParen,
-
         ":" => Token::Colon,
         "=" => Token::Equals,
         "=>" => Token::EqualsGreater,
         "->" => Token::HyphenGreater,
+        "?" => Token::QuestionMark,
         ";" => Token::Semicolon,
+
+        "(" => Token::OpenParen,
+        ")" => Token::CloseParen,
     }
 }
 
@@ -80,7 +81,9 @@ AppTerm: Term<'arena> = {
 };
 
 AtomicTerm: Term<'arena> = {
-    <start: @L> <name: Name> <end: @R> => Term::Var(ByteRange::new(start, end), name),
+    <start: @L> <name: Name> <end: @R> => Term::Name(ByteRange::new(start, end), name),
+    // FIXME: <start: @L> "?" <name: Name?> <end: @R> => Term::Hole(ByteRange::new(start, end), name),
+    <start: @L> "?" <end: @R> => Term::Hole(ByteRange::new(start, end), None),
     <start: @L> "Type" <end: @R> => Term::Universe(ByteRange::new(start, end)),
     "(" <term: Term> ")" => term,
 };

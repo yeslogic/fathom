@@ -21,6 +21,7 @@ _surface.app-term_ ::=\
 
 _surface.atomic-term_ ::=\
 &emsp;| _name_\
+&emsp;| `?` _name_?\
 &emsp;| `Type`\
 &emsp;| `(` _surface.term_ `)`
 
@@ -30,33 +31,47 @@ _core.index_ ::= `last` | `prev(`_core.index_`)`\
 _core.level_ ::= `first` | `next(`_core.level_`)`
 
 _core.term_ ::=\
-&emsp;| `var(`_core.index_`)`\
+&emsp;| `bound-var(`_core.index_`)`\
+&emsp;| `unification-var(`_core.level_`)`\
 &emsp;| `ann(`_core.term_`,` _core.term_`)`\
 &emsp;| `let(`_name_`,` _core.term_`,` _core.term_`,` _core.term_`)`\
 &emsp;| `universe`\
-&emsp;| `fun/type(`_name_`,` _core.term_`,` _core.term_`)`\
-&emsp;| `fun/intro(`_name_`,` _core.term_`)`\
-&emsp;| `fun/elim(`_core.term_`,` _core.term_`)`
+&emsp;| `function/type(`_name_`,` _core.term_`,` _core.term_`)`\
+&emsp;| `function/intro(`_name_`,` _core.term_`)`\
+&emsp;| `function/elim(`_core.term_`,` _core.term_`)`
 
 _core.value_ ::=\
+&emsp;| `stuck(`_core.head_`,` _core.elim_*`)`\
 &emsp;| TODO
+
+_core.head_ ::=\
+&emsp;| `bound-var(`_core.index_`)`\
+&emsp;| `unification-var(`_core.level_`)`
 
 _core.elim_ ::=\
-&emsp;| TODO
+&emsp;| `function(`_core.value_`)`
 
 _core.closure_ ::=\
-&emsp;| TODO
+&emsp;| `(`_core.env_`,` _core.term_`)`
 
 _core.env_ ::=\
 &emsp;| _core.env_`,` _core.value_\
 &emsp;| `empty`
 
-TODO: evaluation, readback, normalisation
+_core.context_ ::=\
+&emsp;| _core.env_`,` _core.value_ `:` _core.value_\
+&emsp;| `empty`
+
+> **TODO:**
+>
+> document evaluation, readback, checking and synthesis
 
 ## Elaboration
 
 _elab.context_ ::=\
-&emsp;| _elab.context_`,` `(`_name_ `:` _core.value_ `=` _core.value_`)`\
+&emsp;| _elab.context_`,` _name_ `:` _core.value_ `=` _core.value_\
 &emsp;| `empty`
 
-TODO: lookup, context-to-env, checking and synthesis
+> **TODO:**
+>
+> document lookup, checking and synthesis

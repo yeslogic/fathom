@@ -81,58 +81,60 @@ fn main() {
         Options::Elab(Args { surface_term }) => {
             let surface_term = parse_term(&mut interner, &surface_arena, &surface_term);
 
-            if let Some((term, r#type)) = context.synth(&surface_term) {
-                if let Some(r#type) = context.readback(&core_arena, &r#type) {
-                    let mut context = surface::distillation::Context::new(&surface_arena);
-                    let term = context.check(&term);
-                    let r#type = context.synth(&r#type);
+            let (term, r#type) = context.synth(&surface_term);
+            let r#type = context.readback(&core_arena, &r#type);
 
-                    let context = surface::pretty::Context::new(&interner, &pretty_arena);
-                    let doc = context.ann(&term, &r#type).into_doc();
+            if check_elaboration_messages(&mut context) {
+                let mut context = surface::distillation::Context::new(&surface_arena);
+                let term = context.check(&term);
+                let r#type = context.synth(&r#type);
 
-                    println!("{}", doc.pretty(pretty_width));
-                }
+                let context = surface::pretty::Context::new(&interner, &pretty_arena);
+                let doc = context.ann(&term, &r#type).into_doc();
+
+                println!("{}", doc.pretty(pretty_width));
+            } else {
+                std::process::exit(1);
             }
         }
         Options::Normalise(Args { surface_term }) => {
             let surface_term = parse_term(&mut interner, &surface_arena, &surface_term);
 
-            if let Some((term, r#type)) = context.synth(&surface_term) {
-                if let (Some(term), Some(r#type)) = (
-                    context.normalize(&core_arena, &term),
-                    context.readback(&core_arena, &r#type),
-                ) {
-                    let mut context = surface::distillation::Context::new(&surface_arena);
-                    let term = context.check(&term);
-                    let r#type = context.synth(&r#type);
+            let (term, r#type) = context.synth(&surface_term);
+            let term = context.normalize(&core_arena, &term);
+            let r#type = context.readback(&core_arena, &r#type);
 
-                    let context = surface::pretty::Context::new(&interner, &pretty_arena);
-                    let doc = context.ann(&term, &r#type).into_doc();
+            if check_elaboration_messages(&mut context) {
+                let mut context = surface::distillation::Context::new(&surface_arena);
+                let term = context.check(&term);
+                let r#type = context.synth(&r#type);
 
-                    println!("{}", doc.pretty(pretty_width));
-                }
+                let context = surface::pretty::Context::new(&interner, &pretty_arena);
+                let doc = context.ann(&term, &r#type).into_doc();
+
+                println!("{}", doc.pretty(pretty_width));
+            } else {
+                std::process::exit(1);
             }
         }
         Options::Type(Args { surface_term }) => {
             let surface_term = parse_term(&mut interner, &surface_arena, &surface_term);
 
-            if let Some((_, r#type)) = context.synth(&surface_term) {
-                if let Some(r#type) = context.readback(&core_arena, &r#type) {
-                    let mut context = surface::distillation::Context::new(&surface_arena);
-                    let r#type = context.synth(&r#type);
+            let (_, r#type) = context.synth(&surface_term);
+            let r#type = context.readback(&core_arena, &r#type);
 
-                    let context = surface::pretty::Context::new(&interner, &pretty_arena);
-                    let doc = context.term(&r#type).into_doc();
+            if check_elaboration_messages(&mut context) {
+                let mut context = surface::distillation::Context::new(&surface_arena);
+                let r#type = context.synth(&r#type);
 
-                    println!("{}", doc.pretty(pretty_width));
-                }
+                let context = surface::pretty::Context::new(&interner, &pretty_arena);
+                let doc = context.term(&r#type).into_doc();
+
+                println!("{}", doc.pretty(pretty_width));
+            } else {
+                std::process::exit(1);
             }
         }
-    }
-
-    // Print diagnostics to stderr
-    for (_, message) in context.drain_messages() {
-        eprintln!("{}", message);
     }
 }
 
@@ -153,4 +155,15 @@ fn parse_term<'arena>(
     };
 
     surface::Term::parse(interner, arena, &source).unwrap()
+}
+
+fn check_elaboration_messages(context: &mut surface::elaboration::Context<'_>) -> bool {
+    let mut is_ok = true;
+
+    for (_, message) in context.drain_messages() {
+        eprintln!("{}", message);
+        is_ok = false;
+    }
+
+    is_ok
 }
