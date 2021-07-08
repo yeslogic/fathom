@@ -163,12 +163,12 @@ pub mod core {
         /// Lookup an entry in the environment.
         pub fn get(&self, local: LocalVar) -> Option<&Entry> {
             let global_var = self.len().local_to_global(local)?;
-            self.entries.get(global_var.0 as usize)
+            self.entries.get(usize::from(global_var.0))
         }
 
         /// Push an entry onto the environment.
         pub fn push(&mut self, entry: Entry) {
-            assert!(self.entries.len() < u16::MAX as usize);
+            assert!(self.entries.len() < usize::from(u16::MAX));
             self.entries.push(entry);
         }
 
@@ -215,12 +215,12 @@ pub mod core {
         /// Lookup an entry in the environment.
         pub fn get(&self, local: LocalVar) -> Option<&Entry> {
             let global_var = self.len().local_to_global(local)?;
-            self.entries.get(global_var.0 as usize)
+            self.entries.get(usize::from(global_var.0))
         }
 
         /// Push an entry onto a clone of the environment.
         pub fn push_clone(&self, entry: Entry) -> SharedEnv<Entry> {
-            assert!(self.entries.len() < u16::MAX as usize);
+            assert!(self.entries.len() < usize::from(u16::MAX));
             SharedEnv {
                 entries: self.entries.push_back(entry),
             }
@@ -228,7 +228,7 @@ pub mod core {
 
         /// Push an entry onto the environment.
         pub fn push(&mut self, entry: Entry) {
-            assert!(self.entries.len() < u16::MAX as usize);
+            assert!(self.entries.len() < usize::from(u16::MAX));
             self.entries.push_back_mut(entry);
         }
 
