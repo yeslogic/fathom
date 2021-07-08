@@ -12,7 +12,7 @@
 //   - [x] let expressions
 //   - [x] dependent functions
 //   - [ ] dependent records
-//   - [ ] holes
+//   - [x] holes
 //   - [ ] top-level items
 //   - [ ] recursive definitions
 //   - [ ] binary format descriptions
@@ -29,7 +29,8 @@
 //   - [x] arena allocation
 //   - [x] normalisation-by-evaluation
 //   - [x] elaborator
-//     - [ ] error recovery
+//     - [x] error recovery
+//     - [ ] unification
 //   - [x] distiller
 //   - [ ] pretty printing
 //   - [ ] integration tests
@@ -268,6 +269,8 @@ pub mod core {
         // RecordType(&'arena [StringId], &'arena [Term<'arena>]),
         // RecordIntro(&'arena [StringId], &'arena [Term<'arena>]),
         // RecordElim(&'arena Term<'arena>, StringId),
+        /// Reported errors.
+        ReportedError,
     }
 
     /// Arena for storing data related to [`Term`]s.
@@ -319,6 +322,10 @@ pub mod core {
             pub fn problem_var(global: GlobalVar) -> Value<'arena> {
                 Value::Stuck(Head::UnificationVar(global), Vec::new())
             }
+
+            pub fn reported_error() -> Value<'arena> {
+                Value::Stuck(Head::ReportedError, Vec::new())
+            }
         }
 
         /// The head of a [stuck value][`Value::Stuck`].
@@ -326,6 +333,7 @@ pub mod core {
         pub enum Head {
             BoundVar(GlobalVar),
             UnificationVar(GlobalVar),
+            ReportedError,
         }
 
         /// A pending elimination to be reduced if the [head][`Head`] of a
@@ -413,6 +421,7 @@ pub mod core {
                     let input_expr = eval(env, input_expr)?;
                     fun_elim(head_expr, input_expr)
                 }
+                Term::ReportedError => Ok(Arc::new(Value::reported_error())),
             }
         }
 
@@ -428,8 +437,8 @@ pub mod core {
                 // Beta-reduction
                 Value::FunIntro(_, output_expr) => output_expr.apply(input_expr),
                 // The computation is stuck, preventing further reduction
-                Value::Stuck(_, elims) => {
-                    elims.push(Elim::Fun(input_expr));
+                Value::Stuck(_, spine) => {
+                    spine.push(Elim::Fun(input_expr));
                     Ok(head_expr)
                 }
                 _ => Err(EvalError::InvalidFunctionElimHead),
@@ -443,16 +452,17 @@ pub mod core {
             value: &Value<'in_arena>,
         ) -> Result<Term<'out_arena>, EvalError> {
             match value {
-                Value::Stuck(head, elims) => {
+                Value::Stuck(head, spine) => {
                     let mut head_expr = match head {
                         // FIXME: Unwrap
                         Head::BoundVar(var) => {
                             Term::BoundVar(env_len.global_to_local(*var).unwrap())
                         }
                         Head::UnificationVar(var) => Term::UnificationVar(*var),
+                        Head::ReportedError => Term::ReportedError,
                     };
 
-                    for elim in elims {
+                    for elim in spine {
                         head_expr = match elim {
                             Elim::Fun(input_expr) => {
                                 let input_expr = readback(arena, env_len, input_expr)?;
@@ -504,11 +514,17 @@ pub mod core {
             value1: &Arc<Value<'_>>,
         ) -> Result<bool, EvalError> {
             match (value0.as_ref(), value1.as_ref()) {
-                (Value::Stuck(var0, elims0), Value::Stuck(var1, elims1)) => {
-                    if var0 != var1 || elims0.len() != elims1.len() {
+                // `ReportedError`s result from errors that have already been
+                // reported, so we say that they are equal to any other value to
+                // prevent them from triggering more errors.
+                (Value::Stuck(Head::ReportedError, _), _)
+                | (_, Value::Stuck(Head::ReportedError, _)) => Ok(true),
+
+                (Value::Stuck(var0, spine0), Value::Stuck(var1, spine1)) => {
+                    if var0 != var1 || spine0.len() != spine1.len() {
                         return Ok(false);
                     }
-                    for (elim0, elim1) in Iterator::zip(elims0.iter(), elims1.iter()) {
+                    for (elim0, elim1) in Iterator::zip(spine0.iter(), spine1.iter()) {
                         match (elim0, elim1) {
                             (Elim::Fun(input_expr0), Elim::Fun(input_expr1))
                                 if is_equal(env_len, input_expr0, input_expr1)? => {}
@@ -962,38 +978,38 @@ pub mod surface {
                 &mut self,
                 arena: &'out_arena core::Arena<'out_arena>,
                 term: &core::Term<'arena>,
-            ) -> Option<core::Term<'out_arena>> {
-                semantics::normalise(arena, &mut self.bound_exprs, term).ok() // FIXME: record error
+            ) -> core::Term<'out_arena> {
+                semantics::normalise(arena, &mut self.bound_exprs, term)
+                    .unwrap_or_else(|_| todo!("report error"))
             }
 
-            pub fn eval(&mut self, term: &core::Term<'arena>) -> Option<Arc<Value<'arena>>> {
-                semantics::eval(&mut self.bound_exprs, term).ok() // FIXME: record error
+            pub fn eval(&mut self, term: &core::Term<'arena>) -> Arc<Value<'arena>> {
+                semantics::eval(&mut self.bound_exprs, term)
+                    .unwrap_or_else(|_| todo!("report error"))
             }
 
             pub fn readback<'out_arena>(
                 &mut self,
                 arena: &'out_arena core::Arena<'out_arena>,
                 value: &Arc<Value<'arena>>,
-            ) -> Option<core::Term<'out_arena>> {
-                semantics::readback(arena, self.bound_exprs.len(), value).ok()
-                // FIXME: record error
+            ) -> core::Term<'out_arena> {
+                semantics::readback(arena, self.bound_exprs.len(), value)
+                    .unwrap_or_else(|_| todo!("report error"))
             }
 
-            fn is_equal(
-                &mut self,
-                value0: &Arc<Value<'_>>,
-                value1: &Arc<Value<'_>>,
-            ) -> Option<bool> {
-                semantics::is_equal(self.bound_exprs.len(), value0, value1).ok()
-                // FIXME: record error
+            fn is_equal(&mut self, value0: &Arc<Value<'_>>, value1: &Arc<Value<'_>>) -> bool {
+                semantics::is_equal(self.bound_exprs.len(), value0, value1)
+                    .unwrap_or_else(|_| todo!("report error"))
             }
 
             fn apply_closure(
                 &mut self,
                 closure: &semantics::Closure<'arena>,
                 input_expr: Arc<Value<'arena>>,
-            ) -> Option<Arc<Value<'arena>>> {
-                closure.apply(input_expr).ok() // FIXME: record error
+            ) -> Arc<Value<'arena>> {
+                closure
+                    .apply(input_expr)
+                    .unwrap_or_else(|_| todo!("report error"))
             }
 
             /// Check that a surface term conforms to the given type.
@@ -1003,16 +1019,16 @@ pub mod surface {
                 &mut self,
                 surface_term: &surface::Term<'_>,
                 expected_type: &Arc<Value<'arena>>,
-            ) -> Option<core::Term<'arena>> {
+            ) -> core::Term<'arena> {
                 match (surface_term, expected_type.as_ref()) {
                     (surface::Term::Let(_, (_, def_name), def_type, def_expr, output_expr), _) => {
                         let (def_expr, def_type_value) = match def_type {
-                            None => self.synth(def_expr)?,
+                            None => self.synth(def_expr),
                             Some(def_type) => {
-                                let def_type = self.check(def_type, &Arc::new(Value::Universe))?; // FIXME: avoid temporary Arc
-                                let def_type_value = self.eval(&def_type)?;
+                                let def_type = self.check(def_type, &Arc::new(Value::Universe)); // FIXME: avoid temporary Arc
+                                let def_type_value = self.eval(&def_type);
 
-                                let def_expr = self.check(def_expr, &def_type_value)?;
+                                let def_expr = self.check(def_expr, &def_type_value);
                                 let def_expr = core::Term::Ann(
                                     self.arena.alloc_term(def_expr),
                                     self.arena.alloc_term(def_type),
@@ -1022,42 +1038,37 @@ pub mod surface {
                             }
                         };
 
-                        let def_expr_value = self.eval(&def_expr)?;
+                        let def_expr_value = self.eval(&def_expr);
 
                         self.push_binding(*def_name, def_expr_value, def_type_value);
                         let output_expr = self.check(output_expr, expected_type);
                         self.pop_binding();
 
-                        output_expr.map(|output_expr| {
-                            core::Term::Let(
-                                *def_name,
-                                self.arena.alloc_term(def_expr),
-                                self.arena.alloc_term(output_expr),
-                            )
-                        })
+                        core::Term::Let(
+                            *def_name,
+                            self.arena.alloc_term(def_expr),
+                            self.arena.alloc_term(output_expr),
+                        )
                     }
                     (
                         surface::Term::FunIntro(_, (_, input_name), output_expr),
                         Value::FunType(_, input_type, output_type),
                     ) => {
                         let input_expr = self.push_param(*input_name, input_type.clone());
-                        let output_expr = self
-                            .apply_closure(output_type, input_expr)
-                            .and_then(|output_type| self.check(output_expr, &output_type));
+                        let output_type = self.apply_closure(output_type, input_expr);
+                        let output_expr = self.check(output_expr, &output_type);
                         self.pop_binding();
 
-                        output_expr.map(|output_expr| {
-                            core::Term::FunIntro(*input_name, self.arena.alloc_term(output_expr))
-                        })
+                        core::Term::FunIntro(*input_name, self.arena.alloc_term(output_expr))
                     }
                     (_, _) => {
-                        let (core_term, synth_type) = self.synth(surface_term)?;
+                        let (core_term, synth_type) = self.synth(surface_term);
 
-                        if self.is_equal(&synth_type, expected_type)? {
-                            Some(core_term)
+                        if self.is_equal(&synth_type, expected_type) {
+                            core_term
                         } else {
                             self.push_message(surface_term.range(), "error: type mismatch");
-                            None
+                            core::Term::ReportedError
                         }
                     }
                 }
@@ -1069,45 +1080,43 @@ pub mod surface {
             pub fn synth(
                 &mut self,
                 surface_term: &surface::Term<'_>,
-            ) -> Option<(core::Term<'arena>, Arc<Value<'arena>>)> {
+            ) -> (core::Term<'arena>, Arc<Value<'arena>>) {
                 match surface_term {
                     surface::Term::Name(_, name) => match self.get_binding(*name) {
                         Some((local_var, r#type)) => {
-                            Some((core::Term::BoundVar(local_var), r#type.clone()))
+                            (core::Term::BoundVar(local_var), r#type.clone())
                         }
                         None => {
                             self.push_message(surface_term.range(), "error: unknown variable");
-                            None
+                            let r#type = self.push_unification_problem(None);
+                            (core::Term::ReportedError, self.eval(&r#type))
                         }
                     },
                     surface::Term::Hole(_, name) => {
                         let r#type = self.push_unification_problem(None);
-                        let r#type = self.eval(&r#type)?;
                         let expr = self.push_unification_problem(*name);
-                        Some((expr, r#type))
+                        (expr, self.eval(&r#type))
                     }
                     surface::Term::Ann(expr, r#type) => {
-                        let r#type = self.check(r#type, &Arc::new(Value::Universe))?; // FIXME: avoid temporary Arc
-                        let type_value = self.eval(&r#type)?;
+                        let r#type = self.check(r#type, &Arc::new(Value::Universe)); // FIXME: avoid temporary Arc
+                        let type_value = self.eval(&r#type);
+                        let expr = self.check(expr, &type_value);
 
-                        let expr = self.check(expr, &type_value)?;
+                        let ann_expr = core::Term::Ann(
+                            self.arena.alloc_term(expr),
+                            self.arena.alloc_term(r#type),
+                        );
 
-                        Some((
-                            core::Term::Ann(
-                                self.arena.alloc_term(expr),
-                                self.arena.alloc_term(r#type),
-                            ),
-                            type_value,
-                        ))
+                        (ann_expr, type_value)
                     }
                     surface::Term::Let(_, (_, def_name), def_type, def_expr, output_expr) => {
                         let (def_expr, def_type_value) = match def_type {
-                            None => self.synth(def_expr)?,
+                            None => self.synth(def_expr),
                             Some(def_type) => {
-                                let def_type = self.check(def_type, &Arc::new(Value::Universe))?; // FIXME: avoid temporary Arc
-                                let def_type_value = self.eval(&def_type)?;
+                                let def_type = self.check(def_type, &Arc::new(Value::Universe)); // FIXME: avoid temporary Arc
+                                let def_type_value = self.eval(&def_type);
 
-                                let def_expr = self.check(def_expr, &def_type_value)?;
+                                let def_expr = self.check(def_expr, &def_type_value);
                                 let def_expr = core::Term::Ann(
                                     self.arena.alloc_term(def_expr),
                                     self.arena.alloc_term(def_type),
@@ -1117,73 +1126,68 @@ pub mod surface {
                             }
                         };
 
-                        let def_expr_value = self.eval(&def_expr)?;
+                        let def_expr_value = self.eval(&def_expr);
 
                         self.push_binding(*def_name, def_expr_value, def_type_value);
-                        let output_expr = self.synth(output_expr);
+                        let (output_expr, output_type) = self.synth(output_expr);
                         self.pop_binding();
 
-                        output_expr.map(|(output_expr, output_type)| {
-                            let let_expr = core::Term::Let(
-                                *def_name,
-                                self.arena.alloc_term(def_expr),
-                                self.arena.alloc_term(output_expr),
-                            );
+                        let let_expr = core::Term::Let(
+                            *def_name,
+                            self.arena.alloc_term(def_expr),
+                            self.arena.alloc_term(output_expr),
+                        );
 
-                            (let_expr, output_type)
-                        })
+                        (let_expr, output_type)
                     }
-                    surface::Term::Universe(_) => {
-                        Some((core::Term::Universe, Arc::new(Value::Universe)))
-                    }
+                    surface::Term::Universe(_) => (core::Term::Universe, Arc::new(Value::Universe)),
                     surface::Term::FunType(_, (_, input_name), input_type, output_type) => {
-                        let input_type = self.check(input_type, &Arc::new(Value::Universe))?; // FIXME: avoid temporary Arc
-                        let input_type_value = self.eval(&input_type)?;
+                        let input_type = self.check(input_type, &Arc::new(Value::Universe)); // FIXME: avoid temporary Arc
+                        let input_type_value = self.eval(&input_type);
 
                         self.push_param(*input_name, input_type_value);
                         let output_type = self.check(output_type, &Arc::new(Value::Universe)); // FIXME: avoid temporary Arc
                         self.pop_binding();
 
-                        output_type.map(|output_type| {
-                            let fun_type = core::Term::FunType(
-                                *input_name,
-                                self.arena.alloc_term(input_type),
-                                self.arena.alloc_term(output_type),
-                            );
+                        let fun_type = core::Term::FunType(
+                            *input_name,
+                            self.arena.alloc_term(input_type),
+                            self.arena.alloc_term(output_type),
+                        );
 
-                            (fun_type, Arc::new(Value::Universe))
-                        })
+                        (fun_type, Arc::new(Value::Universe))
                     }
                     surface::Term::FunIntro(_, _, _) => {
                         self.push_message(
                             surface_term.range(),
                             "error: ambiguous function introduction",
                         );
-                        None
+                        let r#type = self.push_unification_problem(None);
+                        (core::Term::ReportedError, self.eval(&r#type))
                     }
                     surface::Term::FunElim(head_expr, input_expr) => {
-                        let (head_expr, head_type) = self.synth(head_expr)?;
+                        let (head_expr, head_type) = self.synth(head_expr);
                         match head_type.as_ref() {
                             Value::FunType(_, input_type, output_type) => {
-                                let input_expr = self.check(input_expr, input_type)?;
-                                let input_expr_value = self.eval(&input_expr)?;
+                                let input_expr = self.check(input_expr, input_type);
+                                let input_expr_value = self.eval(&input_expr);
 
-                                let output_type =
-                                    self.apply_closure(output_type, input_expr_value)?;
+                                let output_type = self.apply_closure(output_type, input_expr_value);
 
                                 let fun_elim = core::Term::FunElim(
                                     self.arena.alloc_term(head_expr),
                                     self.arena.alloc_term(input_expr),
                                 );
 
-                                Some((fun_elim, output_type))
+                                (fun_elim, output_type)
                             }
                             _ => {
                                 self.push_message(
                                     surface_term.range(),
                                     "error: argument to applied non-function",
                                 );
-                                None
+                                let r#type = self.push_unification_problem(None);
+                                (core::Term::ReportedError, self.eval(&r#type))
                             }
                         }
                     }
@@ -1342,6 +1346,8 @@ pub mod surface {
                             self.arena.alloc_term(input_expr),
                         )
                     }
+                    // NOTE: Not sure if this is a great approach!
+                    core::Term::ReportedError => surface::Term::Hole(PLACEHOLDER_RANGE, None),
                 }
             }
         }
