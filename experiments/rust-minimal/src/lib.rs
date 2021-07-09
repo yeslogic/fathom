@@ -32,7 +32,9 @@
 //     - [x] error recovery
 //     - [ ] unification
 //   - [x] distiller
-//   - [ ] pretty printing
+//     - [ ] improve binder names
+//     - [ ] improve meta names
+//   - [ ] codespan diagnostics
 //   - [ ] integration tests
 
 /// Interned strings.
