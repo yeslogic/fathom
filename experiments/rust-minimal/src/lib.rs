@@ -667,6 +667,7 @@ pub mod surface {
         // RecordType(&'arena [(StringId, &'arena Term<'arena>)])
         // RecordTerm(&'arena [(StringId, &'arena Term<'arena>)])
         // RecordElim(&'arena Term<'arena>, StringId)
+        ReportedError(ByteRange),
     }
 
     impl<'arena> Term<'arena> {
@@ -694,6 +695,7 @@ pub mod surface {
                 Term::FunType(start, _, _, _) => *start,
                 Term::FunIntro(start, _, _) => *start,
                 Term::FunElim(head_expr, _) => head_expr.start(),
+                Term::ReportedError(range) => range.start(),
             }
         }
 
@@ -707,6 +709,7 @@ pub mod surface {
                 Term::FunType(_, _, _, output_type) => output_type.end(),
                 Term::FunIntro(_, _, output_expr) => output_expr.end(),
                 Term::FunElim(_, input_expr) => input_expr.end(),
+                Term::ReportedError(range) => range.end(),
             }
         }
     }
@@ -875,6 +878,7 @@ pub mod surface {
                             self.term_prec(Prec::Atomic, input_expr),
                         ]),
                     ),
+                    Term::ReportedError(_) => self.text("?"),
                 }
             }
         }
@@ -1063,6 +1067,7 @@ pub mod surface {
 
                         core::Term::FunIntro(*input_name, self.arena.alloc_term(output_expr))
                     }
+                    (surface::Term::ReportedError(_), _) => core::Term::ReportedError,
                     (_, _) => {
                         let (core_term, synth_type) = self.synth(surface_term);
 
@@ -1192,6 +1197,10 @@ pub mod surface {
                                 (core::Term::ReportedError, self.eval(&r#type))
                             }
                         }
+                    }
+                    surface::Term::ReportedError(_) => {
+                        let r#type = self.push_unification_problem(None);
+                        (core::Term::ReportedError, self.eval(&r#type))
                     }
                 }
             }
