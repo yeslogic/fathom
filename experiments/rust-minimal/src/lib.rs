@@ -97,6 +97,14 @@ pub mod core {
     #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
     pub struct LocalVar(RawVar);
 
+    impl LocalVar {
+        /// Returns the previously bound variable, relative to this one.
+        pub fn prev(self) -> LocalVar {
+            LocalVar(self.0 + 1) // FIXME: check overflow?
+        }
+    }
+
+    /// An iterator over local variables, listed from the most recently bound.
     pub fn local_vars() -> impl Iterator<Item = LocalVar> {
         (0..).map(LocalVar)
     }
@@ -121,6 +129,13 @@ pub mod core {
     /// [untyped-nbe-for-lc]: https://colimit.net/posts/normalisation-by-evaluation/
     #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
     pub struct GlobalVar(RawVar);
+
+    impl GlobalVar {
+        /// Returns the next bound variable, relative to this one.
+        pub fn next(self) -> GlobalVar {
+            GlobalVar(self.0 + 1) // FIXME: check overflow?
+        }
+    }
 
     /// The length of an environment.
     #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
