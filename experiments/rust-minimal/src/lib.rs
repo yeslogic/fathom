@@ -336,7 +336,7 @@ pub mod core {
                 Value::Stuck(Head::BoundVar(global), Vec::new())
             }
 
-            pub fn problem_var(global: GlobalVar) -> Value<'arena> {
+            pub fn unification_var(global: GlobalVar) -> Value<'arena> {
                 Value::Stuck(Head::UnificationVar(global), Vec::new())
             }
 
@@ -365,16 +365,16 @@ pub mod core {
         /// A closure is a term that can later be instantiated with a value.
         #[derive(Debug, Clone)]
         pub struct Closure<'arena> {
-            env: SharedEnv<Arc<Value<'arena>>>,
+            bindings: SharedEnv<Arc<Value<'arena>>>,
             term: &'arena Term<'arena>,
         }
 
         impl<'arena> Closure<'arena> {
             pub fn new(
-                env: SharedEnv<Arc<Value<'arena>>>,
+                bindings: SharedEnv<Arc<Value<'arena>>>,
                 term: &'arena Term<'arena>,
             ) -> Closure<'arena> {
-                Closure { env, term }
+                Closure { bindings, term }
             }
 
             /// Instantiate the closure with a value.
@@ -382,47 +382,47 @@ pub mod core {
                 &self,
                 value: Arc<Value<'arena>>,
             ) -> Result<Arc<Value<'arena>>, EvalError> {
-                eval(&mut self.env.push_clone(value), self.term)
+                eval(&mut self.bindings.push_clone(value), self.term)
             }
         }
 
         // TODO: include stack trace(??)
         #[derive(Clone, Debug)]
         pub enum EvalError {
-            MisboundLocal,
+            InvalidBoundVar,
             InvalidFunctionElimHead,
         }
 
         pub fn normalise<'in_arena, 'out_arena>(
             arena: &'out_arena Arena<'out_arena>,
-            env: &mut SharedEnv<Arc<Value<'in_arena>>>,
+            bindings: &mut SharedEnv<Arc<Value<'in_arena>>>,
             term: &Term<'in_arena>,
         ) -> Result<Term<'out_arena>, EvalError> {
-            readback(arena, env.len(), eval(env, term)?.as_ref())
+            readback(arena, bindings.len(), eval(bindings, term)?.as_ref())
         }
 
         pub fn eval<'arena>(
-            env: &mut SharedEnv<Arc<Value<'arena>>>,
+            bindings: &mut SharedEnv<Arc<Value<'arena>>>,
             term: &Term<'arena>,
         ) -> Result<Arc<Value<'arena>>, EvalError> {
             match term {
-                Term::BoundVar(var) => match env.get(*var) {
+                Term::BoundVar(var) => match bindings.get(*var) {
                     Some(value) => Ok(value.clone()),
-                    None => Err(EvalError::MisboundLocal),
+                    None => Err(EvalError::InvalidBoundVar),
                 },
-                Term::UnificationVar(var) => Ok(Arc::new(Value::problem_var(*var))), // TODO: lookup in solution environment
-                Term::Ann(expr, _) => eval(env, expr),
+                Term::UnificationVar(var) => Ok(Arc::new(Value::unification_var(*var))), // TODO: lookup in solution environment
+                Term::Ann(expr, _) => eval(bindings, expr),
                 Term::Let(_, def_expr, output_expr) => {
-                    let def_expr = eval(env, def_expr)?;
-                    env.push(def_expr);
-                    let output_expr = eval(env, output_expr);
-                    env.pop();
+                    let def_expr = eval(bindings, def_expr)?;
+                    bindings.push(def_expr);
+                    let output_expr = eval(bindings, output_expr);
+                    bindings.pop();
                     output_expr
                 }
                 Term::Universe => Ok(Arc::new(Value::Universe)),
                 Term::FunType(input_name, input_type, output_type) => {
-                    let input_type = eval(env, input_type)?;
-                    let output_type = Closure::new(env.clone(), output_type);
+                    let input_type = eval(bindings, input_type)?;
+                    let output_type = Closure::new(bindings.clone(), output_type);
                     Ok(Arc::new(Value::FunType(
                         *input_name,
                         input_type,
@@ -430,12 +430,12 @@ pub mod core {
                     )))
                 }
                 Term::FunIntro(input_name, output_expr) => {
-                    let output_expr = Closure::new(env.clone(), output_expr);
+                    let output_expr = Closure::new(bindings.clone(), output_expr);
                     Ok(Arc::new(Value::FunIntro(*input_name, output_expr)))
                 }
                 Term::FunElim(head_expr, input_expr) => {
-                    let head_expr = eval(env, head_expr)?;
-                    let input_expr = eval(env, input_expr)?;
+                    let head_expr = eval(bindings, head_expr)?;
+                    let input_expr = eval(bindings, input_expr)?;
                     fun_elim(head_expr, input_expr)
                 }
                 Term::ReportedError => Ok(Arc::new(Value::reported_error())),
@@ -465,7 +465,7 @@ pub mod core {
         /// Read a [value][`Value`] back into a [term][`Term`].
         pub fn readback<'in_arena, 'out_arena>(
             arena: &'out_arena Arena<'out_arena>,
-            env_len: EnvLen,
+            bindings: EnvLen,
             value: &Value<'in_arena>,
         ) -> Result<Term<'out_arena>, EvalError> {
             match value {
@@ -473,7 +473,7 @@ pub mod core {
                     let mut head_expr = match head {
                         // FIXME: Unwrap
                         Head::BoundVar(var) => {
-                            Term::BoundVar(env_len.global_to_local(*var).unwrap())
+                            Term::BoundVar(bindings.global_to_local(*var).unwrap())
                         }
                         Head::UnificationVar(var) => Term::UnificationVar(*var),
                         Head::ReportedError => Term::ReportedError,
@@ -482,7 +482,7 @@ pub mod core {
                     for elim in spine {
                         head_expr = match elim {
                             Elim::Fun(input_expr) => {
-                                let input_expr = readback(arena, env_len, input_expr)?;
+                                let input_expr = readback(arena, bindings, input_expr)?;
                                 Term::FunElim(
                                     arena.alloc_term(head_expr),
                                     arena.alloc_term(input_expr),
@@ -495,10 +495,10 @@ pub mod core {
                 }
                 Value::Universe => Ok(Term::Universe),
                 Value::FunType(input_name, input_type, output_type) => {
-                    let input_type = readback(arena, env_len, input_type)?;
-                    let var = Arc::new(Value::bound_var(env_len.next_global()));
+                    let input_type = readback(arena, bindings, input_type)?;
+                    let var = Arc::new(Value::bound_var(bindings.next_global()));
                     let output_type = output_type.apply(var)?;
-                    let output_type = readback(arena, env_len.add_param(), &output_type)?;
+                    let output_type = readback(arena, bindings.add_param(), &output_type)?;
 
                     Ok(Term::FunType(
                         *input_name,
@@ -507,9 +507,9 @@ pub mod core {
                     ))
                 }
                 Value::FunIntro(input_name, output_expr) => {
-                    let var = Arc::new(Value::bound_var(env_len.next_global()));
+                    let var = Arc::new(Value::bound_var(bindings.next_global()));
                     let output_expr = output_expr.apply(var)?;
-                    let output_expr = readback(arena, env_len.add_param(), &output_expr)?;
+                    let output_expr = readback(arena, bindings.add_param(), &output_expr)?;
 
                     Ok(Term::FunIntro(*input_name, arena.alloc_term(output_expr)))
                 }
@@ -526,7 +526,7 @@ pub mod core {
         /// [computationally equal]: https://ncatlab.org/nlab/show/equality#computational_equality
         /// [eta-conversion]: https://ncatlab.org/nlab/show/eta-conversion
         pub fn is_equal(
-            env_len: EnvLen,
+            bindings: EnvLen,
             value0: &Arc<Value<'_>>,
             value1: &Arc<Value<'_>>,
         ) -> Result<bool, EvalError> {
@@ -544,45 +544,46 @@ pub mod core {
                     for (elim0, elim1) in Iterator::zip(spine0.iter(), spine1.iter()) {
                         match (elim0, elim1) {
                             (Elim::Fun(input_expr0), Elim::Fun(input_expr1))
-                                if is_equal(env_len, input_expr0, input_expr1)? => {}
+                                if is_equal(bindings, input_expr0, input_expr1)? => {}
                             (_, _) => return Ok(false),
                         }
                     }
                     Ok(true)
                 }
                 (Value::Universe, Value::Universe) => Ok(true),
+
                 (
                     Value::FunType(_, input_type0, output_type0),
                     Value::FunType(_, input_type1, output_type1),
-                ) => Ok(is_equal(env_len, input_type0, input_type1)? && {
-                    let var = Arc::new(Value::bound_var(env_len.next_global()));
+                ) => Ok(is_equal(bindings, input_type0, input_type1)? && {
+                    let var = Arc::new(Value::bound_var(bindings.next_global()));
                     let output_type0 = output_type0.apply(var.clone())?;
                     let output_type1 = output_type1.apply(var)?;
 
-                    is_equal(env_len.add_param(), &output_type0, &output_type1)?
+                    is_equal(bindings.add_param(), &output_type0, &output_type1)?
                 }),
+
                 (Value::FunIntro(_, output_expr0), Value::FunIntro(_, output_expr1)) => {
-                    let var = Arc::new(Value::bound_var(env_len.next_global()));
+                    let var = Arc::new(Value::bound_var(bindings.next_global()));
                     let output_expr0 = output_expr0.apply(var.clone())?;
                     let output_expr1 = output_expr1.apply(var)?;
 
-                    is_equal(env_len.add_param(), &output_expr0, &output_expr1)
+                    is_equal(bindings.add_param(), &output_expr0, &output_expr1)
                 }
-
                 // Eta-conversion
                 (Value::FunIntro(_, output_expr), _) => {
-                    let var = Arc::new(Value::bound_var(env_len.next_global()));
+                    let var = Arc::new(Value::bound_var(bindings.next_global()));
                     let value0 = output_expr.apply(var.clone())?;
                     let value1 = fun_elim(value1.clone(), var)?;
 
-                    is_equal(env_len.add_param(), &value0, &value1)
+                    is_equal(bindings.add_param(), &value0, &value1)
                 }
                 (_, Value::FunIntro(_, output_expr)) => {
-                    let var = Arc::new(Value::bound_var(env_len.next_global()));
+                    let var = Arc::new(Value::bound_var(bindings.next_global()));
                     let value0 = fun_elim(value0.clone(), var.clone())?;
                     let value1 = output_expr.apply(var)?;
 
-                    is_equal(env_len.add_param(), &value0, &value1)
+                    is_equal(bindings.add_param(), &value0, &value1)
                 }
 
                 (_, _) => Ok(false),
@@ -910,12 +911,13 @@ pub mod surface {
         pub struct Context<'arena> {
             /// Arena used for storing elaborated terms.
             arena: &'arena core::Arena<'arena>,
-            /// Bound variable names
-            bound_names: core::UniqueEnv<StringId>,
-            /// Types of bound variables
-            bound_types: core::UniqueEnv<Arc<Value<'arena>>>,
-            /// Expressions associated with bound variables (used during evaluation).
-            bound_exprs: core::SharedEnv<Arc<Value<'arena>>>,
+            /// Names of bound variables.
+            binding_names: core::UniqueEnv<StringId>,
+            /// Types of bound variables.
+            binding_types: core::UniqueEnv<Arc<Value<'arena>>>,
+            /// Expressions that will be substituted for bound variables during
+            /// [evaluation](`crate::core::semantics::eval`).
+            binding_exprs: core::SharedEnv<Arc<Value<'arena>>>,
             /// Unification variable names (added by named holes).
             unification_names: core::UniqueEnv<Option<StringId>>,
             /// Unification variable solutions.
@@ -929,9 +931,9 @@ pub mod surface {
             pub fn new(arena: &'arena core::Arena<'arena>) -> Context<'arena> {
                 Context {
                     arena,
-                    bound_names: core::UniqueEnv::new(),
-                    bound_types: core::UniqueEnv::new(),
-                    bound_exprs: core::SharedEnv::new(),
+                    binding_names: core::UniqueEnv::new(),
+                    binding_types: core::UniqueEnv::new(),
+                    binding_exprs: core::SharedEnv::new(),
                     unification_names: core::UniqueEnv::new(),
                     unification_solutions: core::UniqueEnv::new(),
                     messages: Vec::new(),
@@ -939,9 +941,9 @@ pub mod surface {
             }
 
             fn get_binding(&self, name: StringId) -> Option<(core::LocalVar, &Arc<Value<'arena>>)> {
-                let bindings = Iterator::zip(core::local_vars(), self.bound_types.iter().rev());
+                let bindings = Iterator::zip(core::local_vars(), self.binding_types.iter().rev());
 
-                Iterator::zip(self.bound_names.iter().rev(), bindings)
+                Iterator::zip(self.binding_names.iter().rev(), bindings)
                     .find_map(|(n, binding)| (name == *n).then(|| binding))
             }
 
@@ -952,28 +954,29 @@ pub mod surface {
                 expr: Arc<Value<'arena>>,
                 r#type: Arc<Value<'arena>>,
             ) {
-                self.bound_names.push(name);
-                self.bound_types.push(r#type);
-                self.bound_exprs.push(expr);
+                self.binding_names.push(name);
+                self.binding_types.push(r#type);
+                self.binding_exprs.push(expr);
             }
 
-            /// Push an abstract binding onto the context.
-            fn push_param(
+            /// Push an assumption onto the context.
+            fn push_assumption(
                 &mut self,
                 name: StringId,
                 r#type: Arc<Value<'arena>>,
             ) -> Arc<Value<'arena>> {
-                // Create a variable that refers to itself (once pushed onto the context).
-                let expr = Arc::new(Value::bound_var(self.bound_exprs.len().next_global()));
+                // Create a bound variable that refers to itself, once it is
+                // pushed onto the context.
+                let expr = Arc::new(Value::bound_var(self.binding_exprs.len().next_global()));
                 self.push_binding(name, expr.clone(), r#type);
                 expr
             }
 
             /// Pop a binding off the context.
             fn pop_binding(&mut self) {
-                self.bound_names.pop();
-                self.bound_types.pop();
-                self.bound_exprs.pop();
+                self.binding_names.pop();
+                self.binding_types.pop();
+                self.binding_exprs.pop();
             }
 
             /// Push a fresh unification problem onto the context.
@@ -1000,12 +1003,12 @@ pub mod surface {
                 arena: &'out_arena core::Arena<'out_arena>,
                 term: &core::Term<'arena>,
             ) -> core::Term<'out_arena> {
-                semantics::normalise(arena, &mut self.bound_exprs, term)
+                semantics::normalise(arena, &mut self.binding_exprs, term)
                     .unwrap_or_else(|_| todo!("report error"))
             }
 
             pub fn eval(&mut self, term: &core::Term<'arena>) -> Arc<Value<'arena>> {
-                semantics::eval(&mut self.bound_exprs, term)
+                semantics::eval(&mut self.binding_exprs, term)
                     .unwrap_or_else(|_| todo!("report error"))
             }
 
@@ -1014,12 +1017,12 @@ pub mod surface {
                 arena: &'out_arena core::Arena<'out_arena>,
                 value: &Arc<Value<'arena>>,
             ) -> core::Term<'out_arena> {
-                semantics::readback(arena, self.bound_exprs.len(), value)
+                semantics::readback(arena, self.binding_exprs.len(), value)
                     .unwrap_or_else(|_| todo!("report error"))
             }
 
             fn is_equal(&mut self, value0: &Arc<Value<'_>>, value1: &Arc<Value<'_>>) -> bool {
-                semantics::is_equal(self.bound_exprs.len(), value0, value1)
+                semantics::is_equal(self.binding_exprs.len(), value0, value1)
                     .unwrap_or_else(|_| todo!("report error"))
             }
 
@@ -1075,7 +1078,7 @@ pub mod surface {
                         surface::Term::FunIntro(_, (_, input_name), output_expr),
                         Value::FunType(_, input_type, output_type),
                     ) => {
-                        let input_expr = self.push_param(*input_name, input_type.clone());
+                        let input_expr = self.push_assumption(*input_name, input_type.clone());
                         let output_type = self.apply_closure(output_type, input_expr);
                         let output_expr = self.check(output_expr, &output_type);
                         self.pop_binding();
@@ -1167,7 +1170,7 @@ pub mod surface {
                         let input_type = self.check(input_type, &Arc::new(Value::Universe)); // FIXME: avoid temporary Arc
                         let input_type_value = self.eval(&input_type);
 
-                        self.push_param(*input_name, input_type_value);
+                        self.push_assumption(*input_name, input_type_value);
                         let output_type = self.check(output_type, &Arc::new(Value::Universe)); // FIXME: avoid temporary Arc
                         self.pop_binding();
 
