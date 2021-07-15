@@ -178,10 +178,14 @@ pub mod core {
             EnvLen(self.entries.len() as RawVar)
         }
 
-        /// Lookup an entry in the environment.
-        pub fn get(&self, local: LocalVar) -> Option<&Entry> {
-            let global_var = self.len().local_to_global(local)?;
+        /// Lookup an entry in the environment using global variable reference.
+        pub fn get_global(&self, global_var: GlobalVar) -> Option<&Entry> {
             self.entries.get(usize::from(global_var.0))
+        }
+
+        /// Lookup an entry in the environment using a local variable reference.
+        pub fn get_local(&self, local_var: LocalVar) -> Option<&Entry> {
+            self.get_global(self.len().local_to_global(local_var)?)
         }
 
         /// Push an entry onto the environment.
@@ -230,10 +234,14 @@ pub mod core {
             EnvLen(self.entries.len() as u16)
         }
 
-        /// Lookup an entry in the environment.
-        pub fn get(&self, local: LocalVar) -> Option<&Entry> {
-            let global_var = self.len().local_to_global(local)?;
+        /// Lookup an entry in the environment using global variable reference.
+        pub fn get_global(&self, global_var: GlobalVar) -> Option<&Entry> {
             self.entries.get(usize::from(global_var.0))
+        }
+
+        /// Lookup an entry in the environment using a local variable reference.
+        pub fn get_local(&self, local_var: LocalVar) -> Option<&Entry> {
+            self.get_global(self.len().local_to_global(local_var)?)
         }
 
         /// Push an entry onto a clone of the environment.
@@ -312,14 +320,14 @@ pub mod core {
     pub mod semantics {
         use std::sync::Arc;
 
-        use crate::core::{Arena, EnvLen, GlobalVar, SharedEnv, Term};
+        use crate::core::{Arena, EnvLen, GlobalVar, SharedEnv, Term, UniqueEnv};
         use crate::StringId;
 
         /// Values in weak-head-normal form.
         #[derive(Debug, Clone)]
         pub enum Value<'arena> {
             /// A value whose computation has stopped as a result of trying to
-            /// [evaluate][`eval`] an open [term][`Term`].
+            /// [evaluate][`EvalContext::eval`] an open [term][`Term`].
             Stuck(Head, Vec<Elim<'arena>>),
             /// Universes.
             Universe,
@@ -348,8 +356,11 @@ pub mod core {
         /// The head of a [stuck value][`Value::Stuck`].
         #[derive(Debug, Clone, PartialEq, Eq)]
         pub enum Head {
+            /// Variables that refer to binders.
             BoundVar(GlobalVar),
+            /// Variables that refer to unification problems.
             UnificationVar(GlobalVar),
+            /// Error sentinel.
             ReportedError,
         }
 
@@ -376,217 +387,378 @@ pub mod core {
             ) -> Closure<'arena> {
                 Closure { bindings, term }
             }
-
-            /// Instantiate the closure with a value.
-            pub fn apply(
-                &self,
-                value: Arc<Value<'arena>>,
-            ) -> Result<Arc<Value<'arena>>, EvalError> {
-                eval(&mut self.bindings.push_clone(value), self.term)
-            }
         }
 
         // TODO: include stack trace(??)
         #[derive(Clone, Debug)]
-        pub enum EvalError {
+        pub enum Error {
             InvalidBoundVar,
+            InvalidUnificationVar,
             InvalidFunctionElimHead,
         }
 
-        pub fn normalise<'in_arena, 'out_arena>(
-            arena: &'out_arena Arena<'out_arena>,
-            bindings: &mut SharedEnv<Arc<Value<'in_arena>>>,
-            term: &Term<'in_arena>,
-        ) -> Result<Term<'out_arena>, EvalError> {
-            readback(arena, bindings.len(), eval(bindings, term)?.as_ref())
+        /// Evaluation context.
+        pub struct EvalContext<'arena, 'env> {
+            bindings: &'env mut SharedEnv<Arc<Value<'arena>>>,
+            solutions: &'env UniqueEnv<Option<Arc<Value<'arena>>>>,
         }
 
-        pub fn eval<'arena>(
-            bindings: &mut SharedEnv<Arc<Value<'arena>>>,
-            term: &Term<'arena>,
-        ) -> Result<Arc<Value<'arena>>, EvalError> {
-            match term {
-                Term::BoundVar(var) => match bindings.get(*var) {
-                    Some(value) => Ok(value.clone()),
-                    None => Err(EvalError::InvalidBoundVar),
-                },
-                Term::UnificationVar(var) => Ok(Arc::new(Value::unification_var(*var))), // TODO: lookup in solution environment
-                Term::Ann(expr, _) => eval(bindings, expr),
-                Term::Let(_, def_expr, output_expr) => {
-                    let def_expr = eval(bindings, def_expr)?;
-                    bindings.push(def_expr);
-                    let output_expr = eval(bindings, output_expr);
-                    bindings.pop();
-                    output_expr
+        impl<'arena, 'env> EvalContext<'arena, 'env> {
+            pub fn new(
+                bindings: &'env mut SharedEnv<Arc<Value<'arena>>>,
+                solutions: &'env UniqueEnv<Option<Arc<Value<'arena>>>>,
+            ) -> EvalContext<'arena, 'env> {
+                EvalContext {
+                    bindings,
+                    solutions,
                 }
-                Term::Universe => Ok(Arc::new(Value::Universe)),
-                Term::FunType(input_name, input_type, output_type) => {
-                    let input_type = eval(bindings, input_type)?;
-                    let output_type = Closure::new(bindings.clone(), output_type);
-                    Ok(Arc::new(Value::FunType(
-                        *input_name,
-                        input_type,
-                        output_type,
-                    )))
+            }
+
+            /// Convert to an elimination context.
+            fn elim_context(&self) -> ElimContext<'arena, 'env> {
+                ElimContext::new(self.solutions)
+            }
+
+            /// Fully normalise a term using normalisation-by-evaluation.
+            pub fn normalise<'out_arena>(
+                &mut self,
+                arena: &'out_arena Arena<'out_arena>,
+                term: &Term<'arena>,
+            ) -> Result<Term<'out_arena>, Error> {
+                ReadbackContext::new(arena, self.bindings.len(), self.solutions)
+                    .readback(&self.eval(term)?)
+            }
+
+            /// Evaluate a [term][`Term`] into a [value][`Value`].
+            pub fn eval(&mut self, term: &Term<'arena>) -> Result<Arc<Value<'arena>>, Error> {
+                match term {
+                    Term::BoundVar(var) => match self.bindings.get_local(*var) {
+                        Some(value) => Ok(value.clone()),
+                        None => Err(Error::InvalidBoundVar),
+                    },
+                    Term::UnificationVar(var) => match self.solutions.get_global(*var) {
+                        Some(Some(value)) => Ok(value.clone()),
+                        Some(None) => Ok(Arc::new(Value::unification_var(*var))),
+                        None => Err(Error::InvalidUnificationVar),
+                    },
+                    Term::Ann(expr, _) => self.eval(expr),
+                    Term::Let(_, def_expr, output_expr) => {
+                        let def_expr = self.eval(def_expr)?;
+                        self.bindings.push(def_expr);
+                        let output_expr = self.eval(output_expr);
+                        self.bindings.pop();
+                        output_expr
+                    }
+                    Term::Universe => Ok(Arc::new(Value::Universe)),
+                    Term::FunType(input_name, input_type, output_type) => {
+                        let input_type = self.eval(input_type)?;
+                        let output_type = Closure::new(self.bindings.clone(), output_type);
+                        Ok(Arc::new(Value::FunType(
+                            *input_name,
+                            input_type,
+                            output_type,
+                        )))
+                    }
+                    Term::FunIntro(input_name, output_expr) => {
+                        let output_expr = Closure::new(self.bindings.clone(), output_expr);
+                        Ok(Arc::new(Value::FunIntro(*input_name, output_expr)))
+                    }
+                    Term::FunElim(head_expr, input_expr) => {
+                        let head_expr = self.eval(head_expr)?;
+                        let input_expr = self.eval(input_expr)?;
+                        self.elim_context().fun_elim(head_expr, input_expr)
+                    }
+                    Term::ReportedError => Ok(Arc::new(Value::reported_error())),
                 }
-                Term::FunIntro(input_name, output_expr) => {
-                    let output_expr = Closure::new(bindings.clone(), output_expr);
-                    Ok(Arc::new(Value::FunIntro(*input_name, output_expr)))
-                }
-                Term::FunElim(head_expr, input_expr) => {
-                    let head_expr = eval(bindings, head_expr)?;
-                    let input_expr = eval(bindings, input_expr)?;
-                    fun_elim(head_expr, input_expr)
-                }
-                Term::ReportedError => Ok(Arc::new(Value::reported_error())),
             }
         }
 
-        /// Apply a function elimination to an expression, performing
-        /// [beta-reduction] if possible.
+        /// Elimination context.
         ///
-        /// [beta-reduction]: https://ncatlab.org/nlab/show/beta-reduction
-        fn fun_elim<'arena>(
-            mut head_expr: Arc<Value<'arena>>,
-            input_expr: Arc<Value<'arena>>,
-        ) -> Result<Arc<Value<'arena>>, EvalError> {
-            match Arc::make_mut(&mut head_expr) {
-                // Beta-reduction
-                Value::FunIntro(_, output_expr) => output_expr.apply(input_expr),
-                // The computation is stuck, preventing further reduction
-                Value::Stuck(_, spine) => {
-                    spine.push(Elim::Fun(input_expr));
-                    Ok(head_expr)
-                }
-                _ => Err(EvalError::InvalidFunctionElimHead),
-            }
+        /// This only requires a reference to the unification solutions,
+        /// as the bound expressions will be supplied by any closures that are
+        /// encountered during evaluation.
+        pub struct ElimContext<'arena, 'env> {
+            solutions: &'env UniqueEnv<Option<Arc<Value<'arena>>>>,
         }
 
-        /// Read a [value][`Value`] back into a [term][`Term`].
-        pub fn readback<'in_arena, 'out_arena>(
-            arena: &'out_arena Arena<'out_arena>,
-            bindings: EnvLen,
-            value: &Value<'in_arena>,
-        ) -> Result<Term<'out_arena>, EvalError> {
-            match value {
-                Value::Stuck(head, spine) => {
-                    let mut head_expr = match head {
-                        // FIXME: Unwrap
-                        Head::BoundVar(var) => {
-                            Term::BoundVar(bindings.global_to_local(*var).unwrap())
-                        }
-                        Head::UnificationVar(var) => Term::UnificationVar(*var),
-                        Head::ReportedError => Term::ReportedError,
-                    };
+        impl<'arena, 'env> ElimContext<'arena, 'env> {
+            pub fn new(
+                solutions: &'env UniqueEnv<Option<Arc<Value<'arena>>>>,
+            ) -> ElimContext<'arena, 'env> {
+                ElimContext { solutions }
+            }
 
-                    for elim in spine {
-                        head_expr = match elim {
-                            Elim::Fun(input_expr) => {
-                                let input_expr = readback(arena, bindings, input_expr)?;
-                                Term::FunElim(
-                                    arena.alloc_term(head_expr),
-                                    arena.alloc_term(input_expr),
-                                )
+            /// Bring a value up-to-date with any new unification solutions that
+            /// might now be present at the head of in the given value.
+            pub fn force(&self, value: &Arc<Value<'arena>>) -> Result<Arc<Value<'arena>>, Error> {
+                match value.as_ref() {
+                    Value::Stuck(Head::UnificationVar(var), spine) => {
+                        // Check to see if a solution for this unification
+                        // variable was found since we last checked.
+                        match self.solutions.get_global(*var) {
+                            Some(Some(value)) => {
+                                // Apply the spine to the updated head value.
+                                let value = self.spine_elim(value.clone(), spine)?;
+                                // The result of the spine application might
+                                // also have a solved unification problem at its
+                                // head, so force that too while we're at it!
+                                self.force(&value)
                             }
-                        };
+                            Some(None) => Ok(value.clone()),
+                            None => Err(Error::InvalidUnificationVar),
+                        }
                     }
-
-                    Ok(head_expr)
+                    _ => Ok(value.clone()),
                 }
-                Value::Universe => Ok(Term::Universe),
-                Value::FunType(input_name, input_type, output_type) => {
-                    let input_type = readback(arena, bindings, input_type)?;
-                    let var = Arc::new(Value::bound_var(bindings.next_global()));
-                    let output_type = output_type.apply(var)?;
-                    let output_type = readback(arena, bindings.add_param(), &output_type)?;
+            }
 
-                    Ok(Term::FunType(
-                        *input_name,
-                        arena.alloc_term(input_type),
-                        arena.alloc_term(output_type),
-                    ))
+            /// Apply a closure to a value.
+            pub fn closure_elim(
+                &self,
+                closure: &Closure<'arena>,
+                value: Arc<Value<'arena>>,
+            ) -> Result<Arc<Value<'arena>>, Error> {
+                EvalContext::new(&mut closure.bindings.push_clone(value), self.solutions)
+                    .eval(closure.term)
+            }
+
+            /// Apply a function elimination to an expression, performing
+            /// [beta-reduction] if possible.
+            ///
+            /// [beta-reduction]: https://ncatlab.org/nlab/show/beta-reduction
+            fn fun_elim(
+                &self,
+                mut head_expr: Arc<Value<'arena>>,
+                input_expr: Arc<Value<'arena>>,
+            ) -> Result<Arc<Value<'arena>>, Error> {
+                match Arc::make_mut(&mut head_expr) {
+                    // Beta-reduction
+                    Value::FunIntro(_, output_expr) => self.closure_elim(output_expr, input_expr),
+                    // The computation is stuck, preventing further reduction
+                    Value::Stuck(_, spine) => {
+                        spine.push(Elim::Fun(input_expr));
+                        Ok(head_expr)
+                    }
+                    _ => Err(Error::InvalidFunctionElimHead),
                 }
-                Value::FunIntro(input_name, output_expr) => {
-                    let var = Arc::new(Value::bound_var(bindings.next_global()));
-                    let output_expr = output_expr.apply(var)?;
-                    let output_expr = readback(arena, bindings.add_param(), &output_expr)?;
+            }
 
-                    Ok(Term::FunIntro(*input_name, arena.alloc_term(output_expr)))
+            /// Apply an expression to a spine of eliminations.
+            fn spine_elim(
+                &self,
+                mut head_expr: Arc<Value<'arena>>,
+                spine: &[Elim<'arena>],
+            ) -> Result<Arc<Value<'arena>>, Error> {
+                for elim in spine {
+                    head_expr = match elim {
+                        Elim::Fun(input_expr) => self.fun_elim(head_expr, input_expr.clone())?,
+                    };
+                }
+                Ok(head_expr)
+            }
+        }
+
+        /// Readback context.
+        pub struct ReadbackContext<'in_arena, 'out_arena, 'env> {
+            arena: &'out_arena Arena<'out_arena>,
+            bindings: EnvLen,
+            solutions: &'env UniqueEnv<Option<Arc<Value<'in_arena>>>>,
+        }
+
+        impl<'in_arena, 'out_arena, 'env> ReadbackContext<'in_arena, 'out_arena, 'env> {
+            pub fn new(
+                arena: &'out_arena Arena<'out_arena>,
+                bindings: EnvLen,
+                solutions: &'env UniqueEnv<Option<Arc<Value<'in_arena>>>>,
+            ) -> ReadbackContext<'in_arena, 'out_arena, 'env> {
+                ReadbackContext {
+                    arena,
+                    bindings,
+                    solutions,
+                }
+            }
+
+            /// Convert to an elimination context.
+            fn elim_context(&self) -> ElimContext<'in_arena, 'env> {
+                ElimContext::new(self.solutions)
+            }
+
+            /// Add a binding to the context.
+            fn add_binding(&self) -> ReadbackContext<'in_arena, 'out_arena, 'env> {
+                ReadbackContext {
+                    arena: self.arena,
+                    bindings: self.bindings.add_param(),
+                    solutions: self.solutions,
+                }
+            }
+
+            /// Read a [value][`Value`] back into a [term][`Term`].
+            pub fn readback(
+                &self,
+                value: &Arc<Value<'in_arena>>,
+            ) -> Result<Term<'out_arena>, Error> {
+                match self.elim_context().force(value)?.as_ref() {
+                    Value::Stuck(head, spine) => {
+                        let mut head_expr = match head {
+                            // FIXME: Unwrap
+                            Head::BoundVar(var) => {
+                                Term::BoundVar(self.bindings.global_to_local(*var).unwrap())
+                            }
+                            Head::UnificationVar(var) => Term::UnificationVar(*var),
+                            Head::ReportedError => Term::ReportedError,
+                        };
+
+                        for elim in spine {
+                            head_expr = match elim {
+                                Elim::Fun(input_expr) => {
+                                    let input_expr = self.readback(input_expr)?;
+                                    Term::FunElim(
+                                        self.arena.alloc_term(head_expr),
+                                        self.arena.alloc_term(input_expr),
+                                    )
+                                }
+                            };
+                        }
+
+                        Ok(head_expr)
+                    }
+                    Value::Universe => Ok(Term::Universe),
+                    Value::FunType(input_name, input_type, output_type) => {
+                        let input_type = self.readback(input_type)?;
+                        let var = Arc::new(Value::bound_var(self.bindings.next_global()));
+                        let output_type = self.elim_context().closure_elim(output_type, var)?;
+                        let output_type = self.add_binding().readback(&output_type)?;
+
+                        Ok(Term::FunType(
+                            *input_name,
+                            self.arena.alloc_term(input_type),
+                            self.arena.alloc_term(output_type),
+                        ))
+                    }
+                    Value::FunIntro(input_name, output_expr) => {
+                        let var = Arc::new(Value::bound_var(self.bindings.next_global()));
+                        let output_expr = self.elim_context().closure_elim(output_expr, var)?;
+                        let output_expr = self.add_binding().readback(&output_expr)?;
+
+                        Ok(Term::FunIntro(
+                            *input_name,
+                            self.arena.alloc_term(output_expr),
+                        ))
+                    }
                 }
             }
         }
 
-        /// Check that one value is [computationally equal] to another value.
-        ///
-        /// This is sometimes referred to as 'conversion checking', or checking
-        /// for 'definitional equality'.
-        ///
-        /// We perform [eta-conversion] here, if possible.
-        ///
-        /// [computationally equal]: https://ncatlab.org/nlab/show/equality#computational_equality
-        /// [eta-conversion]: https://ncatlab.org/nlab/show/eta-conversion
-        pub fn is_equal(
+        /// Conversion context.
+        pub struct ConversionContext<'arena, 'env> {
             bindings: EnvLen,
-            value0: &Arc<Value<'_>>,
-            value1: &Arc<Value<'_>>,
-        ) -> Result<bool, EvalError> {
-            match (value0.as_ref(), value1.as_ref()) {
-                // `ReportedError`s result from errors that have already been
-                // reported, so we say that they are equal to any other value to
-                // prevent them from triggering more errors.
-                (Value::Stuck(Head::ReportedError, _), _)
-                | (_, Value::Stuck(Head::ReportedError, _)) => Ok(true),
+            solutions: &'env UniqueEnv<Option<Arc<Value<'arena>>>>,
+        }
 
-                (Value::Stuck(var0, spine0), Value::Stuck(var1, spine1)) => {
-                    if var0 != var1 || spine0.len() != spine1.len() {
-                        return Ok(false);
-                    }
-                    for (elim0, elim1) in Iterator::zip(spine0.iter(), spine1.iter()) {
-                        match (elim0, elim1) {
-                            (Elim::Fun(input_expr0), Elim::Fun(input_expr1))
-                                if is_equal(bindings, input_expr0, input_expr1)? => {}
-                            (_, _) => return Ok(false),
+        impl<'arena, 'env> ConversionContext<'arena, 'env> {
+            pub fn new(
+                bindings: EnvLen,
+                solutions: &'env UniqueEnv<Option<Arc<Value<'arena>>>>,
+            ) -> ConversionContext<'arena, 'env> {
+                ConversionContext {
+                    bindings,
+                    solutions,
+                }
+            }
+
+            /// Convert to an elimination context.
+            fn elim_context(&self) -> ElimContext<'arena, 'env> {
+                ElimContext::new(self.solutions)
+            }
+
+            /// Add a binding to the context.
+            fn add_binding(&self) -> ConversionContext<'arena, 'env> {
+                ConversionContext {
+                    bindings: self.bindings.add_param(),
+                    solutions: self.solutions,
+                }
+            }
+
+            /// Check that one value is [computationally equal] to another value.
+            ///
+            /// This is sometimes referred to as 'conversion checking', or checking
+            /// for 'definitional equality'.
+            ///
+            /// We perform [eta-conversion] here, if possible.
+            ///
+            /// [computationally equal]: https://ncatlab.org/nlab/show/equality#computational_equality
+            /// [eta-conversion]: https://ncatlab.org/nlab/show/eta-conversion
+            pub fn is_equal(
+                &self,
+                value0: &Arc<Value<'_>>,
+                value1: &Arc<Value<'_>>,
+            ) -> Result<bool, Error> {
+                match (
+                    self.elim_context().force(value0)?.as_ref(),
+                    self.elim_context().force(value1)?.as_ref(),
+                ) {
+                    // `ReportedError`s result from errors that have already been
+                    // reported, so we say that they are equal to any other value to
+                    // prevent them from triggering more errors.
+                    (Value::Stuck(Head::ReportedError, _), _)
+                    | (_, Value::Stuck(Head::ReportedError, _)) => Ok(true),
+
+                    (Value::Stuck(var0, spine0), Value::Stuck(var1, spine1)) => {
+                        if var0 != var1 || spine0.len() != spine1.len() {
+                            return Ok(false);
                         }
+                        for (elim0, elim1) in Iterator::zip(spine0.iter(), spine1.iter()) {
+                            match (elim0, elim1) {
+                                (Elim::Fun(input_expr0), Elim::Fun(input_expr1))
+                                    if self.is_equal(input_expr0, input_expr1)? => {}
+                                (_, _) => return Ok(false),
+                            }
+                        }
+                        Ok(true)
                     }
-                    Ok(true)
+                    (Value::Universe, Value::Universe) => Ok(true),
+
+                    (
+                        Value::FunType(_, input_type0, output_type0),
+                        Value::FunType(_, input_type1, output_type1),
+                    ) => Ok(self.is_equal(input_type0, input_type1)? && {
+                        let var = Arc::new(Value::bound_var(self.bindings.next_global()));
+                        let output_type0 = self
+                            .elim_context()
+                            .closure_elim(output_type0, var.clone())?;
+                        let output_type1 = self.elim_context().closure_elim(output_type1, var)?;
+
+                        self.add_binding().is_equal(&output_type0, &output_type1)?
+                    }),
+
+                    (Value::FunIntro(_, output_expr0), Value::FunIntro(_, output_expr1)) => {
+                        let var = Arc::new(Value::bound_var(self.bindings.next_global()));
+                        let output_expr0 = self
+                            .elim_context()
+                            .closure_elim(output_expr0, var.clone())?;
+                        let output_expr1 = self.elim_context().closure_elim(output_expr1, var)?;
+
+                        self.add_binding().is_equal(&output_expr0, &output_expr1)
+                    }
+                    // Eta-conversion
+                    (Value::FunIntro(_, output_expr), _) => {
+                        let var = Arc::new(Value::bound_var(self.bindings.next_global()));
+                        let value0 = self.elim_context().closure_elim(output_expr, var.clone())?;
+                        let value1 = self.elim_context().fun_elim(value1.clone(), var)?;
+
+                        self.add_binding().is_equal(&value0, &value1)
+                    }
+                    (_, Value::FunIntro(_, output_expr)) => {
+                        let var = Arc::new(Value::bound_var(self.bindings.next_global()));
+                        let value0 = self.elim_context().fun_elim(value0.clone(), var.clone())?;
+                        let value1 = self.elim_context().closure_elim(output_expr, var)?;
+
+                        self.add_binding().is_equal(&value0, &value1)
+                    }
+
+                    (_, _) => Ok(false),
                 }
-                (Value::Universe, Value::Universe) => Ok(true),
-
-                (
-                    Value::FunType(_, input_type0, output_type0),
-                    Value::FunType(_, input_type1, output_type1),
-                ) => Ok(is_equal(bindings, input_type0, input_type1)? && {
-                    let var = Arc::new(Value::bound_var(bindings.next_global()));
-                    let output_type0 = output_type0.apply(var.clone())?;
-                    let output_type1 = output_type1.apply(var)?;
-
-                    is_equal(bindings.add_param(), &output_type0, &output_type1)?
-                }),
-
-                (Value::FunIntro(_, output_expr0), Value::FunIntro(_, output_expr1)) => {
-                    let var = Arc::new(Value::bound_var(bindings.next_global()));
-                    let output_expr0 = output_expr0.apply(var.clone())?;
-                    let output_expr1 = output_expr1.apply(var)?;
-
-                    is_equal(bindings.add_param(), &output_expr0, &output_expr1)
-                }
-                // Eta-conversion
-                (Value::FunIntro(_, output_expr), _) => {
-                    let var = Arc::new(Value::bound_var(bindings.next_global()));
-                    let value0 = output_expr.apply(var.clone())?;
-                    let value1 = fun_elim(value1.clone(), var)?;
-
-                    is_equal(bindings.add_param(), &value0, &value1)
-                }
-                (_, Value::FunIntro(_, output_expr)) => {
-                    let var = Arc::new(Value::bound_var(bindings.next_global()));
-                    let value0 = fun_elim(value0.clone(), var.clone())?;
-                    let value1 = output_expr.apply(var)?;
-
-                    is_equal(bindings.add_param(), &value0, &value1)
-                }
-
-                (_, _) => Ok(false),
             }
         }
     }
@@ -904,7 +1076,9 @@ pub mod surface {
     pub mod elaboration {
         use std::sync::Arc;
 
-        use crate::core::semantics::{self, Value};
+        use crate::core::semantics::{
+            Closure, ConversionContext, ElimContext, EvalContext, ReadbackContext, Value,
+        };
         use crate::{core, surface, ByteRange, StringId};
 
         /// Elaboration context.
@@ -916,7 +1090,7 @@ pub mod surface {
             /// Types of bound variables.
             binding_types: core::UniqueEnv<Arc<Value<'arena>>>,
             /// Expressions that will be substituted for bound variables during
-            /// [evaluation](`crate::core::semantics::eval`).
+            /// [evaluation](`crate::core::semantics::EvalContext::eval`).
             binding_exprs: core::SharedEnv<Arc<Value<'arena>>>,
             /// Unification variable names (added by named holes).
             unification_names: core::UniqueEnv<Option<StringId>>,
@@ -998,17 +1172,25 @@ pub mod surface {
                 self.messages.drain(..)
             }
 
+            pub fn force(&self, term: &Arc<Value<'arena>>) -> Arc<Value<'arena>> {
+                ElimContext::new(&self.unification_solutions)
+                    .force(term)
+                    .unwrap_or_else(|_| todo!("report error"))
+            }
+
             pub fn normalize<'out_arena>(
                 &mut self,
                 arena: &'out_arena core::Arena<'out_arena>,
                 term: &core::Term<'arena>,
             ) -> core::Term<'out_arena> {
-                semantics::normalise(arena, &mut self.binding_exprs, term)
+                EvalContext::new(&mut self.binding_exprs, &self.unification_solutions)
+                    .normalise(arena, term)
                     .unwrap_or_else(|_| todo!("report error"))
             }
 
             pub fn eval(&mut self, term: &core::Term<'arena>) -> Arc<Value<'arena>> {
-                semantics::eval(&mut self.binding_exprs, term)
+                EvalContext::new(&mut self.binding_exprs, &self.unification_solutions)
+                    .eval(term)
                     .unwrap_or_else(|_| todo!("report error"))
             }
 
@@ -1017,22 +1199,24 @@ pub mod surface {
                 arena: &'out_arena core::Arena<'out_arena>,
                 value: &Arc<Value<'arena>>,
             ) -> core::Term<'out_arena> {
-                semantics::readback(arena, self.binding_exprs.len(), value)
+                ReadbackContext::new(arena, self.binding_exprs.len(), &self.unification_solutions)
+                    .readback(value)
                     .unwrap_or_else(|_| todo!("report error"))
             }
 
             fn is_equal(&mut self, value0: &Arc<Value<'_>>, value1: &Arc<Value<'_>>) -> bool {
-                semantics::is_equal(self.binding_exprs.len(), value0, value1)
+                ConversionContext::new(self.binding_exprs.len(), &self.unification_solutions)
+                    .is_equal(value0, value1)
                     .unwrap_or_else(|_| todo!("report error"))
             }
 
             fn apply_closure(
                 &mut self,
-                closure: &semantics::Closure<'arena>,
+                closure: &Closure<'arena>,
                 input_expr: Arc<Value<'arena>>,
             ) -> Arc<Value<'arena>> {
-                closure
-                    .apply(input_expr)
+                ElimContext::new(&self.unification_solutions)
+                    .closure_elim(closure, input_expr)
                     .unwrap_or_else(|_| todo!("report error"))
             }
 
@@ -1044,7 +1228,7 @@ pub mod surface {
                 surface_term: &surface::Term<'_>,
                 expected_type: &Arc<Value<'arena>>,
             ) -> core::Term<'arena> {
-                match (surface_term, expected_type.as_ref()) {
+                match (surface_term, self.force(expected_type).as_ref()) {
                     (surface::Term::Let(_, (_, def_name), def_type, def_expr, output_expr), _) => {
                         let (def_expr, def_type_value) = match def_type {
                             None => self.synth(def_expr),
@@ -1192,7 +1376,7 @@ pub mod surface {
                     }
                     surface::Term::FunElim(head_expr, input_expr) => {
                         let (head_expr, head_type) = self.synth(head_expr);
-                        match head_type.as_ref() {
+                        match self.force(&head_type).as_ref() {
                             Value::FunType(_, input_type, output_type) => {
                                 let input_expr = self.check(input_expr, input_type);
                                 let input_expr_value = self.eval(&input_expr);
@@ -1250,7 +1434,7 @@ pub mod surface {
             }
 
             fn get_name(&self, var: core::LocalVar) -> Option<StringId> {
-                self.names.get(var).copied()
+                self.names.get_local(var).copied()
             }
 
             fn push_binding(&mut self, name: StringId) -> StringId {
