@@ -1,5 +1,6 @@
 //! Bidirectional distillation of the core language into the surface language.
 
+use crate::env::{LocalVar, UniqueEnv};
 use crate::{core, surface, BytePos, ByteRange, StringId};
 
 const PLACEHOLDER_POS: BytePos = 0;
@@ -10,7 +11,7 @@ pub struct Context<'arena> {
     /// Arena for storing distilled terms.
     arena: &'arena surface::Arena<'arena>,
     /// Name environment.
-    names: core::UniqueEnv<StringId>,
+    names: UniqueEnv<StringId>,
 }
 
 impl<'arena> Context<'arena> {
@@ -18,11 +19,11 @@ impl<'arena> Context<'arena> {
     pub fn new(arena: &'arena surface::Arena<'arena>) -> Context<'arena> {
         Context {
             arena,
-            names: core::UniqueEnv::new(),
+            names: UniqueEnv::new(),
         }
     }
 
-    fn get_name(&self, var: core::LocalVar) -> Option<StringId> {
+    fn get_name(&self, var: LocalVar) -> Option<StringId> {
         self.names.get_local(var).copied()
     }
 

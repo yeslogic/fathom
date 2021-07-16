@@ -5,6 +5,7 @@ use std::sync::Arc;
 use crate::core::semantics::{
     Closure, ConversionContext, ElimContext, EvalContext, ReadbackContext, Value,
 };
+use crate::env::{self, LocalVar, SharedEnv, UniqueEnv};
 use crate::{core, surface, ByteRange, StringId};
 
 /// Elaboration context.
@@ -12,16 +13,16 @@ pub struct Context<'arena> {
     /// Arena used for storing elaborated terms.
     arena: &'arena core::Arena<'arena>,
     /// Names of bound variables.
-    binding_names: core::UniqueEnv<StringId>,
+    binding_names: UniqueEnv<StringId>,
     /// Types of bound variables.
-    binding_types: core::UniqueEnv<Arc<Value<'arena>>>,
+    binding_types: UniqueEnv<Arc<Value<'arena>>>,
     /// Expressions that will be substituted for bound variables during
     /// [evaluation](`crate::core::semantics::EvalContext::eval`).
-    binding_exprs: core::SharedEnv<Arc<Value<'arena>>>,
+    binding_exprs: SharedEnv<Arc<Value<'arena>>>,
     /// Unification variable names (added by named holes).
-    unification_names: core::UniqueEnv<Option<StringId>>,
+    unification_names: UniqueEnv<Option<StringId>>,
     /// Unification variable solutions.
-    unification_solutions: core::UniqueEnv<Option<Arc<Value<'arena>>>>,
+    unification_solutions: UniqueEnv<Option<Arc<Value<'arena>>>>,
     /// Diagnostic messages encountered during elaboration.
     messages: Vec<(ByteRange, String)>,
 }
@@ -31,17 +32,17 @@ impl<'arena> Context<'arena> {
     pub fn new(arena: &'arena core::Arena<'arena>) -> Context<'arena> {
         Context {
             arena,
-            binding_names: core::UniqueEnv::new(),
-            binding_types: core::UniqueEnv::new(),
-            binding_exprs: core::SharedEnv::new(),
-            unification_names: core::UniqueEnv::new(),
-            unification_solutions: core::UniqueEnv::new(),
+            binding_names: UniqueEnv::new(),
+            binding_types: UniqueEnv::new(),
+            binding_exprs: SharedEnv::new(),
+            unification_names: UniqueEnv::new(),
+            unification_solutions: UniqueEnv::new(),
             messages: Vec::new(),
         }
     }
 
-    fn get_binding(&self, name: StringId) -> Option<(core::LocalVar, &Arc<Value<'arena>>)> {
-        let bindings = Iterator::zip(core::local_vars(), self.binding_types.iter().rev());
+    fn get_binding(&self, name: StringId) -> Option<(LocalVar, &Arc<Value<'arena>>)> {
+        let bindings = Iterator::zip(env::local_vars(), self.binding_types.iter().rev());
 
         Iterator::zip(self.binding_names.iter().rev(), bindings)
             .find_map(|(n, binding)| (name == *n).then(|| binding))
