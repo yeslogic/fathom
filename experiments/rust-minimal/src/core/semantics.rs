@@ -1,15 +1,18 @@
-//! The semantics of the core language, implemented using _normalization by evaluation_.
+//! The operational semantics of the core language, implemented using
+//! [normalisation by evaluation](https://en.wikipedia.org/wiki/Normalisation_by_evaluation).
 
 use std::sync::Arc;
 
-use crate::core::{Arena, EnvLen, GlobalVar, SharedEnv, Term, UniqueEnv};
+use crate::core::{Arena, Term};
+use crate::env::{EnvLen, GlobalVar, SharedEnv, UniqueEnv};
 use crate::StringId;
 
 /// Values in weak-head-normal form.
 #[derive(Debug, Clone)]
 pub enum Value<'arena> {
     /// A value whose computation has stopped as a result of trying to
-    /// [evaluate][`EvalContext::eval`] an open [term][`Term`].
+    /// [evaluate][`EvalContext::eval`] an open [term][`Term`]. Any eliminations
+    /// that are subsequently applied to the value are accumulated in a spine.
     Stuck(Head, Vec<Elim<'arena>>),
     /// Universes.
     Universe,
@@ -71,6 +74,7 @@ impl<'arena> Closure<'arena> {
     }
 }
 
+/// Errors encountered while interpreting terms.
 // TODO: include stack trace(??)
 #[derive(Clone, Debug)]
 pub enum Error {
@@ -101,7 +105,9 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
         ElimContext::new(self.solutions)
     }
 
-    /// Fully normalise a term using _normalisation by evaluation_.
+    /// Fully normalise a term by first [evaluating][`EvalContext::eval] it into
+    /// a [value][`Value`], then [reading it back][`ReadbackContext::redback`]
+    /// into a [term][`Term`].
     pub fn normalise<'out_arena>(
         &mut self,
         arena: &'out_arena Arena<'out_arena>,

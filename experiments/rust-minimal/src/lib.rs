@@ -69,5 +69,7 @@ impl ByteRange {
     }
 }
 
+pub mod env;
+
 pub mod core;
 pub mod surface;
