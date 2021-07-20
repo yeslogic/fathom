@@ -32,7 +32,7 @@ _core.level_ ::= `first` | `next(`_core.level_`)`
 
 _core.term_ ::=\
 &emsp;| `bound-var(`_core.index_`)`\
-&emsp;| `unification-var(`_core.level_`)`\
+&emsp;| `problem-var(`_core.level_`)`\
 &emsp;| `ann(`_core.term_`,` _core.term_`)`\
 &emsp;| `let(`_name_`,` _core.term_`,` _core.term_`,` _core.term_`)`\
 &emsp;| `universe`\
@@ -46,7 +46,7 @@ _core.value_ ::=\
 
 _core.head_ ::=\
 &emsp;| `bound-var(`_core.index_`)`\
-&emsp;| `unification-var(`_core.level_`)`
+&emsp;| `problem-var(`_core.level_`)`
 
 _core.elim_ ::=\
 &emsp;| `function(`_core.value_`)`
