@@ -19,10 +19,15 @@ pub struct Context<'arena> {
     /// Expressions that will be substituted for bound variables during
     /// [evaluation](`crate::core::semantics::EvalContext::eval`).
     binding_exprs: SharedEnv<Arc<Value<'arena>>>,
-    /// Unification variable names (added by named holes).
-    unification_names: UniqueEnv<Option<StringId>>,
-    /// Unification variable solutions.
-    unification_solutions: UniqueEnv<Option<Arc<Value<'arena>>>>,
+    /// Problem names, added by named holes.
+    problem_names: UniqueEnv<Option<StringId>>,
+    /// Expressions that will be substituted for problem variables during
+    /// [evaluation](`crate::core::semantics::EvalContext::eval`).
+    ///
+    /// These will be set to [`None`] when a fresh problem variable is
+    /// introduced, then will be set to [`Some`] once a solution is found
+    /// during unification.
+    problem_exprs: UniqueEnv<Option<Arc<Value<'arena>>>>,
     /// Diagnostic messages encountered during elaboration.
     messages: Vec<(ByteRange, String)>,
 }
@@ -35,8 +40,8 @@ impl<'arena> Context<'arena> {
             binding_names: UniqueEnv::new(),
             binding_types: UniqueEnv::new(),
             binding_exprs: SharedEnv::new(),
-            unification_names: UniqueEnv::new(),
-            unification_solutions: UniqueEnv::new(),
+            problem_names: UniqueEnv::new(),
+            problem_exprs: UniqueEnv::new(),
             messages: Vec::new(),
         }
     }
@@ -80,13 +85,13 @@ impl<'arena> Context<'arena> {
         self.binding_exprs.pop();
     }
 
-    /// Push a fresh unification problem onto the context.
-    fn push_unification_problem(&mut self, name: Option<StringId>) -> core::Term<'arena> {
+    /// Push a fresh problem onto the context.
+    fn push_problem(&mut self, name: Option<StringId>) -> core::Term<'arena> {
         // TODO: check that hole name is not already in use
-        let fresh_var = self.unification_solutions.len().next_global();
-        self.unification_names.push(name);
-        self.unification_solutions.push(None);
-        core::Term::UnificationVar(fresh_var)
+        let fresh_var = self.problem_exprs.len().next_global();
+        self.problem_names.push(name);
+        self.problem_exprs.push(None);
+        core::Term::ProblemVar(fresh_var)
     }
 
     fn push_message(&mut self, range: ByteRange, message: impl Into<String>) {
@@ -100,7 +105,7 @@ impl<'arena> Context<'arena> {
     }
 
     pub fn force(&self, term: &Arc<Value<'arena>>) -> Arc<Value<'arena>> {
-        ElimContext::new(&self.unification_solutions)
+        ElimContext::new(&self.problem_exprs)
             .force(term)
             .unwrap_or_else(|_| todo!("report error"))
     }
@@ -110,13 +115,13 @@ impl<'arena> Context<'arena> {
         arena: &'out_arena core::Arena<'out_arena>,
         term: &core::Term<'arena>,
     ) -> core::Term<'out_arena> {
-        EvalContext::new(&mut self.binding_exprs, &self.unification_solutions)
+        EvalContext::new(&mut self.binding_exprs, &self.problem_exprs)
             .normalise(arena, term)
             .unwrap_or_else(|_| todo!("report error"))
     }
 
     pub fn eval(&mut self, term: &core::Term<'arena>) -> Arc<Value<'arena>> {
-        EvalContext::new(&mut self.binding_exprs, &self.unification_solutions)
+        EvalContext::new(&mut self.binding_exprs, &self.problem_exprs)
             .eval(term)
             .unwrap_or_else(|_| todo!("report error"))
     }
@@ -126,13 +131,13 @@ impl<'arena> Context<'arena> {
         arena: &'out_arena core::Arena<'out_arena>,
         value: &Arc<Value<'arena>>,
     ) -> core::Term<'out_arena> {
-        ReadbackContext::new(arena, self.binding_exprs.len(), &self.unification_solutions)
+        ReadbackContext::new(arena, self.binding_exprs.len(), &self.problem_exprs)
             .readback(value)
             .unwrap_or_else(|_| todo!("report error"))
     }
 
     fn is_equal(&mut self, value0: &Arc<Value<'_>>, value1: &Arc<Value<'_>>) -> bool {
-        ConversionContext::new(self.binding_exprs.len(), &self.unification_solutions)
+        ConversionContext::new(self.binding_exprs.len(), &self.problem_exprs)
             .is_equal(value0, value1)
             .unwrap_or_else(|_| todo!("report error"))
     }
@@ -142,7 +147,7 @@ impl<'arena> Context<'arena> {
         closure: &Closure<'arena>,
         input_expr: Arc<Value<'arena>>,
     ) -> Arc<Value<'arena>> {
-        ElimContext::new(&self.unification_solutions)
+        ElimContext::new(&self.problem_exprs)
             .closure_elim(closure, input_expr)
             .unwrap_or_else(|_| todo!("report error"))
     }
@@ -222,13 +227,13 @@ impl<'arena> Context<'arena> {
                 Some((local_var, r#type)) => (core::Term::BoundVar(local_var), r#type.clone()),
                 None => {
                     self.push_message(surface_term.range(), "error: unknown variable");
-                    let r#type = self.push_unification_problem(None);
+                    let r#type = self.push_problem(None);
                     (core::Term::ReportedError, self.eval(&r#type))
                 }
             },
             surface::Term::Hole(_, name) => {
-                let r#type = self.push_unification_problem(None);
-                let expr = self.push_unification_problem(*name);
+                let r#type = self.push_problem(None);
+                let expr = self.push_problem(*name);
                 (expr, self.eval(&r#type))
             }
             surface::Term::Ann(expr, r#type) => {
@@ -294,7 +299,7 @@ impl<'arena> Context<'arena> {
                     surface_term.range(),
                     "error: ambiguous function introduction",
                 );
-                let r#type = self.push_unification_problem(None);
+                let r#type = self.push_problem(None);
                 (core::Term::ReportedError, self.eval(&r#type))
             }
             surface::Term::FunElim(head_expr, input_expr) => {
@@ -318,13 +323,13 @@ impl<'arena> Context<'arena> {
                             surface_term.range(),
                             "error: argument to applied non-function",
                         );
-                        let r#type = self.push_unification_problem(None);
+                        let r#type = self.push_problem(None);
                         (core::Term::ReportedError, self.eval(&r#type))
                     }
                 }
             }
             surface::Term::ReportedError(_) => {
-                let r#type = self.push_unification_problem(None);
+                let r#type = self.push_problem(None);
                 (core::Term::ReportedError, self.eval(&r#type))
             }
         }

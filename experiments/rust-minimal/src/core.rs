@@ -10,10 +10,10 @@ pub mod semantics;
 pub enum Term<'arena> {
     /// Bound variable occurrences.
     BoundVar(LocalVar),
-    /// Unification variable occurrences.
+    /// Problem variable occurrences.
     ///
     /// Also known as: metavariables.
-    UnificationVar(GlobalVar),
+    ProblemVar(GlobalVar),
     /// Annotated expressions.
     Ann(&'arena Term<'arena>, &'arena Term<'arena>),
     /// Let expressions.

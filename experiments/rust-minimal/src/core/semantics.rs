@@ -29,8 +29,8 @@ impl<'arena> Value<'arena> {
         Value::Stuck(Head::BoundVar(global), Vec::new())
     }
 
-    pub fn unification_var(global: GlobalVar) -> Value<'arena> {
-        Value::Stuck(Head::UnificationVar(global), Vec::new())
+    pub fn problem_var(global: GlobalVar) -> Value<'arena> {
+        Value::Stuck(Head::ProblemVar(global), Vec::new())
     }
 
     pub fn reported_error() -> Value<'arena> {
@@ -44,7 +44,7 @@ pub enum Head {
     /// Variables that refer to binders.
     BoundVar(GlobalVar),
     /// Variables that refer to unification problems.
-    UnificationVar(GlobalVar),
+    ProblemVar(GlobalVar),
     /// Error sentinel.
     ReportedError,
 }
@@ -79,30 +79,27 @@ impl<'arena> Closure<'arena> {
 #[derive(Clone, Debug)]
 pub enum Error {
     InvalidBoundVar,
-    InvalidUnificationVar,
+    InvalidProblemVar,
     InvalidFunctionElimHead,
 }
 
 /// Evaluation context.
 pub struct EvalContext<'arena, 'env> {
     bindings: &'env mut SharedEnv<Arc<Value<'arena>>>,
-    solutions: &'env UniqueEnv<Option<Arc<Value<'arena>>>>,
+    problems: &'env UniqueEnv<Option<Arc<Value<'arena>>>>,
 }
 
 impl<'arena, 'env> EvalContext<'arena, 'env> {
     pub fn new(
         bindings: &'env mut SharedEnv<Arc<Value<'arena>>>,
-        solutions: &'env UniqueEnv<Option<Arc<Value<'arena>>>>,
+        problems: &'env UniqueEnv<Option<Arc<Value<'arena>>>>,
     ) -> EvalContext<'arena, 'env> {
-        EvalContext {
-            bindings,
-            solutions,
-        }
+        EvalContext { bindings, problems }
     }
 
     /// Convert to an elimination context.
     fn elim_context(&self) -> ElimContext<'arena, 'env> {
-        ElimContext::new(self.solutions)
+        ElimContext::new(self.problems)
     }
 
     /// Fully normalise a term by first [evaluating][`EvalContext::eval] it into
@@ -113,7 +110,7 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
         arena: &'out_arena Arena<'out_arena>,
         term: &Term<'arena>,
     ) -> Result<Term<'out_arena>, Error> {
-        ReadbackContext::new(arena, self.bindings.len(), self.solutions).readback(&self.eval(term)?)
+        ReadbackContext::new(arena, self.bindings.len(), self.problems).readback(&self.eval(term)?)
     }
 
     /// Evaluate a [term][`Term`] into a [value][`Value`].
@@ -123,10 +120,10 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
                 Some(value) => Ok(value.clone()),
                 None => Err(Error::InvalidBoundVar),
             },
-            Term::UnificationVar(var) => match self.solutions.get_global(*var) {
+            Term::ProblemVar(var) => match self.problems.get_global(*var) {
                 Some(Some(value)) => Ok(value.clone()),
-                Some(None) => Ok(Arc::new(Value::unification_var(*var))),
-                None => Err(Error::InvalidUnificationVar),
+                Some(None) => Ok(Arc::new(Value::problem_var(*var))),
+                None => Err(Error::InvalidProblemVar),
             },
             Term::Ann(expr, _) => self.eval(expr),
             Term::Let(_, def_expr, output_expr) => {
@@ -166,24 +163,22 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
 /// as the bound expressions will be supplied by any closures that are
 /// encountered during evaluation.
 pub struct ElimContext<'arena, 'env> {
-    solutions: &'env UniqueEnv<Option<Arc<Value<'arena>>>>,
+    problems: &'env UniqueEnv<Option<Arc<Value<'arena>>>>,
 }
 
 impl<'arena, 'env> ElimContext<'arena, 'env> {
-    pub fn new(
-        solutions: &'env UniqueEnv<Option<Arc<Value<'arena>>>>,
-    ) -> ElimContext<'arena, 'env> {
-        ElimContext { solutions }
+    pub fn new(problems: &'env UniqueEnv<Option<Arc<Value<'arena>>>>) -> ElimContext<'arena, 'env> {
+        ElimContext { problems }
     }
 
     /// Bring a value up-to-date with any new unification solutions that
     /// might now be present at the head of in the given value.
     pub fn force(&self, value: &Arc<Value<'arena>>) -> Result<Arc<Value<'arena>>, Error> {
         match value.as_ref() {
-            Value::Stuck(Head::UnificationVar(var), spine) => {
+            Value::Stuck(Head::ProblemVar(var), spine) => {
                 // Check to see if a solution for this unification
                 // variable was found since we last checked.
-                match self.solutions.get_global(*var) {
+                match self.problems.get_global(*var) {
                     Some(Some(value)) => {
                         // Apply the spine to the updated head value.
                         let value = self.spine_elim(value.clone(), spine)?;
@@ -193,7 +188,7 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
                         self.force(&value)
                     }
                     Some(None) => Ok(value.clone()),
-                    None => Err(Error::InvalidUnificationVar),
+                    None => Err(Error::InvalidProblemVar),
                 }
             }
             _ => Ok(value.clone()),
@@ -206,7 +201,7 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
         closure: &Closure<'arena>,
         value: Arc<Value<'arena>>,
     ) -> Result<Arc<Value<'arena>>, Error> {
-        EvalContext::new(&mut closure.bindings.push_clone(value), self.solutions).eval(closure.term)
+        EvalContext::new(&mut closure.bindings.push_clone(value), self.problems).eval(closure.term)
     }
 
     /// Apply a function elimination to an expression, performing
@@ -249,25 +244,25 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
 pub struct ReadbackContext<'in_arena, 'out_arena, 'env> {
     arena: &'out_arena Arena<'out_arena>,
     bindings: EnvLen,
-    solutions: &'env UniqueEnv<Option<Arc<Value<'in_arena>>>>,
+    problems: &'env UniqueEnv<Option<Arc<Value<'in_arena>>>>,
 }
 
 impl<'in_arena, 'out_arena, 'env> ReadbackContext<'in_arena, 'out_arena, 'env> {
     pub fn new(
         arena: &'out_arena Arena<'out_arena>,
         bindings: EnvLen,
-        solutions: &'env UniqueEnv<Option<Arc<Value<'in_arena>>>>,
+        problems: &'env UniqueEnv<Option<Arc<Value<'in_arena>>>>,
     ) -> ReadbackContext<'in_arena, 'out_arena, 'env> {
         ReadbackContext {
             arena,
             bindings,
-            solutions,
+            problems,
         }
     }
 
     /// Convert to an elimination context.
     fn elim_context(&self) -> ElimContext<'in_arena, 'env> {
-        ElimContext::new(self.solutions)
+        ElimContext::new(self.problems)
     }
 
     /// Add a binding to the context.
@@ -275,7 +270,7 @@ impl<'in_arena, 'out_arena, 'env> ReadbackContext<'in_arena, 'out_arena, 'env> {
         ReadbackContext {
             arena: self.arena,
             bindings: self.bindings.add_entry(),
-            solutions: self.solutions,
+            problems: self.problems,
         }
     }
 
@@ -288,7 +283,7 @@ impl<'in_arena, 'out_arena, 'env> ReadbackContext<'in_arena, 'out_arena, 'env> {
                     Head::BoundVar(var) => {
                         Term::BoundVar(self.bindings.global_to_local(*var).unwrap())
                     }
-                    Head::UnificationVar(var) => Term::UnificationVar(*var),
+                    Head::ProblemVar(var) => Term::ProblemVar(*var),
                     Head::ReportedError => Term::ReportedError,
                 };
 
@@ -336,30 +331,27 @@ impl<'in_arena, 'out_arena, 'env> ReadbackContext<'in_arena, 'out_arena, 'env> {
 /// Conversion context.
 pub struct ConversionContext<'arena, 'env> {
     bindings: EnvLen,
-    solutions: &'env UniqueEnv<Option<Arc<Value<'arena>>>>,
+    problems: &'env UniqueEnv<Option<Arc<Value<'arena>>>>,
 }
 
 impl<'arena, 'env> ConversionContext<'arena, 'env> {
     pub fn new(
         bindings: EnvLen,
-        solutions: &'env UniqueEnv<Option<Arc<Value<'arena>>>>,
+        problems: &'env UniqueEnv<Option<Arc<Value<'arena>>>>,
     ) -> ConversionContext<'arena, 'env> {
-        ConversionContext {
-            bindings,
-            solutions,
-        }
+        ConversionContext { bindings, problems }
     }
 
     /// Convert to an elimination context.
     fn elim_context(&self) -> ElimContext<'arena, 'env> {
-        ElimContext::new(self.solutions)
+        ElimContext::new(self.problems)
     }
 
     /// Add a binding to the context.
     fn add_binding(&self) -> ConversionContext<'arena, 'env> {
         ConversionContext {
             bindings: self.bindings.add_entry(),
-            solutions: self.solutions,
+            problems: self.problems,
         }
     }
 

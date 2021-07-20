@@ -83,8 +83,8 @@ impl<'arena> Context<'arena> {
                 Some(name) => surface::Term::Name(PLACEHOLDER_RANGE, name),
                 None => todo!("misbound variable"), // TODO: error?
             },
-            core::Term::UnificationVar(_) => {
-                let name = None; // TODO: lookup in unification name environment
+            core::Term::ProblemVar(_) => {
+                let name = None; // TODO: lookup problem name
                 surface::Term::Hole(PLACEHOLDER_RANGE, name)
             }
             core::Term::Ann(expr, r#type) => {
