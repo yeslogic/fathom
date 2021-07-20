@@ -42,7 +42,9 @@ _core.term_ ::=\
 
 _core.value_ ::=\
 &emsp;| `stuck(`_core.head_`,` _core.elim_*`)`\
-&emsp;| TODO
+&emsp;| `universe`\
+&emsp;| `fun/type(`_core.value_`,` _core.closure_`)`\
+&emsp;| `fun/intro(`_core.closure_`)`
 
 _core.head_ ::=\
 &emsp;| `bound-var(`_core.index_`)`\
