@@ -62,11 +62,25 @@ impl GlobalVar {
     }
 }
 
+/// An iterator over global variables, listed from the least recently bound.
+pub fn global_vars() -> impl Iterator<Item = GlobalVar> {
+    (0..).map(GlobalVar)
+}
+
 /// The length of an environment.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct EnvLen(RawVar);
 
 impl EnvLen {
+    /// Construct a new, empty environment.
+    pub fn new() -> EnvLen {
+        EnvLen(0)
+    }
+
+    pub fn clear(&mut self) {
+        *self = EnvLen::new();
+    }
+
     pub fn local_to_global(self, local: LocalVar) -> Option<GlobalVar> {
         Some(GlobalVar(self.0.checked_sub(local.0)?.checked_sub(1)?))
     }
@@ -81,6 +95,14 @@ impl EnvLen {
 
     pub fn add_entry(self) -> EnvLen {
         EnvLen(self.0 + 1) // FIXME: check overflow?
+    }
+
+    pub fn push(&mut self) {
+        self.0 += 1; // FIXME: check overflow?
+    }
+
+    pub fn pop(&mut self) {
+        self.0 -= 1; // FIXME: check underflow?
     }
 }
 
@@ -98,6 +120,52 @@ impl<Entry> UniqueEnv<Entry> {
         }
     }
 
+    /// Clear the renaming. This is useful for reusing environment allocations.
+    pub fn clear(&mut self) {
+        self.entries.clear()
+    }
+
+    /// Resize the environment to the desired length, filling new entries with `entry`.
+    pub fn resize(&mut self, new_len: EnvLen, entry: Entry)
+    where
+        Entry: Clone,
+    {
+        self.entries.resize(usize::from(new_len.0), entry)
+    }
+
+    /// Push an entry onto the environment.
+    pub fn push(&mut self, entry: Entry) {
+        assert!(self.entries.len() < usize::from(u16::MAX));
+        self.entries.push(entry);
+    }
+
+    /// Pop an entry off the environment.
+    pub fn pop(&mut self) {
+        self.entries.pop();
+    }
+}
+
+impl<Entry> std::ops::Deref for UniqueEnv<Entry> {
+    type Target = SliceEnv<Entry>;
+
+    fn deref(&self) -> &SliceEnv<Entry> {
+        unsafe { std::mem::transmute(&self.entries[..]) }
+    }
+}
+
+impl<Entry> std::ops::DerefMut for UniqueEnv<Entry> {
+    fn deref_mut(&mut self) -> &mut SliceEnv<Entry> {
+        unsafe { std::mem::transmute(&mut self.entries[..]) }
+    }
+}
+
+/// An environment backed by a slice.
+#[derive(Debug)]
+pub struct SliceEnv<Entry> {
+    entries: [Entry],
+}
+
+impl<Entry> SliceEnv<Entry> {
     /// The length of the environment.
     pub fn len(&self) -> EnvLen {
         EnvLen(self.entries.len() as RawVar)
@@ -113,15 +181,9 @@ impl<Entry> UniqueEnv<Entry> {
         self.get_global(self.len().local_to_global(local_var)?)
     }
 
-    /// Push an entry onto the environment.
-    pub fn push(&mut self, entry: Entry) {
-        assert!(self.entries.len() < usize::from(u16::MAX));
-        self.entries.push(entry);
-    }
-
-    /// Pop an entry off the environment.
-    pub fn pop(&mut self) {
-        self.entries.pop();
+    /// Set an entry in the environment using global variable reference.
+    pub fn set_global(&mut self, global_var: GlobalVar, entry: Entry) {
+        self.entries[usize::from(global_var.0)] = entry;
     }
 
     /// Iterate over the elements in the environment.
@@ -187,5 +249,10 @@ impl<Entry> SharedEnv<Entry> {
     /// Pop an entry off the environment.
     pub fn pop(&mut self) {
         self.entries.drop_last_mut();
+    }
+
+    /// Iterate over the elements in the environment.
+    pub fn iter<'this>(&'this self) -> impl 'this + DoubleEndedIterator<Item = &'this Entry> {
+        self.entries.iter()
     }
 }

@@ -1,6 +1,6 @@
 //! Bidirectional distillation of the core language into the surface language.
 
-use crate::env::{LocalVar, UniqueEnv};
+use crate::env::{self, LocalVar, UniqueEnv};
 use crate::{core, surface, BytePos, ByteRange, StringId};
 
 const PLACEHOLDER_POS: BytePos = 0;
@@ -62,7 +62,7 @@ impl<'arena> Context<'arena> {
                 )
             }
             core::Term::FunIntro(input_name, output_expr) => {
-                let input_name = self.push_binding(*input_name);
+                let input_name = self.push_binding(input_name.unwrap()); // TODO: Unwrap
                 let output_expr = self.check(output_expr);
                 self.pop_binding();
 
@@ -83,9 +83,28 @@ impl<'arena> Context<'arena> {
                 Some(name) => surface::Term::Name(PLACEHOLDER_RANGE, name),
                 None => todo!("misbound variable"), // TODO: error?
             },
-            core::Term::ProblemVar(_) => {
+            core::Term::ProblemVar(_var) => {
                 let name = None; // TODO: lookup problem name
                 surface::Term::Hole(PLACEHOLDER_RANGE, name)
+            }
+            core::Term::InsertedProblem(var, bindings) => {
+                let mut head_expr = self.synth(&core::Term::ProblemVar(*var));
+
+                for (var, mode) in Iterator::zip(env::global_vars(), bindings.iter()) {
+                    match mode {
+                        core::BindingMode::Defined => {}
+                        core::BindingMode::Assumed => {
+                            let var = self.names.len().global_to_local(var).unwrap();
+                            let input_expr = self.synth(&core::Term::BoundVar(var));
+                            head_expr = surface::Term::FunElim(
+                                self.arena.alloc_term(head_expr),
+                                self.arena.alloc_term(input_expr),
+                            );
+                        }
+                    }
+                }
+
+                head_expr
             }
             core::Term::Ann(expr, r#type) => {
                 let r#type = self.synth(r#type);
@@ -115,7 +134,7 @@ impl<'arena> Context<'arena> {
             core::Term::FunType(input_name, input_type, output_type) => {
                 let input_type = self.check(input_type);
 
-                let input_name = self.push_binding(*input_name);
+                let input_name = self.push_binding(input_name.unwrap()); // TODO: Unwrap
                 let output_type = self.check(output_type);
                 self.pop_binding();
 
@@ -127,7 +146,7 @@ impl<'arena> Context<'arena> {
                 )
             }
             core::Term::FunIntro(input_name, output_expr) => {
-                let input_name = self.push_binding(*input_name);
+                let input_name = self.push_binding(input_name.unwrap()); // TODO: Unwrap
                 let output_expr = self.synth(output_expr);
                 self.pop_binding();
 

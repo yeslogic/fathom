@@ -11,8 +11,10 @@
 // - language features
 //   - [x] let expressions
 //   - [x] dependent functions
+//     - [ ] implicit parameters
 //   - [ ] dependent records
 //   - [x] holes
+//     - [ ] named holes
 //   - [ ] top-level items
 //   - [ ] recursive definitions
 //   - [ ] binary format descriptions
@@ -30,11 +32,13 @@
 //   - [x] normalisation-by-evaluation
 //   - [x] elaborator
 //     - [x] error recovery
-//     - [ ] unification
+//     - [x] unification
+//     - [ ] zonking
 //   - [x] distiller
 //     - [ ] improve binder names
-//     - [ ] improve meta names
+//     - [ ] improve problem names
 //   - [ ] codespan diagnostics
+//     - [ ] unification solutions
 //   - [ ] integration tests
 
 pub mod env;
