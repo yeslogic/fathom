@@ -3,8 +3,8 @@
 
 use std::sync::Arc;
 
-use crate::core::{Arena, Term};
-use crate::env::{EnvLen, GlobalVar, SharedEnv, UniqueEnv};
+use crate::core::{Arena, BindingMode, Term};
+use crate::env::{EnvLen, GlobalVar, SharedEnv, SliceEnv};
 use crate::StringId;
 
 /// Values in weak-head-normal form.
@@ -17,9 +17,9 @@ pub enum Value<'arena> {
     /// Universes.
     Universe,
     /// Dependent function types.
-    FunType(StringId, Arc<Value<'arena>>, Closure<'arena>),
+    FunType(Option<StringId>, Arc<Value<'arena>>, Closure<'arena>),
     /// Function introductions.
-    FunIntro(StringId, Closure<'arena>),
+    FunIntro(Option<StringId>, Closure<'arena>),
     // RecordType(&'arena [StringId], Telescope<'arena>),
     // RecordIntro(&'arena [StringId], Vec<Arc<Value<'arena>>>),
 }
@@ -86,13 +86,13 @@ pub enum Error {
 /// Evaluation context.
 pub struct EvalContext<'arena, 'env> {
     bindings: &'env mut SharedEnv<Arc<Value<'arena>>>,
-    problems: &'env UniqueEnv<Option<Arc<Value<'arena>>>>,
+    problems: &'env SliceEnv<Option<Arc<Value<'arena>>>>,
 }
 
 impl<'arena, 'env> EvalContext<'arena, 'env> {
     pub fn new(
         bindings: &'env mut SharedEnv<Arc<Value<'arena>>>,
-        problems: &'env UniqueEnv<Option<Arc<Value<'arena>>>>,
+        problems: &'env SliceEnv<Option<Arc<Value<'arena>>>>,
     ) -> EvalContext<'arena, 'env> {
         EvalContext { bindings, problems }
     }
@@ -125,6 +125,10 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
                 Some(None) => Ok(Arc::new(Value::problem_var(*var))),
                 None => Err(Error::InvalidProblemVar),
             },
+            Term::InsertedProblem(var, bindings) => {
+                let head_expr = self.eval(&Term::ProblemVar(*var))?;
+                self.apply_assumptions(head_expr, bindings)
+            }
             Term::Ann(expr, _) => self.eval(expr),
             Term::Let(_, def_expr, output_expr) => {
                 let def_expr = self.eval(def_expr)?;
@@ -155,6 +159,22 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
             Term::ReportedError => Ok(Arc::new(Value::reported_error())),
         }
     }
+
+    /// Apply the currently bound assumptions to a value, using an environment
+    /// of binding modes from an [inserted problem][`Term::InsertedProblem`].
+    fn apply_assumptions(
+        &self,
+        mut head_expr: Arc<Value<'arena>>,
+        bindings: &SliceEnv<BindingMode>,
+    ) -> Result<Arc<Value<'arena>>, Error> {
+        for (mode, expr) in Iterator::zip(bindings.iter(), self.bindings.iter()) {
+            head_expr = match mode {
+                BindingMode::Defined => head_expr,
+                BindingMode::Assumed => self.elim_context().fun_elim(head_expr, expr.clone())?,
+            };
+        }
+        Ok(head_expr)
+    }
 }
 
 /// Elimination context.
@@ -163,11 +183,11 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
 /// as the bound expressions will be supplied by any closures that are
 /// encountered during evaluation.
 pub struct ElimContext<'arena, 'env> {
-    problems: &'env UniqueEnv<Option<Arc<Value<'arena>>>>,
+    problems: &'env SliceEnv<Option<Arc<Value<'arena>>>>,
 }
 
 impl<'arena, 'env> ElimContext<'arena, 'env> {
-    pub fn new(problems: &'env UniqueEnv<Option<Arc<Value<'arena>>>>) -> ElimContext<'arena, 'env> {
+    pub fn new(problems: &'env SliceEnv<Option<Arc<Value<'arena>>>>) -> ElimContext<'arena, 'env> {
         ElimContext { problems }
     }
 
@@ -208,7 +228,7 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
     /// [beta-reduction] if possible.
     ///
     /// [beta-reduction]: https://ncatlab.org/nlab/show/beta-reduction
-    fn fun_elim(
+    pub fn fun_elim(
         &self,
         mut head_expr: Arc<Value<'arena>>,
         input_expr: Arc<Value<'arena>>,
@@ -225,8 +245,8 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
         }
     }
 
-    /// Apply an expression to a spine of eliminations.
-    fn spine_elim(
+    /// Apply an expression to an elimination spine.
+    pub fn spine_elim(
         &self,
         mut head_expr: Arc<Value<'arena>>,
         spine: &[Elim<'arena>],
@@ -244,14 +264,14 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
 pub struct ReadbackContext<'in_arena, 'out_arena, 'env> {
     arena: &'out_arena Arena<'out_arena>,
     bindings: EnvLen,
-    problems: &'env UniqueEnv<Option<Arc<Value<'in_arena>>>>,
+    problems: &'env SliceEnv<Option<Arc<Value<'in_arena>>>>,
 }
 
 impl<'in_arena, 'out_arena, 'env> ReadbackContext<'in_arena, 'out_arena, 'env> {
     pub fn new(
         arena: &'out_arena Arena<'out_arena>,
         bindings: EnvLen,
-        problems: &'env UniqueEnv<Option<Arc<Value<'in_arena>>>>,
+        problems: &'env SliceEnv<Option<Arc<Value<'in_arena>>>>,
     ) -> ReadbackContext<'in_arena, 'out_arena, 'env> {
         ReadbackContext {
             arena,
@@ -268,9 +288,8 @@ impl<'in_arena, 'out_arena, 'env> ReadbackContext<'in_arena, 'out_arena, 'env> {
     /// Add a binding to the context.
     fn add_binding(&self) -> ReadbackContext<'in_arena, 'out_arena, 'env> {
         ReadbackContext {
-            arena: self.arena,
             bindings: self.bindings.add_entry(),
-            problems: self.problems,
+            ..*self
         }
     }
 
@@ -331,13 +350,13 @@ impl<'in_arena, 'out_arena, 'env> ReadbackContext<'in_arena, 'out_arena, 'env> {
 /// Conversion context.
 pub struct ConversionContext<'arena, 'env> {
     bindings: EnvLen,
-    problems: &'env UniqueEnv<Option<Arc<Value<'arena>>>>,
+    problems: &'env SliceEnv<Option<Arc<Value<'arena>>>>,
 }
 
 impl<'arena, 'env> ConversionContext<'arena, 'env> {
     pub fn new(
         bindings: EnvLen,
-        problems: &'env UniqueEnv<Option<Arc<Value<'arena>>>>,
+        problems: &'env SliceEnv<Option<Arc<Value<'arena>>>>,
     ) -> ConversionContext<'arena, 'env> {
         ConversionContext { bindings, problems }
     }
@@ -351,7 +370,7 @@ impl<'arena, 'env> ConversionContext<'arena, 'env> {
     fn add_binding(&self) -> ConversionContext<'arena, 'env> {
         ConversionContext {
             bindings: self.bindings.add_entry(),
-            problems: self.problems,
+            ..*self
         }
     }
 
@@ -379,8 +398,8 @@ impl<'arena, 'env> ConversionContext<'arena, 'env> {
             (Value::Stuck(Head::ReportedError, _), _)
             | (_, Value::Stuck(Head::ReportedError, _)) => Ok(true),
 
-            (Value::Stuck(var0, spine0), Value::Stuck(var1, spine1)) => {
-                if var0 != var1 || spine0.len() != spine1.len() {
+            (Value::Stuck(head0, spine0), Value::Stuck(head1, spine1)) => {
+                if head0 != head1 || spine0.len() != spine1.len() {
                     return Ok(false);
                 }
                 for (elim0, elim1) in Iterator::zip(spine0.iter(), spine1.iter()) {

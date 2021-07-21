@@ -1,9 +1,16 @@
 //! Core language.
 
-use crate::env::{GlobalVar, LocalVar};
+use crate::env::{GlobalVar, LocalVar, UniqueEnv};
 use crate::StringId;
 
 pub mod semantics;
+
+/// The mode of a binding, used for problem insertion.
+#[derive(Debug, Clone)]
+pub enum BindingMode {
+    Defined,
+    Assumed,
+}
 
 /// Core language terms.
 #[derive(Debug, Clone)]
@@ -14,6 +21,18 @@ pub enum Term<'arena> {
     ///
     /// Also known as: metavariables.
     ProblemVar(GlobalVar),
+    /// A problem variable that has just been inserted.
+    ///
+    /// The bindings modes let us apply the bound assumptions in scope to the
+    /// problem during evaluation. We could also represent this as a series of
+    /// function eliminations, but encoding it as an environment is more direct
+    /// and efficient.
+    //
+    // TODO: Bit-vectors might make this a bit more compact. For example:
+    //
+    // - https://lib.rs/crates/smallbitvec
+    // - https://lib.rs/crates/bit-vec
+    InsertedProblem(GlobalVar, UniqueEnv<BindingMode>),
     /// Annotated expressions.
     Ann(&'arena Term<'arena>, &'arena Term<'arena>),
     /// Let expressions.
@@ -23,11 +42,11 @@ pub enum Term<'arena> {
     /// Dependent function types.
     ///
     /// Also known as: pi types, dependent product types.
-    FunType(StringId, &'arena Term<'arena>, &'arena Term<'arena>),
+    FunType(Option<StringId>, &'arena Term<'arena>, &'arena Term<'arena>),
     /// Function introductions.
     ///
     /// Also known as: lambda expressions, anonymous functions.
-    FunIntro(StringId, &'arena Term<'arena>),
+    FunIntro(Option<StringId>, &'arena Term<'arena>),
     /// Function eliminations.
     ///
     /// Also known as: function applications.

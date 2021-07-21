@@ -45,7 +45,7 @@ struct Args {
         long = "surface-term",
         name = "FILE",
         default_value = "-",
-        possible_values = &["-", "<path>"],
+        // possible_values = &["-", "<path>"],
         parse(from_str),
     )]
     surface_term: Input,
