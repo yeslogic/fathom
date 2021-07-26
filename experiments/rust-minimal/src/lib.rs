@@ -37,6 +37,11 @@
 //   - [ ] codespan diagnostics
 //   - [ ] integration tests
 
+pub mod env;
+
+pub mod core;
+pub mod surface;
+
 /// Interned strings.
 pub type StringId = string_interner::symbol::SymbolU16;
 
@@ -68,8 +73,3 @@ impl ByteRange {
         self.start
     }
 }
-
-pub mod env;
-
-pub mod core;
-pub mod surface;
