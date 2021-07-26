@@ -43,7 +43,7 @@ let not : fun (bool : Bool) -> Bool
       bool Bool false true;
 
 
-// Identity
+// Leibniz equality
 
 let Eq : fun (A : ?) -> fun (a0 : A) -> fun (a1 : A) -> Type
   = fun A => fun a0 => fun a1 =>
@@ -51,6 +51,10 @@ let Eq : fun (A : ?) -> fun (a0 : A) -> fun (a1 : A) -> Type
 
 let refl : fun (A : ?) -> fun (a : A) -> Eq A a a
   = fun A => fun a => fun P => fun pa => pa;
+
+let sym : fun (A : ?) -> fun (a0 : A) -> fun (a1 : A) -> fun (p : Eq ? a0 a1) -> Eq ? a1 a0
+  = fun A => fun a0 => fun a1 => fun p =>
+      p (fun a1 => Eq ? a1 a0) (refl ? ?);
 
 
 // Natural numbers
@@ -71,7 +75,7 @@ let mul : fun (n0 : Nat) -> fun (n1 : Nat) -> Nat
 
 // Examples
 
-let idElimType = (fun a => a) Type;
+let id_elim_type = (fun a => a) Type;
 
 let list1 : List Bool
   = cons ? (id ? true) (nil ?);
@@ -81,11 +85,11 @@ let ten : Nat = add five five;
 let hundred : Nat = mul ten ten;
 let thousand : Nat = mul ten hundred;
 
-let eqTest : Eq ? hundred hundred = refl ? ?;
+let eq_test : Eq ? hundred hundred = refl ? ?;
 
-let eqIdElimType : Eq ? ((fun a => a) Type) Type = refl ? ?;
-let eqIdElimTrue : Eq ? ((fun a => a) true) true = refl ? ?;
-let eqIdElimFalse : Eq ? ((fun a => a) false) false = refl ? ?;
+let eq_id_elim_type : Eq ? ((fun a => a) Type) Type = refl ? ?;
+let eq_id_elim_true : Eq ? ((fun a => a) true) true = refl ? ?;
+let eq_id_elim_false : Eq ? ((fun a => a) false) false = refl ? ?;
 
 
 Type
