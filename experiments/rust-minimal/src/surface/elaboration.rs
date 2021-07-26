@@ -213,7 +213,9 @@ impl<'arena> Context<'arena> {
         surface_term: &surface::Term<'_>,
         expected_type: &Arc<Value<'arena>>,
     ) -> core::Term<'arena> {
-        match (surface_term, self.force(expected_type).as_ref()) {
+        let expected_type = self.force(expected_type);
+
+        match (surface_term, expected_type.as_ref()) {
             (surface::Term::Let(_, (_, def_name), def_type, def_expr, output_expr), _) => {
                 let (def_expr, def_type_value) = match def_type {
                     None => self.synth(def_expr),
@@ -234,7 +236,7 @@ impl<'arena> Context<'arena> {
                 let def_expr_value = self.eval(&def_expr);
 
                 self.push_definition(Some(*def_name), def_expr_value, def_type_value);
-                let output_expr = self.check(output_expr, expected_type);
+                let output_expr = self.check(output_expr, &expected_type);
                 self.pop_binding();
 
                 core::Term::Let(
@@ -258,7 +260,7 @@ impl<'arena> Context<'arena> {
             (_, _) => {
                 let (core_term, synth_type) = self.synth(surface_term);
 
-                self.unify(surface_term.range(), &synth_type, expected_type, || {
+                self.unify(surface_term.range(), &synth_type, &expected_type, || {
                     core_term
                 })
             }
@@ -367,7 +369,8 @@ impl<'arena> Context<'arena> {
                 let (head_expr, head_type) = self.synth(head_expr);
 
                 // Ensure that `head_type` is a function type
-                match self.force(&head_type).as_ref() {
+                let head_type = self.force(&head_type);
+                match head_type.as_ref() {
                     // The simple case - it's easy to see that it is a function type!
                     Value::FunType(_, input_type, output_type) => {
                         // Check the input and apply it toy the output type
