@@ -388,10 +388,10 @@ impl<'arena, 'env> ConversionContext<'arena, 'env> {
         value0: &Arc<Value<'_>>,
         value1: &Arc<Value<'_>>,
     ) -> Result<bool, Error> {
-        match (
-            self.elim_context().force(value0)?.as_ref(),
-            self.elim_context().force(value1)?.as_ref(),
-        ) {
+        let value0 = self.elim_context().force(value0)?;
+        let value1 = self.elim_context().force(value1)?;
+
+        match (value0.as_ref(), value1.as_ref()) {
             // `ReportedError`s result from errors that have already been
             // reported, so we say that they are equal to any other value to
             // prevent them from triggering more errors.

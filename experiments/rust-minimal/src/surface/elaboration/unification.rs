@@ -71,16 +71,18 @@ impl<'arena, 'env> Context<'arena, 'env> {
         value0: &Arc<Value<'arena>>,
         value1: &Arc<Value<'arena>>,
     ) -> Result<(), Error> {
-        match (
-            self.elim_context().force(value0)?.as_ref(),
-            self.elim_context().force(value1)?.as_ref(),
-        ) {
+        let value0 = self.elim_context().force(value0)?;
+        let value1 = self.elim_context().force(value1)?;
+
+        match (value0.as_ref(), value1.as_ref()) {
             // `ReportedError`s result from errors that have already been
             // reported, so we say that they are equal to any other value to
             // prevent them from triggering more errors.
             (Value::Stuck(Head::ReportedError, _), _)
             | (_, Value::Stuck(Head::ReportedError, _)) => Ok(()),
 
+            // Both values start in a bound variable, so all we need to do
+            // is unify the elimination spines.
             (
                 Value::Stuck(Head::BoundVar(var0), spine0),
                 Value::Stuck(Head::BoundVar(var1), spine1),
@@ -89,8 +91,11 @@ impl<'arena, 'env> Context<'arena, 'env> {
                 Value::Stuck(Head::ProblemVar(var0), spine0),
                 Value::Stuck(Head::ProblemVar(var1), spine1),
             ) if var0 == var1 => self.unify_spines(spine0, spine1),
-            (Value::Stuck(Head::ProblemVar(var0), spine0), _) => self.solve(*var0, spine0, value1),
-            (_, Value::Stuck(Head::ProblemVar(var1), spine1)) => self.solve(*var1, spine1, value0),
+
+            // One of the values begins in a problem variable, so attempt to
+            // solve it using pattern unification.
+            (Value::Stuck(Head::ProblemVar(var0), spine0), _) => self.solve(*var0, spine0, &value1),
+            (_, Value::Stuck(Head::ProblemVar(var1), spine1)) => self.solve(*var1, spine1, &value0),
 
             (Value::Universe, Value::Universe) => Ok(()),
 
