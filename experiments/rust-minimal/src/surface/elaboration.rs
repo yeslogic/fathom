@@ -368,12 +368,12 @@ impl<'arena> Context<'arena> {
                 let head_expr_range = head_expr.range();
                 let (head_expr, head_type) = self.synth(head_expr);
 
-                // Ensure that `head_type` is a function type
+                // Ensure that the head type is a function type
                 let head_type = self.force(&head_type);
                 match head_type.as_ref() {
                     // The simple case - it's easy to see that it is a function type!
                     Value::FunType(_, input_type, output_type) => {
-                        // Check the input and apply it toy the output type
+                        // Check the input expression and apply it to the output type
                         let input_expr = self.check(input_expr, &input_type);
                         let input_expr_value = self.eval(&input_expr);
                         let output_type = self.apply_closure(&output_type, input_expr_value);
@@ -386,32 +386,35 @@ impl<'arena> Context<'arena> {
 
                         (fun_elim, output_type)
                     }
-                    // It's not immediately obvious that `head_type` is a
+                    // It's not immediately obvious that the head type is a
                     // function type, so instead we construct a function type
                     // with fresh problem variables standing in for the input
-                    // and output types, and then we attempt to unify
-                    // `head_type` against it.
+                    // and output types, and then attempt to unify the head type
+                    // against it.
                     _ => {
                         // Create a function type between problem variables.
                         let input_type = self.fresh_problem_value(None);
-                        let output_type = Closure::new(self.binding_exprs.clone(), {
-                            self.push_assumption(None, input_type.clone());
-                            let output_type = self.fresh_problem_term(None);
-                            self.pop_binding();
 
-                            self.arena.alloc_term(output_type)
-                        });
+                        self.push_assumption(None, input_type.clone());
+                        let output_type = self.fresh_problem_term(None);
+                        self.pop_binding();
+
+                        let output_type = Closure::new(
+                            self.binding_exprs.clone(),
+                            self.arena.alloc_term(output_type),
+                        );
                         let fun_type = Arc::new(Value::FunType(
                             None,
                             input_type.clone(),
                             output_type.clone(),
                         ));
 
-                        // Attempt to unify `head_type` with the function type.
+                        // Attempt to unify the type of the head expression with
+                        // the function type.
                         let head_expr =
                             self.unify(head_expr_range, &head_type, &fun_type, || head_expr);
 
-                        // Check the input and apply it toy the output type
+                        // Check the input expression and apply it to the output type
                         let input_expr = self.check(input_expr, &input_type);
                         let input_expr_value = self.eval(&input_expr);
                         let output_type = self.apply_closure(&output_type, input_expr_value);

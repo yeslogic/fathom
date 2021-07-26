@@ -1,7 +1,7 @@
 // Hurkens' paradox [1] ported from Agda [2].
 //
-// This is a result of allowing `Type : Type`. Elaborating using the current
-// implementation currently consumes lots of memory and appears to never
+// This is a result of allowing `Type : Type`. Elaborating this file using
+// the current implementation consumes lots of memory and appears to never
 // terminate!
 //
 // [1] A. Hurkens, A simplification of Girard's paradox.
