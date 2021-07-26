@@ -1,7 +1,21 @@
+//! Environments and variables.
+//!
+//! # Variables
+//!
+//! Nameless variables are used, which makes alpha equivalence and variable
+//! lookup faster.
+//!
+//! # Environments
+//!
+//! A number of different environment representations are used - where possible
+//! we try to stick to flat, low-indirection environments like [`UniqueEnv`]
+//! and [`SliceEnv`], but when we need to copy environments often, we use a
+//! [`SharedEnv`] to increase the amount of sharing at the expense of locality.
+
 /// Underlying variable representation.
 type RawVar = u16;
 
-/// A [de Bruijn index][de-bruijn-index] in the current [environment].
+/// A [de Bruijn index] in the current [environment].
 ///
 /// De Bruijn indices describe an occurrence of a variable in terms of the
 /// number of binders between the occurrence and its associated binder.
@@ -18,7 +32,7 @@ type RawVar = u16;
 /// `λy. y`. With de Bruijn indices these would both be described as `λ 0`.
 ///
 /// [environment]: `Env`
-/// [de-bruijn-index]: https://en.wikipedia.org/wiki/De_Bruijn_index
+/// [de Bruijn index]: https://en.wikipedia.org/wiki/De_Bruijn_index
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct LocalVar(RawVar);
 
@@ -149,12 +163,18 @@ impl<Entry> std::ops::Deref for UniqueEnv<Entry> {
     type Target = SliceEnv<Entry>;
 
     fn deref(&self) -> &SliceEnv<Entry> {
+        // SAFTEY:
+        // - `SliceEnv<Entry>` and `[Entry]` have the same in-memory,
+        //   so the `transmute` should be safe.
         unsafe { std::mem::transmute(&self.entries[..]) }
     }
 }
 
 impl<Entry> std::ops::DerefMut for UniqueEnv<Entry> {
     fn deref_mut(&mut self) -> &mut SliceEnv<Entry> {
+        // SAFTEY:
+        // - `SliceEnv<Entry>` and `[Entry]` have the same in-memory,
+        //   so the `transmute` should be safe.
         unsafe { std::mem::transmute(&mut self.entries[..]) }
     }
 }
