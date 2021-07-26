@@ -1,9 +1,14 @@
-//! Implementation of problem unification for [`Value`]s.
+//! [Unification] is a process of checking if two [values][`Value`] are there
+//! same, where there might be 'unknown' parts in either value. During this
+//! process we attempt to fill in those missing bits of information, and record
+//! the solutions we find for future use.
 //!
-//! In this module we implemented a limited form of higher order unification,
-//! called 'pattern unification'. More details on the algorithm we use can be
-//! found in the [elaboration-zoo](https://github.com/AndrasKovacs/elaboration-zoo/),
-//! in particular in [elaboration-zoo/03-holes](https://github.com/AndrasKovacs/elaboration-zoo/blob/master/03-holes/).
+//! We implement a limited form of higher order unification, called 'pattern
+//! unification'. More details about the algorithm we use can be found in the
+//! [elaboration-zoo](https://github.com/AndrasKovacs/elaboration-zoo/), in
+//! particular in [elaboration-zoo/03-holes](https://github.com/AndrasKovacs/elaboration-zoo/blob/master/03-holes/).
+//!
+//! [Unification]: https://en.wikipedia.org/wiki/Unification_(computer_science)
 
 use std::sync::Arc;
 
@@ -26,7 +31,7 @@ impl From<semantics::Error> for Error {
 
 /// Unification context.
 pub struct Context<'arena, 'env> {
-    /// Arena to store readback terms during renaming.
+    /// Arena to store terms during [renaming][`Context::rename`].
     arena: &'arena Arena<'arena>,
     /// A renaming that is used when solving pattern unification problems. We
     /// store it in the parent context, re-initialising it on each call to
