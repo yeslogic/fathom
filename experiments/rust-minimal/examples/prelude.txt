@@ -78,7 +78,7 @@ let list1 : List Bool
 
 let five : Nat = fun Nat => fun succ => fun zero => succ (succ (succ (succ (succ zero))));
 let ten : Nat = add five five;
-let hundred  : Nat = mul ten ten;
+let hundred : Nat = mul ten ten;
 let thousand : Nat = mul ten hundred;
 
 let eqTest : Eq ? hundred hundred = refl ? ?;
