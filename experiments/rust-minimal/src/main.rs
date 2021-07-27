@@ -160,8 +160,8 @@ fn parse_term<'arena>(
 fn check_elaboration_messages(context: &mut surface::elaboration::Context<'_>) -> bool {
     let mut is_ok = true;
 
-    for (range, message) in context.drain_messages() {
-        eprintln!("{}..{}: {}", range.start(), range.end(), message);
+    for message in context.drain_messages() {
+        eprintln!("{:?}", message);
         is_ok = false;
     }
 
