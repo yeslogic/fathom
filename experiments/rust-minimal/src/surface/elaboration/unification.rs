@@ -16,6 +16,7 @@ use crate::core::semantics::{self, Elim, ElimContext, EvalContext, Head, Value};
 use crate::core::{Arena, Term};
 use crate::env::{EnvLen, GlobalVar, LocalVar, SharedEnv, SliceEnv, UniqueEnv};
 
+#[derive(Debug, Clone)]
 pub enum Error {
     FailedToUnify,
     ScopeError,

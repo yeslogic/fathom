@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use crate::core::semantics::{Closure, ElimContext, EvalContext, ReadbackContext, Value};
+use crate::core::semantics::{self, Closure, ElimContext, EvalContext, ReadbackContext, Value};
 use crate::env::{self, LocalVar, SharedEnv, UniqueEnv};
 use crate::{core, surface, ByteRange, StringId};
 
@@ -10,17 +10,45 @@ mod unification;
 
 /// The reason why a fresh problem variable was [inserted][`Context::fresh_problem_term`]
 /// into the elaboration context.
-enum ProblemSource {
+#[derive(Debug, Copy, Clone)]
+pub enum ProblemSource {
     /// The type of a hole.
-    HoleType(ByteRange, Option<StringId>),
+    HoleType(Option<StringId>),
     /// The expression of a hole.
-    HoleExpr(ByteRange, Option<StringId>),
+    HoleExpr(Option<StringId>),
     /// The input type of a function.
-    FunInputType(ByteRange, Option<StringId>),
+    FunInputType(Option<StringId>),
     /// The output type of a function.
-    FunOutputType(ByteRange),
+    FunOutputType,
     /// The type of a reported error.
-    ReportedErrorType(ByteRange),
+    ReportedErrorType,
+}
+
+/// Elaboration diagnostic messages.
+#[derive(Debug, Clone)]
+pub enum Message {
+    UnboundName {
+        range: ByteRange,
+        name: StringId,
+    },
+    FailedToUnify {
+        range: ByteRange,
+        // TODO: add lhs and rhs values
+        // lhs: Doc<_>,
+        // rhs: Doc<_>,
+        error: unification::Error,
+    },
+    UnsolvedProblem {
+        range: ByteRange,
+        source: ProblemSource,
+    },
+    Semantics(semantics::Error),
+}
+
+impl From<semantics::Error> for Message {
+    fn from(error: semantics::Error) -> Message {
+        Message::Semantics(error)
+    }
 }
 
 /// Elaboration context.
@@ -42,7 +70,7 @@ pub struct Context<'arena> {
 
     /// The source of freshly inserted problems. This is used when reporting
     /// unsolved problems.
-    problem_sources: UniqueEnv<ProblemSource>,
+    problem_sources: UniqueEnv<(ByteRange, ProblemSource)>,
     /// Expressions that will be substituted for problem variables during
     /// [evaluation][`EvalContext::eval`].
     ///
@@ -52,7 +80,7 @@ pub struct Context<'arena> {
     problem_exprs: UniqueEnv<Option<Arc<Value<'arena>>>>,
 
     /// Diagnostic messages encountered during elaboration.
-    messages: Vec<(ByteRange, String)>,
+    messages: Vec<Message>,
 }
 
 impl<'arena> Context<'arena> {
@@ -121,36 +149,54 @@ impl<'arena> Context<'arena> {
     }
 
     /// Push a fresh problem onto the context.
-    fn fresh_problem_term(&mut self, source: ProblemSource) -> core::Term<'arena> {
+    fn fresh_problem_term(
+        &mut self,
+        range: ByteRange,
+        source: ProblemSource,
+    ) -> core::Term<'arena> {
         // TODO: check that hole name is not already in use
         let var = self.problem_exprs.len().next_global();
 
-        self.problem_sources.push(source);
+        self.problem_sources.push((range, source));
         self.problem_exprs.push(None);
 
         core::Term::InsertedProblem(var, self.binding_modes.clone())
     }
 
     /// Push a fresh problem onto the context, and evaluate it.
-    fn fresh_problem_value(&mut self, source: ProblemSource) -> Arc<Value<'arena>> {
-        let term = self.fresh_problem_term(source);
+    fn fresh_problem_value(
+        &mut self,
+        range: ByteRange,
+        source: ProblemSource,
+    ) -> Arc<Value<'arena>> {
+        let term = self.fresh_problem_term(range, source);
         self.eval(&term)
     }
 
-    fn push_message(&mut self, range: ByteRange, message: impl Into<String>) {
-        self.messages.push((range, message.into()));
+    fn push_message(&mut self, message: impl Into<Message>) {
+        self.messages.push(message.into());
     }
 
-    pub fn drain_messages<'this>(
-        &'this mut self,
-    ) -> impl 'this + Iterator<Item = (ByteRange, String)> {
-        self.messages.drain(..)
+    pub fn drain_messages<'this>(&'this mut self) -> impl 'this + Iterator<Item = Message> {
+        self.messages.drain(..).chain(
+            Iterator::zip(self.problem_sources.iter(), self.problem_exprs.iter()).filter_map(
+                |((range, source), expr)| {
+                    expr.is_none().then(|| Message::UnsolvedProblem {
+                        range: *range,
+                        source: *source,
+                    })
+                },
+            ),
+        )
     }
 
-    pub fn force(&self, term: &Arc<Value<'arena>>) -> Arc<Value<'arena>> {
+    pub fn force(&mut self, term: &Arc<Value<'arena>>) -> Arc<Value<'arena>> {
         ElimContext::new(&self.problem_exprs)
             .force(term)
-            .unwrap_or_else(|_| todo!("report error"))
+            .unwrap_or_else(|error| {
+                self.push_message(error);
+                Arc::new(Value::reported_error())
+            })
     }
 
     pub fn normalize<'out_arena>(
@@ -160,13 +206,19 @@ impl<'arena> Context<'arena> {
     ) -> core::Term<'out_arena> {
         EvalContext::new(&mut self.binding_exprs, &self.problem_exprs)
             .normalise(arena, term)
-            .unwrap_or_else(|_| todo!("report error"))
+            .unwrap_or_else(|error| {
+                self.push_message(error);
+                core::Term::ReportedError
+            })
     }
 
     pub fn eval(&mut self, term: &core::Term<'arena>) -> Arc<Value<'arena>> {
         EvalContext::new(&mut self.binding_exprs, &self.problem_exprs)
             .eval(term)
-            .unwrap_or_else(|_| todo!("report error"))
+            .unwrap_or_else(|error| {
+                self.push_message(error);
+                Arc::new(Value::reported_error())
+            })
     }
 
     pub fn readback<'out_arena>(
@@ -176,39 +228,10 @@ impl<'arena> Context<'arena> {
     ) -> core::Term<'out_arena> {
         ReadbackContext::new(arena, self.binding_exprs.len(), &self.problem_exprs)
             .readback(value)
-            .unwrap_or_else(|_| todo!("report error"))
-    }
-
-    fn unify(
-        &mut self,
-        range: ByteRange,
-        value0: &Arc<Value<'arena>>,
-        value1: &Arc<Value<'arena>>,
-        on_success: impl FnOnce() -> core::Term<'arena>,
-    ) -> core::Term<'arena> {
-        let mut context = unification::Context::new(
-            &self.arena,
-            &mut self.renaming,
-            self.binding_exprs.len(),
-            &mut self.problem_exprs,
-        );
-
-        match context.unify(value0, value1) {
-            Ok(()) => on_success(),
-            Err(unification::Error::FailedToUnify) => {
-                self.push_message(range, "error: type mismatch");
+            .unwrap_or_else(|error| {
+                self.push_message(error);
                 core::Term::ReportedError
-            }
-            Err(unification::Error::ScopeError) => {
-                self.push_message(range, "error: escaping variable");
-                core::Term::ReportedError
-            }
-            Err(unification::Error::OccursCheck) => {
-                self.push_message(range, "error: occurs check");
-                core::Term::ReportedError
-            }
-            Err(unification::Error::Semantics(_)) => todo!("report error"),
-        }
+            })
     }
 
     fn apply_closure(
@@ -218,7 +241,25 @@ impl<'arena> Context<'arena> {
     ) -> Arc<Value<'arena>> {
         ElimContext::new(&self.problem_exprs)
             .closure_elim(closure, input_expr)
-            .unwrap_or_else(|_| todo!("report error"))
+            .unwrap_or_else(|error| {
+                self.push_message(error);
+                Arc::new(Value::reported_error())
+            })
+    }
+
+    fn unify(
+        &mut self,
+        value0: &Arc<Value<'arena>>,
+        value1: &Arc<Value<'arena>>,
+    ) -> Result<(), unification::Error> {
+        let mut context = unification::Context::new(
+            &self.arena,
+            &mut self.renaming,
+            self.binding_exprs.len(),
+            &mut self.problem_exprs,
+        );
+
+        context.unify(value0, value1)
     }
 
     /// Check that a surface term conforms to the given type.
@@ -276,9 +317,14 @@ impl<'arena> Context<'arena> {
             (_, _) => {
                 let (core_term, synth_type) = self.synth(surface_term);
 
-                self.unify(surface_term.range(), &synth_type, &expected_type, || {
-                    core_term
-                })
+                match self.unify(&synth_type, &expected_type) {
+                    Ok(()) => core_term,
+                    Err(error) => {
+                        let range = surface_term.range();
+                        self.push_message(Message::FailedToUnify { range, error });
+                        core::Term::ReportedError
+                    }
+                }
             }
         }
     }
@@ -294,16 +340,18 @@ impl<'arena> Context<'arena> {
             surface::Term::Name(range, name) => match self.get_binding(*name) {
                 Some((local_var, r#type)) => (core::Term::BoundVar(local_var), r#type.clone()),
                 None => {
-                    self.push_message(*range, "error: unknown variable");
-                    let r#type = self.fresh_problem_value(ProblemSource::ReportedErrorType(*range));
+                    self.push_message(Message::UnboundName {
+                        range: *range,
+                        name: *name,
+                    });
+                    let r#type = self.fresh_problem_value(*range, ProblemSource::ReportedErrorType);
                     (core::Term::ReportedError, r#type)
                 }
             },
-            surface::Term::Hole(range, name) => {
-                let r#type = self.fresh_problem_value(ProblemSource::HoleType(*range, *name));
-                let expr = self.fresh_problem_term(ProblemSource::HoleExpr(*range, *name));
-                (expr, r#type)
-            }
+            surface::Term::Hole(range, name) => (
+                self.fresh_problem_term(*range, ProblemSource::HoleExpr(*name)),
+                self.fresh_problem_value(*range, ProblemSource::HoleType(*name)),
+            ),
             surface::Term::Ann(expr, r#type) => {
                 let r#type = self.check(r#type, &Arc::new(Value::Universe)); // FIXME: avoid temporary Arc
                 let type_value = self.eval(&r#type);
@@ -365,7 +413,7 @@ impl<'arena> Context<'arena> {
             surface::Term::FunIntro(_, (input_range, input_name), output_expr) => {
                 let input_name = Some(*input_name);
                 let input_type =
-                    self.fresh_problem_value(ProblemSource::FunInputType(*input_range, input_name));
+                    self.fresh_problem_value(*input_range, ProblemSource::FunInputType(input_name));
 
                 self.push_assumption(input_name, input_type.clone());
                 let (output_expr, output_type) = self.synth(output_expr);
@@ -412,11 +460,11 @@ impl<'arena> Context<'arena> {
                     _ => {
                         // Create a function type between problem variables.
                         let input_type =
-                            self.fresh_problem_value(ProblemSource::FunInputType(head_range, None));
+                            self.fresh_problem_value(head_range, ProblemSource::FunInputType(None));
 
                         self.push_assumption(None, input_type.clone());
                         let output_type =
-                            self.fresh_problem_term(ProblemSource::FunOutputType(head_range));
+                            self.fresh_problem_term(head_range, ProblemSource::FunOutputType);
                         self.pop_binding();
 
                         let output_type = Closure::new(
@@ -431,7 +479,14 @@ impl<'arena> Context<'arena> {
 
                         // Attempt to unify the type of the head expression with
                         // the function type.
-                        let head_expr = self.unify(head_range, &head_type, &fun_type, || head_expr);
+                        let head_expr = match self.unify(&head_type, &fun_type) {
+                            Ok(()) => head_expr,
+                            Err(error) => {
+                                let range = surface_term.range();
+                                self.push_message(Message::FailedToUnify { range, error });
+                                core::Term::ReportedError
+                            }
+                        };
 
                         // Check the input expression and apply it to the output type
                         let input_expr = self.check(input_expr, &input_type);
@@ -450,7 +505,7 @@ impl<'arena> Context<'arena> {
             }
             surface::Term::ReportedError(range) => (
                 core::Term::ReportedError,
-                self.fresh_problem_value(ProblemSource::ReportedErrorType(*range)),
+                self.fresh_problem_value(*range, ProblemSource::ReportedErrorType),
             ),
         }
     }
