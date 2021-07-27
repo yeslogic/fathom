@@ -8,6 +8,21 @@ use crate::{core, surface, ByteRange, StringId};
 
 mod unification;
 
+/// The reason why a fresh problem variable was [inserted][`Context::fresh_problem_term`]
+/// into the elaboration context.
+enum ProblemSource {
+    /// The type of a hole.
+    HoleType(ByteRange, Option<StringId>),
+    /// The expression of a hole.
+    HoleExpr(ByteRange, Option<StringId>),
+    /// The input type of a function.
+    FunInputType(ByteRange, Option<StringId>),
+    /// The output type of a function.
+    FunOutputType(ByteRange),
+    /// The type of a reported error.
+    ReportedErrorType(ByteRange),
+}
+
 /// Elaboration context.
 pub struct Context<'arena> {
     /// Arena used for storing elaborated terms.
@@ -22,17 +37,18 @@ pub struct Context<'arena> {
     /// Modes of bound variables. This is used when inserting new problems.
     binding_modes: UniqueEnv<core::BindingMode>,
     /// Expressions that will be substituted for bound variables during
-    /// [evaluation](`EvalContext::eval`).
+    /// [evaluation][`EvalContext::eval`].
     binding_exprs: SharedEnv<Arc<Value<'arena>>>,
 
-    /// Problem names, added by [named holes][`surface::Term::Hole`].
-    problem_names: UniqueEnv<Option<StringId>>,
+    /// The source of freshly inserted problems. This is used when reporting
+    /// unsolved problems.
+    problem_sources: UniqueEnv<ProblemSource>,
     /// Expressions that will be substituted for problem variables during
-    /// [evaluation](`EvalContext::eval`).
+    /// [evaluation][`EvalContext::eval`].
     ///
-    /// These will be set to [`None`] when a fresh problem variable is
-    /// introduced, then will be set to [`Some`] once a solution is found
-    /// during unification.
+    /// These will be set to [`None`] when a fresh problem variable is first
+    /// [inserted][`Context::fresh_problem_term`], then will be set to [`Some`]
+    /// if a solution is found during [`unification`].
     problem_exprs: UniqueEnv<Option<Arc<Value<'arena>>>>,
 
     /// Diagnostic messages encountered during elaboration.
@@ -51,7 +67,7 @@ impl<'arena> Context<'arena> {
             binding_modes: UniqueEnv::new(),
             binding_exprs: SharedEnv::new(),
 
-            problem_names: UniqueEnv::new(),
+            problem_sources: UniqueEnv::new(),
             problem_exprs: UniqueEnv::new(),
 
             messages: Vec::new(),
@@ -105,19 +121,19 @@ impl<'arena> Context<'arena> {
     }
 
     /// Push a fresh problem onto the context.
-    fn fresh_problem_term(&mut self, name: Option<StringId>) -> core::Term<'arena> {
+    fn fresh_problem_term(&mut self, source: ProblemSource) -> core::Term<'arena> {
         // TODO: check that hole name is not already in use
         let var = self.problem_exprs.len().next_global();
 
-        self.problem_names.push(name);
+        self.problem_sources.push(source);
         self.problem_exprs.push(None);
 
         core::Term::InsertedProblem(var, self.binding_modes.clone())
     }
 
     /// Push a fresh problem onto the context, and evaluate it.
-    fn fresh_problem_value(&mut self, name: Option<StringId>) -> Arc<Value<'arena>> {
-        let term = self.fresh_problem_term(name);
+    fn fresh_problem_value(&mut self, source: ProblemSource) -> Arc<Value<'arena>> {
+        let term = self.fresh_problem_term(source);
         self.eval(&term)
     }
 
@@ -275,16 +291,17 @@ impl<'arena> Context<'arena> {
         surface_term: &surface::Term<'_>,
     ) -> (core::Term<'arena>, Arc<Value<'arena>>) {
         match surface_term {
-            surface::Term::Name(_, name) => match self.get_binding(*name) {
+            surface::Term::Name(range, name) => match self.get_binding(*name) {
                 Some((local_var, r#type)) => (core::Term::BoundVar(local_var), r#type.clone()),
                 None => {
-                    self.push_message(surface_term.range(), "error: unknown variable");
-                    (core::Term::ReportedError, self.fresh_problem_value(None))
+                    self.push_message(*range, "error: unknown variable");
+                    let r#type = self.fresh_problem_value(ProblemSource::ReportedErrorType(*range));
+                    (core::Term::ReportedError, r#type)
                 }
             },
-            surface::Term::Hole(_, name) => {
-                let r#type = self.fresh_problem_value(None);
-                let expr = self.fresh_problem_term(*name);
+            surface::Term::Hole(range, name) => {
+                let r#type = self.fresh_problem_value(ProblemSource::HoleType(*range, *name));
+                let expr = self.fresh_problem_term(ProblemSource::HoleExpr(*range, *name));
                 (expr, r#type)
             }
             surface::Term::Ann(expr, r#type) => {
@@ -345,9 +362,10 @@ impl<'arena> Context<'arena> {
 
                 (fun_type, Arc::new(Value::Universe))
             }
-            surface::Term::FunIntro(_, (_, input_name), output_expr) => {
+            surface::Term::FunIntro(_, (input_range, input_name), output_expr) => {
                 let input_name = Some(*input_name);
-                let input_type = self.fresh_problem_value(None);
+                let input_type =
+                    self.fresh_problem_value(ProblemSource::FunInputType(*input_range, input_name));
 
                 self.push_assumption(input_name, input_type.clone());
                 let (output_expr, output_type) = self.synth(output_expr);
@@ -365,7 +383,7 @@ impl<'arena> Context<'arena> {
                 )
             }
             surface::Term::FunElim(head_expr, input_expr) => {
-                let head_expr_range = head_expr.range();
+                let head_range = head_expr.range();
                 let (head_expr, head_type) = self.synth(head_expr);
 
                 // Ensure that the head type is a function type
@@ -393,10 +411,12 @@ impl<'arena> Context<'arena> {
                     // against it.
                     _ => {
                         // Create a function type between problem variables.
-                        let input_type = self.fresh_problem_value(None);
+                        let input_type =
+                            self.fresh_problem_value(ProblemSource::FunInputType(head_range, None));
 
                         self.push_assumption(None, input_type.clone());
-                        let output_type = self.fresh_problem_term(None);
+                        let output_type =
+                            self.fresh_problem_term(ProblemSource::FunOutputType(head_range));
                         self.pop_binding();
 
                         let output_type = Closure::new(
@@ -411,8 +431,7 @@ impl<'arena> Context<'arena> {
 
                         // Attempt to unify the type of the head expression with
                         // the function type.
-                        let head_expr =
-                            self.unify(head_expr_range, &head_type, &fun_type, || head_expr);
+                        let head_expr = self.unify(head_range, &head_type, &fun_type, || head_expr);
 
                         // Check the input expression and apply it to the output type
                         let input_expr = self.check(input_expr, &input_type);
@@ -429,10 +448,10 @@ impl<'arena> Context<'arena> {
                     }
                 }
             }
-            surface::Term::ReportedError(_) => {
-                let r#type = self.fresh_problem_term(None);
-                (core::Term::ReportedError, self.eval(&r#type))
-            }
+            surface::Term::ReportedError(range) => (
+                core::Term::ReportedError,
+                self.fresh_problem_value(ProblemSource::ReportedErrorType(*range)),
+            ),
         }
     }
 }
