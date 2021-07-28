@@ -12,7 +12,7 @@
 
 use std::sync::Arc;
 
-use crate::core::semantics::{self, Elim, ElimContext, EvalContext, Head, Value};
+use crate::core::semantics::{self, Closure, Elim, ElimContext, EvalContext, Head, Value};
 use crate::core::{Arena, Term};
 use crate::env::{EnvLen, GlobalVar, LocalVar, SharedEnv, SliceEnv, UniqueEnv};
 
@@ -112,56 +112,14 @@ impl<'arena, 'env> Context<'arena, 'env> {
                 Value::FunType(_, input_type1, output_type1),
             ) => {
                 self.unify(input_type0, input_type1)?;
-
-                let var = Arc::new(Value::bound_var(self.bindings.next_global()));
-                let output_type0 = self
-                    .elim_context()
-                    .closure_elim(output_type0, var.clone())?;
-                let output_type1 = self.elim_context().closure_elim(output_type1, var)?;
-
-                self.push_binding();
-                let result = self.unify(&output_type0, &output_type1);
-                self.pop_binding();
-
-                result
+                self.unify_closures(output_type0, output_type1)
             }
 
             (Value::FunIntro(_, output_expr0), Value::FunIntro(_, output_expr1)) => {
-                let var = Arc::new(Value::bound_var(self.bindings.next_global()));
-                let output_expr0 = self
-                    .elim_context()
-                    .closure_elim(output_expr0, var.clone())?;
-                let output_expr1 = self.elim_context().closure_elim(output_expr1, var)?;
-
-                self.push_binding();
-                let result = self.unify(&output_expr0, &output_expr1);
-                self.pop_binding();
-
-                result
+                self.unify_closures(output_expr0, output_expr1)
             }
-            // Eta-conversion
-            (Value::FunIntro(_, output_expr), _) => {
-                let var = Arc::new(Value::bound_var(self.bindings.next_global()));
-                let value0 = self.elim_context().closure_elim(output_expr, var.clone())?;
-                let value1 = self.elim_context().fun_elim(value1.clone(), var)?;
-
-                self.push_binding();
-                let result = self.unify(&value0, &value1);
-                self.pop_binding();
-
-                result
-            }
-            (_, Value::FunIntro(_, output_expr)) => {
-                let var = Arc::new(Value::bound_var(self.bindings.next_global()));
-                let value0 = self.elim_context().fun_elim(value0.clone(), var.clone())?;
-                let value1 = self.elim_context().closure_elim(output_expr, var)?;
-
-                self.push_binding();
-                let result = self.unify(&value0, &value1);
-                self.pop_binding();
-
-                result
-            }
+            (Value::FunIntro(_, output_expr), _) => self.unify_fun_intro(output_expr, &value1),
+            (_, Value::FunIntro(_, output_expr)) => self.unify_fun_intro(output_expr, &value0),
 
             // Rigid mismatch
             (_, _) => Err(Error::FailedToUnify),
@@ -181,6 +139,40 @@ impl<'arena, 'env> Context<'arena, 'env> {
             }
         }
         Ok(())
+    }
+
+    /// Unify two [closures][`Closure`].
+    fn unify_closures(
+        &mut self,
+        closure0: &Closure<'arena>,
+        closure1: &Closure<'arena>,
+    ) -> Result<()> {
+        let var = Arc::new(Value::bound_var(self.bindings.next_global()));
+        let value0 = self.elim_context().closure_elim(closure0, var.clone())?;
+        let value1 = self.elim_context().closure_elim(closure1, var)?;
+
+        self.push_binding();
+        let result = self.unify(&value0, &value1);
+        self.pop_binding();
+
+        result
+    }
+
+    /// Unify a closure with a value, using function eta-conversion.
+    fn unify_fun_intro(
+        &mut self,
+        output_expr: &Closure<'arena>,
+        value: &Arc<Value<'arena>>,
+    ) -> Result<()> {
+        let var = Arc::new(Value::bound_var(self.bindings.next_global()));
+        let output_expr = self.elim_context().closure_elim(output_expr, var.clone())?;
+        let value = self.elim_context().fun_elim(value.clone(), var)?;
+
+        self.push_binding();
+        let result = self.unify(&output_expr, &value);
+        self.pop_binding();
+
+        result
     }
 
     /// Solve the unification problem `?problem_var spine =? value`, updating
@@ -229,7 +221,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
         })
     }
 
-    /// Readback `value` to a [`Term`], while at the same time using the current
+    /// Rename `value` to a [`Term`], while at the same time using the current
     /// renaming to update local variables, failing if the partial renaming is
     /// not defined (resulting in an [scope error][`Error::ScopeError`]), and
     /// also checking for occurrences of the `problem_var` (resulting in an
@@ -273,34 +265,39 @@ impl<'arena, 'env> Context<'arena, 'env> {
             Value::Universe => Ok(Term::Universe),
             Value::FunType(input_name, input_type, output_type) => {
                 let input_type = self.rename(problem_var, input_type)?;
-
-                let source_var = self.renaming.push_binding();
-                let output_type = match self.elim_context().closure_elim(output_type, source_var) {
-                    Ok(output_type) => self.rename(problem_var, &output_type),
-                    Err(err) => Err(Error::from(err)),
-                };
-                self.renaming.pop_binding();
+                let output_type = self.rename_closure(problem_var, output_type)?;
 
                 Ok(Term::FunType(
                     *input_name,
                     self.arena.alloc_term(input_type),
-                    self.arena.alloc_term(output_type?),
+                    self.arena.alloc_term(output_type),
                 ))
             }
             Value::FunIntro(input_name, output_expr) => {
-                let source_var = self.renaming.push_binding();
-                let output_expr = match self.elim_context().closure_elim(output_expr, source_var) {
-                    Ok(output_expr) => self.rename(problem_var, &output_expr),
-                    Err(err) => Err(Error::from(err)),
-                };
-                self.renaming.pop_binding();
+                let output_expr = self.rename_closure(problem_var, output_expr)?;
 
                 Ok(Term::FunIntro(
                     *input_name,
-                    self.arena.alloc_term(output_expr?),
+                    self.arena.alloc_term(output_expr),
                 ))
             }
         }
+    }
+
+    /// Rename a closure back into [`Term`].
+    fn rename_closure(
+        &mut self,
+        problem_var: GlobalVar,
+        closure: &Closure<'arena>,
+    ) -> Result<Term<'arena>> {
+        let source_var = self.renaming.next_source_var();
+        let value = self.elim_context().closure_elim(closure, source_var)?;
+
+        self.renaming.push_binding();
+        let term = self.rename(problem_var, &value);
+        self.renaming.pop_binding();
+
+        term
     }
 }
 
@@ -349,16 +346,15 @@ impl PartialRenaming {
         is_unique
     }
 
-    /// Push an extra binding onto the renaming, returning a variable
-    /// that is appropriately bound in the source environment
-    fn push_binding<'arena>(&mut self) -> Arc<Value<'arena>> {
-        let target_var = self.target_bindings.next_global();
-        let source_var = self.source_bindings.len().next_global();
+    fn next_source_var<'arena>(&self) -> Arc<Value<'arena>> {
+        Arc::new(Value::bound_var(self.source_bindings.len().next_global()))
+    }
 
+    /// Push an extra binding onto the renaming
+    fn push_binding(&mut self) {
+        let target_var = self.target_bindings.next_global();
         self.target_bindings.push();
         self.source_bindings.push(Some(target_var));
-
-        Arc::new(Value::bound_var(source_var))
     }
 
     /// Pop a binding off the renaming
