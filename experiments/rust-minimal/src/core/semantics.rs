@@ -155,7 +155,7 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
             Term::FunElim(head_expr, input_expr) => {
                 let head_expr = self.eval(head_expr)?;
                 let input_expr = self.eval(input_expr)?;
-                self.elim_context().fun_elim(head_expr, input_expr)
+                self.elim_context().apply_fun(head_expr, input_expr)
             }
             Term::ReportedError => Ok(Arc::new(Value::reported_error())),
         }
@@ -171,7 +171,7 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
         for (mode, expr) in Iterator::zip(bindings.iter(), self.bindings.iter()) {
             head_expr = match mode {
                 BindingMode::Defined => head_expr,
-                BindingMode::Assumed => self.elim_context().fun_elim(head_expr, expr.clone())?,
+                BindingMode::Assumed => self.elim_context().apply_fun(head_expr, expr.clone())?,
             };
         }
         Ok(head_expr)
@@ -202,7 +202,7 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
                 match self.problems.get_global(*var) {
                     Some(Some(value)) => {
                         // Apply the spine to the updated head value.
-                        let value = self.spine_elim(value.clone(), spine)?;
+                        let value = self.apply_spine(value.clone(), spine)?;
                         // The result of the spine application might also have a
                         // solved unification problem at its head, so force that
                         // too while we're at it!
@@ -217,7 +217,7 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
     }
 
     /// Apply a closure to a value.
-    pub fn closure_elim(
+    pub fn apply_closure(
         &self,
         closure: &Closure<'arena>,
         value: Arc<Value<'arena>>,
@@ -229,14 +229,14 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
     /// [beta-reduction] if possible.
     ///
     /// [beta-reduction]: https://ncatlab.org/nlab/show/beta-reduction
-    pub fn fun_elim(
+    pub fn apply_fun(
         &self,
         mut head_expr: Arc<Value<'arena>>,
         input_expr: Arc<Value<'arena>>,
     ) -> Result<Arc<Value<'arena>>> {
         match Arc::make_mut(&mut head_expr) {
             // Beta-reduction
-            Value::FunIntro(_, output_expr) => self.closure_elim(output_expr, input_expr),
+            Value::FunIntro(_, output_expr) => self.apply_closure(output_expr, input_expr),
             // The computation is stuck, preventing further reduction
             Value::Stuck(_, spine) => {
                 spine.push(Elim::Fun(input_expr));
@@ -247,14 +247,14 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
     }
 
     /// Apply an expression to an elimination spine.
-    pub fn spine_elim(
+    pub fn apply_spine(
         &self,
         mut head_expr: Arc<Value<'arena>>,
         spine: &[Elim<'arena>],
     ) -> Result<Arc<Value<'arena>>> {
         for elim in spine {
             head_expr = match elim {
-                Elim::Fun(input_expr) => self.fun_elim(head_expr, input_expr.clone())?,
+                Elim::Fun(input_expr) => self.apply_fun(head_expr, input_expr.clone())?,
             };
         }
         Ok(head_expr)
@@ -345,7 +345,7 @@ impl<'in_arena, 'out_arena, 'env> ReadbackContext<'in_arena, 'out_arena, 'env> {
     /// Read a [closure][`Closure`] back into a [term][`Term`].
     fn readback_closure(&mut self, closure: &Closure<'in_arena>) -> Result<Term<'out_arena>> {
         let var = Arc::new(Value::bound_var(self.bindings.next_global()));
-        let value = self.elim_context().closure_elim(closure, var)?;
+        let value = self.elim_context().apply_closure(closure, var)?;
 
         self.push_binding();
         let term = self.readback(&value);
@@ -439,8 +439,8 @@ impl<'arena, 'env> ConversionContext<'arena, 'env> {
         closure1: &Closure<'_>,
     ) -> Result<bool> {
         let var = Arc::new(Value::bound_var(self.bindings.next_global()));
-        let value0 = self.elim_context().closure_elim(closure0, var.clone())?;
-        let value1 = self.elim_context().closure_elim(closure1, var)?;
+        let value0 = self.elim_context().apply_closure(closure0, var.clone())?;
+        let value1 = self.elim_context().apply_closure(closure1, var)?;
 
         self.push_binding();
         let result = self.is_equal(&value0, &value1);
@@ -456,8 +456,8 @@ impl<'arena, 'env> ConversionContext<'arena, 'env> {
         value: &Arc<Value<'_>>,
     ) -> Result<bool> {
         let var = Arc::new(Value::bound_var(self.bindings.next_global()));
-        let output_expr = self.elim_context().closure_elim(output_expr, var.clone())?;
-        let value = self.elim_context().fun_elim(value.clone(), var)?;
+        let value = self.elim_context().apply_fun(value.clone(), var.clone())?;
+        let output_expr = self.elim_context().apply_closure(output_expr, var)?;
 
         self.push_binding();
         let result = self.is_equal(&output_expr, &value);

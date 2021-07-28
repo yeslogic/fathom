@@ -153,8 +153,8 @@ impl<'arena, 'env> Context<'arena, 'env> {
         closure1: &Closure<'arena>,
     ) -> Result<()> {
         let var = Arc::new(Value::bound_var(self.bindings.next_global()));
-        let value0 = self.elim_context().closure_elim(closure0, var.clone())?;
-        let value1 = self.elim_context().closure_elim(closure1, var)?;
+        let value0 = self.elim_context().apply_closure(closure0, var.clone())?;
+        let value1 = self.elim_context().apply_closure(closure1, var)?;
 
         self.push_binding();
         let result = self.unify(&value0, &value1);
@@ -170,8 +170,8 @@ impl<'arena, 'env> Context<'arena, 'env> {
         value: &Arc<Value<'arena>>,
     ) -> Result<()> {
         let var = Arc::new(Value::bound_var(self.bindings.next_global()));
-        let output_expr = self.elim_context().closure_elim(output_expr, var.clone())?;
-        let value = self.elim_context().fun_elim(value.clone(), var)?;
+        let value = self.elim_context().apply_fun(value.clone(), var.clone())?;
+        let output_expr = self.elim_context().apply_closure(output_expr, var)?;
 
         self.push_binding();
         let result = self.unify(&output_expr, &value);
@@ -296,7 +296,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
         closure: &Closure<'arena>,
     ) -> Result<Term<'arena>> {
         let source_var = self.renaming.next_source_var();
-        let value = self.elim_context().closure_elim(closure, source_var)?;
+        let value = self.elim_context().apply_closure(closure, source_var)?;
 
         self.renaming.push_binding();
         let term = self.rename(problem_var, &value);
