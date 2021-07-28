@@ -53,7 +53,13 @@ LetTerm: Term<'arena> = {
 
 FunTerm: Term<'arena> = {
     AppTerm,
-    <start: @L> "fun" "(" <input_name: RangedName> ":" <input_type: Term> ")" "->"  <output_type: LetTerm> => {
+    <start: @L> <input_type: AppTerm> "->"  <output_type: FunTerm> => {
+        Term::FunArrow(
+            arena.alloc_term(input_type),
+            arena.alloc_term(output_type),
+        )
+    },
+    <start: @L> "fun" "(" <input_name: RangedName> ":" <input_type: Term> ")" "->"  <output_type: FunTerm> => {
         Term::FunType(
             start,
             input_name,
@@ -61,7 +67,7 @@ FunTerm: Term<'arena> = {
             arena.alloc_term(output_type),
         )
     },
-    <start: @L> "fun" <input_name: RangedName> "=>" <output_type: LetTerm> => {
+    <start: @L> "fun" <input_name: RangedName> "=>" <output_type: FunTerm> => {
         Term::FunIntro(
             start,
             input_name,

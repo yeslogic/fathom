@@ -1,7 +1,7 @@
 //! Bidirectional distillation of the core language into the surface language.
 
 use crate::env::{self, LocalVar, UniqueEnv};
-use crate::{core, surface, BytePos, ByteRange, StringId};
+use crate::{core, surface, BytePos, ByteRange, StringId, StringInterner};
 
 const PLACEHOLDER_POS: BytePos = 0;
 const PLACEHOLDER_RANGE: ByteRange = ByteRange::new(PLACEHOLDER_POS, PLACEHOLDER_POS);
@@ -12,14 +12,22 @@ pub struct Context<'arena> {
     arena: &'arena surface::Arena<'arena>,
     /// Name environment.
     names: UniqueEnv<StringId>,
+
+    placeholder_string: StringId,
 }
 
 impl<'arena> Context<'arena> {
     /// Construct a new distillation context.
-    pub fn new(arena: &'arena surface::Arena<'arena>) -> Context<'arena> {
+    pub fn new(
+        interner: &mut StringInterner,
+        arena: &'arena surface::Arena<'arena>,
+    ) -> Context<'arena> {
+        let placeholder_string = interner.get_or_intern("_");
+
         Context {
             arena,
             names: UniqueEnv::new(),
+            placeholder_string,
         }
     }
 
@@ -27,7 +35,8 @@ impl<'arena> Context<'arena> {
         self.names.get_local(var).copied()
     }
 
-    fn push_binding(&mut self, name: StringId) -> StringId {
+    fn push_binding(&mut self, name: Option<StringId>) -> StringId {
+        let name = name.unwrap_or(self.placeholder_string); // TODO: choose a better name
         self.names.push(name); // TODO: ensure we chose a correctly bound name
         name
     }
@@ -49,7 +58,7 @@ impl<'arena> Context<'arena> {
                     expr => (self.arena.alloc_term(expr) as &_, None),
                 };
 
-                let def_name = self.push_binding(*def_name);
+                let def_name = self.push_binding(Some(*def_name));
                 let output_expr = self.check(output_expr);
                 self.pop_binding();
 
@@ -62,7 +71,7 @@ impl<'arena> Context<'arena> {
                 )
             }
             core::Term::FunIntro(input_name, output_expr) => {
-                let input_name = self.push_binding(input_name.unwrap()); // TODO: Unwrap
+                let input_name = self.push_binding(*input_name);
                 let output_expr = self.check(output_expr);
                 self.pop_binding();
 
@@ -118,7 +127,7 @@ impl<'arena> Context<'arena> {
                     expr => (self.arena.alloc_term(expr) as &_, None),
                 };
 
-                let def_name = self.push_binding(*def_name);
+                let def_name = self.push_binding(Some(*def_name));
                 let output_expr = self.synth(output_expr);
                 self.pop_binding();
 
@@ -134,10 +143,11 @@ impl<'arena> Context<'arena> {
             core::Term::FunType(input_name, input_type, output_type) => {
                 let input_type = self.check(input_type);
 
-                let input_name = self.push_binding(input_name.unwrap()); // TODO: Unwrap
+                let input_name = self.push_binding(*input_name);
                 let output_type = self.check(output_type);
                 self.pop_binding();
 
+                // TODO: distill to arrow if `input_name` is not bound in `output_type`
                 surface::Term::FunType(
                     PLACEHOLDER_POS,
                     (PLACEHOLDER_RANGE, input_name),
@@ -146,7 +156,7 @@ impl<'arena> Context<'arena> {
                 )
             }
             core::Term::FunIntro(input_name, output_expr) => {
-                let input_name = self.push_binding(input_name.unwrap()); // TODO: Unwrap
+                let input_name = self.push_binding(*input_name);
                 let output_expr = self.synth(output_expr);
                 self.pop_binding();
 

@@ -12,8 +12,9 @@ _surface.let-term_ ::=\
 
 _surface.fun-term_ ::=\
 &emsp;| _surface.app-term_\
-&emsp;| `fun` `(` _name_ `:` _surface.term_ `)` `->` _surface.let-term_\
-&emsp;| `fun` _name_ `=>` _surface.let-term_
+&emsp;| _surface.app-term_ "->" _surface.fun-term_
+&emsp;| `fun` `(` _name_ `:` _surface.term_ `)` `->` _surface.fun-term_\
+&emsp;| `fun` _name_ `=>` _surface.fun-term_
 
 _surface.app-term_ ::=\
 &emsp;| _surface.atomic-term_\

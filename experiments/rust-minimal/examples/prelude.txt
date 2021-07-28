@@ -1,25 +1,25 @@
 // Combinators
 
-let id : fun (A : ?) -> fun (a : A) -> A
+let id : fun (A : ?) -> A -> A
   = fun A => fun a => a;
 
-let always : fun (A : ?) -> fun (B : ?) -> fun (a : A) -> fun (b : B) -> A
+let always : fun (A : ?) -> fun (B : ?) -> A -> B -> A
   = fun A => fun B => fun a => fun B => a;
 
 
 // Lists
 
-let List : fun (Elem : Type) -> Type
+let List : Type -> Type
   = fun Elem =>
-    fun (List : Type) ->
-    fun (cons : fun (head : Elem) -> fun (tail : List) -> List) ->
-    fun (nil : List) ->
-      List;
+      fun (List : ?) ->
+      fun (cons : Elem -> List -> List) ->
+      fun (nil : List) ->
+        List;
 
 let nil : fun (Elem : ?) -> List Elem
   = fun Elem => fun List => fun cons => fun nil => nil;
 
-let cons : fun (Elem : ?) -> fun (head : Elem) -> fun (tail : List Elem) -> List Elem
+let cons : fun (Elem : ?) -> Elem -> List Elem -> List Elem
   = fun Elem => fun head => fun tail => fun List => fun cons => fun nil =>
       cons head (tail ? cons nil);
 
@@ -28,9 +28,9 @@ let cons : fun (Elem : ?) -> fun (head : Elem) -> fun (tail : List Elem) -> List
 
 let Bool : Type
   = fun (Bool : ?) ->
-    fun (true : Bool) ->
-    fun (false : Bool) ->
-      Bool;
+      fun (true : Bool) ->
+      fun (false : Bool) ->
+        Bool;
 
 let true : Bool
   = fun Bool => fun true => fun false => true;
@@ -38,21 +38,21 @@ let true : Bool
 let false : Bool
   = fun Bool => fun true => fun false => false;
 
-let not : fun (bool : Bool) -> Bool
+let not : Bool -> Bool
   = fun bool => fun Bool => fun true => fun false =>
       bool Bool false true;
 
 
 // Leibniz equality
 
-let Eq : fun (A : ?) -> fun (a0 : A) -> fun (a1 : A) -> Type
+let Eq : fun (A : ?) -> A -> A -> Type
   = fun A => fun a0 => fun a1 =>
       fun (P : fun (a : A) -> Type) -> fun (p : P a0) -> P a1;
 
 let refl : fun (A : ?) -> fun (a : A) -> Eq A a a
   = fun A => fun a => fun P => fun pa => pa;
 
-let sym : fun (A : ?) -> fun (a0 : A) -> fun (a1 : A) -> fun (p : Eq ? a0 a1) -> Eq ? a1 a0
+let sym : fun (A : ?) -> fun (a0 : A) -> fun (a1 : A) -> Eq ? a0 a1 -> Eq ? a1 a0
   = fun A => fun a0 => fun a1 => fun p =>
       p (fun a1 => Eq ? a1 a0) (refl ? ?);
 
@@ -61,14 +61,15 @@ let sym : fun (A : ?) -> fun (a0 : A) -> fun (a1 : A) -> fun (p : Eq ? a0 a1) ->
 
 let Nat : Type
   = fun (Nat : ?) ->
-    fun (succ : fun (nat : Nat) -> Nat) ->
-    fun (zero : Nat) -> Nat;
+      fun (succ : Nat -> Nat) ->
+      fun (zero : Nat) ->
+        Nat;
 
-let add : fun (n0 : Nat) -> fun (n1 : Nat) -> Nat
+let add : Nat -> Nat -> Nat
   = fun n0 => fun n1 => fun Nat => fun succ => fun zero =>
       n0 Nat succ (n1 Nat succ zero);
 
-let mul : fun (n0 : Nat) -> fun (n1 : Nat) -> Nat
+let mul : Nat -> Nat -> Nat
   = fun n0 => fun n1 => fun Nat => fun succ => fun zero =>
       n0 Nat (n1 Nat succ) zero;
 
