@@ -30,6 +30,8 @@ impl From<semantics::Error> for Error {
     }
 }
 
+pub type Result<T> = std::result::Result<T, Error>;
+
 /// Unification context.
 pub struct Context<'arena, 'env> {
     /// Arena to store terms during [renaming][`Context::rename`].
@@ -76,7 +78,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
         &mut self,
         value0: &Arc<Value<'arena>>,
         value1: &Arc<Value<'arena>>,
-    ) -> Result<(), Error> {
+    ) -> Result<()> {
         let value0 = self.elim_context().force(value0)?;
         let value1 = self.elim_context().force(value1)?;
 
@@ -167,11 +169,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
     }
 
     /// Unify two elimination spines.
-    fn unify_spines(
-        &mut self,
-        spine0: &[Elim<'arena>],
-        spine1: &[Elim<'arena>],
-    ) -> Result<(), Error> {
+    fn unify_spines(&mut self, spine0: &[Elim<'arena>], spine1: &[Elim<'arena>]) -> Result<()> {
         if spine0.len() != spine1.len() {
             return Err(Error::FailedToUnify); // Rigid mismatch
         }
@@ -192,7 +190,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
         problem_var: GlobalVar,
         spine: &[Elim<'arena>],
         value: &Arc<Value<'arena>>,
-    ) -> Result<(), Error> {
+    ) -> Result<()> {
         self.init_renaming(spine)?;
         let term = self.rename(problem_var, value)?;
         let fun_term = self.fun_intros(spine, term);
@@ -206,7 +204,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
     /// Re-initialise the [`Context::renaming`] by mapping the bound variables
     /// in the spine to the bound variables in the solution. This can fail if
     /// the spine does not contain distinct bound variables.
-    fn init_renaming(&mut self, spine: &[Elim<'arena>]) -> Result<(), Error> {
+    fn init_renaming(&mut self, spine: &[Elim<'arena>]) -> Result<()> {
         self.renaming.init(self.bindings);
 
         for elim in spine {
@@ -243,7 +241,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
         &mut self,
         problem_var: GlobalVar,
         value: &Arc<Value<'arena>>,
-    ) -> Result<Term<'arena>, Error> {
+    ) -> Result<Term<'arena>> {
         match self.elim_context().force(value)?.as_ref() {
             Value::Stuck(head, spine) => {
                 let mut head_expr = match head {
