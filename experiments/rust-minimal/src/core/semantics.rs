@@ -102,6 +102,10 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
         ElimContext::new(self.problems)
     }
 
+    fn close_term(&self, term: &'arena Term<'arena>) -> Closure<'arena> {
+        Closure::new(self.bindings.clone(), term)
+    }
+
     /// Fully normalise a term by first [evaluating][`EvalContext::eval] it into
     /// a [value][`Value`], then [reading it back][`ReadbackContext::redback`]
     /// into a [term][`Term`].
@@ -138,19 +142,15 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
                 output_expr
             }
             Term::Universe => Ok(Arc::new(Value::Universe)),
-            Term::FunType(input_name, input_type, output_type) => {
-                let input_type = self.eval(input_type)?;
-                let output_type = Closure::new(self.bindings.clone(), output_type);
-                Ok(Arc::new(Value::FunType(
-                    *input_name,
-                    input_type,
-                    output_type,
-                )))
-            }
-            Term::FunIntro(input_name, output_expr) => {
-                let output_expr = Closure::new(self.bindings.clone(), output_expr);
-                Ok(Arc::new(Value::FunIntro(*input_name, output_expr)))
-            }
+            Term::FunType(input_name, input_type, output_type) => Ok(Arc::new(Value::FunType(
+                *input_name,
+                self.eval(input_type)?,
+                self.close_term(output_type),
+            ))),
+            Term::FunIntro(input_name, output_expr) => Ok(Arc::new(Value::FunIntro(
+                *input_name,
+                self.close_term(output_expr),
+            ))),
             Term::FunElim(head_expr, input_expr) => {
                 let head_expr = self.eval(head_expr)?;
                 let input_expr = self.eval(input_expr)?;
