@@ -29,6 +29,7 @@
 //   - [x] source location tracking
 //   - [x] string interning
 //   - [x] arena allocation
+//   - [ ] value interning (for commonly used values)
 //   - [x] normalisation-by-evaluation
 //   - [x] elaborator
 //     - [x] error recovery
