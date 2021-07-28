@@ -79,6 +79,11 @@ impl<'arena, 'env> Context<'arena, 'env> {
         value0: &Arc<Value<'arena>>,
         value1: &Arc<Value<'arena>>,
     ) -> Result<()> {
+        // Check for pointer equality before trying to force the values
+        if Arc::ptr_eq(value0, value1) {
+            return Ok(());
+        }
+
         let value0 = self.elim_context().force(value0)?;
         let value1 = self.elim_context().force(value1)?;
 
