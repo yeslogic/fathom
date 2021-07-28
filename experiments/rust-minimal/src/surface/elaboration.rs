@@ -232,6 +232,10 @@ impl<'arena> Context<'arena> {
             .unwrap_or_else(|error| self.report_term(error))
     }
 
+    fn close_term(&self, term: core::Term<'arena>) -> Closure<'arena> {
+        Closure::new(self.binding_exprs.clone(), self.arena.alloc_term(term))
+    }
+
     fn apply_closure(
         &mut self,
         closure: &Closure<'arena>,
@@ -414,10 +418,7 @@ impl<'arena> Context<'arena> {
                 let output_type = self.readback(self.arena, &output_type);
                 self.pop_binding();
 
-                let output_type = Closure::new(
-                    self.binding_exprs.clone(),
-                    self.arena.alloc_term(output_type),
-                );
+                let output_type = self.close_term(output_type);
 
                 (
                     core::Term::FunIntro(input_name, self.arena.alloc_term(output_expr)),
@@ -461,10 +462,7 @@ impl<'arena> Context<'arena> {
                             self.fresh_problem_term(head_range, ProblemSource::FunOutputType);
                         self.pop_binding();
 
-                        let output_type = Closure::new(
-                            self.binding_exprs.clone(),
-                            self.arena.alloc_term(output_type),
-                        );
+                        let output_type = self.close_term(output_type);
                         let fun_type = Arc::new(Value::FunType(
                             None,
                             input_type.clone(),
