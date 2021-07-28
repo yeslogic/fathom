@@ -242,7 +242,7 @@ impl<'arena> Context<'arena> {
         input_expr: Arc<Value<'arena>>,
     ) -> Arc<Value<'arena>> {
         ElimContext::new(&self.problem_exprs)
-            .closure_elim(closure, input_expr)
+            .apply_closure(closure, input_expr)
             .unwrap_or_else(|error| self.report_value(error))
     }
 
