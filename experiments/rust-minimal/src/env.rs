@@ -159,19 +159,17 @@ impl<Entry> std::ops::Deref for UniqueEnv<Entry> {
     type Target = SliceEnv<Entry>;
 
     fn deref(&self) -> &SliceEnv<Entry> {
-        // SAFTEY:
-        // - `SliceEnv<Entry>` and `[Entry]` have the same in-memory,
-        //   so the `transmute` should be safe.
-        unsafe { std::mem::transmute(&self.entries[..]) }
+        // SAFETY:
+        // - `SliceEnv<Entry>` is equivalent to a `[Entry]` internally
+        unsafe { std::mem::transmute::<&[_], &SliceEnv<_>>(&self.entries[..]) }
     }
 }
 
 impl<Entry> std::ops::DerefMut for UniqueEnv<Entry> {
     fn deref_mut(&mut self) -> &mut SliceEnv<Entry> {
-        // SAFTEY:
-        // - `SliceEnv<Entry>` and `[Entry]` have the same in-memory,
-        //   so the `transmute` should be safe.
-        unsafe { std::mem::transmute(&mut self.entries[..]) }
+        // SAFETY:
+        // - `SliceEnv<Entry>` is equivalent to a `[Entry]` internally
+        unsafe { std::mem::transmute::<&mut [_], &mut SliceEnv<_>>(&mut self.entries[..]) }
     }
 }
 
