@@ -29,6 +29,7 @@ pub enum Term<'arena> {
         &'arena Term<'arena>,
     ),
     Universe(ByteRange),
+    FunArrow(&'arena Term<'arena>, &'arena Term<'arena>),
     FunType(
         BytePos,
         (ByteRange, StringId),
@@ -65,6 +66,7 @@ impl<'arena> Term<'arena> {
             Term::Ann(expr, _) => expr.start(),
             Term::Let(start, _, _, _, _) => *start,
             Term::Universe(range) => range.start(),
+            Term::FunArrow(input_type, _) => input_type.start(),
             Term::FunType(start, _, _, _) => *start,
             Term::FunIntro(start, _, _) => *start,
             Term::FunElim(head_expr, _) => head_expr.start(),
@@ -79,6 +81,7 @@ impl<'arena> Term<'arena> {
             Term::Ann(expr, _) => expr.end(),
             Term::Let(_, _, _, _, output_expr) => output_expr.end(),
             Term::Universe(range) => range.end(),
+            Term::FunArrow(_, output_type) => output_type.end(),
             Term::FunType(_, _, _, output_type) => output_type.end(),
             Term::FunIntro(_, _, output_expr) => output_expr.end(),
             Term::FunElim(_, input_expr) => input_expr.end(),

@@ -85,7 +85,8 @@ fn main() {
             let r#type = context.readback(&core_arena, &r#type);
 
             if check_elaboration_messages(&mut context) {
-                let mut context = surface::distillation::Context::new(&surface_arena);
+                let mut context =
+                    surface::distillation::Context::new(&mut interner, &surface_arena);
                 let term = context.check(&term);
                 let r#type = context.synth(&r#type);
 
@@ -105,7 +106,8 @@ fn main() {
             let r#type = context.readback(&core_arena, &r#type);
 
             if check_elaboration_messages(&mut context) {
-                let mut context = surface::distillation::Context::new(&surface_arena);
+                let mut context =
+                    surface::distillation::Context::new(&mut interner, &surface_arena);
                 let term = context.check(&term);
                 let r#type = context.synth(&r#type);
 
@@ -124,7 +126,8 @@ fn main() {
             let r#type = context.readback(&core_arena, &r#type);
 
             if check_elaboration_messages(&mut context) {
-                let mut context = surface::distillation::Context::new(&surface_arena);
+                let mut context =
+                    surface::distillation::Context::new(&mut interner, &surface_arena);
                 let r#type = context.synth(&r#type);
 
                 let context = surface::pretty::Context::new(&interner, &pretty_arena);

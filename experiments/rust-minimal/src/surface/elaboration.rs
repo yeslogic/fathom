@@ -392,6 +392,22 @@ impl<'arena> Context<'arena> {
                 (let_expr, output_type)
             }
             surface::Term::Universe(_) => (core::Term::Universe, Arc::new(Value::Universe)),
+            surface::Term::FunArrow(input_type, output_type) => {
+                let input_type = self.check(input_type, &Arc::new(Value::Universe)); // FIXME: avoid temporary Arc
+                let input_type_value = self.eval(&input_type);
+
+                self.push_assumption(None, input_type_value);
+                let output_type = self.check(output_type, &Arc::new(Value::Universe)); // FIXME: avoid temporary Arc
+                self.pop_binding();
+
+                let fun_type = core::Term::FunType(
+                    None,
+                    self.arena.alloc_term(input_type),
+                    self.arena.alloc_term(output_type),
+                );
+
+                (fun_type, Arc::new(Value::Universe))
+            }
             surface::Term::FunType(_, (_, input_name), input_type, output_type) => {
                 let input_type = self.check(input_type, &Arc::new(Value::Universe)); // FIXME: avoid temporary Arc
                 let input_type_value = self.eval(&input_type);

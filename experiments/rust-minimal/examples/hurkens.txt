@@ -11,31 +11,31 @@ let False : Type
   = fun (A : Type) -> A;
 
 let Not : fun (A : Type) -> Type
-  = fun A => fun (a : A) -> False;
+  = fun A => A -> False;
 
 let P : fun (A : Type) -> Type
-  = fun A => fun (a : A) -> Type;
+  = fun A => A -> Type;
 
 let U : Type
-  = fun (X : Type) -> fun (_ : fun (_ : P (P X)) -> X) -> P (P X);
+  = fun (X : Type) -> (P (P X) -> X) -> P (P X);
 
-let tau : fun (_ : P (P U)) -> U
+let tau : P (P U) -> U
   = fun t => fun X => fun f => fun p =>
       t (fun x => p (f (x X f)));
 
-let sigma : fun (u : U) -> P (P U)
+let sigma : U -> P (P U)
   = fun s => s U (fun t => tau t);
 
 let Delta : P U
-  = fun y => Not (fun (p : P U) -> fun (_ : sigma y p) -> p (tau (sigma y)));
+  = fun y => Not (fun (p : P U) -> sigma y p -> p (tau (sigma y)));
 
 let Omega : U
-  = tau (fun p => fun (x : U) -> fun (_ : sigma x p) -> p x);
+  = tau (fun p => fun (x : U) -> sigma x p -> p x);
 
 let D : Type
-  = fun (p : P U) -> fun (_ : sigma Omega p) -> p (tau (sigma Omega));
+  = fun (p : P U) -> sigma Omega p -> p (tau (sigma Omega));
 
-let lemma1 : fun (p : P U) -> fun (_ : fun (x : U) -> fun (_ : sigma x p) -> p x) -> p Omega
+let lemma1 : fun (p : P U) -> (fun (x : U) -> sigma x p -> p x) -> p Omega
   = fun p => fun H1 => H1 Omega (fun x => H1 (tau (sigma x)));
 
 let lemma2 : Not D

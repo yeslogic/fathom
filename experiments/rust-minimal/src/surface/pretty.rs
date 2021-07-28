@@ -118,7 +118,17 @@ where
                     ])
                     .group(),
                     self.softline(),
-                    self.term_prec(Prec::Let, output_type),
+                    self.term_prec(Prec::Fun, output_type),
+                ]),
+            ),
+            Term::FunArrow(input_type, output_type) => self.paren(
+                prec > Prec::Fun,
+                self.concat([
+                    self.term_prec(Prec::App, input_type),
+                    self.softline(),
+                    self.text("->"),
+                    self.softline(),
+                    self.term_prec(Prec::Fun, output_type),
                 ]),
             ),
             Term::FunIntro(_, (_, input_name), output_expr) => self.paren(
@@ -133,7 +143,7 @@ where
                     ])
                     .group(),
                     self.space(),
-                    self.term_prec(Prec::Let, output_expr),
+                    self.term_prec(Prec::Fun, output_expr),
                 ]),
             ),
             Term::FunElim(head_expr, input_expr) => self.paren(
