@@ -99,7 +99,6 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
         EvalContext { bindings, problems }
     }
 
-    /// Convert to an elimination context.
     fn elim_context(&self) -> ElimContext<'arena, 'env> {
         ElimContext::new(self.problems)
     }
@@ -282,26 +281,25 @@ impl<'in_arena, 'out_arena, 'env> ReadbackContext<'in_arena, 'out_arena, 'env> {
         }
     }
 
-    /// Convert to an elimination context.
     fn elim_context(&self) -> ElimContext<'in_arena, 'env> {
         ElimContext::new(self.problems)
     }
 
-    /// Add a binding to the context.
-    fn add_binding(&self) -> ReadbackContext<'in_arena, 'out_arena, 'env> {
-        ReadbackContext {
-            bindings: self.bindings.add_entry(),
-            ..*self
-        }
+    fn push_binding(&mut self) {
+        self.bindings.push();
+    }
+
+    fn pop_binding(&mut self) {
+        self.bindings.pop();
     }
 
     /// Read a [value][`Value`] back into a [term][`Term`].
-    pub fn readback(&self, value: &Arc<Value<'in_arena>>) -> Result<Term<'out_arena>> {
+    pub fn readback(&mut self, value: &Arc<Value<'in_arena>>) -> Result<Term<'out_arena>> {
         match self.elim_context().force(value)?.as_ref() {
             Value::Stuck(head, spine) => {
                 let mut head_expr = match head {
-                    // FIXME: Unwrap
                     Head::BoundVar(var) => {
+                        // FIXME: Unwrap
                         Term::BoundVar(self.bindings.global_to_local(*var).unwrap())
                     }
                     Head::ProblemVar(var) => Term::ProblemVar(*var),
@@ -325,9 +323,7 @@ impl<'in_arena, 'out_arena, 'env> ReadbackContext<'in_arena, 'out_arena, 'env> {
             Value::Universe => Ok(Term::Universe),
             Value::FunType(input_name, input_type, output_type) => {
                 let input_type = self.readback(input_type)?;
-                let var = Arc::new(Value::bound_var(self.bindings.next_global()));
-                let output_type = self.elim_context().closure_elim(output_type, var)?;
-                let output_type = self.add_binding().readback(&output_type)?;
+                let output_type = self.readback_closure(output_type)?;
 
                 Ok(Term::FunType(
                     *input_name,
@@ -336,9 +332,7 @@ impl<'in_arena, 'out_arena, 'env> ReadbackContext<'in_arena, 'out_arena, 'env> {
                 ))
             }
             Value::FunIntro(input_name, output_expr) => {
-                let var = Arc::new(Value::bound_var(self.bindings.next_global()));
-                let output_expr = self.elim_context().closure_elim(output_expr, var)?;
-                let output_expr = self.add_binding().readback(&output_expr)?;
+                let output_expr = self.readback_closure(output_expr)?;
 
                 Ok(Term::FunIntro(
                     *input_name,
@@ -346,6 +340,18 @@ impl<'in_arena, 'out_arena, 'env> ReadbackContext<'in_arena, 'out_arena, 'env> {
                 ))
             }
         }
+    }
+
+    /// Read a [closure][`Closure`] back into a [term][`Term`].
+    fn readback_closure(&mut self, closure: &Closure<'in_arena>) -> Result<Term<'out_arena>> {
+        let var = Arc::new(Value::bound_var(self.bindings.next_global()));
+        let value = self.elim_context().closure_elim(closure, var)?;
+
+        self.push_binding();
+        let term = self.readback(&value);
+        self.pop_binding();
+
+        term
     }
 }
 
@@ -363,17 +369,16 @@ impl<'arena, 'env> ConversionContext<'arena, 'env> {
         ConversionContext { bindings, problems }
     }
 
-    /// Convert to an elimination context.
     fn elim_context(&self) -> ElimContext<'arena, 'env> {
         ElimContext::new(self.problems)
     }
 
-    /// Add a binding to the context.
-    fn add_binding(&self) -> ConversionContext<'arena, 'env> {
-        ConversionContext {
-            bindings: self.bindings.add_entry(),
-            ..*self
-        }
+    fn push_binding(&mut self) {
+        self.bindings.push();
+    }
+
+    fn pop_binding(&mut self) {
+        self.bindings.pop();
     }
 
     /// Check that one value is [computationally equal] to another value.
@@ -385,7 +390,7 @@ impl<'arena, 'env> ConversionContext<'arena, 'env> {
     ///
     /// [computationally equal]: https://ncatlab.org/nlab/show/equality#computational_equality
     /// [eta-conversion]: https://ncatlab.org/nlab/show/eta-conversion
-    pub fn is_equal(&self, value0: &Arc<Value<'_>>, value1: &Arc<Value<'_>>) -> Result<bool> {
+    pub fn is_equal(&mut self, value0: &Arc<Value<'_>>, value1: &Arc<Value<'_>>) -> Result<bool> {
         let value0 = self.elim_context().force(value0)?;
         let value1 = self.elim_context().force(value1)?;
 
@@ -414,42 +419,50 @@ impl<'arena, 'env> ConversionContext<'arena, 'env> {
             (
                 Value::FunType(_, input_type0, output_type0),
                 Value::FunType(_, input_type1, output_type1),
-            ) => Ok(self.is_equal(input_type0, input_type1)? && {
-                let var = Arc::new(Value::bound_var(self.bindings.next_global()));
-                let output_type0 = self
-                    .elim_context()
-                    .closure_elim(output_type0, var.clone())?;
-                let output_type1 = self.elim_context().closure_elim(output_type1, var)?;
-
-                self.add_binding().is_equal(&output_type0, &output_type1)?
-            }),
+            ) => Ok(self.is_equal(input_type0, input_type1)?
+                && self.is_equal_closures(output_type0, output_type1)?),
 
             (Value::FunIntro(_, output_expr0), Value::FunIntro(_, output_expr1)) => {
-                let var = Arc::new(Value::bound_var(self.bindings.next_global()));
-                let output_expr0 = self
-                    .elim_context()
-                    .closure_elim(output_expr0, var.clone())?;
-                let output_expr1 = self.elim_context().closure_elim(output_expr1, var)?;
-
-                self.add_binding().is_equal(&output_expr0, &output_expr1)
+                self.is_equal_closures(output_expr0, output_expr1)
             }
-            // Eta-conversion
-            (Value::FunIntro(_, output_expr), _) => {
-                let var = Arc::new(Value::bound_var(self.bindings.next_global()));
-                let value0 = self.elim_context().closure_elim(output_expr, var.clone())?;
-                let value1 = self.elim_context().fun_elim(value1.clone(), var)?;
-
-                self.add_binding().is_equal(&value0, &value1)
-            }
-            (_, Value::FunIntro(_, output_expr)) => {
-                let var = Arc::new(Value::bound_var(self.bindings.next_global()));
-                let value0 = self.elim_context().fun_elim(value0.clone(), var.clone())?;
-                let value1 = self.elim_context().closure_elim(output_expr, var)?;
-
-                self.add_binding().is_equal(&value0, &value1)
-            }
+            (Value::FunIntro(_, output_expr), _) => self.is_equal_fun_intro(output_expr, &value1),
+            (_, Value::FunIntro(_, output_expr)) => self.is_equal_fun_intro(output_expr, &value0),
 
             (_, _) => Ok(false),
         }
+    }
+
+    /// Check that two [closures][`Closure`] are equal.
+    pub fn is_equal_closures(
+        &mut self,
+        closure0: &Closure<'_>,
+        closure1: &Closure<'_>,
+    ) -> Result<bool> {
+        let var = Arc::new(Value::bound_var(self.bindings.next_global()));
+        let value0 = self.elim_context().closure_elim(closure0, var.clone())?;
+        let value1 = self.elim_context().closure_elim(closure1, var)?;
+
+        self.push_binding();
+        let result = self.is_equal(&value0, &value1);
+        self.pop_binding();
+
+        result
+    }
+
+    /// Check that a closure is equal to a value, using function eta-conversion.
+    fn is_equal_fun_intro(
+        &mut self,
+        output_expr: &Closure<'_>,
+        value: &Arc<Value<'_>>,
+    ) -> Result<bool> {
+        let var = Arc::new(Value::bound_var(self.bindings.next_global()));
+        let output_expr = self.elim_context().closure_elim(output_expr, var.clone())?;
+        let value = self.elim_context().fun_elim(value.clone(), var)?;
+
+        self.push_binding();
+        let result = self.is_equal(&output_expr, &value);
+        self.pop_binding();
+
+        result
     }
 }

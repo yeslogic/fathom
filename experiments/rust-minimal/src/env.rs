@@ -107,10 +107,6 @@ impl EnvLen {
         GlobalVar(self.0)
     }
 
-    pub fn add_entry(self) -> EnvLen {
-        EnvLen(self.0 + 1) // FIXME: check overflow?
-    }
-
     pub fn push(&mut self) {
         self.0 += 1; // FIXME: check overflow?
     }
