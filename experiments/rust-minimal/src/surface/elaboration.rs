@@ -250,7 +250,7 @@ impl<'arena> Context<'arena> {
         &mut self,
         value0: &Arc<Value<'arena>>,
         value1: &Arc<Value<'arena>>,
-    ) -> Result<(), unification::Error> {
+    ) -> unification::Result<()> {
         let mut context = unification::Context::new(
             &self.arena,
             &mut self.renaming,

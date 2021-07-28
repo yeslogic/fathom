@@ -83,6 +83,8 @@ pub enum Error {
     InvalidFunctionElimHead,
 }
 
+pub type Result<T> = std::result::Result<T, Error>;
+
 /// Evaluation context.
 pub struct EvalContext<'arena, 'env> {
     bindings: &'env mut SharedEnv<Arc<Value<'arena>>>,
@@ -113,12 +115,12 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
         &mut self,
         arena: &'out_arena Arena<'out_arena>,
         term: &Term<'arena>,
-    ) -> Result<Term<'out_arena>, Error> {
+    ) -> Result<Term<'out_arena>> {
         ReadbackContext::new(arena, self.bindings.len(), self.problems).readback(&self.eval(term)?)
     }
 
     /// Evaluate a [term][`Term`] into a [value][`Value`].
-    pub fn eval(&mut self, term: &Term<'arena>) -> Result<Arc<Value<'arena>>, Error> {
+    pub fn eval(&mut self, term: &Term<'arena>) -> Result<Arc<Value<'arena>>> {
         match term {
             Term::BoundVar(var) => match self.bindings.get_local(*var) {
                 Some(value) => Ok(value.clone()),
@@ -166,7 +168,7 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
         &self,
         mut head_expr: Arc<Value<'arena>>,
         bindings: &SliceEnv<BindingMode>,
-    ) -> Result<Arc<Value<'arena>>, Error> {
+    ) -> Result<Arc<Value<'arena>>> {
         for (mode, expr) in Iterator::zip(bindings.iter(), self.bindings.iter()) {
             head_expr = match mode {
                 BindingMode::Defined => head_expr,
@@ -193,7 +195,7 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
 
     /// Bring a value up-to-date with any new unification solutions that
     /// might now be present at the head of in the given value.
-    pub fn force(&self, value: &Arc<Value<'arena>>) -> Result<Arc<Value<'arena>>, Error> {
+    pub fn force(&self, value: &Arc<Value<'arena>>) -> Result<Arc<Value<'arena>>> {
         match value.as_ref() {
             Value::Stuck(Head::ProblemVar(var), spine) => {
                 // Check to see if a solution for this unification
@@ -220,7 +222,7 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
         &self,
         closure: &Closure<'arena>,
         value: Arc<Value<'arena>>,
-    ) -> Result<Arc<Value<'arena>>, Error> {
+    ) -> Result<Arc<Value<'arena>>> {
         EvalContext::new(&mut closure.bindings.push_clone(value), self.problems).eval(closure.term)
     }
 
@@ -232,7 +234,7 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
         &self,
         mut head_expr: Arc<Value<'arena>>,
         input_expr: Arc<Value<'arena>>,
-    ) -> Result<Arc<Value<'arena>>, Error> {
+    ) -> Result<Arc<Value<'arena>>> {
         match Arc::make_mut(&mut head_expr) {
             // Beta-reduction
             Value::FunIntro(_, output_expr) => self.closure_elim(output_expr, input_expr),
@@ -250,7 +252,7 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
         &self,
         mut head_expr: Arc<Value<'arena>>,
         spine: &[Elim<'arena>],
-    ) -> Result<Arc<Value<'arena>>, Error> {
+    ) -> Result<Arc<Value<'arena>>> {
         for elim in spine {
             head_expr = match elim {
                 Elim::Fun(input_expr) => self.fun_elim(head_expr, input_expr.clone())?,
@@ -294,7 +296,7 @@ impl<'in_arena, 'out_arena, 'env> ReadbackContext<'in_arena, 'out_arena, 'env> {
     }
 
     /// Read a [value][`Value`] back into a [term][`Term`].
-    pub fn readback(&self, value: &Arc<Value<'in_arena>>) -> Result<Term<'out_arena>, Error> {
+    pub fn readback(&self, value: &Arc<Value<'in_arena>>) -> Result<Term<'out_arena>> {
         match self.elim_context().force(value)?.as_ref() {
             Value::Stuck(head, spine) => {
                 let mut head_expr = match head {
@@ -383,11 +385,7 @@ impl<'arena, 'env> ConversionContext<'arena, 'env> {
     ///
     /// [computationally equal]: https://ncatlab.org/nlab/show/equality#computational_equality
     /// [eta-conversion]: https://ncatlab.org/nlab/show/eta-conversion
-    pub fn is_equal(
-        &self,
-        value0: &Arc<Value<'_>>,
-        value1: &Arc<Value<'_>>,
-    ) -> Result<bool, Error> {
+    pub fn is_equal(&self, value0: &Arc<Value<'_>>, value1: &Arc<Value<'_>>) -> Result<bool> {
         let value0 = self.elim_context().force(value0)?;
         let value1 = self.elim_context().force(value1)?;
 
