@@ -10,7 +10,7 @@ use structopt::StructOpt;
 Using arguments
 
     fathom-minimal elab --surface-term=examples/prelude.txt
-    fathom-minimal normalise --surface-term=examples/prelude.txt
+    fathom-minimal norm --surface-term=examples/prelude.txt
 
 Using pipes and redirects
 
@@ -22,7 +22,7 @@ Using heredocs
 
     fathom-minimal elab <<< "fun (A : Type) -> fun (a : A) -> A"
 
-    fathom-minimal normalise <<EOF
+    fathom-minimal norm <<EOF
         let id : fun (A : Type) -> fun (a : A) -> A
           = fun A => fun a => a;
 
@@ -33,7 +33,7 @@ enum Options {
     /// Parse and elaborate a term, printing the elaborated term and type
     Elab(Args),
     /// Parse and elaborate a term, printing its normal form and type
-    Normalise(Args),
+    Norm(Args),
     /// Parse and elaborate a term, printing its type
     Type(Args),
 }
@@ -98,7 +98,7 @@ fn main() {
                 std::process::exit(1);
             }
         }
-        Options::Normalise(Args { surface_term }) => {
+        Options::Norm(Args { surface_term }) => {
             let surface_term = parse_term(&mut interner, &surface_arena, &surface_term);
 
             let (term, r#type) = context.synth(&surface_term);
