@@ -27,10 +27,9 @@ pub enum ProblemSource {
 /// Elaboration diagnostic messages.
 #[derive(Debug, Clone)]
 pub enum Message {
-    UnboundName {
-        range: ByteRange,
-        name: StringId,
-    },
+    /// The name was not previously bound in the current scope.
+    UnboundName { range: ByteRange, name: StringId },
+    /// Unification errors.
     FailedToUnify {
         range: ByteRange,
         // TODO: add lhs and rhs values
@@ -38,10 +37,12 @@ pub enum Message {
         // rhs: Doc<_>,
         error: unification::Error,
     },
+    /// A unification problem was not yet solved.
     UnsolvedProblem {
         range: ByteRange,
         source: ProblemSource,
     },
+    /// An error occurred during evaluation, and is almost certainly a bug.
     Semantics(semantics::Error),
 }
 

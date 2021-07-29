@@ -5,10 +5,11 @@
 //!
 //! We implement a limited form of higher order unification, called 'pattern
 //! unification'. More details about the algorithm we use can be found in the
-//! [elaboration-zoo](https://github.com/AndrasKovacs/elaboration-zoo/), in
-//! particular in [elaboration-zoo/03-holes](https://github.com/AndrasKovacs/elaboration-zoo/blob/master/03-holes/).
+//! [elaboration-zoo], in particular in [elaboration-zoo/03-holes].
 //!
 //! [Unification]: https://en.wikipedia.org/wiki/Unification_(computer_science)
+//! [elaboration-zoo]: https://github.com/AndrasKovacs/elaboration-zoo/
+//! [elaboration-zoo/03-holes]: https://github.com/AndrasKovacs/elaboration-zoo/
 
 use std::sync::Arc;
 
@@ -16,11 +17,99 @@ use crate::core::semantics::{self, Closure, Elim, ElimContext, EvalContext, Head
 use crate::core::{Arena, Term};
 use crate::env::{EnvLen, GlobalVar, LocalVar, SharedEnv, SliceEnv, UniqueEnv};
 
+/// Errors encountered during unification.
+///
+/// The documentation for the various pattern unification errors were adapted
+/// from the [comments about pattern unification] in Andras Kovacs' excellent
+/// [elaboration-zoo] repository.
+///
+/// [elaboration-zoo]: https://github.com/AndrasKovacs/elaboration-zoo/
+/// [comments about pattern unification]: https://github.com/AndrasKovacs/elaboration-zoo/blob/d38b695d5177352501463fab2ac6d0929ba4472b/03-holes/Main.hs#L118-L169
 #[derive(Debug, Clone)]
 pub enum Error {
-    FailedToUnify,
-    ScopeError,
-    OccursCheck,
+    /// A known part of one value failed to match with a known part of the other
+    /// value that we are comparing against.
+    Mismatched,
+    /// A bound variable appeared multiple times in a problem spine.
+    ///
+    /// For example:
+    ///
+    /// ```text
+    /// ?α x x =? x`
+    /// ```
+    ///
+    /// This results in two distinct solutions:
+    ///
+    /// - `?α := fun x _ => x`
+    /// - `?α := fun _ x => x`
+    ///
+    /// We only want unification to result in a unique solution, so we fail
+    /// to unify in this case.
+    ///
+    /// Another example, assuming `true : Bool`, is:
+    ///
+    /// ```text
+    /// ?α true =? true
+    /// ```
+    ///
+    /// This also has multiple solutions, for example:
+    ///
+    /// - `?α := fun _ => true`
+    /// - `?α := fun x => x`
+    /// - `?α := fun x => if x then true else false`
+    ///
+    /// It's also possible that the return type of `?α` is not always `Bool`,
+    /// for example:
+    ///
+    /// ```text
+    /// ?α : fun (b : Bool) -> if b then Bool else (Bool -> Bool)
+    /// ```
+    ///
+    /// In this case the example solution `?α := fun _ => true` is not even
+    /// well-typed! In contrast, if the problem spine only has distinct bound
+    /// variables, even if the return type is dependent, bound variables block
+    /// all computation in the return type, and the pattern solution is
+    /// guaranteed to be well-typed.
+    NonLinearSpine,
+    /// A free variable in the compared value does not occur in the problem spine.
+    ///
+    /// For example, where `z : U` is a bound variable:
+    ///
+    /// ```text
+    /// ?α x y =? z -> z
+    /// ```
+    ///
+    /// There is no solution to this problem, because `?α` is the topmost-level
+    /// scope, so it can only abstract over `x` and `y`, but these don't occur
+    /// in `z -> z`.
+    //
+    // FIXME: We could call this a 'FreeBoundVar` error, but this seems like a
+    //        bit of an oxymoron! Perhaps this points to some issues in our
+    //        naming scheme for variables... D: D:
+    EscapingVar,
+    /// The problem variable occurs in the value being compared against.
+    /// This is sometimes referred to as an 'occurs check' failure.
+    ///
+    /// For example:
+    ///
+    /// ```text
+    /// ?α =? ?α -> ?α
+    /// ```
+    ///
+    /// Here `?α` occurs in the right hand side, so in order to solve this
+    /// problem we would end up going into an infinite loop, attempting to
+    /// construct larger and larger solutions:
+    ///
+    /// - `?α =? ?α -> ?α`
+    /// - `?α =? (?α -> ?α) -> (?α -> ?α)`
+    /// - `?α =? ((?α -> ?α) -> (?α -> ?α)) -> ((?α -> ?α) -> (?α -> ?α))`
+    /// - etc.
+    ///
+    /// In some type systems we could solve this using [equi-recursive types].
+    ///
+    /// [equi-recursive types]: https://www.cs.cornell.edu/courses/cs4110/2012fa/lectures/lecture27.pdf
+    InfiniteSolution,
+    /// An error occurred during evaluation, and is almost certainly a bug.
     Semantics(semantics::Error),
 }
 
@@ -94,7 +183,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
             (Value::Stuck(Head::ReportedError, _), _)
             | (_, Value::Stuck(Head::ReportedError, _)) => Ok(()),
 
-            // Both values start in a bound variable, so all we need to do
+            // Both values have head variables in common, so all we need to do
             // is unify the elimination spines.
             (
                 Value::Stuck(Head::BoundVar(var0), spine0),
@@ -105,8 +194,8 @@ impl<'arena, 'env> Context<'arena, 'env> {
                 Value::Stuck(Head::ProblemVar(var1), spine1),
             ) if var0 == var1 => self.unify_spines(spine0, spine1),
 
-            // One of the values begins in a problem variable, so attempt to
-            // solve it using pattern unification.
+            // One of the values has a problem variable at its head, so we can
+            // attempt to solve it using pattern unification.
             (Value::Stuck(Head::ProblemVar(var0), spine0), _) => self.solve(*var0, spine0, &value1),
             (_, Value::Stuck(Head::ProblemVar(var1), spine1)) => self.solve(*var1, spine1, &value0),
 
@@ -126,15 +215,14 @@ impl<'arena, 'env> Context<'arena, 'env> {
             (Value::FunIntro(_, output_expr), _) => self.unify_fun_intro(output_expr, &value1),
             (_, Value::FunIntro(_, output_expr)) => self.unify_fun_intro(output_expr, &value0),
 
-            // Rigid mismatch
-            (_, _) => Err(Error::FailedToUnify),
+            (_, _) => Err(Error::Mismatched),
         }
     }
 
     /// Unify two elimination spines.
     fn unify_spines(&mut self, spine0: &[Elim<'arena>], spine1: &[Elim<'arena>]) -> Result<()> {
         if spine0.len() != spine1.len() {
-            return Err(Error::FailedToUnify); // Rigid mismatch
+            return Err(Error::Mismatched);
         }
         for (elim0, elim1) in Iterator::zip(spine0.iter(), spine1.iter()) {
             match (elim0, elim1) {
@@ -180,8 +268,18 @@ impl<'arena, 'env> Context<'arena, 'env> {
         result
     }
 
-    /// Solve the unification problem `?problem_var spine =? value`, updating
-    /// the solution environment with the unification solution if successful.
+    /// Solve a pattern unification problem that looks like:
+    ///
+    /// ```text
+    /// ?α spine =? value`
+    /// ```
+    ///
+    /// If successful, the problem environment  will be updated with a solution
+    /// that looks something like:
+    ///
+    /// ```text
+    /// ?α := fun spine => value
+    /// ```
     fn solve(
         &mut self,
         problem_var: GlobalVar,
@@ -209,8 +307,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
                 Elim::Fun(input_expr) => match self.elim_context().force(input_expr)?.as_ref() {
                     Value::Stuck(Head::BoundVar(source_var), spine)
                         if spine.is_empty() && self.renaming.set_binding(*source_var) => {}
-                    // Spine does not contain distinct bound variables
-                    _ => return Err(Error::FailedToUnify),
+                    _ => return Err(Error::NonLinearSpine),
                 },
             }
         }
@@ -230,7 +327,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
     /// renaming to update local variables, failing if the partial renaming is
     /// not defined (resulting in an [scope error][`Error::ScopeError`]), and
     /// also checking for occurrences of the `problem_var` (resulting in an
-    /// [occurs check error][`Error::OccursCheck`]).
+    /// [occurs check error][`Error::InfiniteSolution`]).
     ///
     /// This allows us to subsequently wrap the returned term in function
     /// introductions, using [`Context::function_intros`].
@@ -243,11 +340,11 @@ impl<'arena, 'env> Context<'arena, 'env> {
             Value::Stuck(head, spine) => {
                 let mut head_expr = match head {
                     Head::BoundVar(source_var) => match self.renaming.rename(*source_var) {
-                        None => return Err(Error::ScopeError),
+                        None => return Err(Error::EscapingVar),
                         Some(target_var) => Term::BoundVar(target_var),
                     },
                     Head::ProblemVar(var) => match *var {
-                        var if problem_var == var => return Err(Error::OccursCheck),
+                        var if problem_var == var => return Err(Error::InfiniteSolution),
                         var => Term::ProblemVar(var),
                     },
                     Head::ReportedError => Term::ReportedError,
