@@ -15,7 +15,7 @@
 /// Underlying variable representation.
 type RawVar = u16;
 
-/// A [de Bruijn index] in the current [environment].
+/// A [de Bruijn index] in the current environment.
 ///
 /// De Bruijn indices describe an occurrence of a variable in terms of the
 /// number of binders between the occurrence and its associated binder.
@@ -31,7 +31,6 @@ type RawVar = u16;
 /// list of name substitutions. For example we want `λx. x` to be the same as
 /// `λy. y`. With de Bruijn indices these would both be described as `λ 0`.
 ///
-/// [environment]: `Env`
 /// [de Bruijn index]: https://en.wikipedia.org/wiki/De_Bruijn_index
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct LocalVar(RawVar);
@@ -48,7 +47,7 @@ pub fn local_vars() -> impl Iterator<Item = LocalVar> {
     (0..).map(LocalVar)
 }
 
-/// A de Bruijn level in the current [environment].
+/// A de Bruijn level in the current environment.
 ///
 /// This describes an occurrence of a variable by counting the binders inwards
 /// from the top of the term until the occurrence is reached. For example:
@@ -58,13 +57,13 @@ pub fn local_vars() -> impl Iterator<Item = LocalVar> {
 /// | Named             | `λx. λy. λz. x z (y z)` |
 /// | De Bruijn levels  | `λ_. λ_. λ_. 0 2 (1 2)` |
 ///
-/// Levels are used in [values][semantics::Value] because they are not context-
-/// dependent (this is in contrast to [indices][LocalVar]). Because of this,
-/// we're able to sidestep the need for expensive variable shifting in the
-/// semantics. More information can be found in Soham Chowdhury's blog post,
-/// “[Real-world type theory I: untyped normalisation by evaluation for λ-calculus][untyped-nbe-for-lc]”.
+/// Levels are used in [values][crate::core::semantics::Value] because they
+/// are not context- dependent (this is in contrast to [indices][LocalVar]).
+/// Because of this, we're able to sidestep the need for expensive variable
+/// shifting in the semantics. More information can be found in Soham
+/// Chowdhury's blog post, “[Real-world type theory I: untyped normalisation by
+/// evaluation for λ-calculus][untyped-nbe-for-lc]”.
 ///
-/// [environment]: `Env`
 /// [untyped-nbe-for-lc]: https://colimit.net/posts/normalisation-by-evaluation/
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct GlobalVar(RawVar);

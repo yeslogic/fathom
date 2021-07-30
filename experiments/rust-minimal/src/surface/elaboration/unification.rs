@@ -1,7 +1,7 @@
-//! [Unification] is a process of checking if two [values][`Value`] are there
-//! same, where there might be 'unknown' parts in either value. During this
-//! process we attempt to fill in those missing bits of information, and record
-//! the solutions we find for future use.
+//! [Unification] is a process of checking if two [values][Value] are the same,
+//! where there might be 'unknown' parts in either value. During this process
+//! we attempt to fill in those missing bits of information, and record the
+//! solutions we find for future use.
 //!
 //! We implement a limited form of higher order unification, called 'pattern
 //! unification'. More details about the algorithm we use can be found in the
@@ -123,7 +123,7 @@ pub type Result<T> = std::result::Result<T, Error>;
 
 /// Unification context.
 pub struct Context<'arena, 'env> {
-    /// Arena to store terms during [renaming][`Context::rename`].
+    /// Arena to store terms during [renaming][Context::rename].
     arena: &'arena Arena<'arena>,
     /// A renaming that is used when solving pattern unification problems. We
     /// store it in the parent context, re-initialising it on each call to
@@ -234,7 +234,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
         Ok(())
     }
 
-    /// Unify two [closures][`Closure`].
+    /// Unify two [closures][Closure].
     fn unify_closures(
         &mut self,
         closure0: &Closure<'arena>,
@@ -315,7 +315,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
         Ok(())
     }
 
-    /// Wrap a `term` in [function introductions][`Term::FunIntro`] that
+    /// Wrap a `term` in [function introductions][Term::FunIntro] that
     /// correspond to the given `spine`.
     fn fun_intros(&self, spine: &[Elim<'arena>], term: Term<'arena>) -> Term<'arena> {
         spine.iter().fold(term, |term, _| {
@@ -325,9 +325,9 @@ impl<'arena, 'env> Context<'arena, 'env> {
 
     /// Rename `value` to a [`Term`], while at the same time using the current
     /// renaming to update local variables, failing if the partial renaming is
-    /// not defined (resulting in an [scope error][`Error::ScopeError`]), and
+    /// not defined (resulting in an [scope error][Error::ScopeError]), and
     /// also checking for occurrences of the `problem_var` (resulting in an
-    /// [occurs check error][`Error::InfiniteSolution`]).
+    /// [occurs check error][Error::InfiniteSolution]).
     ///
     /// This allows us to subsequently wrap the returned term in function
     /// introductions, using [`Context::function_intros`].

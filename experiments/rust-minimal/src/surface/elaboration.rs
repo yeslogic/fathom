@@ -8,8 +8,8 @@ use crate::{core, surface, ByteRange, StringId};
 
 mod unification;
 
-/// The reason why a fresh problem variable was [inserted][`Context::fresh_problem_term`]
-/// into the elaboration context.
+/// The reason why a problem variable was inserted into the [elaboration
+/// context][Context].
 #[derive(Debug, Copy, Clone)]
 pub enum ProblemSource {
     /// The type of a hole.
@@ -66,17 +66,17 @@ pub struct Context<'arena> {
     /// Modes of bound variables. This is used when inserting new problems.
     binding_modes: UniqueEnv<core::BindingMode>,
     /// Expressions that will be substituted for bound variables during
-    /// [evaluation][`EvalContext::eval`].
+    /// [evaluation][EvalContext::eval].
     binding_exprs: SharedEnv<Arc<Value<'arena>>>,
 
     /// The source of freshly inserted problems. This is used when reporting
     /// unsolved problems.
     problem_sources: UniqueEnv<(ByteRange, ProblemSource)>,
     /// Expressions that will be substituted for problem variables during
-    /// [evaluation][`EvalContext::eval`].
+    /// [evaluation][EvalContext::eval].
     ///
     /// These will be set to [`None`] when a fresh problem variable is first
-    /// [inserted][`Context::fresh_problem_term`], then will be set to [`Some`]
+    /// [inserted][Context::fresh_problem_term], then will be set to [`Some`]
     /// if a solution is found during [`unification`].
     problem_exprs: UniqueEnv<Option<Arc<Value<'arena>>>>,
 

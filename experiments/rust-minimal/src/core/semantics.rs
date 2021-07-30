@@ -11,7 +11,7 @@ use crate::StringId;
 #[derive(Debug, Clone)]
 pub enum Value<'arena> {
     /// A value whose computation has stopped as a result of trying to
-    /// [evaluate][`EvalContext::eval`] an open [term][`Term`]. Any eliminations
+    /// [evaluate][EvalContext::eval] an open [term][Term]. Any eliminations
     /// that are subsequently applied to the value are accumulated in a spine.
     Stuck(Head, Vec<Elim<'arena>>),
     /// Universes.
@@ -38,7 +38,7 @@ impl<'arena> Value<'arena> {
     }
 }
 
-/// The head of a [stuck value][`Value::Stuck`].
+/// The head of a [stuck value][Value::Stuck].
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Head {
     /// Variables that refer to binders.
@@ -49,8 +49,8 @@ pub enum Head {
     ReportedError,
 }
 
-/// A pending elimination to be reduced if the [head][`Head`] of a
-/// [stuck value][`Value::Stuck`] becomes known.
+/// A pending elimination to be reduced if the [head][Head] of a [stuck
+/// value][Value::Stuck] becomes known.
 #[derive(Debug, Clone)]
 pub enum Elim<'arena> {
     /// Function eliminations.
@@ -107,9 +107,9 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
         Closure::new(self.bindings.clone(), term)
     }
 
-    /// Fully normalise a term by first [evaluating][`EvalContext::eval] it into
-    /// a [value][`Value`], then [reading it back][`ReadbackContext::redback`]
-    /// into a [term][`Term`].
+    /// Fully normalise a term by first [evaluating][EvalContext::eval] it into
+    /// a [value][Value], then [reading it back][ReadbackContext::redback] into
+    /// a [term][Term].
     pub fn normalise<'out_arena>(
         &mut self,
         arena: &'out_arena Arena<'out_arena>,
@@ -118,7 +118,7 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
         ReadbackContext::new(arena, self.bindings.len(), self.problems).readback(&self.eval(term)?)
     }
 
-    /// Evaluate a [term][`Term`] into a [value][`Value`].
+    /// Evaluate a [term][Term] into a [value][Value].
     pub fn eval(&mut self, term: &Term<'arena>) -> Result<Arc<Value<'arena>>> {
         match term {
             Term::BoundVar(var) => match self.bindings.get_local(*var) {
@@ -162,7 +162,7 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
     }
 
     /// Apply the currently bound assumptions to a value, using an environment
-    /// of binding modes from an [inserted problem][`Term::InsertedProblem`].
+    /// of binding modes from an [inserted problem][Term::InsertedProblem].
     fn apply_assumptions(
         &self,
         mut head_expr: Arc<Value<'arena>>,
@@ -293,7 +293,7 @@ impl<'in_arena, 'out_arena, 'env> ReadbackContext<'in_arena, 'out_arena, 'env> {
         self.bindings.pop();
     }
 
-    /// Read a [value][`Value`] back into a [term][`Term`].
+    /// Read a [value][Value] back into a [term][Term].
     pub fn readback(&mut self, value: &Arc<Value<'in_arena>>) -> Result<Term<'out_arena>> {
         match self.elim_context().force(value)?.as_ref() {
             Value::Stuck(head, spine) => {
@@ -342,7 +342,7 @@ impl<'in_arena, 'out_arena, 'env> ReadbackContext<'in_arena, 'out_arena, 'env> {
         }
     }
 
-    /// Read a [closure][`Closure`] back into a [term][`Term`].
+    /// Read a [closure][Closure] back into a [term][Term].
     fn readback_closure(&mut self, closure: &Closure<'in_arena>) -> Result<Term<'out_arena>> {
         let var = Arc::new(Value::bound_var(self.bindings.next_global()));
         let value = self.elim_context().apply_closure(closure, var)?;
@@ -432,7 +432,7 @@ impl<'arena, 'env> ConversionContext<'arena, 'env> {
         }
     }
 
-    /// Check that two [closures][`Closure`] are equal.
+    /// Check that two [closures][Closure] are equal.
     pub fn is_equal_closures(
         &mut self,
         closure0: &Closure<'_>,
