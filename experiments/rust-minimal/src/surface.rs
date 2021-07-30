@@ -4,13 +4,14 @@ use lalrpop_util::lalrpop_mod;
 
 use crate::{BytePos, ByteRange, StringId, StringInterner};
 
+lalrpop_mod!(grammar, "/surface/grammar.rs");
 // FIXME: This lexer module should be private! LALRPOP's exports are somewhat broken, however.
 //        See: https://github.com/lalrpop/lalrpop/pull/584#issuecomment-856731852
 pub(crate) mod lexer;
-lalrpop_mod!(grammar, "/surface/grammar.rs");
+pub mod pretty;
+
 pub mod distillation;
 pub mod elaboration;
-pub mod pretty;
 
 // TODO: Convert to an internal error message
 pub type ParseError<'source> = lalrpop_util::ParseError<usize, lexer::Token<'source>, ()>;
