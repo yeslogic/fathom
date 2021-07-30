@@ -1,5 +1,13 @@
 # Minimal language experiment
 
+Experimenting with a simple implementation of type theory elaboration
+
+Based on [Andras Korvacs' elaboration examples][elaboration-zoo]. We adapt them
+to more idiomatic Rust, using arenas for allocating source terms, and
+reference-counting in values, and reducinallocations/indirection where possible.
+
+[elaboration-zoo]: https://github.com/AndrasKovacs/elaboration-zoo/
+
 ## Surface language
 
 _surface.term_ ::=\
@@ -12,7 +20,7 @@ _surface.let-term_ ::=\
 
 _surface.fun-term_ ::=\
 &emsp;| _surface.app-term_\
-&emsp;| _surface.app-term_ "->" _surface.fun-term_
+&emsp;| _surface.app-term_ "->" _surface.fun-term_\
 &emsp;| `fun` `(` _name_ `:` _surface.term_ `)` `->` _surface.fun-term_\
 &emsp;| `fun` _name_ `=>` _surface.fun-term_
 
@@ -78,3 +86,39 @@ _elab.context_ ::=\
 > **TODO:**
 >
 > document lookup, checking and synthesis
+
+## Roadmap
+
+- language features
+  - [x] let expressions
+  - [x] dependent functions
+    - [ ] implicit parameters
+  - [ ] dependent records
+  - [x] holes
+    - [ ] named holes
+  - [ ] top-level items
+  - [ ] recursive definitions
+  - [ ] binary format descriptions
+    - [ ] error formats
+    - [ ] map formats
+    - [ ] pure formats
+    - [ ] bind formats
+- implementation
+  - [x] command line interface
+  - [x] parser
+  - [x] pretty printing
+  - [x] source location tracking
+  - [x] string interning
+  - [x] arena allocation
+  - [ ] value interning (for commonly used values)
+  - [x] normalisation-by-evaluation
+  - [x] elaborator
+    - [x] error recovery
+    - [x] unification
+    - [ ] zonking
+  - [x] distiller
+    - [ ] improve binder names
+    - [ ] improve problem names
+  - [ ] codespan diagnostics
+    - [ ] unification solutions
+  - [ ] integration tests

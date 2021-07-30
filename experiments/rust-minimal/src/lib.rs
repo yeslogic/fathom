@@ -1,46 +1,4 @@
-//! Experimenting with a simple implementation of type theory elaboration
-//!
-//! Based on [Andras Korvacs' example type checker][02-typecheck-closures-debruijn].
-//! We adapt it to Rust, using arenas for allocating source terms, and
-//! reference-counting in values.
-//!
-//! [02-typecheck-closures-debruijn]: https://github.com/AndrasKovacs/elaboration-zoo/tree/master/02-typecheck-closures-debruijn
-
-// TODO:
-//
-// - language features
-//   - [x] let expressions
-//   - [x] dependent functions
-//     - [ ] implicit parameters
-//   - [ ] dependent records
-//   - [x] holes
-//     - [ ] named holes
-//   - [ ] top-level items
-//   - [ ] recursive definitions
-//   - [ ] binary format descriptions
-//     - [ ] error formats
-//     - [ ] map formats
-//     - [ ] pure formats
-//     - [ ] bind formats
-// - implementation
-//   - [x] command line interface
-//   - [x] parser
-//   - [x] pretty printing
-//   - [x] source location tracking
-//   - [x] string interning
-//   - [x] arena allocation
-//   - [ ] value interning (for commonly used values)
-//   - [x] normalisation-by-evaluation
-//   - [x] elaborator
-//     - [x] error recovery
-//     - [x] unification
-//     - [ ] zonking
-//   - [x] distiller
-//     - [ ] improve binder names
-//     - [ ] improve problem names
-//   - [ ] codespan diagnostics
-//     - [ ] unification solutions
-//   - [ ] integration tests
+#![doc = include_str!("../README.md")]
 
 pub mod env;
 
