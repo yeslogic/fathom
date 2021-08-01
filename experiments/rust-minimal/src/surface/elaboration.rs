@@ -8,10 +8,9 @@ use crate::{core, surface, ByteRange, StringId};
 
 mod unification;
 
-/// The reason why a problem variable was inserted into the [elaboration
-/// context][Context].
+/// The reason why a flexible variable was inserted.
 #[derive(Debug, Copy, Clone)]
-pub enum ProblemSource {
+pub enum FlexSource {
     /// The type of a hole.
     HoleType(Option<StringId>),
     /// The expression of a hole.
@@ -37,10 +36,10 @@ pub enum Message {
         // rhs: Doc<_>,
         error: unification::Error,
     },
-    /// A unification problem was not yet solved.
-    UnsolvedProblem {
+    /// A solution for a flexible variable could not be found.
+    UnsolvedFlexibleVar {
         range: ByteRange,
-        source: ProblemSource,
+        source: FlexSource,
     },
     /// An error occurred during evaluation, and is almost certainly a bug.
     Semantics(semantics::Error),
@@ -59,26 +58,26 @@ pub struct Context<'arena> {
     /// A partial renaming to be used during [`unification`].
     renaming: unification::PartialRenaming,
 
-    /// Names of bound variables.
-    binding_names: UniqueEnv<Option<StringId>>,
-    /// Types of bound variables.
-    binding_types: UniqueEnv<Arc<Value<'arena>>>,
-    /// Modes of bound variables. This is used when inserting new problems.
-    binding_modes: UniqueEnv<core::BindingMode>,
-    /// Expressions that will be substituted for bound variables during
+    /// Names of rigid variables.
+    rigid_names: UniqueEnv<Option<StringId>>,
+    /// Types of rigid variables.
+    rigid_types: UniqueEnv<Arc<Value<'arena>>>,
+    /// Information about the binders. Used when inserting new flexible variables.
+    rigid_infos: UniqueEnv<core::EntryInfo>,
+    /// Expressions that will be substituted for rigid variables during
     /// [evaluation][EvalContext::eval].
-    binding_exprs: SharedEnv<Arc<Value<'arena>>>,
+    rigid_exprs: SharedEnv<Arc<Value<'arena>>>,
 
-    /// The source of freshly inserted problems. This is used when reporting
-    /// unsolved problems.
-    problem_sources: UniqueEnv<(ByteRange, ProblemSource)>,
-    /// Expressions that will be substituted for problem variables during
+    /// The source of inserted flexible variables, used when reporting [unsolved
+    /// flexible variables][Message::UnsolvedFlexibleVar].
+    flexible_sources: UniqueEnv<(ByteRange, FlexSource)>,
+    /// Expressions that will be substituted for flexible variables during
     /// [evaluation][EvalContext::eval].
     ///
-    /// These will be set to [`None`] when a fresh problem variable is first
-    /// [inserted][Context::fresh_problem_term], then will be set to [`Some`]
+    /// These will be set to [`None`] when a flexible variable is first
+    /// [inserted][Context::push_flexible_term], then will be set to [`Some`]
     /// if a solution is found during [`unification`].
-    problem_exprs: UniqueEnv<Option<Arc<Value<'arena>>>>,
+    flexible_exprs: UniqueEnv<Option<Arc<Value<'arena>>>>,
 
     /// Diagnostic messages encountered during elaboration.
     messages: Vec<Message>,
@@ -91,86 +90,78 @@ impl<'arena> Context<'arena> {
             arena,
             renaming: unification::PartialRenaming::new(),
 
-            binding_names: UniqueEnv::new(),
-            binding_types: UniqueEnv::new(),
-            binding_modes: UniqueEnv::new(),
-            binding_exprs: SharedEnv::new(),
+            rigid_names: UniqueEnv::new(),
+            rigid_types: UniqueEnv::new(),
+            rigid_infos: UniqueEnv::new(),
+            rigid_exprs: SharedEnv::new(),
 
-            problem_sources: UniqueEnv::new(),
-            problem_exprs: UniqueEnv::new(),
+            flexible_sources: UniqueEnv::new(),
+            flexible_exprs: UniqueEnv::new(),
 
             messages: Vec::new(),
         }
     }
 
-    fn get_binding(&self, name: StringId) -> Option<(LocalVar, &Arc<Value<'arena>>)> {
-        let bindings = Iterator::zip(env::local_vars(), self.binding_types.iter().rev());
+    fn get_rigid_type(&self, name: StringId) -> Option<(LocalVar, &Arc<Value<'arena>>)> {
+        let rigid_types = Iterator::zip(env::local_vars(), self.rigid_types.iter().rev());
 
-        Iterator::zip(self.binding_names.iter().copied().rev(), bindings)
-            .find_map(|(n, binding)| (Some(name) == n).then(|| binding))
+        Iterator::zip(self.rigid_names.iter().copied().rev(), rigid_types)
+            .find_map(|(n, r#type)| (Some(name) == n).then(|| r#type))
     }
 
-    /// Push a binding onto the context.
-    fn push_definition(
+    /// Push a rigid definition onto the context.
+    fn push_rigid_definition(
         &mut self,
         name: Option<StringId>,
         expr: Arc<Value<'arena>>,
         r#type: Arc<Value<'arena>>,
     ) {
-        self.binding_names.push(name);
-        self.binding_types.push(r#type);
-        self.binding_modes.push(core::BindingMode::Defined);
-        self.binding_exprs.push(expr);
+        self.rigid_names.push(name);
+        self.rigid_types.push(r#type);
+        self.rigid_infos.push(core::EntryInfo::Concrete);
+        self.rigid_exprs.push(expr);
     }
 
-    /// Push an assumption onto the context.
-    fn push_assumption(
+    /// Push a rigid parameter onto the context.
+    fn push_rigid_parameter(
         &mut self,
         name: Option<StringId>,
         r#type: Arc<Value<'arena>>,
     ) -> Arc<Value<'arena>> {
-        // A bound variable expression that refers to itself, once it is pushed
-        // onto the expression environment.
-        let expr = Arc::new(Value::bound_var(self.binding_exprs.len().next_global()));
+        // An expression that refers to itself once it is pushed onto the rigid
+        // expression environment.
+        let expr = Arc::new(Value::rigid_var(self.rigid_exprs.len().next_global()));
 
-        self.binding_names.push(name);
-        self.binding_types.push(r#type);
-        self.binding_modes.push(core::BindingMode::Assumed);
-        self.binding_exprs.push(expr.clone());
+        self.rigid_names.push(name);
+        self.rigid_types.push(r#type);
+        self.rigid_infos.push(core::EntryInfo::Abstract);
+        self.rigid_exprs.push(expr.clone());
 
         expr
     }
 
-    /// Pop a binding off the context.
-    fn pop_binding(&mut self) {
-        self.binding_names.pop();
-        self.binding_types.pop();
-        self.binding_modes.pop();
-        self.binding_exprs.pop();
+    /// Pop a rigid binder off the context.
+    fn pop_rigid(&mut self) {
+        self.rigid_names.pop();
+        self.rigid_types.pop();
+        self.rigid_infos.pop();
+        self.rigid_exprs.pop();
     }
 
-    /// Push a fresh problem onto the context.
-    fn fresh_problem_term(
-        &mut self,
-        range: ByteRange,
-        source: ProblemSource,
-    ) -> core::Term<'arena> {
+    /// Push an unsolved flexible binder onto the context.
+    fn push_flexible_term(&mut self, range: ByteRange, source: FlexSource) -> core::Term<'arena> {
         // TODO: check that hole name is not already in use
-        let var = self.problem_exprs.len().next_global();
+        let var = self.flexible_exprs.len().next_global();
 
-        self.problem_sources.push((range, source));
-        self.problem_exprs.push(None);
+        self.flexible_sources.push((range, source));
+        self.flexible_exprs.push(None);
 
-        core::Term::InsertedProblem(var, self.binding_modes.clone())
+        core::Term::FlexibleInsertion(var, self.rigid_infos.clone())
     }
 
-    /// Push a fresh problem onto the context, and evaluate it.
-    fn fresh_problem_value(
-        &mut self,
-        range: ByteRange,
-        source: ProblemSource,
-    ) -> Arc<Value<'arena>> {
-        let term = self.fresh_problem_term(range, source);
+    /// Push an unsolved flexible binder onto the context.
+    fn push_flexible_value(&mut self, range: ByteRange, source: FlexSource) -> Arc<Value<'arena>> {
+        let term = self.push_flexible_term(range, source);
         self.eval(&term)
     }
 
@@ -190,9 +181,9 @@ impl<'arena> Context<'arena> {
 
     pub fn drain_messages<'this>(&'this mut self) -> impl 'this + Iterator<Item = Message> {
         self.messages.drain(..).chain(
-            Iterator::zip(self.problem_sources.iter(), self.problem_exprs.iter()).filter_map(
+            Iterator::zip(self.flexible_sources.iter(), self.flexible_exprs.iter()).filter_map(
                 |((range, source), expr)| {
-                    expr.is_none().then(|| Message::UnsolvedProblem {
+                    expr.is_none().then(|| Message::UnsolvedFlexibleVar {
                         range: *range,
                         source: *source,
                     })
@@ -202,7 +193,7 @@ impl<'arena> Context<'arena> {
     }
 
     pub fn force(&mut self, term: &Arc<Value<'arena>>) -> Arc<Value<'arena>> {
-        ElimContext::new(&self.problem_exprs)
+        ElimContext::new(&self.flexible_exprs)
             .force(term)
             .unwrap_or_else(|error| self.report_value(error))
     }
@@ -212,13 +203,13 @@ impl<'arena> Context<'arena> {
         arena: &'out_arena core::Arena<'out_arena>,
         term: &core::Term<'arena>,
     ) -> core::Term<'out_arena> {
-        EvalContext::new(&mut self.binding_exprs, &self.problem_exprs)
+        EvalContext::new(&mut self.rigid_exprs, &self.flexible_exprs)
             .normalise(arena, term)
             .unwrap_or_else(|error| self.report_term(error))
     }
 
     pub fn eval(&mut self, term: &core::Term<'arena>) -> Arc<Value<'arena>> {
-        EvalContext::new(&mut self.binding_exprs, &self.problem_exprs)
+        EvalContext::new(&mut self.rigid_exprs, &self.flexible_exprs)
             .eval(term)
             .unwrap_or_else(|error| self.report_value(error))
     }
@@ -228,13 +219,13 @@ impl<'arena> Context<'arena> {
         arena: &'out_arena core::Arena<'out_arena>,
         value: &Arc<Value<'arena>>,
     ) -> core::Term<'out_arena> {
-        ReadbackContext::new(arena, self.binding_exprs.len(), &self.problem_exprs)
+        ReadbackContext::new(arena, self.rigid_exprs.len(), &self.flexible_exprs)
             .readback(value)
             .unwrap_or_else(|error| self.report_term(error))
     }
 
     fn close_term(&self, term: core::Term<'arena>) -> Closure<'arena> {
-        Closure::new(self.binding_exprs.clone(), self.arena.alloc_term(term))
+        Closure::new(self.rigid_exprs.clone(), self.arena.alloc_term(term))
     }
 
     fn apply_closure(
@@ -242,7 +233,7 @@ impl<'arena> Context<'arena> {
         closure: &Closure<'arena>,
         input_expr: Arc<Value<'arena>>,
     ) -> Arc<Value<'arena>> {
-        ElimContext::new(&self.problem_exprs)
+        ElimContext::new(&self.flexible_exprs)
             .apply_closure(closure, input_expr)
             .unwrap_or_else(|error| self.report_value(error))
     }
@@ -255,8 +246,8 @@ impl<'arena> Context<'arena> {
         let mut context = unification::Context::new(
             &self.arena,
             &mut self.renaming,
-            self.binding_exprs.len(),
-            &mut self.problem_exprs,
+            self.rigid_exprs.len(),
+            &mut self.flexible_exprs,
         );
 
         context.unify(value0, value1)
@@ -292,9 +283,9 @@ impl<'arena> Context<'arena> {
 
                 let def_expr_value = self.eval(&def_expr);
 
-                self.push_definition(Some(*def_name), def_expr_value, def_type_value);
+                self.push_rigid_definition(Some(*def_name), def_expr_value, def_type_value);
                 let output_expr = self.check(output_expr, &expected_type);
-                self.pop_binding();
+                self.pop_rigid();
 
                 core::Term::Let(
                     *def_name,
@@ -306,10 +297,10 @@ impl<'arena> Context<'arena> {
                 surface::Term::FunIntro(_, (_, input_name), output_expr),
                 Value::FunType(_, input_type, output_type),
             ) => {
-                let input_expr = self.push_assumption(Some(*input_name), input_type.clone());
+                let input_expr = self.push_rigid_parameter(Some(*input_name), input_type.clone());
                 let output_type = self.apply_closure(output_type, input_expr);
                 let output_expr = self.check(output_expr, &output_type);
-                self.pop_binding();
+                self.pop_rigid();
 
                 core::Term::FunIntro(Some(*input_name), self.arena.alloc_term(output_expr))
             }
@@ -336,20 +327,20 @@ impl<'arena> Context<'arena> {
         surface_term: &surface::Term<'_>,
     ) -> (core::Term<'arena>, Arc<Value<'arena>>) {
         match surface_term {
-            surface::Term::Name(range, name) => match self.get_binding(*name) {
-                Some((local_var, r#type)) => (core::Term::BoundVar(local_var), r#type.clone()),
+            surface::Term::Name(range, name) => match self.get_rigid_type(*name) {
+                Some((local_var, r#type)) => (core::Term::RigidVar(local_var), r#type.clone()),
                 None => {
                     self.push_message(Message::UnboundName {
                         range: *range,
                         name: *name,
                     });
-                    let r#type = self.fresh_problem_value(*range, ProblemSource::ReportedErrorType);
+                    let r#type = self.push_flexible_value(*range, FlexSource::ReportedErrorType);
                     (core::Term::ReportedError, r#type)
                 }
             },
             surface::Term::Hole(range, name) => (
-                self.fresh_problem_term(*range, ProblemSource::HoleExpr(*name)),
-                self.fresh_problem_value(*range, ProblemSource::HoleType(*name)),
+                self.push_flexible_term(*range, FlexSource::HoleExpr(*name)),
+                self.push_flexible_value(*range, FlexSource::HoleType(*name)),
             ),
             surface::Term::Ann(expr, r#type) => {
                 let r#type = self.check(r#type, &Arc::new(Value::Universe)); // FIXME: avoid temporary Arc
@@ -380,9 +371,9 @@ impl<'arena> Context<'arena> {
 
                 let def_expr_value = self.eval(&def_expr);
 
-                self.push_definition(Some(*def_name), def_expr_value, def_type_value);
+                self.push_rigid_definition(Some(*def_name), def_expr_value, def_type_value);
                 let (output_expr, output_type) = self.synth(output_expr);
-                self.pop_binding();
+                self.pop_rigid();
 
                 let let_expr = core::Term::Let(
                     *def_name,
@@ -397,9 +388,9 @@ impl<'arena> Context<'arena> {
                 let input_type = self.check(input_type, &Arc::new(Value::Universe)); // FIXME: avoid temporary Arc
                 let input_type_value = self.eval(&input_type);
 
-                self.push_assumption(None, input_type_value);
+                self.push_rigid_parameter(None, input_type_value);
                 let output_type = self.check(output_type, &Arc::new(Value::Universe)); // FIXME: avoid temporary Arc
-                self.pop_binding();
+                self.pop_rigid();
 
                 let fun_type = core::Term::FunType(
                     None,
@@ -413,9 +404,9 @@ impl<'arena> Context<'arena> {
                 let input_type = self.check(input_type, &Arc::new(Value::Universe)); // FIXME: avoid temporary Arc
                 let input_type_value = self.eval(&input_type);
 
-                self.push_assumption(Some(*input_name), input_type_value);
+                self.push_rigid_parameter(Some(*input_name), input_type_value);
                 let output_type = self.check(output_type, &Arc::new(Value::Universe)); // FIXME: avoid temporary Arc
-                self.pop_binding();
+                self.pop_rigid();
 
                 let fun_type = core::Term::FunType(
                     Some(*input_name),
@@ -428,12 +419,12 @@ impl<'arena> Context<'arena> {
             surface::Term::FunIntro(_, (input_range, input_name), output_expr) => {
                 let input_name = Some(*input_name);
                 let input_type =
-                    self.fresh_problem_value(*input_range, ProblemSource::FunInputType(input_name));
+                    self.push_flexible_value(*input_range, FlexSource::FunInputType(input_name));
 
-                self.push_assumption(input_name, input_type.clone());
+                self.push_rigid_parameter(input_name, input_type.clone());
                 let (output_expr, output_type) = self.synth(output_expr);
                 let output_type = self.readback(self.arena, &output_type);
-                self.pop_binding();
+                self.pop_rigid();
 
                 let output_type = self.close_term(output_type);
 
@@ -466,18 +457,18 @@ impl<'arena> Context<'arena> {
                     }
                     // It's not immediately obvious that the head type is a
                     // function type, so instead we construct a function type
-                    // with fresh problem variables standing in for the input
-                    // and output types, and then attempt to unify the head type
+                    // with flexible variables standing-in for the input and
+                    // output types, and then we attempt to unify the head type
                     // against it.
                     _ => {
-                        // Create a function type between problem variables.
+                        // Create a function type between flexible variables.
                         let input_type =
-                            self.fresh_problem_value(head_range, ProblemSource::FunInputType(None));
+                            self.push_flexible_value(head_range, FlexSource::FunInputType(None));
 
-                        self.push_assumption(None, input_type.clone());
+                        self.push_rigid_parameter(None, input_type.clone());
                         let output_type =
-                            self.fresh_problem_term(head_range, ProblemSource::FunOutputType);
-                        self.pop_binding();
+                            self.push_flexible_term(head_range, FlexSource::FunOutputType);
+                        self.pop_rigid();
 
                         let output_type = self.close_term(output_type);
                         let fun_type = Arc::new(Value::FunType(
@@ -513,7 +504,7 @@ impl<'arena> Context<'arena> {
             }
             surface::Term::ReportedError(range) => (
                 core::Term::ReportedError,
-                self.fresh_problem_value(*range, ProblemSource::ReportedErrorType),
+                self.push_flexible_value(*range, FlexSource::ReportedErrorType),
             ),
         }
     }

@@ -31,17 +31,17 @@ impl<'arena> Context<'arena> {
         }
     }
 
-    fn get_name(&self, var: LocalVar) -> Option<StringId> {
+    fn get_rigid_name(&self, var: LocalVar) -> Option<StringId> {
         self.names.get_local(var).copied()
     }
 
-    fn push_binding(&mut self, name: Option<StringId>) -> StringId {
+    fn push_rigid(&mut self, name: Option<StringId>) -> StringId {
         let name = name.unwrap_or(self.placeholder_string); // TODO: choose a better name
         self.names.push(name); // TODO: ensure we chose a correctly bound name
         name
     }
 
-    fn pop_binding(&mut self) {
+    fn pop_rigid(&mut self) {
         self.names.pop();
     }
 
@@ -58,9 +58,9 @@ impl<'arena> Context<'arena> {
                     expr => (self.arena.alloc_term(expr) as &_, None),
                 };
 
-                let def_name = self.push_binding(Some(*def_name));
+                let def_name = self.push_rigid(Some(*def_name));
                 let output_expr = self.check(output_expr);
-                self.pop_binding();
+                self.pop_rigid();
 
                 surface::Term::Let(
                     PLACEHOLDER_POS,
@@ -71,9 +71,9 @@ impl<'arena> Context<'arena> {
                 )
             }
             core::Term::FunIntro(input_name, output_expr) => {
-                let input_name = self.push_binding(*input_name);
+                let input_name = self.push_rigid(*input_name);
                 let output_expr = self.check(output_expr);
-                self.pop_binding();
+                self.pop_rigid();
 
                 surface::Term::FunIntro(
                     PLACEHOLDER_POS,
@@ -88,23 +88,23 @@ impl<'arena> Context<'arena> {
     /// Distill a core term into a surface term, in a 'synthesizable' context.
     pub fn synth(&mut self, core_term: &core::Term<'_>) -> surface::Term<'arena> {
         match core_term {
-            core::Term::BoundVar(var) => match self.get_name(*var) {
+            core::Term::RigidVar(var) => match self.get_rigid_name(*var) {
                 Some(name) => surface::Term::Name(PLACEHOLDER_RANGE, name),
                 None => todo!("misbound variable"), // TODO: error?
             },
-            core::Term::ProblemVar(_var) => {
-                let name = None; // TODO: lookup problem name
+            core::Term::FlexibleVar(_var) => {
+                let name = None; // TODO: lookup flexible variable name
                 surface::Term::Hole(PLACEHOLDER_RANGE, name)
             }
-            core::Term::InsertedProblem(var, bindings) => {
-                let mut head_expr = self.synth(&core::Term::ProblemVar(*var));
+            core::Term::FlexibleInsertion(var, rigid_infos) => {
+                let mut head_expr = self.synth(&core::Term::FlexibleVar(*var));
 
-                for (var, mode) in Iterator::zip(env::global_vars(), bindings.iter()) {
-                    match mode {
-                        core::BindingMode::Defined => {}
-                        core::BindingMode::Assumed => {
+                for (var, info) in Iterator::zip(env::global_vars(), rigid_infos.iter()) {
+                    match info {
+                        core::EntryInfo::Concrete => {}
+                        core::EntryInfo::Abstract => {
                             let var = self.names.len().global_to_local(var).unwrap();
-                            let input_expr = self.synth(&core::Term::BoundVar(var));
+                            let input_expr = self.synth(&core::Term::RigidVar(var));
                             head_expr = surface::Term::FunElim(
                                 self.arena.alloc_term(head_expr),
                                 self.arena.alloc_term(input_expr),
@@ -127,9 +127,9 @@ impl<'arena> Context<'arena> {
                     expr => (self.arena.alloc_term(expr) as &_, None),
                 };
 
-                let def_name = self.push_binding(Some(*def_name));
+                let def_name = self.push_rigid(Some(*def_name));
                 let output_expr = self.synth(output_expr);
-                self.pop_binding();
+                self.pop_rigid();
 
                 surface::Term::Let(
                     PLACEHOLDER_POS,
@@ -143,9 +143,9 @@ impl<'arena> Context<'arena> {
             core::Term::FunType(input_name, input_type, output_type) => {
                 let input_type = self.check(input_type);
 
-                let input_name = self.push_binding(*input_name);
+                let input_name = self.push_rigid(*input_name);
                 let output_type = self.check(output_type);
-                self.pop_binding();
+                self.pop_rigid();
 
                 // TODO: distill to arrow if `input_name` is not bound in `output_type`
                 surface::Term::FunType(
@@ -156,9 +156,9 @@ impl<'arena> Context<'arena> {
                 )
             }
             core::Term::FunIntro(input_name, output_expr) => {
-                let input_name = self.push_binding(*input_name);
+                let input_name = self.push_rigid(*input_name);
                 let output_expr = self.synth(output_expr);
-                self.pop_binding();
+                self.pop_rigid();
 
                 surface::Term::FunIntro(
                     PLACEHOLDER_POS,

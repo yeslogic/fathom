@@ -5,34 +5,68 @@ use crate::StringId;
 
 pub mod semantics;
 
-/// The mode of a binding, used for problem insertion.
+/// Information about rigid entries. This is used for [flexible variable
+/// insertion][Term::FlexibleInsertion].
+//
+// NOTE: Bikeshed of alternative names:
+//
+// - observability ::= ?
+// - perceptibility ::= ?
+// - denotion ::= ?
+// - binder-info ::= ?
+// - ? ::= transparent | opaque
+// - ? ::= concrete | abstract
+// - ? ::= definition | parameter
+//
+// See also: https://en.wikipedia.org/wiki/Abstract_and_concrete
 #[derive(Debug, Clone)]
-pub enum BindingMode {
-    Defined,
-    Assumed,
+pub enum EntryInfo {
+    Concrete,
+    Abstract,
 }
 
 /// Core language terms.
 #[derive(Debug, Clone)]
 pub enum Term<'arena> {
-    /// Bound variable occurrences.
-    BoundVar(LocalVar),
-    /// Problem variable occurrences.
+    /// Rigid variable occurrences.
+    ///
+    /// These correspond to variables that were most likely bound as a result of
+    /// user code, for example from [let expressions]), [function types] and
+    /// [function introductions].
+    ///
+    /// [let expressions]: Term::Let
+    /// [function types]: Term::FunType
+    /// [function introductions]: Term::FunIntro
+    ///
+    /// ## References
+    ///
+    /// - [A unification algorithm for typed λ-calculus](https://doi.org/10.1016/0304-3975(75)90011-0)
+    /// - [Type Classes: Rigid type variables](https://typeclasses.com/rigid-type-variables)
+    RigidVar(LocalVar),
+    /// Flexible variable occurrences.
+    ///
+    /// These are inserted during [elaboration] when we have something we want
+    /// pattern unification to fill in for us. They are 'flexible' because the
+    /// expressions that they correspond to might be updated (from unknown to
+    /// known) during unification.
     ///
     /// Also known as: metavariables.
-    ProblemVar(GlobalVar),
-    /// A problem variable that has just been inserted.
     ///
-    /// The bindings modes let us apply the bound assumptions in scope to the
-    /// problem during evaluation. We could also represent this as a series of
-    /// function eliminations, but encoding it as an environment is more direct
-    /// and efficient.
+    /// [elaboration]: crate::surface::elaboration
+    FlexibleVar(GlobalVar),
+    /// A flexible variable that has just been inserted.
+    ///
+    /// The environment of [`EntryInfo`]s records the state of the rigid
+    /// environment at the time of insertion, allowing us to apply the rigid
+    /// parameters to the flexible variable during [evaluation].
+    ///
+    /// [evaluation]: semantics::EvalContext::eval
     //
     // TODO: Bit-vectors might make this a bit more compact. For example:
     //
     // - https://lib.rs/crates/smallbitvec
     // - https://lib.rs/crates/bit-vec
-    InsertedProblem(GlobalVar, UniqueEnv<BindingMode>),
+    FlexibleInsertion(GlobalVar, UniqueEnv<EntryInfo>),
     /// Annotated expressions.
     Ann(&'arena Term<'arena>, &'arena Term<'arena>),
     /// Let expressions.
