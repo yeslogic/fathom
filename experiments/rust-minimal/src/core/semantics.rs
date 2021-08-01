@@ -3,7 +3,7 @@
 
 use std::sync::Arc;
 
-use crate::core::{Arena, BindingMode, Term};
+use crate::core::{Arena, EntryInfo, Term};
 use crate::env::{EnvLen, GlobalVar, SharedEnv, SliceEnv};
 use crate::StringId;
 
@@ -25,12 +25,12 @@ pub enum Value<'arena> {
 }
 
 impl<'arena> Value<'arena> {
-    pub fn bound_var(global: GlobalVar) -> Value<'arena> {
-        Value::Stuck(Head::BoundVar(global), Vec::new())
+    pub fn rigid_var(global: GlobalVar) -> Value<'arena> {
+        Value::Stuck(Head::RigidVar(global), Vec::new())
     }
 
-    pub fn problem_var(global: GlobalVar) -> Value<'arena> {
-        Value::Stuck(Head::ProblemVar(global), Vec::new())
+    pub fn flexible_var(global: GlobalVar) -> Value<'arena> {
+        Value::Stuck(Head::FlexibleVar(global), Vec::new())
     }
 
     pub fn reported_error() -> Value<'arena> {
@@ -42,9 +42,9 @@ impl<'arena> Value<'arena> {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Head {
     /// Variables that refer to binders.
-    BoundVar(GlobalVar),
-    /// Variables that refer to unification problems.
-    ProblemVar(GlobalVar),
+    RigidVar(GlobalVar),
+    /// Variables that refer to unification flexible_exprs.
+    FlexibleVar(GlobalVar),
     /// Error sentinel.
     ReportedError,
 }
@@ -61,16 +61,16 @@ pub enum Elim<'arena> {
 /// A closure is a term that can later be instantiated with a value.
 #[derive(Debug, Clone)]
 pub struct Closure<'arena> {
-    bindings: SharedEnv<Arc<Value<'arena>>>,
+    rigid_exprs: SharedEnv<Arc<Value<'arena>>>,
     term: &'arena Term<'arena>,
 }
 
 impl<'arena> Closure<'arena> {
     pub fn new(
-        bindings: SharedEnv<Arc<Value<'arena>>>,
+        rigid_exprs: SharedEnv<Arc<Value<'arena>>>,
         term: &'arena Term<'arena>,
     ) -> Closure<'arena> {
-        Closure { bindings, term }
+        Closure { rigid_exprs, term }
     }
 }
 
@@ -78,8 +78,8 @@ impl<'arena> Closure<'arena> {
 // TODO: include stack trace(??)
 #[derive(Clone, Debug)]
 pub enum Error {
-    InvalidBoundVar,
-    InvalidProblemVar,
+    InvalidRigidVar,
+    InvalidFlexibleVar,
     InvalidFunctionElimHead,
 }
 
@@ -87,59 +87,71 @@ pub type Result<T> = std::result::Result<T, Error>;
 
 /// Evaluation context.
 pub struct EvalContext<'arena, 'env> {
-    bindings: &'env mut SharedEnv<Arc<Value<'arena>>>,
-    problems: &'env SliceEnv<Option<Arc<Value<'arena>>>>,
+    rigid_exprs: &'env mut SharedEnv<Arc<Value<'arena>>>,
+    flexible_exprs: &'env SliceEnv<Option<Arc<Value<'arena>>>>,
 }
 
 impl<'arena, 'env> EvalContext<'arena, 'env> {
     pub fn new(
-        bindings: &'env mut SharedEnv<Arc<Value<'arena>>>,
-        problems: &'env SliceEnv<Option<Arc<Value<'arena>>>>,
+        rigid_exprs: &'env mut SharedEnv<Arc<Value<'arena>>>,
+        flexible_exprs: &'env SliceEnv<Option<Arc<Value<'arena>>>>,
     ) -> EvalContext<'arena, 'env> {
-        EvalContext { bindings, problems }
+        EvalContext {
+            rigid_exprs,
+            flexible_exprs,
+        }
     }
 
     fn elim_context(&self) -> ElimContext<'arena, 'env> {
-        ElimContext::new(self.problems)
+        ElimContext::new(self.flexible_exprs)
     }
 
     fn close_term(&self, term: &'arena Term<'arena>) -> Closure<'arena> {
-        Closure::new(self.bindings.clone(), term)
+        Closure::new(self.rigid_exprs.clone(), term)
     }
 
     /// Fully normalise a term by first [evaluating][EvalContext::eval] it into
-    /// a [value][Value], then [reading it back][ReadbackContext::redback] into
+    /// a [value][Value], then [reading it back][ReadbackContext::readback] into
     /// a [term][Term].
     pub fn normalise<'out_arena>(
         &mut self,
         arena: &'out_arena Arena<'out_arena>,
         term: &Term<'arena>,
     ) -> Result<Term<'out_arena>> {
-        ReadbackContext::new(arena, self.bindings.len(), self.problems).readback(&self.eval(term)?)
+        ReadbackContext::new(arena, self.rigid_exprs.len(), self.flexible_exprs)
+            .readback(&self.eval(term)?)
     }
 
     /// Evaluate a [term][Term] into a [value][Value].
     pub fn eval(&mut self, term: &Term<'arena>) -> Result<Arc<Value<'arena>>> {
         match term {
-            Term::BoundVar(var) => match self.bindings.get_local(*var) {
+            Term::RigidVar(var) => match self.rigid_exprs.get_local(*var) {
                 Some(value) => Ok(value.clone()),
-                None => Err(Error::InvalidBoundVar),
+                None => Err(Error::InvalidRigidVar),
             },
-            Term::ProblemVar(var) => match self.problems.get_global(*var) {
+            Term::FlexibleVar(var) => match self.flexible_exprs.get_global(*var) {
                 Some(Some(value)) => Ok(value.clone()),
-                Some(None) => Ok(Arc::new(Value::problem_var(*var))),
-                None => Err(Error::InvalidProblemVar),
+                Some(None) => Ok(Arc::new(Value::flexible_var(*var))),
+                None => Err(Error::InvalidFlexibleVar),
             },
-            Term::InsertedProblem(var, bindings) => {
-                let head_expr = self.eval(&Term::ProblemVar(*var))?;
-                self.apply_assumptions(head_expr, bindings)
+            Term::FlexibleInsertion(var, rigid_infos) => {
+                let mut head_expr = self.eval(&Term::FlexibleVar(*var))?;
+                for (infor, expr) in Iterator::zip(rigid_infos.iter(), self.rigid_exprs.iter()) {
+                    head_expr = match infor {
+                        EntryInfo::Concrete => head_expr,
+                        EntryInfo::Abstract => {
+                            self.elim_context().apply_fun(head_expr, expr.clone())?
+                        }
+                    };
+                }
+                Ok(head_expr)
             }
             Term::Ann(expr, _) => self.eval(expr),
             Term::Let(_, def_expr, output_expr) => {
                 let def_expr = self.eval(def_expr)?;
-                self.bindings.push(def_expr);
+                self.rigid_exprs.push(def_expr);
                 let output_expr = self.eval(output_expr);
-                self.bindings.pop();
+                self.rigid_exprs.pop();
                 output_expr
             }
             Term::Universe => Ok(Arc::new(Value::Universe)),
@@ -160,56 +172,38 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
             Term::ReportedError => Ok(Arc::new(Value::reported_error())),
         }
     }
-
-    /// Apply the currently bound assumptions to a value, using an environment
-    /// of binding modes from an [inserted problem][Term::InsertedProblem].
-    fn apply_assumptions(
-        &self,
-        mut head_expr: Arc<Value<'arena>>,
-        bindings: &SliceEnv<BindingMode>,
-    ) -> Result<Arc<Value<'arena>>> {
-        for (mode, expr) in Iterator::zip(bindings.iter(), self.bindings.iter()) {
-            head_expr = match mode {
-                BindingMode::Defined => head_expr,
-                BindingMode::Assumed => self.elim_context().apply_fun(head_expr, expr.clone())?,
-            };
-        }
-        Ok(head_expr)
-    }
 }
 
 /// Elimination context.
-///
-/// This only requires a reference to the unification solutions,
-/// as the bound expressions will be supplied by any closures that are
-/// encountered during evaluation.
 pub struct ElimContext<'arena, 'env> {
-    problems: &'env SliceEnv<Option<Arc<Value<'arena>>>>,
+    flexible_exprs: &'env SliceEnv<Option<Arc<Value<'arena>>>>,
 }
 
 impl<'arena, 'env> ElimContext<'arena, 'env> {
-    pub fn new(problems: &'env SliceEnv<Option<Arc<Value<'arena>>>>) -> ElimContext<'arena, 'env> {
-        ElimContext { problems }
+    pub fn new(
+        flexible_exprs: &'env SliceEnv<Option<Arc<Value<'arena>>>>,
+    ) -> ElimContext<'arena, 'env> {
+        ElimContext { flexible_exprs }
     }
 
     /// Bring a value up-to-date with any new unification solutions that
     /// might now be present at the head of in the given value.
     pub fn force(&self, value: &Arc<Value<'arena>>) -> Result<Arc<Value<'arena>>> {
         match value.as_ref() {
-            Value::Stuck(Head::ProblemVar(var), spine) => {
+            Value::Stuck(Head::FlexibleVar(var), spine) => {
                 // Check to see if a solution for this unification
                 // variable was found since we last checked.
-                match self.problems.get_global(*var) {
+                match self.flexible_exprs.get_global(*var) {
                     Some(Some(value)) => {
                         // Apply the spine to the updated head value.
                         let value = self.apply_spine(value.clone(), spine)?;
                         // The result of the spine application might also have a
-                        // solved unification problem at its head, so force that
+                        // solved flexible variables at its head, so force that
                         // too while we're at it!
                         self.force(&value)
                     }
                     Some(None) => Ok(value.clone()),
-                    None => Err(Error::InvalidProblemVar),
+                    None => Err(Error::InvalidFlexibleVar),
                 }
             }
             _ => Ok(value.clone()),
@@ -222,7 +216,8 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
         closure: &Closure<'arena>,
         value: Arc<Value<'arena>>,
     ) -> Result<Arc<Value<'arena>>> {
-        EvalContext::new(&mut closure.bindings.push_clone(value), self.problems).eval(closure.term)
+        let mut rigid_exprs = closure.rigid_exprs.push_clone(value);
+        EvalContext::new(&mut rigid_exprs, self.flexible_exprs).eval(closure.term)
     }
 
     /// Apply a function elimination to an expression, performing
@@ -264,33 +259,33 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
 /// Readback context.
 pub struct ReadbackContext<'in_arena, 'out_arena, 'env> {
     arena: &'out_arena Arena<'out_arena>,
-    bindings: EnvLen,
-    problems: &'env SliceEnv<Option<Arc<Value<'in_arena>>>>,
+    rigid_exprs: EnvLen,
+    flexible_exprs: &'env SliceEnv<Option<Arc<Value<'in_arena>>>>,
 }
 
 impl<'in_arena, 'out_arena, 'env> ReadbackContext<'in_arena, 'out_arena, 'env> {
     pub fn new(
         arena: &'out_arena Arena<'out_arena>,
-        bindings: EnvLen,
-        problems: &'env SliceEnv<Option<Arc<Value<'in_arena>>>>,
+        rigid_exprs: EnvLen,
+        flexible_exprs: &'env SliceEnv<Option<Arc<Value<'in_arena>>>>,
     ) -> ReadbackContext<'in_arena, 'out_arena, 'env> {
         ReadbackContext {
             arena,
-            bindings,
-            problems,
+            rigid_exprs,
+            flexible_exprs,
         }
     }
 
     fn elim_context(&self) -> ElimContext<'in_arena, 'env> {
-        ElimContext::new(self.problems)
+        ElimContext::new(self.flexible_exprs)
     }
 
-    fn push_binding(&mut self) {
-        self.bindings.push();
+    fn push_rigid(&mut self) {
+        self.rigid_exprs.push();
     }
 
-    fn pop_binding(&mut self) {
-        self.bindings.pop();
+    fn pop_rigid(&mut self) {
+        self.rigid_exprs.pop();
     }
 
     /// Read a [value][Value] back into a [term][Term].
@@ -298,11 +293,11 @@ impl<'in_arena, 'out_arena, 'env> ReadbackContext<'in_arena, 'out_arena, 'env> {
         match self.elim_context().force(value)?.as_ref() {
             Value::Stuck(head, spine) => {
                 let mut head_expr = match head {
-                    Head::BoundVar(var) => {
+                    Head::RigidVar(var) => {
                         // FIXME: Unwrap
-                        Term::BoundVar(self.bindings.global_to_local(*var).unwrap())
+                        Term::RigidVar(self.rigid_exprs.global_to_local(*var).unwrap())
                     }
-                    Head::ProblemVar(var) => Term::ProblemVar(*var),
+                    Head::FlexibleVar(var) => Term::FlexibleVar(*var),
                     Head::ReportedError => Term::ReportedError,
                 };
 
@@ -344,12 +339,12 @@ impl<'in_arena, 'out_arena, 'env> ReadbackContext<'in_arena, 'out_arena, 'env> {
 
     /// Read a [closure][Closure] back into a [term][Term].
     fn readback_closure(&mut self, closure: &Closure<'in_arena>) -> Result<Term<'out_arena>> {
-        let var = Arc::new(Value::bound_var(self.bindings.next_global()));
+        let var = Arc::new(Value::rigid_var(self.rigid_exprs.next_global()));
         let value = self.elim_context().apply_closure(closure, var)?;
 
-        self.push_binding();
+        self.push_rigid();
         let term = self.readback(&value);
-        self.pop_binding();
+        self.pop_rigid();
 
         term
     }
@@ -357,28 +352,31 @@ impl<'in_arena, 'out_arena, 'env> ReadbackContext<'in_arena, 'out_arena, 'env> {
 
 /// Conversion context.
 pub struct ConversionContext<'arena, 'env> {
-    bindings: EnvLen,
-    problems: &'env SliceEnv<Option<Arc<Value<'arena>>>>,
+    rigid_exprs: EnvLen,
+    flexible_exprs: &'env SliceEnv<Option<Arc<Value<'arena>>>>,
 }
 
 impl<'arena, 'env> ConversionContext<'arena, 'env> {
     pub fn new(
-        bindings: EnvLen,
-        problems: &'env SliceEnv<Option<Arc<Value<'arena>>>>,
+        rigid_exprs: EnvLen,
+        flexible_exprs: &'env SliceEnv<Option<Arc<Value<'arena>>>>,
     ) -> ConversionContext<'arena, 'env> {
-        ConversionContext { bindings, problems }
+        ConversionContext {
+            rigid_exprs,
+            flexible_exprs,
+        }
     }
 
     fn elim_context(&self) -> ElimContext<'arena, 'env> {
-        ElimContext::new(self.problems)
+        ElimContext::new(self.flexible_exprs)
     }
 
-    fn push_binding(&mut self) {
-        self.bindings.push();
+    fn push_rigid(&mut self) {
+        self.rigid_exprs.push();
     }
 
-    fn pop_binding(&mut self) {
-        self.bindings.pop();
+    fn pop_rigid(&mut self) {
+        self.rigid_exprs.pop();
     }
 
     /// Check that one value is [computationally equal] to another value.
@@ -396,8 +394,7 @@ impl<'arena, 'env> ConversionContext<'arena, 'env> {
 
         match (value0.as_ref(), value1.as_ref()) {
             // `ReportedError`s result from errors that have already been
-            // reported, so we say that they are equal to any other value to
-            // prevent them from triggering more errors.
+            // reported, so we prevent them from triggering more errors.
             (Value::Stuck(Head::ReportedError, _), _)
             | (_, Value::Stuck(Head::ReportedError, _)) => Ok(true),
 
@@ -438,13 +435,13 @@ impl<'arena, 'env> ConversionContext<'arena, 'env> {
         closure0: &Closure<'_>,
         closure1: &Closure<'_>,
     ) -> Result<bool> {
-        let var = Arc::new(Value::bound_var(self.bindings.next_global()));
+        let var = Arc::new(Value::rigid_var(self.rigid_exprs.next_global()));
         let value0 = self.elim_context().apply_closure(closure0, var.clone())?;
         let value1 = self.elim_context().apply_closure(closure1, var)?;
 
-        self.push_binding();
+        self.push_rigid();
         let result = self.is_equal(&value0, &value1);
-        self.pop_binding();
+        self.pop_rigid();
 
         result
     }
@@ -455,13 +452,13 @@ impl<'arena, 'env> ConversionContext<'arena, 'env> {
         output_expr: &Closure<'_>,
         value: &Arc<Value<'_>>,
     ) -> Result<bool> {
-        let var = Arc::new(Value::bound_var(self.bindings.next_global()));
+        let var = Arc::new(Value::rigid_var(self.rigid_exprs.next_global()));
         let value = self.elim_context().apply_fun(value.clone(), var.clone())?;
         let output_expr = self.elim_context().apply_closure(output_expr, var)?;
 
-        self.push_binding();
+        self.push_rigid();
         let result = self.is_equal(&output_expr, &value);
-        self.pop_binding();
+        self.pop_rigid();
 
         result
     }

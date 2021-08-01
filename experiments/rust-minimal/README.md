@@ -40,8 +40,8 @@ _core.index_ ::= `last` | `prev(`_core.index_`)`\
 _core.level_ ::= `first` | `next(`_core.level_`)`
 
 _core.term_ ::=\
-&emsp;| `bound-var(`_core.index_`)`\
-&emsp;| `problem-var(`_core.level_`)`\
+&emsp;| `rigid-var(`_core.index_`)`\
+&emsp;| `flexible-var(`_core.level_`)`\
 &emsp;| `ann(`_core.term_`,` _core.term_`)`\
 &emsp;| `let(`_name_`,` _core.term_`,` _core.term_`,` _core.term_`)`\
 &emsp;| `universe`\
@@ -56,8 +56,8 @@ _core.value_ ::=\
 &emsp;| `fun/intro(`_core.closure_`)`
 
 _core.head_ ::=\
-&emsp;| `bound-var(`_core.index_`)`\
-&emsp;| `problem-var(`_core.level_`)`
+&emsp;| `rigid-var(`_core.index_`)`\
+&emsp;| `flexible-var(`_core.level_`)`
 
 _core.elim_ ::=\
 &emsp;| `function(`_core.value_`)`
@@ -118,7 +118,7 @@ _elab.context_ ::=\
     - [ ] zonking
   - [x] distiller
     - [ ] improve binder names
-    - [ ] improve problem names
+    - [ ] improve hole names
   - [ ] codespan diagnostics
     - [ ] unification solutions
   - [ ] integration tests
