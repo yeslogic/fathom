@@ -36,6 +36,11 @@ type RawVar = u16;
 pub struct LocalVar(RawVar);
 
 impl LocalVar {
+    /// The last variable to be bound in the environment.
+    pub fn last() -> LocalVar {
+        LocalVar(0)
+    }
+
     /// Returns the previously bound variable, relative to this one.
     pub fn prev(self) -> LocalVar {
         LocalVar(self.0 + 1) // FIXME: check overflow?
@@ -69,6 +74,11 @@ pub fn local_vars() -> impl Iterator<Item = LocalVar> {
 pub struct GlobalVar(RawVar);
 
 impl GlobalVar {
+    /// The first variable to be bound in the environment.
+    pub fn first() -> LocalVar {
+        LocalVar(0)
+    }
+
     /// Returns the next bound variable, relative to this one.
     pub fn next(self) -> GlobalVar {
         GlobalVar(self.0 + 1) // FIXME: check overflow?
@@ -90,26 +100,32 @@ impl EnvLen {
         EnvLen(0)
     }
 
+    /// Reset the environment to the empty environment.
     pub fn clear(&mut self) {
         *self = EnvLen::new();
     }
 
+    /// Convert a local variable to a global variable in the current environment.
     pub fn local_to_global(self, local: LocalVar) -> Option<GlobalVar> {
         Some(GlobalVar(self.0.checked_sub(local.0)?.checked_sub(1)?))
     }
 
+    /// Convert a global variable to a local variable in the current environment.
     pub fn global_to_local(self, global: GlobalVar) -> Option<LocalVar> {
         Some(LocalVar(self.0.checked_sub(global.0)?.checked_sub(1)?))
     }
 
+    /// The next global variable that will be bound in this environment.
     pub fn next_global(self) -> GlobalVar {
         GlobalVar(self.0)
     }
 
+    /// Push an entry onto the environment.
     pub fn push(&mut self) {
         self.0 += 1; // FIXME: check overflow?
     }
 
+    /// Pop an entry off the environment.
     pub fn pop(&mut self) {
         self.0 -= 1; // FIXME: check underflow?
     }
@@ -181,6 +197,10 @@ pub struct SliceEnv<Entry> {
 impl<Entry> SliceEnv<Entry> {
     /// The length of the environment.
     pub fn len(&self) -> EnvLen {
+        // SAFETY:
+        // - The only way to construct a `SliceEnv` is via `UniqueEnv`. We
+        //   ensure that the length of the environment never exceeds the the
+        //   maximum `RawVar`, so this should never overflow.
         EnvLen(self.entries.len() as RawVar)
     }
 
@@ -232,7 +252,10 @@ impl<Entry> SharedEnv<Entry> {
 
     /// The length of the environment.
     pub fn len(&self) -> EnvLen {
-        EnvLen(self.entries.len() as u16)
+        // SAFETY:
+        // - We ensure that the length of the environment never exceeds the the
+        //   maximum `RawVar`, so this should never overflow.
+        EnvLen(self.entries.len() as RawVar)
     }
 
     /// Lookup an entry in the environment using global variable reference.
