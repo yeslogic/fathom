@@ -268,14 +268,6 @@ impl<Entry> SharedEnv<Entry> {
         self.get_global(self.len().local_to_global(local_var)?)
     }
 
-    /// Push an entry onto a clone of the environment.
-    pub fn push_clone(&self, entry: Entry) -> SharedEnv<Entry> {
-        assert!(self.entries.len() < usize::from(u16::MAX));
-        SharedEnv {
-            entries: self.entries.push_back(entry),
-        }
-    }
-
     /// Push an entry onto the environment.
     pub fn push(&mut self, entry: Entry) {
         assert!(self.entries.len() < usize::from(u16::MAX));
