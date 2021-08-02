@@ -216,7 +216,8 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
         closure: &Closure<'arena>,
         value: Arc<Value<'arena>>,
     ) -> Result<Arc<Value<'arena>>> {
-        let mut rigid_exprs = closure.rigid_exprs.push_clone(value);
+        let mut rigid_exprs = closure.rigid_exprs.clone();
+        rigid_exprs.push(value);
         EvalContext::new(&mut rigid_exprs, self.flexible_exprs).eval(closure.term)
     }
 
