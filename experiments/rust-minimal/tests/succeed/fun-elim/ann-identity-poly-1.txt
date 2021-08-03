@@ -1,0 +1,1 @@
+(fun A => fun a => a : fun (A : Type) -> A -> A) (Type -> Type) (fun a => a)

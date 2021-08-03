@@ -119,6 +119,9 @@ _elab.context_ ::=\
   - [x] distiller
     - [ ] improve binder names
     - [ ] improve hole names
+  - [ ] core language validation
   - [ ] codespan diagnostics
     - [ ] unification solutions
-  - [ ] integration tests
+  - [x] integration tests
+    - [ ] snapshot testing
+    - [ ] diagnostic expectations

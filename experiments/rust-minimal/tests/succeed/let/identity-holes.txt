@@ -1,0 +1,9 @@
+let id : fun (A : ?) -> A -> A
+    = fun A => fun a => a;
+
+let test_id_check0 : Type -> Type = id ?;
+let test_id_check1 : Type = id ? Type;
+
+let test_id_synth = id ? Type;
+
+Type

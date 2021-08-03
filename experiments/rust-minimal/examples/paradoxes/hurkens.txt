@@ -1,3 +1,5 @@
+//~ ignore = true
+
 // Hurkens' paradox [1] ported from Agda [2].
 //
 // This is a result of allowing `Type : Type`. Elaborating this file using
