@@ -65,6 +65,13 @@ let Nat : Type
       fun (zero : Nat) ->
         Nat;
 
+let zero : Nat
+    = fun Nat => fun succ => fun zero => zero;
+
+let succ : Nat -> Nat
+    = fun prev => fun Nat => fun succ => fun zero =>
+        succ (prev ? succ zero);
+
 let add : Nat -> Nat -> Nat
   = fun n0 => fun n1 => fun Nat => fun succ => fun zero =>
       n0 Nat succ (n1 Nat succ zero);
@@ -81,7 +88,7 @@ let id_elim_type = (fun a => a) Type;
 let list1 : List Bool
   = cons ? (id ? true) (nil ?);
 
-let five : Nat = fun Nat => fun succ => fun zero => succ (succ (succ (succ (succ zero))));
+let five : Nat = succ (succ (succ (succ (succ zero))));
 let ten : Nat = add five five;
 let hundred : Nat = mul ten ten;
 let thousand : Nat = mul ten hundred;
