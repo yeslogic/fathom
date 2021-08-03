@@ -38,6 +38,7 @@ let true : Bool
 let false : Bool
   = fun Bool => fun true => fun false => false;
 
+
 let not : Bool -> Bool
   = fun bool => fun Bool => fun true => fun false =>
       bool Bool false true;
@@ -51,6 +52,7 @@ let Eq : fun (A : ?) -> A -> A -> Type
 
 let refl : fun (A : ?) -> fun (a : A) -> Eq A a a
   = fun A => fun a => fun P => fun pa => pa;
+
 
 let sym : fun (A : ?) -> fun (a0 : A) -> fun (a1 : A) -> Eq ? a0 a1 -> Eq ? a1 a0
   = fun A => fun a0 => fun a1 => fun p =>
@@ -71,6 +73,7 @@ let zero : Nat
 let succ : Nat -> Nat
     = fun prev => fun Nat => fun succ => fun zero =>
         succ (prev ? succ zero);
+
 
 let add : Nat -> Nat -> Nat
   = fun n0 => fun n1 => fun Nat => fun succ => fun zero =>

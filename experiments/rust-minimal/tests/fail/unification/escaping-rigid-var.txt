@@ -1,0 +1,6 @@
+//~ exit-code = 1
+
+let test : fun (n : ?) -> ?
+    = fun n => n;
+
+Type

@@ -1,0 +1,11 @@
+//~ exit-code = 1
+
+let Thing : Type
+  = fun (Thing : ?) ->
+      fun (thing : Thing) ->
+        Thing;
+
+let test : Thing
+  = fun Thing => fun thing => (thing ?);
+
+Type
