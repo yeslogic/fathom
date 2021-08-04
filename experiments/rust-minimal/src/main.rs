@@ -1,3 +1,4 @@
+use fathom_minimal::surface::{distillation, elaboration};
 use fathom_minimal::{core, surface, StringInterner};
 use std::io::Read;
 use std::path::PathBuf;
@@ -71,9 +72,8 @@ fn main() {
     let mut interner = StringInterner::new();
     let surface_arena = surface::Arena::new();
     let core_arena = core::Arena::new();
-    let pretty_arena = pretty::Arena::<()>::new();
-    let mut context = surface::elaboration::Context::new(&core_arena);
 
+    let pretty_arena = pretty::Arena::<()>::new();
     let term_width = termsize::get().map_or(usize::MAX, |size| usize::from(size.cols));
     let pretty_width = std::cmp::min(term_width, MAX_PRETTY_WIDTH);
 
@@ -81,12 +81,12 @@ fn main() {
         Options::Elab(Args { surface_term }) => {
             let surface_term = parse_term(&mut interner, &surface_arena, &surface_term);
 
+            let mut context = elaboration::Context::new(&core_arena);
             let (term, r#type) = context.synth(&surface_term);
             let r#type = context.readback(&core_arena, &r#type);
 
             if check_elaboration_messages(&mut context) {
-                let mut context =
-                    surface::distillation::Context::new(&mut interner, &surface_arena);
+                let mut context = distillation::Context::new(&mut interner, &surface_arena);
                 let term = context.check(&term);
                 let r#type = context.synth(&r#type);
 
@@ -101,13 +101,13 @@ fn main() {
         Options::Norm(Args { surface_term }) => {
             let surface_term = parse_term(&mut interner, &surface_arena, &surface_term);
 
+            let mut context = elaboration::Context::new(&core_arena);
             let (term, r#type) = context.synth(&surface_term);
             let term = context.normalize(&core_arena, &term);
             let r#type = context.readback(&core_arena, &r#type);
 
             if check_elaboration_messages(&mut context) {
-                let mut context =
-                    surface::distillation::Context::new(&mut interner, &surface_arena);
+                let mut context = distillation::Context::new(&mut interner, &surface_arena);
                 let term = context.check(&term);
                 let r#type = context.synth(&r#type);
 
@@ -122,12 +122,12 @@ fn main() {
         Options::Type(Args { surface_term }) => {
             let surface_term = parse_term(&mut interner, &surface_arena, &surface_term);
 
+            let mut context = elaboration::Context::new(&core_arena);
             let (_, r#type) = context.synth(&surface_term);
             let r#type = context.readback(&core_arena, &r#type);
 
             if check_elaboration_messages(&mut context) {
-                let mut context =
-                    surface::distillation::Context::new(&mut interner, &surface_arena);
+                let mut context = distillation::Context::new(&mut interner, &surface_arena);
                 let r#type = context.synth(&r#type);
 
                 let context = surface::pretty::Context::new(&interner, &pretty_arena);
@@ -160,7 +160,7 @@ fn parse_term<'arena>(
     surface::Term::parse(interner, arena, &source).unwrap()
 }
 
-fn check_elaboration_messages(context: &mut surface::elaboration::Context<'_>) -> bool {
+fn check_elaboration_messages(context: &mut elaboration::Context<'_>) -> bool {
     let mut is_ok = true;
 
     for message in context.drain_messages() {
