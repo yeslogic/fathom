@@ -3,7 +3,7 @@
 use std::sync::Arc;
 
 use crate::core::semantics::{self, Closure, ElimContext, EvalContext, ReadbackContext, Value};
-use crate::env::{self, LocalVar, SharedEnv, UniqueEnv};
+use crate::env::{self, SharedEnv, UniqueEnv};
 use crate::{core, surface, ByteRange, StringId};
 
 mod unification;
@@ -102,11 +102,13 @@ impl<'arena> Context<'arena> {
         }
     }
 
-    fn get_rigid_type(&self, name: StringId) -> Option<(LocalVar, &Arc<Value<'arena>>)> {
+    /// Lookup a name in the context.
+    fn get_name(&self, name: StringId) -> Option<(core::Term<'arena>, &Arc<Value<'arena>>)> {
         let rigid_types = Iterator::zip(env::local_vars(), self.rigid_types.iter().rev());
 
-        Iterator::zip(self.rigid_names.iter().copied().rev(), rigid_types)
-            .find_map(|(n, r#type)| (Some(name) == n).then(|| r#type))
+        Iterator::zip(self.rigid_names.iter().copied().rev(), rigid_types).find_map(
+            |(n, (var, r#type))| (Some(name) == n).then(|| (core::Term::RigidVar(var), r#type)),
+        )
     }
 
     /// Push a rigid definition onto the context.
@@ -332,8 +334,8 @@ impl<'arena> Context<'arena> {
         surface_term: &surface::Term<'_>,
     ) -> (core::Term<'arena>, Arc<Value<'arena>>) {
         match surface_term {
-            surface::Term::Name(range, name) => match self.get_rigid_type(*name) {
-                Some((local_var, r#type)) => (core::Term::RigidVar(local_var), r#type.clone()),
+            surface::Term::Name(range, name) => match self.get_name(*name) {
+                Some((term, r#type)) => (term, r#type.clone()),
                 None => {
                     self.push_message(Message::UnboundName {
                         range: *range,
