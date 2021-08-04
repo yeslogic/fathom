@@ -1,9 +1,9 @@
 // Combinators
 
-let id : fun (A : ?) -> A -> A
+let id : fun (A : _) -> A -> A
   = fun A => fun a => a;
 
-let always : fun (A : ?) -> fun (B : ?) -> A -> B -> A
+let always : fun (A : _) -> fun (B : _) -> A -> B -> A
   = fun A => fun B => fun a => fun B => a;
 
 
@@ -11,23 +11,23 @@ let always : fun (A : ?) -> fun (B : ?) -> A -> B -> A
 
 let List : Type -> Type
   = fun Elem =>
-      fun (List : ?) ->
+      fun (List : _) ->
       fun (cons : Elem -> List -> List) ->
       fun (nil : List) ->
         List;
 
-let nil : fun (Elem : ?) -> List Elem
+let nil : fun (Elem : _) -> List Elem
   = fun Elem => fun List => fun cons => fun nil => nil;
 
-let cons : fun (Elem : ?) -> Elem -> List Elem -> List Elem
+let cons : fun (Elem : _) -> Elem -> List Elem -> List Elem
   = fun Elem => fun head => fun tail => fun List => fun cons => fun nil =>
-      cons head (tail ? cons nil);
+      cons head (tail _ cons nil);
 
 
 // Booleans
 
 let Bool : Type
-  = fun (Bool : ?) ->
+  = fun (Bool : _) ->
       fun (true : Bool) ->
       fun (false : Bool) ->
         Bool;
@@ -46,23 +46,23 @@ let not : Bool -> Bool
 
 // Leibniz equality
 
-let Eq : fun (A : ?) -> A -> A -> Type
+let Eq : fun (A : _) -> A -> A -> Type
   = fun A => fun a0 => fun a1 =>
       fun (P : fun (a : A) -> Type) -> fun (p : P a0) -> P a1;
 
-let refl : fun (A : ?) -> fun (a : A) -> Eq A a a
+let refl : fun (A : _) -> fun (a : A) -> Eq A a a
   = fun A => fun a => fun P => fun pa => pa;
 
 
-let sym : fun (A : ?) -> fun (a0 : A) -> fun (a1 : A) -> Eq ? a0 a1 -> Eq ? a1 a0
+let sym : fun (A : _) -> fun (a0 : A) -> fun (a1 : A) -> Eq _ a0 a1 -> Eq _ a1 a0
   = fun A => fun a0 => fun a1 => fun p =>
-      p (fun a1 => Eq ? a1 a0) (refl ? ?);
+      p (fun a1 => Eq _ a1 a0) (refl _ _);
 
 
 // Natural numbers
 
 let Nat : Type
-  = fun (Nat : ?) ->
+  = fun (Nat : _) ->
       fun (succ : Nat -> Nat) ->
       fun (zero : Nat) ->
         Nat;
@@ -72,7 +72,7 @@ let zero : Nat
 
 let succ : Nat -> Nat
     = fun prev => fun Nat => fun succ => fun zero =>
-        succ (prev ? succ zero);
+        succ (prev _ succ zero);
 
 
 let add : Nat -> Nat -> Nat
@@ -89,18 +89,18 @@ let mul : Nat -> Nat -> Nat
 let id_elim_type = (fun a => a) Type;
 
 let list1 : List Bool
-  = cons ? (id ? true) (nil ?);
+  = cons _ (id _ true) (nil _);
 
 let five : Nat = succ (succ (succ (succ (succ zero))));
 let ten : Nat = add five five;
 let hundred : Nat = mul ten ten;
 let thousand : Nat = mul ten hundred;
 
-let eq_test : Eq ? hundred hundred = refl ? ?;
+let eq_test : Eq _ hundred hundred = refl _ _;
 
-let eq_id_elim_type : Eq ? ((fun a => a) Type) Type = refl ? ?;
-let eq_id_elim_true : Eq ? ((fun a => a) true) true = refl ? ?;
-let eq_id_elim_false : Eq ? ((fun a => a) false) false = refl ? ?;
+let eq_id_elim_type : Eq _ ((fun a => a) Type) Type = refl _ _;
+let eq_id_elim_true : Eq _ ((fun a => a) true) true = refl _ _;
+let eq_id_elim_false : Eq _ ((fun a => a) false) false = refl _ _;
 
 
 Type

@@ -2,9 +2,9 @@
 
 let test :
     fun (Wrap : Type -> Type) ->
-    fun (f : fun (A : ?) -> (A -> Wrap A) -> Type) ->
+    fun (f : fun (A : _) -> (A -> Wrap A) -> Type) ->
       Type
   = fun Wrap => fun f =>
-      f ? (fun a => a);
+      f _ (fun a => a);
 
 Type

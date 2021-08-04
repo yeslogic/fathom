@@ -69,8 +69,8 @@ where
 
         match term {
             Term::Name(_, name) => self.name(*name),
-            Term::Hole(_, None) => self.text("?"),
-            Term::Hole(_, Some(name)) => self.concat([self.text("?"), self.name(*name)]),
+            Term::Hole(_, None) => self.text("_"),
+            Term::Hole(_, Some(name)) => self.concat([self.text("_"), self.name(*name)]),
             Term::Ann(expr, r#type) => self.ann(expr, r#type),
             Term::Let(_, (_, def_name), def_type, def_expr, output_expr) => self.paren(
                 prec > Prec::Let,
@@ -154,7 +154,7 @@ where
                     self.term_prec(Prec::Atomic, input_expr),
                 ]),
             ),
-            Term::ReportedError(_) => self.text("?"),
+            Term::ReportedError(_) => self.text("_"),
         }
     }
 }

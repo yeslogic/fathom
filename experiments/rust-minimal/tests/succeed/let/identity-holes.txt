@@ -1,9 +1,9 @@
-let id : fun (A : ?) -> A -> A
+let id : fun (A : _) -> A -> A
     = fun A => fun a => a;
 
-let test_id_check0 : Type -> Type = id ?;
-let test_id_check1 : Type = id ? Type;
+let test_id_check0 : Type -> Type = id _;
+let test_id_check1 : Type = id _ Type;
 
-let test_id_synth = id ? Type;
+let test_id_synth = id _ Type;
 
 Type

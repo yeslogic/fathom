@@ -1,1 +1,1 @@
-(fun a => a : (Type -> Type) -> ?) (fun a => a) Type
+(fun a => a : (Type -> Type) -> _) (fun a => a) Type
