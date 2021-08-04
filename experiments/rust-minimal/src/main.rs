@@ -15,16 +15,16 @@ Using arguments
 
 Using pipes and redirects
 
-    echo "fun (A : Type) -> fun (a : A) -> A" | fathom-minimal elab
+    echo "fun (A : Type) -> A -> A" | fathom-minimal elab
     cat examples/prelude.txt | fathom-minimal elab
     fathom-minimal elab < examples/prelude.txt
 
 Using heredocs
 
-    fathom-minimal elab <<< "fun (A : Type) -> fun (a : A) -> A"
+    fathom-minimal elab <<< "fun (A : Type) -> A -> A"
 
     fathom-minimal norm <<EOF
-        let id : fun (A : Type) -> fun (a : A) -> A
+        let id : fun (A : Type) -> A -> A
           = fun A => fun a => a;
 
         id Type Type
