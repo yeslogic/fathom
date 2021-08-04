@@ -54,15 +54,56 @@ pub enum Term<'arena> {
     ///
     /// [elaboration]: crate::surface::elaboration
     FlexibleVar(GlobalVar),
-    /// A flexible variable that has just been inserted.
+    /// A flexible variable that has been inserted during elaboration, along
+    /// with the [entry information] in the rigid environment at the time of
+    /// insertion.
     ///
-    /// The environment of [`EntryInfo`]s records the state of the rigid
-    /// environment at the time of insertion, allowing us to apply the rigid
-    /// parameters to the flexible variable during [evaluation].
+    /// The entry information will let us know what rigidly bound parameters to
+    /// apply to the flexible variable during [evaluation]. The applied
+    /// parameters will correspond to the [function introductions] that will be
+    /// addded to the flexible solution during unification.
     ///
+    /// We clone the entry information and perform the function eliminations
+    /// during evaluation because elaborating to a series of [function
+    /// eliminations] directly would involve expensively [reading back] each
+    /// parameter.
+    ///
+    /// For example, given the following code:
+    ///
+    /// ```text
+    /// let test : fn (A : Type) -> A -> A
+    ///   = fn A => fn a =>
+    ///        let b : A = a; ?x;
+    /// Type
+    /// ```
+    ///
+    /// This would be elaborated to:
+    ///
+    /// ```text
+    /// let test : fn (A : Type) -> A -> A
+    ///   = fn A => fn a =>
+    /// //     │       │
+    /// //     │       ╰────────────╮
+    /// //     ╰──────────────────╮ │
+    /// //                        │ │
+    /// //                        ▼ ▼
+    ///        let b : A = a; (?x A a);
+    /// //                     ^^^^^^  the flexible insertion
+    /// Type
+    /// ```
+    ///
+    /// Notice how `A` and `a` are applied to the flexible variable `?x`,
+    /// because they are bound as rigid parameters, where as `b` is _not_
+    /// applied, because it is bound as a definition.
+    ///
+    /// [entry information]: EntryInfo
+    /// [function introductions]: Term::FunIntro
+    /// [function eliminations]: Term::FunElim
     /// [evaluation]: semantics::EvalContext::eval
+    /// [reading back]: semantics::ReadbackContext::readback
     //
-    // TODO: Bit-vectors might make this a bit more compact. For example:
+    // TODO: Bit-vectors might make this a bit more compact and cheaper to
+    //       construct. For example:
     //
     // - https://lib.rs/crates/smallbitvec
     // - https://lib.rs/crates/bit-vec
