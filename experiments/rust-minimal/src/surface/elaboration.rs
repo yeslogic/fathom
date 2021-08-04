@@ -238,19 +238,31 @@ impl<'arena> Context<'arena> {
             .unwrap_or_else(|error| self.report_value(error))
     }
 
-    fn unify(
-        &mut self,
-        value0: &Arc<Value<'arena>>,
-        value1: &Arc<Value<'arena>>,
-    ) -> unification::Result<()> {
-        let mut context = unification::Context::new(
+    fn unification_context<'this>(&'this mut self) -> unification::Context<'arena, 'this> {
+        unification::Context::new(
             &self.arena,
             &mut self.renaming,
             self.rigid_exprs.len(),
             &mut self.flexible_exprs,
-        );
+        )
+    }
 
-        context.unify(value0, value1)
+    /// Conversion checking for `expr` under the types `type0` and `type1`.
+    /// This will trigger unification, recording a unification error on failure.
+    //
+    // NOTE: We could eventually call this method `coerce` if we end up adding
+    //       coercions to the core language.
+    fn convert(
+        &mut self,
+        range: ByteRange, // NOTE: could be removed if source info is added to `core::Term`
+        expr: core::Term<'arena>,
+        type0: &Arc<Value<'arena>>,
+        type1: &Arc<Value<'arena>>,
+    ) -> core::Term<'arena> {
+        match self.unification_context().unify(type0, type1) {
+            Ok(()) => expr,
+            Err(error) => self.report_term(Message::FailedToUnify { range, error }),
+        }
     }
 
     /// Check that a surface term conforms to the given type.
@@ -307,14 +319,7 @@ impl<'arena> Context<'arena> {
             (surface::Term::ReportedError(_), _) => core::Term::ReportedError,
             (_, _) => {
                 let (core_term, synth_type) = self.synth(surface_term);
-
-                match self.unify(&synth_type, &expected_type) {
-                    Ok(()) => core_term,
-                    Err(error) => {
-                        let range = surface_term.range();
-                        self.report_term(Message::FailedToUnify { range, error })
-                    }
-                }
+                self.convert(surface_term.range(), core_term, &synth_type, &expected_type)
             }
         }
     }
@@ -477,15 +482,8 @@ impl<'arena> Context<'arena> {
                             output_type.clone(),
                         ));
 
-                        // Attempt to unify the type of the head expression with
-                        // the function type.
-                        let head_expr = match self.unify(&head_type, &fun_type) {
-                            Ok(()) => head_expr,
-                            Err(error) => {
-                                let range = surface_term.range();
-                                self.report_term(Message::FailedToUnify { range, error })
-                            }
-                        };
+                        // Unify the type of the head expression with the function type
+                        let head_expr = self.convert(head_range, head_expr, &head_type, &fun_type);
 
                         // Check the input expression and apply it to the output type
                         let input_expr = self.check(input_expr, &input_type);
