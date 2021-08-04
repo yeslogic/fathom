@@ -189,25 +189,19 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
     /// Bring a value up-to-date with any new unification solutions that
     /// might now be present at the head of in the given value.
     pub fn force(&self, value: &Arc<Value<'arena>>) -> Result<Arc<Value<'arena>>> {
-        match value.as_ref() {
-            Value::Stuck(Head::FlexibleVar(var), spine) => {
-                // Check to see if a solution for this unification
-                // variable was found since we last checked.
-                match self.flexible_exprs.get_global(*var) {
-                    Some(Some(value)) => {
-                        // Apply the spine to the updated head value.
-                        let value = self.apply_spine(value.clone(), spine)?;
-                        // The result of the spine application might also have a
-                        // solved flexible variables at its head, so force that
-                        // too while we're at it!
-                        self.force(&value)
-                    }
-                    Some(None) => Ok(value.clone()),
-                    None => Err(Error::InvalidFlexibleVar),
-                }
+        let mut forced_value = value.clone();
+        // Attempt to force flexible values until we don't see any more.
+        while let Value::Stuck(Head::FlexibleVar(var), spine) = forced_value.as_ref() {
+            match (self.flexible_exprs.get_global(*var)).ok_or(Error::InvalidFlexibleVar)? {
+                // Apply the spine to the solution. This might uncover another
+                // flexible value so we'll continue looping.
+                Some(expr) => forced_value = self.apply_spine(expr.clone(), spine)?,
+                // There's no solution for this flexible variable yet, meaning
+                // that we've forced the value as much as possible for now
+                None => break,
             }
-            _ => Ok(value.clone()),
         }
+        Ok(forced_value)
     }
 
     /// Apply a closure to a value.
