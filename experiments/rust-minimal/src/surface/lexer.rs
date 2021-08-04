@@ -24,6 +24,8 @@ pub enum Token<'source> {
     QuestionMark,
     #[token(";")]
     Semicolon,
+    #[token("_")]
+    Underscore,
 
     #[token("(")]
     OpenParen,

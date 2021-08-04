@@ -21,6 +21,7 @@ extern {
         "->" => Token::HyphenGreater,
         "?" => Token::QuestionMark,
         ";" => Token::Semicolon,
+        "_" => Token::Underscore,
 
         "(" => Token::OpenParen,
         ")" => Token::CloseParen,
@@ -88,8 +89,8 @@ AppTerm: Term<'arena> = {
 
 AtomicTerm: Term<'arena> = {
     <start: @L> <name: Name> <end: @R> => Term::Name(ByteRange::new(start, end), name),
-    // FIXME: <start: @L> "?" <name: Name?> <end: @R> => Term::Hole(ByteRange::new(start, end), name),
-    <start: @L> "?" <end: @R> => Term::Hole(ByteRange::new(start, end), None),
+    <start: @L> "?" <name: Name> <end: @R> => Term::Hole(ByteRange::new(start, end), Some(name)),
+    <start: @L> "_" <end: @R> => Term::Hole(ByteRange::new(start, end), None),
     <start: @L> "Type" <end: @R> => Term::Universe(ByteRange::new(start, end)),
     "(" <term: Term> ")" => term,
 };

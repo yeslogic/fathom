@@ -30,7 +30,8 @@ _surface.app-term_ ::=\
 
 _surface.atomic-term_ ::=\
 &emsp;| _name_\
-&emsp;| `?` _name_?\
+&emsp;| `_`\
+&emsp;| `?` _name_\
 &emsp;| `Type`\
 &emsp;| `(` _surface.term_ `)`
 
