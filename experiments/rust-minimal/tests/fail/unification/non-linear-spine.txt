@@ -1,11 +1,6 @@
 //~ exit-code = 1
 
-let Thing : Type
-  = fun (Thing : ?) ->
-      fun (thing : Thing) ->
-        Thing;
-
-let test : Thing
-  = fun Thing => fun thing => (thing ?);
+let test : fun (A : ?) -> (A -> ?) -> A
+  = fun A => fun a => (a ?);
 
 Type
