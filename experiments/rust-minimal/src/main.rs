@@ -1,3 +1,4 @@
+use codespan_reporting::diagnostic::Severity;
 use codespan_reporting::files::SimpleFile;
 use codespan_reporting::term::termcolor::{BufferedStandardStream, ColorChoice};
 use fathom_minimal::surface::{distillation, elaboration};
@@ -185,11 +186,12 @@ fn check_elaboration(
     let mut is_ok = true;
 
     for message in context.drain_messages() {
-        is_ok = false;
+        let diagnostic = message.to_diagnostic(interner);
 
-        codespan_reporting::term::emit(writer, config, files, &message.to_diagnostic(interner))
-            .unwrap();
+        codespan_reporting::term::emit(writer, config, files, &diagnostic).unwrap();
         writer.flush().unwrap();
+
+        is_ok &= diagnostic.severity < Severity::Error;
     }
 
     is_ok

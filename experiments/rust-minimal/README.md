@@ -122,8 +122,8 @@ _elab.context_ ::=\
     - [ ] improve hole names
   - [ ] core language validation
   - [x] codespan diagnostics
-    - [ ] types in unification errors
-    - [ ] unification solutions
+    - [x] unification solutions
+    - [ ] terms and types included in messages
   - [x] integration tests
     - [ ] snapshot testing
     - [ ] diagnostic expectations
