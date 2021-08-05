@@ -158,11 +158,12 @@ impl<'arena> Context<'arena> {
     pub fn drain_messages<'this>(&'this mut self) -> impl 'this + Iterator<Item = Message> {
         self.messages.drain(..).chain(
             Iterator::zip(self.flexible_sources.iter(), self.flexible_exprs.iter()).filter_map(
-                |((range, source), expr)| {
-                    expr.is_none().then(|| Message::UnsolvedFlexibleVar {
-                        range: *range,
-                        source: *source,
-                    })
+                |(&(range, source), expr)| match (expr, source) {
+                    (Some(_), FlexSource::HoleExpr(Some(name))) => {
+                        Some(Message::HoleSolution { range, name })
+                    }
+                    (None, source) => Some(Message::UnsolvedFlexibleVar { range, source }),
+                    (_, _) => None,
                 },
             ),
         )

@@ -22,6 +22,13 @@ pub enum Message {
         range: ByteRange,
         source: FlexSource,
     },
+    HoleSolution {
+        range: ByteRange,
+        name: StringId,
+        // TODO: add type and expr values
+        // type: Doc<_>,
+        // expr: Doc<_>,
+    },
     /// An error occurred during evaluation, and is almost certainly a bug.
     Semantics(semantics::Error),
 }
@@ -67,6 +74,13 @@ impl Message {
                     .with_labels(vec![Label::primary((), range.start..range.end)]),
                 unification::Error::Semantics(error) => semantics_diagnostic(error),
             },
+            Message::HoleSolution { range, name } => {
+                let name = interner.resolve(*name).unwrap();
+
+                Diagnostic::note()
+                    .with_message(format!("solution found for `?{}`", name))
+                    .with_labels(vec![Label::primary((), range.start..range.end)])
+            }
             Message::UnsolvedFlexibleVar { range, source } => {
                 let source_name = match source {
                     FlexSource::HoleType(_) => "type of hole",
