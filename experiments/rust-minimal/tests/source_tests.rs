@@ -95,7 +95,10 @@ fn run_test_impl(test: &libtest_mimic::Test<TestData>) -> libtest_mimic::Outcome
 
     let output = Command::new(env!("CARGO_BIN_EXE_fathom-minimal"))
         .arg("elab")
-        .args(["--surface-term", test.data.input_file.to_str().unwrap()])
+        .args([
+            "--surface-term",
+            test.data.input_file.to_string_lossy().as_ref(),
+        ])
         .output();
 
     let output = match output {

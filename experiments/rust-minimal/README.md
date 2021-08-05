@@ -96,7 +96,7 @@ _elab.context_ ::=\
     - [ ] implicit parameters
   - [ ] dependent records
   - [x] holes
-    - [ ] named holes
+    - [x] named holes
   - [ ] top-level items
   - [ ] recursive definitions
   - [ ] binary format descriptions
@@ -121,7 +121,8 @@ _elab.context_ ::=\
     - [ ] improve binder names
     - [ ] improve hole names
   - [ ] core language validation
-  - [ ] codespan diagnostics
+  - [x] codespan diagnostics
+    - [ ] types in unification errors
     - [ ] unification solutions
   - [x] integration tests
     - [ ] snapshot testing
