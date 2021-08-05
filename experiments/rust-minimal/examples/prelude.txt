@@ -7,23 +7,6 @@ let always : fun (A : _) -> fun (B : _) -> A -> B -> A
   = fun A => fun B => fun a => fun B => a;
 
 
-// Lists
-
-let List : Type -> Type
-  = fun Elem =>
-      fun (List : _) ->
-      fun (cons : Elem -> List -> List) ->
-      fun (nil : List) ->
-        List;
-
-let nil : fun (Elem : _) -> List Elem
-  = fun Elem => fun List => fun cons => fun nil => nil;
-
-let cons : fun (Elem : _) -> Elem -> List Elem -> List Elem
-  = fun Elem => fun head => fun tail => fun List => fun cons => fun nil =>
-      cons head (tail _ cons nil);
-
-
 // Booleans
 
 let Bool : Type
@@ -40,23 +23,9 @@ let false : Bool
 
 
 let not : Bool -> Bool
-  = fun bool => fun Bool => fun true => fun false =>
-      bool Bool false true;
-
-
-// Leibniz equality
-
-let Eq : fun (A : _) -> A -> A -> Type
-  = fun A => fun a0 => fun a1 =>
-      fun (P : fun (a : A) -> Type) -> fun (p : P a0) -> P a1;
-
-let refl : fun (A : _) -> fun (a : A) -> Eq A a a
-  = fun A => fun a => fun P => fun pa => pa;
-
-
-let sym : fun (A : _) -> fun (a0 : A) -> fun (a1 : A) -> Eq _ a0 a1 -> Eq _ a1 a0
-  = fun A => fun a0 => fun a1 => fun p =>
-      p (fun a1 => Eq _ a1 a0) (refl _ _);
+  = fun bool =>
+      fun Bool => fun true => fun false =>
+        bool Bool false true;
 
 
 // Natural numbers
@@ -80,8 +49,62 @@ let add : Nat -> Nat -> Nat
       n0 Nat succ (n1 Nat succ zero);
 
 let mul : Nat -> Nat -> Nat
-  = fun n0 => fun n1 => fun Nat => fun succ => fun zero =>
-      n0 Nat (n1 Nat succ) zero;
+  = fun n0 => fun n1 =>
+      fun Nat => fun succ => fun zero =>
+        n0 Nat (n1 Nat succ) zero;
+
+
+// Lists
+
+let List : Type -> Type
+  = fun Elem =>
+      fun (List : _) ->
+      fun (nil : List) ->
+      fun (cons : Elem -> List -> List) ->
+        List;
+
+let nil : fun (Elem : _) -> List Elem
+  = fun Elem =>
+      fun List => fun nil => fun cons => nil;
+
+let cons : fun (Elem : _) -> Elem -> List Elem -> List Elem
+  = fun Elem => fun head => fun tail =>
+      fun List => fun nil => fun cons =>
+        cons head (tail _ nil cons);
+
+
+// Vectors
+
+let Vec : Type -> Nat -> Type
+  = fun Elem => fun len =>
+      fun (Vec : Nat -> Type) ->
+      fun (nil : Vec zero) ->
+      fun (cons : fun (len : _) -> Elem -> Vec len -> Vec (succ len)) ->
+        Vec len;
+
+let vnil : fun (Elem : _) -> Vec Elem zero
+  = fun Elem =>
+      fun Vec => fun nil => fun cons => nil;
+
+let vcons : fun (Elem : _) -> fun (len : _) -> Elem -> Vec Elem len -> Vec Elem (succ len)
+  = fun Elem => fun len => fun head => fun tail =>
+      fun Vec => fun nil => fun cons =>
+        cons _ head (tail Vec nil cons);
+
+
+// Leibniz equality
+
+let Eq : fun (A : _) -> A -> A -> Type
+  = fun A => fun a0 => fun a1 =>
+      fun (P : fun (a : A) -> Type) -> fun (p : P a0) -> P a1;
+
+let refl : fun (A : _) -> fun (a : A) -> Eq A a a
+  = fun A => fun a => fun P => fun pa => pa;
+
+
+let sym : fun (A : _) -> fun (a0 : A) -> fun (a1 : A) -> Eq _ a0 a1 -> Eq _ a1 a0
+  = fun A => fun a0 => fun a1 => fun p =>
+      p (fun a1 => Eq _ a1 a0) (refl _ _);
 
 
 // Examples
