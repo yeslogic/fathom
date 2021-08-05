@@ -2,10 +2,12 @@
 
 use std::sync::Arc;
 
-use crate::core::semantics::{self, Closure, ElimContext, EvalContext, ReadbackContext, Value};
+use crate::core::semantics::{Closure, ElimContext, EvalContext, ReadbackContext, Value};
 use crate::env::{self, SharedEnv, UniqueEnv};
+use crate::surface::elaboration::reporting::Message;
 use crate::{core, surface, ByteRange, StringId};
 
+mod reporting;
 mod unification;
 
 /// The reason why a flexible variable was inserted.
@@ -21,34 +23,6 @@ pub enum FlexSource {
     FunOutputType,
     /// The type of a reported error.
     ReportedErrorType,
-}
-
-/// Elaboration diagnostic messages.
-#[derive(Debug, Clone)]
-pub enum Message {
-    /// The name was not previously bound in the current scope.
-    UnboundName { range: ByteRange, name: StringId },
-    /// Unification errors.
-    FailedToUnify {
-        range: ByteRange,
-        // TODO: add lhs and rhs values
-        // lhs: Doc<_>,
-        // rhs: Doc<_>,
-        error: unification::Error,
-    },
-    /// A solution for a flexible variable could not be found.
-    UnsolvedFlexibleVar {
-        range: ByteRange,
-        source: FlexSource,
-    },
-    /// An error occurred during evaluation, and is almost certainly a bug.
-    Semantics(semantics::Error),
-}
-
-impl From<semantics::Error> for Message {
-    fn from(error: semantics::Error) -> Message {
-        Message::Semantics(error)
-    }
 }
 
 /// Elaboration context.

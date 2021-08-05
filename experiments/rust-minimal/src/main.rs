@@ -1,6 +1,8 @@
+use codespan_reporting::files::SimpleFile;
+use codespan_reporting::term::termcolor::{BufferedStandardStream, ColorChoice};
 use fathom_minimal::surface::{distillation, elaboration};
 use fathom_minimal::{core, surface, StringInterner};
-use std::io::Read;
+use std::io::{Read, Write};
 use std::path::PathBuf;
 use structopt::StructOpt;
 
@@ -69,6 +71,9 @@ impl From<&str> for Input {
 const MAX_PRETTY_WIDTH: usize = 80;
 
 fn main() {
+    let mut writer = BufferedStandardStream::stderr(ColorChoice::Auto);
+    let term_config = codespan_reporting::term::Config::default();
+
     let mut interner = StringInterner::new();
     let surface_arena = surface::Arena::new();
     let core_arena = core::Arena::new();
@@ -79,13 +84,14 @@ fn main() {
 
     match Options::from_args() {
         Options::Elab(Args { surface_term }) => {
-            let surface_term = parse_term(&mut interner, &surface_arena, &surface_term);
+            let file = load_input(&surface_term);
+            let surface_term = parse_term(&mut interner, &surface_arena, &file);
 
             let mut context = elaboration::Context::new(&core_arena);
             let (term, r#type) = context.synth(&surface_term);
             let r#type = context.readback(&core_arena, &r#type);
 
-            if check_elaboration_messages(&mut context) {
+            if check_elaboration(&mut writer, &term_config, &file, &interner, &mut context) {
                 let mut context = distillation::Context::new(&mut interner, &surface_arena);
                 let term = context.check(&term);
                 let r#type = context.synth(&r#type);
@@ -99,14 +105,15 @@ fn main() {
             }
         }
         Options::Norm(Args { surface_term }) => {
-            let surface_term = parse_term(&mut interner, &surface_arena, &surface_term);
+            let file = load_input(&surface_term);
+            let surface_term = parse_term(&mut interner, &surface_arena, &file);
 
             let mut context = elaboration::Context::new(&core_arena);
             let (term, r#type) = context.synth(&surface_term);
             let term = context.normalize(&core_arena, &term);
             let r#type = context.readback(&core_arena, &r#type);
 
-            if check_elaboration_messages(&mut context) {
+            if check_elaboration(&mut writer, &term_config, &file, &interner, &mut context) {
                 let mut context = distillation::Context::new(&mut interner, &surface_arena);
                 let term = context.check(&term);
                 let r#type = context.synth(&r#type);
@@ -120,13 +127,14 @@ fn main() {
             }
         }
         Options::Type(Args { surface_term }) => {
-            let surface_term = parse_term(&mut interner, &surface_arena, &surface_term);
+            let file = load_input(&surface_term);
+            let surface_term = parse_term(&mut interner, &surface_arena, &file);
 
             let mut context = elaboration::Context::new(&core_arena);
             let (_, r#type) = context.synth(&surface_term);
             let r#type = context.readback(&core_arena, &r#type);
 
-            if check_elaboration_messages(&mut context) {
+            if check_elaboration(&mut writer, &term_config, &file, &interner, &mut context) {
                 let mut context = distillation::Context::new(&mut interner, &surface_arena);
                 let r#type = context.synth(&r#type);
 
@@ -141,31 +149,47 @@ fn main() {
     }
 }
 
+fn load_input(input: &Input) -> SimpleFile<String, String> {
+    let mut source = String::new();
+
+    let name = match input {
+        Input::StdIn => {
+            std::io::stdin().read_to_string(&mut source).unwrap();
+            "<stdin>".to_owned()
+        }
+        Input::Path(path) => {
+            let mut file = std::fs::File::open(path).unwrap(); // TODO: report errors
+            file.read_to_string(&mut source).unwrap();
+            path.to_string_lossy().into()
+        }
+    };
+
+    SimpleFile::new(name, source)
+}
+
 fn parse_term<'arena>(
     interner: &mut StringInterner,
     arena: &'arena surface::Arena<'arena>,
-    term: &Input,
+    file: &SimpleFile<String, String>,
 ) -> surface::Term<'arena> {
-    // FIXME: error handling
-
-    let mut source = String::new();
-    match term {
-        Input::StdIn => std::io::stdin().read_to_string(&mut source).unwrap(),
-        Input::Path(path) => std::fs::File::open(path)
-            .unwrap()
-            .read_to_string(&mut source)
-            .unwrap(),
-    };
-
-    surface::Term::parse(interner, arena, &source).unwrap()
+    surface::Term::parse(interner, arena, file.source()).unwrap() // TODO: report errors
 }
 
-fn check_elaboration_messages(context: &mut elaboration::Context<'_>) -> bool {
+fn check_elaboration(
+    writer: &mut BufferedStandardStream,
+    config: &codespan_reporting::term::Config,
+    files: &SimpleFile<String, String>,
+    interner: &StringInterner,
+    context: &mut elaboration::Context<'_>,
+) -> bool {
     let mut is_ok = true;
 
     for message in context.drain_messages() {
-        eprintln!("{:?}", message);
         is_ok = false;
+
+        codespan_reporting::term::emit(writer, config, files, &message.to_diagnostic(interner))
+            .unwrap();
+        writer.flush().unwrap();
     }
 
     is_ok
