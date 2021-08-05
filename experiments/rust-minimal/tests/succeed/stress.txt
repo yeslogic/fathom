@@ -1,0 +1,75 @@
+// Identity function
+
+let id : fun (A : _) -> A -> A
+ = fun A => fun a => a;
+
+let id_test : fun (A : _) -> A -> A
+ = id _ id _ id _ id _ id _ id _ id _ id _ id _ id _ id _ id _ id _ id _ id _
+   id _ id _ id _ id _ id _ id _ id _ id _ id _ id _ id _ id _ id _ id _ id _
+   id _ id _ id _ id _ id _ id _ id _ id _ id _ id _ id _ id _ id _ id _ id _
+   id _ id _ id _ id _ id _ id _ id _ id _ id _ id _ id _ id _ id _ id _ id _
+   id _ id _ id _ id _ id _ id _ id _ id _ id _ id _ id _ id _ id _ id _ id _
+   id _ id _ id _ id _ id _ id _ id _ id _ id _ id _ id _ id _ id _ id _ id _
+   id _ id _ id _ id _ id _ id _ id _ id _ id _ id _ id _ id _ id _ id _ id _
+   id _ id _ id _ id _ id _ id _ id _ id _ id _ id _ id _ id _ id _ id _ id _
+   id _ id _ id _ id _ id _ id _ id _ id _ id _ id _ id _ id _ id _ id _ id _
+   id _ id _ id _ id _ id _ id _ id _ id _ id _ id _ id _ id _ id _ id _ id _
+   id _ id _ id _ id _ id _ id _ id _ id _ id _ id _ id _ id _ id _ id _ id;
+
+
+// Natural numbers
+
+let Nat : Type
+  = fun (Nat : _) ->
+      fun (succ : Nat -> Nat) ->
+      fun (zero : Nat) ->
+        Nat;
+
+let zero : Nat
+  = fun Nat => fun succ => fun zero => zero;
+
+let succ : Nat -> Nat
+  = fun prev =>
+      (fun Nat => fun succ => fun zero =>
+        succ (prev _ succ zero));
+
+
+// Vectors
+
+let Vec : Type -> Nat -> Type
+  = fun Elem => fun len =>
+      fun (Vec : Nat -> Type) ->
+      fun (nil : Vec zero) ->
+      fun (cons : fun (len : _) -> Elem -> Vec len -> Vec (succ len)) ->
+        Vec len;
+
+let vnil : fun (Elem : _) -> Vec Elem zero
+  = fun Elem =>
+      fun Vec => fun nil => fun cons => nil;
+
+let vcons : fun (Elem : _) -> fun (len : _) -> Elem -> Vec Elem len -> Vec Elem (succ len)
+  = fun Elem => fun len => fun head => fun tail =>
+      fun Vec => fun nil => fun cons =>
+        cons len head (tail Vec nil cons);
+
+let vec1 =
+  (vcons _ _ zero (vcons _ _ zero (vcons _ _ zero (vcons _ _ zero
+    (vcons _ _ zero (vcons _ _ zero (vcons _ _ zero (vcons _ _ zero
+    (vcons _ _ zero (vcons _ _ zero (vcons _ _ zero (vcons _ _ zero
+    (vcons _ _ zero (vcons _ _ zero (vcons _ _ zero (vcons _ _ zero
+    (vcons _ _ zero (vcons _ _ zero (vcons _ _ zero (vcons _ _ zero
+    (vcons _ _ zero (vcons _ _ zero (vcons _ _ zero (vcons _ _ zero
+    (vcons _ _ zero (vcons _ _ zero (vcons _ _ zero (vcons _ _ zero
+    (vcons _ _ zero (vcons _ _ zero (vcons _ _ zero (vcons _ _ zero
+    (vcons _ _ zero (vcons _ _ zero (vcons _ _ zero (vcons _ _ zero
+    (vcons _ _ zero (vcons _ _ zero (vcons _ _ zero (vcons _ _ zero
+    (vcons _ _ zero (vcons _ _ zero (vcons _ _ zero (vcons _ _ zero
+    (vcons _ _ zero (vcons _ _ zero (vcons _ _ zero (vcons _ _ zero
+    (vcons _ _ zero (vcons _ _ zero (vcons _ _ zero (vcons _ _ zero
+    (vcons _ _ zero (vcons _ _ zero (vcons _ _ zero (vcons _ _ zero
+    (vcons _ _ zero (vcons _ _ zero (vcons _ _ zero (vcons _ _ zero
+    (vcons _ _ zero (vcons _ _ zero (vcons _ _ zero (vcons _ _ zero
+      (vnil _)))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))));
+
+
+Type
