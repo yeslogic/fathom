@@ -49,10 +49,12 @@ struct Args {
         long = "surface-term",
         name = "FILE",
         default_value = "-",
-        // possible_values = &["-", "<path>"],
-        parse(from_str),
+        parse(from_str)
     )]
     surface_term: Input,
+    /// Continue even if errors were encountered.
+    #[structopt(long = "allow-errors")]
+    allow_errors: bool,
 }
 
 enum Input {
@@ -84,15 +86,17 @@ fn main() {
     let pretty_width = std::cmp::min(term_width, MAX_PRETTY_WIDTH);
 
     match Options::from_args() {
-        Options::Elab(Args { surface_term }) => {
-            let file = load_input(&surface_term);
+        Options::Elab(args) => {
+            let file = load_input(&args.surface_term);
             let surface_term = parse_term(&mut interner, &surface_arena, &file);
 
             let mut context = elaboration::Context::new(&core_arena);
             let (term, r#type) = context.synth(&surface_term);
             let r#type = context.readback(&core_arena, &r#type);
 
-            if check_elaboration(&mut writer, &term_config, &file, &interner, &mut context) {
+            if check_elaboration(&mut writer, &term_config, &file, &interner, &mut context)
+                || args.allow_errors
+            {
                 let mut context = distillation::Context::new(&mut interner, &surface_arena);
                 let term = context.check(&term);
                 let r#type = context.synth(&r#type);
@@ -105,8 +109,8 @@ fn main() {
                 std::process::exit(1);
             }
         }
-        Options::Norm(Args { surface_term }) => {
-            let file = load_input(&surface_term);
+        Options::Norm(args) => {
+            let file = load_input(&args.surface_term);
             let surface_term = parse_term(&mut interner, &surface_arena, &file);
 
             let mut context = elaboration::Context::new(&core_arena);
@@ -114,7 +118,9 @@ fn main() {
             let term = context.normalize(&core_arena, &term);
             let r#type = context.readback(&core_arena, &r#type);
 
-            if check_elaboration(&mut writer, &term_config, &file, &interner, &mut context) {
+            if check_elaboration(&mut writer, &term_config, &file, &interner, &mut context)
+                || args.allow_errors
+            {
                 let mut context = distillation::Context::new(&mut interner, &surface_arena);
                 let term = context.check(&term);
                 let r#type = context.synth(&r#type);
@@ -127,15 +133,17 @@ fn main() {
                 std::process::exit(1);
             }
         }
-        Options::Type(Args { surface_term }) => {
-            let file = load_input(&surface_term);
+        Options::Type(args) => {
+            let file = load_input(&args.surface_term);
             let surface_term = parse_term(&mut interner, &surface_arena, &file);
 
             let mut context = elaboration::Context::new(&core_arena);
             let (_, r#type) = context.synth(&surface_term);
             let r#type = context.readback(&core_arena, &r#type);
 
-            if check_elaboration(&mut writer, &term_config, &file, &interner, &mut context) {
+            if check_elaboration(&mut writer, &term_config, &file, &interner, &mut context)
+                || args.allow_errors
+            {
                 let mut context = distillation::Context::new(&mut interner, &surface_arena);
                 let r#type = context.synth(&r#type);
 
