@@ -54,7 +54,7 @@ LetTerm: Term<'arena> = {
 
 FunTerm: Term<'arena> = {
     AppTerm,
-    <start: @L> <input_type: AppTerm> "->"  <output_type: FunTerm> => {
+    <input_type: AppTerm> "->"  <output_type: FunTerm> => {
         Term::FunArrow(
             arena.alloc_term(input_type),
             arena.alloc_term(output_type),
