@@ -55,23 +55,21 @@ impl Message {
 
                 Diagnostic::error()
                     .with_message(format!("unbound name `{}`", name))
-                    .with_labels(vec![
-                        Label::primary((), range.start..range.end).with_message("unbound name")
-                    ])
+                    .with_labels(vec![Label::primary((), *range).with_message("unbound name")])
             }
             Message::FailedToUnify { range, error } => match error {
                 unification::Error::Mismatched => Diagnostic::error()
                     .with_message("type mismatch")
-                    .with_labels(vec![Label::primary((), range.start..range.end)]),
+                    .with_labels(vec![Label::primary((), *range)]),
                 unification::Error::NonLinearSpine => Diagnostic::error()
                     .with_message("non linear spine") // TODO: better error messages!
-                    .with_labels(vec![Label::primary((), range.start..range.end)]),
+                    .with_labels(vec![Label::primary((), *range)]),
                 unification::Error::EscapingRigidVar => Diagnostic::error()
                     .with_message("escaping rigid variable") // TODO: better error messages!
-                    .with_labels(vec![Label::primary((), range.start..range.end)]),
+                    .with_labels(vec![Label::primary((), *range)]),
                 unification::Error::InfiniteSolution => Diagnostic::error()
                     .with_message("infinite solution") // TODO: better error messages!
-                    .with_labels(vec![Label::primary((), range.start..range.end)]),
+                    .with_labels(vec![Label::primary((), *range)]),
                 unification::Error::Semantics(error) => semantics_diagnostic(error),
             },
             Message::HoleSolution { range, name } => {
@@ -79,7 +77,7 @@ impl Message {
 
                 Diagnostic::note()
                     .with_message(format!("solution found for `?{}`", name))
-                    .with_labels(vec![Label::primary((), range.start..range.end)])
+                    .with_labels(vec![Label::primary((), *range)])
             }
             Message::UnsolvedFlexibleVar { range, source } => {
                 let source_name = match source {
@@ -92,7 +90,7 @@ impl Message {
 
                 Diagnostic::error()
                     .with_message(format!("failed to infer {}", source_name))
-                    .with_labels(vec![Label::primary((), range.start..range.end)])
+                    .with_labels(vec![Label::primary((), *range)])
             }
             Message::Semantics(error) => semantics_diagnostic(error),
         }

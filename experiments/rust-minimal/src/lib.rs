@@ -36,3 +36,9 @@ impl ByteRange {
         self.start
     }
 }
+
+impl Into<std::ops::Range<usize>> for ByteRange {
+    fn into(self) -> std::ops::Range<usize> {
+        self.start..self.end
+    }
+}
