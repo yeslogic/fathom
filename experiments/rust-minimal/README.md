@@ -44,11 +44,11 @@ _core.term_ ::=\
 &emsp;| `rigid-var(`_core.index_`)`\
 &emsp;| `flexible-var(`_core.level_`)`\
 &emsp;| `ann(`_core.term_`,` _core.term_`)`\
-&emsp;| `let(`_name_`,` _core.term_`,` _core.term_`,` _core.term_`)`\
+&emsp;| `let(`_core.term_`,` _core.term_`,` _core.term_`)`\
 &emsp;| `universe`\
-&emsp;| `function/type(`_name_`,` _core.term_`,` _core.term_`)`\
-&emsp;| `function/intro(`_name_`,` _core.term_`)`\
-&emsp;| `function/elim(`_core.term_`,` _core.term_`)`
+&emsp;| `fun/type(`_core.term_`,` _core.term_`)`\
+&emsp;| `fun/intro(`_core.term_`)`\
+&emsp;| `fun/elim(`_core.term_`,` _core.term_`)`
 
 _core.value_ ::=\
 &emsp;| `stuck(`_core.head_`,` _core.elim_*`)`\
@@ -61,13 +61,13 @@ _core.head_ ::=\
 &emsp;| `flexible-var(`_core.level_`)`
 
 _core.elim_ ::=\
-&emsp;| `function(`_core.value_`)`
+&emsp;| `fun(`_core.value_`)`
 
 _core.closure_ ::=\
-&emsp;| `(`_core.env_`,` _core.term_`)`
+&emsp;| `closure(`_core.env_`,` _core.term_`)`
 
 _core.env_ ::=\
-&emsp;| _core.env_`,` _core.value_\
+&emsp;| `extend(`_core.env_`,` _core.value_`)`\
 &emsp;| `empty`
 
 _core.context_ ::=\
@@ -77,6 +77,22 @@ _core.context_ ::=\
 > **TODO:**
 >
 > document evaluation, readback, checking and synthesis
+
+| eval(_core.env_, _core.term_)                        | _core.value_
+| ---------------------------------------------------- | -------------------------------------------
+| eval(_env_, `rigid-var(`_var_`)`)                    | &hellip;
+| eval(_env_, `flexible-var(`_var_`)`)                 | &hellip;
+| eval(_env_, `ann(`_term_`,` \_`)`)                   | eval(_env_, _term_)
+| eval(_env_, `let(`_def-expr_`,` \_`,` _out-expr_`)`) | eval(`extend(`_env_`,` eval(_env_, _def-expr_)`)`, _out-expr_)
+| eval(_env_, `universe`)                              | `universe`
+| eval(_env_, `fun/type(`_in-type_`,` _out-type_`)`)   | `fun/type(`eval(_env_, _in-type_)`,` `closure(extend(`_env_`,` &hellip;`),` _out-type_`))`
+| eval(_env_, `fun/intro(`_out-expr_`)`)               | `fun/intro(closure(extend(`_env_`,` &hellip;`),` _out-expr_`))`
+| eval(_env_, `fun/elim(`_head-expr_`,` _in-expr_`)`)  | fun-elim(eval(_env_, _head-expr_), eval(_env_, _in-expr_))
+
+| fun-elim(_core.value_, _core.value_)              | _core.value_
+| ------------------------------------------------- | -----------------------------------------
+| fun-elim(`stuck(`_head_`,` _spine_`)`, _in-expr_) | &hellip;
+| fun-elim(`fun/intro(`_out-expr_`)`, _in-expr_)    | &hellip;
 
 ## Elaboration
 
@@ -92,7 +108,7 @@ _elab.context_ ::=\
 
 - language features
   - [x] let expressions
-  - [x] dependent functions
+  - [x] dependent funs
     - [ ] implicit parameters
   - [ ] dependent records
   - [x] holes

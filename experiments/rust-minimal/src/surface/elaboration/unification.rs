@@ -3,11 +3,15 @@
 //! we attempt to fill in those missing bits of information, and record the
 //! solutions we find for future use.
 //!
-//! We implement a limited form of higher order unification, called 'pattern
-//! unification'. More details about the algorithm we use can be found in the
-//! [elaboration-zoo], in particular in [elaboration-zoo/03-holes].
+//! We implement a limited form of higher order unification, called 'higher-
+//! order pattern unification', which was first described by Dale Miller
+//! in ["A Logic Programming Language with Lambda-Abstraction, Function
+//! Variables, and Simple Unification”][dale-miller-1991]. More details about
+//! the algorithm we use can be found in the [elaboration-zoo], in particular
+//! in [elaboration-zoo/03-holes].
 //!
 //! [Unification]: https://en.wikipedia.org/wiki/Unification_(computer_science)
+//! [dale-miller-1991]: https://doi.org/10.1093/logcom/1.4.497
 //! [elaboration-zoo]: https://github.com/AndrasKovacs/elaboration-zoo/
 //! [elaboration-zoo/03-holes]: https://github.com/AndrasKovacs/elaboration-zoo/
 
