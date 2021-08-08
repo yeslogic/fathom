@@ -73,7 +73,7 @@ impl From<&str> for Input {
 
 const MAX_PRETTY_WIDTH: usize = 80;
 
-fn main() {
+fn main() -> ! {
     let mut writer = BufferedStandardStream::stderr(ColorChoice::Auto);
     let term_config = codespan_reporting::term::Config::default();
 
@@ -105,6 +105,8 @@ fn main() {
                 let doc = context.ann(&term, &r#type).into_doc();
 
                 println!("{}", doc.pretty(pretty_width));
+
+                std::process::exit(0);
             } else {
                 std::process::exit(1);
             }
@@ -129,6 +131,8 @@ fn main() {
                 let doc = context.ann(&term, &r#type).into_doc();
 
                 println!("{}", doc.pretty(pretty_width));
+
+                std::process::exit(0);
             } else {
                 std::process::exit(1);
             }
@@ -151,6 +155,8 @@ fn main() {
                 let doc = context.term(&r#type).into_doc();
 
                 println!("{}", doc.pretty(pretty_width));
+
+                std::process::exit(0);
             } else {
                 std::process::exit(1);
             }
