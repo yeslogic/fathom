@@ -33,7 +33,7 @@ impl ByteRange {
     }
 
     pub const fn end(&self) -> BytePos {
-        self.start
+        self.end
     }
 }
 
