@@ -7,12 +7,13 @@ use crate::core::{Arena, EntryInfo, Term};
 use crate::env::{EnvLen, GlobalVar, SharedEnv, SliceEnv};
 use crate::StringId;
 
-/// Values in weak-head-normal form.
+/// Values in weak-head-normal form, with bindings converted to closures.
 #[derive(Debug, Clone)]
 pub enum Value<'arena> {
-    /// A value whose computation has stopped as a result of trying to
-    /// [evaluate][EvalContext::eval] an open [term][Term]. Any eliminations
-    /// that are subsequently applied to the value are accumulated in a spine.
+    /// A value whose computation has been blocked as a result of trying to
+    /// [evaluate][EvalContext::eval] an open [term][Term], along with a spine
+    /// of eliminations. Subsequent eliminations applied to this value are
+    /// accumulated in the spine.
     Stuck(Head, Vec<Elim<'arena>>),
     /// Universes.
     Universe,
@@ -123,6 +124,10 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
     }
 
     /// Evaluate a [term][Term] into a [value][Value].
+    ///
+    /// This could be loosely thought of as a just-in-time implementation of
+    /// closure conversion + partial evaluation (for more discussion see [this
+    /// twitter thread](https://twitter.com/brendanzab/status/1423536653658771457)).
     pub fn eval(&mut self, term: &Term<'arena>) -> Result<Arc<Value<'arena>>> {
         match term {
             Term::RigidVar(var) => match self.rigid_exprs.get_local(*var) {
