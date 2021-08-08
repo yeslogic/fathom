@@ -33,6 +33,29 @@ let succ : Nat -> Nat
       (fun Nat => fun succ => fun zero =>
         succ (prev _ succ zero));
 
+let add : Nat -> Nat -> Nat
+  = fun n0 => fun n1 => fun Nat => fun succ => fun zero =>
+      n0 Nat succ (n1 Nat succ zero);
+
+let mul : Nat -> Nat -> Nat
+  = fun n0 => fun n1 =>
+      fun Nat => fun succ => fun zero =>
+        n0 Nat (n1 Nat succ) zero;
+
+let n0 = zero;
+let n1 = succ n0;
+let n2 = succ n1;
+let n3 = succ n2;
+let n4 = succ n3;
+let n5 = succ n4;
+let n6 = succ n5;
+let n7 = succ n6;
+let n8 = succ n7;
+let n9 = succ n8;
+let n10 = succ n9;
+
+let n3000 = mul n10 (mul n10 (mul n10 n3));
+
 
 // Vectors
 
