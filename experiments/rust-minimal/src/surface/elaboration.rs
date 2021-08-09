@@ -159,11 +159,12 @@ impl<'arena> Context<'arena> {
         self.messages.drain(..).chain(
             Iterator::zip(self.flexible_sources.iter(), self.flexible_exprs.iter()).filter_map(
                 |(&(range, source), expr)| match (expr, source) {
+                    (None, FlexSource::ReportedErrorType) => None,
+                    (None, source) => Some(Message::UnsolvedFlexibleVar { range, source }),
                     (Some(_), FlexSource::HoleExpr(Some(name))) => {
                         Some(Message::HoleSolution { range, name })
                     }
-                    (None, source) => Some(Message::UnsolvedFlexibleVar { range, source }),
-                    (_, _) => None,
+                    (Some(_), _) => None,
                 },
             ),
         )
