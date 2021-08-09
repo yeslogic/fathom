@@ -62,13 +62,13 @@ impl Message {
                     .with_message("type mismatch")
                     .with_labels(vec![Label::primary((), *range)]),
                 unification::Error::NonLinearSpine => Diagnostic::error()
-                    .with_message("non linear spine") // TODO: better error messages!
+                    .with_message("non linear spine") // TODO: user-friendly message
                     .with_labels(vec![Label::primary((), *range)]),
                 unification::Error::EscapingRigidVar => Diagnostic::error()
-                    .with_message("escaping rigid variable") // TODO: better error messages!
+                    .with_message("escaping rigid variable") // TODO: user-friendly message
                     .with_labels(vec![Label::primary((), *range)]),
                 unification::Error::InfiniteSolution => Diagnostic::error()
-                    .with_message("infinite solution") // TODO: better error messages!
+                    .with_message("infinite solution") // TODO: user-friendly message
                     .with_labels(vec![Label::primary((), *range)]),
                 unification::Error::Semantics(error) => semantics_diagnostic(error),
             },
@@ -85,6 +85,7 @@ impl Message {
                     FlexSource::HoleExpr(_) => "hole",
                     FlexSource::FunInputType(_) => "type of input",
                     FlexSource::FunOutputType => "type of output",
+                    // This should ideally never appear in diagnostic output
                     FlexSource::ReportedErrorType => "type of error",
                 };
 
