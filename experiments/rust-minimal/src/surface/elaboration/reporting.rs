@@ -42,11 +42,19 @@ impl From<semantics::Error> for Message {
 impl Message {
     pub fn to_diagnostic(&self, interner: &StringInterner) -> Diagnostic<()> {
         fn semantics_diagnostic(error: &semantics::Error) -> Diagnostic<()> {
-            Diagnostic::bug().with_message(match error {
-                semantics::Error::InvalidRigidVar => "invalid rigid variable",
-                semantics::Error::InvalidFlexibleVar => "invalid flexible variable",
-                semantics::Error::InvalidFunctionElimHead => "invalid function elim head",
-            })
+            Diagnostic::bug()
+                .with_message(match error {
+                    semantics::Error::InvalidRigidVar => "invalid rigid variable",
+                    semantics::Error::InvalidFlexibleVar => "invalid flexible variable",
+                    semantics::Error::InvalidFunctionElimHead => "invalid function elim head",
+                })
+                .with_notes(vec![
+                    "This is almost certainly a bug!".to_owned(),
+                    format!(
+                        "If possible, please file a bug report at {}.",
+                        env!("CARGO_PKG_REPOSITORY"),
+                    ),
+                ])
         }
 
         match self {
