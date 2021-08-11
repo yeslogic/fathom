@@ -21,11 +21,13 @@ pub enum Message {
     UnsolvedFlexibleVar {
         range: ByteRange,
         source: FlexSource,
+        // TODO: add type
+        // type: Doc<_>,
     },
     HoleSolution {
         range: ByteRange,
         name: StringId,
-        // TODO: add type and expr values
+        // TODO: add type and solution expr
         // type: Doc<_>,
         // expr: Doc<_>,
     },
@@ -89,12 +91,11 @@ impl Message {
             }
             Message::UnsolvedFlexibleVar { range, source } => {
                 let source_name = match source {
-                    FlexSource::HoleType(_) => "type of hole",
+                    FlexSource::HoleType(_) => "type of hole", // should never appear in user-facing output
                     FlexSource::HoleExpr(_) => "hole",
-                    FlexSource::FunInputType(_) => "type of input",
-                    FlexSource::FunOutputType => "type of output",
-                    // This should ideally never appear in diagnostic output
-                    FlexSource::ReportedErrorType => "type of error",
+                    FlexSource::FunInputType(_) => "type of function input",
+                    FlexSource::FunOutputType => "type of function output",
+                    FlexSource::ReportedErrorType => "type of error", // should never appear in user-facing output
                 };
 
                 Diagnostic::error()

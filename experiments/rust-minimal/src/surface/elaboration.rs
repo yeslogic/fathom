@@ -159,11 +159,16 @@ impl<'arena> Context<'arena> {
         self.messages.drain(..).chain(
             Iterator::zip(self.flexible_sources.iter(), self.flexible_exprs.iter()).filter_map(
                 |(&(range, source), expr)| match (expr, source) {
-                    (None, FlexSource::ReportedErrorType) => None,
+                    // Avoid producing messages for some unsolved flexible sources:
+                    (None, FlexSource::HoleType(_)) => None, // should have an unsolved hole expression
+                    (None, FlexSource::ReportedErrorType) => None, // should already have an error reported
+                    // For other sources, report an unsolved problem message
                     (None, source) => Some(Message::UnsolvedFlexibleVar { range, source }),
+                    // Yield messages of solved named holes
                     (Some(_), FlexSource::HoleExpr(Some(name))) => {
                         Some(Message::HoleSolution { range, name })
                     }
+                    // Ignore solutions of anything else
                     (Some(_), _) => None,
                 },
             ),
