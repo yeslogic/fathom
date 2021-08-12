@@ -183,7 +183,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
             (Value::Stuck(Head::ReportedError, _), _)
             | (_, Value::Stuck(Head::ReportedError, _)) => Ok(()),
 
-            // Rigid-rigid and flexible-flexible case
+            // Rigid-rigid and flexible-flexible cases
             //
             // Both values have head variables in common, so all we need to do
             // is unify the elimination spines.
@@ -195,17 +195,6 @@ impl<'arena, 'env> Context<'arena, 'env> {
                 Value::Stuck(Head::FlexibleVar(var0), spine0),
                 Value::Stuck(Head::FlexibleVar(var1), spine1),
             ) if var0 == var1 => self.unify_spines(spine0, spine1),
-
-            // Flexible-rigid case
-            //
-            // One of the values has a flexible variable at its head, so we
-            // attempt to solve it using pattern unification.
-            (Value::Stuck(Head::FlexibleVar(var0), spine0), _) => {
-                self.solve(*var0, spine0, &value1)
-            }
-            (_, Value::Stuck(Head::FlexibleVar(var1), spine1)) => {
-                self.solve(*var1, spine1, &value0)
-            }
 
             (Value::Universe, Value::Universe) => Ok(()),
 
@@ -220,8 +209,19 @@ impl<'arena, 'env> Context<'arena, 'env> {
             (Value::FunIntro(_, output_expr0), Value::FunIntro(_, output_expr1)) => {
                 self.unify_closures(output_expr0, output_expr1)
             }
-            (Value::FunIntro(_, output_expr), _) => self.unify_fun_intro(output_expr, &value1),
-            (_, Value::FunIntro(_, output_expr)) => self.unify_fun_intro(output_expr, &value0),
+            (Value::FunIntro(_, output_expr), _) => self.unify_fun_intro_elim(output_expr, &value1),
+            (_, Value::FunIntro(_, output_expr)) => self.unify_fun_intro_elim(output_expr, &value0),
+
+            // Flexible-rigid cases
+            //
+            // One of the values has a flexible variable at its head, so we
+            // attempt to solve it using pattern unification.
+            (Value::Stuck(Head::FlexibleVar(var0), spine0), _) => {
+                self.solve(*var0, spine0, &value1)
+            }
+            (_, Value::Stuck(Head::FlexibleVar(var1), spine1)) => {
+                self.solve(*var1, spine1, &value0)
+            }
 
             (_, _) => Err(Error::Mismatched),
         }
@@ -259,8 +259,8 @@ impl<'arena, 'env> Context<'arena, 'env> {
         result
     }
 
-    /// Unify a closure with a value, using function eta-conversion.
-    fn unify_fun_intro(
+    /// Unify a function introduction with a value, using eta-conversion.
+    fn unify_fun_intro_elim(
         &mut self,
         output_expr: &Closure<'arena>,
         value: &Arc<Value<'arena>>,
