@@ -422,8 +422,12 @@ impl<'arena, 'env> ConversionContext<'arena, 'env> {
             (Value::FunIntro(_, output_expr0), Value::FunIntro(_, output_expr1)) => {
                 self.is_equal_closures(output_expr0, output_expr1)
             }
-            (Value::FunIntro(_, output_expr), _) => self.is_equal_fun_intro(output_expr, &value1),
-            (_, Value::FunIntro(_, output_expr)) => self.is_equal_fun_intro(output_expr, &value0),
+            (Value::FunIntro(_, output_expr), _) => {
+                self.is_equal_fun_intro_elim(output_expr, &value1)
+            }
+            (_, Value::FunIntro(_, output_expr)) => {
+                self.is_equal_fun_intro_elim(output_expr, &value0)
+            }
 
             (_, _) => Ok(false),
         }
@@ -446,8 +450,8 @@ impl<'arena, 'env> ConversionContext<'arena, 'env> {
         result
     }
 
-    /// Check that a closure is equal to a value, using function eta-conversion.
-    fn is_equal_fun_intro(
+    /// Check that a function is equal to a value, using eta-conversion.
+    fn is_equal_fun_intro_elim(
         &mut self,
         output_expr: &Closure<'_>,
         value: &Arc<Value<'_>>,
