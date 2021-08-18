@@ -5,7 +5,8 @@ use std::sync::Arc;
 use crate::core::semantics::{Closure, ElimContext, EvalContext, ReadbackContext, Value};
 use crate::env::{self, SharedEnv, UniqueEnv};
 use crate::surface::elaboration::reporting::Message;
-use crate::{core, surface, ByteRange, StringId};
+use crate::surface::Term;
+use crate::{core, ByteRange, StringId};
 
 mod reporting;
 mod unification;
@@ -253,13 +254,13 @@ impl<'arena> Context<'arena> {
     /// Returns the elaborated term in the core language.
     pub fn check(
         &mut self,
-        surface_term: &surface::Term<'_>,
+        surface_term: &Term<'_>,
         expected_type: &Arc<Value<'arena>>,
     ) -> core::Term<'arena> {
         let expected_type = self.force(expected_type);
 
         match (surface_term, expected_type.as_ref()) {
-            (surface::Term::Let(_, (_, def_name), def_type, def_expr, output_expr), _) => {
+            (Term::Let(_, (_, def_name), def_type, def_expr, output_expr), _) => {
                 let (def_expr, def_type_value) = match def_type {
                     None => self.synth(def_expr),
                     Some(def_type) => {
@@ -289,7 +290,7 @@ impl<'arena> Context<'arena> {
                 )
             }
             (
-                surface::Term::FunIntro(_, (_, input_name), output_expr),
+                Term::FunIntro(_, (_, input_name), output_expr),
                 Value::FunType(_, input_type, output_type),
             ) => {
                 let input_expr = self.push_rigid_parameter(Some(*input_name), input_type.clone());
@@ -299,7 +300,7 @@ impl<'arena> Context<'arena> {
 
                 core::Term::FunIntro(Some(*input_name), self.arena.alloc_term(output_expr))
             }
-            (surface::Term::ReportedError(_), _) => core::Term::ReportedError,
+            (Term::ReportedError(_), _) => core::Term::ReportedError,
             (_, _) => {
                 let (core_term, synth_type) = self.synth(surface_term);
                 self.convert(surface_term.range(), core_term, &synth_type, &expected_type)
@@ -310,12 +311,9 @@ impl<'arena> Context<'arena> {
     /// Synthesize the type of the given surface term.
     ///
     /// Returns the elaborated term in the core language and its type.
-    pub fn synth(
-        &mut self,
-        surface_term: &surface::Term<'_>,
-    ) -> (core::Term<'arena>, Arc<Value<'arena>>) {
+    pub fn synth(&mut self, surface_term: &Term<'_>) -> (core::Term<'arena>, Arc<Value<'arena>>) {
         match surface_term {
-            surface::Term::Name(range, name) => match self.get_name(*name) {
+            Term::Name(range, name) => match self.get_name(*name) {
                 Some((term, r#type)) => (term, r#type.clone()),
                 None => {
                     self.push_message(Message::UnboundName {
@@ -326,11 +324,11 @@ impl<'arena> Context<'arena> {
                     (core::Term::ReportedError, r#type)
                 }
             },
-            surface::Term::Hole(range, name) => (
+            Term::Hole(range, name) => (
                 self.push_flexible_term(*range, FlexSource::HoleExpr(*name)),
                 self.push_flexible_value(*range, FlexSource::HoleType(*name)),
             ),
-            surface::Term::Ann(expr, r#type) => {
+            Term::Ann(expr, r#type) => {
                 let r#type = self.check(r#type, &Arc::new(Value::Universe)); // FIXME: avoid temporary Arc
                 let type_value = self.eval(&r#type);
                 let expr = self.check(expr, &type_value);
@@ -340,7 +338,7 @@ impl<'arena> Context<'arena> {
 
                 (ann_expr, type_value)
             }
-            surface::Term::Let(_, (_, def_name), def_type, def_expr, output_expr) => {
+            Term::Let(_, (_, def_name), def_type, def_expr, output_expr) => {
                 let (def_expr, def_type_value) = match def_type {
                     None => self.synth(def_expr),
                     Some(def_type) => {
@@ -371,8 +369,8 @@ impl<'arena> Context<'arena> {
 
                 (let_expr, output_type)
             }
-            surface::Term::Universe(_) => (core::Term::Universe, Arc::new(Value::Universe)),
-            surface::Term::FunArrow(input_type, output_type) => {
+            Term::Universe(_) => (core::Term::Universe, Arc::new(Value::Universe)),
+            Term::FunArrow(input_type, output_type) => {
                 let input_type = self.check(input_type, &Arc::new(Value::Universe)); // FIXME: avoid temporary Arc
                 let input_type_value = self.eval(&input_type);
 
@@ -388,7 +386,7 @@ impl<'arena> Context<'arena> {
 
                 (fun_type, Arc::new(Value::Universe))
             }
-            surface::Term::FunType(_, (_, input_name), input_type, output_type) => {
+            Term::FunType(_, (_, input_name), input_type, output_type) => {
                 let input_type = self.check(input_type, &Arc::new(Value::Universe)); // FIXME: avoid temporary Arc
                 let input_type_value = self.eval(&input_type);
 
@@ -404,7 +402,7 @@ impl<'arena> Context<'arena> {
 
                 (fun_type, Arc::new(Value::Universe))
             }
-            surface::Term::FunIntro(_, (input_range, input_name), output_expr) => {
+            Term::FunIntro(_, (input_range, input_name), output_expr) => {
                 let input_name = Some(*input_name);
                 let input_type =
                     self.push_flexible_value(*input_range, FlexSource::FunInputType(input_name));
@@ -421,7 +419,7 @@ impl<'arena> Context<'arena> {
                     Arc::new(Value::FunType(input_name, input_type, output_type)),
                 )
             }
-            surface::Term::FunElim(head_expr, input_expr) => {
+            Term::FunElim(head_expr, input_expr) => {
                 let head_range = head_expr.range();
                 let (head_expr, head_type) = self.synth(head_expr);
 
@@ -483,7 +481,7 @@ impl<'arena> Context<'arena> {
                     }
                 }
             }
-            surface::Term::ReportedError(range) => (
+            Term::ReportedError(range) => (
                 core::Term::ReportedError,
                 self.push_flexible_value(*range, FlexSource::ReportedErrorType),
             ),

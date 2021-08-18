@@ -1,7 +1,8 @@
 //! Bidirectional distillation of the core language into the surface language.
 
 use crate::env::{self, LocalVar, UniqueEnv};
-use crate::{core, surface, BytePos, ByteRange, StringId, StringInterner};
+use crate::surface::{Arena, Term};
+use crate::{core, BytePos, ByteRange, StringId, StringInterner};
 
 const PLACEHOLDER_POS: BytePos = 0;
 const PLACEHOLDER_RANGE: ByteRange = ByteRange::new(PLACEHOLDER_POS, PLACEHOLDER_POS);
@@ -9,7 +10,7 @@ const PLACEHOLDER_RANGE: ByteRange = ByteRange::new(PLACEHOLDER_POS, PLACEHOLDER
 /// Distillation context.
 pub struct Context<'arena> {
     /// Arena for storing distilled terms.
-    arena: &'arena surface::Arena<'arena>,
+    arena: &'arena Arena<'arena>,
     /// Name environment.
     names: UniqueEnv<StringId>,
 
@@ -18,10 +19,7 @@ pub struct Context<'arena> {
 
 impl<'arena> Context<'arena> {
     /// Construct a new distillation context.
-    pub fn new(
-        interner: &mut StringInterner,
-        arena: &'arena surface::Arena<'arena>,
-    ) -> Context<'arena> {
+    pub fn new(interner: &mut StringInterner, arena: &'arena Arena<'arena>) -> Context<'arena> {
         let placeholder_string = interner.get_or_intern("_");
 
         Context {
@@ -46,7 +44,7 @@ impl<'arena> Context<'arena> {
     }
 
     /// Distill a core term into a surface term, in a 'checkable' context.
-    pub fn check(&mut self, core_term: &core::Term<'_>) -> surface::Term<'arena> {
+    pub fn check(&mut self, core_term: &core::Term<'_>) -> Term<'arena> {
         match core_term {
             core::Term::Ann(expr, _) => {
                 // Avoid adding extraneous type annotations!
@@ -54,7 +52,7 @@ impl<'arena> Context<'arena> {
             }
             core::Term::Let(def_name, def_expr, output_expr) => {
                 let (def_expr, def_type) = match self.synth(def_expr) {
-                    surface::Term::Ann(expr, r#type) => (expr, Some(r#type)),
+                    Term::Ann(expr, r#type) => (expr, Some(r#type)),
                     expr => (self.arena.alloc_term(expr) as &_, None),
                 };
 
@@ -62,7 +60,7 @@ impl<'arena> Context<'arena> {
                 let output_expr = self.check(output_expr);
                 self.pop_rigid();
 
-                surface::Term::Let(
+                Term::Let(
                     PLACEHOLDER_POS,
                     (PLACEHOLDER_RANGE, def_name),
                     def_type,
@@ -75,7 +73,7 @@ impl<'arena> Context<'arena> {
                 let output_expr = self.check(output_expr);
                 self.pop_rigid();
 
-                surface::Term::FunIntro(
+                Term::FunIntro(
                     PLACEHOLDER_POS,
                     (PLACEHOLDER_RANGE, input_name),
                     self.arena.alloc_term(output_expr),
@@ -86,15 +84,15 @@ impl<'arena> Context<'arena> {
     }
 
     /// Distill a core term into a surface term, in a 'synthesizable' context.
-    pub fn synth(&mut self, core_term: &core::Term<'_>) -> surface::Term<'arena> {
+    pub fn synth(&mut self, core_term: &core::Term<'_>) -> Term<'arena> {
         match core_term {
             core::Term::RigidVar(var) => match self.get_rigid_name(*var) {
-                Some(name) => surface::Term::Name(PLACEHOLDER_RANGE, name),
+                Some(name) => Term::Name(PLACEHOLDER_RANGE, name),
                 None => todo!("misbound variable"), // TODO: error?
             },
             core::Term::FlexibleVar(_var) => {
                 let name = None; // TODO: lookup flexible variable name
-                surface::Term::Hole(PLACEHOLDER_RANGE, name)
+                Term::Hole(PLACEHOLDER_RANGE, name)
             }
             core::Term::FlexibleInsertion(var, rigid_infos) => {
                 let mut head_expr = self.synth(&core::Term::FlexibleVar(*var));
@@ -105,7 +103,7 @@ impl<'arena> Context<'arena> {
                         core::EntryInfo::Abstract => {
                             let var = self.names.len().global_to_local(var).unwrap();
                             let input_expr = self.synth(&core::Term::RigidVar(var));
-                            head_expr = surface::Term::FunElim(
+                            head_expr = Term::FunElim(
                                 self.arena.alloc_term(head_expr),
                                 self.arena.alloc_term(input_expr),
                             );
@@ -119,11 +117,11 @@ impl<'arena> Context<'arena> {
                 let r#type = self.synth(r#type);
                 let expr = self.check(expr);
 
-                surface::Term::Ann(self.arena.alloc_term(expr), self.arena.alloc_term(r#type))
+                Term::Ann(self.arena.alloc_term(expr), self.arena.alloc_term(r#type))
             }
             core::Term::Let(def_name, def_expr, output_expr) => {
                 let (def_expr, def_type) = match self.synth(def_expr) {
-                    surface::Term::Ann(expr, r#type) => (expr, Some(r#type)),
+                    Term::Ann(expr, r#type) => (expr, Some(r#type)),
                     expr => (self.arena.alloc_term(expr) as &_, None),
                 };
 
@@ -131,7 +129,7 @@ impl<'arena> Context<'arena> {
                 let output_expr = self.synth(output_expr);
                 self.pop_rigid();
 
-                surface::Term::Let(
+                Term::Let(
                     PLACEHOLDER_POS,
                     (PLACEHOLDER_RANGE, def_name),
                     def_type,
@@ -139,7 +137,7 @@ impl<'arena> Context<'arena> {
                     self.arena.alloc_term(output_expr),
                 )
             }
-            core::Term::Universe => surface::Term::Universe(PLACEHOLDER_RANGE),
+            core::Term::Universe => Term::Universe(PLACEHOLDER_RANGE),
             core::Term::FunType(input_name, input_type, output_type) => {
                 let input_type = self.check(input_type);
 
@@ -148,7 +146,7 @@ impl<'arena> Context<'arena> {
                 self.pop_rigid();
 
                 // TODO: distill to arrow if `input_name` is not bound in `output_type`
-                surface::Term::FunType(
+                Term::FunType(
                     PLACEHOLDER_POS,
                     (PLACEHOLDER_RANGE, input_name),
                     self.arena.alloc_term(input_type),
@@ -160,7 +158,7 @@ impl<'arena> Context<'arena> {
                 let output_expr = self.synth(output_expr);
                 self.pop_rigid();
 
-                surface::Term::FunIntro(
+                Term::FunIntro(
                     PLACEHOLDER_POS,
                     (PLACEHOLDER_RANGE, input_name),
                     self.arena.alloc_term(output_expr),
@@ -170,13 +168,13 @@ impl<'arena> Context<'arena> {
                 let head_expr = self.synth(head_expr);
                 let input_expr = self.synth(input_expr);
 
-                surface::Term::FunElim(
+                Term::FunElim(
                     self.arena.alloc_term(head_expr),
                     self.arena.alloc_term(input_expr),
                 )
             }
             // NOTE: Not sure if this is a great approach!
-            core::Term::ReportedError => surface::Term::Hole(PLACEHOLDER_RANGE, None),
+            core::Term::ReportedError => Term::Hole(PLACEHOLDER_RANGE, None),
         }
     }
 }
