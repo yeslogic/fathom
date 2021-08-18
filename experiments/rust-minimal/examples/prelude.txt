@@ -6,6 +6,10 @@ let id : fun (A : _) -> A -> A
 let always : fun (A : _) -> fun (B : _) -> A -> B -> A
   = fun A => fun B => fun a => fun B => a;
 
+let compose : fun (A : _) -> fun (B : _) -> fun (C : _) -> (A -> B) -> (B -> C) -> (A -> C)
+  = fun A => fun B => fun C => fun ab => fun bc =>
+      fun a => bc (ab a);
+
 
 // Booleans
 
@@ -94,13 +98,20 @@ let vcons : fun (Elem : _) -> fun (len : _) -> Elem -> Vec Elem len -> Vec Elem 
 
 // Leibniz equality
 
+// This states that two things of the same type are equal if every property of
+// one is also a property of the other.
 let Eq : fun (A : _) -> A -> A -> Type
   = fun A => fun a0 => fun a1 =>
-      fun (P : fun (a : A) -> Type) -> fun (p : P a0) -> P a1;
+      fun (P : A -> Type) -> P a0 -> P a1;
 
 let refl : fun (A : _) -> fun (a : A) -> Eq A a a
-  = fun A => fun a => fun P => fun pa => pa;
+  = fun A => fun a => fun P => id (P a);
 
+
+let trans : fun (A : _) -> fun (a0 : A) -> fun (a1 : A) -> fun (a2 : A) ->
+    Eq _ a0 a1 -> Eq _ a1 a2 -> Eq _ a0 a2
+  = fun A => fun a0 => fun a1 => fun a2 => fun p0 => fun p1 =>
+      fun P => compose _ _ _ (p0 P) (p1 P);
 
 let sym : fun (A : _) -> fun (a0 : A) -> fun (a1 : A) -> Eq _ a0 a1 -> Eq _ a1 a0
   = fun A => fun a0 => fun a1 => fun p =>
