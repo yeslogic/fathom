@@ -33,6 +33,8 @@ use crate::env::{EnvLen, GlobalVar, LocalVar, SharedEnv, SliceEnv, UniqueEnv};
 pub enum Error {
     /// A known part of one value failed to match with a known part of the other
     /// value that we are comparing against.
+    //
+    // TODO: Return some sort of type-diff
     Mismatched,
     /// A rigid variable appeared multiple times in a flexible spine.
     ///
