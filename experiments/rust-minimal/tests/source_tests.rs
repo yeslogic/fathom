@@ -144,8 +144,6 @@ fn failures_to_outcome(failures: &[TestFailure]) -> libtest_mimic::Outcome {
         let mut msg = String::new();
 
         writeln!(msg).unwrap();
-        writeln!(msg, "failures:").unwrap();
-        writeln!(msg).unwrap();
         for failure in failures {
             writeln!(msg, "    {}:", failure.name).unwrap();
             for (name, data) in &failure.details {
