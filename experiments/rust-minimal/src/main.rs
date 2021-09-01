@@ -2,7 +2,8 @@ use codespan_reporting::diagnostic::Severity;
 use codespan_reporting::files::SimpleFile;
 use codespan_reporting::term::termcolor::{BufferedStandardStream, ColorChoice};
 use fathom_minimal::surface::{distillation, elaboration};
-use fathom_minimal::{core, surface, StringInterner};
+use fathom_minimal::{surface, StringInterner};
+use scoped_arena::Scope;
 use std::io::{Read, Write};
 use std::path::PathBuf;
 use structopt::StructOpt;
@@ -78,26 +79,27 @@ fn main() -> ! {
     let term_config = codespan_reporting::term::Config::default();
 
     let mut interner = StringInterner::new();
-    let surface_arena = surface::Arena::new();
-    let core_arena = core::Arena::new();
+    let mut surface_scope = Scope::new(); // Short-term storage of surface terms
+    let core_scope = Scope::new(); // Long-term storage of core terms
 
-    let pretty_arena = pretty::Arena::<()>::new();
+    let pretty_arena = pretty::Arena::<()>::new(); // TODO: Use a scoped-arena
     let term_width = termsize::get().map_or(usize::MAX, |size| usize::from(size.cols));
     let pretty_width = std::cmp::min(term_width, MAX_PRETTY_WIDTH);
 
     match Options::from_args() {
         Options::Elab(args) => {
             let file = load_input(&args.surface_term);
-            let surface_term = parse_term(&mut interner, &surface_arena, &file);
+            let surface_term = parse_term(&mut interner, &surface_scope, &file);
 
-            let mut context = elaboration::Context::new(&core_arena);
+            let mut context = elaboration::Context::new(&core_scope);
             let (term, r#type) = context.synth(&surface_term);
-            let r#type = context.quote(&core_arena, &r#type);
+            let r#type = context.quote(&core_scope, &r#type);
 
             if check_elaboration(&mut writer, &term_config, &file, &interner, &mut context)
                 || args.allow_errors
             {
-                let mut context = distillation::Context::new(&mut interner, &surface_arena);
+                surface_scope.reset(); // Reuse the surface scope for distillation
+                let mut context = distillation::Context::new(&mut interner, &surface_scope);
                 let term = context.check(&term);
                 let r#type = context.synth(&r#type);
 
@@ -113,17 +115,18 @@ fn main() -> ! {
         }
         Options::Norm(args) => {
             let file = load_input(&args.surface_term);
-            let surface_term = parse_term(&mut interner, &surface_arena, &file);
+            let surface_term = parse_term(&mut interner, &surface_scope, &file);
 
-            let mut context = elaboration::Context::new(&core_arena);
+            let mut context = elaboration::Context::new(&core_scope);
             let (term, r#type) = context.synth(&surface_term);
-            let term = context.normalize(&core_arena, &term);
-            let r#type = context.quote(&core_arena, &r#type);
+            let term = context.normalize(&core_scope, &term);
+            let r#type = context.quote(&core_scope, &r#type);
 
             if check_elaboration(&mut writer, &term_config, &file, &interner, &mut context)
                 || args.allow_errors
             {
-                let mut context = distillation::Context::new(&mut interner, &surface_arena);
+                surface_scope.reset(); // Reuse the surface scope for distillation
+                let mut context = distillation::Context::new(&mut interner, &surface_scope);
                 let term = context.check(&term);
                 let r#type = context.synth(&r#type);
 
@@ -139,16 +142,17 @@ fn main() -> ! {
         }
         Options::Type(args) => {
             let file = load_input(&args.surface_term);
-            let surface_term = parse_term(&mut interner, &surface_arena, &file);
+            let surface_term = parse_term(&mut interner, &surface_scope, &file);
 
-            let mut context = elaboration::Context::new(&core_arena);
+            let mut context = elaboration::Context::new(&core_scope);
             let (_, r#type) = context.synth(&surface_term);
-            let r#type = context.quote(&core_arena, &r#type);
+            let r#type = context.quote(&core_scope, &r#type);
 
             if check_elaboration(&mut writer, &term_config, &file, &interner, &mut context)
                 || args.allow_errors
             {
-                let mut context = distillation::Context::new(&mut interner, &surface_arena);
+                surface_scope.reset(); // Reuse the surface scope for distillation
+                let mut context = distillation::Context::new(&mut interner, &surface_scope);
                 let r#type = context.synth(&r#type);
 
                 let context = surface::pretty::Context::new(&interner, &pretty_arena);
@@ -184,10 +188,10 @@ fn load_input(input: &Input) -> SimpleFile<String, String> {
 
 fn parse_term<'arena>(
     interner: &mut StringInterner,
-    arena: &'arena surface::Arena<'arena>,
+    scope: &'arena Scope<'arena>,
     file: &SimpleFile<String, String>,
 ) -> surface::Term<'arena> {
-    surface::Term::parse(interner, arena, file.source()).unwrap() // TODO: report errors
+    surface::Term::parse(interner, scope, file.source()).unwrap() // TODO: report errors
 }
 
 fn check_elaboration(
