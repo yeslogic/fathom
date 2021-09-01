@@ -82,10 +82,6 @@ fn main() -> ! {
     let mut surface_scope = Scope::new(); // Short-term storage of surface terms
     let core_scope = Scope::new(); // Long-term storage of core terms
 
-    let pretty_arena = pretty::Arena::<()>::new(); // TODO: Use a scoped-arena
-    let term_width = termsize::get().map_or(usize::MAX, |size| usize::from(size.cols));
-    let pretty_width = std::cmp::min(term_width, MAX_PRETTY_WIDTH);
-
     match Options::from_args() {
         Options::Elab(args) => {
             let file = load_input(&args.surface_term);
@@ -103,10 +99,10 @@ fn main() -> ! {
                 let term = context.check(&term);
                 let r#type = context.synth(&r#type);
 
-                let context = surface::pretty::Context::new(&interner, &pretty_arena);
+                let context = surface::pretty::Context::new(&interner, &surface_scope);
                 let doc = context.ann(&term, &r#type).into_doc();
 
-                println!("{}", doc.pretty(pretty_width));
+                println!("{}", doc.pretty(get_pretty_width()));
 
                 std::process::exit(0);
             } else {
@@ -130,10 +126,10 @@ fn main() -> ! {
                 let term = context.check(&term);
                 let r#type = context.synth(&r#type);
 
-                let context = surface::pretty::Context::new(&interner, &pretty_arena);
+                let context = surface::pretty::Context::new(&interner, &surface_scope);
                 let doc = context.ann(&term, &r#type).into_doc();
 
-                println!("{}", doc.pretty(pretty_width));
+                println!("{}", doc.pretty(get_pretty_width()));
 
                 std::process::exit(0);
             } else {
@@ -155,10 +151,10 @@ fn main() -> ! {
                 let mut context = distillation::Context::new(&mut interner, &surface_scope);
                 let r#type = context.synth(&r#type);
 
-                let context = surface::pretty::Context::new(&interner, &pretty_arena);
+                let context = surface::pretty::Context::new(&interner, &surface_scope);
                 let doc = context.term(&r#type).into_doc();
 
-                println!("{}", doc.pretty(pretty_width));
+                println!("{}", doc.pretty(get_pretty_width()));
 
                 std::process::exit(0);
             } else {
@@ -184,6 +180,11 @@ fn load_input(input: &Input) -> SimpleFile<String, String> {
     };
 
     SimpleFile::new(name, source)
+}
+
+fn get_pretty_width() -> usize {
+    let term_width = termsize::get().map_or(usize::MAX, |size| usize::from(size.cols));
+    std::cmp::min(term_width, MAX_PRETTY_WIDTH)
 }
 
 fn parse_term<'arena>(
