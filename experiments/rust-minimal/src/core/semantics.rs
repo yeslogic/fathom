@@ -112,15 +112,15 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
     }
 
     /// Fully normalise a term by first [evaluating][EvalContext::eval] it into
-    /// a [value][Value], then [reading it back][ReadbackContext::readback] into
-    /// a [term][Term].
+    /// a [value][Value], then [quoting it back][QuoteContext::quote] into a
+    /// [term][Term].
     pub fn normalise<'out_arena>(
         &mut self,
         arena: &'out_arena Arena<'out_arena>,
         term: &Term<'arena>,
     ) -> Result<Term<'out_arena>> {
-        ReadbackContext::new(arena, self.rigid_exprs.len(), self.flexible_exprs)
-            .readback(&self.eval(term)?)
+        QuoteContext::new(arena, self.rigid_exprs.len(), self.flexible_exprs)
+            .quote(&self.eval(term)?)
     }
 
     /// Evaluate a [term][Term] into a [value][Value].
@@ -256,20 +256,20 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
     }
 }
 
-/// Readback context.
-pub struct ReadbackContext<'in_arena, 'out_arena, 'env> {
+/// Quotation context.
+pub struct QuoteContext<'in_arena, 'out_arena, 'env> {
     arena: &'out_arena Arena<'out_arena>,
     rigid_exprs: EnvLen,
     flexible_exprs: &'env SliceEnv<Option<Arc<Value<'in_arena>>>>,
 }
 
-impl<'in_arena, 'out_arena, 'env> ReadbackContext<'in_arena, 'out_arena, 'env> {
+impl<'in_arena, 'out_arena, 'env> QuoteContext<'in_arena, 'out_arena, 'env> {
     pub fn new(
         arena: &'out_arena Arena<'out_arena>,
         rigid_exprs: EnvLen,
         flexible_exprs: &'env SliceEnv<Option<Arc<Value<'in_arena>>>>,
-    ) -> ReadbackContext<'in_arena, 'out_arena, 'env> {
-        ReadbackContext {
+    ) -> QuoteContext<'in_arena, 'out_arena, 'env> {
+        QuoteContext {
             arena,
             rigid_exprs,
             flexible_exprs,
@@ -288,8 +288,8 @@ impl<'in_arena, 'out_arena, 'env> ReadbackContext<'in_arena, 'out_arena, 'env> {
         self.rigid_exprs.pop();
     }
 
-    /// Read a [value][Value] back into a [term][Term].
-    pub fn readback(&mut self, value: &Arc<Value<'in_arena>>) -> Result<Term<'out_arena>> {
+    /// Quote a [value][Value] back into a [term][Term].
+    pub fn quote(&mut self, value: &Arc<Value<'in_arena>>) -> Result<Term<'out_arena>> {
         match self.elim_context().force(value)?.as_ref() {
             Value::Stuck(head, spine) => {
                 let mut head_expr = match head {
@@ -304,7 +304,7 @@ impl<'in_arena, 'out_arena, 'env> ReadbackContext<'in_arena, 'out_arena, 'env> {
                 for elim in spine {
                     head_expr = match elim {
                         Elim::Fun(input_expr) => {
-                            let input_expr = self.readback(input_expr)?;
+                            let input_expr = self.quote(input_expr)?;
                             Term::FunElim(
                                 self.arena.alloc_term(head_expr),
                                 self.arena.alloc_term(input_expr),
@@ -317,8 +317,8 @@ impl<'in_arena, 'out_arena, 'env> ReadbackContext<'in_arena, 'out_arena, 'env> {
             }
             Value::Universe => Ok(Term::Universe),
             Value::FunType(input_name, input_type, output_type) => {
-                let input_type = self.readback(input_type)?;
-                let output_type = self.readback_closure(output_type)?;
+                let input_type = self.quote(input_type)?;
+                let output_type = self.quote_closure(output_type)?;
 
                 Ok(Term::FunType(
                     *input_name,
@@ -327,7 +327,7 @@ impl<'in_arena, 'out_arena, 'env> ReadbackContext<'in_arena, 'out_arena, 'env> {
                 ))
             }
             Value::FunIntro(input_name, output_expr) => {
-                let output_expr = self.readback_closure(output_expr)?;
+                let output_expr = self.quote_closure(output_expr)?;
 
                 Ok(Term::FunIntro(
                     *input_name,
@@ -337,13 +337,13 @@ impl<'in_arena, 'out_arena, 'env> ReadbackContext<'in_arena, 'out_arena, 'env> {
         }
     }
 
-    /// Read a [closure][Closure] back into a [term][Term].
-    fn readback_closure(&mut self, closure: &Closure<'in_arena>) -> Result<Term<'out_arena>> {
+    /// Quote a [closure][Closure] back into a [term][Term].
+    fn quote_closure(&mut self, closure: &Closure<'in_arena>) -> Result<Term<'out_arena>> {
         let var = Arc::new(Value::rigid_var(self.rigid_exprs.next_global()));
         let value = self.elim_context().apply_closure(closure, var)?;
 
         self.push_rigid();
-        let term = self.readback(&value);
+        let term = self.quote(&value);
         self.pop_rigid();
 
         term

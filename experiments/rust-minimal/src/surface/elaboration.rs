@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use crate::core::semantics::{Closure, ElimContext, EvalContext, ReadbackContext, Value};
+use crate::core::semantics::{Closure, ElimContext, EvalContext, QuoteContext, Value};
 use crate::env::{self, SharedEnv, UniqueEnv};
 use crate::surface::elaboration::reporting::Message;
 use crate::surface::Term;
@@ -198,13 +198,13 @@ impl<'arena> Context<'arena> {
             .unwrap_or_else(|error| self.report_value(error))
     }
 
-    pub fn readback<'out_arena>(
+    pub fn quote<'out_arena>(
         &mut self,
         arena: &'out_arena core::Arena<'out_arena>,
         value: &Arc<Value<'arena>>,
     ) -> core::Term<'out_arena> {
-        ReadbackContext::new(arena, self.rigid_exprs.len(), &self.flexible_exprs)
-            .readback(value)
+        QuoteContext::new(arena, self.rigid_exprs.len(), &self.flexible_exprs)
+            .quote(value)
             .unwrap_or_else(|error| self.report_term(error))
     }
 
@@ -409,7 +409,7 @@ impl<'arena> Context<'arena> {
 
                 self.push_rigid_parameter(input_name, input_type.clone());
                 let (output_expr, output_type) = self.synth(output_expr);
-                let output_type = self.readback(self.arena, &output_type);
+                let output_type = self.quote(self.arena, &output_type);
                 self.pop_rigid();
 
                 let output_type = self.close_term(output_type);

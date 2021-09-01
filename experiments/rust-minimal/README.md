@@ -76,7 +76,7 @@ _core.context_ ::=\
 
 > **TODO:**
 >
-> document evaluation, readback, checking and synthesis
+> document evaluation, quotation, checking and synthesis
 
 | eval(_core.env_, _core.term_)                        | _core.value_
 | ---------------------------------------------------- | -------------------------------------------
