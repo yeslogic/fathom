@@ -1,7 +1,9 @@
 //! Bidirectional distillation of the core language into the surface language.
 
+use scoped_arena::Scope;
+
 use crate::env::{self, LocalVar, UniqueEnv};
-use crate::surface::{Arena, Term};
+use crate::surface::Term;
 use crate::{core, BytePos, ByteRange, StringId, StringInterner};
 
 const PLACEHOLDER_POS: BytePos = 0;
@@ -9,8 +11,8 @@ const PLACEHOLDER_RANGE: ByteRange = ByteRange::new(PLACEHOLDER_POS, PLACEHOLDER
 
 /// Distillation context.
 pub struct Context<'arena> {
-    /// Arena for storing distilled terms.
-    arena: &'arena Arena<'arena>,
+    /// Scoped arena for storing distilled terms.
+    scope: &'arena Scope<'arena>,
     /// Name environment.
     names: UniqueEnv<StringId>,
 
@@ -19,11 +21,11 @@ pub struct Context<'arena> {
 
 impl<'arena> Context<'arena> {
     /// Construct a new distillation context.
-    pub fn new(interner: &mut StringInterner, arena: &'arena Arena<'arena>) -> Context<'arena> {
+    pub fn new(interner: &mut StringInterner, scope: &'arena Scope<'arena>) -> Context<'arena> {
         let placeholder_string = interner.get_or_intern("_");
 
         Context {
-            arena,
+            scope,
             names: UniqueEnv::new(),
             placeholder_string,
         }
@@ -53,7 +55,7 @@ impl<'arena> Context<'arena> {
             core::Term::Let(def_name, def_expr, output_expr) => {
                 let (def_expr, def_type) = match self.synth(def_expr) {
                     Term::Ann(expr, r#type) => (expr, Some(r#type)),
-                    expr => (self.arena.alloc_term(expr) as &_, None),
+                    expr => (self.scope.to_scope(expr) as &_, None),
                 };
 
                 let def_name = self.push_rigid(Some(*def_name));
@@ -65,7 +67,7 @@ impl<'arena> Context<'arena> {
                     (PLACEHOLDER_RANGE, def_name),
                     def_type,
                     def_expr,
-                    self.arena.alloc_term(output_expr),
+                    self.scope.to_scope(output_expr),
                 )
             }
             core::Term::FunIntro(input_name, output_expr) => {
@@ -76,7 +78,7 @@ impl<'arena> Context<'arena> {
                 Term::FunIntro(
                     PLACEHOLDER_POS,
                     (PLACEHOLDER_RANGE, input_name),
-                    self.arena.alloc_term(output_expr),
+                    self.scope.to_scope(output_expr),
                 )
             }
             _ => self.synth(core_term),
@@ -104,8 +106,8 @@ impl<'arena> Context<'arena> {
                             let var = self.names.len().global_to_local(var).unwrap();
                             let input_expr = self.synth(&core::Term::RigidVar(var));
                             head_expr = Term::FunElim(
-                                self.arena.alloc_term(head_expr),
-                                self.arena.alloc_term(input_expr),
+                                self.scope.to_scope(head_expr),
+                                self.scope.to_scope(input_expr),
                             );
                         }
                     }
@@ -117,12 +119,12 @@ impl<'arena> Context<'arena> {
                 let r#type = self.synth(r#type);
                 let expr = self.check(expr);
 
-                Term::Ann(self.arena.alloc_term(expr), self.arena.alloc_term(r#type))
+                Term::Ann(self.scope.to_scope(expr), self.scope.to_scope(r#type))
             }
             core::Term::Let(def_name, def_expr, output_expr) => {
                 let (def_expr, def_type) = match self.synth(def_expr) {
                     Term::Ann(expr, r#type) => (expr, Some(r#type)),
-                    expr => (self.arena.alloc_term(expr) as &_, None),
+                    expr => (self.scope.to_scope(expr) as &_, None),
                 };
 
                 let def_name = self.push_rigid(Some(*def_name));
@@ -134,7 +136,7 @@ impl<'arena> Context<'arena> {
                     (PLACEHOLDER_RANGE, def_name),
                     def_type,
                     def_expr,
-                    self.arena.alloc_term(output_expr),
+                    self.scope.to_scope(output_expr),
                 )
             }
             core::Term::Universe => Term::Universe(PLACEHOLDER_RANGE),
@@ -149,8 +151,8 @@ impl<'arena> Context<'arena> {
                 Term::FunType(
                     PLACEHOLDER_POS,
                     (PLACEHOLDER_RANGE, input_name),
-                    self.arena.alloc_term(input_type),
-                    self.arena.alloc_term(output_type),
+                    self.scope.to_scope(input_type),
+                    self.scope.to_scope(output_type),
                 )
             }
             core::Term::FunIntro(input_name, output_expr) => {
@@ -161,7 +163,7 @@ impl<'arena> Context<'arena> {
                 Term::FunIntro(
                     PLACEHOLDER_POS,
                     (PLACEHOLDER_RANGE, input_name),
-                    self.arena.alloc_term(output_expr),
+                    self.scope.to_scope(output_expr),
                 )
             }
             core::Term::FunElim(head_expr, input_expr) => {
@@ -169,8 +171,8 @@ impl<'arena> Context<'arena> {
                 let input_expr = self.synth(input_expr);
 
                 Term::FunElim(
-                    self.arena.alloc_term(head_expr),
-                    self.arena.alloc_term(input_expr),
+                    self.scope.to_scope(head_expr),
+                    self.scope.to_scope(input_expr),
                 )
             }
             // NOTE: Not sure if this is a great approach!

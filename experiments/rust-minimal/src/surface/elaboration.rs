@@ -1,5 +1,6 @@
 //! Bidirectional elaboration of the surface language into the core language.
 
+use scoped_arena::Scope;
 use std::sync::Arc;
 
 use crate::core::semantics::{Closure, ElimContext, EvalContext, QuoteContext, Value};
@@ -28,8 +29,8 @@ pub enum FlexSource {
 
 /// Elaboration context.
 pub struct Context<'arena> {
-    /// Arena used for storing elaborated terms.
-    arena: &'arena core::Arena<'arena>,
+    /// Scoped arena for storing elaborated terms.
+    scope: &'arena Scope<'arena>,
     /// A partial renaming to be used during [`unification`].
     renaming: unification::PartialRenaming,
 
@@ -60,9 +61,9 @@ pub struct Context<'arena> {
 
 impl<'arena> Context<'arena> {
     /// Construct a new elaboration context, backed by the supplied arena.
-    pub fn new(arena: &'arena core::Arena<'arena>) -> Context<'arena> {
+    pub fn new(scope: &'arena Scope<'arena>) -> Context<'arena> {
         Context {
-            arena,
+            scope,
             renaming: unification::PartialRenaming::new(),
 
             rigid_names: UniqueEnv::new(),
@@ -184,11 +185,11 @@ impl<'arena> Context<'arena> {
 
     pub fn normalize<'out_arena>(
         &mut self,
-        arena: &'out_arena core::Arena<'out_arena>,
+        scope: &'out_arena Scope<'out_arena>,
         term: &core::Term<'arena>,
     ) -> core::Term<'out_arena> {
         EvalContext::new(&mut self.rigid_exprs, &self.flexible_exprs)
-            .normalise(arena, term)
+            .normalise(scope, term)
             .unwrap_or_else(|error| self.report_term(error))
     }
 
@@ -200,16 +201,16 @@ impl<'arena> Context<'arena> {
 
     pub fn quote<'out_arena>(
         &mut self,
-        arena: &'out_arena core::Arena<'out_arena>,
+        scope: &'out_arena Scope<'out_arena>,
         value: &Arc<Value<'arena>>,
     ) -> core::Term<'out_arena> {
-        QuoteContext::new(arena, self.rigid_exprs.len(), &self.flexible_exprs)
+        QuoteContext::new(scope, self.rigid_exprs.len(), &self.flexible_exprs)
             .quote(value)
             .unwrap_or_else(|error| self.report_term(error))
     }
 
     fn close_term(&self, term: core::Term<'arena>) -> Closure<'arena> {
-        Closure::new(self.rigid_exprs.clone(), self.arena.alloc_term(term))
+        Closure::new(self.rigid_exprs.clone(), self.scope.to_scope(term))
     }
 
     fn apply_closure(
@@ -224,7 +225,7 @@ impl<'arena> Context<'arena> {
 
     fn unification_context<'this>(&'this mut self) -> unification::Context<'arena, 'this> {
         unification::Context::new(
-            &self.arena,
+            &self.scope,
             &mut self.renaming,
             self.rigid_exprs.len(),
             &mut self.flexible_exprs,
@@ -269,8 +270,8 @@ impl<'arena> Context<'arena> {
 
                         let def_expr = self.check(def_expr, &def_type_value);
                         let def_expr = core::Term::Ann(
-                            self.arena.alloc_term(def_expr),
-                            self.arena.alloc_term(def_type),
+                            self.scope.to_scope(def_expr),
+                            self.scope.to_scope(def_type),
                         );
 
                         (def_expr, def_type_value)
@@ -285,8 +286,8 @@ impl<'arena> Context<'arena> {
 
                 core::Term::Let(
                     *def_name,
-                    self.arena.alloc_term(def_expr),
-                    self.arena.alloc_term(output_expr),
+                    self.scope.to_scope(def_expr),
+                    self.scope.to_scope(output_expr),
                 )
             }
             (
@@ -298,7 +299,7 @@ impl<'arena> Context<'arena> {
                 let output_expr = self.check(output_expr, &output_type);
                 self.pop_rigid();
 
-                core::Term::FunIntro(Some(*input_name), self.arena.alloc_term(output_expr))
+                core::Term::FunIntro(Some(*input_name), self.scope.to_scope(output_expr))
             }
             (Term::ReportedError(_), _) => core::Term::ReportedError,
             (_, _) => {
@@ -334,7 +335,7 @@ impl<'arena> Context<'arena> {
                 let expr = self.check(expr, &type_value);
 
                 let ann_expr =
-                    core::Term::Ann(self.arena.alloc_term(expr), self.arena.alloc_term(r#type));
+                    core::Term::Ann(self.scope.to_scope(expr), self.scope.to_scope(r#type));
 
                 (ann_expr, type_value)
             }
@@ -347,8 +348,8 @@ impl<'arena> Context<'arena> {
 
                         let def_expr = self.check(def_expr, &def_type_value);
                         let def_expr = core::Term::Ann(
-                            self.arena.alloc_term(def_expr),
-                            self.arena.alloc_term(def_type),
+                            self.scope.to_scope(def_expr),
+                            self.scope.to_scope(def_type),
                         );
 
                         (def_expr, def_type_value)
@@ -363,8 +364,8 @@ impl<'arena> Context<'arena> {
 
                 let let_expr = core::Term::Let(
                     *def_name,
-                    self.arena.alloc_term(def_expr),
-                    self.arena.alloc_term(output_expr),
+                    self.scope.to_scope(def_expr),
+                    self.scope.to_scope(output_expr),
                 );
 
                 (let_expr, output_type)
@@ -380,8 +381,8 @@ impl<'arena> Context<'arena> {
 
                 let fun_type = core::Term::FunType(
                     None,
-                    self.arena.alloc_term(input_type),
-                    self.arena.alloc_term(output_type),
+                    self.scope.to_scope(input_type),
+                    self.scope.to_scope(output_type),
                 );
 
                 (fun_type, Arc::new(Value::Universe))
@@ -396,8 +397,8 @@ impl<'arena> Context<'arena> {
 
                 let fun_type = core::Term::FunType(
                     Some(*input_name),
-                    self.arena.alloc_term(input_type),
-                    self.arena.alloc_term(output_type),
+                    self.scope.to_scope(input_type),
+                    self.scope.to_scope(output_type),
                 );
 
                 (fun_type, Arc::new(Value::Universe))
@@ -409,13 +410,13 @@ impl<'arena> Context<'arena> {
 
                 self.push_rigid_parameter(input_name, input_type.clone());
                 let (output_expr, output_type) = self.synth(output_expr);
-                let output_type = self.quote(self.arena, &output_type);
+                let output_type = self.quote(self.scope, &output_type);
                 self.pop_rigid();
 
                 let output_type = self.close_term(output_type);
 
                 (
-                    core::Term::FunIntro(input_name, self.arena.alloc_term(output_expr)),
+                    core::Term::FunIntro(input_name, self.scope.to_scope(output_expr)),
                     Arc::new(Value::FunType(input_name, input_type, output_type)),
                 )
             }
@@ -435,8 +436,8 @@ impl<'arena> Context<'arena> {
 
                         // Construct the final elimination
                         let fun_elim = core::Term::FunElim(
-                            self.arena.alloc_term(head_expr),
-                            self.arena.alloc_term(input_expr),
+                            self.scope.to_scope(head_expr),
+                            self.scope.to_scope(input_expr),
                         );
 
                         (fun_elim, output_type)
@@ -473,8 +474,8 @@ impl<'arena> Context<'arena> {
 
                         // Construct the final elimination
                         let fun_elim = core::Term::FunElim(
-                            self.arena.alloc_term(head_expr),
-                            self.arena.alloc_term(input_expr),
+                            self.scope.to_scope(head_expr),
+                            self.scope.to_scope(input_expr),
                         );
 
                         (fun_elim, output_type)

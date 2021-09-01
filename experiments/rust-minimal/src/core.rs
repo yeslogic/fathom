@@ -132,20 +132,3 @@ pub enum Term<'arena> {
     /// Reported errors.
     ReportedError,
 }
-
-/// Arena for storing data related to [`Term`]s.
-pub struct Arena<'arena> {
-    terms: typed_arena::Arena<Term<'arena>>,
-}
-
-impl<'arena> Arena<'arena> {
-    pub fn new() -> Arena<'arena> {
-        Arena {
-            terms: typed_arena::Arena::new(),
-        }
-    }
-
-    pub fn alloc_term(&self, term: Term<'arena>) -> &mut Term<'arena> {
-        self.terms.alloc(term)
-    }
-}

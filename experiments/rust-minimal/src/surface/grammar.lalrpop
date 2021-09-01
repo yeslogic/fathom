@@ -1,8 +1,10 @@
+use scoped_arena::Scope;
+
 use crate::{ByteRange, StringId, StringInterner};
-use crate::surface::{Arena, Term};
+use crate::surface::Term;
 use crate::surface::lexer::Token;
 
-grammar<'arena, 'source>(interner: &mut StringInterner, arena: &'arena Arena<'arena>);
+grammar<'arena, 'source>(interner: &mut StringInterner, scope: &'arena Scope<'arena>);
 
 extern {
     type Location = usize;
@@ -33,8 +35,8 @@ pub Term: Term<'arena> = {
     // FIXME: LALRPOP does not accept raw identifiers (see: https://github.com/lalrpop/lalrpop/issues/613)
     <expr: LetTerm> ":" <type_: Term> => {
         Term::Ann(
-            arena.alloc_term(expr),
-            arena.alloc_term(type_),
+            scope.to_scope(expr),
+            scope.to_scope(type_),
         )
     },
 };
@@ -45,9 +47,9 @@ LetTerm: Term<'arena> = {
         Term::Let(
             start,
             def_name,
-            def_type.map(|def_type| arena.alloc_term(def_type) as &_),
-            arena.alloc_term(def_expr),
-            arena.alloc_term(body_expr),
+            def_type.map(|def_type| scope.to_scope(def_type) as &_),
+            scope.to_scope(def_expr),
+            scope.to_scope(body_expr),
         )
     },
 };
@@ -56,23 +58,23 @@ FunTerm: Term<'arena> = {
     AppTerm,
     <input_type: AppTerm> "->"  <output_type: FunTerm> => {
         Term::FunArrow(
-            arena.alloc_term(input_type),
-            arena.alloc_term(output_type),
+            scope.to_scope(input_type),
+            scope.to_scope(output_type),
         )
     },
     <start: @L> "fun" "(" <input_name: RangedName> ":" <input_type: Term> ")" "->"  <output_type: FunTerm> => {
         Term::FunType(
             start,
             input_name,
-            arena.alloc_term(input_type),
-            arena.alloc_term(output_type),
+            scope.to_scope(input_type),
+            scope.to_scope(output_type),
         )
     },
     <start: @L> "fun" <input_name: RangedName> "=>" <output_type: FunTerm> => {
         Term::FunIntro(
             start,
             input_name,
-            arena.alloc_term(output_type),
+            scope.to_scope(output_type),
         )
     },
 };
@@ -81,8 +83,8 @@ AppTerm: Term<'arena> = {
     AtomicTerm,
     <head_expr: AppTerm> <input_expr: AtomicTerm> => {
         Term::FunElim(
-            arena.alloc_term(head_expr),
-            arena.alloc_term(input_expr),
+            scope.to_scope(head_expr),
+            scope.to_scope(input_expr),
         )
     },
 };

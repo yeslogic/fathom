@@ -1,9 +1,10 @@
 //! The operational semantics of the core language, implemented using
 //! [normalisation by evaluation](https://en.wikipedia.org/wiki/Normalisation_by_evaluation).
 
+use scoped_arena::Scope;
 use std::sync::Arc;
 
-use crate::core::{Arena, EntryInfo, Term};
+use crate::core::{EntryInfo, Term};
 use crate::env::{EnvLen, GlobalVar, SharedEnv, SliceEnv};
 use crate::StringId;
 
@@ -116,10 +117,10 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
     /// [term][Term].
     pub fn normalise<'out_arena>(
         &mut self,
-        arena: &'out_arena Arena<'out_arena>,
+        scope: &'out_arena Scope<'out_arena>,
         term: &Term<'arena>,
     ) -> Result<Term<'out_arena>> {
-        QuoteContext::new(arena, self.rigid_exprs.len(), self.flexible_exprs)
+        QuoteContext::new(scope, self.rigid_exprs.len(), self.flexible_exprs)
             .quote(&self.eval(term)?)
     }
 
@@ -258,19 +259,19 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
 
 /// Quotation context.
 pub struct QuoteContext<'in_arena, 'out_arena, 'env> {
-    arena: &'out_arena Arena<'out_arena>,
+    scope: &'out_arena Scope<'out_arena>,
     rigid_exprs: EnvLen,
     flexible_exprs: &'env SliceEnv<Option<Arc<Value<'in_arena>>>>,
 }
 
 impl<'in_arena, 'out_arena, 'env> QuoteContext<'in_arena, 'out_arena, 'env> {
     pub fn new(
-        arena: &'out_arena Arena<'out_arena>,
+        scope: &'out_arena Scope<'out_arena>,
         rigid_exprs: EnvLen,
         flexible_exprs: &'env SliceEnv<Option<Arc<Value<'in_arena>>>>,
     ) -> QuoteContext<'in_arena, 'out_arena, 'env> {
         QuoteContext {
-            arena,
+            scope,
             rigid_exprs,
             flexible_exprs,
         }
@@ -306,8 +307,8 @@ impl<'in_arena, 'out_arena, 'env> QuoteContext<'in_arena, 'out_arena, 'env> {
                         Elim::Fun(input_expr) => {
                             let input_expr = self.quote(input_expr)?;
                             Term::FunElim(
-                                self.arena.alloc_term(head_expr),
-                                self.arena.alloc_term(input_expr),
+                                self.scope.to_scope(head_expr),
+                                self.scope.to_scope(input_expr),
                             )
                         }
                     };
@@ -322,8 +323,8 @@ impl<'in_arena, 'out_arena, 'env> QuoteContext<'in_arena, 'out_arena, 'env> {
 
                 Ok(Term::FunType(
                     *input_name,
-                    self.arena.alloc_term(input_type),
-                    self.arena.alloc_term(output_type),
+                    self.scope.to_scope(input_type),
+                    self.scope.to_scope(output_type),
                 ))
             }
             Value::FunIntro(input_name, output_expr) => {
@@ -331,7 +332,7 @@ impl<'in_arena, 'out_arena, 'env> QuoteContext<'in_arena, 'out_arena, 'env> {
 
                 Ok(Term::FunIntro(
                     *input_name,
-                    self.arena.alloc_term(output_expr),
+                    self.scope.to_scope(output_expr),
                 ))
             }
         }

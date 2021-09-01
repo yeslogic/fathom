@@ -15,10 +15,11 @@
 //! [elaboration-zoo]: https://github.com/AndrasKovacs/elaboration-zoo/
 //! [elaboration-zoo/03-holes]: https://github.com/AndrasKovacs/elaboration-zoo/
 
+use scoped_arena::Scope;
 use std::sync::Arc;
 
 use crate::core::semantics::{self, Closure, Elim, ElimContext, EvalContext, Head, Value};
-use crate::core::{Arena, Term};
+use crate::core::Term;
 use crate::env::{EnvLen, GlobalVar, LocalVar, SharedEnv, SliceEnv, UniqueEnv};
 
 /// Errors encountered during unification.
@@ -126,8 +127,8 @@ pub type Result<T> = std::result::Result<T, Error>;
 
 /// Unification context.
 pub struct Context<'arena, 'env> {
-    /// Arena to store terms during [renaming][Context::rename].
-    arena: &'arena Arena<'arena>,
+    /// Scoped arena for storing [renamed][Context::rename] terms.
+    scope: &'arena Scope<'arena>,
     /// A renaming that is used when solving flexible variables using pattern
     /// unification. We store it in the parent context, re-initialising it on
     /// each call to [`Context::solve`] in order to reuse previous allocations.
@@ -140,13 +141,13 @@ pub struct Context<'arena, 'env> {
 
 impl<'arena, 'env> Context<'arena, 'env> {
     pub fn new(
-        arena: &'arena Arena<'arena>,
+        scope: &'arena Scope<'arena>,
         renaming: &'env mut PartialRenaming,
         rigid_exprs: EnvLen,
         flexible_exprs: &'env mut SliceEnv<Option<Arc<Value<'arena>>>>,
     ) -> Context<'arena, 'env> {
         Context {
-            arena,
+            scope,
             renaming,
             rigid_exprs,
             flexible_exprs,
@@ -330,7 +331,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
     /// correspond to the given `spine`.
     fn fun_intros(&self, spine: &[Elim<'arena>], term: Term<'arena>) -> Term<'arena> {
         spine.iter().fold(term, |term, _| {
-            Term::FunIntro(None, self.arena.alloc_term(term))
+            Term::FunIntro(None, self.scope.to_scope(term))
         })
     }
 
@@ -366,8 +367,8 @@ impl<'arena, 'env> Context<'arena, 'env> {
                         Elim::Fun(input_expr) => {
                             let input_expr = self.rename(flexible_var, input_expr)?;
                             Term::FunElim(
-                                self.arena.alloc_term(head_expr),
-                                self.arena.alloc_term(input_expr),
+                                self.scope.to_scope(head_expr),
+                                self.scope.to_scope(input_expr),
                             )
                         }
                     };
@@ -382,8 +383,8 @@ impl<'arena, 'env> Context<'arena, 'env> {
 
                 Ok(Term::FunType(
                     *input_name,
-                    self.arena.alloc_term(input_type),
-                    self.arena.alloc_term(output_type),
+                    self.scope.to_scope(input_type),
+                    self.scope.to_scope(output_type),
                 ))
             }
             Value::FunIntro(input_name, output_expr) => {
@@ -391,7 +392,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
 
                 Ok(Term::FunIntro(
                     *input_name,
-                    self.arena.alloc_term(output_expr),
+                    self.scope.to_scope(output_expr),
                 ))
             }
         }
