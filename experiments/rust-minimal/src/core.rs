@@ -65,7 +65,7 @@ pub enum Term<'arena> {
     ///
     /// We clone the entry information and perform the function eliminations
     /// during evaluation because elaborating to a series of [function
-    /// eliminations] directly would involve expensively [reading back] each
+    /// eliminations] directly would involve expensively [quoting] each
     /// parameter.
     ///
     /// For example, given the following code:
@@ -100,7 +100,7 @@ pub enum Term<'arena> {
     /// [function introductions]: Term::FunIntro
     /// [function eliminations]: Term::FunElim
     /// [evaluation]: semantics::EvalContext::eval
-    /// [reading back]: semantics::ReadbackContext::readback
+    /// [quoting]: semantics::QuoteContext::quote
     //
     // TODO: Bit-vectors might make this a bit more compact and cheaper to
     //       construct. For example:

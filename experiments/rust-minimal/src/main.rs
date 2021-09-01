@@ -92,7 +92,7 @@ fn main() -> ! {
 
             let mut context = elaboration::Context::new(&core_arena);
             let (term, r#type) = context.synth(&surface_term);
-            let r#type = context.readback(&core_arena, &r#type);
+            let r#type = context.quote(&core_arena, &r#type);
 
             if check_elaboration(&mut writer, &term_config, &file, &interner, &mut context)
                 || args.allow_errors
@@ -118,7 +118,7 @@ fn main() -> ! {
             let mut context = elaboration::Context::new(&core_arena);
             let (term, r#type) = context.synth(&surface_term);
             let term = context.normalize(&core_arena, &term);
-            let r#type = context.readback(&core_arena, &r#type);
+            let r#type = context.quote(&core_arena, &r#type);
 
             if check_elaboration(&mut writer, &term_config, &file, &interner, &mut context)
                 || args.allow_errors
@@ -143,7 +143,7 @@ fn main() -> ! {
 
             let mut context = elaboration::Context::new(&core_arena);
             let (_, r#type) = context.synth(&surface_term);
-            let r#type = context.readback(&core_arena, &r#type);
+            let r#type = context.quote(&core_arena, &r#type);
 
             if check_elaboration(&mut writer, &term_config, &file, &interner, &mut context)
                 || args.allow_errors
