@@ -96,6 +96,26 @@ let vcons : fun (Elem : _) -> fun (len : _) -> Elem -> Vec Elem len -> Vec Elem 
         cons _ head (tail Vec nil cons);
 
 
+// Void
+
+let Void : Type
+  = fun (Void : Type) -> Void;
+
+let absurd : fun (A : Type) -> Void -> A
+  = fun A => fun void => void A;
+
+
+// Unit
+
+let Unit : Type
+  = fun (Unit : Type) ->
+      fun (unit : Unit) ->
+        Unit;
+
+let unit : Unit
+  = fun Unit => fun unit => unit;
+
+
 // Leibniz equality
 
 // This states that two things of the same type are equal if every property of
