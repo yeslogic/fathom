@@ -1,0 +1,23 @@
+//~ ignore = true
+
+let pixel =
+    let red <- s32be;
+    let green <- s32be;
+    let blue <- s32Be;
+    return {
+        red = red,
+        green = green,
+        blue = blue,
+    };
+
+let image =
+    let width <- u32be;
+    let height <- u32be;
+    let pixels <- array (width * height) pixel;
+    return {
+        width = width,
+        height = height,
+        pixels = pixels,
+    };
+
+image
