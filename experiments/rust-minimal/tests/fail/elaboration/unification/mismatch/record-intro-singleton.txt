@@ -1,0 +1,6 @@
+//~ exit-code = 1
+
+let Unit : Type = {};
+let unit : Unit = {};
+
+{ thing = unit } : { thing : Type }

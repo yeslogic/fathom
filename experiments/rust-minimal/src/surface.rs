@@ -40,9 +40,18 @@ pub enum Term<'arena> {
     ),
     FunIntro(BytePos, (ByteRange, StringId), &'arena Term<'arena>),
     FunElim(&'arena Term<'arena>, &'arena Term<'arena>),
-    // RecordType(&'arena [(StringId, &'arena Term<'arena>)])
-    // RecordTerm(&'arena [(StringId, &'arena Term<'arena>)])
-    // RecordElim(&'arena Term<'arena>, StringId)
+    RecordType(
+        ByteRange,
+        // TODO: allocate fields in arena
+        &'arena [((ByteRange, StringId), Term<'arena>)],
+    ),
+    RecordIntro(
+        ByteRange,
+        // TODO: allocate fields in arena
+        &'arena [((ByteRange, StringId), Term<'arena>)],
+    ),
+    RecordEmpty(ByteRange),
+    RecordElim(&'arena Term<'arena>, (ByteRange, StringId)),
     ReportedError(ByteRange),
 }
 
@@ -72,6 +81,10 @@ impl<'arena> Term<'arena> {
             Term::FunType(start, _, _, _) => *start,
             Term::FunIntro(start, _, _) => *start,
             Term::FunElim(head_expr, _) => head_expr.start(),
+            Term::RecordType(range, _) => range.start(),
+            Term::RecordIntro(range, _) => range.start(),
+            Term::RecordEmpty(range) => range.start(),
+            Term::RecordElim(head_expr, _) => head_expr.start(),
             Term::ReportedError(range) => range.start(),
         }
     }
@@ -87,6 +100,10 @@ impl<'arena> Term<'arena> {
             Term::FunType(_, _, _, output_type) => output_type.end(),
             Term::FunIntro(_, _, output_expr) => output_expr.end(),
             Term::FunElim(_, input_expr) => input_expr.end(),
+            Term::RecordType(range, _) => range.end(),
+            Term::RecordIntro(range, _) => range.end(),
+            Term::RecordEmpty(range) => range.end(),
+            Term::RecordElim(_, (range, _)) => range.end(),
             Term::ReportedError(range) => range.end(),
         }
     }

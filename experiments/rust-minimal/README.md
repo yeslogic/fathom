@@ -110,7 +110,9 @@ _elab.context_ ::=\
   - [x] let expressions
   - [x] dependent funs
     - [ ] implicit parameters
-  - [ ] dependent records
+  - [ ] records
+    - [x] non-dependent
+    - [ ] dependent
   - [x] holes
     - [x] named holes
   - [ ] top-level items
@@ -123,12 +125,17 @@ _elab.context_ ::=\
 - implementation
   - [x] command line interface
   - [x] parser
-  - [x] pretty printing
-  - [x] source location tracking
+  - [ ] pretty printing
+    - [x] surface language
+    - [ ] core language
+  - [ ] source locations
+    - [x] surface language
+    - [ ] core language
   - [x] string interning
   - [x] arena allocation
   - [ ] value interning (for commonly used values)
   - [x] normalisation-by-evaluation
+    - [ ] stack traces
   - [x] elaborator
     - [x] error recovery
     - [x] unification

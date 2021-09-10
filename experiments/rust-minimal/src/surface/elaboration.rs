@@ -30,6 +30,10 @@ pub enum FlexSource {
 /// Elaboration context.
 pub struct Context<'arena> {
     /// Scoped arena for storing elaborated terms.
+    //
+    // TODO: Make this local to the elaboration context, and reallocate
+    //       elaborated terms to an external `Scope` during zonking, resetting
+    //       this scope on completion.
     scope: &'arena Scope<'arena>,
     /// A partial renaming to be used during [`unification`].
     renaming: unification::PartialRenaming,
@@ -232,6 +236,39 @@ impl<'arena> Context<'arena> {
         )
     }
 
+    /// Reports an error if there are duplicate fields found, returning a vector
+    /// containing the positions of the of the duplicates.
+    fn report_duplicate_labels(
+        &mut self,
+        range: ByteRange,
+        fields: &[((ByteRange, StringId), Term<'_>)],
+    ) -> Vec<usize> {
+        use itertools::Itertools;
+
+        // Will only allocate when duplicates are encountered
+        let mut duplicate_indices = Vec::new();
+        let mut duplicate_labels = Vec::new();
+
+        for (index, ranged_label) in (fields.iter())
+            .map(|(label, _)| *label)
+            .enumerate()
+            // TODO: avoid transient hashmap allocation
+            .duplicates_by(|(_, (_, label))| *label)
+        {
+            duplicate_indices.push(index);
+            duplicate_labels.push(ranged_label);
+        }
+
+        if !duplicate_labels.is_empty() {
+            self.push_message(Message::DuplicateFieldLabels {
+                range,
+                labels: duplicate_labels,
+            });
+        }
+
+        duplicate_indices
+    }
+
     /// Conversion checking for `expr` under the types `type0` and `type1`.
     /// This will trigger unification, recording a unification error on failure.
     //
@@ -301,6 +338,30 @@ impl<'arena> Context<'arena> {
 
                 core::Term::FunIntro(Some(*input_name), self.scope.to_scope(output_expr))
             }
+            (Term::RecordIntro(range, expr_fields), Value::RecordType(labels, types)) => {
+                // TODO: improve handling of duplicate labels
+
+                if expr_fields.len() == labels.len()
+                    && Iterator::zip(expr_fields.iter(), labels.iter())
+                        .all(|(((_, expr_label), _), type_label)| expr_label == type_label)
+                {
+                    let exprs = self.scope.to_scope_from_iter(
+                        Iterator::zip(expr_fields.iter(), types.iter())
+                            .map(|((_, expr), r#type)| self.check(expr, r#type)),
+                    );
+                    core::Term::RecordIntro(labels, exprs)
+                } else {
+                    self.push_message(Message::MismatchedFieldLabels {
+                        range: *range,
+                        expr_labels: (expr_fields.iter())
+                            .map(|(ranged_label, _)| *ranged_label)
+                            .collect(),
+                        type_labels: labels.iter().copied().collect(),
+                    });
+                    core::Term::ReportedError
+                }
+            }
+            (Term::RecordEmpty(_), Value::Universe) => core::Term::RecordType(&[], &[]),
             (Term::ReportedError(_), _) => core::Term::ReportedError,
             (_, _) => {
                 let (core_term, synth_type) = self.synth(surface_term);
@@ -481,6 +542,73 @@ impl<'arena> Context<'arena> {
                         (fun_elim, output_type)
                     }
                 }
+            }
+            Term::RecordType(range, type_fields) => {
+                let duplicate_indices = self.report_duplicate_labels(*range, type_fields);
+                let type_fields = (type_fields.iter().enumerate())
+                    .filter_map(|(i, field)| (!duplicate_indices.contains(&i)).then(|| field));
+
+                let labels = (self.scope)
+                    .to_scope_from_iter(type_fields.clone().map(|((_, label), _)| *label));
+                let type_fields = (self.scope).to_scope_from_iter(
+                    type_fields.map(|(_, r#type)| self.check(r#type, &Arc::new(Value::Universe))),
+                );
+
+                (
+                    core::Term::RecordType(labels, type_fields),
+                    Arc::new(Value::Universe),
+                )
+            }
+            Term::RecordIntro(range, expr_fields) => {
+                let duplicate_indices = self.report_duplicate_labels(*range, expr_fields);
+                let expr_fields = (expr_fields.iter().enumerate())
+                    .filter_map(|(i, field)| (!duplicate_indices.contains(&i)).then(|| field));
+
+                let labels = (self.scope)
+                    .to_scope_from_iter(expr_fields.clone().map(|((_, label), _)| *label));
+
+                let mut types = Vec::with_capacity(labels.len());
+                let exprs = (self.scope).to_scope_from_iter(expr_fields.map(|(_, expr)| {
+                    let (expr, r#type) = self.synth(expr);
+                    types.push(r#type);
+                    expr
+                }));
+
+                (
+                    core::Term::RecordIntro(labels as &[_], exprs),
+                    Arc::new(Value::RecordType(labels as &[_], types)),
+                )
+            }
+            Term::RecordEmpty(_) => (
+                core::Term::RecordIntro(&[], &[]),
+                Arc::new(Value::RecordType(&[], Vec::new())),
+            ),
+            Term::RecordElim(head_expr, (label_range, label)) => {
+                let head_range = head_expr.range();
+                let (head_expr, head_type) = self.synth(head_expr);
+
+                // Ensure that the head type is a record type
+                let head_type = self.force(&head_type);
+                if let Value::RecordType(labels, types) = head_type.as_ref() {
+                    if let Some(position) = labels.iter().position(|l| l == label) {
+                        return (
+                            core::Term::RecordElim(self.scope.to_scope(head_expr), *label),
+                            types[position].clone(),
+                        );
+                    }
+                }
+
+                // TODO: field not found
+                self.push_message(Message::UnknownField {
+                    head_range,
+                    label_range: *label_range,
+                    label: *label,
+                });
+
+                (
+                    core::Term::ReportedError,
+                    self.push_flexible_value(surface_term.range(), FlexSource::ReportedErrorType),
+                )
             }
             Term::ReportedError(range) => (
                 core::Term::ReportedError,

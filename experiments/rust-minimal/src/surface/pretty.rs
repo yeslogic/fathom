@@ -143,6 +143,48 @@ impl<'doc> Context<'doc> {
                     self.term_prec(Prec::Atomic, input_expr),
                 ]),
             ),
+            Term::RecordType(_, type_fields) => self.concat([
+                self.text("{"),
+                self.space(),
+                self.intersperse(
+                    type_fields.iter().map(|((_, label), r#type)| {
+                        self.concat([
+                            self.name(*label),
+                            self.space(),
+                            self.text(":"),
+                            self.space(),
+                            self.term_prec(Prec::Top, r#type),
+                        ])
+                    }),
+                    self.concat([self.text(","), self.space()]),
+                ),
+                self.space(),
+                self.text("}"),
+            ]),
+            Term::RecordIntro(_, expr_fields) => self.concat([
+                self.text("{"),
+                self.space(),
+                self.intersperse(
+                    expr_fields.iter().map(|((_, label), r#expr)| {
+                        self.concat([
+                            self.name(*label),
+                            self.space(),
+                            self.text("="),
+                            self.space(),
+                            self.term_prec(Prec::Top, r#expr),
+                        ])
+                    }),
+                    self.concat([self.text(","), self.space()]),
+                ),
+                self.space(),
+                self.text("}"),
+            ]),
+            Term::RecordEmpty(_) => self.text("{}"),
+            Term::RecordElim(head_expr, (_, label)) => self.concat([
+                self.term_prec(Prec::Atomic, head_expr),
+                self.text("."),
+                self.name(*label),
+            ]),
             Term::ReportedError(_) => self.text("_"),
         }
     }
