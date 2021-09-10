@@ -97,7 +97,7 @@ fn main() -> ! {
                 surface_scope.reset(); // Reuse the surface scope for distillation
                 let mut context = distillation::Context::new(&mut interner, &surface_scope);
                 let term = context.check(&term);
-                let r#type = context.synth(&r#type);
+                let r#type = context.check(&r#type);
 
                 let context = surface::pretty::Context::new(&interner, &surface_scope);
                 let doc = context.ann(&term, &r#type).into_doc();
@@ -124,7 +124,7 @@ fn main() -> ! {
                 surface_scope.reset(); // Reuse the surface scope for distillation
                 let mut context = distillation::Context::new(&mut interner, &surface_scope);
                 let term = context.check(&term);
-                let r#type = context.synth(&r#type);
+                let r#type = context.check(&r#type);
 
                 let context = surface::pretty::Context::new(&interner, &surface_scope);
                 let doc = context.ann(&term, &r#type).into_doc();
@@ -149,7 +149,7 @@ fn main() -> ! {
             {
                 surface_scope.reset(); // Reuse the surface scope for distillation
                 let mut context = distillation::Context::new(&mut interner, &surface_scope);
-                let r#type = context.synth(&r#type);
+                let r#type = context.check(&r#type);
 
                 let context = surface::pretty::Context::new(&interner, &surface_scope);
                 let doc = context.term(&r#type).into_doc();

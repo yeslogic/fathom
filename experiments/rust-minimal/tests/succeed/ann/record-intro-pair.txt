@@ -1,0 +1,7 @@
+{
+    first = {},
+    second = Type,
+} : {
+    first : Type,
+    second : Type,
+}

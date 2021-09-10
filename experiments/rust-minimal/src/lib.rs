@@ -42,3 +42,18 @@ impl Into<std::ops::Range<usize>> for ByteRange {
         self.start..self.end
     }
 }
+
+fn to_scope_while_ok<'arena, T: 'arena, E>(
+    scope: &'arena scoped_arena::Scope<'arena>,
+    terms: impl IntoIterator<Item = Result<T, E>>,
+) -> Result<&'arena mut [T], E> {
+    use itertools::Itertools;
+
+    let mut result = Ok(());
+    let terms = scope.to_scope_from_iter(
+        (terms.into_iter())
+            .map(|term| term.map_err(|err| result = Err(err)).ok())
+            .while_some(),
+    );
+    result.map(|()| terms)
+}

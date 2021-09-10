@@ -81,6 +81,19 @@ impl<'arena> Context<'arena> {
                     self.scope.to_scope(output_expr),
                 )
             }
+            core::Term::RecordType(labels, _) if labels.is_empty() => {
+                Term::RecordEmpty(PLACEHOLDER_RANGE)
+            }
+            core::Term::RecordIntro(labels, _) if labels.is_empty() => {
+                Term::RecordEmpty(PLACEHOLDER_RANGE)
+            }
+            core::Term::RecordIntro(labels, exprs) => {
+                let scope = self.scope;
+                let expr_fields = Iterator::zip(labels.iter(), exprs.iter())
+                    .map(|(label, expr)| ((PLACEHOLDER_RANGE, *label), self.check(expr)));
+
+                Term::RecordIntro(PLACEHOLDER_RANGE, scope.to_scope_from_iter(expr_fields))
+            }
             _ => self.synth(core_term),
         }
     }
@@ -116,7 +129,7 @@ impl<'arena> Context<'arena> {
                 head_expr
             }
             core::Term::Ann(expr, r#type) => {
-                let r#type = self.synth(r#type);
+                let r#type = self.check(r#type);
                 let expr = self.check(expr);
 
                 Term::Ann(self.scope.to_scope(expr), self.scope.to_scope(r#type))
@@ -174,6 +187,34 @@ impl<'arena> Context<'arena> {
                     self.scope.to_scope(head_expr),
                     self.scope.to_scope(input_expr),
                 )
+            }
+            core::Term::RecordType(labels, _) if labels.is_empty() => Term::Ann(
+                self.scope.to_scope(Term::RecordEmpty(PLACEHOLDER_RANGE)),
+                self.scope.to_scope(Term::Universe(PLACEHOLDER_RANGE)),
+            ),
+            core::Term::RecordType(labels, types) => {
+                let type_fields = self.scope.to_scope_from_iter(
+                    Iterator::zip(labels.iter(), types.iter())
+                        .map(|(label, r#type)| ((PLACEHOLDER_RANGE, *label), self.check(r#type))),
+                );
+
+                Term::RecordType(PLACEHOLDER_RANGE, type_fields)
+            }
+            core::Term::RecordIntro(labels, _) if labels.is_empty() => {
+                Term::RecordEmpty(PLACEHOLDER_RANGE)
+            }
+            core::Term::RecordIntro(labels, exprs) => {
+                let scope = self.scope;
+                let expr_fields = Iterator::zip(labels.iter(), exprs.iter())
+                    .map(|(label, expr)| ((PLACEHOLDER_RANGE, *label), self.synth(expr)));
+                // TODO: type annotations?
+
+                Term::RecordIntro(PLACEHOLDER_RANGE, scope.to_scope_from_iter(expr_fields))
+            }
+            core::Term::RecordElim(head_expr, label) => {
+                let head_expr = self.synth(head_expr);
+
+                Term::RecordElim(self.scope.to_scope(head_expr), (PLACEHOLDER_RANGE, *label))
             }
             // NOTE: Not sure if this is a great approach!
             core::Term::ReportedError => Term::Hole(PLACEHOLDER_RANGE, None),

@@ -21,6 +21,7 @@ use std::sync::Arc;
 use crate::core::semantics::{self, Closure, Elim, ElimContext, EvalContext, Head, Value};
 use crate::core::Term;
 use crate::env::{EnvLen, GlobalVar, LocalVar, SharedEnv, SliceEnv, UniqueEnv};
+use crate::StringId;
 
 /// Errors encountered during unification.
 ///
@@ -212,8 +213,36 @@ impl<'arena, 'env> Context<'arena, 'env> {
             (Value::FunIntro(_, output_expr0), Value::FunIntro(_, output_expr1)) => {
                 self.unify_closures(output_expr0, output_expr1)
             }
+            // Eta-conversion
             (Value::FunIntro(_, output_expr), _) => self.unify_fun_intro_elim(output_expr, &value1),
             (_, Value::FunIntro(_, output_expr)) => self.unify_fun_intro_elim(output_expr, &value0),
+
+            (Value::RecordType(labels0, types0), Value::RecordType(labels1, types1)) => {
+                if labels0 != labels1 {
+                    return Err(Error::Mismatched);
+                }
+                for (type0, type1) in Iterator::zip(types0.iter(), types1.iter()) {
+                    self.unify(&type0, &type1)?;
+                }
+                Ok(())
+            }
+
+            (Value::RecordIntro(labels0, exprs0), Value::RecordIntro(labels1, exprs1)) => {
+                if labels0 != labels1 {
+                    return Err(Error::Mismatched);
+                }
+                for (expr0, expr1) in Iterator::zip(exprs0.iter(), exprs1.iter()) {
+                    self.unify(&expr0, &expr1)?;
+                }
+                Ok(())
+            }
+            // Eta-conversion
+            (Value::RecordIntro(labels, exprs), _) => {
+                self.unify_record_intro_elim(labels, exprs, &value1)
+            }
+            (_, Value::RecordIntro(labels, exprs)) => {
+                self.unify_record_intro_elim(labels, exprs, &value0)
+            }
 
             // Flexible-rigid cases
             //
@@ -240,6 +269,8 @@ impl<'arena, 'env> Context<'arena, 'env> {
                 (Elim::Fun(input_expr0), Elim::Fun(input_expr1)) => {
                     self.unify(input_expr0, input_expr1)?;
                 }
+                (Elim::Record(label0), Elim::Record(label1)) if label0 == label1 => {}
+                (_, _) => return Err(Error::Mismatched),
             }
         }
         Ok(())
@@ -279,6 +310,20 @@ impl<'arena, 'env> Context<'arena, 'env> {
         result
     }
 
+    /// Unify a record introduction with a value, using eta-conversion.
+    fn unify_record_intro_elim(
+        &mut self,
+        labels: &[StringId],
+        exprs: &[Arc<Value<'arena>>],
+        value: &Arc<Value<'arena>>,
+    ) -> Result<()> {
+        for (label, expr) in Iterator::zip(labels.iter(), exprs.iter()) {
+            let field_value = self.elim_context().apply_record(value.clone(), *label)?;
+            self.unify(expr, &field_value)?;
+        }
+        Ok(())
+    }
+
     /// Solve a pattern unification problem that looks like:
     ///
     /// ```text
@@ -299,7 +344,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
     ) -> Result<()> {
         self.init_renaming(spine)?;
         let term = self.rename(flexible_var, value)?;
-        let fun_term = self.fun_intros(spine, term);
+        let fun_term = self.fun_intros(spine, term)?;
         let solution =
             EvalContext::new(&mut SharedEnv::new(), self.flexible_exprs).eval(&fun_term)?;
 
@@ -321,6 +366,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
                         if spine.is_empty() && self.renaming.set_rigid(*source_var) => {}
                     _ => return Err(Error::NonLinearSpine),
                 },
+                Elim::Record(_) => todo!("needs expansion"),
             }
         }
 
@@ -329,9 +375,10 @@ impl<'arena, 'env> Context<'arena, 'env> {
 
     /// Wrap a `term` in [function introductions][Term::FunIntro] that
     /// correspond to the given `spine`.
-    fn fun_intros(&self, spine: &[Elim<'arena>], term: Term<'arena>) -> Term<'arena> {
-        spine.iter().fold(term, |term, _| {
-            Term::FunIntro(None, self.scope.to_scope(term))
+    fn fun_intros(&self, spine: &[Elim<'arena>], term: Term<'arena>) -> Result<Term<'arena>> {
+        spine.iter().fold(Ok(term), |term, elim| match elim {
+            Elim::Fun(_) => Ok(Term::FunIntro(None, self.scope.to_scope(term?))),
+            Elim::Record(_) => todo!("needs expansion"),
         })
     }
 
@@ -371,6 +418,9 @@ impl<'arena, 'env> Context<'arena, 'env> {
                                 self.scope.to_scope(input_expr),
                             )
                         }
+                        Elim::Record(label) => {
+                            Term::RecordElim(self.scope.to_scope(head_expr), *label)
+                        }
                     };
                 }
 
@@ -394,6 +444,24 @@ impl<'arena, 'env> Context<'arena, 'env> {
                     *input_name,
                     self.scope.to_scope(output_expr),
                 ))
+            }
+            Value::RecordType(labels, types) => {
+                let labels = self.scope.to_scope(labels); // FIXME: avoid copy if this is the same arena?
+                let types = crate::to_scope_while_ok(
+                    self.scope,
+                    types.iter().map(|r#type| self.rename(flexible_var, r#type)),
+                )?;
+
+                Ok(Term::RecordType(labels, types))
+            }
+            Value::RecordIntro(labels, exprs) => {
+                let labels = self.scope.to_scope(labels); // FIXME: avoid copy if this is the same arena?
+                let exprs = crate::to_scope_while_ok(
+                    self.scope,
+                    exprs.iter().map(|expr| self.rename(flexible_var, expr)),
+                )?;
+
+                Ok(Term::RecordIntro(labels, exprs))
             }
         }
     }

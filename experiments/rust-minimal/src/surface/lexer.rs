@@ -14,10 +14,14 @@ pub enum Token<'source> {
 
     #[token(":")]
     Colon,
+    #[token(",")]
+    Comma,
     #[token("=")]
     Equals,
     #[token("=>")]
     EqualsGreater,
+    #[token(".")]
+    FullStop,
     #[token("->")]
     HyphenGreater,
     #[token("?")]
@@ -27,6 +31,10 @@ pub enum Token<'source> {
     #[token("_")]
     Underscore,
 
+    #[token("{")]
+    OpenBrace,
+    #[token("}")]
+    CloseBrace,
     #[token("(")]
     OpenParen,
     #[token(")")]

@@ -126,9 +126,12 @@ pub enum Term<'arena> {
     ///
     /// Also known as: function applications.
     FunElim(&'arena Term<'arena>, &'arena Term<'arena>),
-    // RecordType(&'arena [StringId], &'arena [Term<'arena>]),
-    // RecordIntro(&'arena [StringId], &'arena [Term<'arena>]),
-    // RecordElim(&'arena Term<'arena>, StringId),
+    /// Dependent record types.
+    RecordType(&'arena [StringId], &'arena [Term<'arena>]),
+    /// Record introductions.
+    RecordIntro(&'arena [StringId], &'arena [Term<'arena>]),
+    /// Record eliminations.
+    RecordElim(&'arena Term<'arena>, StringId),
     /// Reported errors.
     ReportedError,
 }
