@@ -43,9 +43,9 @@ impl<'arena> Value<'arena> {
 /// The head of a [stuck value][Value::Stuck].
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Head {
-    /// Variables that refer to binders.
+    /// Variables that refer to rigid binders.
     RigidVar(GlobalVar),
-    /// Variables that refer to unification flexible_exprs.
+    /// Variables that refer to unsolved flexible problems.
     FlexibleVar(GlobalVar),
     /// Error sentinel.
     ReportedError,
