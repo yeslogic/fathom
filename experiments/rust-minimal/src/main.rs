@@ -1,10 +1,12 @@
-use codespan_reporting::diagnostic::Severity;
-use codespan_reporting::files::SimpleFile;
+use codespan_reporting::diagnostic::{Diagnostic, Severity};
+use codespan_reporting::files::{SimpleFile, SimpleFiles};
 use codespan_reporting::term::termcolor::{BufferedStandardStream, ColorChoice};
+use fathom_minimal::core::semantics;
 use fathom_minimal::surface::{distillation, elaboration};
 use fathom_minimal::{surface, StringInterner};
 use scoped_arena::Scope;
 use std::io::{Read, Write};
+use std::panic;
 use std::path::PathBuf;
 use structopt::StructOpt;
 
@@ -75,6 +77,8 @@ impl From<&str> for Input {
 const MAX_PRETTY_WIDTH: usize = 80;
 
 fn main() -> ! {
+    install_panic_hook();
+
     let mut writer = BufferedStandardStream::stderr(ColorChoice::Auto);
     let term_config = codespan_reporting::term::Config::default();
 
@@ -162,6 +166,42 @@ fn main() -> ! {
             }
         }
     }
+}
+
+const BUG_REPORT_URL: &str = concat!(env!("CARGO_PKG_REPOSITORY"), "/issues/new");
+
+fn install_panic_hook() {
+    panic::set_hook(Box::new(move |info| {
+        let location = info.location();
+        let message = if let Some(error) = info.payload().downcast_ref::<semantics::Error>() {
+            error.description()
+        } else if let Some(message) = info.payload().downcast_ref::<String>() {
+            message.as_str()
+        } else if let Some(message) = info.payload().downcast_ref::<&str>() {
+            message
+        } else {
+            "unknown panic type"
+        };
+
+        let diagnostic = Diagnostic::bug()
+            .with_message(format!("compiler panicked at '{}'", message))
+            .with_notes(vec![
+                match location {
+                    Some(location) => format!("panicked at: {}", location),
+                    None => format!("panicked at: unknown location"),
+                },
+                format!("please file a bug report at: {}", BUG_REPORT_URL),
+                // TODO: print rust backtrace
+                // TODO: print fathom backtrace
+            ]);
+
+        let mut writer = BufferedStandardStream::stderr(ColorChoice::Auto);
+        let term_config = codespan_reporting::term::Config::default();
+        let dummy_files = SimpleFiles::<String, String>::new();
+
+        codespan_reporting::term::emit(&mut writer, &term_config, &dummy_files, &diagnostic)
+            .unwrap();
+    }));
 }
 
 fn load_input(input: &Input) -> SimpleFile<String, String> {
