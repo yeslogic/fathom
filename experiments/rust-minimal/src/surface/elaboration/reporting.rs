@@ -1,7 +1,6 @@
 use codespan_reporting::diagnostic::{Diagnostic, Label};
 use itertools::Itertools;
 
-use crate::core::semantics;
 use crate::surface::elaboration::{unification, FlexSource};
 use crate::{ByteRange, StringId, StringInterner};
 
@@ -50,14 +49,6 @@ pub enum Message {
         // type: Doc<_>,
         // expr: Doc<_>,
     },
-    /// An error occurred during evaluation, and is almost certainly a bug.
-    Semantics(semantics::Error),
-}
-
-impl From<semantics::Error> for Message {
-    fn from(error: semantics::Error) -> Message {
-        Message::Semantics(error)
-    }
 }
 
 impl Message {
@@ -182,7 +173,6 @@ impl Message {
                 unification::Error::InfiniteSolution => Diagnostic::error()
                     .with_message("infinite solution") // TODO: user-friendly message
                     .with_labels(vec![Label::primary((), *range)]),
-                unification::Error::Semantics(error) => semantics_diagnostic(error),
             },
             Message::HoleSolution { range, name } => {
                 let name = interner.resolve(*name).unwrap();
@@ -204,24 +194,6 @@ impl Message {
                     .with_message(format!("failed to infer {}", source_name))
                     .with_labels(vec![Label::primary((), *range)])
             }
-            Message::Semantics(error) => semantics_diagnostic(error),
         }
     }
-}
-
-fn semantics_diagnostic(error: &semantics::Error) -> Diagnostic<()> {
-    Diagnostic::bug()
-        .with_message(match error {
-            semantics::Error::InvalidRigidVar => "invalid rigid variable",
-            semantics::Error::InvalidFlexibleVar => "invalid flexible variable",
-            semantics::Error::InvalidFunctionElim => "invalid function elim",
-            semantics::Error::InvalidRecordElim => "invalid record elim",
-        })
-        .with_notes(vec![
-            "This is almost certainly a bug!".to_owned(),
-            format!(
-                "If possible, please file a bug report at {}.",
-                env!("CARGO_PKG_REPOSITORY"),
-            ),
-        ])
 }

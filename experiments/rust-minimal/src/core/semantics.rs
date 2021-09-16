@@ -2,6 +2,7 @@
 //! [normalisation by evaluation](https://en.wikipedia.org/wiki/Normalisation_by_evaluation).
 
 use scoped_arena::Scope;
+use std::panic::panic_any;
 use std::sync::Arc;
 
 use crate::core::{EntryInfo, Term};
@@ -89,7 +90,16 @@ pub enum Error {
     InvalidRecordElim,
 }
 
-pub type Result<T> = std::result::Result<T, Error>;
+impl Error {
+    pub fn description(&self) -> &str {
+        match &self {
+            Error::InvalidRigidVar => "invalid rigid variable",
+            Error::InvalidFlexibleVar => "invalid flexible variable",
+            Error::InvalidFunctionElim => "invalid function elim",
+            Error::InvalidRecordElim => "invalid record elim",
+        }
+    }
+}
 
 /// Evaluation context.
 pub struct EvalContext<'arena, 'env> {
@@ -123,9 +133,9 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
         &mut self,
         scope: &'out_arena Scope<'out_arena>,
         term: &Term<'arena>,
-    ) -> Result<Term<'out_arena>> {
+    ) -> Term<'out_arena> {
         QuoteContext::new(scope, self.rigid_exprs.len(), self.flexible_exprs)
-            .quote(&self.eval(term)?)
+            .quote(&self.eval(term))
     }
 
     /// Evaluate a [term][Term] into a [value][Value].
@@ -133,71 +143,66 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
     /// This could be loosely thought of as a just-in-time implementation of
     /// closure conversion + partial evaluation (for more discussion see [this
     /// twitter thread](https://twitter.com/brendanzab/status/1423536653658771457)).
-    pub fn eval(&mut self, term: &Term<'arena>) -> Result<Arc<Value<'arena>>> {
+    pub fn eval(&mut self, term: &Term<'arena>) -> Arc<Value<'arena>> {
         match term {
             Term::RigidVar(var) => match self.rigid_exprs.get_local(*var) {
-                Some(value) => Ok(value.clone()),
-                None => Err(Error::InvalidRigidVar),
+                Some(value) => value.clone(),
+                None => panic_any(Error::InvalidRigidVar),
             },
             Term::FlexibleVar(var) => match self.flexible_exprs.get_global(*var) {
-                Some(Some(value)) => Ok(value.clone()),
-                Some(None) => Ok(Arc::new(Value::flexible_var(*var))),
-                None => Err(Error::InvalidFlexibleVar),
+                Some(Some(value)) => value.clone(),
+                Some(None) => Arc::new(Value::flexible_var(*var)),
+                None => panic_any(Error::InvalidFlexibleVar),
             },
             Term::FlexibleInsertion(var, rigid_infos) => {
-                let mut head_expr = self.eval(&Term::FlexibleVar(*var))?;
-                for (infor, expr) in Iterator::zip(rigid_infos.iter(), self.rigid_exprs.iter()) {
-                    head_expr = match infor {
+                let mut head_expr = self.eval(&Term::FlexibleVar(*var));
+                for (info, expr) in Iterator::zip(rigid_infos.iter(), self.rigid_exprs.iter()) {
+                    head_expr = match info {
                         EntryInfo::Concrete => head_expr,
                         EntryInfo::Abstract => {
-                            self.elim_context().apply_fun(head_expr, expr.clone())?
+                            self.elim_context().apply_fun(head_expr, expr.clone())
                         }
                     };
                 }
-                Ok(head_expr)
+                head_expr
             }
             Term::Ann(expr, _) => self.eval(expr),
             Term::Let(_, def_expr, output_expr) => {
-                let def_expr = self.eval(def_expr)?;
+                let def_expr = self.eval(def_expr);
                 self.rigid_exprs.push(def_expr);
                 let output_expr = self.eval(output_expr);
                 self.rigid_exprs.pop();
                 output_expr
             }
-            Term::Universe => Ok(Arc::new(Value::Universe)),
-            Term::FunType(input_name, input_type, output_type) => Ok(Arc::new(Value::FunType(
+            Term::Universe => Arc::new(Value::Universe),
+            Term::FunType(input_name, input_type, output_type) => Arc::new(Value::FunType(
                 *input_name,
-                self.eval(input_type)?,
+                self.eval(input_type),
                 self.close_term(output_type),
-            ))),
-            Term::FunIntro(input_name, output_expr) => Ok(Arc::new(Value::FunIntro(
-                *input_name,
-                self.close_term(output_expr),
-            ))),
+            )),
+            Term::FunIntro(input_name, output_expr) => {
+                Arc::new(Value::FunIntro(*input_name, self.close_term(output_expr)))
+            }
             Term::FunElim(head_expr, input_expr) => {
-                let head_expr = self.eval(head_expr)?;
-                let input_expr = self.eval(input_expr)?;
+                let head_expr = self.eval(head_expr);
+                let input_expr = self.eval(input_expr);
                 self.elim_context().apply_fun(head_expr, input_expr)
             }
             Term::RecordType(labels, types) => {
-                let types = (types.iter())
-                    .map(|types| self.eval(types))
-                    .collect::<Result<_>>()?;
+                let types = types.iter().map(|types| self.eval(types)).collect();
 
-                Ok(Arc::new(Value::RecordType(labels, types)))
+                Arc::new(Value::RecordType(labels, types))
             }
             Term::RecordIntro(labels, exprs) => {
-                let exprs = (exprs.iter())
-                    .map(|expr| self.eval(expr))
-                    .collect::<Result<_>>()?;
+                let exprs = exprs.iter().map(|expr| self.eval(expr)).collect();
 
-                Ok(Arc::new(Value::RecordIntro(labels, exprs)))
+                Arc::new(Value::RecordIntro(labels, exprs))
             }
             Term::RecordElim(head_expr, label) => {
-                let head_expr = self.eval(head_expr)?;
+                let head_expr = self.eval(head_expr);
                 self.elim_context().apply_record(head_expr, *label)
             }
-            Term::ReportedError => Ok(Arc::new(Value::reported_error())),
+            Term::ReportedError => Arc::new(Value::reported_error()),
         }
     }
 }
@@ -216,20 +221,21 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
 
     /// Bring a value up-to-date with any new unification solutions that
     /// might now be present at the head of in the given value.
-    pub fn force(&self, value: &Arc<Value<'arena>>) -> Result<Arc<Value<'arena>>> {
+    pub fn force(&self, value: &Arc<Value<'arena>>) -> Arc<Value<'arena>> {
         let mut forced_value = value.clone();
         // Attempt to force flexible values until we don't see any more.
         while let Value::Stuck(Head::FlexibleVar(var), spine) = forced_value.as_ref() {
-            match (self.flexible_exprs.get_global(*var)).ok_or(Error::InvalidFlexibleVar)? {
+            match self.flexible_exprs.get_global(*var) {
                 // Apply the spine to the solution. This might uncover another
                 // flexible value so we'll continue looping.
-                Some(expr) => forced_value = self.apply_spine(expr.clone(), spine)?,
+                Some(Some(expr)) => forced_value = self.apply_spine(expr.clone(), spine),
                 // There's no solution for this flexible variable yet, meaning
                 // that we've forced the value as much as possible for now
-                None => break,
+                Some(None) => break,
+                None => panic_any(Error::InvalidFlexibleVar),
             }
         }
-        Ok(forced_value)
+        forced_value
     }
 
     /// Apply a closure to a value.
@@ -237,7 +243,7 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
         &self,
         closure: &Closure<'arena>,
         value: Arc<Value<'arena>>,
-    ) -> Result<Arc<Value<'arena>>> {
+    ) -> Arc<Value<'arena>> {
         let mut rigid_exprs = closure.rigid_exprs.clone();
         rigid_exprs.push(value);
         EvalContext::new(&mut rigid_exprs, self.flexible_exprs).eval(closure.term)
@@ -251,16 +257,16 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
         &self,
         mut head_expr: Arc<Value<'arena>>,
         input_expr: Arc<Value<'arena>>,
-    ) -> Result<Arc<Value<'arena>>> {
+    ) -> Arc<Value<'arena>> {
         match Arc::make_mut(&mut head_expr) {
             // Beta-reduction
             Value::FunIntro(_, output_expr) => self.apply_closure(output_expr, input_expr),
             // The computation is stuck, preventing further reduction
             Value::Stuck(_, spine) => {
                 spine.push(Elim::Fun(input_expr));
-                Ok(head_expr)
+                head_expr
             }
-            _ => Err(Error::InvalidFunctionElim),
+            _ => panic_any(Error::InvalidFunctionElim),
         }
     }
 
@@ -272,20 +278,19 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
         &self,
         mut head_expr: Arc<Value<'arena>>,
         label: StringId,
-    ) -> Result<Arc<Value<'arena>>> {
+    ) -> Arc<Value<'arena>> {
         match Arc::make_mut(&mut head_expr) {
             // Beta-reduction
-            Value::RecordIntro(labels, exprs) => labels
-                .iter()
+            Value::RecordIntro(labels, exprs) => (labels.iter())
                 .position(|current_label| *current_label == label)
                 .and_then(|expr_index| exprs.get(expr_index).cloned())
-                .ok_or(Error::InvalidRecordElim),
+                .unwrap_or_else(|| panic_any(Error::InvalidRecordElim)),
             // The computation is stuck, preventing further reduction
             Value::Stuck(_, spine) => {
                 spine.push(Elim::Record(label));
-                Ok(head_expr)
+                head_expr
             }
-            _ => Err(Error::InvalidRecordElim),
+            _ => panic_any(Error::InvalidRecordElim),
         }
     }
 
@@ -294,14 +299,14 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
         &self,
         mut head_expr: Arc<Value<'arena>>,
         spine: &[Elim<'arena>],
-    ) -> Result<Arc<Value<'arena>>> {
+    ) -> Arc<Value<'arena>> {
         for elim in spine {
             head_expr = match elim {
-                Elim::Fun(input_expr) => self.apply_fun(head_expr, input_expr.clone())?,
-                Elim::Record(label) => self.apply_record(head_expr, *label)?,
+                Elim::Fun(input_expr) => self.apply_fun(head_expr, input_expr.clone()),
+                Elim::Record(label) => self.apply_record(head_expr, *label),
             };
         }
-        Ok(head_expr)
+        head_expr
     }
 }
 
@@ -339,8 +344,8 @@ impl<'in_arena, 'out_arena, 'env> QuoteContext<'in_arena, 'out_arena, 'env> {
     }
 
     /// Quote a [value][Value] back into a [term][Term].
-    pub fn quote(&mut self, value: &Arc<Value<'in_arena>>) -> Result<Term<'out_arena>> {
-        let value = self.elim_context().force(value)?;
+    pub fn quote(&mut self, value: &Arc<Value<'in_arena>>) -> Term<'out_arena> {
+        let value = self.elim_context().force(value);
         match value.as_ref() {
             Value::Stuck(head, spine) => {
                 let mut head_expr = match head {
@@ -355,7 +360,7 @@ impl<'in_arena, 'out_arena, 'env> QuoteContext<'in_arena, 'out_arena, 'env> {
                 for elim in spine {
                     head_expr = match elim {
                         Elim::Fun(input_expr) => {
-                            let input_expr = self.quote(input_expr)?;
+                            let input_expr = self.quote(input_expr);
                             Term::FunElim(
                                 self.scope.to_scope(head_expr),
                                 self.scope.to_scope(input_expr),
@@ -367,52 +372,45 @@ impl<'in_arena, 'out_arena, 'env> QuoteContext<'in_arena, 'out_arena, 'env> {
                     };
                 }
 
-                Ok(head_expr)
+                head_expr
             }
-            Value::Universe => Ok(Term::Universe),
+            Value::Universe => Term::Universe,
             Value::FunType(input_name, input_type, output_type) => {
-                let input_type = self.quote(input_type)?;
-                let output_type = self.quote_closure(output_type)?;
+                let input_type = self.quote(input_type);
+                let output_type = self.quote_closure(output_type);
 
-                Ok(Term::FunType(
+                Term::FunType(
                     *input_name,
                     self.scope.to_scope(input_type),
                     self.scope.to_scope(output_type),
-                ))
+                )
             }
             Value::FunIntro(input_name, output_expr) => {
-                let output_expr = self.quote_closure(output_expr)?;
+                let output_expr = self.quote_closure(output_expr);
 
-                Ok(Term::FunIntro(
-                    *input_name,
-                    self.scope.to_scope(output_expr),
-                ))
+                Term::FunIntro(*input_name, self.scope.to_scope(output_expr))
             }
             Value::RecordType(labels, types) => {
                 let labels = self.scope.to_scope_from_iter(labels.iter().copied()); // FIXME: avoid copy if this is the same arena?
-                let types = crate::to_scope_while_ok(
-                    self.scope,
-                    types.iter().map(|r#type| self.quote(r#type)),
-                )?;
+                let types =
+                    (self.scope).to_scope_from_iter(types.iter().map(|r#type| self.quote(r#type)));
 
-                Ok(Term::RecordType(labels, types))
+                Term::RecordType(labels, types)
             }
             Value::RecordIntro(labels, exprs) => {
                 let labels = self.scope.to_scope_from_iter(labels.iter().copied()); // FIXME: avoid copy if this is the same arena?
-                let exprs = crate::to_scope_while_ok(
-                    self.scope,
-                    exprs.iter().map(|expr| self.quote(expr)),
-                )?;
+                let exprs =
+                    (self.scope).to_scope_from_iter(exprs.iter().map(|expr| self.quote(expr)));
 
-                Ok(Term::RecordIntro::<'out_arena>(labels, exprs))
+                Term::RecordIntro(labels, exprs)
             }
         }
     }
 
     /// Quote a [closure][Closure] back into a [term][Term].
-    fn quote_closure(&mut self, closure: &Closure<'in_arena>) -> Result<Term<'out_arena>> {
+    fn quote_closure(&mut self, closure: &Closure<'in_arena>) -> Term<'out_arena> {
         let var = Arc::new(Value::rigid_var(self.rigid_exprs.next_global()));
-        let value = self.elim_context().apply_closure(closure, var)?;
+        let value = self.elim_context().apply_closure(closure, var);
 
         self.push_rigid();
         let term = self.quote(&value);
@@ -460,36 +458,38 @@ impl<'arena, 'env> ConversionContext<'arena, 'env> {
     ///
     /// [computationally equal]: https://ncatlab.org/nlab/show/equality#computational_equality
     /// [eta-conversion]: https://ncatlab.org/nlab/show/eta-conversion
-    pub fn is_equal(&mut self, value0: &Arc<Value<'_>>, value1: &Arc<Value<'_>>) -> Result<bool> {
-        let value0 = self.elim_context().force(value0)?;
-        let value1 = self.elim_context().force(value1)?;
+    pub fn is_equal(&mut self, value0: &Arc<Value<'_>>, value1: &Arc<Value<'_>>) -> bool {
+        let value0 = self.elim_context().force(value0);
+        let value1 = self.elim_context().force(value1);
 
         match (value0.as_ref(), value1.as_ref()) {
             // `ReportedError`s result from errors that have already been
             // reported, so we prevent them from triggering more errors.
             (Value::Stuck(Head::ReportedError, _), _)
-            | (_, Value::Stuck(Head::ReportedError, _)) => Ok(true),
+            | (_, Value::Stuck(Head::ReportedError, _)) => true,
 
             (Value::Stuck(head0, spine0), Value::Stuck(head1, spine1)) => {
                 if head0 != head1 || spine0.len() != spine1.len() {
-                    return Ok(false);
+                    return false;
                 }
                 for (elim0, elim1) in Iterator::zip(spine0.iter(), spine1.iter()) {
                     match (elim0, elim1) {
                         (Elim::Fun(input_expr0), Elim::Fun(input_expr1))
-                            if self.is_equal(input_expr0, input_expr1)? => {}
-                        (_, _) => return Ok(false),
+                            if self.is_equal(input_expr0, input_expr1) => {}
+                        (_, _) => return false,
                     }
                 }
-                Ok(true)
+                true
             }
-            (Value::Universe, Value::Universe) => Ok(true),
+            (Value::Universe, Value::Universe) => true,
 
             (
                 Value::FunType(_, input_type0, output_type0),
                 Value::FunType(_, input_type1, output_type1),
-            ) => Ok(self.is_equal(input_type0, input_type1)?
-                && self.is_equal_closures(output_type0, output_type1)?),
+            ) => {
+                self.is_equal(input_type0, input_type1)
+                    && self.is_equal_closures(output_type0, output_type1)
+            }
 
             (Value::FunIntro(_, output_expr0), Value::FunIntro(_, output_expr1)) => {
                 self.is_equal_closures(output_expr0, output_expr1)
@@ -504,26 +504,26 @@ impl<'arena, 'env> ConversionContext<'arena, 'env> {
 
             (Value::RecordType(labels0, types0), Value::RecordType(labels1, types1)) => {
                 if labels0 != labels1 {
-                    return Ok(false);
+                    return false;
                 }
                 for (type0, type1) in Iterator::zip(types0.iter(), types1.iter()) {
-                    if !self.is_equal(&type0, &type1)? {
-                        return Ok(false);
+                    if !self.is_equal(&type0, &type1) {
+                        return false;
                     }
                 }
-                Ok(true)
+                true
             }
 
             (Value::RecordIntro(labels0, exprs0), Value::RecordIntro(labels1, exprs1)) => {
                 if labels0 != labels1 {
-                    return Ok(false);
+                    return false;
                 }
                 for (expr0, expr1) in Iterator::zip(exprs0.iter(), exprs1.iter()) {
-                    if !self.is_equal(&expr0, &expr1)? {
-                        return Ok(false);
+                    if !self.is_equal(&expr0, &expr1) {
+                        return false;
                     }
                 }
-                Ok(true)
+                true
             }
             // Eta-conversion
             (Value::RecordIntro(labels, exprs), _) => {
@@ -533,19 +533,15 @@ impl<'arena, 'env> ConversionContext<'arena, 'env> {
                 self.is_equal_record_intro_elim(labels, exprs, &value0)
             }
 
-            (_, _) => Ok(false),
+            (_, _) => false,
         }
     }
 
     /// Check that two [closures][Closure] are equal.
-    pub fn is_equal_closures(
-        &mut self,
-        closure0: &Closure<'_>,
-        closure1: &Closure<'_>,
-    ) -> Result<bool> {
+    pub fn is_equal_closures(&mut self, closure0: &Closure<'_>, closure1: &Closure<'_>) -> bool {
         let var = Arc::new(Value::rigid_var(self.rigid_exprs.next_global()));
-        let value0 = self.elim_context().apply_closure(closure0, var.clone())?;
-        let value1 = self.elim_context().apply_closure(closure1, var)?;
+        let value0 = self.elim_context().apply_closure(closure0, var.clone());
+        let value1 = self.elim_context().apply_closure(closure1, var);
 
         self.push_rigid();
         let result = self.is_equal(&value0, &value1);
@@ -559,10 +555,10 @@ impl<'arena, 'env> ConversionContext<'arena, 'env> {
         &mut self,
         output_expr: &Closure<'_>,
         value: &Arc<Value<'_>>,
-    ) -> Result<bool> {
+    ) -> bool {
         let var = Arc::new(Value::rigid_var(self.rigid_exprs.next_global()));
-        let value = self.elim_context().apply_fun(value.clone(), var.clone())?;
-        let output_expr = self.elim_context().apply_closure(output_expr, var)?;
+        let value = self.elim_context().apply_fun(value.clone(), var.clone());
+        let output_expr = self.elim_context().apply_closure(output_expr, var);
 
         self.push_rigid();
         let result = self.is_equal(&output_expr, &value);
@@ -577,13 +573,13 @@ impl<'arena, 'env> ConversionContext<'arena, 'env> {
         labels: &[StringId],
         exprs: &[Arc<Value<'_>>],
         value: &Arc<Value<'_>>,
-    ) -> Result<bool> {
+    ) -> bool {
         for (label, expr) in Iterator::zip(labels.iter(), exprs.iter()) {
-            let field_value = self.elim_context().apply_record(value.clone(), *label)?;
-            if !self.is_equal(expr, &field_value)? {
-                return Ok(false);
+            let field_value = self.elim_context().apply_record(value.clone(), *label);
+            if !self.is_equal(expr, &field_value) {
+                return false;
             }
         }
-        Ok(true)
+        true
     }
 }

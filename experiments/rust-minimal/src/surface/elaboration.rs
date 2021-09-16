@@ -151,16 +151,6 @@ impl<'arena> Context<'arena> {
         self.messages.push(message.into());
     }
 
-    fn report_term<'out_arena>(&mut self, message: impl Into<Message>) -> core::Term<'out_arena> {
-        self.push_message(message);
-        core::Term::ReportedError
-    }
-
-    fn report_value<'out_arena>(&mut self, message: impl Into<Message>) -> Arc<Value<'out_arena>> {
-        self.push_message(message);
-        Arc::new(Value::reported_error())
-    }
-
     pub fn drain_messages<'this>(&'this mut self) -> impl 'this + Iterator<Item = Message> {
         self.messages.drain(..).chain(
             Iterator::zip(self.flexible_sources.iter(), self.flexible_exprs.iter()).filter_map(
@@ -182,9 +172,7 @@ impl<'arena> Context<'arena> {
     }
 
     pub fn force(&mut self, term: &Arc<Value<'arena>>) -> Arc<Value<'arena>> {
-        ElimContext::new(&self.flexible_exprs)
-            .force(term)
-            .unwrap_or_else(|error| self.report_value(error))
+        ElimContext::new(&self.flexible_exprs).force(term)
     }
 
     pub fn normalize<'out_arena>(
@@ -192,15 +180,11 @@ impl<'arena> Context<'arena> {
         scope: &'out_arena Scope<'out_arena>,
         term: &core::Term<'arena>,
     ) -> core::Term<'out_arena> {
-        EvalContext::new(&mut self.rigid_exprs, &self.flexible_exprs)
-            .normalise(scope, term)
-            .unwrap_or_else(|error| self.report_term(error))
+        EvalContext::new(&mut self.rigid_exprs, &self.flexible_exprs).normalise(scope, term)
     }
 
     pub fn eval(&mut self, term: &core::Term<'arena>) -> Arc<Value<'arena>> {
-        EvalContext::new(&mut self.rigid_exprs, &self.flexible_exprs)
-            .eval(term)
-            .unwrap_or_else(|error| self.report_value(error))
+        EvalContext::new(&mut self.rigid_exprs, &self.flexible_exprs).eval(term)
     }
 
     pub fn quote<'out_arena>(
@@ -208,9 +192,7 @@ impl<'arena> Context<'arena> {
         scope: &'out_arena Scope<'out_arena>,
         value: &Arc<Value<'arena>>,
     ) -> core::Term<'out_arena> {
-        QuoteContext::new(scope, self.rigid_exprs.len(), &self.flexible_exprs)
-            .quote(value)
-            .unwrap_or_else(|error| self.report_term(error))
+        QuoteContext::new(scope, self.rigid_exprs.len(), &self.flexible_exprs).quote(value)
     }
 
     fn close_term(&self, term: core::Term<'arena>) -> Closure<'arena> {
@@ -222,9 +204,7 @@ impl<'arena> Context<'arena> {
         closure: &Closure<'arena>,
         input_expr: Arc<Value<'arena>>,
     ) -> Arc<Value<'arena>> {
-        ElimContext::new(&self.flexible_exprs)
-            .apply_closure(closure, input_expr)
-            .unwrap_or_else(|error| self.report_value(error))
+        ElimContext::new(&self.flexible_exprs).apply_closure(closure, input_expr)
     }
 
     fn unification_context<'this>(&'this mut self) -> unification::Context<'arena, 'this> {
@@ -283,7 +263,10 @@ impl<'arena> Context<'arena> {
     ) -> core::Term<'arena> {
         match self.unification_context().unify(type0, type1) {
             Ok(()) => expr,
-            Err(error) => self.report_term(Message::FailedToUnify { range, error }),
+            Err(error) => {
+                self.push_message(Message::FailedToUnify { range, error });
+                core::Term::ReportedError
+            }
         }
     }
 

@@ -18,7 +18,7 @@
 use scoped_arena::Scope;
 use std::sync::Arc;
 
-use crate::core::semantics::{self, Closure, Elim, ElimContext, EvalContext, Head, Value};
+use crate::core::semantics::{Closure, Elim, ElimContext, EvalContext, Head, Value};
 use crate::core::Term;
 use crate::env::{EnvLen, GlobalVar, LocalVar, SharedEnv, SliceEnv, UniqueEnv};
 use crate::StringId;
@@ -114,14 +114,6 @@ pub enum Error {
     ///
     /// [equi-recursive types]: https://www.cs.cornell.edu/courses/cs4110/2012fa/lectures/lecture27.pdf
     InfiniteSolution,
-    /// An error occurred during evaluation, and is almost certainly a bug.
-    Semantics(semantics::Error),
-}
-
-impl From<semantics::Error> for Error {
-    fn from(err: semantics::Error) -> Error {
-        Error::Semantics(err)
-    }
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -178,8 +170,8 @@ impl<'arena, 'env> Context<'arena, 'env> {
             return Ok(());
         }
 
-        let value0 = self.elim_context().force(value0)?;
-        let value1 = self.elim_context().force(value1)?;
+        let value0 = self.elim_context().force(value0);
+        let value1 = self.elim_context().force(value1);
 
         match (value0.as_ref(), value1.as_ref()) {
             // `ReportedError`s result from errors that have already been
@@ -283,8 +275,8 @@ impl<'arena, 'env> Context<'arena, 'env> {
         closure1: &Closure<'arena>,
     ) -> Result<()> {
         let var = Arc::new(Value::rigid_var(self.rigid_exprs.next_global()));
-        let value0 = self.elim_context().apply_closure(closure0, var.clone())?;
-        let value1 = self.elim_context().apply_closure(closure1, var)?;
+        let value0 = self.elim_context().apply_closure(closure0, var.clone());
+        let value1 = self.elim_context().apply_closure(closure1, var);
 
         self.push_rigid();
         let result = self.unify(&value0, &value1);
@@ -300,8 +292,8 @@ impl<'arena, 'env> Context<'arena, 'env> {
         value: &Arc<Value<'arena>>,
     ) -> Result<()> {
         let var = Arc::new(Value::rigid_var(self.rigid_exprs.next_global()));
-        let value = self.elim_context().apply_fun(value.clone(), var.clone())?;
-        let output_expr = self.elim_context().apply_closure(output_expr, var)?;
+        let value = self.elim_context().apply_fun(value.clone(), var.clone());
+        let output_expr = self.elim_context().apply_closure(output_expr, var);
 
         self.push_rigid();
         let result = self.unify(&output_expr, &value);
@@ -318,7 +310,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
         value: &Arc<Value<'arena>>,
     ) -> Result<()> {
         for (label, expr) in Iterator::zip(labels.iter(), exprs.iter()) {
-            let field_value = self.elim_context().apply_record(value.clone(), *label)?;
+            let field_value = self.elim_context().apply_record(value.clone(), *label);
             self.unify(expr, &field_value)?;
         }
         Ok(())
@@ -345,8 +337,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
         self.init_renaming(spine)?;
         let term = self.rename(flexible_var, value)?;
         let fun_term = self.fun_intros(spine, term)?;
-        let solution =
-            EvalContext::new(&mut SharedEnv::new(), self.flexible_exprs).eval(&fun_term)?;
+        let solution = EvalContext::new(&mut SharedEnv::new(), self.flexible_exprs).eval(&fun_term);
 
         self.flexible_exprs.set_global(flexible_var, Some(solution));
 
@@ -361,7 +352,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
 
         for elim in spine {
             match elim {
-                Elim::Fun(input_expr) => match self.elim_context().force(input_expr)?.as_ref() {
+                Elim::Fun(input_expr) => match self.elim_context().force(input_expr).as_ref() {
                     Value::Stuck(Head::RigidVar(source_var), spine)
                         if spine.is_empty() && self.renaming.set_rigid(*source_var) => {}
                     _ => return Err(Error::NonLinearSpine),
@@ -395,7 +386,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
         flexible_var: GlobalVar,
         value: &Arc<Value<'arena>>,
     ) -> Result<Term<'arena>> {
-        match self.elim_context().force(value)?.as_ref() {
+        match self.elim_context().force(value).as_ref() {
             Value::Stuck(head, spine) => {
                 let mut head_expr = match head {
                     Head::RigidVar(source_var) => match self.renaming.get_as_local(*source_var) {
@@ -473,7 +464,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
         closure: &Closure<'arena>,
     ) -> Result<Term<'arena>> {
         let source_var = self.renaming.next_rigid_var();
-        let value = self.elim_context().apply_closure(closure, source_var)?;
+        let value = self.elim_context().apply_closure(closure, source_var);
 
         self.renaming.push_rigid();
         let term = self.rename(flexible_var, &value);
