@@ -93,7 +93,7 @@ fn main() -> ! {
 
             let mut context = elaboration::Context::new(&core_scope);
             let (term, r#type) = context.synth(&surface_term);
-            let r#type = context.quote(&core_scope, &r#type);
+            let r#type = context.quote_context(&core_scope).quote(&r#type);
 
             if check_elaboration(&mut writer, &term_config, &file, &interner, &mut context)
                 || args.allow_errors
@@ -119,8 +119,8 @@ fn main() -> ! {
 
             let mut context = elaboration::Context::new(&core_scope);
             let (term, r#type) = context.synth(&surface_term);
-            let term = context.normalize(&core_scope, &term);
-            let r#type = context.quote(&core_scope, &r#type);
+            let term = context.eval_context().normalise(&core_scope, &term);
+            let r#type = context.quote_context(&core_scope).quote(&r#type);
 
             if check_elaboration(&mut writer, &term_config, &file, &interner, &mut context)
                 || args.allow_errors
@@ -146,7 +146,7 @@ fn main() -> ! {
 
             let mut context = elaboration::Context::new(&core_scope);
             let (_, r#type) = context.synth(&surface_term);
-            let r#type = context.quote(&core_scope, &r#type);
+            let r#type = context.quote_context(&core_scope).quote(&r#type);
 
             if check_elaboration(&mut writer, &term_config, &file, &interner, &mut context)
                 || args.allow_errors

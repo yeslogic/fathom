@@ -3,7 +3,7 @@
 use scoped_arena::Scope;
 use std::sync::Arc;
 
-use crate::core::semantics::{Closure, ElimContext, EvalContext, QuoteContext, Value};
+use crate::core::semantics::{self, Closure, ElimContext, EvalContext, QuoteContext, Value};
 use crate::env::{self, SharedEnv, UniqueEnv};
 use crate::surface::elaboration::reporting::Message;
 use crate::surface::Term;
@@ -144,7 +144,7 @@ impl<'arena> Context<'arena> {
     /// Push an unsolved flexible binder onto the context.
     fn push_flexible_value(&mut self, range: ByteRange, source: FlexSource) -> Arc<Value<'arena>> {
         let term = self.push_flexible_term(range, source);
-        self.eval(&term)
+        self.eval_context().eval(&term)
     }
 
     fn push_message(&mut self, message: impl Into<Message>) {
@@ -175,24 +175,19 @@ impl<'arena> Context<'arena> {
         ElimContext::new(&self.flexible_exprs).force(term)
     }
 
-    pub fn normalize<'out_arena>(
-        &mut self,
-        scope: &'out_arena Scope<'out_arena>,
-        term: &core::Term<'arena>,
-    ) -> core::Term<'out_arena> {
-        EvalContext::new(&mut self.rigid_exprs, &self.flexible_exprs).normalise(scope, term)
+    pub fn eval_context<'this>(&'this mut self) -> semantics::EvalContext<'arena, 'this> {
+        EvalContext::new(&mut self.rigid_exprs, &self.flexible_exprs)
     }
 
-    pub fn eval(&mut self, term: &core::Term<'arena>) -> Arc<Value<'arena>> {
-        EvalContext::new(&mut self.rigid_exprs, &self.flexible_exprs).eval(term)
+    pub fn elim_context<'this>(&'this mut self) -> semantics::ElimContext<'arena, 'this> {
+        ElimContext::new(&self.flexible_exprs)
     }
 
-    pub fn quote<'out_arena>(
+    pub fn quote_context<'out_arena>(
         &mut self,
         scope: &'out_arena Scope<'out_arena>,
-        value: &Arc<Value<'arena>>,
-    ) -> core::Term<'out_arena> {
-        QuoteContext::new(scope, self.rigid_exprs.len(), &self.flexible_exprs).quote(value)
+    ) -> semantics::QuoteContext<'arena, 'out_arena, '_> {
+        QuoteContext::new(scope, self.rigid_exprs.len(), &self.flexible_exprs)
     }
 
     fn close_term(&self, term: core::Term<'arena>) -> Closure<'arena> {
@@ -286,7 +281,7 @@ impl<'arena> Context<'arena> {
                     None => self.synth(def_expr),
                     Some(def_type) => {
                         let def_type = self.check(def_type, &Arc::new(Value::Universe)); // FIXME: avoid temporary Arc
-                        let def_type_value = self.eval(&def_type);
+                        let def_type_value = self.eval_context().eval(&def_type);
 
                         let def_expr = self.check(def_expr, &def_type_value);
                         let def_expr = core::Term::Ann(
@@ -298,7 +293,7 @@ impl<'arena> Context<'arena> {
                     }
                 };
 
-                let def_expr_value = self.eval(&def_expr);
+                let def_expr_value = self.eval_context().eval(&def_expr);
 
                 self.push_rigid_definition(Some(*def_name), def_expr_value, def_type_value);
                 let output_expr = self.check(output_expr, &expected_type);
@@ -375,7 +370,7 @@ impl<'arena> Context<'arena> {
             ),
             Term::Ann(expr, r#type) => {
                 let r#type = self.check(r#type, &Arc::new(Value::Universe)); // FIXME: avoid temporary Arc
-                let type_value = self.eval(&r#type);
+                let type_value = self.eval_context().eval(&r#type);
                 let expr = self.check(expr, &type_value);
 
                 let ann_expr =
@@ -388,7 +383,7 @@ impl<'arena> Context<'arena> {
                     None => self.synth(def_expr),
                     Some(def_type) => {
                         let def_type = self.check(def_type, &Arc::new(Value::Universe)); // FIXME: avoid temporary Arc
-                        let def_type_value = self.eval(&def_type);
+                        let def_type_value = self.eval_context().eval(&def_type);
 
                         let def_expr = self.check(def_expr, &def_type_value);
                         let def_expr = core::Term::Ann(
@@ -400,7 +395,7 @@ impl<'arena> Context<'arena> {
                     }
                 };
 
-                let def_expr_value = self.eval(&def_expr);
+                let def_expr_value = self.eval_context().eval(&def_expr);
 
                 self.push_rigid_definition(Some(*def_name), def_expr_value, def_type_value);
                 let (output_expr, output_type) = self.synth(output_expr);
@@ -417,7 +412,7 @@ impl<'arena> Context<'arena> {
             Term::Universe(_) => (core::Term::Universe, Arc::new(Value::Universe)),
             Term::FunArrow(input_type, output_type) => {
                 let input_type = self.check(input_type, &Arc::new(Value::Universe)); // FIXME: avoid temporary Arc
-                let input_type_value = self.eval(&input_type);
+                let input_type_value = self.eval_context().eval(&input_type);
 
                 self.push_rigid_parameter(None, input_type_value);
                 let output_type = self.check(output_type, &Arc::new(Value::Universe)); // FIXME: avoid temporary Arc
@@ -433,7 +428,7 @@ impl<'arena> Context<'arena> {
             }
             Term::FunType(_, (_, input_name), input_type, output_type) => {
                 let input_type = self.check(input_type, &Arc::new(Value::Universe)); // FIXME: avoid temporary Arc
-                let input_type_value = self.eval(&input_type);
+                let input_type_value = self.eval_context().eval(&input_type);
 
                 self.push_rigid_parameter(Some(*input_name), input_type_value);
                 let output_type = self.check(output_type, &Arc::new(Value::Universe)); // FIXME: avoid temporary Arc
@@ -454,7 +449,7 @@ impl<'arena> Context<'arena> {
 
                 self.push_rigid_parameter(input_name, input_type.clone());
                 let (output_expr, output_type) = self.synth(output_expr);
-                let output_type = self.quote(self.scope, &output_type);
+                let output_type = self.quote_context(self.scope).quote(&output_type);
                 self.pop_rigid();
 
                 let output_type = self.close_term(output_type);
@@ -475,7 +470,7 @@ impl<'arena> Context<'arena> {
                     Value::FunType(_, input_type, output_type) => {
                         // Check the input expression and apply it to the output type
                         let input_expr = self.check(input_expr, &input_type);
-                        let input_expr_value = self.eval(&input_expr);
+                        let input_expr_value = self.eval_context().eval(&input_expr);
                         let output_type = self.apply_closure(&output_type, input_expr_value);
 
                         // Construct the final elimination
@@ -513,7 +508,7 @@ impl<'arena> Context<'arena> {
 
                         // Check the input expression and apply it to the output type
                         let input_expr = self.check(input_expr, &input_type);
-                        let input_expr_value = self.eval(&input_expr);
+                        let input_expr_value = self.eval_context().eval(&input_expr);
                         let output_type = self.apply_closure(&output_type, input_expr_value);
 
                         // Construct the final elimination
