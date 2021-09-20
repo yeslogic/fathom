@@ -1,5 +1,7 @@
 //~ ignore = true
 
+//! A simple image data format.
+
 let pixel = {
     red <- s32be,
     green <- s32be,
