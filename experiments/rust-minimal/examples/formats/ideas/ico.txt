@@ -1,0 +1,26 @@
+//~ ignore = true
+
+//! Windows Icon File
+//!
+//! https://www.wikidata.org/wiki/Q729366
+
+let iconDirEntry = {
+    width <- u8,
+    height <- u8,
+    numColors <- u8,
+    _ <- reserved u8 0,
+    numColorPlanes <- u16le,
+    bitsPerPixel <- u16le,
+    imageBytes <- u32le,
+    imageOffset <- u32le,
+};
+
+let ico = {
+    magic <- array 4 u8,
+    // TODO: magic == [0, 0, 1, 0] // icon
+    // TODO: magic == [0, 0, 2, 0] // cursor
+    numImages <- u16le,
+    images <- repeat numImages iconDirEntry,
+};
+
+ico
