@@ -3,7 +3,7 @@
 use scoped_arena::Scope;
 use std::sync::Arc;
 
-use crate::core::semantics::{self, Closure, ElimContext, EvalContext, QuoteContext, Value};
+use crate::core::semantics::{self, ArcValue, Closure, Value};
 use crate::env::{self, SharedEnv, UniqueEnv};
 use crate::surface::elaboration::reporting::Message;
 use crate::surface::Term;
@@ -41,12 +41,12 @@ pub struct Context<'arena> {
     /// Names of rigid variables.
     rigid_names: UniqueEnv<Option<StringId>>,
     /// Types of rigid variables.
-    rigid_types: UniqueEnv<Arc<Value<'arena>>>,
+    rigid_types: UniqueEnv<ArcValue<'arena>>,
     /// Information about the binders. Used when inserting new flexible variables.
     rigid_infos: UniqueEnv<core::EntryInfo>,
     /// Expressions that will be substituted for rigid variables during
     /// [evaluation][EvalContext::eval].
-    rigid_exprs: SharedEnv<Arc<Value<'arena>>>,
+    rigid_exprs: SharedEnv<ArcValue<'arena>>,
 
     /// The source of inserted flexible variables, used when reporting [unsolved
     /// flexible variables][Message::UnsolvedFlexibleVar].
@@ -57,7 +57,7 @@ pub struct Context<'arena> {
     /// These will be set to [`None`] when a flexible variable is first
     /// [inserted][Context::push_flexible_term], then will be set to [`Some`]
     /// if a solution is found during [`unification`].
-    flexible_exprs: UniqueEnv<Option<Arc<Value<'arena>>>>,
+    flexible_exprs: UniqueEnv<Option<ArcValue<'arena>>>,
 
     /// Diagnostic messages encountered during elaboration.
     messages: Vec<Message>,
@@ -83,7 +83,7 @@ impl<'arena> Context<'arena> {
     }
 
     /// Lookup a name in the context.
-    fn get_name(&self, name: StringId) -> Option<(core::Term<'arena>, &Arc<Value<'arena>>)> {
+    fn get_name(&self, name: StringId) -> Option<(core::Term<'arena>, &ArcValue<'arena>)> {
         let rigid_types = Iterator::zip(env::local_vars(), self.rigid_types.iter().rev());
 
         Iterator::zip(self.rigid_names.iter().copied().rev(), rigid_types).find_map(
@@ -95,8 +95,8 @@ impl<'arena> Context<'arena> {
     fn push_rigid_definition(
         &mut self,
         name: Option<StringId>,
-        expr: Arc<Value<'arena>>,
-        r#type: Arc<Value<'arena>>,
+        expr: ArcValue<'arena>,
+        r#type: ArcValue<'arena>,
     ) {
         self.rigid_names.push(name);
         self.rigid_types.push(r#type);
@@ -108,8 +108,8 @@ impl<'arena> Context<'arena> {
     fn push_rigid_parameter(
         &mut self,
         name: Option<StringId>,
-        r#type: Arc<Value<'arena>>,
-    ) -> Arc<Value<'arena>> {
+        r#type: ArcValue<'arena>,
+    ) -> ArcValue<'arena> {
         // An expression that refers to itself once it is pushed onto the rigid
         // expression environment.
         let expr = Arc::new(Value::rigid_var(self.rigid_exprs.len().next_global()));
@@ -142,7 +142,7 @@ impl<'arena> Context<'arena> {
     }
 
     /// Push an unsolved flexible binder onto the context.
-    fn push_flexible_value(&mut self, range: ByteRange, source: FlexSource) -> Arc<Value<'arena>> {
+    fn push_flexible_value(&mut self, range: ByteRange, source: FlexSource) -> ArcValue<'arena> {
         let term = self.push_flexible_term(range, source);
         self.eval_context().eval(&term)
     }
@@ -171,23 +171,23 @@ impl<'arena> Context<'arena> {
         )
     }
 
-    pub fn force(&mut self, term: &Arc<Value<'arena>>) -> Arc<Value<'arena>> {
-        ElimContext::new(&self.flexible_exprs).force(term)
+    pub fn force(&mut self, term: &ArcValue<'arena>) -> ArcValue<'arena> {
+        semantics::ElimContext::new(&self.flexible_exprs).force(term)
     }
 
     pub fn eval_context<'this>(&'this mut self) -> semantics::EvalContext<'arena, 'this> {
-        EvalContext::new(&mut self.rigid_exprs, &self.flexible_exprs)
+        semantics::EvalContext::new(&mut self.rigid_exprs, &self.flexible_exprs)
     }
 
     pub fn elim_context<'this>(&'this mut self) -> semantics::ElimContext<'arena, 'this> {
-        ElimContext::new(&self.flexible_exprs)
+        semantics::ElimContext::new(&self.flexible_exprs)
     }
 
     pub fn quote_context<'out_arena>(
         &mut self,
         scope: &'out_arena Scope<'out_arena>,
     ) -> semantics::QuoteContext<'arena, 'out_arena, '_> {
-        QuoteContext::new(scope, self.rigid_exprs.len(), &self.flexible_exprs)
+        semantics::QuoteContext::new(scope, self.rigid_exprs.len(), &self.flexible_exprs)
     }
 
     fn close_term(&self, term: core::Term<'arena>) -> Closure<'arena> {
@@ -197,9 +197,9 @@ impl<'arena> Context<'arena> {
     fn apply_closure(
         &mut self,
         closure: &Closure<'arena>,
-        input_expr: Arc<Value<'arena>>,
-    ) -> Arc<Value<'arena>> {
-        ElimContext::new(&self.flexible_exprs).apply_closure(closure, input_expr)
+        input_expr: ArcValue<'arena>,
+    ) -> ArcValue<'arena> {
+        semantics::ElimContext::new(&self.flexible_exprs).apply_closure(closure, input_expr)
     }
 
     fn unification_context<'this>(&'this mut self) -> unification::Context<'arena, 'this> {
@@ -253,8 +253,8 @@ impl<'arena> Context<'arena> {
         &mut self,
         range: ByteRange, // NOTE: could be removed if source info is added to `core::Term`
         expr: core::Term<'arena>,
-        type0: &Arc<Value<'arena>>,
-        type1: &Arc<Value<'arena>>,
+        type0: &ArcValue<'arena>,
+        type1: &ArcValue<'arena>,
     ) -> core::Term<'arena> {
         match self.unification_context().unify(type0, type1) {
             Ok(()) => expr,
@@ -271,7 +271,7 @@ impl<'arena> Context<'arena> {
     pub fn check(
         &mut self,
         surface_term: &Term<'_>,
-        expected_type: &Arc<Value<'arena>>,
+        expected_type: &ArcValue<'arena>,
     ) -> core::Term<'arena> {
         let expected_type = self.force(expected_type);
 
@@ -351,7 +351,7 @@ impl<'arena> Context<'arena> {
     /// Synthesize the type of the given surface term.
     ///
     /// Returns the elaborated term in the core language and its type.
-    pub fn synth(&mut self, surface_term: &Term<'_>) -> (core::Term<'arena>, Arc<Value<'arena>>) {
+    pub fn synth(&mut self, surface_term: &Term<'_>) -> (core::Term<'arena>, ArcValue<'arena>) {
         match surface_term {
             Term::Name(range, name) => match self.get_name(*name) {
                 Some((term, r#type)) => (term, r#type.clone()),

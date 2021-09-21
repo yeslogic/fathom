@@ -9,6 +9,8 @@ use crate::core::{EntryInfo, Term};
 use crate::env::{EnvLen, GlobalVar, SharedEnv, SliceEnv};
 use crate::StringId;
 
+pub type ArcValue<'arena> = Arc<Value<'arena>>;
+
 /// Values in weak-head-normal form, with bindings converted to closures.
 #[derive(Debug, Clone)]
 pub enum Value<'arena> {
@@ -20,13 +22,13 @@ pub enum Value<'arena> {
     /// Universes.
     Universe,
     /// Dependent function types.
-    FunType(Option<StringId>, Arc<Value<'arena>>, Closure<'arena>),
+    FunType(Option<StringId>, ArcValue<'arena>, Closure<'arena>),
     /// Function introductions.
     FunIntro(Option<StringId>, Closure<'arena>),
     /// Record types.
-    RecordType(&'arena [StringId], Vec<Arc<Value<'arena>>>),
+    RecordType(&'arena [StringId], Vec<ArcValue<'arena>>),
     /// Record introductions.
-    RecordIntro(&'arena [StringId], Vec<Arc<Value<'arena>>>),
+    RecordIntro(&'arena [StringId], Vec<ArcValue<'arena>>),
 }
 
 impl<'arena> Value<'arena> {
@@ -59,7 +61,7 @@ pub enum Head {
 #[derive(Debug, Clone)]
 pub enum Elim<'arena> {
     /// Function eliminations.
-    Fun(Arc<Value<'arena>>),
+    Fun(ArcValue<'arena>),
     /// Record eliminations.
     Record(StringId),
 }
@@ -67,13 +69,13 @@ pub enum Elim<'arena> {
 /// A closure is a term that can later be instantiated with a value.
 #[derive(Debug, Clone)]
 pub struct Closure<'arena> {
-    rigid_exprs: SharedEnv<Arc<Value<'arena>>>,
+    rigid_exprs: SharedEnv<ArcValue<'arena>>,
     term: &'arena Term<'arena>,
 }
 
 impl<'arena> Closure<'arena> {
     pub fn new(
-        rigid_exprs: SharedEnv<Arc<Value<'arena>>>,
+        rigid_exprs: SharedEnv<ArcValue<'arena>>,
         term: &'arena Term<'arena>,
     ) -> Closure<'arena> {
         Closure { rigid_exprs, term }
@@ -106,14 +108,14 @@ impl Error {
 /// Like the [`ElimContext`], this allows for the running of computations, but
 /// also maintains a rigid environment, allowing for evaluation.
 pub struct EvalContext<'arena, 'env> {
-    rigid_exprs: &'env mut SharedEnv<Arc<Value<'arena>>>,
-    flexible_exprs: &'env SliceEnv<Option<Arc<Value<'arena>>>>,
+    rigid_exprs: &'env mut SharedEnv<ArcValue<'arena>>,
+    flexible_exprs: &'env SliceEnv<Option<ArcValue<'arena>>>,
 }
 
 impl<'arena, 'env> EvalContext<'arena, 'env> {
     pub fn new(
-        rigid_exprs: &'env mut SharedEnv<Arc<Value<'arena>>>,
-        flexible_exprs: &'env SliceEnv<Option<Arc<Value<'arena>>>>,
+        rigid_exprs: &'env mut SharedEnv<ArcValue<'arena>>,
+        flexible_exprs: &'env SliceEnv<Option<ArcValue<'arena>>>,
     ) -> EvalContext<'arena, 'env> {
         EvalContext {
             rigid_exprs,
@@ -146,7 +148,7 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
     /// This could be loosely thought of as a just-in-time implementation of
     /// closure conversion + partial evaluation (for more discussion see [this
     /// twitter thread](https://twitter.com/brendanzab/status/1423536653658771457)).
-    pub fn eval(&mut self, term: &Term<'arena>) -> Arc<Value<'arena>> {
+    pub fn eval(&mut self, term: &Term<'arena>) -> ArcValue<'arena> {
         match term {
             Term::RigidVar(var) => match self.rigid_exprs.get_local(*var) {
                 Some(value) => value.clone(),
@@ -215,19 +217,19 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
 /// Contains enough state to run computations, but does not contain a rigid
 /// environment that would be needed for full evaluation.
 pub struct ElimContext<'arena, 'env> {
-    flexible_exprs: &'env SliceEnv<Option<Arc<Value<'arena>>>>,
+    flexible_exprs: &'env SliceEnv<Option<ArcValue<'arena>>>,
 }
 
 impl<'arena, 'env> ElimContext<'arena, 'env> {
     pub fn new(
-        flexible_exprs: &'env SliceEnv<Option<Arc<Value<'arena>>>>,
+        flexible_exprs: &'env SliceEnv<Option<ArcValue<'arena>>>,
     ) -> ElimContext<'arena, 'env> {
         ElimContext { flexible_exprs }
     }
 
     /// Bring a value up-to-date with any new unification solutions that
     /// might now be present at the head of in the given value.
-    pub fn force(&self, value: &Arc<Value<'arena>>) -> Arc<Value<'arena>> {
+    pub fn force(&self, value: &ArcValue<'arena>) -> ArcValue<'arena> {
         let mut forced_value = value.clone();
         // Attempt to force flexible values until we don't see any more.
         while let Value::Stuck(Head::FlexibleVar(var), spine) = forced_value.as_ref() {
@@ -248,8 +250,8 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
     pub fn apply_closure(
         &self,
         closure: &Closure<'arena>,
-        value: Arc<Value<'arena>>,
-    ) -> Arc<Value<'arena>> {
+        value: ArcValue<'arena>,
+    ) -> ArcValue<'arena> {
         let mut rigid_exprs = closure.rigid_exprs.clone();
         rigid_exprs.push(value);
         EvalContext::new(&mut rigid_exprs, self.flexible_exprs).eval(closure.term)
@@ -261,9 +263,9 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
     /// [beta-reduction]: https://ncatlab.org/nlab/show/beta-reduction
     pub fn apply_fun(
         &self,
-        mut head_expr: Arc<Value<'arena>>,
-        input_expr: Arc<Value<'arena>>,
-    ) -> Arc<Value<'arena>> {
+        mut head_expr: ArcValue<'arena>,
+        input_expr: ArcValue<'arena>,
+    ) -> ArcValue<'arena> {
         match Arc::make_mut(&mut head_expr) {
             // Beta-reduction
             Value::FunIntro(_, output_expr) => self.apply_closure(output_expr, input_expr),
@@ -282,9 +284,9 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
     /// [beta-reduction]: https://ncatlab.org/nlab/show/beta-reduction
     pub fn apply_record(
         &self,
-        mut head_expr: Arc<Value<'arena>>,
+        mut head_expr: ArcValue<'arena>,
         label: StringId,
-    ) -> Arc<Value<'arena>> {
+    ) -> ArcValue<'arena> {
         match Arc::make_mut(&mut head_expr) {
             // Beta-reduction
             Value::RecordIntro(labels, exprs) => (labels.iter())
@@ -303,9 +305,9 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
     /// Apply an expression to an elimination spine.
     pub fn apply_spine(
         &self,
-        mut head_expr: Arc<Value<'arena>>,
+        mut head_expr: ArcValue<'arena>,
         spine: &[Elim<'arena>],
-    ) -> Arc<Value<'arena>> {
+    ) -> ArcValue<'arena> {
         for elim in spine {
             head_expr = match elim {
                 Elim::Fun(input_expr) => self.apply_fun(head_expr, input_expr.clone()),
@@ -435,13 +437,13 @@ impl<'in_arena, 'out_arena, 'env> QuoteContext<'in_arena, 'out_arena, 'env> {
 /// conversion checking.
 pub struct ConversionContext<'arena, 'env> {
     rigid_exprs: EnvLen,
-    flexible_exprs: &'env SliceEnv<Option<Arc<Value<'arena>>>>,
+    flexible_exprs: &'env SliceEnv<Option<ArcValue<'arena>>>,
 }
 
 impl<'arena, 'env> ConversionContext<'arena, 'env> {
     pub fn new(
         rigid_exprs: EnvLen,
-        flexible_exprs: &'env SliceEnv<Option<Arc<Value<'arena>>>>,
+        flexible_exprs: &'env SliceEnv<Option<ArcValue<'arena>>>,
     ) -> ConversionContext<'arena, 'env> {
         ConversionContext {
             rigid_exprs,
