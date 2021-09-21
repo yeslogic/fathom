@@ -102,6 +102,9 @@ impl Error {
 }
 
 /// Evaluation context.
+///
+/// Like the [`ElimContext`], this allows for the running of computations, but
+/// also maintains a rigid environment, allowing for evaluation.
 pub struct EvalContext<'arena, 'env> {
     rigid_exprs: &'env mut SharedEnv<Arc<Value<'arena>>>,
     flexible_exprs: &'env SliceEnv<Option<Arc<Value<'arena>>>>,
@@ -208,6 +211,9 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
 }
 
 /// Elimination context.
+///
+/// Contains enough state to run computations, but does not contain a rigid
+/// environment that would be needed for full evaluation.
 pub struct ElimContext<'arena, 'env> {
     flexible_exprs: &'env SliceEnv<Option<Arc<Value<'arena>>>>,
 }
@@ -311,6 +317,9 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
 }
 
 /// Quotation context.
+///
+/// This context keeps track of the length of the environment, allowing for
+/// quotation.
 #[derive(Clone)]
 pub struct QuoteContext<'in_arena, 'out_arena, 'env> {
     scope: &'out_arena Scope<'out_arena>,
@@ -421,6 +430,9 @@ impl<'in_arena, 'out_arena, 'env> QuoteContext<'in_arena, 'out_arena, 'env> {
 }
 
 /// Conversion context.
+///
+/// This context keeps track of the length of the environment, for use in
+/// conversion checking.
 pub struct ConversionContext<'arena, 'env> {
     rigid_exprs: EnvLen,
     flexible_exprs: &'env SliceEnv<Option<Arc<Value<'arena>>>>,
