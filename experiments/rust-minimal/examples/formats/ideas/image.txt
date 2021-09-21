@@ -3,14 +3,20 @@
 //! A simple image data format.
 
 let pixel = {
+    /// Red value.
     red <- s32be,
+    /// Green value.
     green <- s32be,
+    /// Blue value.
     blue <- s32Be,
 };
 
 let image = {
+    /// The width of the image, in pixels.
     width <- u32be,
+    /// The height of the image, in pixels.
     height <- u32be,
+    /// The pixel data.
     pixels <- array (width * height) pixel,
 };
 
