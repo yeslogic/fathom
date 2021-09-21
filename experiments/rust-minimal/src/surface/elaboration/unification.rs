@@ -18,7 +18,7 @@
 use scoped_arena::Scope;
 use std::sync::Arc;
 
-use crate::core::semantics::{Closure, Elim, ElimContext, EvalContext, Head, Value};
+use crate::core::semantics::{self, ArcValue, Closure, Elim, Head, Value};
 use crate::core::Term;
 use crate::env::{EnvLen, GlobalVar, LocalVar, SharedEnv, SliceEnv, UniqueEnv};
 use crate::StringId;
@@ -129,7 +129,7 @@ pub struct Context<'arena, 'env> {
     /// The length of the rigid environment.
     rigid_exprs: EnvLen,
     /// Solutions for flexible variables.
-    flexible_exprs: &'env mut SliceEnv<Option<Arc<Value<'arena>>>>,
+    flexible_exprs: &'env mut SliceEnv<Option<ArcValue<'arena>>>,
 }
 
 impl<'arena, 'env> Context<'arena, 'env> {
@@ -137,7 +137,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
         scope: &'arena Scope<'arena>,
         renaming: &'env mut PartialRenaming,
         rigid_exprs: EnvLen,
-        flexible_exprs: &'env mut SliceEnv<Option<Arc<Value<'arena>>>>,
+        flexible_exprs: &'env mut SliceEnv<Option<ArcValue<'arena>>>,
     ) -> Context<'arena, 'env> {
         Context {
             scope,
@@ -147,8 +147,8 @@ impl<'arena, 'env> Context<'arena, 'env> {
         }
     }
 
-    fn elim_context<'this: 'env>(&'this self) -> ElimContext<'arena, 'env> {
-        ElimContext::new(self.flexible_exprs)
+    fn elim_context<'this: 'env>(&'this self) -> semantics::ElimContext<'arena, 'env> {
+        semantics::ElimContext::new(self.flexible_exprs)
     }
 
     fn push_rigid(&mut self) {
@@ -160,11 +160,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
     }
 
     /// Unify two values, updating the solution environment if necessary.
-    pub fn unify(
-        &mut self,
-        value0: &Arc<Value<'arena>>,
-        value1: &Arc<Value<'arena>>,
-    ) -> Result<()> {
+    pub fn unify(&mut self, value0: &ArcValue<'arena>, value1: &ArcValue<'arena>) -> Result<()> {
         // Check for pointer equality before trying to force the values
         if Arc::ptr_eq(value0, value1) {
             return Ok(());
@@ -289,7 +285,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
     fn unify_fun_intro_elim(
         &mut self,
         output_expr: &Closure<'arena>,
-        value: &Arc<Value<'arena>>,
+        value: &ArcValue<'arena>,
     ) -> Result<()> {
         let var = Arc::new(Value::rigid_var(self.rigid_exprs.next_global()));
         let value = self.elim_context().apply_fun(value.clone(), var.clone());
@@ -306,8 +302,8 @@ impl<'arena, 'env> Context<'arena, 'env> {
     fn unify_record_intro_elim(
         &mut self,
         labels: &[StringId],
-        exprs: &[Arc<Value<'arena>>],
-        value: &Arc<Value<'arena>>,
+        exprs: &[ArcValue<'arena>],
+        value: &ArcValue<'arena>,
     ) -> Result<()> {
         for (label, expr) in Iterator::zip(labels.iter(), exprs.iter()) {
             let field_value = self.elim_context().apply_record(value.clone(), *label);
@@ -332,12 +328,13 @@ impl<'arena, 'env> Context<'arena, 'env> {
         &mut self,
         flexible_var: GlobalVar,
         spine: &[Elim<'arena>],
-        value: &Arc<Value<'arena>>,
+        value: &ArcValue<'arena>,
     ) -> Result<()> {
         self.init_renaming(spine)?;
         let term = self.rename(flexible_var, value)?;
         let fun_term = self.fun_intros(spine, term)?;
-        let solution = EvalContext::new(&mut SharedEnv::new(), self.flexible_exprs).eval(&fun_term);
+        let solution =
+            semantics::EvalContext::new(&mut SharedEnv::new(), self.flexible_exprs).eval(&fun_term);
 
         self.flexible_exprs.set_global(flexible_var, Some(solution));
 
@@ -384,7 +381,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
     fn rename(
         &mut self,
         flexible_var: GlobalVar,
-        value: &Arc<Value<'arena>>,
+        value: &ArcValue<'arena>,
     ) -> Result<Term<'arena>> {
         match self.elim_context().force(value).as_ref() {
             Value::Stuck(head, spine) => {
@@ -500,7 +497,7 @@ impl PartialRenaming {
         self.target.clear();
     }
 
-    fn next_rigid_var<'arena>(&self) -> Arc<Value<'arena>> {
+    fn next_rigid_var<'arena>(&self) -> ArcValue<'arena> {
         Arc::new(Value::rigid_var(self.source.len().next_global()))
     }
 
