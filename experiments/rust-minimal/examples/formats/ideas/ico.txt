@@ -2,25 +2,30 @@
 
 //! Windows Icon File
 //!
-//! https://www.wikidata.org/wiki/Q729366
+//! ## References
+//!
+//! - [Wikipedia](https://en.wikipedia.org/wiki/ICO_(file_format))
+//! - [Wikidata](https://www.wikidata.org/wiki/Q729366)
 
-let iconDirEntry = {
-    width <- u8,
-    height <- u8,
-    numColors <- u8,
+let image = {
+    width <- u8 if 0 then 256,
+    height <- u8 if 0 then 256,
+    num_colors <- u8,
     _ <- reserved u8 0,
-    numColorPlanes <- u16le,
-    bitsPerPixel <- u16le,
-    imageBytes <- u32le,
-    imageOffset <- u32le,
+    num_color_planes <- u16le,
+    bits_per_pixel <- u16le,
+    image_bytes <- u32le,
+    image_offset <- u32le,
 };
 
 let ico = {
-    magic <- array 4 u8,
-    // TODO: magic == [0, 0, 1, 0] // icon
-    // TODO: magic == [0, 0, 2, 0] // cursor
-    numImages <- u16le,
-    images <- repeat numImages iconDirEntry,
+    // NOTE: Could be useful to have invertible patterns here?
+    magic <- array 4 u8 match {
+        [0, 0, 1, 0] => icon,   // TODO
+        [0, 0, 2, 0] => cursor, // TODO
+    },
+    num_images <- u16le,
+    images <- repeat num_images image,
 };
 
 ico

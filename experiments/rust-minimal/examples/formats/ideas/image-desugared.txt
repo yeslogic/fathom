@@ -21,7 +21,7 @@ let pixel : Format =
             blue = blue,
         };
 
-let image : Format =
+let main : Format =
     let width <- u32be;
     let height <- u32be;
     let pixels <- array (width * height) pixel;
@@ -40,4 +40,4 @@ let image : Format =
             pixels = pixels,
         };
 
-image
+main

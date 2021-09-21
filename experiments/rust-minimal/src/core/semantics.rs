@@ -51,7 +51,7 @@ pub enum Head {
     /// Variables that refer to rigid binders.
     RigidVar(GlobalVar),
     /// Variables that refer to unsolved flexible problems.
-    FlexibleVar(GlobalVar),
+    FlexibleVar(GlobalVar), // TODO: Use a RefCell here?
     /// Error sentinel.
     ReportedError,
 }

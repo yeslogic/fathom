@@ -11,7 +11,7 @@ let pixel = {
     blue <- s32Be,
 };
 
-let image = {
+let main = {
     /// The width of the image, in pixels.
     width <- u32be,
     /// The height of the image, in pixels.
@@ -20,4 +20,4 @@ let image = {
     pixels <- array (width * height) pixel,
 };
 
-image
+main
