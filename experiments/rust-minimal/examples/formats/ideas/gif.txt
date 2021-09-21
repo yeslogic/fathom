@@ -1,0 +1,62 @@
+//~ ignore = true
+
+//! # Graphics Interchange Format
+//!
+//! ## References
+//!
+//! - [GIF89a Specification](https://www.w3.org/Graphics/GIF/spec-gif89a.txt)
+//! - [Wikipedia](https://en.wikipedia.org/wiki/GIF)
+//! - [Kaitai Format](https://formats.kaitai.io/gif/)
+
+/// # Logical Screen Descriptor
+///
+/// ## References
+///
+/// - [GIF89a Specification: Section 18](https://www.w3.org/Graphics/GIF/spec-gif89a.txt)
+let logical_screen_descriptor = {
+    image_width <- u16le,
+    image_height <- u16le,
+    flags <- u8,                     // TODO: interpret flags
+    bg_color_index <- u8,
+    pixel_aspect_ratio <- u8,
+};
+
+/// # Header
+///
+/// ## References
+///
+/// - [GIF89a Specification: Section 17](https://www.w3.org/Graphics/GIF/spec-gif89a.txt)
+let header = {
+    magic <- array 3 u8 == ascii "GIF"`,
+    version <- array 3 u8,
+};
+
+/// # Global Color Table Entry
+///
+/// ## References
+///
+/// - [GIF89a Specification: Section 19](https://www.w3.org/Graphics/GIF/spec-gif89a.txt)
+let color_table_entry = {
+    red <- u8,
+    green <- u8,
+    blue <- u8,
+};
+
+/// # Global Color Table
+///
+/// ## References
+///
+/// - [GIF89a Specification: Section 19](https://www.w3.org/Graphics/GIF/spec-gif89a.txt)
+let global_color_table (len : U16) = {
+    // TODO: use a function rather than a struct
+    entries <- array len color_table_entry,
+};
+
+let main = {
+    header <- header,
+    screen <- logical_screen_descriptor,
+    // global_color_table <- global_color_table screen.color_table_size,    // TODO: if `screen.has_color_table,`
+    // blocks <- array 0 block,                                             // TODO: while not EOF or BlockTerminator
+};
+
+main

@@ -256,13 +256,11 @@ impl<'arena> Context<'arena> {
         type0: &ArcValue<'arena>,
         type1: &ArcValue<'arena>,
     ) -> core::Term<'arena> {
-        match self.unification_context().unify(type0, type1) {
-            Ok(()) => expr,
-            Err(error) => {
-                self.push_message(Message::FailedToUnify { range, error });
-                core::Term::ReportedError
-            }
-        }
+        self.unification_context()
+            .unify(type0, type1)
+            .map(|()| expr)
+            .map_err(|error| self.push_message(Message::FailedToUnify { range, error }))
+            .unwrap_or(core::Term::ReportedError)
     }
 
     /// Check that a surface term conforms to the given type.

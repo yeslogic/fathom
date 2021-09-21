@@ -1,0 +1,32 @@
+//~ ignore = true
+
+//! Binary STL File
+//!
+//! # References
+//!
+//! - [Wikipedia](https://en.wikipedia.org/wiki/STL_(file_format)#Binary_STL)
+
+// TODO: STL variants:
+// - VisCAM
+// - SolidView
+// - Materialise Magics
+
+let vec3d = {
+    x <- f32le,
+    y <- f32le,
+    z <- f32le,
+};
+
+let triangle = {
+    normal <- vec3d,
+    vertices <- array 3 vec3d,
+    attribute_byte_count <- u16le,
+};
+
+let main = {
+    header <- array 80 u8,
+    triangle_count <- u32le,
+    triangles <- array triangle_count triangle,
+};
+
+main
