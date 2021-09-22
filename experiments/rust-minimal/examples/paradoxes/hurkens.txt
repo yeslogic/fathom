@@ -1,0 +1,52 @@
+//~ ignore = true
+
+// Hurkens' paradox [1] ported from Agda [2].
+//
+// This is a result of allowing `Type : Type`. Elaborating this file using
+// the current implementation consumes lots of memory and appears to never
+// terminate!
+//
+// [1] A. Hurkens, A simplification of Girard's paradox.
+// [2] https://github.com/agda/agda/blob/master/test/Succeed/Hurkens.agda
+
+let False : Type
+  = fun (A : Type) -> A;
+
+let Not : fun (A : Type) -> Type
+  = fun A => A -> False;
+
+let P : fun (A : Type) -> Type
+  = fun A => A -> Type;
+
+let U : Type
+  = fun (X : Type) -> (P (P X) -> X) -> P (P X);
+
+let tau : P (P U) -> U
+  = fun t => fun X => fun f => fun p =>
+      t (fun x => p (f (x X f)));
+
+let sigma : U -> P (P U)
+  = fun s => s U (fun t => tau t);
+
+let Delta : P U
+  = fun y => Not (fun (p : P U) -> sigma y p -> p (tau (sigma y)));
+
+let Omega : U
+  = tau (fun p => fun (x : U) -> sigma x p -> p x);
+
+let D : Type
+  = fun (p : P U) -> sigma Omega p -> p (tau (sigma Omega));
+
+let lemma1 : fun (p : P U) -> (fun (x : U) -> sigma x p -> p x) -> p Omega
+  = fun p => fun H1 => H1 Omega (fun x => H1 (tau (sigma x)));
+
+let lemma2 : Not D
+  = lemma1 Delta (fun x => fun H2 => fun H3 => H3 Delta H2 (fun p => H3 (fun y => p (tau (sigma y)))));
+
+let lemma3 : D
+  = fun p => lemma1 (fun y => p (tau (sigma y)));
+
+let loop : False
+  = lemma2 lemma3;
+
+Type

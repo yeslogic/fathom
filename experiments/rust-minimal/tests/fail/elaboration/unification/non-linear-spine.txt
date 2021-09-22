@@ -1,0 +1,6 @@
+//~ exit-code = 1
+
+let test : fun (A : _) -> (A -> _) -> A
+  = fun A => fun a => (a _);
+
+Type

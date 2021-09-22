@@ -1,0 +1,59 @@
+//~ ignore = true
+
+//! # Extended Display Identification Data
+//!
+//! ## References
+//!
+//! - https://en.wikipedia.org/wiki/Extended_Display_Identification_Data
+
+// TODO: Versions 1.0-1.4
+
+let header = {
+    magic <- u64le == 0x00ffffffffffff00,
+    manufacturer_id <- u16le,                // TODO: bit patterns
+    product_code <- u16le,
+    serial <- u32le,
+    manufacturer_week <- u8,
+    manufacturer_year_mod <- u8,             // TODO: `mfg_year_mod + 1990`
+    edid_version_major <- u8,
+    edid_version_minor <- u8,
+};
+
+let display_parameters = {
+    video_input_parameters <- u8,            // TODO: bit patterns
+    screen_size_h <- u8,
+    screen_size_v <- u8,
+    gamma_mod <- u8,                         // TODO: `(int_to_f32 gamma_mod + 100.0) / 100.0`
+    supported_features <- u8,                // TODO: bit patterns
+};
+
+let chromacity_coordinates = {
+    red_green_lsb <- u8,                     // TODO: bit patterns
+    blue_white_lsb <- u8,                    // TODO: bit patterns
+    red_x_msb <- u8,
+    red_y_msb <- u8,
+    green_x_msb <- u8,
+    green_y_msb <- u8,
+    blue_x_msb <- u8,
+    blue_y_msb <- u8,
+    white_x_msb <- u8,
+    white_y_msb <- u8,
+};
+
+let established_timing = {
+    mode_bitmap <- array 3 u8,         // TODO: bit patterns
+};
+
+let standard_timing_information = {
+    // TODO: Standard timing information
+};
+
+let main = {
+    header <- header,
+    display_parameters <- display_parameters,
+    chromacity_coordinates <- chromacity_coordinates,
+    established_timing <- established_timing,
+    standard_timing_information <- standard_timing_information,
+};
+
+main

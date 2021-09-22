@@ -1,0 +1,124 @@
+use scoped_arena::Scope;
+
+use crate::{ByteRange, StringId, StringInterner};
+use crate::surface::Term;
+use crate::surface::lexer::Token;
+
+grammar<'arena, 'source>(interner: &mut StringInterner, scope: &'arena Scope<'arena>);
+
+extern {
+    type Location = usize;
+    type Error = ();
+
+    enum Token<'source> {
+        "ident" => Token::Ident(<&'source str>),
+
+        "fun" => Token::KeywordFun,
+        "let" => Token::KeywordLet,
+        "Type" => Token::KeywordType,
+
+        ":" => Token::Colon,
+        "," => Token::Comma,
+        "=" => Token::Equals,
+        "=>" => Token::EqualsGreater,
+        "." => Token::FullStop,
+        "->" => Token::HyphenGreater,
+        "?" => Token::QuestionMark,
+        ";" => Token::Semicolon,
+        "_" => Token::Underscore,
+
+        "{" => Token::OpenBrace,
+        "}" => Token::CloseBrace,
+        "(" => Token::OpenParen,
+        ")" => Token::CloseParen,
+    }
+}
+
+pub Term: Term<'arena> = {
+    LetTerm,
+    // FIXME: LALRPOP does not accept raw identifiers (see: https://github.com/lalrpop/lalrpop/issues/613)
+    <expr: LetTerm> ":" <type_: Term> => {
+        Term::Ann(
+            scope.to_scope(expr),
+            scope.to_scope(type_),
+        )
+    },
+};
+
+LetTerm: Term<'arena> = {
+    FunTerm,
+    <start: @L> "let" <def_name: RangedName> <def_type: (":" <FunTerm>)?> "=" <def_expr: LetTerm> ";" <body_expr: LetTerm> => {
+        Term::Let(
+            start,
+            def_name,
+            def_type.map(|def_type| scope.to_scope(def_type) as &_),
+            scope.to_scope(def_expr),
+            scope.to_scope(body_expr),
+        )
+    },
+};
+
+FunTerm: Term<'arena> = {
+    AppTerm,
+    <input_type: AppTerm> "->"  <output_type: FunTerm> => {
+        Term::FunArrow(
+            scope.to_scope(input_type),
+            scope.to_scope(output_type),
+        )
+    },
+    <start: @L> "fun" "(" <input_name: RangedName> ":" <input_type: Term> ")" "->"  <output_type: FunTerm> => {
+        Term::FunType(
+            start,
+            input_name,
+            scope.to_scope(input_type),
+            scope.to_scope(output_type),
+        )
+    },
+    <start: @L> "fun" <input_name: RangedName> "=>" <output_type: FunTerm> => {
+        Term::FunIntro(
+            start,
+            input_name,
+            scope.to_scope(output_type),
+        )
+    },
+};
+
+AppTerm: Term<'arena> = {
+    AtomicTerm,
+    <head_expr: AppTerm> <input_expr: AtomicTerm> => {
+        Term::FunElim(
+            scope.to_scope(head_expr),
+            scope.to_scope(input_expr),
+        )
+    },
+};
+
+AtomicTerm: Term<'arena> = {
+    <start: @L> <name: Name> <end: @R> => Term::Name(ByteRange::new(start, end), name),
+    <start: @L> "?" <name: Name> <end: @R> => Term::Hole(ByteRange::new(start, end), Some(name)),
+    <start: @L> "_" <end: @R> => Term::Hole(ByteRange::new(start, end), None),
+    <start: @L> "Type" <end: @R> => Term::Universe(ByteRange::new(start, end)),
+    <start: @L> "{" "}" <end: @R> => Term::RecordEmpty(ByteRange::new(start, end)),
+    <start: @L> "{" <first: (<RangedName> ":" <Term>)> <type_fields: ("," <RangedName> ":" <Term>)*> ","?  "}" <end: @R> => {
+        let type_fields = std::iter::once(first).chain(type_fields).map(|(label, term)| (label, term));
+        Term::RecordType(ByteRange::new(start, end), scope.to_scope_from_iter(type_fields))
+    },
+    <start: @L> "{" <first: (<RangedName> "=" <Term>)> <expr_fields: ("," <RangedName> "=" <Term>)*> ","?  "}" <end: @R> => {
+        let type_fields = std::iter::once(first).chain(expr_fields).map(|(label, term)| (label, term));
+        Term::RecordIntro(ByteRange::new(start, end), scope.to_scope_from_iter(type_fields))
+    },
+    <head_expr: AtomicTerm> "." <label: RangedName> => {
+        Term::RecordElim(scope.to_scope(head_expr), label)
+    },
+    "(" <term: Term> ")" => term,
+};
+
+#[inline]
+Name: StringId = {
+    <"ident"> => interner.get_or_intern(<>),
+};
+
+#[inline]
+RangedName: (ByteRange, StringId) = {
+    <start: @L> <name: Name> <end: @R> => (ByteRange::new(start, end), name),
+};
