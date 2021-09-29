@@ -179,12 +179,12 @@ impl<'arena> Context<'arena> {
         semantics::EvalContext::new(&mut self.rigid_exprs, &self.flexible_exprs)
     }
 
-    pub fn elim_context<'this>(&'this mut self) -> semantics::ElimContext<'arena, 'this> {
+    pub fn elim_context<'this>(&'this self) -> semantics::ElimContext<'arena, 'this> {
         semantics::ElimContext::new(&self.flexible_exprs)
     }
 
     pub fn quote_context<'out_arena>(
-        &mut self,
+        &self,
         scope: &'out_arena Scope<'out_arena>,
     ) -> semantics::QuoteContext<'arena, 'out_arena, '_> {
         semantics::QuoteContext::new(scope, self.rigid_exprs.len(), &self.flexible_exprs)
