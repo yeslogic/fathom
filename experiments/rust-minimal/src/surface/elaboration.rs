@@ -3,11 +3,11 @@
 use scoped_arena::Scope;
 use std::sync::Arc;
 
-use crate::core::semantics::{self, ArcValue, Closure, Value};
-use crate::env::{self, SharedEnv, UniqueEnv};
+use crate::core::semantics::{self, ArcValue, Closure, Telescope, Value};
+use crate::env::{self, EnvLen, SharedEnv, UniqueEnv};
 use crate::surface::elaboration::reporting::Message;
 use crate::surface::Term;
-use crate::{core, ByteRange, StringId};
+use crate::{core, ByteRange, SliceBuilder, StringId};
 
 mod reporting;
 mod unification;
@@ -91,6 +91,11 @@ impl<'arena> Context<'arena> {
         )
     }
 
+    /// Get the length of the rigid environment.
+    fn rigid_len(&mut self) -> EnvLen {
+        self.rigid_names.len()
+    }
+
     /// Push a rigid definition onto the context.
     fn push_rigid_definition(
         &mut self,
@@ -128,6 +133,14 @@ impl<'arena> Context<'arena> {
         self.rigid_types.pop();
         self.rigid_infos.pop();
         self.rigid_exprs.pop();
+    }
+
+    /// Truncate the rigid environment.
+    fn truncate_rigid(&mut self, len: EnvLen) {
+        self.rigid_names.truncate(len);
+        self.rigid_types.truncate(len);
+        self.rigid_infos.truncate(len);
+        self.rigid_exprs.truncate(len);
     }
 
     /// Push an unsolved flexible binder onto the context.
@@ -316,17 +329,10 @@ impl<'arena> Context<'arena> {
             }
             (Term::RecordIntro(range, expr_fields), Value::RecordType(labels, types)) => {
                 // TODO: improve handling of duplicate labels
-
-                if expr_fields.len() == labels.len()
-                    && Iterator::zip(expr_fields.iter(), labels.iter())
-                        .all(|(((_, expr_label), _), type_label)| expr_label == type_label)
+                if expr_fields.len() != labels.len()
+                    || Iterator::zip(expr_fields.iter(), labels.iter())
+                        .any(|(((_, expr_label), _), type_label)| expr_label != type_label)
                 {
-                    let exprs = self.scope.to_scope_from_iter(
-                        Iterator::zip(expr_fields.iter(), types.iter())
-                            .map(|((_, expr), r#type)| self.check(expr, r#type)),
-                    );
-                    core::Term::RecordIntro(labels, exprs)
-                } else {
                     self.push_message(Message::MismatchedFieldLabels {
                         range: *range,
                         expr_labels: (expr_fields.iter())
@@ -334,8 +340,27 @@ impl<'arena> Context<'arena> {
                             .collect(),
                         type_labels: labels.iter().copied().collect(),
                     });
-                    core::Term::ReportedError
+                    return core::Term::ReportedError;
                 }
+
+                let initial_rigid_len = self.rigid_len();
+                let mut types = types.clone();
+                let mut expr_fields = expr_fields.iter();
+                let mut exprs =
+                    SliceBuilder::new(self.scope, types.len(), core::Term::ReportedError);
+
+                while let Some(((_, expr), (r#type, next_types))) = Option::zip(
+                    expr_fields.next(),
+                    self.elim_context().split_telescope(types),
+                ) {
+                    let expr = self.check(expr, &r#type);
+                    let expr_value = self.eval_context().eval(&expr);
+                    types = next_types.resume(expr_value);
+                    exprs.push(expr);
+                }
+
+                self.truncate_rigid(initial_rigid_len);
+                core::Term::RecordIntro(labels, exprs.into())
             }
             (Term::RecordEmpty(_), Value::Universe) => core::Term::RecordType(&[], &[]),
             (Term::ReportedError(_), _) => core::Term::ReportedError,
@@ -526,9 +551,13 @@ impl<'arena> Context<'arena> {
 
                 let labels = (self.scope)
                     .to_scope_from_iter(type_fields.clone().map(|((_, label), _)| *label));
-                let type_fields = (self.scope).to_scope_from_iter(
-                    type_fields.map(|(_, r#type)| self.check(r#type, &Arc::new(Value::Universe))),
-                );
+                let type_fields =
+                    (self.scope).to_scope_from_iter(type_fields.map(|((_, label), r#type)| {
+                        let r#type = self.check(r#type, &Arc::new(Value::Universe));
+                        let type_value = self.eval_context().eval(&r#type);
+                        self.push_rigid_parameter(Some(*label), type_value);
+                        r#type
+                    }));
 
                 (
                     core::Term::RecordType(labels, type_fields),
@@ -542,39 +571,56 @@ impl<'arena> Context<'arena> {
 
                 let labels = (self.scope)
                     .to_scope_from_iter(expr_fields.clone().map(|((_, label), _)| *label));
+                let len = labels.len();
+                let mut types = SliceBuilder::new(self.scope, len, core::Term::ReportedError);
+                let mut exprs = SliceBuilder::new(self.scope, len, core::Term::ReportedError);
 
-                let mut types = Vec::with_capacity(labels.len());
-                let exprs = (self.scope).to_scope_from_iter(expr_fields.map(|(_, expr)| {
+                for (_, expr) in expr_fields {
                     let (expr, r#type) = self.synth(expr);
-                    types.push(r#type);
-                    expr
-                }));
+                    types.push(self.quote_context(self.scope).quote(&r#type));
+                    exprs.push(expr);
+                }
 
                 (
-                    core::Term::RecordIntro(labels as &[_], exprs),
-                    Arc::new(Value::RecordType(labels as &[_], types)),
+                    core::Term::RecordIntro(labels as &[_], exprs.into()),
+                    Arc::new(Value::RecordType(
+                        labels as &[_],
+                        Telescope::new(self.rigid_exprs.clone(), types.into()),
+                    )),
                 )
             }
             Term::RecordEmpty(_) => (
                 core::Term::RecordIntro(&[], &[]),
-                Arc::new(Value::RecordType(&[], Vec::new())),
+                Arc::new(Value::RecordType(
+                    &[],
+                    Telescope::new(SharedEnv::new(), &[]),
+                )),
             ),
             Term::RecordElim(head_expr, (label_range, label)) => {
                 let head_range = head_expr.range();
                 let (head_expr, head_type) = self.synth(head_expr);
+                let head_expr_value = self.eval_context().eval(&head_expr);
 
-                // Ensure that the head type is a record type
-                let head_type = self.force(&head_type);
-                if let Value::RecordType(labels, types) = head_type.as_ref() {
-                    if let Some(position) = labels.iter().position(|l| l == label) {
-                        return (
-                            core::Term::RecordElim(self.scope.to_scope(head_expr), *label),
-                            types[position].clone(),
-                        );
+                // TODO: check for reported error?
+                if let Value::RecordType(labels, types) = self.force(&head_type).as_ref() {
+                    let mut labels = labels.iter();
+                    let mut types = types.clone();
+
+                    while let Some((type_label, (r#type, next_types))) =
+                        Option::zip(labels.next(), self.elim_context().split_telescope(types))
+                    {
+                        if label == type_label {
+                            let head_expr = self.scope.to_scope(head_expr);
+                            let expr = core::Term::RecordElim(head_expr, *label);
+                            return (expr, r#type);
+                        } else {
+                            let head_expr = head_expr_value.clone();
+                            let value = self.elim_context().apply_record(head_expr, *type_label);
+                            types = next_types.resume(value);
+                        }
                     }
                 }
 
-                // TODO: field not found
                 self.push_message(Message::UnknownField {
                     head_range,
                     label_range: *label_range,

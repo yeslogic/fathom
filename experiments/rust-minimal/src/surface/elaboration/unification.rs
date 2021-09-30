@@ -18,10 +18,10 @@
 use scoped_arena::Scope;
 use std::sync::Arc;
 
-use crate::core::semantics::{self, ArcValue, Closure, Elim, Head, Value};
+use crate::core::semantics::{self, ArcValue, Closure, Elim, Head, Telescope, Value};
 use crate::core::Term;
 use crate::env::{EnvLen, GlobalVar, LocalVar, SharedEnv, SliceEnv, UniqueEnv};
-use crate::StringId;
+use crate::{SliceBuilder, StringId};
 
 /// Errors encountered during unification.
 ///
@@ -151,14 +151,6 @@ impl<'arena, 'env> Context<'arena, 'env> {
         semantics::ElimContext::new(self.flexible_exprs)
     }
 
-    fn push_rigid(&mut self) {
-        self.rigid_exprs.push();
-    }
-
-    fn pop_rigid(&mut self) {
-        self.rigid_exprs.pop();
-    }
-
     /// Unify two values, updating the solution environment if necessary.
     pub fn unify(&mut self, value0: &ArcValue<'arena>, value1: &ArcValue<'arena>) -> Result<()> {
         // Check for pointer equality before trying to force the values
@@ -209,9 +201,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
                 if labels0 != labels1 {
                     return Err(Error::Mismatched);
                 }
-                for (type0, type1) in Iterator::zip(types0.iter(), types1.iter()) {
-                    self.unify(&type0, &type1)?;
-                }
+                self.unify_telescopes(types0, types1)?;
                 Ok(())
             }
 
@@ -274,11 +264,44 @@ impl<'arena, 'env> Context<'arena, 'env> {
         let value0 = self.elim_context().apply_closure(closure0, var.clone());
         let value1 = self.elim_context().apply_closure(closure1, var);
 
-        self.push_rigid();
+        self.rigid_exprs.push();
         let result = self.unify(&value0, &value1);
-        self.pop_rigid();
+        self.rigid_exprs.pop();
 
         result
+    }
+
+    /// Unify two [telescopes][Telescope].
+    fn unify_telescopes(
+        &mut self,
+        telescope0: &Telescope<'arena>,
+        telescope1: &Telescope<'arena>,
+    ) -> Result<()> {
+        if telescope0.len() != telescope1.len() {
+            return Err(Error::Mismatched);
+        }
+
+        let initial_rigid_len = self.rigid_exprs;
+        let mut telescope0 = telescope0.clone();
+        let mut telescope1 = telescope1.clone();
+
+        while let Some(((value0, next_telescope0), (value1, next_telescope1))) = Option::zip(
+            self.elim_context().split_telescope(telescope0),
+            self.elim_context().split_telescope(telescope1),
+        ) {
+            if let Err(error) = self.unify(&value0, &value1) {
+                self.rigid_exprs.truncate(initial_rigid_len);
+                return Err(error);
+            }
+
+            let var = Arc::new(Value::rigid_var(self.rigid_exprs.next_global()));
+            telescope0 = next_telescope0.resume(var.clone());
+            telescope1 = next_telescope1.resume(var);
+            self.rigid_exprs.push();
+        }
+
+        self.rigid_exprs.truncate(initial_rigid_len);
+        Ok(())
     }
 
     /// Unify a function introduction with a value, using eta-conversion.
@@ -291,9 +314,9 @@ impl<'arena, 'env> Context<'arena, 'env> {
         let value = self.elim_context().apply_fun(value.clone(), var.clone());
         let output_expr = self.elim_context().apply_closure(output_expr, var);
 
-        self.push_rigid();
+        self.rigid_exprs.push();
         let result = self.unify(&output_expr, &value);
-        self.pop_rigid();
+        self.rigid_exprs.pop();
 
         result
     }
@@ -354,7 +377,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
                         if spine.is_empty() && self.renaming.set_rigid(*source_var) => {}
                     _ => return Err(Error::NonLinearSpine),
                 },
-                Elim::Record(_) => todo!("needs expansion"),
+                Elim::Record(_) => todo!("needs expansion"), // TODO: Not sure how to handle this!
             }
         }
 
@@ -366,7 +389,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
     fn fun_intros(&self, spine: &[Elim<'arena>], term: Term<'arena>) -> Result<Term<'arena>> {
         spine.iter().fold(Ok(term), |term, elim| match elim {
             Elim::Fun(_) => Ok(Term::FunIntro(None, self.scope.to_scope(term?))),
-            Elim::Record(_) => todo!("needs expansion"),
+            Elim::Record(_) => todo!("needs expansion"), // TODO: Not sure how to handle this!
         })
     }
 
@@ -435,21 +458,18 @@ impl<'arena, 'env> Context<'arena, 'env> {
             }
             Value::RecordType(labels, types) => {
                 let labels = self.scope.to_scope(labels); // FIXME: avoid copy if this is the same arena?
-                let types = crate::to_scope_while_ok(
-                    self.scope,
-                    types.iter().map(|r#type| self.rename(flexible_var, r#type)),
-                )?;
+                let types = self.rename_telescope(flexible_var, types)?;
 
                 Ok(Term::RecordType(labels, types))
             }
             Value::RecordIntro(labels, exprs) => {
                 let labels = self.scope.to_scope(labels); // FIXME: avoid copy if this is the same arena?
-                let exprs = crate::to_scope_while_ok(
-                    self.scope,
-                    exprs.iter().map(|expr| self.rename(flexible_var, expr)),
-                )?;
+                let mut new_exprs = SliceBuilder::new(self.scope, exprs.len(), Term::ReportedError);
+                for expr in exprs {
+                    new_exprs.push(self.rename(flexible_var, expr)?);
+                }
 
-                Ok(Term::RecordIntro(labels, exprs))
+                Ok(Term::RecordIntro(labels, new_exprs.into()))
             }
         }
     }
@@ -468,6 +488,35 @@ impl<'arena, 'env> Context<'arena, 'env> {
         self.renaming.pop_rigid();
 
         term
+    }
+
+    /// Rename a telescope back into a [`Term`].
+    fn rename_telescope(
+        &mut self,
+        flexible_var: GlobalVar,
+        telescope: &Telescope<'arena>,
+    ) -> Result<&'arena [Term<'arena>]> {
+        let initial_rigid_len = self.rigid_exprs;
+        let mut telescope = telescope.clone();
+        let mut terms = SliceBuilder::new(self.scope, telescope.len(), Term::ReportedError);
+
+        while let Some((value, next_telescope)) = self.elim_context().split_telescope(telescope) {
+            match self.rename(flexible_var, &value) {
+                Ok(term) => {
+                    terms.push(term);
+                    let var = Arc::new(Value::rigid_var(self.rigid_exprs.next_global()));
+                    telescope = next_telescope.resume(var);
+                    self.rigid_exprs.push();
+                }
+                Err(error) => {
+                    self.rigid_exprs.truncate(initial_rigid_len);
+                    return Err(error);
+                }
+            }
+        }
+
+        self.rigid_exprs.truncate(initial_rigid_len);
+        Ok(terms.into())
     }
 }
 

@@ -129,6 +129,11 @@ impl EnvLen {
     pub fn pop(&mut self) {
         self.0 -= 1; // FIXME: check underflow?
     }
+
+    /// Truncate the environment to the given length.
+    pub fn truncate(&mut self, len: EnvLen) {
+        *self = len;
+    }
 }
 
 /// A uniquely owned environment.
@@ -167,6 +172,11 @@ impl<Entry> UniqueEnv<Entry> {
     /// Pop an entry off the environment.
     pub fn pop(&mut self) {
         self.entries.pop();
+    }
+
+    /// Truncate the environment to the given length.
+    pub fn truncate(&mut self, len: EnvLen) {
+        self.entries.truncate(len.0 as usize);
     }
 }
 
@@ -277,6 +287,11 @@ impl<Entry> SharedEnv<Entry> {
     /// Pop an entry off the environment.
     pub fn pop(&mut self) {
         self.entries.drop_last_mut();
+    }
+
+    /// Truncate the environment to the given length.
+    pub fn truncate(&mut self, len: EnvLen) {
+        (0..len.0).for_each(|_| self.pop());
     }
 
     /// Iterate over the elements in the environment.

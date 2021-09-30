@@ -7,7 +7,7 @@ use std::sync::Arc;
 
 use crate::core::{EntryInfo, Term};
 use crate::env::{EnvLen, GlobalVar, SharedEnv, SliceEnv};
-use crate::StringId;
+use crate::{SliceBuilder, StringId};
 
 pub type ArcValue<'arena> = Arc<Value<'arena>>;
 
@@ -26,7 +26,7 @@ pub enum Value<'arena> {
     /// Function introductions.
     FunIntro(Option<StringId>, Closure<'arena>),
     /// Record types.
-    RecordType(&'arena [StringId], Vec<ArcValue<'arena>>),
+    RecordType(&'arena [StringId], Telescope<'arena>),
     /// Record introductions.
     RecordIntro(&'arena [StringId], Vec<ArcValue<'arena>>),
 }
@@ -69,7 +69,10 @@ pub enum Elim<'arena> {
 /// A closure is a term that can later be instantiated with a value.
 #[derive(Debug, Clone)]
 pub struct Closure<'arena> {
+    /// Rigid environment where the closed [term] is bound. A new entry will
+    /// need to be pushed to this environment before evaluating the term.
     rigid_exprs: SharedEnv<ArcValue<'arena>>,
+    /// The term that is closed over.
     term: &'arena Term<'arena>,
 }
 
@@ -79,6 +82,48 @@ impl<'arena> Closure<'arena> {
         term: &'arena Term<'arena>,
     ) -> Closure<'arena> {
         Closure { rigid_exprs, term }
+    }
+}
+
+/// A series of terms where each term might depend on previous terms.
+#[derive(Debug, Clone)]
+pub struct Telescope<'arena> {
+    /// Rigid environment where the telescope's [terms] are bound.
+    rigid_exprs: SharedEnv<ArcValue<'arena>>,
+    /// The terms in the telescope.
+    terms: &'arena [Term<'arena>],
+}
+
+impl<'arena> Telescope<'arena> {
+    pub fn new(
+        rigid_exprs: SharedEnv<ArcValue<'arena>>,
+        terms: &'arena [Term<'arena>],
+    ) -> Telescope<'arena> {
+        Telescope { rigid_exprs, terms }
+    }
+
+    /// The number of terms in the telescope.
+    pub fn len(&self) -> usize {
+        self.terms.len()
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct NextTelescope<'arena> {
+    /// Rigid environment  where the telescope's [terms] are bound. A new entry
+    /// will need to be pushed to this environment before evaluating the next
+    /// term in the telescope.
+    rigid_exprs: SharedEnv<ArcValue<'arena>>,
+    /// The terms in the telescope.
+    terms: &'arena [Term<'arena>],
+}
+
+impl<'arena> NextTelescope<'arena> {
+    /// Resume the telescope with a value that corresponds to the previous entry
+    /// in the telescope.
+    pub fn resume(mut self, previous_value: ArcValue<'arena>) -> Telescope<'arena> {
+        self.rigid_exprs.push(previous_value);
+        Telescope::new(self.rigid_exprs, self.terms)
     }
 }
 
@@ -194,7 +239,7 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
                 self.elim_context().apply_fun(head_expr, input_expr)
             }
             Term::RecordType(labels, types) => {
-                let types = types.iter().map(|types| self.eval(types)).collect();
+                let types = Telescope::new(self.rigid_exprs.clone(), types);
 
                 Arc::new(Value::RecordType(labels, types))
             }
@@ -255,6 +300,18 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
         let mut rigid_exprs = closure.rigid_exprs.clone();
         rigid_exprs.push(value);
         EvalContext::new(&mut rigid_exprs, self.flexible_exprs).eval(closure.term)
+    }
+
+    /// Split a telescope into the first value, and the next telescope
+    /// containing the rest of the values.
+    pub fn split_telescope(
+        &self,
+        telescope: Telescope<'arena>,
+    ) -> Option<(ArcValue<'arena>, NextTelescope<'arena>)> {
+        let (term, terms) = telescope.terms.split_first()?;
+        let mut rigid_exprs = telescope.rigid_exprs;
+        let value = EvalContext::new(&mut rigid_exprs, self.flexible_exprs).eval(term);
+        Some((value, NextTelescope { rigid_exprs, terms }))
     }
 
     /// Apply a function elimination to an expression, performing
@@ -326,14 +383,14 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
 pub struct QuoteContext<'in_arena, 'out_arena, 'env> {
     scope: &'out_arena Scope<'out_arena>,
     rigid_exprs: EnvLen,
-    flexible_exprs: &'env SliceEnv<Option<Arc<Value<'in_arena>>>>,
+    flexible_exprs: &'env SliceEnv<Option<ArcValue<'in_arena>>>,
 }
 
 impl<'in_arena, 'out_arena, 'env> QuoteContext<'in_arena, 'out_arena, 'env> {
     pub fn new(
         scope: &'out_arena Scope<'out_arena>,
         rigid_exprs: EnvLen,
-        flexible_exprs: &'env SliceEnv<Option<Arc<Value<'in_arena>>>>,
+        flexible_exprs: &'env SliceEnv<Option<ArcValue<'in_arena>>>,
     ) -> QuoteContext<'in_arena, 'out_arena, 'env> {
         QuoteContext {
             scope,
@@ -355,7 +412,7 @@ impl<'in_arena, 'out_arena, 'env> QuoteContext<'in_arena, 'out_arena, 'env> {
     }
 
     /// Quote a [value][Value] back into a [term][Term].
-    pub fn quote(&mut self, value: &Arc<Value<'in_arena>>) -> Term<'out_arena> {
+    pub fn quote(&mut self, value: &ArcValue<'in_arena>) -> Term<'out_arena> {
         let value = self.elim_context().force(value);
         match value.as_ref() {
             Value::Stuck(head, spine) => {
@@ -403,8 +460,7 @@ impl<'in_arena, 'out_arena, 'env> QuoteContext<'in_arena, 'out_arena, 'env> {
             }
             Value::RecordType(labels, types) => {
                 let labels = self.scope.to_scope_from_iter(labels.iter().copied()); // FIXME: avoid copy if this is the same arena?
-                let types =
-                    (self.scope).to_scope_from_iter(types.iter().map(|r#type| self.quote(r#type)));
+                let types = self.quote_telescope(types);
 
                 Term::RecordType(labels, types)
             }
@@ -428,6 +484,26 @@ impl<'in_arena, 'out_arena, 'env> QuoteContext<'in_arena, 'out_arena, 'env> {
         self.pop_rigid();
 
         term
+    }
+
+    /// Quote a [telescope][Telescope] back into a slice of [terms][Term].
+    fn quote_telescope(
+        &mut self,
+        telescope: &Telescope<'in_arena>,
+    ) -> &'out_arena mut [Term<'out_arena>] {
+        let initial_rigid_len = self.rigid_exprs;
+        let mut telescope = telescope.clone();
+        let mut terms = SliceBuilder::new(self.scope, telescope.len(), Term::ReportedError);
+
+        while let Some((value, next_telescope)) = self.elim_context().split_telescope(telescope) {
+            let var = Arc::new(Value::rigid_var(self.rigid_exprs.next_global()));
+            telescope = next_telescope.resume(var);
+            terms.push(self.quote(&value));
+            self.rigid_exprs.push();
+        }
+
+        self.rigid_exprs.truncate(initial_rigid_len);
+        terms.into()
     }
 }
 
@@ -472,7 +548,7 @@ impl<'arena, 'env> ConversionContext<'arena, 'env> {
     ///
     /// [computationally equal]: https://ncatlab.org/nlab/show/equality#computational_equality
     /// [eta-conversion]: https://ncatlab.org/nlab/show/eta-conversion
-    pub fn is_equal(&mut self, value0: &Arc<Value<'_>>, value1: &Arc<Value<'_>>) -> bool {
+    pub fn is_equal(&mut self, value0: &ArcValue<'_>, value1: &ArcValue<'_>) -> bool {
         let value0 = self.elim_context().force(value0);
         let value1 = self.elim_context().force(value1);
 
@@ -520,12 +596,7 @@ impl<'arena, 'env> ConversionContext<'arena, 'env> {
                 if labels0 != labels1 {
                     return false;
                 }
-                for (type0, type1) in Iterator::zip(types0.iter(), types1.iter()) {
-                    if !self.is_equal(&type0, &type1) {
-                        return false;
-                    }
-                }
-                true
+                self.is_equal_telescopes(types0, types1)
             }
 
             (Value::RecordIntro(labels0, exprs0), Value::RecordIntro(labels1, exprs1)) => {
@@ -564,12 +635,41 @@ impl<'arena, 'env> ConversionContext<'arena, 'env> {
         result
     }
 
-    /// Check that a function is equal to a value, using eta-conversion.
-    fn is_equal_fun_intro_elim(
+    /// Check that two [telescopes][Telescope] are equal.
+    pub fn is_equal_telescopes(
         &mut self,
-        output_expr: &Closure<'_>,
-        value: &Arc<Value<'_>>,
+        telescope0: &Telescope<'_>,
+        telescope1: &Telescope<'_>,
     ) -> bool {
+        if telescope0.len() != telescope1.len() {
+            return false;
+        }
+
+        let initial_rigid_len = self.rigid_exprs;
+        let mut telescope0 = telescope0.clone();
+        let mut telescope1 = telescope1.clone();
+
+        while let Some(((value0, next_telescope0), (value1, next_telescope1))) = Option::zip(
+            self.elim_context().split_telescope(telescope0),
+            self.elim_context().split_telescope(telescope1),
+        ) {
+            if !self.is_equal(&value0, &value1) {
+                self.rigid_exprs.truncate(initial_rigid_len);
+                return false;
+            }
+
+            let var = Arc::new(Value::rigid_var(self.rigid_exprs.next_global()));
+            telescope0 = next_telescope0.resume(var.clone());
+            telescope1 = next_telescope1.resume(var);
+            self.rigid_exprs.push();
+        }
+
+        self.rigid_exprs.truncate(initial_rigid_len);
+        true
+    }
+
+    /// Check that a function is equal to a value, using eta-conversion.
+    fn is_equal_fun_intro_elim(&mut self, output_expr: &Closure<'_>, value: &ArcValue<'_>) -> bool {
         let var = Arc::new(Value::rigid_var(self.rigid_exprs.next_global()));
         let value = self.elim_context().apply_fun(value.clone(), var.clone());
         let output_expr = self.elim_context().apply_closure(output_expr, var);
@@ -585,8 +685,8 @@ impl<'arena, 'env> ConversionContext<'arena, 'env> {
     fn is_equal_record_intro_elim(
         &mut self,
         labels: &[StringId],
-        exprs: &[Arc<Value<'_>>],
-        value: &Arc<Value<'_>>,
+        exprs: &[ArcValue<'_>],
+        value: &ArcValue<'_>,
     ) -> bool {
         for (label, expr) in Iterator::zip(labels.iter(), exprs.iter()) {
             let field_value = self.elim_context().apply_record(value.clone(), *label);

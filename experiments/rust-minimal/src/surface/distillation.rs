@@ -2,7 +2,7 @@
 
 use scoped_arena::Scope;
 
-use crate::env::{self, LocalVar, UniqueEnv};
+use crate::env::{self, EnvLen, LocalVar, UniqueEnv};
 use crate::surface::Term;
 use crate::{core, BytePos, ByteRange, StringId, StringInterner};
 
@@ -31,6 +31,10 @@ impl<'arena> Context<'arena> {
         }
     }
 
+    fn rigid_len(&mut self) -> EnvLen {
+        self.names.len()
+    }
+
     fn get_rigid_name(&self, var: LocalVar) -> Option<StringId> {
         self.names.get_local(var).copied()
     }
@@ -43,6 +47,10 @@ impl<'arena> Context<'arena> {
 
     fn pop_rigid(&mut self) {
         self.names.pop();
+    }
+
+    fn truncate_rigid(&mut self, len: EnvLen) {
+        self.names.truncate(len);
     }
 
     /// Distill a core term into a surface term, in a 'checkable' context.
@@ -193,10 +201,15 @@ impl<'arena> Context<'arena> {
                 self.scope.to_scope(Term::Universe(PLACEHOLDER_RANGE)),
             ),
             core::Term::RecordType(labels, types) => {
-                let type_fields = self.scope.to_scope_from_iter(
-                    Iterator::zip(labels.iter(), types.iter())
-                        .map(|(label, r#type)| ((PLACEHOLDER_RANGE, *label), self.check(r#type))),
+                let initial_rigid_len = self.rigid_len();
+                let type_fields = (self.scope).to_scope_from_iter(
+                    Iterator::zip(labels.iter(), types.iter()).map(|(label, r#type)| {
+                        let r#type = self.check(r#type);
+                        self.push_rigid(Some(*label));
+                        ((PLACEHOLDER_RANGE, *label), r#type)
+                    }),
                 );
+                self.truncate_rigid(initial_rigid_len);
 
                 Term::RecordType(PLACEHOLDER_RANGE, type_fields)
             }
