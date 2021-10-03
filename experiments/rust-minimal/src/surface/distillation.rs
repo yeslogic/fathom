@@ -13,8 +13,8 @@ const PLACEHOLDER_RANGE: ByteRange = ByteRange::new(PLACEHOLDER_POS, PLACEHOLDER
 pub struct Context<'arena> {
     /// Scoped arena for storing distilled terms.
     scope: &'arena Scope<'arena>,
-    /// Name environment.
-    names: UniqueEnv<StringId>,
+    /// Rigid name environment.
+    rigid_names: UniqueEnv<StringId>,
 
     placeholder_string: StringId,
 }
@@ -26,31 +26,31 @@ impl<'arena> Context<'arena> {
 
         Context {
             scope,
-            names: UniqueEnv::new(),
+            rigid_names: UniqueEnv::new(),
             placeholder_string,
         }
     }
 
     fn rigid_len(&mut self) -> EnvLen {
-        self.names.len()
+        self.rigid_names.len()
     }
 
     fn get_rigid_name(&self, var: LocalVar) -> Option<StringId> {
-        self.names.get_local(var).copied()
+        self.rigid_names.get_local(var).copied()
     }
 
     fn push_rigid(&mut self, name: Option<StringId>) -> StringId {
-        let name = name.unwrap_or(self.placeholder_string); // TODO: choose a better name
-        self.names.push(name); // TODO: ensure we chose a correctly bound name
+        let name = name.unwrap_or(self.placeholder_string); // TODO: choose a better name?
+        self.rigid_names.push(name); // TODO: ensure we chose a correctly bound name
         name
     }
 
     fn pop_rigid(&mut self) {
-        self.names.pop();
+        self.rigid_names.pop();
     }
 
     fn truncate_rigid(&mut self, len: EnvLen) {
-        self.names.truncate(len);
+        self.rigid_names.truncate(len);
     }
 
     /// Distill a core term into a surface term, in a 'checkable' context.
@@ -124,7 +124,7 @@ impl<'arena> Context<'arena> {
                     match info {
                         core::EntryInfo::Concrete => {}
                         core::EntryInfo::Abstract => {
-                            let var = self.names.len().global_to_local(var).unwrap();
+                            let var = self.rigid_len().global_to_local(var).unwrap();
                             let input_expr = self.synth(&core::Term::RigidVar(var));
                             head_expr = Term::FunElim(
                                 self.scope.to_scope(head_expr),
