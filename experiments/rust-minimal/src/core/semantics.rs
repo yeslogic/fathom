@@ -9,6 +9,8 @@ use crate::core::{EntryInfo, Term};
 use crate::env::{EnvLen, GlobalVar, SharedEnv, SliceEnv};
 use crate::{SliceBuilder, StringId};
 
+/// Atomically reference counted values. We use reference counting to increase
+/// the amount of sharing we can achieve during evaluation.
 pub type ArcValue<'arena> = Arc<Value<'arena>>;
 
 /// Values in weak-head-normal form, with bindings converted to closures.
