@@ -203,10 +203,6 @@ impl<'arena> Context<'arena> {
         semantics::QuoteContext::new(scope, self.rigid_exprs.len(), &self.flexible_exprs)
     }
 
-    fn close_term(&self, term: core::Term<'arena>) -> Closure<'arena> {
-        Closure::new(self.rigid_exprs.clone(), self.scope.to_scope(term))
-    }
-
     fn apply_closure(
         &mut self,
         closure: &Closure<'arena>,
@@ -475,11 +471,13 @@ impl<'arena> Context<'arena> {
                 let output_type = self.quote_context(self.scope).quote(&output_type);
                 self.pop_rigid();
 
-                let output_type = self.close_term(output_type);
-
                 (
                     core::Term::FunIntro(input_name, self.scope.to_scope(output_expr)),
-                    Arc::new(Value::FunType(input_name, input_type, output_type)),
+                    Arc::new(Value::FunType(
+                        input_name,
+                        input_type,
+                        Closure::new(self.rigid_exprs.clone(), self.scope.to_scope(output_type)),
+                    )),
                 )
             }
             Term::FunElim(head_expr, input_expr) => {
@@ -519,7 +517,10 @@ impl<'arena> Context<'arena> {
                             self.push_flexible_term(head_range, FlexSource::FunOutputType);
                         self.pop_rigid();
 
-                        let output_type = self.close_term(output_type);
+                        let output_type = Closure::new(
+                            self.rigid_exprs.clone(),
+                            self.scope.to_scope(output_type),
+                        );
                         let fun_type = Arc::new(Value::FunType(
                             None,
                             input_type.clone(),

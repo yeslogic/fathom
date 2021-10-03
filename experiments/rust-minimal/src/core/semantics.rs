@@ -174,10 +174,6 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
         ElimContext::new(self.flexible_exprs)
     }
 
-    fn close_term(&self, term: &'arena Term<'arena>) -> Closure<'arena> {
-        Closure::new(self.rigid_exprs.clone(), term)
-    }
-
     /// Fully normalise a term by first [evaluating][EvalContext::eval] it into
     /// a [value][Value], then [quoting it back][QuoteContext::quote] into a
     /// [term][Term].
@@ -230,26 +226,25 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
             Term::FunType(input_name, input_type, output_type) => Arc::new(Value::FunType(
                 *input_name,
                 self.eval(input_type),
-                self.close_term(output_type),
+                Closure::new(self.rigid_exprs.clone(), output_type),
             )),
-            Term::FunIntro(input_name, output_expr) => {
-                Arc::new(Value::FunIntro(*input_name, self.close_term(output_expr)))
-            }
+            Term::FunIntro(input_name, output_expr) => Arc::new(Value::FunIntro(
+                *input_name,
+                Closure::new(self.rigid_exprs.clone(), output_expr),
+            )),
             Term::FunElim(head_expr, input_expr) => {
                 let head_expr = self.eval(head_expr);
                 let input_expr = self.eval(input_expr);
                 self.elim_context().apply_fun(head_expr, input_expr)
             }
-            Term::RecordType(labels, types) => {
-                let types = Telescope::new(self.rigid_exprs.clone(), types);
-
-                Arc::new(Value::RecordType(labels, types))
-            }
-            Term::RecordIntro(labels, exprs) => {
-                let exprs = exprs.iter().map(|expr| self.eval(expr)).collect();
-
-                Arc::new(Value::RecordIntro(labels, exprs))
-            }
+            Term::RecordType(labels, types) => Arc::new(Value::RecordType(
+                labels,
+                Telescope::new(self.rigid_exprs.clone(), types),
+            )),
+            Term::RecordIntro(labels, exprs) => Arc::new(Value::RecordIntro(
+                labels,
+                exprs.iter().map(|expr| self.eval(expr)).collect(),
+            )),
             Term::RecordElim(head_expr, label) => {
                 let head_expr = self.eval(head_expr);
                 self.elim_context().apply_record(head_expr, *label)
