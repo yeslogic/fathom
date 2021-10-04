@@ -474,23 +474,10 @@ impl<'arena> Context<'arena> {
 
                 // Ensure that the head type is a function type
                 let head_type = self.elim_context().force(&head_type);
-                match head_type.as_ref() {
+                let (head_expr, input_type, output_type) = match head_type.as_ref() {
                     // The simple case - it's easy to see that it is a function type!
                     Value::FunType(_, input_type, output_type) => {
-                        // Check the input expression and apply it to the output type
-                        let input_expr = self.check(input_expr, &input_type);
-                        let input_expr_value = self.eval_context().eval(&input_expr);
-                        let output_type = self
-                            .elim_context()
-                            .apply_closure(&output_type, input_expr_value);
-
-                        // Construct the final elimination
-                        let fun_elim = core::Term::FunElim(
-                            self.scope.to_scope(head_expr),
-                            self.scope.to_scope(input_expr),
-                        );
-
-                        (fun_elim, output_type)
+                        (head_expr, input_type.clone(), output_type.clone())
                     }
                     // It's not immediately obvious that the head type is a
                     // function type, so instead we construct a function type
@@ -498,15 +485,17 @@ impl<'arena> Context<'arena> {
                     // output types, and then we attempt to unify the head type
                     // against it.
                     _ => {
-                        // Create a function type between flexible variables.
+                        // Create a flexible input type
                         let input_type =
                             self.push_flexible_value(head_range, FlexSource::FunInputType(None));
 
+                        // Create a flexible output type, with the input bound
                         self.push_rigid_parameter(None, input_type.clone());
                         let output_type =
                             self.push_flexible_term(head_range, FlexSource::FunOutputType);
                         self.pop_rigid();
 
+                        // Create a function type between the flexible variables.
                         let output_type = Closure::new(
                             self.rigid_exprs.clone(),
                             self.scope.to_scope(output_type),
@@ -520,22 +509,24 @@ impl<'arena> Context<'arena> {
                         // Unify the type of the head expression with the function type
                         let head_expr = self.convert(head_range, head_expr, &head_type, &fun_type);
 
-                        // Check the input expression and apply it to the output type
-                        let input_expr = self.check(input_expr, &input_type);
-                        let input_expr_value = self.eval_context().eval(&input_expr);
-                        let output_type = self
-                            .elim_context()
-                            .apply_closure(&output_type, input_expr_value);
-
-                        // Construct the final elimination
-                        let fun_elim = core::Term::FunElim(
-                            self.scope.to_scope(head_expr),
-                            self.scope.to_scope(input_expr),
-                        );
-
-                        (fun_elim, output_type)
+                        (head_expr, input_type, output_type)
                     }
-                }
+                };
+
+                // Check the input expression and apply it to the output type
+                let input_expr = self.check(input_expr, &input_type);
+                let input_expr_value = self.eval_context().eval(&input_expr);
+                let output_type = self
+                    .elim_context()
+                    .apply_closure(&output_type, input_expr_value);
+
+                // Construct the final elimination
+                let fun_elim = core::Term::FunElim(
+                    self.scope.to_scope(head_expr),
+                    self.scope.to_scope(input_expr),
+                );
+
+                (fun_elim, output_type)
             }
             Term::RecordType(range, type_fields) => {
                 let duplicate_indices = self.report_duplicate_labels(*range, type_fields);
