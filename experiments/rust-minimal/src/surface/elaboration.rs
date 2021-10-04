@@ -184,10 +184,6 @@ impl<'arena> Context<'arena> {
         )
     }
 
-    pub fn force(&mut self, term: &ArcValue<'arena>) -> ArcValue<'arena> {
-        semantics::ElimContext::new(&self.flexible_exprs).force(term)
-    }
-
     pub fn eval_context<'this>(&'this mut self) -> semantics::EvalContext<'arena, 'this> {
         semantics::EvalContext::new(&mut self.rigid_exprs, &self.flexible_exprs)
     }
@@ -201,14 +197,6 @@ impl<'arena> Context<'arena> {
         scope: &'out_arena Scope<'out_arena>,
     ) -> semantics::QuoteContext<'arena, 'out_arena, '_> {
         semantics::QuoteContext::new(scope, self.rigid_exprs.len(), &self.flexible_exprs)
-    }
-
-    fn apply_closure(
-        &mut self,
-        closure: &Closure<'arena>,
-        input_expr: ArcValue<'arena>,
-    ) -> ArcValue<'arena> {
-        semantics::ElimContext::new(&self.flexible_exprs).apply_closure(closure, input_expr)
     }
 
     fn unification_context<'this>(&'this mut self) -> unification::Context<'arena, 'this> {
@@ -280,7 +268,7 @@ impl<'arena> Context<'arena> {
         surface_term: &Term<'_>,
         expected_type: &ArcValue<'arena>,
     ) -> core::Term<'arena> {
-        let expected_type = self.force(expected_type);
+        let expected_type = self.elim_context().force(expected_type);
 
         match (surface_term, expected_type.as_ref()) {
             (Term::Let(_, (_, def_name), def_type, def_expr, output_expr), _) => {
@@ -317,7 +305,7 @@ impl<'arena> Context<'arena> {
                 Value::FunType(_, input_type, output_type),
             ) => {
                 let input_expr = self.push_rigid_parameter(Some(*input_name), input_type.clone());
-                let output_type = self.apply_closure(output_type, input_expr);
+                let output_type = self.elim_context().apply_closure(output_type, input_expr);
                 let output_expr = self.check(output_expr, &output_type);
                 self.pop_rigid();
 
@@ -485,14 +473,16 @@ impl<'arena> Context<'arena> {
                 let (head_expr, head_type) = self.synth(head_expr);
 
                 // Ensure that the head type is a function type
-                let head_type = self.force(&head_type);
+                let head_type = self.elim_context().force(&head_type);
                 match head_type.as_ref() {
                     // The simple case - it's easy to see that it is a function type!
                     Value::FunType(_, input_type, output_type) => {
                         // Check the input expression and apply it to the output type
                         let input_expr = self.check(input_expr, &input_type);
                         let input_expr_value = self.eval_context().eval(&input_expr);
-                        let output_type = self.apply_closure(&output_type, input_expr_value);
+                        let output_type = self
+                            .elim_context()
+                            .apply_closure(&output_type, input_expr_value);
 
                         // Construct the final elimination
                         let fun_elim = core::Term::FunElim(
@@ -533,7 +523,9 @@ impl<'arena> Context<'arena> {
                         // Check the input expression and apply it to the output type
                         let input_expr = self.check(input_expr, &input_type);
                         let input_expr_value = self.eval_context().eval(&input_expr);
-                        let output_type = self.apply_closure(&output_type, input_expr_value);
+                        let output_type = self
+                            .elim_context()
+                            .apply_closure(&output_type, input_expr_value);
 
                         // Construct the final elimination
                         let fun_elim = core::Term::FunElim(
@@ -603,7 +595,9 @@ impl<'arena> Context<'arena> {
                 let head_expr_value = self.eval_context().eval(&head_expr);
 
                 // TODO: check for reported error?
-                if let Value::RecordType(labels, types) = self.force(&head_type).as_ref() {
+                if let Value::RecordType(labels, types) =
+                    self.elim_context().force(&head_type).as_ref()
+                {
                     let mut labels = labels.iter();
                     let mut types = types.clone();
 
