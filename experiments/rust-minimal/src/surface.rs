@@ -40,16 +40,8 @@ pub enum Term<'arena> {
     ),
     FunIntro(BytePos, (ByteRange, StringId), &'arena Term<'arena>),
     FunElim(&'arena Term<'arena>, &'arena Term<'arena>),
-    RecordType(
-        ByteRange,
-        // TODO: allocate fields in arena
-        &'arena [((ByteRange, StringId), Term<'arena>)],
-    ),
-    RecordIntro(
-        ByteRange,
-        // TODO: allocate fields in arena
-        &'arena [((ByteRange, StringId), Term<'arena>)],
-    ),
+    RecordType(ByteRange, &'arena [((ByteRange, StringId), Term<'arena>)]),
+    RecordIntro(ByteRange, &'arena [((ByteRange, StringId), Term<'arena>)]),
     RecordEmpty(ByteRange),
     RecordElim(&'arena Term<'arena>, (ByteRange, StringId)),
     ReportedError(ByteRange),
