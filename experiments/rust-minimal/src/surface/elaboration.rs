@@ -184,11 +184,11 @@ impl<'arena> Context<'arena> {
         )
     }
 
-    pub fn eval_context<'this>(&'this mut self) -> semantics::EvalContext<'arena, 'this> {
+    pub fn eval_context(&mut self) -> semantics::EvalContext<'arena, '_> {
         semantics::EvalContext::new(&mut self.rigid_exprs, &self.flexible_exprs)
     }
 
-    pub fn elim_context<'this>(&'this self) -> semantics::ElimContext<'arena, 'this> {
+    pub fn elim_context(&self) -> semantics::ElimContext<'arena, '_> {
         semantics::ElimContext::new(&self.flexible_exprs)
     }
 
@@ -199,7 +199,7 @@ impl<'arena> Context<'arena> {
         semantics::QuoteContext::new(scope, self.rigid_exprs.len(), &self.flexible_exprs)
     }
 
-    fn unification_context<'this>(&'this mut self) -> unification::Context<'arena, 'this> {
+    fn unification_context(&mut self) -> unification::Context<'arena, '_> {
         unification::Context::new(
             &self.scope,
             &mut self.renaming,
