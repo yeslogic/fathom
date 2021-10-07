@@ -48,6 +48,7 @@ extern {
         "f32le" => Token::KeywordFormatF32Le,
         "f64be" => Token::KeywordFormatF64Be,
         "f64le" => Token::KeywordFormatF64Le,
+        "Repr" => Token::KeywordFormatRepr,
 
         ":" => Token::Colon,
         "," => Token::Comma,
@@ -122,6 +123,9 @@ AppTerm: Term<'arena> = {
             scope.to_scope(head_expr),
             scope.to_scope(input_expr),
         )
+    },
+    <start: @L> "Repr" <head_expr: AtomicTerm> => {
+        Term::FormatRepr(start, scope.to_scope(head_expr))
     },
 };
 

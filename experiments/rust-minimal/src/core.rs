@@ -194,6 +194,8 @@ pub enum Term<'arena> {
     FormatF64Be,
     /// 64-bit, IEEE-754 floating point formats (little-endian).
     FormatF64Le,
+    /// Format representations.
+    FormatRepr(&'arena Term<'arena>),
 
     /// Reported errors.
     ReportedError,

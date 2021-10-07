@@ -1,0 +1,21 @@
+// let test_fail : Repr fail -> Never = fun x => x;
+let test_u8_repr : Repr u8 -> U8 = fun x => x;
+let test_u16be_repr : Repr u16be -> U16 = fun x => x;
+let test_u16le_repr : Repr u16le -> U16 = fun x => x;
+let test_u32be_repr : Repr u32be -> U32 = fun x => x;
+let test_u32le_repr : Repr u32le -> U32 = fun x => x;
+let test_u64be_repr : Repr u64be -> U64 = fun x => x;
+let test_u64le_repr : Repr u64le -> U64 = fun x => x;
+let test_s8_repr : Repr s8 -> S8 = fun x => x;
+let test_s16be_repr : Repr s16be -> S16 = fun x => x;
+let test_s16le_repr : Repr s16le -> S16 = fun x => x;
+let test_s32be_repr : Repr s32be -> S32 = fun x => x;
+let test_s32le_repr : Repr s32le -> S32 = fun x => x;
+let test_s64be_repr : Repr s64be -> S64 = fun x => x;
+let test_s64le_repr : Repr s64le -> S64 = fun x => x;
+let test_f32be_repr : Repr f32be -> F32 = fun x => x;
+let test_f32le_repr : Repr f32le -> F32 = fun x => x;
+let test_f64be_repr : Repr f64be -> F64 = fun x => x;
+let test_f64le_repr : Repr f64le -> F64 = fun x => x;
+
+Type

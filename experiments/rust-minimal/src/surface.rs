@@ -75,7 +75,6 @@ pub enum Term<'arena> {
     // TODO: FormatSequence(ByteRange, &'arena [((ByteRange, StringId), Term<'arena>)]),
     // TODO: FormatRead(ByteRange, (ByteRange, StringId), &'arena Term<'arena>, &'arena Term<'arena>),
     // TODO: FormatWrap(ByteRange, &'arena Term<'arena>),
-    // TODO: FormatRepr(ByteRange, &'arena Term<'arena>),
     FormatFail(ByteRange),  // TODO: Use `Name` variant instead
     FormatU8(ByteRange),    // TODO: Use `Name` variant instead
     FormatU16Be(ByteRange), // TODO: Use `Name` variant instead
@@ -99,6 +98,8 @@ pub enum Term<'arena> {
     // TODO: FormatArray16(ByteRange, &'arena Term<'arena>, &'arena Term<'arena>), // TODO: Use `Name` variant instead
     // TODO: FormatArray32(ByteRange, &'arena Term<'arena>, &'arena Term<'arena>), // TODO: Use `Name` variant instead
     // TODO: FormatArray64(ByteRange, &'arena Term<'arena>, &'arena Term<'arena>), // TODO: Use `Name` variant instead
+    FormatRepr(BytePos, &'arena Term<'arena>),
+
     ReportedError(ByteRange),
 }
 
@@ -164,6 +165,7 @@ impl<'arena> Term<'arena> {
             | Term::FormatF32Le(range)
             | Term::FormatF64Be(range)
             | Term::FormatF64Le(range) => range.start(),
+            Term::FormatRepr(start, _) => *start,
 
             Term::ReportedError(range) => range.start(),
         }
@@ -216,6 +218,7 @@ impl<'arena> Term<'arena> {
             | Term::FormatF32Le(range)
             | Term::FormatF64Be(range)
             | Term::FormatF64Le(range) => range.end(),
+            Term::FormatRepr(_, expr) => expr.end(),
 
             Term::ReportedError(range) => range.end(),
         }

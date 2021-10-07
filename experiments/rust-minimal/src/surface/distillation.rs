@@ -261,6 +261,10 @@ impl<'arena> Context<'arena> {
             core::Term::FormatF32Le => Term::FormatF32Le(PLACEHOLDER_RANGE),
             core::Term::FormatF64Be => Term::FormatF64Be(PLACEHOLDER_RANGE),
             core::Term::FormatF64Le => Term::FormatF64Le(PLACEHOLDER_RANGE),
+            core::Term::FormatRepr(expr) => {
+                let expr = self.check(expr);
+                Term::FormatRepr(PLACEHOLDER_POS, self.scope.to_scope(expr))
+            }
 
             // NOTE: Not sure if this is a great approach!
             core::Term::ReportedError => Term::Hole(PLACEHOLDER_RANGE, None),

@@ -73,6 +73,8 @@ pub enum Token<'source> {
     KeywordFormatF64Be,
     #[token("f64le")]
     KeywordFormatF64Le,
+    #[token("Repr")]
+    KeywordFormatRepr,
 
     #[token(":")]
     Colon,

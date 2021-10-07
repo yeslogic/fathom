@@ -128,6 +128,8 @@ pub enum Elim<'arena> {
     Fun(ArcValue<'arena>),
     /// Record eliminations.
     Record(StringId),
+    /// Format repr eliminations.
+    FormatRepr,
 }
 
 /// A closure is a term that can later be instantiated with a value.
@@ -343,6 +345,10 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
             Term::FormatF32Le => Arc::new(Value::FormatF32Le),
             Term::FormatF64Be => Arc::new(Value::FormatF64Be),
             Term::FormatF64Le => Arc::new(Value::FormatF64Le),
+            Term::FormatRepr(head_expr) => {
+                let head_expr = self.eval(head_expr);
+                self.elim_context().apply_format_repr(head_expr)
+            }
 
             Term::ReportedError => Arc::new(Value::reported_error()),
         }
@@ -451,6 +457,38 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
         }
     }
 
+    /// Find the representation type of a format expression
+    fn apply_format_repr(&self, mut head_expr: ArcValue<'arena>) -> Arc<Value<'arena>> {
+        match Arc::make_mut(&mut head_expr) {
+            // Beta-reduction
+            Value::FormatFail => todo!(),
+            Value::FormatU8 => Arc::new(Value::U8Type),
+            Value::FormatU16Be => Arc::new(Value::U16Type),
+            Value::FormatU16Le => Arc::new(Value::U16Type),
+            Value::FormatU32Be => Arc::new(Value::U32Type),
+            Value::FormatU32Le => Arc::new(Value::U32Type),
+            Value::FormatU64Be => Arc::new(Value::U64Type),
+            Value::FormatU64Le => Arc::new(Value::U64Type),
+            Value::FormatS8 => Arc::new(Value::S8Type),
+            Value::FormatS16Be => Arc::new(Value::S16Type),
+            Value::FormatS16Le => Arc::new(Value::S16Type),
+            Value::FormatS32Be => Arc::new(Value::S32Type),
+            Value::FormatS32Le => Arc::new(Value::S32Type),
+            Value::FormatS64Be => Arc::new(Value::S64Type),
+            Value::FormatS64Le => Arc::new(Value::S64Type),
+            Value::FormatF32Be => Arc::new(Value::F32Type),
+            Value::FormatF32Le => Arc::new(Value::F32Type),
+            Value::FormatF64Be => Arc::new(Value::F64Type),
+            Value::FormatF64Le => Arc::new(Value::F64Type),
+            // The computation is stuck, preventing further reduction
+            Value::Stuck(_, spine) => {
+                spine.push(Elim::FormatRepr);
+                head_expr
+            }
+            _ => panic_any(Error::InvalidFunctionElim),
+        }
+    }
+
     /// Apply an expression to an elimination spine.
     pub fn apply_spine(
         &self,
@@ -461,6 +499,7 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
             head_expr = match elim {
                 Elim::Fun(input_expr) => self.apply_fun(head_expr, input_expr.clone()),
                 Elim::Record(label) => self.apply_record(head_expr, *label),
+                Elim::FormatRepr => self.apply_format_repr(head_expr),
             };
         }
         head_expr
@@ -529,6 +568,7 @@ impl<'in_arena, 'out_arena, 'env> QuoteContext<'in_arena, 'out_arena, 'env> {
                         Elim::Record(label) => {
                             Term::RecordElim(self.scope.to_scope(head_expr), *label)
                         }
+                        Elim::FormatRepr => Term::FormatRepr(self.scope.to_scope(head_expr)),
                     };
                 }
 
@@ -690,6 +730,8 @@ impl<'arena, 'env> ConversionContext<'arena, 'env> {
                     match (elim0, elim1) {
                         (Elim::Fun(input_expr0), Elim::Fun(input_expr1))
                             if self.is_equal(input_expr0, input_expr1) => {}
+                        (Elim::Record(label0), Elim::Record(label1)) if label0 == label1 => {}
+                        (Elim::FormatRepr, Elim::FormatRepr) => {}
                         (_, _) => return false,
                     }
                 }

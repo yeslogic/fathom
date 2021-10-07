@@ -217,6 +217,14 @@ impl<'doc> Context<'doc> {
             Term::FormatF32Le(_) => self.text("f32le"),
             Term::FormatF64Be(_) => self.text("f64be"),
             Term::FormatF64Le(_) => self.text("f64le"),
+            Term::FormatRepr(_, expr) => self.paren(
+                prec > Prec::App,
+                self.concat([
+                    self.text("Repr"),
+                    self.space(),
+                    self.term_prec(Prec::Atomic, expr),
+                ]),
+            ),
 
             Term::ReportedError(_) => self.text("_"),
         }

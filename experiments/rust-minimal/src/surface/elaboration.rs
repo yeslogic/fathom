@@ -652,6 +652,13 @@ impl<'arena> Context<'arena> {
             Term::FormatF32Le(_) => (core::Term::FormatF32Le, Arc::new(Value::FormatType)),
             Term::FormatF64Be(_) => (core::Term::FormatF64Be, Arc::new(Value::FormatType)),
             Term::FormatF64Le(_) => (core::Term::FormatF64Le, Arc::new(Value::FormatType)),
+            Term::FormatRepr(_, expr) => {
+                let expr = self.check(expr, &Arc::new(Value::FormatType));
+                (
+                    core::Term::FormatRepr(self.scope.to_scope(expr)),
+                    Arc::new(Value::Universe),
+                )
+            }
 
             Term::ReportedError(range) => (
                 core::Term::ReportedError,

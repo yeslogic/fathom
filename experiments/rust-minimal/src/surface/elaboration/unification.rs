@@ -280,6 +280,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
                     self.unify(input_expr0, input_expr1)?;
                 }
                 (Elim::Record(label0), Elim::Record(label1)) if label0 == label1 => {}
+                (Elim::FormatRepr, Elim::FormatRepr) => {}
                 (_, _) => return Err(Error::Mismatched),
             }
         }
@@ -410,6 +411,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
                     _ => return Err(Error::NonLinearSpine),
                 },
                 Elim::Record(_) => todo!("needs expansion"), // TODO: Not sure how to handle this!
+                Elim::FormatRepr => todo!("needs expansion"), // TODO: Not sure how to handle this!
             }
         }
 
@@ -422,6 +424,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
         spine.iter().fold(Ok(term), |term, elim| match elim {
             Elim::Fun(_) => Ok(Term::FunIntro(None, self.scope.to_scope(term?))),
             Elim::Record(_) => todo!("needs expansion"), // TODO: Not sure how to handle this!
+            Elim::FormatRepr => todo!("needs expansion"), // TODO: Not sure how to handle this!
         })
     }
 
@@ -464,6 +467,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
                         Elim::Record(label) => {
                             Term::RecordElim(self.scope.to_scope(head_expr), *label)
                         }
+                        Elim::FormatRepr => Term::FormatRepr(self.scope.to_scope(head_expr)),
                     };
                 }
 
