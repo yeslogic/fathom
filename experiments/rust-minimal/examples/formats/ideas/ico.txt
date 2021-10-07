@@ -7,6 +7,11 @@
 //! - [Wikipedia](https://en.wikipedia.org/wiki/ICO_(file_format))
 //! - [Wikidata](https://www.wikidata.org/wiki/Q729366)
 
+let reserved : fun (f : Format) -> Repr f -> Format =
+    fun f => fun default =>
+        let _ <- f;
+        return default;
+
 let image = {
     width <- u8 if 0 then 256,
     height <- u8 if 0 then 256,
