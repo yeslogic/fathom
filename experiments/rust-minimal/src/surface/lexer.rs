@@ -12,6 +12,47 @@ pub enum Token<'source> {
     #[token("Type")]
     KeywordType,
 
+    #[token("Format")]
+    KeywordFormatType,
+    #[token("fail")]
+    KeywordFormatFail,
+    #[token("u8")]
+    KeywordFormatU8,
+    #[token("u16be")]
+    KeywordFormatU16Be,
+    #[token("u16le")]
+    KeywordFormatU16Le,
+    #[token("u32be")]
+    KeywordFormatU32Be,
+    #[token("u32le")]
+    KeywordFormatU32Le,
+    #[token("u64be")]
+    KeywordFormatU64Be,
+    #[token("u64le")]
+    KeywordFormatU64Le,
+    #[token("s8")]
+    KeywordFormatS8,
+    #[token("s16be")]
+    KeywordFormatS16Be,
+    #[token("s16le")]
+    KeywordFormatS16Le,
+    #[token("s32be")]
+    KeywordFormatS32Be,
+    #[token("s32le")]
+    KeywordFormatS32Le,
+    #[token("s64be")]
+    KeywordFormatS64Be,
+    #[token("s64le")]
+    KeywordFormatS64Le,
+    #[token("f32be")]
+    KeywordFormatF32Be,
+    #[token("f32le")]
+    KeywordFormatF32Le,
+    #[token("f64be")]
+    KeywordFormatF64Be,
+    #[token("f64le")]
+    KeywordFormatF64Le,
+
     #[token(":")]
     Colon,
     #[token(",")]

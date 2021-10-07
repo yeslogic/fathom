@@ -31,6 +31,47 @@ pub enum Value<'arena> {
     RecordType(&'arena [StringId], Telescope<'arena>),
     /// Record introductions.
     RecordIntro(&'arena [StringId], Vec<ArcValue<'arena>>),
+
+    /// Type of format descriptions.
+    FormatType,
+    /// A format that always fails to parse.
+    FormatFail,
+    /// Unsigned, 8-bit integer formats.
+    FormatU8,
+    /// Unsigned, 16-bit integer formats (big-endian).
+    FormatU16Be,
+    /// Unsigned, 16-bit integer formats (little-endian).
+    FormatU16Le,
+    /// Unsigned, 32-bit integer formats (big-endian).
+    FormatU32Be,
+    /// Unsigned, 32-bit integer formats (little-endian).
+    FormatU32Le,
+    /// Unsigned, 64-bit integer formats (big-endian).
+    FormatU64Be,
+    /// Unsigned, 64-bit integer formats (little-endian).
+    FormatU64Le,
+    /// Signed, two's-complement, 8-bit integer formats.
+    FormatS8,
+    /// Signed, two's-complement, 16-bit integer formats (big-endian).
+    FormatS16Be,
+    /// Signed, two's-complement, 16-bit integer formats (little-endian).
+    FormatS16Le,
+    /// Signed, two's-complement, 32-bit integer formats (big-endian).
+    FormatS32Be,
+    /// Signed, two's-complement, 32-bit integer formats (little-endian).
+    FormatS32Le,
+    /// Signed, two's-complement, 64-bit integer formats (big-endian).
+    FormatS64Be,
+    /// Signed, two's-complement, 64-bit integer formats (little-endian).
+    FormatS64Le,
+    /// 32-bit, IEEE-754 floating point formats (big-endian).
+    FormatF32Be,
+    /// 32-bit, IEEE-754 floating point formats (little-endian).
+    FormatF32Le,
+    /// 64-bit, IEEE-754 floating point formats (big-endian).
+    FormatF64Be,
+    /// 64-bit, IEEE-754 floating point formats (little-endian).
+    FormatF64Le,
 }
 
 impl<'arena> Value<'arena> {
@@ -249,6 +290,26 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
                 let head_expr = self.eval(head_expr);
                 self.elim_context().apply_record(head_expr, *label)
             }
+            Term::FormatType => Arc::new(Value::FormatType),
+            Term::FormatFail => Arc::new(Value::FormatFail),
+            Term::FormatU8 => Arc::new(Value::FormatU8),
+            Term::FormatU16Be => Arc::new(Value::FormatU16Be),
+            Term::FormatU16Le => Arc::new(Value::FormatU16Le),
+            Term::FormatU32Be => Arc::new(Value::FormatU32Be),
+            Term::FormatU32Le => Arc::new(Value::FormatU32Le),
+            Term::FormatU64Be => Arc::new(Value::FormatU64Be),
+            Term::FormatU64Le => Arc::new(Value::FormatU64Le),
+            Term::FormatS8 => Arc::new(Value::FormatS8),
+            Term::FormatS16Be => Arc::new(Value::FormatS16Be),
+            Term::FormatS16Le => Arc::new(Value::FormatS16Le),
+            Term::FormatS32Be => Arc::new(Value::FormatS32Be),
+            Term::FormatS32Le => Arc::new(Value::FormatS32Le),
+            Term::FormatS64Be => Arc::new(Value::FormatS64Be),
+            Term::FormatS64Le => Arc::new(Value::FormatS64Le),
+            Term::FormatF32Be => Arc::new(Value::FormatF32Be),
+            Term::FormatF32Le => Arc::new(Value::FormatF32Le),
+            Term::FormatF64Be => Arc::new(Value::FormatF64Be),
+            Term::FormatF64Le => Arc::new(Value::FormatF64Le),
             Term::ReportedError => Arc::new(Value::reported_error()),
         }
     }
@@ -468,6 +529,26 @@ impl<'in_arena, 'out_arena, 'env> QuoteContext<'in_arena, 'out_arena, 'env> {
 
                 Term::RecordIntro(labels, exprs)
             }
+            Value::FormatType => Term::FormatType,
+            Value::FormatFail => Term::FormatFail,
+            Value::FormatU8 => Term::FormatU8,
+            Value::FormatU16Be => Term::FormatU16Be,
+            Value::FormatU16Le => Term::FormatU16Le,
+            Value::FormatU32Be => Term::FormatU32Be,
+            Value::FormatU32Le => Term::FormatU32Le,
+            Value::FormatU64Be => Term::FormatU64Be,
+            Value::FormatU64Le => Term::FormatU64Le,
+            Value::FormatS8 => Term::FormatS8,
+            Value::FormatS16Be => Term::FormatS16Be,
+            Value::FormatS16Le => Term::FormatS16Le,
+            Value::FormatS32Be => Term::FormatS32Be,
+            Value::FormatS32Le => Term::FormatS32Le,
+            Value::FormatS64Be => Term::FormatS64Be,
+            Value::FormatS64Le => Term::FormatS64Le,
+            Value::FormatF32Be => Term::FormatF32Be,
+            Value::FormatF32Le => Term::FormatF32Le,
+            Value::FormatF64Be => Term::FormatF64Be,
+            Value::FormatF64Le => Term::FormatF64Le,
         }
     }
 
@@ -614,6 +695,27 @@ impl<'arena, 'env> ConversionContext<'arena, 'env> {
             (_, Value::RecordIntro(labels, exprs)) => {
                 self.is_equal_record_intro_elim(labels, exprs, &value0)
             }
+
+            (Value::FormatType, Value::FormatType) => true,
+            (Value::FormatFail, Value::FormatFail) => true,
+            (Value::FormatU8, Value::FormatU8) => true,
+            (Value::FormatU16Be, Value::FormatU16Be) => true,
+            (Value::FormatU16Le, Value::FormatU16Le) => true,
+            (Value::FormatU32Be, Value::FormatU32Be) => true,
+            (Value::FormatU32Le, Value::FormatU32Le) => true,
+            (Value::FormatU64Be, Value::FormatU64Be) => true,
+            (Value::FormatU64Le, Value::FormatU64Le) => true,
+            (Value::FormatS8, Value::FormatS8) => true,
+            (Value::FormatS16Be, Value::FormatS16Be) => true,
+            (Value::FormatS16Le, Value::FormatS16Le) => true,
+            (Value::FormatS32Be, Value::FormatS32Be) => true,
+            (Value::FormatS32Le, Value::FormatS32Le) => true,
+            (Value::FormatS64Be, Value::FormatS64Be) => true,
+            (Value::FormatS64Le, Value::FormatS64Le) => true,
+            (Value::FormatF32Be, Value::FormatF32Be) => true,
+            (Value::FormatF32Le, Value::FormatF32Le) => true,
+            (Value::FormatF64Be, Value::FormatF64Be) => true,
+            (Value::FormatF64Le, Value::FormatF64Le) => true,
 
             (_, _) => false,
         }

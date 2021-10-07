@@ -229,6 +229,26 @@ impl<'arena> Context<'arena> {
 
                 Term::RecordElim(self.scope.to_scope(head_expr), (PLACEHOLDER_RANGE, *label))
             }
+            core::Term::FormatType => Term::FormatType(PLACEHOLDER_RANGE),
+            core::Term::FormatFail => Term::FormatFail(PLACEHOLDER_RANGE),
+            core::Term::FormatU8 => Term::FormatU8(PLACEHOLDER_RANGE),
+            core::Term::FormatU16Be => Term::FormatU16Be(PLACEHOLDER_RANGE),
+            core::Term::FormatU16Le => Term::FormatU16Le(PLACEHOLDER_RANGE),
+            core::Term::FormatU32Be => Term::FormatU32Be(PLACEHOLDER_RANGE),
+            core::Term::FormatU32Le => Term::FormatU32Le(PLACEHOLDER_RANGE),
+            core::Term::FormatU64Be => Term::FormatU64Be(PLACEHOLDER_RANGE),
+            core::Term::FormatU64Le => Term::FormatU64Le(PLACEHOLDER_RANGE),
+            core::Term::FormatS8 => Term::FormatS8(PLACEHOLDER_RANGE),
+            core::Term::FormatS16Be => Term::FormatS16Be(PLACEHOLDER_RANGE),
+            core::Term::FormatS16Le => Term::FormatS16Le(PLACEHOLDER_RANGE),
+            core::Term::FormatS32Be => Term::FormatS32Be(PLACEHOLDER_RANGE),
+            core::Term::FormatS32Le => Term::FormatS32Le(PLACEHOLDER_RANGE),
+            core::Term::FormatS64Be => Term::FormatS64Be(PLACEHOLDER_RANGE),
+            core::Term::FormatS64Le => Term::FormatS64Le(PLACEHOLDER_RANGE),
+            core::Term::FormatF32Be => Term::FormatF32Be(PLACEHOLDER_RANGE),
+            core::Term::FormatF32Le => Term::FormatF32Le(PLACEHOLDER_RANGE),
+            core::Term::FormatF64Be => Term::FormatF64Be(PLACEHOLDER_RANGE),
+            core::Term::FormatF64Le => Term::FormatF64Le(PLACEHOLDER_RANGE),
             // NOTE: Not sure if this is a great approach!
             core::Term::ReportedError => Term::Hole(PLACEHOLDER_RANGE, None),
         }

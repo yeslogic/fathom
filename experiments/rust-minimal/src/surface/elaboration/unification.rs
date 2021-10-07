@@ -222,6 +222,27 @@ impl<'arena, 'env> Context<'arena, 'env> {
                 self.unify_record_intro_elim(labels, exprs, &value0)
             }
 
+            (Value::FormatType, Value::FormatType) => Ok(()),
+            (Value::FormatFail, Value::FormatFail) => Ok(()),
+            (Value::FormatU8, Value::FormatU8) => Ok(()),
+            (Value::FormatU16Be, Value::FormatU16Be) => Ok(()),
+            (Value::FormatU16Le, Value::FormatU16Le) => Ok(()),
+            (Value::FormatU32Be, Value::FormatU32Be) => Ok(()),
+            (Value::FormatU32Le, Value::FormatU32Le) => Ok(()),
+            (Value::FormatU64Be, Value::FormatU64Be) => Ok(()),
+            (Value::FormatU64Le, Value::FormatU64Le) => Ok(()),
+            (Value::FormatS8, Value::FormatS8) => Ok(()),
+            (Value::FormatS16Be, Value::FormatS16Be) => Ok(()),
+            (Value::FormatS16Le, Value::FormatS16Le) => Ok(()),
+            (Value::FormatS32Be, Value::FormatS32Be) => Ok(()),
+            (Value::FormatS32Le, Value::FormatS32Le) => Ok(()),
+            (Value::FormatS64Be, Value::FormatS64Be) => Ok(()),
+            (Value::FormatS64Le, Value::FormatS64Le) => Ok(()),
+            (Value::FormatF32Be, Value::FormatF32Be) => Ok(()),
+            (Value::FormatF32Le, Value::FormatF32Le) => Ok(()),
+            (Value::FormatF64Be, Value::FormatF64Be) => Ok(()),
+            (Value::FormatF64Le, Value::FormatF64Le) => Ok(()),
+
             // Flexible-rigid cases
             //
             // One of the values has a flexible variable at its head, so we
@@ -471,6 +492,26 @@ impl<'arena, 'env> Context<'arena, 'env> {
 
                 Ok(Term::RecordIntro(labels, new_exprs.into()))
             }
+            Value::FormatType => Ok(Term::FormatType),
+            Value::FormatFail => Ok(Term::FormatFail),
+            Value::FormatU8 => Ok(Term::FormatU8),
+            Value::FormatU16Be => Ok(Term::FormatU16Be),
+            Value::FormatU16Le => Ok(Term::FormatU16Le),
+            Value::FormatU32Be => Ok(Term::FormatU32Be),
+            Value::FormatU32Le => Ok(Term::FormatU32Le),
+            Value::FormatU64Be => Ok(Term::FormatU64Be),
+            Value::FormatU64Le => Ok(Term::FormatU64Le),
+            Value::FormatS8 => Ok(Term::FormatS8),
+            Value::FormatS16Be => Ok(Term::FormatS16Be),
+            Value::FormatS16Le => Ok(Term::FormatS16Le),
+            Value::FormatS32Be => Ok(Term::FormatS32Be),
+            Value::FormatS32Le => Ok(Term::FormatS32Le),
+            Value::FormatS64Be => Ok(Term::FormatS64Be),
+            Value::FormatS64Le => Ok(Term::FormatS64Le),
+            Value::FormatF32Be => Ok(Term::FormatF32Be),
+            Value::FormatF32Le => Ok(Term::FormatF32Le),
+            Value::FormatF64Be => Ok(Term::FormatF64Be),
+            Value::FormatF64Le => Ok(Term::FormatF64Le),
         }
     }
 

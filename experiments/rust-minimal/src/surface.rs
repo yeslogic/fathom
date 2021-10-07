@@ -44,6 +44,43 @@ pub enum Term<'arena> {
     RecordIntro(ByteRange, &'arena [((ByteRange, StringId), Term<'arena>)]),
     RecordEmpty(ByteRange),
     RecordElim(&'arena Term<'arena>, (ByteRange, StringId)),
+
+    // TODO: Add a more systematic way of extending the format universe.
+    //
+    // Perhaps something like:
+    //
+    // ```fathom
+    // primitive format u16be : Format = {
+    //     Repr = U16,
+    //     name = "u16be",
+    // };
+    //
+    // primitive format array16 (len : U16) (f : Format) : Format = {
+    //     Repr = Array16 len (Repr f),
+    //     name = "array16",
+    // };
+    // ```
+    FormatType(ByteRange),  // TODO: Use `Name` variant instead
+    FormatFail(ByteRange),  // TODO: Use `Name` variant instead
+    FormatU8(ByteRange),    // TODO: Use `Name` variant instead
+    FormatU16Be(ByteRange), // TODO: Use `Name` variant instead
+    FormatU16Le(ByteRange), // TODO: Use `Name` variant instead
+    FormatU32Be(ByteRange), // TODO: Use `Name` variant instead
+    FormatU32Le(ByteRange), // TODO: Use `Name` variant instead
+    FormatU64Be(ByteRange), // TODO: Use `Name` variant instead
+    FormatU64Le(ByteRange), // TODO: Use `Name` variant instead
+    FormatS8(ByteRange),    // TODO: Use `Name` variant instead
+    FormatS16Be(ByteRange), // TODO: Use `Name` variant instead
+    FormatS16Le(ByteRange), // TODO: Use `Name` variant instead
+    FormatS32Be(ByteRange), // TODO: Use `Name` variant instead
+    FormatS32Le(ByteRange), // TODO: Use `Name` variant instead
+    FormatS64Be(ByteRange), // TODO: Use `Name` variant instead
+    FormatS64Le(ByteRange), // TODO: Use `Name` variant instead
+    FormatF32Be(ByteRange), // TODO: Use `Name` variant instead
+    FormatF32Le(ByteRange), // TODO: Use `Name` variant instead
+    FormatF64Be(ByteRange), // TODO: Use `Name` variant instead
+    FormatF64Le(ByteRange), // TODO: Use `Name` variant instead
+
     ReportedError(ByteRange),
 }
 
@@ -77,6 +114,28 @@ impl<'arena> Term<'arena> {
             Term::RecordIntro(range, _) => range.start(),
             Term::RecordEmpty(range) => range.start(),
             Term::RecordElim(head_expr, _) => head_expr.start(),
+
+            Term::FormatType(range)
+            | Term::FormatFail(range)
+            | Term::FormatU8(range)
+            | Term::FormatU16Be(range)
+            | Term::FormatU16Le(range)
+            | Term::FormatU32Be(range)
+            | Term::FormatU32Le(range)
+            | Term::FormatU64Be(range)
+            | Term::FormatU64Le(range)
+            | Term::FormatS8(range)
+            | Term::FormatS16Be(range)
+            | Term::FormatS16Le(range)
+            | Term::FormatS32Be(range)
+            | Term::FormatS32Le(range)
+            | Term::FormatS64Be(range)
+            | Term::FormatS64Le(range)
+            | Term::FormatF32Be(range)
+            | Term::FormatF32Le(range)
+            | Term::FormatF64Be(range)
+            | Term::FormatF64Le(range) => range.start(),
+
             Term::ReportedError(range) => range.start(),
         }
     }
@@ -96,6 +155,28 @@ impl<'arena> Term<'arena> {
             Term::RecordIntro(range, _) => range.end(),
             Term::RecordEmpty(range) => range.end(),
             Term::RecordElim(_, (range, _)) => range.end(),
+
+            Term::FormatType(range)
+            | Term::FormatFail(range)
+            | Term::FormatU8(range)
+            | Term::FormatU16Be(range)
+            | Term::FormatU16Le(range)
+            | Term::FormatU32Be(range)
+            | Term::FormatU32Le(range)
+            | Term::FormatU64Be(range)
+            | Term::FormatU64Le(range)
+            | Term::FormatS8(range)
+            | Term::FormatS16Be(range)
+            | Term::FormatS16Le(range)
+            | Term::FormatS32Be(range)
+            | Term::FormatS32Le(range)
+            | Term::FormatS64Be(range)
+            | Term::FormatS64Le(range)
+            | Term::FormatF32Be(range)
+            | Term::FormatF32Le(range)
+            | Term::FormatF64Be(range)
+            | Term::FormatF64Le(range) => range.end(),
+
             Term::ReportedError(range) => range.end(),
         }
     }

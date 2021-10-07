@@ -132,6 +132,48 @@ pub enum Term<'arena> {
     RecordIntro(&'arena [StringId], &'arena [Term<'arena>]),
     /// Record eliminations.
     RecordElim(&'arena Term<'arena>, StringId),
+
+    /// Type of format descriptions.
+    FormatType,
+    /// A format that always fails to parse.
+    FormatFail,
+    /// Unsigned, 8-bit integer formats.
+    FormatU8,
+    /// Unsigned, 16-bit integer formats (big-endian).
+    FormatU16Be,
+    /// Unsigned, 16-bit integer formats (little-endian).
+    FormatU16Le,
+    /// Unsigned, 32-bit integer formats (big-endian).
+    FormatU32Be,
+    /// Unsigned, 32-bit integer formats (little-endian).
+    FormatU32Le,
+    /// Unsigned, 64-bit integer formats (big-endian).
+    FormatU64Be,
+    /// Unsigned, 64-bit integer formats (little-endian).
+    FormatU64Le,
+    /// Signed, two's-complement, 8-bit integer formats.
+    FormatS8,
+    /// Signed, two's-complement, 16-bit integer formats (big-endian).
+    FormatS16Be,
+    /// Signed, two's-complement, 16-bit integer formats (little-endian).
+    FormatS16Le,
+    /// Signed, two's-complement, 32-bit integer formats (big-endian).
+    FormatS32Be,
+    /// Signed, two's-complement, 32-bit integer formats (little-endian).
+    FormatS32Le,
+    /// Signed, two's-complement, 64-bit integer formats (big-endian).
+    FormatS64Be,
+    /// Signed, two's-complement, 64-bit integer formats (little-endian).
+    FormatS64Le,
+    /// 32-bit, IEEE-754 floating point formats (big-endian).
+    FormatF32Be,
+    /// 32-bit, IEEE-754 floating point formats (little-endian).
+    FormatF32Le,
+    /// 64-bit, IEEE-754 floating point formats (big-endian).
+    FormatF64Be,
+    /// 64-bit, IEEE-754 floating point formats (little-endian).
+    FormatF64Le,
+
     /// Reported errors.
     ReportedError,
 }

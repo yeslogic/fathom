@@ -118,7 +118,7 @@ _elab.context_ ::=\
   - [ ] top-level items
   - [ ] recursive definitions
   - [ ] binary format descriptions
-    - [ ] error formats
+    - [x] error formats
     - [ ] map formats
     - [ ] pure formats
     - [ ] bind formats
