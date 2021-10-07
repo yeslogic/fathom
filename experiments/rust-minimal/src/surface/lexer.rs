@@ -12,6 +12,27 @@ pub enum Token<'source> {
     #[token("Type")]
     KeywordType,
 
+    #[token("U8")]
+    KeywordU8Type,
+    #[token("U16")]
+    KeywordU16Type,
+    #[token("U32")]
+    KeywordU32Type,
+    #[token("U64")]
+    KeywordU64Type,
+    #[token("S8")]
+    KeywordS8Type,
+    #[token("S16")]
+    KeywordS16Type,
+    #[token("S32")]
+    KeywordS32Type,
+    #[token("S64")]
+    KeywordS64Type,
+    #[token("F32")]
+    KeywordF32Type,
+    #[token("F64")]
+    KeywordF64Type,
+
     #[token("Format")]
     KeywordFormatType,
     #[token("fail")]

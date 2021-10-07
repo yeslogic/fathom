@@ -620,6 +620,18 @@ impl<'arena> Context<'arena> {
                     self.push_flexible_value(surface_term.range(), FlexSource::ReportedErrorType),
                 )
             }
+
+            Term::U8Type(_) => (core::Term::U8Type, Arc::new(Value::Universe)),
+            Term::U16Type(_) => (core::Term::U16Type, Arc::new(Value::Universe)),
+            Term::U32Type(_) => (core::Term::U32Type, Arc::new(Value::Universe)),
+            Term::U64Type(_) => (core::Term::U64Type, Arc::new(Value::Universe)),
+            Term::S8Type(_) => (core::Term::S8Type, Arc::new(Value::Universe)),
+            Term::S16Type(_) => (core::Term::S16Type, Arc::new(Value::Universe)),
+            Term::S32Type(_) => (core::Term::S32Type, Arc::new(Value::Universe)),
+            Term::S64Type(_) => (core::Term::S64Type, Arc::new(Value::Universe)),
+            Term::F32Type(_) => (core::Term::F32Type, Arc::new(Value::Universe)),
+            Term::F64Type(_) => (core::Term::F64Type, Arc::new(Value::Universe)),
+
             Term::FormatType(_) => (core::Term::FormatType, Arc::new(Value::Universe)),
             Term::FormatFail(_) => (core::Term::FormatFail, Arc::new(Value::FormatType)),
             Term::FormatU8(_) => (core::Term::FormatU8, Arc::new(Value::FormatType)),
@@ -640,6 +652,7 @@ impl<'arena> Context<'arena> {
             Term::FormatF32Le(_) => (core::Term::FormatF32Le, Arc::new(Value::FormatType)),
             Term::FormatF64Be(_) => (core::Term::FormatF64Be, Arc::new(Value::FormatType)),
             Term::FormatF64Le(_) => (core::Term::FormatF64Le, Arc::new(Value::FormatType)),
+
             Term::ReportedError(range) => (
                 core::Term::ReportedError,
                 self.push_flexible_value(*range, FlexSource::ReportedErrorType),

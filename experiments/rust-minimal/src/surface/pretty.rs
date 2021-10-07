@@ -185,6 +185,18 @@ impl<'doc> Context<'doc> {
                 self.text("."),
                 self.name(*label),
             ]),
+
+            Term::U8Type(_) => self.text("U8"),
+            Term::U16Type(_) => self.text("U16"),
+            Term::U32Type(_) => self.text("U32"),
+            Term::U64Type(_) => self.text("U64"),
+            Term::S8Type(_) => self.text("S8"),
+            Term::S16Type(_) => self.text("S16"),
+            Term::S32Type(_) => self.text("S32"),
+            Term::S64Type(_) => self.text("S64"),
+            Term::F32Type(_) => self.text("F32"),
+            Term::F64Type(_) => self.text("F64"),
+
             Term::FormatType(_) => self.text("Format"),
             Term::FormatFail(_) => self.text("fail"),
             Term::FormatU8(_) => self.text("u8"),
@@ -205,6 +217,7 @@ impl<'doc> Context<'doc> {
             Term::FormatF32Le(_) => self.text("f32le"),
             Term::FormatF64Be(_) => self.text("f64be"),
             Term::FormatF64Le(_) => self.text("f64le"),
+
             Term::ReportedError(_) => self.text("_"),
         }
     }

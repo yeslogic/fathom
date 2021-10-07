@@ -222,6 +222,17 @@ impl<'arena, 'env> Context<'arena, 'env> {
                 self.unify_record_intro_elim(labels, exprs, &value0)
             }
 
+            (Value::U8Type, Value::U8Type) => Ok(()),
+            (Value::U16Type, Value::U16Type) => Ok(()),
+            (Value::U32Type, Value::U32Type) => Ok(()),
+            (Value::U64Type, Value::U64Type) => Ok(()),
+            (Value::S8Type, Value::S8Type) => Ok(()),
+            (Value::S16Type, Value::S16Type) => Ok(()),
+            (Value::S32Type, Value::S32Type) => Ok(()),
+            (Value::S64Type, Value::S64Type) => Ok(()),
+            (Value::F32Type, Value::F32Type) => Ok(()),
+            (Value::F64Type, Value::F64Type) => Ok(()),
+
             (Value::FormatType, Value::FormatType) => Ok(()),
             (Value::FormatFail, Value::FormatFail) => Ok(()),
             (Value::FormatU8, Value::FormatU8) => Ok(()),
@@ -492,6 +503,18 @@ impl<'arena, 'env> Context<'arena, 'env> {
 
                 Ok(Term::RecordIntro(labels, new_exprs.into()))
             }
+
+            Value::U8Type => Ok(Term::U8Type),
+            Value::U16Type => Ok(Term::U16Type),
+            Value::U32Type => Ok(Term::U32Type),
+            Value::U64Type => Ok(Term::U64Type),
+            Value::S8Type => Ok(Term::S8Type),
+            Value::S16Type => Ok(Term::S16Type),
+            Value::S32Type => Ok(Term::S32Type),
+            Value::S64Type => Ok(Term::S64Type),
+            Value::F32Type => Ok(Term::F32Type),
+            Value::F64Type => Ok(Term::F64Type),
+
             Value::FormatType => Ok(Term::FormatType),
             Value::FormatFail => Ok(Term::FormatFail),
             Value::FormatU8 => Ok(Term::FormatU8),

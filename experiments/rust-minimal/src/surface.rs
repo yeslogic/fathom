@@ -45,6 +45,17 @@ pub enum Term<'arena> {
     RecordEmpty(ByteRange),
     RecordElim(&'arena Term<'arena>, (ByteRange, StringId)),
 
+    U8Type(ByteRange),  // TODO: Use `Name` variant instead
+    U16Type(ByteRange), // TODO: Use `Name` variant instead
+    U32Type(ByteRange), // TODO: Use `Name` variant instead
+    U64Type(ByteRange), // TODO: Use `Name` variant instead
+    S8Type(ByteRange),  // TODO: Use `Name` variant instead
+    S16Type(ByteRange), // TODO: Use `Name` variant instead
+    S32Type(ByteRange), // TODO: Use `Name` variant instead
+    S64Type(ByteRange), // TODO: Use `Name` variant instead
+    F32Type(ByteRange), // TODO: Use `Name` variant instead
+    F64Type(ByteRange), // TODO: Use `Name` variant instead
+
     // TODO: Add a more systematic way of extending the format universe.
     //
     // Perhaps something like:
@@ -115,6 +126,17 @@ impl<'arena> Term<'arena> {
             Term::RecordEmpty(range) => range.start(),
             Term::RecordElim(head_expr, _) => head_expr.start(),
 
+            Term::U8Type(range)
+            | Term::U16Type(range)
+            | Term::U32Type(range)
+            | Term::U64Type(range)
+            | Term::S8Type(range)
+            | Term::S16Type(range)
+            | Term::S32Type(range)
+            | Term::S64Type(range)
+            | Term::F32Type(range)
+            | Term::F64Type(range) => range.start(),
+
             Term::FormatType(range)
             | Term::FormatFail(range)
             | Term::FormatU8(range)
@@ -155,6 +177,17 @@ impl<'arena> Term<'arena> {
             Term::RecordIntro(range, _) => range.end(),
             Term::RecordEmpty(range) => range.end(),
             Term::RecordElim(_, (range, _)) => range.end(),
+
+            Term::U8Type(range)
+            | Term::U16Type(range)
+            | Term::U32Type(range)
+            | Term::U64Type(range)
+            | Term::S8Type(range)
+            | Term::S16Type(range)
+            | Term::S32Type(range)
+            | Term::S64Type(range)
+            | Term::F32Type(range)
+            | Term::F64Type(range) => range.end(),
 
             Term::FormatType(range)
             | Term::FormatFail(range)

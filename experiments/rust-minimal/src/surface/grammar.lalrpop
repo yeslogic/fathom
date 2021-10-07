@@ -17,6 +17,17 @@ extern {
         "let" => Token::KeywordLet,
         "Type" => Token::KeywordType,
 
+        "U8" => Token::KeywordU8Type,
+        "U16" => Token::KeywordU16Type,
+        "U32" => Token::KeywordU32Type,
+        "U64" => Token::KeywordU64Type,
+        "S8" => Token::KeywordS8Type,
+        "S16" => Token::KeywordS16Type,
+        "S32" => Token::KeywordS32Type,
+        "S64" => Token::KeywordS64Type,
+        "F32" => Token::KeywordF32Type,
+        "F64" => Token::KeywordF64Type,
+
         "Format" => Token::KeywordFormatType,
         "fail" => Token::KeywordFormatFail,
         "u8" => Token::KeywordFormatU8,
@@ -116,6 +127,20 @@ AppTerm: Term<'arena> = {
 
 AtomicTerm: Term<'arena> = {
     <start: @L> <name: Name> <end: @R> => Term::Name(ByteRange::new(start, end), name),
+
+    <start: @L> "Type" <end: @R> => Term::Universe(ByteRange::new(start, end)),
+
+    <start: @L> "U8" <end: @R> => Term::U8Type(ByteRange::new(start, end)),
+    <start: @L> "U16" <end: @R> => Term::U16Type(ByteRange::new(start, end)),
+    <start: @L> "U32" <end: @R> => Term::U32Type(ByteRange::new(start, end)),
+    <start: @L> "U64" <end: @R> => Term::U64Type(ByteRange::new(start, end)),
+    <start: @L> "S8" <end: @R> => Term::S8Type(ByteRange::new(start, end)),
+    <start: @L> "S16" <end: @R> => Term::S16Type(ByteRange::new(start, end)),
+    <start: @L> "S32" <end: @R> => Term::S32Type(ByteRange::new(start, end)),
+    <start: @L> "S64" <end: @R> => Term::S64Type(ByteRange::new(start, end)),
+    <start: @L> "F32" <end: @R> => Term::F32Type(ByteRange::new(start, end)),
+    <start: @L> "F64" <end: @R> => Term::F64Type(ByteRange::new(start, end)),
+
     <start: @L> "Format" <end: @R> => Term::FormatType(ByteRange::new(start, end)),
     <start: @L> "fail" <end: @R> => Term::FormatFail(ByteRange::new(start, end)),
     <start: @L> "u8" <end: @R> => Term::FormatU8(ByteRange::new(start, end)),
@@ -136,9 +161,9 @@ AtomicTerm: Term<'arena> = {
     <start: @L> "f32le" <end: @R> => Term::FormatF32Le(ByteRange::new(start, end)),
     <start: @L> "f64be" <end: @R> => Term::FormatF64Be(ByteRange::new(start, end)),
     <start: @L> "f64le" <end: @R> => Term::FormatF64Le(ByteRange::new(start, end)),
+
     <start: @L> "?" <name: Name> <end: @R> => Term::Hole(ByteRange::new(start, end), Some(name)),
     <start: @L> "_" <end: @R> => Term::Hole(ByteRange::new(start, end), None),
-    <start: @L> "Type" <end: @R> => Term::Universe(ByteRange::new(start, end)),
     <start: @L> "{" "}" <end: @R> => Term::RecordEmpty(ByteRange::new(start, end)),
     <start: @L> "{" <first: (<RangedName> ":" <Term>)> <type_fields: ("," <RangedName> ":" <Term>)*> ","?  "}" <end: @R> => {
         let type_fields = std::iter::once(first).chain(type_fields).map(|(label, term)| (label, term));

@@ -133,6 +133,27 @@ pub enum Term<'arena> {
     /// Record eliminations.
     RecordElim(&'arena Term<'arena>, StringId),
 
+    /// Type of unsigned, 8-bit integers.
+    U8Type,
+    /// Type of unsigned, 16-bit integers.
+    U16Type,
+    /// Type of unsigned, 32-bit integers.
+    U32Type,
+    /// Type of unsigned, 64-bit integers.
+    U64Type,
+    /// Type of signed, two's complement, 8-bit integers.
+    S8Type,
+    /// Type of signed, two's complement, 16-bit integers.
+    S16Type,
+    /// Type of signed, two's complement, 32-bit integers.
+    S32Type,
+    /// Type of signed, two's complement, 64-bit integers.
+    S64Type,
+    /// Type of 32-bit, IEEE-754 floating point numbers.
+    F32Type,
+    /// Type of 64-bit, IEEE-754 floating point numbers.
+    F64Type,
+
     /// Type of format descriptions.
     FormatType,
     /// A format that always fails to parse.
@@ -151,19 +172,19 @@ pub enum Term<'arena> {
     FormatU64Be,
     /// Unsigned, 64-bit integer formats (little-endian).
     FormatU64Le,
-    /// Signed, two's-complement, 8-bit integer formats.
+    /// Signed, two's complement, 8-bit integer formats.
     FormatS8,
-    /// Signed, two's-complement, 16-bit integer formats (big-endian).
+    /// Signed, two's complement, 16-bit integer formats (big-endian).
     FormatS16Be,
-    /// Signed, two's-complement, 16-bit integer formats (little-endian).
+    /// Signed, two's complement, 16-bit integer formats (little-endian).
     FormatS16Le,
-    /// Signed, two's-complement, 32-bit integer formats (big-endian).
+    /// Signed, two's complement, 32-bit integer formats (big-endian).
     FormatS32Be,
-    /// Signed, two's-complement, 32-bit integer formats (little-endian).
+    /// Signed, two's complement, 32-bit integer formats (little-endian).
     FormatS32Le,
-    /// Signed, two's-complement, 64-bit integer formats (big-endian).
+    /// Signed, two's complement, 64-bit integer formats (big-endian).
     FormatS64Be,
-    /// Signed, two's-complement, 64-bit integer formats (little-endian).
+    /// Signed, two's complement, 64-bit integer formats (little-endian).
     FormatS64Le,
     /// 32-bit, IEEE-754 floating point formats (big-endian).
     FormatF32Be,

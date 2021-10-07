@@ -32,6 +32,27 @@ pub enum Value<'arena> {
     /// Record introductions.
     RecordIntro(&'arena [StringId], Vec<ArcValue<'arena>>),
 
+    /// Type of unsigned, 8-bit integers.
+    U8Type,
+    /// Type of unsigned, 16-bit integers.
+    U16Type,
+    /// Type of unsigned, 32-bit integers.
+    U32Type,
+    /// Type of unsigned, 64-bit integers.
+    U64Type,
+    /// Type of signed, two's complement, 8-bit integers.
+    S8Type,
+    /// Type of signed, two's complement, 16-bit integers.
+    S16Type,
+    /// Type of signed, two's complement, 32-bit integers.
+    S32Type,
+    /// Type of signed, two's complement, 64-bit integers.
+    S64Type,
+    /// Type of 32-bit, IEEE-754 floating point numbers.
+    F32Type,
+    /// Type of 64-bit, IEEE-754 floating point numbers.
+    F64Type,
+
     /// Type of format descriptions.
     FormatType,
     /// A format that always fails to parse.
@@ -290,6 +311,18 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
                 let head_expr = self.eval(head_expr);
                 self.elim_context().apply_record(head_expr, *label)
             }
+
+            Term::U8Type => Arc::new(Value::U8Type),
+            Term::U16Type => Arc::new(Value::U16Type),
+            Term::U32Type => Arc::new(Value::U32Type),
+            Term::U64Type => Arc::new(Value::U64Type),
+            Term::S8Type => Arc::new(Value::S8Type),
+            Term::S16Type => Arc::new(Value::S16Type),
+            Term::S32Type => Arc::new(Value::S32Type),
+            Term::S64Type => Arc::new(Value::S64Type),
+            Term::F32Type => Arc::new(Value::F32Type),
+            Term::F64Type => Arc::new(Value::F64Type),
+
             Term::FormatType => Arc::new(Value::FormatType),
             Term::FormatFail => Arc::new(Value::FormatFail),
             Term::FormatU8 => Arc::new(Value::FormatU8),
@@ -310,6 +343,7 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
             Term::FormatF32Le => Arc::new(Value::FormatF32Le),
             Term::FormatF64Be => Arc::new(Value::FormatF64Be),
             Term::FormatF64Le => Arc::new(Value::FormatF64Le),
+
             Term::ReportedError => Arc::new(Value::reported_error()),
         }
     }
@@ -529,6 +563,18 @@ impl<'in_arena, 'out_arena, 'env> QuoteContext<'in_arena, 'out_arena, 'env> {
 
                 Term::RecordIntro(labels, exprs)
             }
+
+            Value::U8Type => Term::U8Type,
+            Value::U16Type => Term::U16Type,
+            Value::U32Type => Term::U32Type,
+            Value::U64Type => Term::U64Type,
+            Value::S8Type => Term::S8Type,
+            Value::S16Type => Term::S16Type,
+            Value::S32Type => Term::S32Type,
+            Value::S64Type => Term::S64Type,
+            Value::F32Type => Term::F32Type,
+            Value::F64Type => Term::F64Type,
+
             Value::FormatType => Term::FormatType,
             Value::FormatFail => Term::FormatFail,
             Value::FormatU8 => Term::FormatU8,
@@ -695,6 +741,17 @@ impl<'arena, 'env> ConversionContext<'arena, 'env> {
             (_, Value::RecordIntro(labels, exprs)) => {
                 self.is_equal_record_intro_elim(labels, exprs, &value0)
             }
+
+            (Value::U8Type, Value::U8Type) => true,
+            (Value::U16Type, Value::U16Type) => true,
+            (Value::U32Type, Value::U32Type) => true,
+            (Value::U64Type, Value::U64Type) => true,
+            (Value::S8Type, Value::S8Type) => true,
+            (Value::S16Type, Value::S16Type) => true,
+            (Value::S32Type, Value::S32Type) => true,
+            (Value::S64Type, Value::S64Type) => true,
+            (Value::F32Type, Value::F32Type) => true,
+            (Value::F64Type, Value::F64Type) => true,
 
             (Value::FormatType, Value::FormatType) => true,
             (Value::FormatFail, Value::FormatFail) => true,
