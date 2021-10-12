@@ -329,7 +329,6 @@ impl<'arena> Context<'arena> {
                     return core::Term::ReportedError;
                 }
 
-                let initial_rigid_len = self.rigid_len();
                 let mut types = types.clone();
                 let mut expr_fields = expr_fields.iter();
                 let mut exprs =
@@ -344,7 +343,6 @@ impl<'arena> Context<'arena> {
                     exprs.push(expr);
                 }
 
-                self.truncate_rigid(initial_rigid_len);
                 core::Term::RecordIntro(labels, exprs.into())
             }
             (Term::RecordEmpty(_), Value::Universe) => core::Term::RecordType(&[], &[]),
@@ -530,6 +528,7 @@ impl<'arena> Context<'arena> {
                 (fun_elim, output_type)
             }
             Term::RecordType(range, type_fields) => {
+                let initial_rigid_len = self.rigid_len();
                 let duplicate_indices = self.report_duplicate_labels(*range, type_fields);
                 let type_fields = (type_fields.iter().enumerate())
                     .filter_map(|(i, field)| (!duplicate_indices.contains(&i)).then(|| field));
@@ -544,6 +543,7 @@ impl<'arena> Context<'arena> {
                         r#type
                     }));
 
+                self.truncate_rigid(initial_rigid_len);
                 (
                     core::Term::RecordType(labels, type_fields),
                     Arc::new(Value::Universe),
