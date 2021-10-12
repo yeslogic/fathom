@@ -328,8 +328,8 @@ impl<'arena, 'env> Context<'arena, 'env> {
             }
 
             let var = Arc::new(Value::rigid_var(self.rigid_exprs.next_global()));
-            telescope0 = next_telescope0.resume(var.clone());
-            telescope1 = next_telescope1.resume(var);
+            telescope0 = next_telescope0(var.clone());
+            telescope1 = next_telescope1(var);
             self.rigid_exprs.push();
         }
 
@@ -573,7 +573,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
                 Ok(term) => {
                     terms.push(term);
                     let var = Arc::new(Value::rigid_var(self.rigid_exprs.next_global()));
-                    telescope = next_telescope.resume(var);
+                    telescope = next_telescope(var);
                     self.rigid_exprs.push();
                 }
                 Err(error) => {

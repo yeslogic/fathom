@@ -340,8 +340,7 @@ impl<'arena> Context<'arena> {
                     self.elim_context().split_telescope(types),
                 ) {
                     let expr = self.check(expr, &r#type);
-                    let expr_value = self.eval_context().eval(&expr);
-                    types = next_types.resume(expr_value);
+                    types = next_types(self.eval_context().eval(&expr));
                     exprs.push(expr);
                 }
 
@@ -603,8 +602,8 @@ impl<'arena> Context<'arena> {
                             return (expr, r#type);
                         } else {
                             let head_expr = head_expr_value.clone();
-                            let value = self.elim_context().apply_record(head_expr, *type_label);
-                            types = next_types.resume(value);
+                            let expr = self.elim_context().apply_record(head_expr, *type_label);
+                            types = next_types(expr);
                         }
                     }
                 }

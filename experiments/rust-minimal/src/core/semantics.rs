@@ -174,25 +174,6 @@ impl<'arena> Telescope<'arena> {
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct NextTelescope<'arena> {
-    /// Rigid environment  where the telescope's [terms] are bound. A new entry
-    /// will need to be pushed to this environment before evaluating the next
-    /// term in the telescope.
-    rigid_exprs: SharedEnv<ArcValue<'arena>>,
-    /// The terms in the telescope.
-    terms: &'arena [Term<'arena>],
-}
-
-impl<'arena> NextTelescope<'arena> {
-    /// Resume the telescope with a value that corresponds to the previous entry
-    /// in the telescope.
-    pub fn resume(mut self, previous_value: ArcValue<'arena>) -> Telescope<'arena> {
-        self.rigid_exprs.push(previous_value);
-        Telescope::new(self.rigid_exprs, self.terms)
-    }
-}
-
 /// Errors encountered while interpreting terms.
 // TODO: include stack trace(??)
 #[derive(Clone, Debug)]
@@ -402,16 +383,22 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
         EvalContext::new(&mut rigid_exprs, self.flexible_exprs).eval(closure.term)
     }
 
-    /// Split a telescope into the first value, and the next telescope
-    /// containing the rest of the values.
+    /// Split a telescope into the first value, and a continuation that returns
+    /// the a telescope containing the rest of the values.
     pub fn split_telescope(
         &self,
-        telescope: Telescope<'arena>,
-    ) -> Option<(ArcValue<'arena>, NextTelescope<'arena>)> {
+        mut telescope: Telescope<'arena>,
+    ) -> Option<(
+        ArcValue<'arena>,
+        impl FnOnce(ArcValue<'arena>) -> Telescope<'arena>,
+    )> {
         let (term, terms) = telescope.terms.split_first()?;
-        let mut rigid_exprs = telescope.rigid_exprs;
-        let value = EvalContext::new(&mut rigid_exprs, self.flexible_exprs).eval(term);
-        Some((value, NextTelescope { rigid_exprs, terms }))
+        let value = EvalContext::new(&mut telescope.rigid_exprs, self.flexible_exprs).eval(term);
+
+        Some((value, move |previous_value| {
+            telescope.rigid_exprs.push(previous_value);
+            Telescope::new(telescope.rigid_exprs, terms)
+        }))
     }
 
     /// Apply a function elimination to an expression, performing
@@ -663,7 +650,7 @@ impl<'in_arena, 'out_arena, 'env> QuoteContext<'in_arena, 'out_arena, 'env> {
 
         while let Some((value, next_telescope)) = self.elim_context().split_telescope(telescope) {
             let var = Arc::new(Value::rigid_var(self.rigid_exprs.next_global()));
-            telescope = next_telescope.resume(var);
+            telescope = next_telescope(var);
             terms.push(self.quote(&value));
             self.rigid_exprs.push();
         }
@@ -859,8 +846,8 @@ impl<'arena, 'env> ConversionContext<'arena, 'env> {
             }
 
             let var = Arc::new(Value::rigid_var(self.rigid_exprs.next_global()));
-            telescope0 = next_telescope0.resume(var.clone());
-            telescope1 = next_telescope1.resume(var);
+            telescope0 = next_telescope0(var.clone());
+            telescope1 = next_telescope1(var);
             self.rigid_exprs.push();
         }
 
