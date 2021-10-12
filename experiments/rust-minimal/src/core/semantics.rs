@@ -201,6 +201,7 @@ pub enum Error {
     InvalidFlexibleVar,
     InvalidFunctionElim,
     InvalidRecordElim,
+    InvalidFormatRepr,
 }
 
 impl Error {
@@ -210,6 +211,7 @@ impl Error {
             Error::InvalidFlexibleVar => "invalid flexible variable",
             Error::InvalidFunctionElim => "invalid function elim",
             Error::InvalidRecordElim => "invalid record elim",
+            Error::InvalidFormatRepr => "invalid format repr",
         }
     }
 }
@@ -485,7 +487,7 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
                 spine.push(Elim::FormatRepr);
                 head_expr
             }
-            _ => panic_any(Error::InvalidFunctionElim),
+            _ => panic_any(Error::InvalidFormatRepr),
         }
     }
 
