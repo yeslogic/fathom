@@ -12,6 +12,8 @@
 //! and [`SliceEnv`], but when we need to copy environments often, we use a
 //! [`SharedEnv`] to increase the amount of sharing at the expense of locality.
 
+use std::fmt;
+
 /// Underlying variable representation.
 type RawVar = u16;
 
@@ -32,7 +34,7 @@ type RawVar = u16;
 /// `λy. y`. With de Bruijn indices these would both be described as `λ 0`.
 ///
 /// [de Bruijn index]: https://en.wikipedia.org/wiki/De_Bruijn_index
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct LocalVar(RawVar);
 
 impl LocalVar {
@@ -44,6 +46,14 @@ impl LocalVar {
     /// Returns the previously bound variable, relative to this one.
     pub fn prev(self) -> LocalVar {
         LocalVar(self.0 + 1) // FIXME: check overflow?
+    }
+}
+
+impl fmt::Debug for LocalVar {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "LocalVar(")?;
+        self.0.fmt(f)?;
+        write!(f, ")")
     }
 }
 
@@ -70,7 +80,7 @@ pub fn local_vars() -> impl Iterator<Item = LocalVar> {
 /// evaluation for λ-calculus][untyped-nbe-for-lc]”.
 ///
 /// [untyped-nbe-for-lc]: https://colimit.net/posts/normalisation-by-evaluation/
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct GlobalVar(RawVar);
 
 impl GlobalVar {
@@ -82,6 +92,14 @@ impl GlobalVar {
     /// Returns the next bound variable, relative to this one.
     pub fn next(self) -> GlobalVar {
         GlobalVar(self.0 + 1) // FIXME: check overflow?
+    }
+}
+
+impl fmt::Debug for GlobalVar {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "GlobalVar(")?;
+        self.0.fmt(f)?;
+        write!(f, ")")
     }
 }
 
@@ -236,7 +254,7 @@ impl<Entry> SliceEnv<Entry> {
 }
 
 /// A persistent environment with structural sharing.
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct SharedEnv<Entry> {
     // An `rpds::Vector` is used instead of an `im::Vector` as it's a bit
     // more compact. We assume this is important because we tend to clone
@@ -297,5 +315,21 @@ impl<Entry> SharedEnv<Entry> {
     /// Iterate over the elements in the environment.
     pub fn iter<'this>(&'this self) -> impl 'this + DoubleEndedIterator<Item = &'this Entry> {
         self.entries.iter()
+    }
+}
+
+impl<Entry: fmt::Debug> fmt::Debug for SharedEnv<Entry> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("SharedEnv")
+            .field("entries", &DebugEntries(&self.entries))
+            .finish()
+    }
+}
+
+struct DebugEntries<'a, Entry>(&'a rpds::VectorSync<Entry>);
+
+impl<'a, Entry: fmt::Debug> fmt::Debug for DebugEntries<'a, Entry> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_list().entries(self.0.iter()).finish()
     }
 }
