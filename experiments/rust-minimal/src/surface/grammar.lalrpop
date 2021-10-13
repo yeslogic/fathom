@@ -56,6 +56,7 @@ extern {
         "=>" => Token::EqualsGreater,
         "." => Token::FullStop,
         "->" => Token::HyphenGreater,
+        "<-" => Token::LessHyphen,
         "?" => Token::QuestionMark,
         ";" => Token::Semicolon,
         "_" => Token::Underscore,
@@ -176,6 +177,10 @@ AtomicTerm: Term<'arena> = {
     <start: @L> "{" <first: (<RangedName> "=" <Term>)> <expr_fields: ("," <RangedName> "=" <Term>)*> ","?  "}" <end: @R> => {
         let type_fields = std::iter::once(first).chain(expr_fields).map(|(label, term)| (label, term));
         Term::RecordIntro(ByteRange::new(start, end), scope.to_scope_from_iter(type_fields))
+    },
+    <start: @L> "{" <first: (<RangedName> "<-" <Term>)> <format_fields: ("," <RangedName> "<-" <Term>)*> ","?  "}" <end: @R> => {
+        let format_fields = std::iter::once(first).chain(format_fields).map(|(label, term)| (label, term));
+        Term::FormatRecord(ByteRange::new(start, end), scope.to_scope_from_iter(format_fields))
     },
     <head_expr: AtomicTerm> "." <label: RangedName> => {
         Term::RecordElim(scope.to_scope(head_expr), label)

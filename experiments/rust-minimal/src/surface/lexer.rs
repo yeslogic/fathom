@@ -88,6 +88,8 @@ pub enum Token<'source> {
     FullStop,
     #[token("->")]
     HyphenGreater,
+    #[token("<-")]
+    LessHyphen,
     #[token("?")]
     QuestionMark,
     #[token(";")]

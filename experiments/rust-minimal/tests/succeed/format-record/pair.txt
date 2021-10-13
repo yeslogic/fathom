@@ -1,0 +1,6 @@
+let pair = {
+    fst <- u32be,
+    snd <- u32be,
+};
+
+pair

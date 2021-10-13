@@ -156,6 +156,8 @@ pub enum Term<'arena> {
 
     /// Type of format descriptions.
     FormatType,
+    /// Record formats, consisting of a list of dependent formats.
+    FormatRecord(&'arena [StringId], &'arena [Term<'arena>]),
     /// A format that always fails to parse.
     FormatFail,
     /// Unsigned, 8-bit integer formats.

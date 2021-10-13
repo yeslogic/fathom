@@ -198,6 +198,24 @@ impl<'doc> Context<'doc> {
             Term::F64Type(_) => self.text("F64"),
 
             Term::FormatType(_) => self.text("Format"),
+            Term::FormatRecord(_, format_fields) => self.concat([
+                self.text("{"),
+                self.space(),
+                self.intersperse(
+                    format_fields.iter().map(|((_, label), format)| {
+                        self.concat([
+                            self.name(*label),
+                            self.space(),
+                            self.text("<-"),
+                            self.space(),
+                            self.term_prec(Prec::Top, format),
+                        ])
+                    }),
+                    self.concat([self.text(","), self.space()]),
+                ),
+                self.space(),
+                self.text("}"),
+            ]),
             Term::FormatFail(_) => self.text("fail"),
             Term::FormatU8(_) => self.text("u8"),
             Term::FormatU16Be(_) => self.text("u16be"),

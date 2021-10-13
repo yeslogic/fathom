@@ -72,9 +72,7 @@ pub enum Term<'arena> {
     // };
     // ```
     FormatType(ByteRange), // TODO: Use `Name` variant instead
-    // TODO: FormatSequence(ByteRange, &'arena [((ByteRange, StringId), Term<'arena>)]),
-    // TODO: FormatRead(ByteRange, (ByteRange, StringId), &'arena Term<'arena>, &'arena Term<'arena>),
-    // TODO: FormatWrap(ByteRange, &'arena Term<'arena>),
+    FormatRecord(ByteRange, &'arena [((ByteRange, StringId), Term<'arena>)]),
     FormatFail(ByteRange),  // TODO: Use `Name` variant instead
     FormatU8(ByteRange),    // TODO: Use `Name` variant instead
     FormatU16Be(ByteRange), // TODO: Use `Name` variant instead
@@ -145,8 +143,9 @@ impl<'arena> Term<'arena> {
             | Term::F32Type(range)
             | Term::F64Type(range) => range.start(),
 
-            Term::FormatType(range)
-            | Term::FormatFail(range)
+            Term::FormatType(range) => range.start(),
+            Term::FormatRecord(range, _) => range.start(),
+            Term::FormatFail(range)
             | Term::FormatU8(range)
             | Term::FormatU16Be(range)
             | Term::FormatU16Le(range)
@@ -198,8 +197,9 @@ impl<'arena> Term<'arena> {
             | Term::F32Type(range)
             | Term::F64Type(range) => range.end(),
 
-            Term::FormatType(range)
-            | Term::FormatFail(range)
+            Term::FormatType(range) => range.end(),
+            Term::FormatRecord(range, _) => range.start(),
+            Term::FormatFail(range)
             | Term::FormatU8(range)
             | Term::FormatU16Be(range)
             | Term::FormatU16Le(range)

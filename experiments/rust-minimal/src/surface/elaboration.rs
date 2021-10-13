@@ -632,6 +632,31 @@ impl<'arena> Context<'arena> {
             Term::F64Type(_) => (core::Term::F64Type, Arc::new(Value::Universe)),
 
             Term::FormatType(_) => (core::Term::FormatType, Arc::new(Value::Universe)),
+            Term::FormatRecord(range, format_fields) => {
+                let initial_rigid_len = self.rigid_len();
+                let duplicate_indices = self.report_duplicate_labels(*range, format_fields);
+                let format_fields = (format_fields.iter().enumerate())
+                    .filter_map(|(i, field)| (!duplicate_indices.contains(&i)).then(|| field));
+
+                let labels = (self.scope)
+                    .to_scope_from_iter(format_fields.clone().map(|((_, label), _)| *label));
+                let format_fields =
+                    (self.scope).to_scope_from_iter(format_fields.map(|((_, label), format)| {
+                        let format = self.check(format, &Arc::new(Value::FormatType));
+                        let r#type = {
+                            let format_value = self.eval_context().eval(&format);
+                            self.elim_context().apply_format_repr(format_value)
+                        };
+                        self.push_rigid_parameter(Some(*label), r#type);
+                        format
+                    }));
+
+                self.truncate_rigid(initial_rigid_len);
+                (
+                    core::Term::FormatRecord(labels, format_fields),
+                    Arc::new(Value::FormatType),
+                )
+            }
             Term::FormatFail(_) => (core::Term::FormatFail, Arc::new(Value::FormatType)),
             Term::FormatU8(_) => (core::Term::FormatU8, Arc::new(Value::FormatType)),
             Term::FormatU16Be(_) => (core::Term::FormatU16Be, Arc::new(Value::FormatType)),

@@ -55,6 +55,8 @@ pub enum Value<'arena> {
 
     /// Type of format descriptions.
     FormatType,
+    /// Record formats, consisting of a list of dependent formats.
+    FormatRecord(&'arena [StringId], Telescope<'arena>),
     /// A format that always fails to parse.
     FormatFail,
     /// Unsigned, 8-bit integer formats.
@@ -156,6 +158,8 @@ impl<'arena> Closure<'arena> {
 pub struct Telescope<'arena> {
     /// Rigid environment where the telescope's [terms] are bound.
     rigid_exprs: SharedEnv<ArcValue<'arena>>,
+    /// `Repr` should be applied to each term in the telescope.
+    apply_repr: bool,
     /// The terms in the telescope.
     terms: &'arena [Term<'arena>],
 }
@@ -165,7 +169,19 @@ impl<'arena> Telescope<'arena> {
         rigid_exprs: SharedEnv<ArcValue<'arena>>,
         terms: &'arena [Term<'arena>],
     ) -> Telescope<'arena> {
-        Telescope { rigid_exprs, terms }
+        Telescope {
+            rigid_exprs,
+            apply_repr: false,
+            terms,
+        }
+    }
+
+    fn apply_repr(self) -> Telescope<'arena> {
+        debug_assert_eq!(self.apply_repr, false);
+        Telescope {
+            apply_repr: true,
+            ..self
+        }
     }
 
     /// The number of terms in the telescope.
@@ -309,6 +325,10 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
             Term::F64Type => Arc::new(Value::F64Type),
 
             Term::FormatType => Arc::new(Value::FormatType),
+            Term::FormatRecord(labels, formats) => Arc::new(Value::FormatRecord(
+                labels,
+                Telescope::new(self.rigid_exprs.clone(), formats),
+            )),
             Term::FormatFail => Arc::new(Value::FormatFail),
             Term::FormatU8 => Arc::new(Value::FormatU8),
             Term::FormatU16Be => Arc::new(Value::FormatU16Be),
@@ -393,11 +413,16 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
         impl FnOnce(ArcValue<'arena>) -> Telescope<'arena>,
     )> {
         let (term, terms) = telescope.terms.split_first()?;
-        let value = EvalContext::new(&mut telescope.rigid_exprs, self.flexible_exprs).eval(term);
+        let mut context = EvalContext::new(&mut telescope.rigid_exprs, self.flexible_exprs);
+        let value = match telescope.apply_repr {
+            true => context.eval(&Term::FormatRepr(term)),
+            false => context.eval(term),
+        };
 
         Some((value, move |previous_value| {
             telescope.rigid_exprs.push(previous_value);
-            Telescope::new(telescope.rigid_exprs, terms)
+            telescope.terms = terms;
+            telescope
         }))
     }
 
@@ -446,11 +471,16 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
         }
     }
 
-    /// Find the representation type of a format expression
-    fn apply_format_repr(&self, mut head_expr: ArcValue<'arena>) -> Arc<Value<'arena>> {
+    /// Find the representation type of a format expression.
+    pub fn apply_format_repr(&self, mut head_expr: ArcValue<'arena>) -> Arc<Value<'arena>> {
         match Arc::make_mut(&mut head_expr) {
             // Beta-reduction
-            Value::FormatFail => todo!(),
+            Value::FormatRecord(labels, formats) => {
+                // Defer reduction to the telescope
+                let types = Telescope::apply_repr(formats.clone());
+                Arc::new(Value::RecordType(labels, types))
+            }
+            Value::FormatFail => todo!(), // Never type
             Value::FormatU8 => Arc::new(Value::U8Type),
             Value::FormatU16Be => Arc::new(Value::U16Type),
             Value::FormatU16Le => Arc::new(Value::U16Type),
@@ -605,6 +635,12 @@ impl<'in_arena, 'out_arena, 'env> QuoteContext<'in_arena, 'out_arena, 'env> {
             Value::F64Type => Term::F64Type,
 
             Value::FormatType => Term::FormatType,
+            Value::FormatRecord(labels, formats) => {
+                let labels = self.scope.to_scope_from_iter(labels.iter().copied()); // FIXME: avoid copy if this is the same arena?
+                let formats = self.quote_telescope(formats);
+
+                Term::FormatRecord(labels, formats)
+            }
             Value::FormatFail => Term::FormatFail,
             Value::FormatU8 => Term::FormatU8,
             Value::FormatU16Be => Term::FormatU16Be,
@@ -785,6 +821,12 @@ impl<'arena, 'env> ConversionContext<'arena, 'env> {
             (Value::F64Type, Value::F64Type) => true,
 
             (Value::FormatType, Value::FormatType) => true,
+            (Value::FormatRecord(labels0, formats0), Value::FormatRecord(labels1, formats1)) => {
+                if labels0 != labels1 {
+                    return false;
+                }
+                self.is_equal_telescopes(formats0, formats1)
+            }
             (Value::FormatFail, Value::FormatFail) => true,
             (Value::FormatU8, Value::FormatU8) => true,
             (Value::FormatU16Be, Value::FormatU16Be) => true,

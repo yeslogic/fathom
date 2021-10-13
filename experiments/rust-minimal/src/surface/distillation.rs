@@ -197,8 +197,8 @@ impl<'arena> Context<'arena> {
                 )
             }
             core::Term::RecordType(labels, _) if labels.is_empty() => Term::Ann(
-                self.scope.to_scope(Term::RecordEmpty(PLACEHOLDER_RANGE)),
-                self.scope.to_scope(Term::Universe(PLACEHOLDER_RANGE)),
+                &Term::RecordEmpty(PLACEHOLDER_RANGE),
+                &Term::Universe(PLACEHOLDER_RANGE),
             ),
             core::Term::RecordType(labels, types) => {
                 let initial_rigid_len = self.rigid_len();
@@ -242,6 +242,23 @@ impl<'arena> Context<'arena> {
             core::Term::F64Type => Term::F64Type(PLACEHOLDER_RANGE),
 
             core::Term::FormatType => Term::FormatType(PLACEHOLDER_RANGE),
+            core::Term::FormatRecord(labels, _) if labels.is_empty() => Term::Ann(
+                &Term::RecordEmpty(PLACEHOLDER_RANGE),
+                &Term::FormatType(PLACEHOLDER_RANGE),
+            ),
+            core::Term::FormatRecord(labels, formats) => {
+                let initial_rigid_len = self.rigid_len();
+                let type_fields = (self.scope).to_scope_from_iter(
+                    Iterator::zip(labels.iter(), formats.iter()).map(|(label, format)| {
+                        let format = self.check(format);
+                        self.push_rigid(Some(*label));
+                        ((PLACEHOLDER_RANGE, *label), format)
+                    }),
+                );
+                self.truncate_rigid(initial_rigid_len);
+
+                Term::FormatRecord(PLACEHOLDER_RANGE, type_fields)
+            }
             core::Term::FormatFail => Term::FormatFail(PLACEHOLDER_RANGE),
             core::Term::FormatU8 => Term::FormatU8(PLACEHOLDER_RANGE),
             core::Term::FormatU16Be => Term::FormatU16Be(PLACEHOLDER_RANGE),
@@ -263,6 +280,7 @@ impl<'arena> Context<'arena> {
             core::Term::FormatF64Le => Term::FormatF64Le(PLACEHOLDER_RANGE),
             core::Term::FormatRepr(expr) => {
                 let expr = self.check(expr);
+
                 Term::FormatRepr(PLACEHOLDER_POS, self.scope.to_scope(expr))
             }
 

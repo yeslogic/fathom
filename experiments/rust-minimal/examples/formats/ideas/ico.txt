@@ -9,8 +9,8 @@
 
 let reserved : fun (f : Format) -> Repr f -> Format =
     fun f => fun default =>
-        let _ <- f;
-        return default;
+        let data <- f;
+        return data;
 
 let image = {
     width <- u8 if 0 then 256,

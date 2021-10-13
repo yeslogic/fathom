@@ -201,8 +201,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
                 if labels0 != labels1 {
                     return Err(Error::Mismatched);
                 }
-                self.unify_telescopes(types0, types1)?;
-                Ok(())
+                self.unify_telescopes(types0, types1)
             }
 
             (Value::RecordIntro(labels0, exprs0), Value::RecordIntro(labels1, exprs1)) => {
@@ -234,6 +233,12 @@ impl<'arena, 'env> Context<'arena, 'env> {
             (Value::F64Type, Value::F64Type) => Ok(()),
 
             (Value::FormatType, Value::FormatType) => Ok(()),
+            (Value::FormatRecord(labels0, formats0), Value::FormatRecord(labels1, formats1)) => {
+                if labels0 != labels1 {
+                    return Err(Error::Mismatched);
+                }
+                self.unify_telescopes(formats0, formats1)
+            }
             (Value::FormatFail, Value::FormatFail) => Ok(()),
             (Value::FormatU8, Value::FormatU8) => Ok(()),
             (Value::FormatU16Be, Value::FormatU16Be) => Ok(()),
@@ -520,6 +525,12 @@ impl<'arena, 'env> Context<'arena, 'env> {
             Value::F64Type => Ok(Term::F64Type),
 
             Value::FormatType => Ok(Term::FormatType),
+            Value::FormatRecord(labels, formats) => {
+                let labels = self.scope.to_scope(labels); // FIXME: avoid copy if this is the same arena?
+                let formats = self.rename_telescope(flexible_var, formats)?;
+
+                Ok(Term::FormatRecord(labels, formats))
+            }
             Value::FormatFail => Ok(Term::FormatFail),
             Value::FormatU8 => Ok(Term::FormatU8),
             Value::FormatU16Be => Ok(Term::FormatU16Be),
