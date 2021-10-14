@@ -1,0 +1,7 @@
+let Singleton : Type -> Type
+    = fun A => { x : A };
+
+let test_point : fun (A : Type) -> Singleton A -> { x : A }
+    = fun A => fun p => p;
+
+Type

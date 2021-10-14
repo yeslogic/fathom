@@ -309,7 +309,7 @@ impl<Entry> SharedEnv<Entry> {
 
     /// Truncate the environment to the given length.
     pub fn truncate(&mut self, len: EnvLen) {
-        (0..len.0).for_each(|_| self.pop());
+        (len.0..self.len().0).for_each(|_| self.pop());
     }
 
     /// Iterate over the elements in the environment.
