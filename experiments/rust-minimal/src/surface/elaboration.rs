@@ -562,7 +562,7 @@ impl<'arena> Context<'arena> {
 
                 for (_, expr) in expr_fields {
                     let (expr, r#type) = self.synth(expr);
-                    types.push(self.quote_context(self.scope).quote(&r#type));
+                    types.push(self.quote_context(self.scope).quote(&r#type)); // FIXME: These are misbound
                     exprs.push(expr);
                 }
 
