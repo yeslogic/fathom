@@ -55,6 +55,13 @@ pub enum Term<'arena> {
     S64Type(ByteRange), // TODO: Use `Name` variant instead
     F32Type(ByteRange), // TODO: Use `Name` variant instead
     F64Type(ByteRange), // TODO: Use `Name` variant instead
+    // TODO: NumberLiteral(ByteRange, StringId),
+
+    // TODO: Array8(ByteRange, &'arena Term<'arena>, &'arena Term<'arena>), // TODO: Use `Name` variant instead
+    // TODO: Array16(ByteRange, &'arena Term<'arena>, &'arena Term<'arena>), // TODO: Use `Name` variant instead
+    // TODO: Array32(ByteRange, &'arena Term<'arena>, &'arena Term<'arena>), // TODO: Use `Name` variant instead
+    // TODO: Array64(ByteRange, &'arena Term<'arena>, &'arena Term<'arena>), // TODO: Use `Name` variant instead
+    // TODO: ArrayLiteral(ByteRange, &'arena [Term<'arena>]),
 
     // TODO: Add a more systematic way of extending the format universe.
     //
@@ -96,7 +103,7 @@ pub enum Term<'arena> {
     // TODO: FormatArray16(ByteRange, &'arena Term<'arena>, &'arena Term<'arena>), // TODO: Use `Name` variant instead
     // TODO: FormatArray32(ByteRange, &'arena Term<'arena>, &'arena Term<'arena>), // TODO: Use `Name` variant instead
     // TODO: FormatArray64(ByteRange, &'arena Term<'arena>, &'arena Term<'arena>), // TODO: Use `Name` variant instead
-    FormatRepr(BytePos, &'arena Term<'arena>),
+    FormatRepr(BytePos, &'arena Term<'arena>), // TODO: Use `Name` variant instead
 
     ReportedError(ByteRange),
 }
