@@ -107,21 +107,31 @@ _elab.context_ ::=\
 ## Roadmap
 
 - language features
+  - [ ] top-level items
+  - [ ] recursive definitions
   - [x] let expressions
   - [x] dependent funs
     - [ ] implicit parameters
-  - [ ] records
+  - [x] records
     - [x] non-dependent
-    - [ ] dependent
+    - [x] dependent
   - [x] holes
     - [x] named holes
-  - [ ] top-level items
-  - [ ] recursive definitions
+  - [ ] numeric types
+  - [ ] numeric literals
+  - [ ] array types
+  - [ ] array literals
   - [ ] binary format descriptions
     - [x] error formats
+    - [x] record formats
+      - [ ] conditional field sugar
+      - [ ] skipped fields
     - [ ] map formats
-    - [ ] pure formats
-    - [ ] bind formats
+    - [x] numeric formats
+    - [ ] array formats
+  - [ ] type refinements
+  - [ ] pattern matching
+  - [ ] invertible format descriptions
 - implementation
   - [x] command line interface
   - [x] parser
@@ -144,6 +154,10 @@ _elab.context_ ::=\
     - [ ] improve binder names
     - [ ] improve hole names
   - [ ] core language validation
+  - [ ] binary format interpreter
+    - [ ] parser
+    - [ ] pretty printer
+  - [ ] compiler
   - [x] codespan diagnostics
     - [x] unification solutions
     - [ ] terms and types included in messages
