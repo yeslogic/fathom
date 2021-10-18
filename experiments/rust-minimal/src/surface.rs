@@ -2,6 +2,7 @@
 
 use lalrpop_util::lalrpop_mod;
 use scoped_arena::Scope;
+use std::cell::RefCell;
 
 use crate::{BytePos, ByteRange, StringId, StringInterner};
 
@@ -55,7 +56,7 @@ pub enum Term<'arena> {
     S64Type(ByteRange), // TODO: Use `Name` variant instead
     F32Type(ByteRange), // TODO: Use `Name` variant instead
     F64Type(ByteRange), // TODO: Use `Name` variant instead
-    // TODO: NumberLiteral(ByteRange, StringId),
+    NumberLiteral(ByteRange, StringId),
 
     // TODO: Array8(ByteRange, &'arena Term<'arena>, &'arena Term<'arena>), // TODO: Use `Name` variant instead
     // TODO: Array16(ByteRange, &'arena Term<'arena>, &'arena Term<'arena>), // TODO: Use `Name` variant instead
@@ -112,7 +113,7 @@ impl<'arena> Term<'arena> {
     /// Parse a term from the `source` string, interning strings to the
     /// supplied `interner` and allocating nodes to the `arena`.
     pub fn parse<'source>(
-        interner: &mut StringInterner,
+        interner: &RefCell<StringInterner>,
         scope: &'arena Scope<'arena>,
         source: &'source str,
     ) -> Result<Term<'arena>, ParseError<'source>> {
@@ -149,6 +150,7 @@ impl<'arena> Term<'arena> {
             | Term::S64Type(range)
             | Term::F32Type(range)
             | Term::F64Type(range) => range.start(),
+            Term::NumberLiteral(range, _) => range.start(),
 
             Term::FormatType(range) => range.start(),
             Term::FormatRecord(range, _) => range.start(),
@@ -203,6 +205,7 @@ impl<'arena> Term<'arena> {
             | Term::S64Type(range)
             | Term::F32Type(range)
             | Term::F64Type(range) => range.end(),
+            Term::NumberLiteral(range, _) => range.end(),
 
             Term::FormatType(range) => range.end(),
             Term::FormatRecord(range, _) => range.start(),

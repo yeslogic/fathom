@@ -9,6 +9,17 @@ let test_S64 : Type = S64;
 let test_F32 : Type = F32;
 let test_F64 : Type = F64;
 
+let test_U8_literal : U8 = 1;
+let test_U16_literal : U16 = 1;
+let test_U32_literal : U32 = 1;
+let test_U64_literal : U64 = 1;
+let test_S8_literal : S8 = 1;
+let test_S16_literal : S16 = 1;
+let test_S32_literal : S32 = 1;
+let test_S64_literal : S64 = 1;
+let test_F32_literal : F32 = 1;
+let test_F64_literal : F64 = 1;
+
 let test_format : Type = Format;
 let test_fail : Format = fail;
 let test_u8 : Format = u8;

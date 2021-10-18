@@ -1,6 +1,7 @@
 //! Bidirectional distillation of the core language into the surface language.
 
 use scoped_arena::Scope;
+use std::cell::RefCell;
 
 use crate::env::{self, EnvLen, LocalVar, UniqueEnv};
 use crate::surface::Term;
@@ -10,7 +11,8 @@ const PLACEHOLDER_POS: BytePos = 0;
 const PLACEHOLDER_RANGE: ByteRange = ByteRange::new(PLACEHOLDER_POS, PLACEHOLDER_POS);
 
 /// Distillation context.
-pub struct Context<'arena> {
+pub struct Context<'interner, 'arena> {
+    interner: &'interner RefCell<StringInterner>,
     /// Scoped arena for storing distilled terms.
     scope: &'arena Scope<'arena>,
     /// Rigid name environment.
@@ -19,12 +21,16 @@ pub struct Context<'arena> {
     placeholder_string: StringId,
 }
 
-impl<'arena> Context<'arena> {
+impl<'interner, 'arena> Context<'interner, 'arena> {
     /// Construct a new distillation context.
-    pub fn new(interner: &mut StringInterner, scope: &'arena Scope<'arena>) -> Context<'arena> {
-        let placeholder_string = interner.get_or_intern("_");
+    pub fn new(
+        interner: &'interner RefCell<StringInterner>,
+        scope: &'arena Scope<'arena>,
+    ) -> Context<'interner, 'arena> {
+        let placeholder_string = interner.borrow_mut().get_or_intern("_");
 
         Context {
+            interner,
             scope,
             rigid_names: UniqueEnv::new(),
             placeholder_string,
@@ -51,6 +57,13 @@ impl<'arena> Context<'arena> {
 
     fn truncate_rigid(&mut self, len: EnvLen) {
         self.rigid_names.truncate(len);
+    }
+
+    fn numeric_literal<T: std::fmt::Display>(&mut self, number: T) -> Term<'arena> {
+        Term::NumberLiteral(
+            PLACEHOLDER_RANGE,
+            self.interner.borrow_mut().get_or_intern(number.to_string()),
+        )
     }
 
     /// Distill a core term into a surface term, in a 'checkable' context.
@@ -102,6 +115,18 @@ impl<'arena> Context<'arena> {
 
                 Term::RecordIntro(PLACEHOLDER_RANGE, scope.to_scope_from_iter(expr_fields))
             }
+
+            core::Term::U8Intro(number) => self.numeric_literal(number),
+            core::Term::U16Intro(number) => self.numeric_literal(number),
+            core::Term::U32Intro(number) => self.numeric_literal(number),
+            core::Term::U64Intro(number) => self.numeric_literal(number),
+            core::Term::S8Intro(number) => self.numeric_literal(number),
+            core::Term::S16Intro(number) => self.numeric_literal(number),
+            core::Term::S32Intro(number) => self.numeric_literal(number),
+            core::Term::S64Intro(number) => self.numeric_literal(number),
+            core::Term::F32Intro(number) => self.numeric_literal(number),
+            core::Term::F64Intro(number) => self.numeric_literal(number),
+
             _ => self.synth(core_term),
         }
     }
@@ -240,6 +265,18 @@ impl<'arena> Context<'arena> {
             core::Term::S64Type => Term::S64Type(PLACEHOLDER_RANGE),
             core::Term::F32Type => Term::F32Type(PLACEHOLDER_RANGE),
             core::Term::F64Type => Term::F64Type(PLACEHOLDER_RANGE),
+
+            // FIXME: annotations
+            core::Term::U8Intro(number) => self.numeric_literal(number),
+            core::Term::U16Intro(number) => self.numeric_literal(number),
+            core::Term::U32Intro(number) => self.numeric_literal(number),
+            core::Term::U64Intro(number) => self.numeric_literal(number),
+            core::Term::S8Intro(number) => self.numeric_literal(number),
+            core::Term::S16Intro(number) => self.numeric_literal(number),
+            core::Term::S32Intro(number) => self.numeric_literal(number),
+            core::Term::S64Intro(number) => self.numeric_literal(number),
+            core::Term::F32Intro(number) => self.numeric_literal(number),
+            core::Term::F64Intro(number) => self.numeric_literal(number),
 
             core::Term::FormatType => Term::FormatType(PLACEHOLDER_RANGE),
             core::Term::FormatRecord(labels, _) if labels.is_empty() => Term::Ann(

@@ -1,10 +1,11 @@
 use scoped_arena::Scope;
+use std::cell::RefCell;
 
 use crate::{ByteRange, StringId, StringInterner};
 use crate::surface::Term;
 use crate::surface::lexer::Token;
 
-grammar<'arena, 'source>(interner: &mut StringInterner, scope: &'arena Scope<'arena>);
+grammar<'arena, 'source>(interner: &RefCell<StringInterner>, scope: &'arena Scope<'arena>);
 
 extern {
     type Location = usize;
@@ -12,6 +13,7 @@ extern {
 
     enum Token<'source> {
         "ident" => Token::Ident(<&'source str>),
+        "number" => Token::Number(<&'source str>),
 
         "fun" => Token::KeywordFun,
         "let" => Token::KeywordLet,
@@ -145,6 +147,9 @@ AtomicTerm: Term<'arena> = {
     <start: @L> "S64" <end: @R> => Term::S64Type(ByteRange::new(start, end)),
     <start: @L> "F32" <end: @R> => Term::F32Type(ByteRange::new(start, end)),
     <start: @L> "F64" <end: @R> => Term::F64Type(ByteRange::new(start, end)),
+    <start: @L> <number: "number"> <end: @R> => {
+        Term::NumberLiteral(ByteRange::new(start, end), interner.borrow_mut().get_or_intern(number))
+    },
 
     <start: @L> "Format" <end: @R> => Term::FormatType(ByteRange::new(start, end)),
     <start: @L> "fail" <end: @R> => Term::FormatFail(ByteRange::new(start, end)),
@@ -190,7 +195,7 @@ AtomicTerm: Term<'arena> = {
 
 #[inline]
 Name: StringId = {
-    <"ident"> => interner.get_or_intern(<>),
+    <"ident"> => interner.borrow_mut().get_or_intern(<>),
 };
 
 #[inline]

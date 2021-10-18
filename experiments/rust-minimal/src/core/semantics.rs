@@ -53,6 +53,17 @@ pub enum Value<'arena> {
     /// Type of 64-bit, IEEE-754 floating point numbers.
     F64Type,
 
+    U8Intro(u8),
+    U16Intro(u16),
+    U32Intro(u32),
+    U64Intro(u64),
+    S8Intro(i8),
+    S16Intro(i16),
+    S32Intro(i32),
+    S64Intro(i64),
+    F32Intro(f32),
+    F64Intro(f64),
+
     /// Type of format descriptions.
     FormatType,
     /// Record formats, consisting of a list of dependent formats.
@@ -323,6 +334,17 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
             Term::S64Type => Arc::new(Value::S64Type),
             Term::F32Type => Arc::new(Value::F32Type),
             Term::F64Type => Arc::new(Value::F64Type),
+
+            Term::U8Intro(number) => Arc::new(Value::U8Intro(*number)),
+            Term::U16Intro(number) => Arc::new(Value::U16Intro(*number)),
+            Term::U32Intro(number) => Arc::new(Value::U32Intro(*number)),
+            Term::U64Intro(number) => Arc::new(Value::U64Intro(*number)),
+            Term::S8Intro(number) => Arc::new(Value::S8Intro(*number)),
+            Term::S16Intro(number) => Arc::new(Value::S16Intro(*number)),
+            Term::S32Intro(number) => Arc::new(Value::S32Intro(*number)),
+            Term::S64Intro(number) => Arc::new(Value::S64Intro(*number)),
+            Term::F32Intro(number) => Arc::new(Value::F32Intro(*number)),
+            Term::F64Intro(number) => Arc::new(Value::F64Intro(*number)),
 
             Term::FormatType => Arc::new(Value::FormatType),
             Term::FormatRecord(labels, formats) => Arc::new(Value::FormatRecord(
@@ -634,6 +656,17 @@ impl<'in_arena, 'out_arena, 'env> QuoteContext<'in_arena, 'out_arena, 'env> {
             Value::F32Type => Term::F32Type,
             Value::F64Type => Term::F64Type,
 
+            Value::U8Intro(number) => Term::U8Intro(*number),
+            Value::U16Intro(number) => Term::U16Intro(*number),
+            Value::U32Intro(number) => Term::U32Intro(*number),
+            Value::U64Intro(number) => Term::U64Intro(*number),
+            Value::S8Intro(number) => Term::S8Intro(*number),
+            Value::S16Intro(number) => Term::S16Intro(*number),
+            Value::S32Intro(number) => Term::S32Intro(*number),
+            Value::S64Intro(number) => Term::S64Intro(*number),
+            Value::F32Intro(number) => Term::F32Intro(*number),
+            Value::F64Intro(number) => Term::F64Intro(*number),
+
             Value::FormatType => Term::FormatType,
             Value::FormatRecord(labels, formats) => {
                 let labels = self.scope.to_scope_from_iter(labels.iter().copied()); // FIXME: avoid copy if this is the same arena?
@@ -819,6 +852,16 @@ impl<'arena, 'env> ConversionContext<'arena, 'env> {
             (Value::S64Type, Value::S64Type) => true,
             (Value::F32Type, Value::F32Type) => true,
             (Value::F64Type, Value::F64Type) => true,
+
+            (Value::U16Intro(n0), Value::U16Intro(n1)) => n0 == n1,
+            (Value::U32Intro(n0), Value::U32Intro(n1)) => n0 == n1,
+            (Value::U64Intro(n0), Value::U64Intro(n1)) => n0 == n1,
+            (Value::S8Intro(n0), Value::S8Intro(n1)) => n0 == n1,
+            (Value::S16Intro(n0), Value::S16Intro(n1)) => n0 == n1,
+            (Value::S32Intro(n0), Value::S32Intro(n1)) => n0 == n1,
+            (Value::S64Intro(n0), Value::S64Intro(n1)) => n0 == n1,
+            (Value::F32Intro(n0), Value::F32Intro(n1)) => n0 == n1,
+            (Value::F64Intro(n0), Value::F64Intro(n1)) => n0 == n1,
 
             (Value::FormatType, Value::FormatType) => true,
             (Value::FormatRecord(labels0, formats0), Value::FormatRecord(labels1, formats1)) => {

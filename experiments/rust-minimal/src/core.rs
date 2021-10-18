@@ -154,6 +154,17 @@ pub enum Term<'arena> {
     /// Type of 64-bit, IEEE-754 floating point numbers.
     F64Type,
 
+    U8Intro(u8),
+    U16Intro(u16),
+    U32Intro(u32),
+    U64Intro(u64),
+    S8Intro(i8),
+    S16Intro(i16),
+    S32Intro(i32),
+    S64Intro(i64),
+    F32Intro(f32),
+    F64Intro(f64),
+
     /// Type of format descriptions.
     FormatType,
     /// Record formats, consisting of a list of dependent formats.

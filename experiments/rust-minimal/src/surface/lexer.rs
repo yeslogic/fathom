@@ -4,6 +4,8 @@ use logos::Logos;
 pub enum Token<'source> {
     #[regex(r"[a-zA-Z_][a-zA-Z0-9_]*")]
     Ident(&'source str),
+    #[regex(r"[+-]?[0-9][a-zA-Z0-9_]*")]
+    Number(&'source str),
 
     #[token("fun")]
     KeywordFun,

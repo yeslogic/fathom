@@ -24,7 +24,7 @@ impl<'doc> Context<'doc> {
         Context { interner, scope }
     }
 
-    pub fn name(&'doc self, name: StringId) -> DocBuilder<'doc, Self> {
+    pub fn string_id(&'doc self, name: StringId) -> DocBuilder<'doc, Self> {
         self.text(self.interner.resolve(name).unwrap_or("<ERROR>"))
     }
 
@@ -57,9 +57,9 @@ impl<'doc> Context<'doc> {
         // FIXME: indentation and grouping
 
         match term {
-            Term::Name(_, name) => self.name(*name),
+            Term::Name(_, name) => self.string_id(*name),
             Term::Hole(_, None) => self.text("_"),
-            Term::Hole(_, Some(name)) => self.concat([self.text("_"), self.name(*name)]),
+            Term::Hole(_, Some(name)) => self.concat([self.text("_"), self.string_id(*name)]),
             Term::Ann(expr, r#type) => self.ann(expr, r#type),
             Term::Let(_, (_, def_name), def_type, def_expr, output_expr) => self.paren(
                 prec > Prec::Let,
@@ -67,7 +67,7 @@ impl<'doc> Context<'doc> {
                     self.concat([
                         self.text("let"),
                         self.space(),
-                        self.name(*def_name),
+                        self.string_id(*def_name),
                         self.space(),
                         match def_type {
                             None => self.nil(),
@@ -96,7 +96,7 @@ impl<'doc> Context<'doc> {
                         self.text("fun"),
                         self.space(),
                         self.text("("),
-                        self.name(*input_name),
+                        self.string_id(*input_name),
                         self.space(),
                         self.text(":"),
                         self.softline(),
@@ -126,7 +126,7 @@ impl<'doc> Context<'doc> {
                     self.concat([
                         self.text("fun"),
                         self.space(),
-                        self.name(*input_name),
+                        self.string_id(*input_name),
                         self.space(),
                         self.text("=>"),
                     ])
@@ -149,7 +149,7 @@ impl<'doc> Context<'doc> {
                 self.intersperse(
                     type_fields.iter().map(|((_, label), r#type)| {
                         self.concat([
-                            self.name(*label),
+                            self.string_id(*label),
                             self.space(),
                             self.text(":"),
                             self.space(),
@@ -167,7 +167,7 @@ impl<'doc> Context<'doc> {
                 self.intersperse(
                     expr_fields.iter().map(|((_, label), r#expr)| {
                         self.concat([
-                            self.name(*label),
+                            self.string_id(*label),
                             self.space(),
                             self.text("="),
                             self.space(),
@@ -183,7 +183,7 @@ impl<'doc> Context<'doc> {
             Term::RecordElim(head_expr, (_, label)) => self.concat([
                 self.term_prec(Prec::Atomic, head_expr),
                 self.text("."),
-                self.name(*label),
+                self.string_id(*label),
             ]),
 
             Term::U8Type(_) => self.text("U8"),
@@ -196,6 +196,7 @@ impl<'doc> Context<'doc> {
             Term::S64Type(_) => self.text("S64"),
             Term::F32Type(_) => self.text("F32"),
             Term::F64Type(_) => self.text("F64"),
+            Term::NumberLiteral(_, number) => self.string_id(*number),
 
             Term::FormatType(_) => self.text("Format"),
             Term::FormatRecord(_, format_fields) => self.concat([
@@ -204,7 +205,7 @@ impl<'doc> Context<'doc> {
                 self.intersperse(
                     format_fields.iter().map(|((_, label), format)| {
                         self.concat([
-                            self.name(*label),
+                            self.string_id(*label),
                             self.space(),
                             self.text("<-"),
                             self.space(),

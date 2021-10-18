@@ -232,6 +232,16 @@ impl<'arena, 'env> Context<'arena, 'env> {
             (Value::F32Type, Value::F32Type) => Ok(()),
             (Value::F64Type, Value::F64Type) => Ok(()),
 
+            (Value::U16Intro(n0), Value::U16Intro(n1)) if n0 == n1 => Ok(()),
+            (Value::U32Intro(n0), Value::U32Intro(n1)) if n0 == n1 => Ok(()),
+            (Value::U64Intro(n0), Value::U64Intro(n1)) if n0 == n1 => Ok(()),
+            (Value::S8Intro(n0), Value::S8Intro(n1)) if n0 == n1 => Ok(()),
+            (Value::S16Intro(n0), Value::S16Intro(n1)) if n0 == n1 => Ok(()),
+            (Value::S32Intro(n0), Value::S32Intro(n1)) if n0 == n1 => Ok(()),
+            (Value::S64Intro(n0), Value::S64Intro(n1)) if n0 == n1 => Ok(()),
+            (Value::F32Intro(n0), Value::F32Intro(n1)) if n0 == n1 => Ok(()),
+            (Value::F64Intro(n0), Value::F64Intro(n1)) if n0 == n1 => Ok(()),
+
             (Value::FormatType, Value::FormatType) => Ok(()),
             (Value::FormatRecord(labels0, formats0), Value::FormatRecord(labels1, formats1)) => {
                 if labels0 != labels1 {
@@ -523,6 +533,17 @@ impl<'arena, 'env> Context<'arena, 'env> {
             Value::S64Type => Ok(Term::S64Type),
             Value::F32Type => Ok(Term::F32Type),
             Value::F64Type => Ok(Term::F64Type),
+
+            Value::U8Intro(number) => Ok(Term::U8Intro(*number)),
+            Value::U16Intro(number) => Ok(Term::U16Intro(*number)),
+            Value::U32Intro(number) => Ok(Term::U32Intro(*number)),
+            Value::U64Intro(number) => Ok(Term::U64Intro(*number)),
+            Value::S8Intro(number) => Ok(Term::S8Intro(*number)),
+            Value::S16Intro(number) => Ok(Term::S16Intro(*number)),
+            Value::S32Intro(number) => Ok(Term::S32Intro(*number)),
+            Value::S64Intro(number) => Ok(Term::S64Intro(*number)),
+            Value::F32Intro(number) => Ok(Term::F32Intro(*number)),
+            Value::F64Intro(number) => Ok(Term::F64Intro(*number)),
 
             Value::FormatType => Ok(Term::FormatType),
             Value::FormatRecord(labels, formats) => {

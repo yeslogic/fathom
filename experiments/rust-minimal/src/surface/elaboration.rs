@@ -1,13 +1,15 @@
 //! Bidirectional elaboration of the surface language into the core language.
 
 use scoped_arena::Scope;
+use std::cell::RefCell;
+use std::str::FromStr;
 use std::sync::Arc;
 
 use crate::core::semantics::{self, ArcValue, Closure, Telescope, Value};
 use crate::env::{self, EnvLen, SharedEnv, UniqueEnv};
 use crate::surface::elaboration::reporting::Message;
 use crate::surface::Term;
-use crate::{core, ByteRange, SliceBuilder, StringId};
+use crate::{core, ByteRange, SliceBuilder, StringId, StringInterner};
 
 mod reporting;
 mod unification;
@@ -28,7 +30,9 @@ pub enum FlexSource {
 }
 
 /// Elaboration context.
-pub struct Context<'arena> {
+pub struct Context<'interner, 'arena> {
+    /// Global string interner.
+    interner: &'interner RefCell<StringInterner>,
     /// Scoped arena for storing elaborated terms.
     //
     // TODO: Make this local to the elaboration context, and reallocate
@@ -63,10 +67,14 @@ pub struct Context<'arena> {
     messages: Vec<Message>,
 }
 
-impl<'arena> Context<'arena> {
+impl<'interner, 'arena> Context<'interner, 'arena> {
     /// Construct a new elaboration context, backed by the supplied arena.
-    pub fn new(scope: &'arena Scope<'arena>) -> Context<'arena> {
+    pub fn new(
+        interner: &'interner RefCell<StringInterner>,
+        scope: &'arena Scope<'arena>,
+    ) -> Context<'interner, 'arena> {
         Context {
+            interner,
             scope,
             renaming: unification::PartialRenaming::new(),
 
@@ -241,6 +249,27 @@ impl<'arena> Context<'arena> {
         duplicate_indices
     }
 
+    /// Parse a term from a source string.
+    fn parse<T: FromStr>(
+        &mut self,
+        range: ByteRange,
+        string_id: StringId,
+        make_term: fn(T) -> core::Term<'arena>,
+    ) -> core::Term<'arena>
+    where
+        T::Err: std::fmt::Display,
+    {
+        // TODO: Custom parsing and improved errors
+        match self.interner.borrow().resolve(string_id).unwrap().parse() {
+            Ok(data) => make_term(data),
+            Err(error) => {
+                let message = error.to_string();
+                self.push_message(Message::InvalidNumericLiteral { range, message });
+                core::Term::ReportedError
+            }
+        }
+    }
+
     /// Conversion checking for `expr` under the types `type0` and `type1`.
     /// This will trigger unification, recording a unification error on failure.
     //
@@ -346,7 +375,26 @@ impl<'arena> Context<'arena> {
                 core::Term::RecordIntro(labels, exprs.into())
             }
             (Term::RecordEmpty(_), Value::Universe) => core::Term::RecordType(&[], &[]),
+
+            (Term::NumberLiteral(range, number), _) => match expected_type.as_ref() {
+                Value::U8Type => self.parse(*range, *number, core::Term::U8Intro),
+                Value::U16Type => self.parse(*range, *number, core::Term::U16Intro),
+                Value::U32Type => self.parse(*range, *number, core::Term::U32Intro),
+                Value::U64Type => self.parse(*range, *number, core::Term::U64Intro),
+                Value::S8Type => self.parse(*range, *number, core::Term::S8Intro),
+                Value::S16Type => self.parse(*range, *number, core::Term::S16Intro),
+                Value::S32Type => self.parse(*range, *number, core::Term::S32Intro),
+                Value::S64Type => self.parse(*range, *number, core::Term::S64Intro),
+                Value::F32Type => self.parse(*range, *number, core::Term::F32Intro),
+                Value::F64Type => self.parse(*range, *number, core::Term::F64Intro),
+                _ => {
+                    self.push_message(Message::NumericLiteralNotSupported { range: *range });
+                    core::Term::ReportedError
+                }
+            },
+
             (Term::ReportedError(_), _) => core::Term::ReportedError,
+
             (_, _) => {
                 let (core_term, synth_type) = self.synth(surface_term);
                 self.convert(surface_term.range(), core_term, &synth_type, &expected_type)
@@ -630,6 +678,12 @@ impl<'arena> Context<'arena> {
             Term::S64Type(_) => (core::Term::S64Type, Arc::new(Value::Universe)),
             Term::F32Type(_) => (core::Term::F32Type, Arc::new(Value::Universe)),
             Term::F64Type(_) => (core::Term::F64Type, Arc::new(Value::Universe)),
+            Term::NumberLiteral(range, _) => {
+                // TODO: Stuck macros + unification like in Klister?
+                self.push_message(Message::AmbiguousNumericLiteral { range: *range });
+                let r#type = self.push_flexible_value(*range, FlexSource::ReportedErrorType);
+                (core::Term::ReportedError, r#type)
+            }
 
             Term::FormatType(_) => (core::Term::FormatType, Arc::new(Value::Universe)),
             Term::FormatRecord(range, format_fields) => {

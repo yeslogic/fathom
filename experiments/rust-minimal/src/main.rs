@@ -5,6 +5,7 @@ use fathom_minimal::core::semantics;
 use fathom_minimal::surface::{distillation, elaboration};
 use fathom_minimal::{surface, StringInterner};
 use scoped_arena::Scope;
+use std::cell::RefCell;
 use std::io::{Read, Write};
 use std::panic;
 use std::path::PathBuf;
@@ -82,16 +83,16 @@ fn main() -> ! {
     let mut writer = BufferedStandardStream::stderr(ColorChoice::Auto);
     let term_config = codespan_reporting::term::Config::default();
 
-    let mut interner = StringInterner::new();
+    let interner = RefCell::new(StringInterner::new());
     let mut surface_scope = Scope::new(); // Short-term storage of surface terms
     let core_scope = Scope::new(); // Long-term storage of core terms
 
     match Options::from_args() {
         Options::Elab(args) => {
             let file = load_input(&args.surface_term);
-            let surface_term = parse_term(&mut interner, &surface_scope, &file);
+            let surface_term = parse_term(&interner, &surface_scope, &file);
 
-            let mut context = elaboration::Context::new(&core_scope);
+            let mut context = elaboration::Context::new(&interner, &core_scope);
             let (term, r#type) = context.synth(&surface_term);
             let r#type = context.quote_context(&core_scope).quote(&r#type);
 
@@ -99,14 +100,17 @@ fn main() -> ! {
                 || args.allow_errors
             {
                 surface_scope.reset(); // Reuse the surface scope for distillation
-                let mut context = distillation::Context::new(&mut interner, &surface_scope);
+                let mut context = distillation::Context::new(&interner, &surface_scope);
                 let term = context.check(&term);
                 let r#type = context.check(&r#type);
 
-                let context = surface::pretty::Context::new(&interner, &surface_scope);
-                let doc = context.ann(&term, &r#type).into_doc();
+                {
+                    let interner = interner.borrow();
+                    let context = surface::pretty::Context::new(&interner, &surface_scope);
+                    let doc = context.ann(&term, &r#type).into_doc();
 
-                println!("{}", doc.pretty(get_pretty_width()));
+                    println!("{}", doc.pretty(get_pretty_width()));
+                }
 
                 std::process::exit(0);
             } else {
@@ -115,9 +119,9 @@ fn main() -> ! {
         }
         Options::Norm(args) => {
             let file = load_input(&args.surface_term);
-            let surface_term = parse_term(&mut interner, &surface_scope, &file);
+            let surface_term = parse_term(&interner, &surface_scope, &file);
 
-            let mut context = elaboration::Context::new(&core_scope);
+            let mut context = elaboration::Context::new(&interner, &core_scope);
             let (term, r#type) = context.synth(&surface_term);
             let term = context.eval_context().normalise(&core_scope, &term);
             let r#type = context.quote_context(&core_scope).quote(&r#type);
@@ -126,14 +130,17 @@ fn main() -> ! {
                 || args.allow_errors
             {
                 surface_scope.reset(); // Reuse the surface scope for distillation
-                let mut context = distillation::Context::new(&mut interner, &surface_scope);
+                let mut context = distillation::Context::new(&interner, &surface_scope);
                 let term = context.check(&term);
                 let r#type = context.check(&r#type);
 
-                let context = surface::pretty::Context::new(&interner, &surface_scope);
-                let doc = context.ann(&term, &r#type).into_doc();
+                {
+                    let interner = interner.borrow();
+                    let context = surface::pretty::Context::new(&interner, &surface_scope);
+                    let doc = context.ann(&term, &r#type).into_doc();
 
-                println!("{}", doc.pretty(get_pretty_width()));
+                    println!("{}", doc.pretty(get_pretty_width()));
+                }
 
                 std::process::exit(0);
             } else {
@@ -142,9 +149,9 @@ fn main() -> ! {
         }
         Options::Type(args) => {
             let file = load_input(&args.surface_term);
-            let surface_term = parse_term(&mut interner, &surface_scope, &file);
+            let surface_term = parse_term(&interner, &surface_scope, &file);
 
-            let mut context = elaboration::Context::new(&core_scope);
+            let mut context = elaboration::Context::new(&interner, &core_scope);
             let (_, r#type) = context.synth(&surface_term);
             let r#type = context.quote_context(&core_scope).quote(&r#type);
 
@@ -152,13 +159,16 @@ fn main() -> ! {
                 || args.allow_errors
             {
                 surface_scope.reset(); // Reuse the surface scope for distillation
-                let mut context = distillation::Context::new(&mut interner, &surface_scope);
+                let mut context = distillation::Context::new(&interner, &surface_scope);
                 let r#type = context.check(&r#type);
 
-                let context = surface::pretty::Context::new(&interner, &surface_scope);
-                let doc = context.term(&r#type).into_doc();
+                {
+                    let interner = interner.borrow();
+                    let context = surface::pretty::Context::new(&interner, &surface_scope);
+                    let doc = context.term(&r#type).into_doc();
 
-                println!("{}", doc.pretty(get_pretty_width()));
+                    println!("{}", doc.pretty(get_pretty_width()));
+                }
 
                 std::process::exit(0);
             } else {
@@ -228,7 +238,7 @@ fn get_pretty_width() -> usize {
 }
 
 fn parse_term<'arena>(
-    interner: &mut StringInterner,
+    interner: &RefCell<StringInterner>,
     scope: &'arena Scope<'arena>,
     file: &SimpleFile<String, String>,
 ) -> surface::Term<'arena> {
@@ -239,13 +249,13 @@ fn check_elaboration(
     writer: &mut BufferedStandardStream,
     config: &codespan_reporting::term::Config,
     files: &SimpleFile<String, String>,
-    interner: &StringInterner,
-    context: &mut elaboration::Context<'_>,
+    interner: &RefCell<StringInterner>,
+    context: &mut elaboration::Context<'_, '_>,
 ) -> bool {
     let mut is_ok = true;
 
     for message in context.drain_messages() {
-        let diagnostic = message.to_diagnostic(interner);
+        let diagnostic = message.to_diagnostic(&interner.borrow());
 
         codespan_reporting::term::emit(writer, config, files, &diagnostic).unwrap();
         writer.flush().unwrap();

@@ -8,7 +8,10 @@ use crate::{ByteRange, StringId, StringInterner};
 #[derive(Debug, Clone)]
 pub enum Message {
     /// The name was not previously bound in the current scope.
-    UnboundName { range: ByteRange, name: StringId },
+    UnboundName {
+        range: ByteRange,
+        name: StringId,
+    },
     UnknownField {
         head_range: ByteRange,
         // TODO: add head type
@@ -26,6 +29,18 @@ pub enum Message {
     DuplicateFieldLabels {
         range: ByteRange,
         labels: Vec<(ByteRange, StringId)>,
+    },
+    InvalidNumericLiteral {
+        range: ByteRange,
+        message: String,
+        // expected_type: Doc<_>,
+    },
+    NumericLiteralNotSupported {
+        range: ByteRange,
+        // expected_type: Doc<_>,
+    },
+    AmbiguousNumericLiteral {
+        range: ByteRange,
     },
     /// Unification errors.
     FailedToUnify {
@@ -160,6 +175,15 @@ impl Message {
                             .format_with(", ", |label, f| f(&format_args!("`{}`", label)))
                     )])
             }
+            Message::InvalidNumericLiteral { range, message } => Diagnostic::error()
+                .with_message("failed to parse numeric literal")
+                .with_labels(vec![(Label::primary((), *range)).with_message(message)]),
+            Message::NumericLiteralNotSupported { range } => Diagnostic::error()
+                .with_message("numeric literal not supported for expected type")
+                .with_labels(vec![(Label::primary((), *range))]),
+            Message::AmbiguousNumericLiteral { range } => Diagnostic::error()
+                .with_message("ambiguous numeric literal")
+                .with_labels(vec![(Label::primary((), *range))]),
             Message::FailedToUnify { range, error } => match error {
                 unification::Error::Mismatched => Diagnostic::error()
                     .with_message("type mismatch")

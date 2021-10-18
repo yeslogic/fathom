@@ -117,8 +117,11 @@ _elab.context_ ::=\
     - [x] dependent
   - [x] holes
     - [x] named holes
-  - [ ] numeric types
-  - [ ] numeric literals
+  - [x] numeric types
+  - [x] numeric literals
+    - [x] decimal literals
+    - [ ] non-decimal radixes
+    - [ ] custom parsing
   - [ ] array types
   - [ ] array literals
   - [ ] binary format descriptions
