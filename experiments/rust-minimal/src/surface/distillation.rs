@@ -56,11 +56,18 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         self.rigid_names.truncate(len);
     }
 
-    fn numeric_literal<T: std::fmt::Display>(&mut self, number: T) -> Term<'arena, ()> {
-        Term::NumberLiteral(
-            (),
-            self.interner.borrow_mut().get_or_intern(number.to_string()),
-        )
+    fn check_number_literal<T: std::fmt::Display>(&mut self, number: T) -> Term<'arena, ()> {
+        let number = self.interner.borrow_mut().get_or_intern(number.to_string());
+        Term::NumberLiteral((), number)
+    }
+
+    fn synth_number_literal<T: std::fmt::Display>(
+        &mut self,
+        number: T,
+        r#type: &'arena Term<'arena, ()>,
+    ) -> Term<'arena, ()> {
+        let expr = self.check_number_literal(number);
+        Term::Ann((), self.scope.to_scope(expr), r#type)
     }
 
     /// Distill a core term into a surface term, in a 'checkable' context.
@@ -105,16 +112,16 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 Term::RecordIntro((), scope.to_scope_from_iter(expr_fields))
             }
 
-            core::Term::U8Intro(number) => self.numeric_literal(number),
-            core::Term::U16Intro(number) => self.numeric_literal(number),
-            core::Term::U32Intro(number) => self.numeric_literal(number),
-            core::Term::U64Intro(number) => self.numeric_literal(number),
-            core::Term::S8Intro(number) => self.numeric_literal(number),
-            core::Term::S16Intro(number) => self.numeric_literal(number),
-            core::Term::S32Intro(number) => self.numeric_literal(number),
-            core::Term::S64Intro(number) => self.numeric_literal(number),
-            core::Term::F32Intro(number) => self.numeric_literal(number),
-            core::Term::F64Intro(number) => self.numeric_literal(number),
+            core::Term::U8Intro(number) => self.check_number_literal(number),
+            core::Term::U16Intro(number) => self.check_number_literal(number),
+            core::Term::U32Intro(number) => self.check_number_literal(number),
+            core::Term::U64Intro(number) => self.check_number_literal(number),
+            core::Term::S8Intro(number) => self.check_number_literal(number),
+            core::Term::S16Intro(number) => self.check_number_literal(number),
+            core::Term::S32Intro(number) => self.check_number_literal(number),
+            core::Term::S64Intro(number) => self.check_number_literal(number),
+            core::Term::F32Intro(number) => self.check_number_literal(number),
+            core::Term::F64Intro(number) => self.check_number_literal(number),
 
             _ => self.synth(core_term),
         }
@@ -250,17 +257,16 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
             core::Term::F32Type => Term::F32Type(()),
             core::Term::F64Type => Term::F64Type(()),
 
-            // FIXME: annotations
-            core::Term::U8Intro(number) => self.numeric_literal(number),
-            core::Term::U16Intro(number) => self.numeric_literal(number),
-            core::Term::U32Intro(number) => self.numeric_literal(number),
-            core::Term::U64Intro(number) => self.numeric_literal(number),
-            core::Term::S8Intro(number) => self.numeric_literal(number),
-            core::Term::S16Intro(number) => self.numeric_literal(number),
-            core::Term::S32Intro(number) => self.numeric_literal(number),
-            core::Term::S64Intro(number) => self.numeric_literal(number),
-            core::Term::F32Intro(number) => self.numeric_literal(number),
-            core::Term::F64Intro(number) => self.numeric_literal(number),
+            core::Term::U8Intro(number) => self.synth_number_literal(number, &Term::U8Type(())),
+            core::Term::U16Intro(number) => self.synth_number_literal(number, &Term::U16Type(())),
+            core::Term::U32Intro(number) => self.synth_number_literal(number, &Term::U32Type(())),
+            core::Term::U64Intro(number) => self.synth_number_literal(number, &Term::U64Type(())),
+            core::Term::S8Intro(number) => self.synth_number_literal(number, &Term::S8Type(())),
+            core::Term::S16Intro(number) => self.synth_number_literal(number, &Term::S16Type(())),
+            core::Term::S32Intro(number) => self.synth_number_literal(number, &Term::S32Type(())),
+            core::Term::S64Intro(number) => self.synth_number_literal(number, &Term::S64Type(())),
+            core::Term::F32Intro(number) => self.synth_number_literal(number, &Term::F32Type(())),
+            core::Term::F64Intro(number) => self.synth_number_literal(number, &Term::F64Type(())),
 
             core::Term::FormatType => Term::FormatType(()),
             core::Term::FormatRecord(labels, _) if labels.is_empty() => {
