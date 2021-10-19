@@ -3,6 +3,7 @@
 use crate::env::{GlobalVar, LocalVar};
 use crate::StringId;
 
+pub mod binary;
 pub mod semantics;
 
 /// Information about rigid entries. This is used for [flexible variable

@@ -157,13 +157,15 @@ _elab.context_ ::=\
     - [ ] improve binder names
     - [ ] improve hole names
   - [ ] core language validation
-  - [ ] binary format interpreter
-    - [ ] parser
+  - [x] binary format interpreter
+    - [x] parser
     - [ ] pretty printer
   - [ ] compiler
   - [x] codespan diagnostics
     - [x] unification solutions
     - [ ] terms and types included in messages
   - [x] integration tests
+    - [x] basic error code checks
     - [ ] snapshot testing
     - [ ] diagnostic expectations
+    - [ ] binary parser tests
