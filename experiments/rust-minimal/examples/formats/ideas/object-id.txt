@@ -1,0 +1,18 @@
+//~ ignore = true
+
+//! # BSON ObjectId
+//!
+//! ## References
+//!
+//! - [Mongo Reference](https://docs.mongodb.com/manual/reference/bson-types/#objectid)
+
+{
+    /// 4-byte timestamp value representing the creation time of the ObjectId,
+    /// measured in seconds since the Unix epoch.
+    timestamp <- u32be,
+    /// Random value generated once per process. This random value is unique to
+    /// the machine and process.
+    random <- array8 5 u8,
+    /// Incrementing counter, initialized to a random value.
+    counter <- u24be,
+}
