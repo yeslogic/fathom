@@ -28,7 +28,11 @@ impl<'doc> Context<'doc> {
         self.text(self.interner.resolve(name).unwrap_or("<ERROR>"))
     }
 
-    pub fn ann(&'doc self, expr: &Term<'_>, r#type: &Term<'_>) -> DocBuilder<'doc, Self> {
+    pub fn ann<Range>(
+        &'doc self,
+        expr: &Term<'_, Range>,
+        r#type: &Term<'_, Range>,
+    ) -> DocBuilder<'doc, Self> {
         self.concat([
             self.concat([
                 self.term_prec(Prec::Let, &expr),
@@ -49,18 +53,22 @@ impl<'doc> Context<'doc> {
         }
     }
 
-    pub fn term(&'doc self, term: &Term<'_>) -> DocBuilder<'doc, Self> {
+    pub fn term<Range>(&'doc self, term: &Term<'_, Range>) -> DocBuilder<'doc, Self> {
         self.term_prec(Prec::Top, term)
     }
 
-    pub fn term_prec(&'doc self, prec: Prec, term: &Term<'_>) -> DocBuilder<'doc, Self> {
+    pub fn term_prec<Range>(
+        &'doc self,
+        prec: Prec,
+        term: &Term<'_, Range>,
+    ) -> DocBuilder<'doc, Self> {
         // FIXME: indentation and grouping
 
         match term {
             Term::Name(_, name) => self.string_id(*name),
             Term::Hole(_, None) => self.text("_"),
             Term::Hole(_, Some(name)) => self.concat([self.text("_"), self.string_id(*name)]),
-            Term::Ann(expr, r#type) => self.ann(expr, r#type),
+            Term::Ann(_, expr, r#type) => self.ann(expr, r#type),
             Term::Let(_, (_, def_name), def_type, def_expr, output_expr) => self.paren(
                 prec > Prec::Let,
                 self.concat([
@@ -110,7 +118,7 @@ impl<'doc> Context<'doc> {
                     self.term_prec(Prec::Fun, output_type),
                 ]),
             ),
-            Term::FunArrow(input_type, output_type) => self.paren(
+            Term::FunArrow(_, input_type, output_type) => self.paren(
                 prec > Prec::Fun,
                 self.concat([
                     self.term_prec(Prec::App, input_type),
@@ -135,7 +143,7 @@ impl<'doc> Context<'doc> {
                     self.term_prec(Prec::Fun, output_expr),
                 ]),
             ),
-            Term::FunElim(head_expr, input_expr) => self.paren(
+            Term::FunElim(_, head_expr, input_expr) => self.paren(
                 prec > Prec::App,
                 self.concat([
                     self.term_prec(Prec::App, head_expr),
@@ -180,7 +188,7 @@ impl<'doc> Context<'doc> {
                 self.text("}"),
             ]),
             Term::RecordEmpty(_) => self.text("{}"),
-            Term::RecordElim(head_expr, (_, label)) => self.concat([
+            Term::RecordElim(_, head_expr, (_, label)) => self.concat([
                 self.term_prec(Prec::Atomic, head_expr),
                 self.text("."),
                 self.string_id(*label),

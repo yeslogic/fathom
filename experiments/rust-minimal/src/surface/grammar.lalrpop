@@ -70,22 +70,23 @@ extern {
     }
 }
 
-pub Term: Term<'arena> = {
+pub Term: Term<'arena, ByteRange> = {
     LetTerm,
     // FIXME: LALRPOP does not accept raw identifiers (see: https://github.com/lalrpop/lalrpop/issues/613)
-    <expr: LetTerm> ":" <type_: Term> => {
+    <start: @L> <expr: LetTerm> ":" <type_: Term> <end: @R> => {
         Term::Ann(
+            ByteRange::new(start, end),
             scope.to_scope(expr),
             scope.to_scope(type_),
         )
     },
 };
 
-LetTerm: Term<'arena> = {
+LetTerm: Term<'arena, ByteRange> = {
     FunTerm,
-    <start: @L> "let" <def_name: RangedName> <def_type: (":" <FunTerm>)?> "=" <def_expr: LetTerm> ";" <body_expr: LetTerm> => {
+    <start: @L> "let" <def_name: RangedName> <def_type: (":" <FunTerm>)?> "=" <def_expr: LetTerm> ";" <body_expr: LetTerm> <end: @R> => {
         Term::Let(
-            start,
+            ByteRange::new(start, end),
             def_name,
             def_type.map(|def_type| scope.to_scope(def_type) as &_),
             scope.to_scope(def_expr),
@@ -94,45 +95,47 @@ LetTerm: Term<'arena> = {
     },
 };
 
-FunTerm: Term<'arena> = {
+FunTerm: Term<'arena, ByteRange> = {
     AppTerm,
-    <input_type: AppTerm> "->"  <output_type: FunTerm> => {
+    <start: @L> <input_type: AppTerm> "->"  <output_type: FunTerm> <end: @R> => {
         Term::FunArrow(
+            ByteRange::new(start, end),
             scope.to_scope(input_type),
             scope.to_scope(output_type),
         )
     },
-    <start: @L> "fun" "(" <input_name: RangedName> ":" <input_type: Term> ")" "->"  <output_type: FunTerm> => {
+    <start: @L> "fun" "(" <input_name: RangedName> ":" <input_type: Term> ")" "->"  <output_type: FunTerm> <end: @R> => {
         Term::FunType(
-            start,
+            ByteRange::new(start, end),
             input_name,
             scope.to_scope(input_type),
             scope.to_scope(output_type),
         )
     },
-    <start: @L> "fun" <input_name: RangedName> "=>" <output_type: FunTerm> => {
+    <start: @L> "fun" <input_name: RangedName> "=>" <output_type: FunTerm> <end: @R> => {
         Term::FunIntro(
-            start,
+            ByteRange::new(start, end),
             input_name,
             scope.to_scope(output_type),
         )
     },
 };
 
-AppTerm: Term<'arena> = {
+AppTerm: Term<'arena, ByteRange> = {
     AtomicTerm,
-    <head_expr: AppTerm> <input_expr: AtomicTerm> => {
+    <start: @L> <head_expr: AppTerm> <input_expr: AtomicTerm> <end: @R> => {
         Term::FunElim(
+            ByteRange::new(start, end),
             scope.to_scope(head_expr),
             scope.to_scope(input_expr),
         )
     },
-    <start: @L> "Repr" <head_expr: AtomicTerm> => {
-        Term::FormatRepr(start, scope.to_scope(head_expr))
+    <start: @L> "Repr" <head_expr: AtomicTerm> <end: @R> => {
+        Term::FormatRepr(ByteRange::new(start, end), scope.to_scope(head_expr))
     },
 };
 
-AtomicTerm: Term<'arena> = {
+AtomicTerm: Term<'arena, ByteRange> = {
     <start: @L> <name: Name> <end: @R> => Term::Name(ByteRange::new(start, end), name),
 
     <start: @L> "Type" <end: @R> => Term::Universe(ByteRange::new(start, end)),
@@ -187,8 +190,8 @@ AtomicTerm: Term<'arena> = {
         let format_fields = std::iter::once(first).chain(format_fields).map(|(label, term)| (label, term));
         Term::FormatRecord(ByteRange::new(start, end), scope.to_scope_from_iter(format_fields))
     },
-    <head_expr: AtomicTerm> "." <label: RangedName> => {
-        Term::RecordElim(scope.to_scope(head_expr), label)
+    <start: @L> <head_expr: AtomicTerm> "." <label: RangedName> <end: @R> => {
+        Term::RecordElim(ByteRange::new(start, end), scope.to_scope(head_expr), label)
     },
     "(" <term: Term> ")" => term,
 };

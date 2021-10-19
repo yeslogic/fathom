@@ -3,7 +3,7 @@ use codespan_reporting::files::{SimpleFile, SimpleFiles};
 use codespan_reporting::term::termcolor::{BufferedStandardStream, ColorChoice};
 use fathom_minimal::core::semantics;
 use fathom_minimal::surface::{distillation, elaboration};
-use fathom_minimal::{surface, StringInterner};
+use fathom_minimal::{surface, ByteRange, StringInterner};
 use scoped_arena::Scope;
 use std::cell::RefCell;
 use std::io::{Read, Write};
@@ -241,7 +241,7 @@ fn parse_term<'arena>(
     interner: &RefCell<StringInterner>,
     scope: &'arena Scope<'arena>,
     file: &SimpleFile<String, String>,
-) -> surface::Term<'arena> {
+) -> surface::Term<'arena, ByteRange> {
     surface::Term::parse(interner, scope, file.source()).unwrap() // TODO: report errors
 }
 

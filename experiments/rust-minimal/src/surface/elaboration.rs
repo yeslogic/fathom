@@ -221,7 +221,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
     fn report_duplicate_labels(
         &mut self,
         range: ByteRange,
-        fields: &[((ByteRange, StringId), Term<'_>)],
+        fields: &[((ByteRange, StringId), Term<'_, ByteRange>)],
     ) -> Vec<usize> {
         use itertools::Itertools;
 
@@ -296,7 +296,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
     /// Returns the elaborated term in the core language.
     pub fn check(
         &mut self,
-        surface_term: &Term<'_>,
+        surface_term: &Term<'_, ByteRange>,
         expected_type: &ArcValue<'arena>,
     ) -> core::Term<'arena> {
         let expected_type = self.elim_context().force(expected_type);
@@ -405,7 +405,10 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
     /// Synthesize the type of the given surface term.
     ///
     /// Returns the elaborated term in the core language and its type.
-    pub fn synth(&mut self, surface_term: &Term<'_>) -> (core::Term<'arena>, ArcValue<'arena>) {
+    pub fn synth(
+        &mut self,
+        surface_term: &Term<'_, ByteRange>,
+    ) -> (core::Term<'arena>, ArcValue<'arena>) {
         match surface_term {
             Term::Name(range, name) => match self.get_name(*name) {
                 Some((term, r#type)) => (term, r#type.clone()),
@@ -422,7 +425,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 self.push_flexible_term(*range, FlexSource::HoleExpr(*name)),
                 self.push_flexible_value(*range, FlexSource::HoleType(*name)),
             ),
-            Term::Ann(expr, r#type) => {
+            Term::Ann(_, expr, r#type) => {
                 let r#type = self.check(r#type, &Arc::new(Value::Universe)); // FIXME: avoid temporary Arc
                 let type_value = self.eval_context().eval(&r#type);
                 let expr = self.check(expr, &type_value);
@@ -464,7 +467,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 (let_expr, output_type)
             }
             Term::Universe(_) => (core::Term::Universe, Arc::new(Value::Universe)),
-            Term::FunArrow(input_type, output_type) => {
+            Term::FunArrow(_, input_type, output_type) => {
                 let input_type = self.check(input_type, &Arc::new(Value::Universe)); // FIXME: avoid temporary Arc
                 let input_type_value = self.eval_context().eval(&input_type);
 
@@ -515,7 +518,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                     )),
                 )
             }
-            Term::FunElim(head_expr, input_expr) => {
+            Term::FunElim(_, head_expr, input_expr) => {
                 let head_range = head_expr.range();
                 let (head_expr, head_type) = self.synth(head_expr);
 
@@ -629,7 +632,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                     Telescope::new(SharedEnv::new(), &[]),
                 )),
             ),
-            Term::RecordElim(head_expr, (label_range, label)) => {
+            Term::RecordElim(_, head_expr, (label_range, label)) => {
                 let head_range = head_expr.range();
                 let (head_expr, head_type) = self.synth(head_expr);
                 let head_expr_value = self.eval_context().eval(&head_expr);
