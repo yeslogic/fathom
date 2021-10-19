@@ -12,7 +12,8 @@ extern {
     type Error = ();
 
     enum Token<'source> {
-        "ident" => Token::Ident(<&'source str>),
+        "name" => Token::Name(<&'source str>),
+        "hole" => Token::Hole(<&'source str>),
         "number" => Token::Number(<&'source str>),
 
         "fun" => Token::KeywordFun,
@@ -59,7 +60,6 @@ extern {
         "." => Token::FullStop,
         "->" => Token::HyphenGreater,
         "<-" => Token::LessHyphen,
-        "?" => Token::QuestionMark,
         ";" => Token::Semicolon,
         "_" => Token::Underscore,
 
@@ -137,7 +137,8 @@ AppTerm: Term<'arena, ByteRange> = {
 
 AtomicTerm: Term<'arena, ByteRange> = {
     <start: @L> <name: Name> <end: @R> => Term::Name(ByteRange::new(start, end), name),
-
+    <start: @L> "_" <end: @R> => Term::Hole(ByteRange::new(start, end), None),
+    <start: @L> <name: Hole> <end: @R> => Term::Hole(ByteRange::new(start, end), Some(name)),
     <start: @L> "Type" <end: @R> => Term::Universe(ByteRange::new(start, end)),
 
     <start: @L> "U8" <end: @R> => Term::U8Type(ByteRange::new(start, end)),
@@ -150,9 +151,7 @@ AtomicTerm: Term<'arena, ByteRange> = {
     <start: @L> "S64" <end: @R> => Term::S64Type(ByteRange::new(start, end)),
     <start: @L> "F32" <end: @R> => Term::F32Type(ByteRange::new(start, end)),
     <start: @L> "F64" <end: @R> => Term::F64Type(ByteRange::new(start, end)),
-    <start: @L> <number: "number"> <end: @R> => {
-        Term::NumberLiteral(ByteRange::new(start, end), interner.borrow_mut().get_or_intern(number))
-    },
+    <start: @L> <number: Number> <end: @R> => Term::NumberLiteral(ByteRange::new(start, end), number),
 
     <start: @L> "Format" <end: @R> => Term::FormatType(ByteRange::new(start, end)),
     <start: @L> "fail" <end: @R> => Term::FormatFail(ByteRange::new(start, end)),
@@ -175,8 +174,6 @@ AtomicTerm: Term<'arena, ByteRange> = {
     <start: @L> "f64be" <end: @R> => Term::FormatF64Be(ByteRange::new(start, end)),
     <start: @L> "f64le" <end: @R> => Term::FormatF64Le(ByteRange::new(start, end)),
 
-    <start: @L> "?" <name: Name> <end: @R> => Term::Hole(ByteRange::new(start, end), Some(name)),
-    <start: @L> "_" <end: @R> => Term::Hole(ByteRange::new(start, end), None),
     <start: @L> "{" "}" <end: @R> => Term::RecordEmpty(ByteRange::new(start, end)),
     <start: @L> "{" <first: (<RangedName> ":" <Term>)> <type_fields: ("," <RangedName> ":" <Term>)*> ","?  "}" <end: @R> => {
         let type_fields = std::iter::once(first).chain(type_fields).map(|(label, term)| (label, term));
@@ -196,10 +193,9 @@ AtomicTerm: Term<'arena, ByteRange> = {
     "(" <term: Term> ")" => term,
 };
 
-#[inline]
-Name: StringId = {
-    <"ident"> => interner.borrow_mut().get_or_intern(<>),
-};
+#[inline] Name: StringId = { <"name"> => interner.borrow_mut().get_or_intern(<>) };
+#[inline] Hole: StringId = { <"hole"> => interner.borrow_mut().get_or_intern(<>) };
+#[inline] Number: StringId = { <"number"> => interner.borrow_mut().get_or_intern(<>) };
 
 #[inline]
 RangedName: (ByteRange, StringId) = {

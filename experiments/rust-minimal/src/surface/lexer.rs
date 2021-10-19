@@ -3,7 +3,9 @@ use logos::Logos;
 #[derive(Clone, Debug, Logos)]
 pub enum Token<'source> {
     #[regex(r"[a-zA-Z_][a-zA-Z0-9_]*")]
-    Ident(&'source str),
+    Name(&'source str),
+    #[regex(r"\?[a-zA-Z_][a-zA-Z0-9_]*", |lex| &lex.slice()[1..])]
+    Hole(&'source str),
     #[regex(r"[+-]?[0-9][a-zA-Z0-9_]*")]
     Number(&'source str),
 
@@ -92,8 +94,6 @@ pub enum Token<'source> {
     HyphenGreater,
     #[token("<-")]
     LessHyphen,
-    #[token("?")]
-    QuestionMark,
     #[token(";")]
     Semicolon,
     #[token("_")]
