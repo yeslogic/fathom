@@ -87,13 +87,9 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 let output_expr = self.check(output_expr);
                 self.pop_rigid();
 
-                Term::Let(
-                    (),
-                    ((), def_name),
-                    def_type,
-                    def_expr,
-                    self.scope.to_scope(output_expr),
-                )
+                let output_expr = self.scope.to_scope(output_expr);
+
+                Term::Let((), ((), def_name), def_type, def_expr, output_expr)
             }
             core::Term::FunIntro(input_name, output_expr) => {
                 let input_name = self.push_rigid(*input_name);
@@ -174,13 +170,9 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 let output_expr = self.synth(output_expr);
                 self.pop_rigid();
 
-                Term::Let(
-                    (),
-                    ((), def_name),
-                    def_type,
-                    def_expr,
-                    self.scope.to_scope(output_expr),
-                )
+                let output_expr = self.scope.to_scope(output_expr);
+
+                Term::Let((), ((), def_name), def_type, def_expr, output_expr)
             }
             core::Term::Universe => Term::Universe(()),
             core::Term::FunType(input_name, input_type, output_type) => {
