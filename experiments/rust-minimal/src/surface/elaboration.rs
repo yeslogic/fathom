@@ -8,7 +8,7 @@ use std::sync::Arc;
 use crate::core::semantics::{self, ArcValue, Closure, Telescope, Value};
 use crate::env::{self, EnvLen, GlobalVar, SharedEnv, UniqueEnv};
 use crate::surface::elaboration::reporting::Message;
-use crate::surface::Term;
+use crate::surface::{distillation, Term};
 use crate::{core, ByteRange, SliceBuilder, StringId, StringInterner};
 
 mod reporting;
@@ -37,6 +37,65 @@ impl<'arena> RigidEnv<'arena> {
             infos: UniqueEnv::new(),
             exprs: SharedEnv::new(),
         }
+    }
+
+    pub fn default(
+        interner: &RefCell<StringInterner>,
+        scope: &'arena Scope<'arena>,
+    ) -> RigidEnv<'arena> {
+        use crate::core::Term;
+        use crate::env::LocalVar;
+
+        let mut env = RigidEnv::new();
+
+        let shared = |value: ArcValue<'static>| move || value.clone();
+
+        let name = |name| Some(interner.borrow_mut().get_or_intern_static(name));
+        let universe = shared(Arc::new(Value::Universe));
+        let format_type = shared(Arc::new(Value::FormatType));
+
+        let close = |term| Closure::new(SharedEnv::new(), scope.to_scope(term));
+        let var0 = scope.to_scope(Term::RigidVar(LocalVar::last()));
+
+        env.push_def(name("U8"), Arc::new(Value::U8Type), universe());
+        env.push_def(name("U16"), Arc::new(Value::U16Type), universe());
+        env.push_def(name("U32"), Arc::new(Value::U32Type), universe());
+        env.push_def(name("U64"), Arc::new(Value::U64Type), universe());
+        env.push_def(name("S8"), Arc::new(Value::S8Type), universe());
+        env.push_def(name("S16"), Arc::new(Value::S16Type), universe());
+        env.push_def(name("S32"), Arc::new(Value::S32Type), universe());
+        env.push_def(name("S64"), Arc::new(Value::S64Type), universe());
+        env.push_def(name("F32"), Arc::new(Value::F32Type), universe());
+        env.push_def(name("F64"), Arc::new(Value::F64Type), universe());
+
+        env.push_def(name("Format"), Arc::new(Value::FormatType), universe());
+        env.push_def(name("fail"), Arc::new(Value::FormatFail), format_type());
+        env.push_def(name("u8"), Arc::new(Value::FormatU8), format_type());
+        env.push_def(name("u16be"), Arc::new(Value::FormatU16Be), format_type());
+        env.push_def(name("u16le"), Arc::new(Value::FormatU16Le), format_type());
+        env.push_def(name("u32be"), Arc::new(Value::FormatU32Be), format_type());
+        env.push_def(name("u32le"), Arc::new(Value::FormatU32Le), format_type());
+        env.push_def(name("u64be"), Arc::new(Value::FormatU64Be), format_type());
+        env.push_def(name("u64le"), Arc::new(Value::FormatU64Le), format_type());
+        env.push_def(name("s8"), Arc::new(Value::FormatS8), format_type());
+        env.push_def(name("s16be"), Arc::new(Value::FormatS16Be), format_type());
+        env.push_def(name("s16le"), Arc::new(Value::FormatS16Le), format_type());
+        env.push_def(name("s32be"), Arc::new(Value::FormatS32Be), format_type());
+        env.push_def(name("s32le"), Arc::new(Value::FormatS32Le), format_type());
+        env.push_def(name("s64be"), Arc::new(Value::FormatS64Be), format_type());
+        env.push_def(name("s64le"), Arc::new(Value::FormatS64Le), format_type());
+        env.push_def(name("f32be"), Arc::new(Value::FormatF32Be), format_type());
+        env.push_def(name("f32le"), Arc::new(Value::FormatF32Le), format_type());
+        env.push_def(name("f64be"), Arc::new(Value::FormatF64Be), format_type());
+        env.push_def(name("f64le"), Arc::new(Value::FormatF64Le), format_type());
+        env.push_def(
+            name("Repr"),
+            // TODO: Clean up closure construction
+            Arc::new(Value::FunIntro(None, close(Term::FormatRepr(var0)))),
+            Arc::new(Value::FunType(None, format_type(), close(Term::Universe))),
+        );
+
+        env
     }
 
     /// Get the length of the rigid environment.
@@ -186,7 +245,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         Context {
             interner,
             scope,
-            rigid_env: RigidEnv::new(),
+            rigid_env: RigidEnv::default(interner, scope),
             flexible_env: FlexibleEnv::new(),
             renaming: unification::PartialRenaming::new(),
             messages: Vec::new(),
@@ -246,6 +305,10 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
             self.rigid_env.len(),
             &mut self.flexible_env.exprs,
         )
+    }
+
+    pub fn distillation_context(&mut self) -> distillation::Context<'interner, 'arena, '_> {
+        distillation::Context::new(self.interner, self.scope, &mut self.rigid_env.names)
     }
 
     /// Reports an error if there are duplicate fields found, returning a vector
@@ -711,16 +774,6 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 )
             }
 
-            Term::U8Type(_) => (core::Term::U8Type, Arc::new(Value::Universe)),
-            Term::U16Type(_) => (core::Term::U16Type, Arc::new(Value::Universe)),
-            Term::U32Type(_) => (core::Term::U32Type, Arc::new(Value::Universe)),
-            Term::U64Type(_) => (core::Term::U64Type, Arc::new(Value::Universe)),
-            Term::S8Type(_) => (core::Term::S8Type, Arc::new(Value::Universe)),
-            Term::S16Type(_) => (core::Term::S16Type, Arc::new(Value::Universe)),
-            Term::S32Type(_) => (core::Term::S32Type, Arc::new(Value::Universe)),
-            Term::S64Type(_) => (core::Term::S64Type, Arc::new(Value::Universe)),
-            Term::F32Type(_) => (core::Term::F32Type, Arc::new(Value::Universe)),
-            Term::F64Type(_) => (core::Term::F64Type, Arc::new(Value::Universe)),
             Term::NumberLiteral(range, _) => {
                 // TODO: Stuck macros + unification like in Klister?
                 self.push_message(Message::AmbiguousNumericLiteral { range: *range });
@@ -728,7 +781,6 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 (core::Term::ReportedError, r#type)
             }
 
-            Term::FormatType(_) => (core::Term::FormatType, Arc::new(Value::Universe)),
             Term::FormatRecord(range, format_fields) => {
                 let initial_rigid_len = self.rigid_env.len();
                 let duplicate_indices = self.report_duplicate_labels(*range, format_fields);
@@ -752,32 +804,6 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 (
                     core::Term::FormatRecord(labels, format_fields),
                     Arc::new(Value::FormatType),
-                )
-            }
-            Term::FormatFail(_) => (core::Term::FormatFail, Arc::new(Value::FormatType)),
-            Term::FormatU8(_) => (core::Term::FormatU8, Arc::new(Value::FormatType)),
-            Term::FormatU16Be(_) => (core::Term::FormatU16Be, Arc::new(Value::FormatType)),
-            Term::FormatU16Le(_) => (core::Term::FormatU16Le, Arc::new(Value::FormatType)),
-            Term::FormatU32Be(_) => (core::Term::FormatU32Be, Arc::new(Value::FormatType)),
-            Term::FormatU32Le(_) => (core::Term::FormatU32Le, Arc::new(Value::FormatType)),
-            Term::FormatU64Be(_) => (core::Term::FormatU64Be, Arc::new(Value::FormatType)),
-            Term::FormatU64Le(_) => (core::Term::FormatU64Le, Arc::new(Value::FormatType)),
-            Term::FormatS8(_) => (core::Term::FormatS8, Arc::new(Value::FormatType)),
-            Term::FormatS16Be(_) => (core::Term::FormatS16Be, Arc::new(Value::FormatType)),
-            Term::FormatS16Le(_) => (core::Term::FormatS16Le, Arc::new(Value::FormatType)),
-            Term::FormatS32Be(_) => (core::Term::FormatS32Be, Arc::new(Value::FormatType)),
-            Term::FormatS32Le(_) => (core::Term::FormatS32Le, Arc::new(Value::FormatType)),
-            Term::FormatS64Be(_) => (core::Term::FormatS64Be, Arc::new(Value::FormatType)),
-            Term::FormatS64Le(_) => (core::Term::FormatS64Le, Arc::new(Value::FormatType)),
-            Term::FormatF32Be(_) => (core::Term::FormatF32Be, Arc::new(Value::FormatType)),
-            Term::FormatF32Le(_) => (core::Term::FormatF32Le, Arc::new(Value::FormatType)),
-            Term::FormatF64Be(_) => (core::Term::FormatF64Be, Arc::new(Value::FormatType)),
-            Term::FormatF64Le(_) => (core::Term::FormatF64Le, Arc::new(Value::FormatType)),
-            Term::FormatRepr(_, expr) => {
-                let expr = self.check(expr, &Arc::new(Value::FormatType));
-                (
-                    core::Term::FormatRepr(self.scope.to_scope(expr)),
-                    Arc::new(Value::Universe),
                 )
             }
 

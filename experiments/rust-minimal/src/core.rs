@@ -165,6 +165,11 @@ pub enum Term<'arena> {
     F32Intro(f32),
     F64Intro(f64),
 
+    // TODO: Array8(&'arena Term<'arena>, &'arena Term<'arena>),
+    // TODO: Array16(&'arena Term<'arena>, &'arena Term<'arena>),
+    // TODO: Array32(&'arena Term<'arena>, &'arena Term<'arena>),
+    // TODO: Array64(&'arena Term<'arena>, &'arena Term<'arena>),
+    // TODO: ArrayLiteral(&'arena [Term<'arena>]),
     /// Type of format descriptions.
     FormatType,
     /// Record formats, consisting of a list of dependent formats.
@@ -207,6 +212,10 @@ pub enum Term<'arena> {
     FormatF64Be,
     /// 64-bit, IEEE-754 floating point formats (little-endian).
     FormatF64Le,
+    // TODO: FormatArray8(&'arena Term<'arena>, &'arena Term<'arena>),
+    // TODO: FormatArray16(&'arena Term<'arena>, &'arena Term<'arena>),
+    // TODO: FormatArray32(&'arena Term<'arena>, &'arena Term<'arena>),
+    // TODO: FormatArray64(&'arena Term<'arena>, &'arena Term<'arena>),
     /// Format representations.
     FormatRepr(&'arena Term<'arena>),
 

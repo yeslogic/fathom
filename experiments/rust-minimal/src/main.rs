@@ -2,7 +2,7 @@ use codespan_reporting::diagnostic::{Diagnostic, Severity};
 use codespan_reporting::files::{SimpleFile, SimpleFiles};
 use codespan_reporting::term::termcolor::{BufferedStandardStream, ColorChoice};
 use fathom_minimal::core::semantics;
-use fathom_minimal::surface::{distillation, elaboration};
+use fathom_minimal::surface::elaboration;
 use fathom_minimal::{surface, ByteRange, StringInterner};
 use scoped_arena::Scope;
 use std::cell::RefCell;
@@ -100,7 +100,7 @@ fn main() -> ! {
                 || args.allow_errors
             {
                 surface_scope.reset(); // Reuse the surface scope for distillation
-                let mut context = distillation::Context::new(&interner, &surface_scope);
+                let mut context = context.distillation_context();
                 let term = context.check(&term);
                 let r#type = context.check(&r#type);
 
@@ -130,7 +130,7 @@ fn main() -> ! {
                 || args.allow_errors
             {
                 surface_scope.reset(); // Reuse the surface scope for distillation
-                let mut context = distillation::Context::new(&interner, &surface_scope);
+                let mut context = context.distillation_context();
                 let term = context.check(&term);
                 let r#type = context.check(&r#type);
 
@@ -159,7 +159,7 @@ fn main() -> ! {
                 || args.allow_errors
             {
                 surface_scope.reset(); // Reuse the surface scope for distillation
-                let mut context = distillation::Context::new(&interner, &surface_scope);
+                let mut context = context.distillation_context();
                 let r#type = context.check(&r#type);
 
                 {

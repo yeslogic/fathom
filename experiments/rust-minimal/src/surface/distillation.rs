@@ -8,28 +8,29 @@ use crate::surface::Term;
 use crate::{core, StringId, StringInterner};
 
 /// Distillation context.
-pub struct Context<'interner, 'arena> {
+pub struct Context<'interner, 'arena, 'env> {
     interner: &'interner RefCell<StringInterner>,
     /// Scoped arena for storing distilled terms.
     scope: &'arena Scope<'arena>,
     /// Rigid name environment.
-    rigid_names: UniqueEnv<StringId>,
+    rigid_names: &'env mut UniqueEnv<Option<StringId>>,
 
     placeholder_string: StringId,
 }
 
-impl<'interner, 'arena> Context<'interner, 'arena> {
+impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
     /// Construct a new distillation context.
     pub fn new(
         interner: &'interner RefCell<StringInterner>,
         scope: &'arena Scope<'arena>,
-    ) -> Context<'interner, 'arena> {
+        rigid_names: &'env mut UniqueEnv<Option<StringId>>,
+    ) -> Context<'interner, 'arena, 'env> {
         let placeholder_string = interner.borrow_mut().get_or_intern("_");
 
         Context {
             interner,
             scope,
-            rigid_names: UniqueEnv::new(),
+            rigid_names,
             placeholder_string,
         }
     }
@@ -39,12 +40,15 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
     }
 
     fn get_rigid_name(&self, var: LocalVar) -> Option<StringId> {
-        self.rigid_names.get_local(var).copied()
+        self.rigid_names.get_local(var).copied().flatten()
     }
 
     fn push_rigid(&mut self, name: Option<StringId>) -> StringId {
         let name = name.unwrap_or(self.placeholder_string); // TODO: choose a better name?
-        self.rigid_names.push(name); // TODO: ensure we chose a correctly bound name
+
+        // TODO: avoid globals
+        // TODO: ensure we chose a correctly bound name
+        self.rigid_names.push(Some(name));
         name
     }
 
@@ -61,13 +65,19 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         Term::NumberLiteral((), number)
     }
 
+    fn synth_prim(&mut self, name: &'static str) -> Term<'arena, ()> {
+        Term::Name((), self.interner.borrow_mut().get_or_intern_static(name))
+    }
+
     fn synth_number_literal<T: std::fmt::Display>(
         &mut self,
         number: T,
-        r#type: &'arena Term<'arena, ()>,
+        type_name: &'static str,
     ) -> Term<'arena, ()> {
         let expr = self.check_number_literal(number);
-        Term::Ann((), self.scope.to_scope(expr), r#type)
+        let r#type = self.synth_prim(type_name);
+
+        Term::Ann((), self.scope.to_scope(expr), self.scope.to_scope(r#type))
     }
 
     /// Distill a core term into a surface term, in a 'checkable' context.
@@ -238,31 +248,32 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 Term::RecordElim((), self.scope.to_scope(head_expr), ((), *label))
             }
 
-            core::Term::U8Type => Term::U8Type(()),
-            core::Term::U16Type => Term::U16Type(()),
-            core::Term::U32Type => Term::U32Type(()),
-            core::Term::U64Type => Term::U64Type(()),
-            core::Term::S8Type => Term::S8Type(()),
-            core::Term::S16Type => Term::S16Type(()),
-            core::Term::S32Type => Term::S32Type(()),
-            core::Term::S64Type => Term::S64Type(()),
-            core::Term::F32Type => Term::F32Type(()),
-            core::Term::F64Type => Term::F64Type(()),
+            core::Term::U8Type => self.synth_prim("U8"),
+            core::Term::U16Type => self.synth_prim("U16"),
+            core::Term::U32Type => self.synth_prim("U32"),
+            core::Term::U64Type => self.synth_prim("U64"),
+            core::Term::S8Type => self.synth_prim("S8"),
+            core::Term::S16Type => self.synth_prim("S16"),
+            core::Term::S32Type => self.synth_prim("S32"),
+            core::Term::S64Type => self.synth_prim("S64"),
+            core::Term::F32Type => self.synth_prim("F32"),
+            core::Term::F64Type => self.synth_prim("F64"),
 
-            core::Term::U8Intro(number) => self.synth_number_literal(number, &Term::U8Type(())),
-            core::Term::U16Intro(number) => self.synth_number_literal(number, &Term::U16Type(())),
-            core::Term::U32Intro(number) => self.synth_number_literal(number, &Term::U32Type(())),
-            core::Term::U64Intro(number) => self.synth_number_literal(number, &Term::U64Type(())),
-            core::Term::S8Intro(number) => self.synth_number_literal(number, &Term::S8Type(())),
-            core::Term::S16Intro(number) => self.synth_number_literal(number, &Term::S16Type(())),
-            core::Term::S32Intro(number) => self.synth_number_literal(number, &Term::S32Type(())),
-            core::Term::S64Intro(number) => self.synth_number_literal(number, &Term::S64Type(())),
-            core::Term::F32Intro(number) => self.synth_number_literal(number, &Term::F32Type(())),
-            core::Term::F64Intro(number) => self.synth_number_literal(number, &Term::F64Type(())),
+            core::Term::U8Intro(number) => self.synth_number_literal(number, "U8"),
+            core::Term::U16Intro(number) => self.synth_number_literal(number, "U16"),
+            core::Term::U32Intro(number) => self.synth_number_literal(number, "U32"),
+            core::Term::U64Intro(number) => self.synth_number_literal(number, "U64"),
+            core::Term::S8Intro(number) => self.synth_number_literal(number, "S8"),
+            core::Term::S16Intro(number) => self.synth_number_literal(number, "S16"),
+            core::Term::S32Intro(number) => self.synth_number_literal(number, "S32"),
+            core::Term::S64Intro(number) => self.synth_number_literal(number, "S64"),
+            core::Term::F32Intro(number) => self.synth_number_literal(number, "F32"),
+            core::Term::F64Intro(number) => self.synth_number_literal(number, "F64"),
 
-            core::Term::FormatType => Term::FormatType(()),
+            core::Term::FormatType => self.synth_prim("Format"),
             core::Term::FormatRecord(labels, _) if labels.is_empty() => {
-                Term::Ann((), &Term::RecordEmpty(()), &Term::FormatType(()))
+                let format_type = self.synth_prim("Format");
+                Term::Ann((), &Term::RecordEmpty(()), self.scope.to_scope(format_type))
             }
             core::Term::FormatRecord(labels, formats) => {
                 let initial_rigid_len = self.rigid_len();
@@ -277,29 +288,30 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
 
                 Term::FormatRecord((), type_fields)
             }
-            core::Term::FormatFail => Term::FormatFail(()),
-            core::Term::FormatU8 => Term::FormatU8(()),
-            core::Term::FormatU16Be => Term::FormatU16Be(()),
-            core::Term::FormatU16Le => Term::FormatU16Le(()),
-            core::Term::FormatU32Be => Term::FormatU32Be(()),
-            core::Term::FormatU32Le => Term::FormatU32Le(()),
-            core::Term::FormatU64Be => Term::FormatU64Be(()),
-            core::Term::FormatU64Le => Term::FormatU64Le(()),
-            core::Term::FormatS8 => Term::FormatS8(()),
-            core::Term::FormatS16Be => Term::FormatS16Be(()),
-            core::Term::FormatS16Le => Term::FormatS16Le(()),
-            core::Term::FormatS32Be => Term::FormatS32Be(()),
-            core::Term::FormatS32Le => Term::FormatS32Le(()),
-            core::Term::FormatS64Be => Term::FormatS64Be(()),
-            core::Term::FormatS64Le => Term::FormatS64Le(()),
-            core::Term::FormatF32Be => Term::FormatF32Be(()),
-            core::Term::FormatF32Le => Term::FormatF32Le(()),
-            core::Term::FormatF64Be => Term::FormatF64Be(()),
-            core::Term::FormatF64Le => Term::FormatF64Le(()),
+            core::Term::FormatFail => self.synth_prim("fail"),
+            core::Term::FormatU8 => self.synth_prim("u8"),
+            core::Term::FormatU16Be => self.synth_prim("u16be"),
+            core::Term::FormatU16Le => self.synth_prim("u16le"),
+            core::Term::FormatU32Be => self.synth_prim("u32be"),
+            core::Term::FormatU32Le => self.synth_prim("u32le"),
+            core::Term::FormatU64Be => self.synth_prim("u64be"),
+            core::Term::FormatU64Le => self.synth_prim("u64le"),
+            core::Term::FormatS8 => self.synth_prim("s8"),
+            core::Term::FormatS16Be => self.synth_prim("s16be"),
+            core::Term::FormatS16Le => self.synth_prim("s16le"),
+            core::Term::FormatS32Be => self.synth_prim("s32be"),
+            core::Term::FormatS32Le => self.synth_prim("s32le"),
+            core::Term::FormatS64Be => self.synth_prim("s64be"),
+            core::Term::FormatS64Le => self.synth_prim("s64le"),
+            core::Term::FormatF32Be => self.synth_prim("f32be"),
+            core::Term::FormatF32Le => self.synth_prim("f32le"),
+            core::Term::FormatF64Be => self.synth_prim("f64be"),
+            core::Term::FormatF64Le => self.synth_prim("f64le"),
             core::Term::FormatRepr(expr) => {
+                let repr = self.synth_prim("Repr");
                 let expr = self.check(expr);
 
-                Term::FormatRepr((), self.scope.to_scope(expr))
+                Term::FunElim((), self.scope.to_scope(repr), self.scope.to_scope(expr))
             }
 
             // NOTE: Not sure if this is a great approach!
