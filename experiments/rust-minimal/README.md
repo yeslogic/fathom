@@ -122,7 +122,7 @@ _elab.context_ ::=\
     - [x] decimal literals
     - [ ] non-decimal radixes
     - [ ] custom parsing
-  - [ ] array types
+  - [x] array types
   - [ ] array literals
   - [ ] binary format descriptions
     - [x] error formats
@@ -131,7 +131,7 @@ _elab.context_ ::=\
       - [ ] skipped fields
     - [ ] map formats
     - [x] numeric formats
-    - [ ] array formats
+    - [x] array formats
   - [ ] type refinements
   - [ ] pattern matching
   - [ ] invertible format descriptions

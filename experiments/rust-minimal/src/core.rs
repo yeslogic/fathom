@@ -177,10 +177,15 @@ pub enum Prim {
     F32Type,
     /// Type of 64-bit, IEEE-754 floating point numbers.
     F64Type,
-    // TODO: Array8
-    // TODO: Array16
-    // TODO: Array32
-    // TODO: Array64
+    /// Type of arrays, with 8-bit indices.
+    Array8Type,
+    /// Type of arrays, with 16-bit indices.
+    Array16Type,
+    /// Type of arrays, with 32-bit indices.
+    Array32Type,
+    /// Type of arrays, with 64-bit indices.
+    Array64Type,
+
     /// Type of format descriptions.
     FormatType,
     /// A format that always fails to parse.
@@ -221,10 +226,14 @@ pub enum Prim {
     FormatF64Be,
     /// 64-bit, IEEE-754 floating point formats (little-endian).
     FormatF64Le,
-    // TODO: FormatArray8
-    // TODO: FormatArray16
-    // TODO: FormatArray32
-    // TODO: FormatArray64
+    // Array formats, with 8-bit indices
+    FormatArray8,
+    // Array formats, with 16-bit indices
+    FormatArray16,
+    // Array formats, with 32-bit indices
+    FormatArray32,
+    // Array formats, with 64-bit indices
+    FormatArray64,
     /// Format representations.
     FormatRepr,
 }
@@ -242,6 +251,11 @@ impl Prim {
             Prim::S64Type => "S64",
             Prim::F32Type => "F32",
             Prim::F64Type => "F64",
+            Prim::Array8Type => "Array8",
+            Prim::Array16Type => "Array16",
+            Prim::Array32Type => "Array32",
+            Prim::Array64Type => "Array64",
+
             Prim::FormatType => "Format",
             Prim::FormatFail => "fail",
             Prim::FormatU8 => "u8",
@@ -262,6 +276,10 @@ impl Prim {
             Prim::FormatF32Le => "f32le",
             Prim::FormatF64Be => "f64be",
             Prim::FormatF64Le => "f64le",
+            Prim::FormatArray8 => "array8",
+            Prim::FormatArray16 => "array16",
+            Prim::FormatArray32 => "array32",
+            Prim::FormatArray64 => "array64",
             Prim::FormatRepr => "Repr",
         }
     }

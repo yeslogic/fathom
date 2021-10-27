@@ -25,7 +25,7 @@ let image = {
 
 let ico = {
     // NOTE: Could be useful to have invertible patterns here?
-    magic <- array 4 u8 match {
+    magic <- array8 4 u8 match {
         [0, 0, 1, 0] => icon,   // TODO
         [0, 0, 2, 0] => cursor, // TODO
     },

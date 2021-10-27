@@ -27,8 +27,8 @@ let logical_screen_descriptor = {
 ///
 /// - [GIF89a Specification: Section 17](https://www.w3.org/Graphics/GIF/spec-gif89a.txt)
 let header = {
-    magic <- array 3 u8 == ascii "GIF"`,
-    version <- array 3 u8,
+    magic <- array8 3 u8 == ascii "GIF"`,
+    version <- array8 3 u8,
 };
 
 /// # Global Color Table Entry
@@ -49,7 +49,7 @@ let color_table_entry = {
 /// - [GIF89a Specification: Section 19](https://www.w3.org/Graphics/GIF/spec-gif89a.txt)
 let global_color_table (len : U16) = {
     // TODO: use a function rather than a struct
-    entries <- array len color_table_entry,
+    entries <- array16 len color_table_entry,
 };
 
 let main = {

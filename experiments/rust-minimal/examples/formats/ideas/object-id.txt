@@ -14,5 +14,5 @@
     /// the machine and process.
     random <- array8 5 u8,
     /// Incrementing counter, initialized to a random value.
-    counter <- u24be,
+    counter <- u24be, // TODO: u24be
 }

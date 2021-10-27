@@ -41,7 +41,7 @@ let chromacity_coordinates = {
 };
 
 let established_timing = {
-    mode_bitmap <- array 3 u8,         // TODO: bit patterns
+    mode_bitmap <- array8 3 u8,             // TODO: bit patterns
 };
 
 let standard_timing_information = {

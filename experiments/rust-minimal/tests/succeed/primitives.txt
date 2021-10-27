@@ -8,6 +8,10 @@ let test_S32 : Type = S32;
 let test_S64 : Type = S64;
 let test_F32 : Type = F32;
 let test_F64 : Type = F64;
+let test_Array8 : U8 -> Type -> Type = Array8;
+let test_Array16 : U16 -> Type -> Type = Array16;
+let test_Array32 : U32 -> Type -> Type = Array32;
+let test_Array64 : U64 -> Type -> Type = Array64;
 
 let test_U8_literal : U8 = 1;
 let test_U16_literal : U16 = 1;
@@ -40,6 +44,10 @@ let test_f32be : Format = f32be;
 let test_f32le : Format = f32le;
 let test_f64be : Format = f64be;
 let test_f64le : Format = f64le;
+let test_array8 : U8 -> Format -> Format = array8;
+let test_array16 : U16 -> Format -> Format = array16;
+let test_array32 : U32 -> Format -> Format = array32;
+let test_array64 : U64 -> Format -> Format = array64;
 let test_repr : Format -> Type = Repr;
 
 Type

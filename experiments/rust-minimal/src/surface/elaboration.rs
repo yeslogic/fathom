@@ -53,6 +53,25 @@ impl<'arena> RigidEnv<'arena> {
         let universe = shared(Arc::new(Value::Universe));
         let format_type = shared(Arc::new(Value::prim(Prim::FormatType)));
 
+        let array_type = |index_type: Prim| {
+            Arc::new(Value::FunType(
+                None,
+                Arc::new(Value::prim(index_type)),
+                close(Term::FunType(None, &Term::Universe, &Term::Universe)),
+            ))
+        };
+        let format_array = |index_type: Prim| {
+            Arc::new(Value::FunType(
+                None,
+                Arc::new(Value::prim(index_type)),
+                close(Term::FunType(
+                    None,
+                    &Term::Prim(Prim::FormatType),
+                    &Term::Prim(Prim::FormatType),
+                )),
+            ))
+        };
+
         let mut define_prim = |prim: Prim, r#type| {
             env.push_def(name(prim.name()), Arc::new(Value::prim(prim)), r#type);
         };
@@ -67,6 +86,10 @@ impl<'arena> RigidEnv<'arena> {
         define_prim(Prim::S64Type, universe());
         define_prim(Prim::F32Type, universe());
         define_prim(Prim::F64Type, universe());
+        define_prim(Prim::Array8Type, array_type(Prim::U8Type));
+        define_prim(Prim::Array16Type, array_type(Prim::U16Type));
+        define_prim(Prim::Array32Type, array_type(Prim::U32Type));
+        define_prim(Prim::Array64Type, array_type(Prim::U64Type));
 
         define_prim(Prim::FormatType, universe());
         define_prim(Prim::FormatFail, format_type());
@@ -88,6 +111,10 @@ impl<'arena> RigidEnv<'arena> {
         define_prim(Prim::FormatF32Le, format_type());
         define_prim(Prim::FormatF64Be, format_type());
         define_prim(Prim::FormatF64Le, format_type());
+        define_prim(Prim::FormatArray8, format_array(Prim::U8Type));
+        define_prim(Prim::FormatArray16, format_array(Prim::U16Type));
+        define_prim(Prim::FormatArray32, format_array(Prim::U32Type));
+        define_prim(Prim::FormatArray64, format_array(Prim::U64Type));
         define_prim(
             Prim::FormatRepr,
             Arc::new(Value::FunType(None, format_type(), close(Term::Universe))),

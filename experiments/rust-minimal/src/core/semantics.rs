@@ -417,6 +417,22 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
                 (Prim::FormatF32Le, []) => Arc::new(Value::prim(Prim::F32Type)),
                 (Prim::FormatF64Be, []) => Arc::new(Value::prim(Prim::F64Type)),
                 (Prim::FormatF64Le, []) => Arc::new(Value::prim(Prim::F64Type)),
+                (Prim::FormatArray8, [Elim::Fun(len), Elim::Fun(elem)]) => Arc::new(Value::Stuck(
+                    Head::Prim(Prim::Array8Type),
+                    vec![Elim::Fun(len.clone()), Elim::Fun(self.apply_repr(elem))],
+                )),
+                (Prim::FormatArray16, [Elim::Fun(len), Elim::Fun(elem)]) => Arc::new(Value::Stuck(
+                    Head::Prim(Prim::Array16Type),
+                    vec![Elim::Fun(len.clone()), Elim::Fun(self.apply_repr(elem))],
+                )),
+                (Prim::FormatArray32, [Elim::Fun(len), Elim::Fun(elem)]) => Arc::new(Value::Stuck(
+                    Head::Prim(Prim::Array32Type),
+                    vec![Elim::Fun(len.clone()), Elim::Fun(self.apply_repr(elem))],
+                )),
+                (Prim::FormatArray64, [Elim::Fun(len), Elim::Fun(elem)]) => Arc::new(Value::Stuck(
+                    Head::Prim(Prim::Array64Type),
+                    vec![Elim::Fun(len.clone()), Elim::Fun(self.apply_repr(elem))],
+                )),
                 _ => panic_any(Error::InvalidFormatRepr),
             },
             Value::Stuck(Head::ReportedError, _) => Arc::new(Value::Stuck(

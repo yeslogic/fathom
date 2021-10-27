@@ -17,7 +17,7 @@ let main = {
     /// The height of the image, in pixels.
     height <- u32be,
     /// The pixel data.
-    pixels <- array32 (width * height) pixel,
+    pixels <- array32 (width * height) pixel, // TODO: multiplication
 };
 
 main
