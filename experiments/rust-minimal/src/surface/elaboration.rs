@@ -374,14 +374,14 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         &mut self,
         range: ByteRange,
         string_id: StringId,
-        make_term: fn(T) -> core::Term<'arena>,
+        make_const: fn(T) -> core::Const,
     ) -> core::Term<'arena>
     where
         T::Err: std::fmt::Display,
     {
         // TODO: Custom parsing and improved errors
         match self.interner.borrow().resolve(string_id).unwrap().parse() {
-            Ok(data) => make_term(data),
+            Ok(data) => core::Term::Const(make_const(data)),
             Err(error) => {
                 let message = error.to_string();
                 self.push_message(Message::InvalidNumericLiteral { range, message });
@@ -500,19 +500,19 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
             (Term::RecordEmpty(_), Value::Universe) => core::Term::RecordType(&[], &[]),
 
             (Term::NumberLiteral(range, number), _) => {
-                use crate::core::{Prim, Term};
+                use crate::core::{Const, Prim};
 
                 match expected_type.match_prim_spine() {
-                    Some((Prim::U8Type, &[])) => self.parse(*range, *number, Term::U8Intro),
-                    Some((Prim::U16Type, &[])) => self.parse(*range, *number, Term::U16Intro),
-                    Some((Prim::U32Type, &[])) => self.parse(*range, *number, Term::U32Intro),
-                    Some((Prim::U64Type, &[])) => self.parse(*range, *number, Term::U64Intro),
-                    Some((Prim::S8Type, &[])) => self.parse(*range, *number, Term::S8Intro),
-                    Some((Prim::S16Type, &[])) => self.parse(*range, *number, Term::S16Intro),
-                    Some((Prim::S32Type, &[])) => self.parse(*range, *number, Term::S32Intro),
-                    Some((Prim::S64Type, &[])) => self.parse(*range, *number, Term::S64Intro),
-                    Some((Prim::F32Type, &[])) => self.parse(*range, *number, Term::F32Intro),
-                    Some((Prim::F64Type, &[])) => self.parse(*range, *number, Term::F64Intro),
+                    Some((Prim::U8Type, &[])) => self.parse(*range, *number, Const::U8),
+                    Some((Prim::U16Type, &[])) => self.parse(*range, *number, Const::U16),
+                    Some((Prim::U32Type, &[])) => self.parse(*range, *number, Const::U32),
+                    Some((Prim::U64Type, &[])) => self.parse(*range, *number, Const::U64),
+                    Some((Prim::S8Type, &[])) => self.parse(*range, *number, Const::S8),
+                    Some((Prim::S16Type, &[])) => self.parse(*range, *number, Const::S16),
+                    Some((Prim::S32Type, &[])) => self.parse(*range, *number, Const::S32),
+                    Some((Prim::S64Type, &[])) => self.parse(*range, *number, Const::S64),
+                    Some((Prim::F32Type, &[])) => self.parse(*range, *number, Const::F32),
+                    Some((Prim::F64Type, &[])) => self.parse(*range, *number, Const::F64),
                     _ => {
                         self.push_message(Message::NumericLiteralNotSupported { range: *range });
                         core::Term::ReportedError

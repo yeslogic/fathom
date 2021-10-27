@@ -120,16 +120,18 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 Term::RecordIntro((), scope.to_scope_from_iter(expr_fields))
             }
 
-            core::Term::U8Intro(number) => self.check_number_literal(number),
-            core::Term::U16Intro(number) => self.check_number_literal(number),
-            core::Term::U32Intro(number) => self.check_number_literal(number),
-            core::Term::U64Intro(number) => self.check_number_literal(number),
-            core::Term::S8Intro(number) => self.check_number_literal(number),
-            core::Term::S16Intro(number) => self.check_number_literal(number),
-            core::Term::S32Intro(number) => self.check_number_literal(number),
-            core::Term::S64Intro(number) => self.check_number_literal(number),
-            core::Term::F32Intro(number) => self.check_number_literal(number),
-            core::Term::F64Intro(number) => self.check_number_literal(number),
+            core::Term::Const(r#const) => match r#const {
+                core::Const::U8(number) => self.check_number_literal(number),
+                core::Const::U16(number) => self.check_number_literal(number),
+                core::Const::U32(number) => self.check_number_literal(number),
+                core::Const::U64(number) => self.check_number_literal(number),
+                core::Const::S8(number) => self.check_number_literal(number),
+                core::Const::S16(number) => self.check_number_literal(number),
+                core::Const::S32(number) => self.check_number_literal(number),
+                core::Const::S64(number) => self.check_number_literal(number),
+                core::Const::F32(number) => self.check_number_literal(number),
+                core::Const::F64(number) => self.check_number_literal(number),
+            },
 
             _ => self.synth(core_term),
         }
@@ -249,18 +251,6 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
 
                 Term::RecordElim((), self.scope.to_scope(head_expr), ((), *label))
             }
-
-            core::Term::U8Intro(number) => self.synth_number_literal(number, core::Prim::U8Type),
-            core::Term::U16Intro(number) => self.synth_number_literal(number, core::Prim::U16Type),
-            core::Term::U32Intro(number) => self.synth_number_literal(number, core::Prim::U32Type),
-            core::Term::U64Intro(number) => self.synth_number_literal(number, core::Prim::U64Type),
-            core::Term::S8Intro(number) => self.synth_number_literal(number, core::Prim::S8Type),
-            core::Term::S16Intro(number) => self.synth_number_literal(number, core::Prim::S16Type),
-            core::Term::S32Intro(number) => self.synth_number_literal(number, core::Prim::S32Type),
-            core::Term::S64Intro(number) => self.synth_number_literal(number, core::Prim::S64Type),
-            core::Term::F32Intro(number) => self.synth_number_literal(number, core::Prim::F32Type),
-            core::Term::F64Intro(number) => self.synth_number_literal(number, core::Prim::F64Type),
-
             core::Term::FormatRecord(labels, _) if labels.is_empty() => {
                 let format_type = self.synth_prim(core::Prim::FormatType);
                 Term::Ann((), &Term::RecordEmpty(()), self.scope.to_scope(format_type))
@@ -278,9 +268,19 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
 
                 Term::FormatRecord((), type_fields)
             }
-
             core::Term::Prim(prim) => self.synth_prim(*prim),
-
+            core::Term::Const(r#const) => match r#const {
+                core::Const::U8(number) => self.synth_number_literal(number, core::Prim::U8Type),
+                core::Const::U16(number) => self.synth_number_literal(number, core::Prim::U16Type),
+                core::Const::U32(number) => self.synth_number_literal(number, core::Prim::U32Type),
+                core::Const::U64(number) => self.synth_number_literal(number, core::Prim::U64Type),
+                core::Const::S8(number) => self.synth_number_literal(number, core::Prim::S8Type),
+                core::Const::S16(number) => self.synth_number_literal(number, core::Prim::S16Type),
+                core::Const::S32(number) => self.synth_number_literal(number, core::Prim::S32Type),
+                core::Const::S64(number) => self.synth_number_literal(number, core::Prim::S64Type),
+                core::Const::F32(number) => self.synth_number_literal(number, core::Prim::F32Type),
+                core::Const::F64(number) => self.synth_number_literal(number, core::Prim::F64Type),
+            },
             // NOTE: Not sure if this is a great approach!
             core::Term::ReportedError => Term::Hole((), None),
         }

@@ -5,7 +5,7 @@ use scoped_arena::Scope;
 use std::panic::panic_any;
 use std::sync::Arc;
 
-use crate::core::{EntryInfo, Prim, Term};
+use crate::core::{Const, EntryInfo, Prim, Term};
 use crate::env::{EnvLen, GlobalVar, SharedEnv, SliceEnv};
 use crate::{SliceBuilder, StringId};
 
@@ -31,20 +31,10 @@ pub enum Value<'arena> {
     RecordType(&'arena [StringId], Telescope<'arena>),
     /// Record introductions.
     RecordIntro(&'arena [StringId], Vec<ArcValue<'arena>>),
-
-    U8Intro(u8),
-    U16Intro(u16),
-    U32Intro(u32),
-    U64Intro(u64),
-    S8Intro(i8),
-    S16Intro(i16),
-    S32Intro(i32),
-    S64Intro(i64),
-    F32Intro(f32),
-    F64Intro(f64),
-
     /// Record formats, consisting of a list of dependent formats.
     FormatRecord(&'arena [StringId], Telescope<'arena>),
+    /// Constants.
+    Const(Const),
 }
 
 impl<'arena> Value<'arena> {
@@ -273,25 +263,12 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
                 let head_expr = self.eval(head_expr);
                 self.elim_context().apply_record(head_expr, *label)
             }
-
-            Term::U8Intro(number) => Arc::new(Value::U8Intro(*number)),
-            Term::U16Intro(number) => Arc::new(Value::U16Intro(*number)),
-            Term::U32Intro(number) => Arc::new(Value::U32Intro(*number)),
-            Term::U64Intro(number) => Arc::new(Value::U64Intro(*number)),
-            Term::S8Intro(number) => Arc::new(Value::S8Intro(*number)),
-            Term::S16Intro(number) => Arc::new(Value::S16Intro(*number)),
-            Term::S32Intro(number) => Arc::new(Value::S32Intro(*number)),
-            Term::S64Intro(number) => Arc::new(Value::S64Intro(*number)),
-            Term::F32Intro(number) => Arc::new(Value::F32Intro(*number)),
-            Term::F64Intro(number) => Arc::new(Value::F64Intro(*number)),
-
             Term::FormatRecord(labels, formats) => {
                 let formats = Telescope::new(self.rigid_exprs.clone(), formats);
                 Arc::new(Value::FormatRecord(labels, formats))
             }
-
             Term::Prim(prim) => Arc::new(Value::prim(*prim)),
-
+            Term::Const(r#const) => Arc::new(Value::Const(*r#const)),
             Term::ReportedError => Arc::new(Value::reported_error()),
         }
     }
@@ -580,24 +557,13 @@ impl<'in_arena, 'out_arena, 'env> QuoteContext<'in_arena, 'out_arena, 'env> {
 
                 Term::RecordIntro(labels, exprs)
             }
-
-            Value::U8Intro(number) => Term::U8Intro(*number),
-            Value::U16Intro(number) => Term::U16Intro(*number),
-            Value::U32Intro(number) => Term::U32Intro(*number),
-            Value::U64Intro(number) => Term::U64Intro(*number),
-            Value::S8Intro(number) => Term::S8Intro(*number),
-            Value::S16Intro(number) => Term::S16Intro(*number),
-            Value::S32Intro(number) => Term::S32Intro(*number),
-            Value::S64Intro(number) => Term::S64Intro(*number),
-            Value::F32Intro(number) => Term::F32Intro(*number),
-            Value::F64Intro(number) => Term::F64Intro(*number),
-
             Value::FormatRecord(labels, formats) => {
                 let labels = self.scope.to_scope_from_iter(labels.iter().copied()); // FIXME: avoid copy if this is the same arena?
                 let formats = self.quote_telescope(formats);
 
                 Term::FormatRecord(labels, formats)
             }
+            Value::Const(r#const) => Term::Const(*r#const),
         }
     }
 
@@ -746,22 +712,14 @@ impl<'arena, 'env> ConversionContext<'arena, 'env> {
                 self.is_equal_record_intro_elim(labels, exprs, &value0)
             }
 
-            (Value::U16Intro(n0), Value::U16Intro(n1)) => n0 == n1,
-            (Value::U32Intro(n0), Value::U32Intro(n1)) => n0 == n1,
-            (Value::U64Intro(n0), Value::U64Intro(n1)) => n0 == n1,
-            (Value::S8Intro(n0), Value::S8Intro(n1)) => n0 == n1,
-            (Value::S16Intro(n0), Value::S16Intro(n1)) => n0 == n1,
-            (Value::S32Intro(n0), Value::S32Intro(n1)) => n0 == n1,
-            (Value::S64Intro(n0), Value::S64Intro(n1)) => n0 == n1,
-            (Value::F32Intro(n0), Value::F32Intro(n1)) => n0 == n1,
-            (Value::F64Intro(n0), Value::F64Intro(n1)) => n0 == n1,
-
             (Value::FormatRecord(labels0, formats0), Value::FormatRecord(labels1, formats1)) => {
                 if labels0 != labels1 {
                     return false;
                 }
                 self.is_equal_telescopes(formats0, formats1)
             }
+
+            (Value::Const(const0), Value::Const(const1)) => const0 == const1,
 
             (_, _) => false,
         }

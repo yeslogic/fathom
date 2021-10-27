@@ -226,22 +226,14 @@ impl<'arena, 'env> Context<'arena, 'env> {
                 self.unify_record_intro_elim(labels, exprs, &value0)
             }
 
-            (Value::U16Intro(n0), Value::U16Intro(n1)) if n0 == n1 => Ok(()),
-            (Value::U32Intro(n0), Value::U32Intro(n1)) if n0 == n1 => Ok(()),
-            (Value::U64Intro(n0), Value::U64Intro(n1)) if n0 == n1 => Ok(()),
-            (Value::S8Intro(n0), Value::S8Intro(n1)) if n0 == n1 => Ok(()),
-            (Value::S16Intro(n0), Value::S16Intro(n1)) if n0 == n1 => Ok(()),
-            (Value::S32Intro(n0), Value::S32Intro(n1)) if n0 == n1 => Ok(()),
-            (Value::S64Intro(n0), Value::S64Intro(n1)) if n0 == n1 => Ok(()),
-            (Value::F32Intro(n0), Value::F32Intro(n1)) if n0 == n1 => Ok(()),
-            (Value::F64Intro(n0), Value::F64Intro(n1)) if n0 == n1 => Ok(()),
-
             (Value::FormatRecord(labels0, formats0), Value::FormatRecord(labels1, formats1)) => {
                 if labels0 != labels1 {
                     return Err(Error::Mismatched);
                 }
                 self.unify_telescopes(formats0, formats1)
             }
+
+            (Value::Const(const0), Value::Const(const1)) if const0 == const1 => Ok(()),
 
             // Flexible-rigid cases
             //
@@ -493,24 +485,13 @@ impl<'arena, 'env> Context<'arena, 'env> {
 
                 Ok(Term::RecordIntro(labels, new_exprs.into()))
             }
-
-            Value::U8Intro(number) => Ok(Term::U8Intro(*number)),
-            Value::U16Intro(number) => Ok(Term::U16Intro(*number)),
-            Value::U32Intro(number) => Ok(Term::U32Intro(*number)),
-            Value::U64Intro(number) => Ok(Term::U64Intro(*number)),
-            Value::S8Intro(number) => Ok(Term::S8Intro(*number)),
-            Value::S16Intro(number) => Ok(Term::S16Intro(*number)),
-            Value::S32Intro(number) => Ok(Term::S32Intro(*number)),
-            Value::S64Intro(number) => Ok(Term::S64Intro(*number)),
-            Value::F32Intro(number) => Ok(Term::F32Intro(*number)),
-            Value::F64Intro(number) => Ok(Term::F64Intro(*number)),
-
             Value::FormatRecord(labels, formats) => {
                 let labels = self.scope.to_scope(labels); // FIXME: avoid copy if this is the same arena?
                 let formats = self.rename_telescope(flexible_var, formats)?;
 
                 Ok(Term::FormatRecord(labels, formats))
             }
+            Value::Const(constant) => Ok(Term::Const(*constant)),
         }
     }
 

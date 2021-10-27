@@ -132,24 +132,13 @@ pub enum Term<'arena> {
     RecordIntro(&'arena [StringId], &'arena [Term<'arena>]),
     /// Record eliminations.
     RecordElim(&'arena Term<'arena>, StringId),
-
-    U8Intro(u8),
-    U16Intro(u16),
-    U32Intro(u32),
-    U64Intro(u64),
-    S8Intro(i8),
-    S16Intro(i16),
-    S32Intro(i32),
-    S64Intro(i64),
-    F32Intro(f32),
-    F64Intro(f64),
     // TODO: ArrayIntro(&'arena [Term<'arena>]),
     /// Record formats, consisting of a list of dependent formats.
     FormatRecord(&'arena [StringId], &'arena [Term<'arena>]),
-
     /// Primitives.
     Prim(Prim),
-
+    /// Constants.
+    Const(Const),
     /// Reported errors.
     ReportedError,
 }
@@ -283,4 +272,20 @@ impl Prim {
             Prim::FormatRepr => "Repr",
         }
     }
+}
+
+/// Constants
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum Const {
+    U8(u8),
+    U16(u16),
+    U32(u32),
+    U64(u64),
+    S8(i8),
+    S16(i16),
+    S32(i32),
+    S64(i64),
+    // TODO: use logical equality for floating point numbers
+    F32(f32),
+    F64(f64),
 }
