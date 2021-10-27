@@ -368,6 +368,46 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
         }
     }
 
+    /// Apply a record elimination to an expression, performing
+    /// [beta-reduction] if possible.
+    ///
+    /// [beta-reduction]: https://ncatlab.org/nlab/show/beta-reduction
+    pub fn apply_record(
+        &self,
+        mut head_expr: ArcValue<'arena>,
+        label: StringId,
+    ) -> ArcValue<'arena> {
+        match Arc::make_mut(&mut head_expr) {
+            // Beta-reduction
+            Value::RecordIntro(labels, exprs) => (labels.iter())
+                .position(|current_label| *current_label == label)
+                .and_then(|expr_index| exprs.get(expr_index).cloned())
+                .unwrap_or_else(|| panic_any(Error::InvalidRecordElim)),
+            // The computation is stuck, preventing further reduction
+            Value::Stuck(_, spine) => {
+                spine.push(Elim::Record(label));
+                head_expr
+            }
+            _ => panic_any(Error::InvalidRecordElim),
+        }
+    }
+
+    /// Apply an expression to an elimination spine.
+    pub fn apply_spine(
+        &self,
+        mut head_expr: ArcValue<'arena>,
+        spine: &[Elim<'arena>],
+    ) -> ArcValue<'arena> {
+        for elim in spine {
+            head_expr = match elim {
+                Elim::Fun(input_expr) => self.apply_fun(head_expr, input_expr.clone()),
+                Elim::Record(label) => self.apply_record(head_expr, *label),
+            };
+        }
+        head_expr
+    }
+
+    /// Find the representation type of a format description.
     pub fn apply_repr(&self, format: &ArcValue<'arena>) -> ArcValue<'arena> {
         match format.as_ref() {
             Value::FormatRecord(labels, formats) => {
@@ -413,45 +453,6 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
             Value::Stuck(_, _) => Arc::new(Value::prim(Prim::FormatRepr, [format.clone()])),
             _ => panic_any(Error::InvalidFormatRepr),
         }
-    }
-
-    /// Apply a record elimination to an expression, performing
-    /// [beta-reduction] if possible.
-    ///
-    /// [beta-reduction]: https://ncatlab.org/nlab/show/beta-reduction
-    pub fn apply_record(
-        &self,
-        mut head_expr: ArcValue<'arena>,
-        label: StringId,
-    ) -> ArcValue<'arena> {
-        match Arc::make_mut(&mut head_expr) {
-            // Beta-reduction
-            Value::RecordIntro(labels, exprs) => (labels.iter())
-                .position(|current_label| *current_label == label)
-                .and_then(|expr_index| exprs.get(expr_index).cloned())
-                .unwrap_or_else(|| panic_any(Error::InvalidRecordElim)),
-            // The computation is stuck, preventing further reduction
-            Value::Stuck(_, spine) => {
-                spine.push(Elim::Record(label));
-                head_expr
-            }
-            _ => panic_any(Error::InvalidRecordElim),
-        }
-    }
-
-    /// Apply an expression to an elimination spine.
-    pub fn apply_spine(
-        &self,
-        mut head_expr: ArcValue<'arena>,
-        spine: &[Elim<'arena>],
-    ) -> ArcValue<'arena> {
-        for elim in spine {
-            head_expr = match elim {
-                Elim::Fun(input_expr) => self.apply_fun(head_expr, input_expr.clone()),
-                Elim::Record(label) => self.apply_record(head_expr, *label),
-            };
-        }
-        head_expr
     }
 }
 
