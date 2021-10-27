@@ -1,0 +1,3 @@
+//~ exit-code = 1
+
+[] : Array8 2 U32

@@ -31,6 +31,8 @@ pub enum Value<'arena> {
     RecordType(&'arena [StringId], Telescope<'arena>),
     /// Record introductions.
     RecordIntro(&'arena [StringId], Vec<ArcValue<'arena>>),
+    /// Array Introductions.
+    ArrayIntro(Vec<ArcValue<'arena>>),
     /// Record formats, consisting of a list of dependent formats.
     FormatRecord(&'arena [StringId], Telescope<'arena>),
     /// Constants.
@@ -263,6 +265,12 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
             Term::RecordElim(head_expr, label) => {
                 let head_expr = self.eval(head_expr);
                 self.elim_context().apply_record(head_expr, *label)
+            }
+            Term::ArrayIntro(elem_exprs) => {
+                let elem_exprs = (elem_exprs.iter())
+                    .map(|elem_expr| self.eval(elem_expr))
+                    .collect();
+                Arc::new(Value::ArrayIntro(elem_exprs))
             }
             Term::FormatRecord(labels, formats) => {
                 let formats = Telescope::new(self.rigid_exprs.clone(), formats);
@@ -553,6 +561,12 @@ impl<'in_arena, 'out_arena, 'env> QuoteContext<'in_arena, 'out_arena, 'env> {
 
                 Term::RecordIntro(labels, exprs)
             }
+            Value::ArrayIntro(elem_exprs) => {
+                let elem_exprs = (self.scope)
+                    .to_scope_from_iter(elem_exprs.iter().map(|elem_expr| self.quote(elem_expr)));
+
+                Term::ArrayIntro(elem_exprs)
+            }
             Value::FormatRecord(labels, formats) => {
                 let labels = self.scope.to_scope_from_iter(labels.iter().copied()); // FIXME: avoid copy if this is the same arena?
                 let formats = self.quote_telescope(formats);
@@ -706,6 +720,17 @@ impl<'arena, 'env> ConversionContext<'arena, 'env> {
             }
             (_, Value::RecordIntro(labels, exprs)) => {
                 self.is_equal_record_intro_elim(labels, exprs, &value0)
+            }
+
+            (Value::ArrayIntro(elem_exprs0), Value::ArrayIntro(elem_exprs1)) => {
+                for (elem_expr0, elem_expr1) in
+                    Iterator::zip(elem_exprs0.iter(), elem_exprs1.iter())
+                {
+                    if !self.is_equal(&elem_expr0, &elem_expr1) {
+                        return false;
+                    }
+                }
+                true
             }
 
             (Value::FormatRecord(labels0, formats0), Value::FormatRecord(labels1, formats1)) => {

@@ -132,7 +132,8 @@ pub enum Term<'arena> {
     RecordIntro(&'arena [StringId], &'arena [Term<'arena>]),
     /// Record eliminations.
     RecordElim(&'arena Term<'arena>, StringId),
-    // TODO: ArrayIntro(&'arena [Term<'arena>]),
+    /// Array introductions.
+    ArrayIntro(&'arena [Term<'arena>]),
     /// Record formats, consisting of a list of dependent formats.
     FormatRecord(&'arena [StringId], &'arena [Term<'arena>]),
     /// Primitives.

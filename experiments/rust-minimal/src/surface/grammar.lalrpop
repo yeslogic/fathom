@@ -32,6 +32,8 @@ extern {
 
         "{" => Token::OpenBrace,
         "}" => Token::CloseBrace,
+        "[" => Token::OpenBracket,
+        "]" => Token::CloseBracket,
         "(" => Token::OpenParen,
         ")" => Token::CloseParen,
     }
@@ -105,22 +107,25 @@ AtomicTerm: Term<'arena, ByteRange> = {
     <start: @L> <name: Hole> <end: @R> => Term::Hole(ByteRange::new(start, end), Some(name)),
     <start: @L> "Type" <end: @R> => Term::Universe(ByteRange::new(start, end)),
     <start: @L> <number: Number> <end: @R> => Term::NumberLiteral(ByteRange::new(start, end), number),
-
     <start: @L> "{" "}" <end: @R> => Term::RecordEmpty(ByteRange::new(start, end)),
     <start: @L> "{" <first: (<RangedName> ":" <Term>)> <type_fields: ("," <RangedName> ":" <Term>)*> ","?  "}" <end: @R> => {
-        let type_fields = std::iter::once(first).chain(type_fields).map(|(label, term)| (label, term));
+        let type_fields = std::iter::once(first).chain(type_fields);
         Term::RecordType(ByteRange::new(start, end), scope.to_scope_from_iter(type_fields))
     },
     <start: @L> "{" <first: (<RangedName> "=" <Term>)> <expr_fields: ("," <RangedName> "=" <Term>)*> ","?  "}" <end: @R> => {
-        let type_fields = std::iter::once(first).chain(expr_fields).map(|(label, term)| (label, term));
-        Term::RecordIntro(ByteRange::new(start, end), scope.to_scope_from_iter(type_fields))
+        let expr_fields = std::iter::once(first).chain(expr_fields);
+        Term::RecordIntro(ByteRange::new(start, end), scope.to_scope_from_iter(expr_fields))
     },
     <start: @L> "{" <first: (<RangedName> "<-" <Term>)> <format_fields: ("," <RangedName> "<-" <Term>)*> ","?  "}" <end: @R> => {
-        let format_fields = std::iter::once(first).chain(format_fields).map(|(label, term)| (label, term));
+        let format_fields = std::iter::once(first).chain(format_fields);
         Term::FormatRecord(ByteRange::new(start, end), scope.to_scope_from_iter(format_fields))
     },
     <start: @L> <head_expr: AtomicTerm> "." <label: RangedName> <end: @R> => {
         Term::RecordElim(ByteRange::new(start, end), scope.to_scope(head_expr), label)
+    },
+    <start: @L> "[" <exprs: (<Term> ",")*> <last: Term?> "]" <end: @R> => {
+        let exprs = exprs.into_iter().chain(last);
+        Term::ArrayLiteral(ByteRange::new(start, end), scope.to_scope_from_iter(exprs))
     },
     "(" <term: Term> ")" => term,
 };

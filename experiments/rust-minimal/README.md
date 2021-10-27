@@ -123,7 +123,7 @@ _elab.context_ ::=\
     - [ ] non-decimal radixes
     - [ ] custom parsing
   - [x] array types
-  - [ ] array literals
+  - [x] array literals
   - [ ] binary format descriptions
     - [x] error formats
     - [x] record formats

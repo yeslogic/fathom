@@ -119,6 +119,12 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
 
                 Term::RecordIntro((), scope.to_scope_from_iter(expr_fields))
             }
+            core::Term::ArrayIntro(elem_exprs) => {
+                let scope = self.scope;
+                let elem_exprs = elem_exprs.iter().map(|elem_exprs| self.check(elem_exprs));
+
+                Term::ArrayLiteral((), scope.to_scope_from_iter(elem_exprs))
+            }
 
             core::Term::Const(r#const) => match r#const {
                 core::Const::U8(number) => self.check_number_literal(number),
@@ -242,14 +248,21 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 let scope = self.scope;
                 let expr_fields = Iterator::zip(labels.iter(), exprs.iter())
                     .map(|(label, expr)| (((), *label), self.synth(expr)));
-                // TODO: type annotations?
 
+                // TODO: type annotations?
                 Term::RecordIntro((), scope.to_scope_from_iter(expr_fields))
             }
             core::Term::RecordElim(head_expr, label) => {
                 let head_expr = self.synth(head_expr);
 
                 Term::RecordElim((), self.scope.to_scope(head_expr), ((), *label))
+            }
+            core::Term::ArrayIntro(elem_exprs) => {
+                let scope = self.scope;
+                let elem_exprs = elem_exprs.iter().map(|elem_exprs| self.check(elem_exprs));
+
+                // FIXME: Type annotations
+                Term::ArrayLiteral((), scope.to_scope_from_iter(elem_exprs))
             }
             core::Term::FormatRecord(labels, _) if labels.is_empty() => {
                 let format_type = self.synth_prim(core::Prim::FormatType);

@@ -35,6 +35,18 @@ pub enum Message {
         message: String,
         // expected_type: Doc<_>,
     },
+    ArrayLiteralNotSupported {
+        range: ByteRange,
+        // expected_type: Doc<_>,
+    },
+    MismatchedArrayLength {
+        range: ByteRange,
+        found_len: usize,
+        // expected_len: Doc<_>,
+    },
+    AmbiguousArrayLiteral {
+        range: ByteRange,
+    },
     NumericLiteralNotSupported {
         range: ByteRange,
         // expected_type: Doc<_>,
@@ -178,12 +190,23 @@ impl Message {
             Message::InvalidNumericLiteral { range, message } => Diagnostic::error()
                 .with_message("failed to parse numeric literal")
                 .with_labels(vec![(Label::primary((), *range)).with_message(message)]),
+            Message::ArrayLiteralNotSupported { range } => Diagnostic::error()
+                .with_message("array literal not supported for expected type")
+                .with_labels(vec![Label::primary((), *range)]),
+            Message::MismatchedArrayLength { range, found_len } => Diagnostic::error()
+                .with_message("mismatched array length")
+                .with_labels(vec![
+                    Label::primary((), *range).with_message(format!("found length: {}", found_len))
+                ]),
+            Message::AmbiguousArrayLiteral { range } => Diagnostic::error()
+                .with_message("ambiguous array literal")
+                .with_labels(vec![Label::primary((), *range)]),
             Message::NumericLiteralNotSupported { range } => Diagnostic::error()
                 .with_message("numeric literal not supported for expected type")
-                .with_labels(vec![(Label::primary((), *range))]),
+                .with_labels(vec![Label::primary((), *range)]),
             Message::AmbiguousNumericLiteral { range } => Diagnostic::error()
                 .with_message("ambiguous numeric literal")
-                .with_labels(vec![(Label::primary((), *range))]),
+                .with_labels(vec![Label::primary((), *range)]),
             Message::FailedToUnify { range, error } => match error {
                 unification::Error::Mismatched => Diagnostic::error()
                     .with_message("type mismatch")

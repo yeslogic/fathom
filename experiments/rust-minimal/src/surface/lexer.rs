@@ -39,6 +39,10 @@ pub enum Token<'source> {
     OpenBrace,
     #[token("}")]
     CloseBrace,
+    #[token("[")]
+    OpenBracket,
+    #[token("]")]
+    CloseBracket,
     #[token("(")]
     OpenParen,
     #[token(")")]

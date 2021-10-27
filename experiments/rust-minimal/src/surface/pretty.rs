@@ -193,9 +193,17 @@ impl<'doc> Context<'doc> {
                 self.text("."),
                 self.string_id(*label),
             ]),
-
             Term::NumberLiteral(_, number) => self.string_id(*number),
-
+            Term::ArrayLiteral(_, exprs) => self.concat([
+                self.text("["),
+                self.space(),
+                self.intersperse(
+                    exprs.iter().map(|expr| self.term_prec(Prec::Top, expr)),
+                    self.concat([self.text(","), self.space()]),
+                ),
+                self.space(),
+                self.text("]"),
+            ]),
             Term::FormatRecord(_, format_fields) => self.concat([
                 self.text("{"),
                 self.space(),
@@ -214,7 +222,6 @@ impl<'doc> Context<'doc> {
                 self.space(),
                 self.text("}"),
             ]),
-
             Term::ReportedError(_) => self.text("_"),
         }
     }

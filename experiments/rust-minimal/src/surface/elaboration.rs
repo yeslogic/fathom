@@ -500,30 +500,72 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 core::Term::RecordIntro(labels, exprs.into())
             }
             (Term::RecordEmpty(_), Value::Universe) => core::Term::RecordType(&[], &[]),
+            (Term::ArrayLiteral(range, elem_exprs), _) => {
+                use crate::core::semantics::{Elim::Fun, Head};
+                use crate::core::{Const, Prim};
 
+                let (len, elem_type) = match expected_type.match_prim_spine() {
+                    Some((Prim::Array8Type, [Fun(len), Fun(elem_type)])) => (len, elem_type),
+                    Some((Prim::Array16Type, [Fun(len), Fun(elem_type)])) => (len, elem_type),
+                    Some((Prim::Array32Type, [Fun(len), Fun(elem_type)])) => (len, elem_type),
+                    Some((Prim::Array64Type, [Fun(len), Fun(elem_type)])) => (len, elem_type),
+                    // TODO: match on reported error
+                    _ => {
+                        self.push_message(Message::ArrayLiteralNotSupported { range: *range });
+                        return core::Term::ReportedError;
+                    }
+                };
+
+                match len.as_ref() {
+                    Value::Const(Const::U8(len)) if elem_exprs.len() as u64 == *len as u64 => {}
+                    Value::Const(Const::U16(len)) if elem_exprs.len() as u64 == *len as u64 => {}
+                    Value::Const(Const::U32(len)) if elem_exprs.len() as u64 == *len as u64 => {}
+                    Value::Const(Const::U64(len)) if elem_exprs.len() as u64 == *len as u64 => {}
+                    Value::Stuck(Head::ReportedError, _) => return core::Term::ReportedError,
+                    _ => {
+                        // Check the array elements anyway in order to report
+                        // any errors inside the literal as well.
+                        for elem_expr in *elem_exprs {
+                            self.check(elem_expr, elem_type);
+                        }
+
+                        self.push_message(Message::MismatchedArrayLength {
+                            range: *range,
+                            found_len: elem_exprs.len(),
+                        });
+
+                        return core::Term::ReportedError;
+                    }
+                }
+
+                let elem_exprs = self.scope.to_scope_from_iter(
+                    (elem_exprs.iter()).map(|elem_expr| self.check(elem_expr, elem_type)),
+                );
+
+                core::Term::ArrayIntro(elem_exprs)
+            }
             (Term::NumberLiteral(range, number), _) => {
                 use crate::core::{Const, Prim};
 
                 match expected_type.match_prim_spine() {
-                    Some((Prim::U8Type, &[])) => self.parse(*range, *number, Const::U8),
-                    Some((Prim::U16Type, &[])) => self.parse(*range, *number, Const::U16),
-                    Some((Prim::U32Type, &[])) => self.parse(*range, *number, Const::U32),
-                    Some((Prim::U64Type, &[])) => self.parse(*range, *number, Const::U64),
-                    Some((Prim::S8Type, &[])) => self.parse(*range, *number, Const::S8),
-                    Some((Prim::S16Type, &[])) => self.parse(*range, *number, Const::S16),
-                    Some((Prim::S32Type, &[])) => self.parse(*range, *number, Const::S32),
-                    Some((Prim::S64Type, &[])) => self.parse(*range, *number, Const::S64),
-                    Some((Prim::F32Type, &[])) => self.parse(*range, *number, Const::F32),
-                    Some((Prim::F64Type, &[])) => self.parse(*range, *number, Const::F64),
+                    Some((Prim::U8Type, [])) => self.parse(*range, *number, Const::U8),
+                    Some((Prim::U16Type, [])) => self.parse(*range, *number, Const::U16),
+                    Some((Prim::U32Type, [])) => self.parse(*range, *number, Const::U32),
+                    Some((Prim::U64Type, [])) => self.parse(*range, *number, Const::U64),
+                    Some((Prim::S8Type, [])) => self.parse(*range, *number, Const::S8),
+                    Some((Prim::S16Type, [])) => self.parse(*range, *number, Const::S16),
+                    Some((Prim::S32Type, [])) => self.parse(*range, *number, Const::S32),
+                    Some((Prim::S64Type, [])) => self.parse(*range, *number, Const::S64),
+                    Some((Prim::F32Type, [])) => self.parse(*range, *number, Const::F32),
+                    Some((Prim::F64Type, [])) => self.parse(*range, *number, Const::F64),
+                    // TODO: match on reported error
                     _ => {
                         self.push_message(Message::NumericLiteralNotSupported { range: *range });
                         core::Term::ReportedError
                     }
                 }
             }
-
             (Term::ReportedError(_), _) => core::Term::ReportedError,
-
             (_, _) => {
                 let (core_term, synth_type) = self.synth(surface_term);
                 self.convert(surface_term.range(), core_term, &synth_type, &expected_type)
@@ -805,14 +847,17 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                     self.push_flexible_value(surface_term.range(), FlexSource::ReportedErrorType),
                 )
             }
-
+            Term::ArrayLiteral(range, _) => {
+                self.push_message(Message::AmbiguousNumericLiteral { range: *range });
+                let r#type = self.push_flexible_value(*range, FlexSource::ReportedErrorType);
+                (core::Term::ReportedError, r#type)
+            }
             Term::NumberLiteral(range, _) => {
                 // TODO: Stuck macros + unification like in Klister?
                 self.push_message(Message::AmbiguousNumericLiteral { range: *range });
                 let r#type = self.push_flexible_value(*range, FlexSource::ReportedErrorType);
                 (core::Term::ReportedError, r#type)
             }
-
             Term::FormatRecord(range, format_fields) => {
                 let format_type = Arc::new(Value::prim(core::Prim::FormatType, []));
                 let initial_rigid_len = self.rigid_env.len();
@@ -837,7 +882,6 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
 
                 (core::Term::FormatRecord(labels, format_fields), format_type)
             }
-
             Term::ReportedError(range) => (
                 core::Term::ReportedError,
                 self.push_flexible_value(*range, FlexSource::ReportedErrorType),

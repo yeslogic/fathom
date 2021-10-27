@@ -226,6 +226,15 @@ impl<'arena, 'env> Context<'arena, 'env> {
                 self.unify_record_intro_elim(labels, exprs, &value0)
             }
 
+            (Value::ArrayIntro(elem_exprs0), Value::ArrayIntro(elem_exprs1)) => {
+                for (elem_expr0, elem_expr1) in
+                    Iterator::zip(elem_exprs0.iter(), elem_exprs1.iter())
+                {
+                    self.unify(&elem_expr0, &elem_expr1)?;
+                }
+                Ok(())
+            }
+
             (Value::FormatRecord(labels0, formats0), Value::FormatRecord(labels1, formats1)) => {
                 if labels0 != labels1 {
                     return Err(Error::Mismatched);
@@ -484,6 +493,15 @@ impl<'arena, 'env> Context<'arena, 'env> {
                 }
 
                 Ok(Term::RecordIntro(labels, new_exprs.into()))
+            }
+            Value::ArrayIntro(elem_exprs) => {
+                let mut new_elem_exprs =
+                    SliceBuilder::new(self.scope, elem_exprs.len(), Term::ReportedError);
+                for elem_expr in elem_exprs {
+                    new_elem_exprs.push(self.rename(flexible_var, elem_expr)?);
+                }
+
+                Ok(Term::ArrayIntro(new_elem_exprs.into()))
             }
             Value::FormatRecord(labels, formats) => {
                 let labels = self.scope.to_scope(labels); // FIXME: avoid copy if this is the same arena?
