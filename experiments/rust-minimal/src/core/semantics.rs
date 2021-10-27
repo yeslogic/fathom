@@ -38,8 +38,9 @@ pub enum Value<'arena> {
 }
 
 impl<'arena> Value<'arena> {
-    pub fn prim(prim: Prim) -> Value<'arena> {
-        Value::Stuck(Head::Prim(prim), Vec::new())
+    pub fn prim(prim: Prim, inputs: impl IntoIterator<Item = ArcValue<'arena>>) -> Value<'arena> {
+        let inputs = inputs.into_iter().map(Elim::Fun).collect();
+        Value::Stuck(Head::Prim(prim), inputs)
     }
 
     pub fn rigid_var(global: GlobalVar) -> Value<'arena> {
@@ -267,7 +268,7 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
                 let formats = Telescope::new(self.rigid_exprs.clone(), formats);
                 Arc::new(Value::FormatRecord(labels, formats))
             }
-            Term::Prim(prim) => Arc::new(Value::prim(*prim)),
+            Term::Prim(prim) => Arc::new(Value::prim(*prim, [])),
             Term::Const(r#const) => Arc::new(Value::Const(*r#const)),
             Term::ReportedError => Arc::new(Value::reported_error()),
         }
@@ -371,47 +372,44 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
         match format.as_ref() {
             Value::FormatRecord(labels, formats) => {
                 // Defer reduction to the telescope
-                let types = Telescope::apply_repr(formats.clone());
-                Arc::new(Value::RecordType(labels, types))
+                Arc::new(Value::RecordType(labels, formats.clone().apply_repr()))
             }
-            Value::Stuck(Head::Prim(prim), spine) => match (prim, &spine[..]) {
-                (Prim::FormatFail, []) => todo!(), // Never type
-                (Prim::FormatU8, []) => Arc::new(Value::prim(Prim::U8Type)),
-                (Prim::FormatU16Be, []) => Arc::new(Value::prim(Prim::U16Type)),
-                (Prim::FormatU16Le, []) => Arc::new(Value::prim(Prim::U16Type)),
-                (Prim::FormatU32Be, []) => Arc::new(Value::prim(Prim::U32Type)),
-                (Prim::FormatU32Le, []) => Arc::new(Value::prim(Prim::U32Type)),
-                (Prim::FormatU64Be, []) => Arc::new(Value::prim(Prim::U64Type)),
-                (Prim::FormatU64Le, []) => Arc::new(Value::prim(Prim::U64Type)),
-                (Prim::FormatS8, []) => Arc::new(Value::prim(Prim::S8Type)),
-                (Prim::FormatS16Be, []) => Arc::new(Value::prim(Prim::S16Type)),
-                (Prim::FormatS16Le, []) => Arc::new(Value::prim(Prim::S16Type)),
-                (Prim::FormatS32Be, []) => Arc::new(Value::prim(Prim::S32Type)),
-                (Prim::FormatS32Le, []) => Arc::new(Value::prim(Prim::S32Type)),
-                (Prim::FormatS64Be, []) => Arc::new(Value::prim(Prim::S64Type)),
-                (Prim::FormatS64Le, []) => Arc::new(Value::prim(Prim::S64Type)),
-                (Prim::FormatF32Be, []) => Arc::new(Value::prim(Prim::F32Type)),
-                (Prim::FormatF32Le, []) => Arc::new(Value::prim(Prim::F32Type)),
-                (Prim::FormatF64Be, []) => Arc::new(Value::prim(Prim::F64Type)),
-                (Prim::FormatF64Le, []) => Arc::new(Value::prim(Prim::F64Type)),
-                (Prim::FormatArray8, [Elim::Fun(len), Elim::Fun(elem)]) => Arc::new(Value::Stuck(
-                    Head::Prim(Prim::Array8Type),
-                    vec![Elim::Fun(len.clone()), Elim::Fun(self.apply_repr(elem))],
-                )),
-                (Prim::FormatArray16, [Elim::Fun(len), Elim::Fun(elem)]) => Arc::new(Value::Stuck(
-                    Head::Prim(Prim::Array16Type),
-                    vec![Elim::Fun(len.clone()), Elim::Fun(self.apply_repr(elem))],
-                )),
-                (Prim::FormatArray32, [Elim::Fun(len), Elim::Fun(elem)]) => Arc::new(Value::Stuck(
-                    Head::Prim(Prim::Array32Type),
-                    vec![Elim::Fun(len.clone()), Elim::Fun(self.apply_repr(elem))],
-                )),
-                (Prim::FormatArray64, [Elim::Fun(len), Elim::Fun(elem)]) => Arc::new(Value::Stuck(
-                    Head::Prim(Prim::Array64Type),
-                    vec![Elim::Fun(len.clone()), Elim::Fun(self.apply_repr(elem))],
-                )),
-                _ => panic_any(Error::InvalidFormatRepr),
-            },
+            Value::Stuck(Head::Prim(prim), spine) => {
+                match (prim, &spine[..]) {
+                    (Prim::FormatFail, []) => todo!(), // Never type
+                    (Prim::FormatU8, []) => Arc::new(Value::prim(Prim::U8Type, [])),
+                    (Prim::FormatU16Be, []) => Arc::new(Value::prim(Prim::U16Type, [])),
+                    (Prim::FormatU16Le, []) => Arc::new(Value::prim(Prim::U16Type, [])),
+                    (Prim::FormatU32Be, []) => Arc::new(Value::prim(Prim::U32Type, [])),
+                    (Prim::FormatU32Le, []) => Arc::new(Value::prim(Prim::U32Type, [])),
+                    (Prim::FormatU64Be, []) => Arc::new(Value::prim(Prim::U64Type, [])),
+                    (Prim::FormatU64Le, []) => Arc::new(Value::prim(Prim::U64Type, [])),
+                    (Prim::FormatS8, []) => Arc::new(Value::prim(Prim::S8Type, [])),
+                    (Prim::FormatS16Be, []) => Arc::new(Value::prim(Prim::S16Type, [])),
+                    (Prim::FormatS16Le, []) => Arc::new(Value::prim(Prim::S16Type, [])),
+                    (Prim::FormatS32Be, []) => Arc::new(Value::prim(Prim::S32Type, [])),
+                    (Prim::FormatS32Le, []) => Arc::new(Value::prim(Prim::S32Type, [])),
+                    (Prim::FormatS64Be, []) => Arc::new(Value::prim(Prim::S64Type, [])),
+                    (Prim::FormatS64Le, []) => Arc::new(Value::prim(Prim::S64Type, [])),
+                    (Prim::FormatF32Be, []) => Arc::new(Value::prim(Prim::F32Type, [])),
+                    (Prim::FormatF32Le, []) => Arc::new(Value::prim(Prim::F32Type, [])),
+                    (Prim::FormatF64Be, []) => Arc::new(Value::prim(Prim::F64Type, [])),
+                    (Prim::FormatF64Le, []) => Arc::new(Value::prim(Prim::F64Type, [])),
+                    (Prim::FormatArray8, [Elim::Fun(len), Elim::Fun(elem)]) => Arc::new(
+                        Value::prim(Prim::Array8Type, [len.clone(), self.apply_repr(elem)]),
+                    ),
+                    (Prim::FormatArray16, [Elim::Fun(len), Elim::Fun(elem)]) => Arc::new(
+                        Value::prim(Prim::Array16Type, [len.clone(), self.apply_repr(elem)]),
+                    ),
+                    (Prim::FormatArray32, [Elim::Fun(len), Elim::Fun(elem)]) => Arc::new(
+                        Value::prim(Prim::Array32Type, [len.clone(), self.apply_repr(elem)]),
+                    ),
+                    (Prim::FormatArray64, [Elim::Fun(len), Elim::Fun(elem)]) => Arc::new(
+                        Value::prim(Prim::Array64Type, [len.clone(), self.apply_repr(elem)]),
+                    ),
+                    _ => panic_any(Error::InvalidFormatRepr),
+                }
+            }
             Value::Stuck(Head::ReportedError, _) => Arc::new(Value::Stuck(
                 Head::ReportedError,
                 vec![Elim::Fun(format.clone())],

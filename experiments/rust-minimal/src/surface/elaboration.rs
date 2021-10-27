@@ -51,19 +51,19 @@ impl<'arena> RigidEnv<'arena> {
         let close = |term| Closure::new(SharedEnv::new(), scope.to_scope(term));
         let shared = |value: ArcValue<'static>| move || value.clone();
         let universe = shared(Arc::new(Value::Universe));
-        let format_type = shared(Arc::new(Value::prim(Prim::FormatType)));
+        let format_type = shared(Arc::new(Value::prim(Prim::FormatType, [])));
 
         let array_type = |index_type: Prim| {
             Arc::new(Value::FunType(
                 None,
-                Arc::new(Value::prim(index_type)),
+                Arc::new(Value::prim(index_type, [])),
                 close(Term::FunType(None, &Term::Universe, &Term::Universe)),
             ))
         };
         let format_array = |index_type: Prim| {
             Arc::new(Value::FunType(
                 None,
-                Arc::new(Value::prim(index_type)),
+                Arc::new(Value::prim(index_type, [])),
                 close(Term::FunType(
                     None,
                     &Term::Prim(Prim::FormatType),
@@ -73,7 +73,7 @@ impl<'arena> RigidEnv<'arena> {
         };
 
         let mut define_prim = |prim: Prim, r#type| {
-            env.push_def(name(prim.name()), Arc::new(Value::prim(prim)), r#type);
+            env.push_def(name(prim.name()), Arc::new(Value::prim(prim, [])), r#type);
         };
 
         define_prim(Prim::U8Type, universe());
@@ -596,11 +596,12 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
             }
             Term::Universe(_) => (core::Term::Universe, Arc::new(Value::Universe)),
             Term::FunArrow(_, input_type, output_type) => {
-                let input_type = self.check(input_type, &Arc::new(Value::Universe)); // FIXME: avoid temporary Arc
+                let universe = Arc::new(Value::Universe); // FIXME: avoid temporary Arc
+                let input_type = self.check(input_type, &universe);
                 let input_type_value = self.eval_context().eval(&input_type);
 
                 self.rigid_env.push_param(None, input_type_value);
-                let output_type = self.check(output_type, &Arc::new(Value::Universe)); // FIXME: avoid temporary Arc
+                let output_type = self.check(output_type, &universe);
                 self.rigid_env.pop();
 
                 let fun_type = core::Term::FunType(
@@ -609,15 +610,16 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                     self.scope.to_scope(output_type),
                 );
 
-                (fun_type, Arc::new(Value::Universe))
+                (fun_type, universe)
             }
             Term::FunType(_, (_, input_name), input_type, output_type) => {
-                let input_type = self.check(input_type, &Arc::new(Value::Universe)); // FIXME: avoid temporary Arc
+                let universe = Arc::new(Value::Universe); // FIXME: avoid temporary Arc
+                let input_type = self.check(input_type, &universe);
                 let input_type_value = self.eval_context().eval(&input_type);
 
                 self.rigid_env
                     .push_param(Some(*input_name), input_type_value);
-                let output_type = self.check(output_type, &Arc::new(Value::Universe)); // FIXME: avoid temporary Arc
+                let output_type = self.check(output_type, &universe);
                 self.rigid_env.pop();
 
                 let fun_type = core::Term::FunType(
@@ -626,7 +628,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                     self.scope.to_scope(output_type),
                 );
 
-                (fun_type, Arc::new(Value::Universe))
+                (fun_type, universe)
             }
             Term::FunIntro(_, (input_range, input_name), output_expr) => {
                 let input_name = Some(*input_name);
@@ -711,6 +713,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 (fun_elim, output_type)
             }
             Term::RecordType(range, type_fields) => {
+                let universe = Arc::new(Value::Universe);
                 let initial_rigid_len = self.rigid_env.len();
                 let duplicate_indices = self.report_duplicate_labels(*range, type_fields);
                 let type_fields = (type_fields.iter().enumerate())
@@ -720,17 +723,15 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                     .to_scope_from_iter(type_fields.clone().map(|((_, label), _)| *label));
                 let type_fields =
                     (self.scope).to_scope_from_iter(type_fields.map(|((_, label), r#type)| {
-                        let r#type = self.check(r#type, &Arc::new(Value::Universe));
+                        let r#type = self.check(r#type, &universe);
                         let type_value = self.eval_context().eval(&r#type);
                         self.rigid_env.push_param(Some(*label), type_value);
                         r#type
                     }));
 
                 self.rigid_env.truncate(initial_rigid_len);
-                (
-                    core::Term::RecordType(labels, type_fields),
-                    Arc::new(Value::Universe),
-                )
+
+                (core::Term::RecordType(labels, type_fields), universe)
             }
             Term::RecordIntro(range, expr_fields) => {
                 let duplicate_indices = self.report_duplicate_labels(*range, expr_fields);
@@ -811,12 +812,11 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
             }
 
             Term::FormatRecord(range, format_fields) => {
+                let format_type = Arc::new(Value::prim(core::Prim::FormatType, []));
                 let initial_rigid_len = self.rigid_env.len();
                 let duplicate_indices = self.report_duplicate_labels(*range, format_fields);
                 let format_fields = (format_fields.iter().enumerate())
                     .filter_map(|(i, field)| (!duplicate_indices.contains(&i)).then(|| field));
-
-                let format_type = Arc::new(Value::prim(core::Prim::FormatType));
 
                 let labels = (self.scope)
                     .to_scope_from_iter(format_fields.clone().map(|((_, label), _)| *label));
@@ -832,10 +832,8 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                     }));
 
                 self.rigid_env.truncate(initial_rigid_len);
-                (
-                    core::Term::FormatRecord(labels, format_fields),
-                    Arc::new(Value::prim(core::Prim::FormatType)),
-                )
+
+                (core::Term::FormatRecord(labels, format_fields), format_type)
             }
 
             Term::ReportedError(range) => (
