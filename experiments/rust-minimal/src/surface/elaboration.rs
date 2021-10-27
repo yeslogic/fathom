@@ -76,6 +76,8 @@ impl<'arena> RigidEnv<'arena> {
             env.push_def(name(prim.name()), Arc::new(Value::prim(prim, [])), r#type);
         };
 
+        define_prim(Prim::VoidType, universe());
+
         define_prim(Prim::U8Type, universe());
         define_prim(Prim::U16Type, universe());
         define_prim(Prim::U32Type, universe());

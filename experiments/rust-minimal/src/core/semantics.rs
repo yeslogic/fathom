@@ -376,7 +376,7 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
             }
             Value::Stuck(Head::Prim(prim), spine) => {
                 match (prim, &spine[..]) {
-                    (Prim::FormatFail, []) => todo!(), // Never type
+                    (Prim::FormatFail, []) => Arc::new(Value::prim(Prim::VoidType, [])),
                     (Prim::FormatU8, []) => Arc::new(Value::prim(Prim::U8Type, [])),
                     (Prim::FormatU16Be, []) => Arc::new(Value::prim(Prim::U16Type, [])),
                     (Prim::FormatU16Le, []) => Arc::new(Value::prim(Prim::U16Type, [])),

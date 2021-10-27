@@ -1,4 +1,4 @@
-// let test_fail : Repr fail -> Never = fun x => x;
+let test_fail : Repr fail -> Void = fun x => x;
 let test_u8_repr : Repr u8 -> U8 = fun x => x;
 let test_u16be_repr : Repr u16be -> U16 = fun x => x;
 let test_u16le_repr : Repr u16le -> U16 = fun x => x;

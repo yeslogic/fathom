@@ -146,6 +146,9 @@ pub enum Term<'arena> {
 /// Primitives.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum Prim {
+    /// Void type.
+    VoidType,
+
     /// Type of unsigned, 8-bit integers.
     U8Type,
     /// Type of unsigned, 16-bit integers.
@@ -230,6 +233,8 @@ pub enum Prim {
 impl Prim {
     pub const fn name(&self) -> &'static str {
         match self {
+            Prim::VoidType => "Void",
+
             Prim::U8Type => "U8",
             Prim::U16Type => "U16",
             Prim::U32Type => "U32",

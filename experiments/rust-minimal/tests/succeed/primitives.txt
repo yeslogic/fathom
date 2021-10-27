@@ -1,3 +1,5 @@
+let test_Void : Type = Void;
+
 let test_U8 : Type = U8;
 let test_U16 : Type = U16;
 let test_U32 : Type = U32;
