@@ -410,10 +410,7 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
                     _ => panic_any(Error::InvalidFormatRepr),
                 }
             }
-            Value::Stuck(Head::ReportedError, _) => Arc::new(Value::Stuck(
-                Head::ReportedError,
-                vec![Elim::Fun(format.clone())],
-            )),
+            Value::Stuck(_, _) => Arc::new(Value::prim(Prim::FormatRepr, [format.clone()])),
             _ => panic_any(Error::InvalidFormatRepr),
         }
     }
