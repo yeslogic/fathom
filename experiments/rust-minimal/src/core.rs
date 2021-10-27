@@ -133,6 +133,30 @@ pub enum Term<'arena> {
     /// Record eliminations.
     RecordElim(&'arena Term<'arena>, StringId),
 
+    U8Intro(u8),
+    U16Intro(u16),
+    U32Intro(u32),
+    U64Intro(u64),
+    S8Intro(i8),
+    S16Intro(i16),
+    S32Intro(i32),
+    S64Intro(i64),
+    F32Intro(f32),
+    F64Intro(f64),
+    // TODO: ArrayIntro(&'arena [Term<'arena>]),
+    /// Record formats, consisting of a list of dependent formats.
+    FormatRecord(&'arena [StringId], &'arena [Term<'arena>]),
+
+    /// Primitives.
+    Prim(Prim),
+
+    /// Reported errors.
+    ReportedError,
+}
+
+/// Primitives.
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum Prim {
     /// Type of unsigned, 8-bit integers.
     U8Type,
     /// Type of unsigned, 16-bit integers.
@@ -153,27 +177,12 @@ pub enum Term<'arena> {
     F32Type,
     /// Type of 64-bit, IEEE-754 floating point numbers.
     F64Type,
-
-    U8Intro(u8),
-    U16Intro(u16),
-    U32Intro(u32),
-    U64Intro(u64),
-    S8Intro(i8),
-    S16Intro(i16),
-    S32Intro(i32),
-    S64Intro(i64),
-    F32Intro(f32),
-    F64Intro(f64),
-
-    // TODO: Array8(&'arena Term<'arena>, &'arena Term<'arena>),
-    // TODO: Array16(&'arena Term<'arena>, &'arena Term<'arena>),
-    // TODO: Array32(&'arena Term<'arena>, &'arena Term<'arena>),
-    // TODO: Array64(&'arena Term<'arena>, &'arena Term<'arena>),
-    // TODO: ArrayLiteral(&'arena [Term<'arena>]),
+    // TODO: Array8
+    // TODO: Array16
+    // TODO: Array32
+    // TODO: Array64
     /// Type of format descriptions.
     FormatType,
-    /// Record formats, consisting of a list of dependent formats.
-    FormatRecord(&'arena [StringId], &'arena [Term<'arena>]),
     /// A format that always fails to parse.
     FormatFail,
     /// Unsigned, 8-bit integer formats.
@@ -212,13 +221,48 @@ pub enum Term<'arena> {
     FormatF64Be,
     /// 64-bit, IEEE-754 floating point formats (little-endian).
     FormatF64Le,
-    // TODO: FormatArray8(&'arena Term<'arena>, &'arena Term<'arena>),
-    // TODO: FormatArray16(&'arena Term<'arena>, &'arena Term<'arena>),
-    // TODO: FormatArray32(&'arena Term<'arena>, &'arena Term<'arena>),
-    // TODO: FormatArray64(&'arena Term<'arena>, &'arena Term<'arena>),
+    // TODO: FormatArray8
+    // TODO: FormatArray16
+    // TODO: FormatArray32
+    // TODO: FormatArray64
     /// Format representations.
-    FormatRepr(&'arena Term<'arena>),
+    FormatRepr,
+}
 
-    /// Reported errors.
-    ReportedError,
+impl Prim {
+    pub const fn name(&self) -> &'static str {
+        match self {
+            Prim::U8Type => "U8",
+            Prim::U16Type => "U16",
+            Prim::U32Type => "U32",
+            Prim::U64Type => "U64",
+            Prim::S8Type => "S8",
+            Prim::S16Type => "S16",
+            Prim::S32Type => "S32",
+            Prim::S64Type => "S64",
+            Prim::F32Type => "F32",
+            Prim::F64Type => "F64",
+            Prim::FormatType => "Format",
+            Prim::FormatFail => "fail",
+            Prim::FormatU8 => "u8",
+            Prim::FormatU16Be => "u16be",
+            Prim::FormatU16Le => "u16le",
+            Prim::FormatU32Be => "u32be",
+            Prim::FormatU32Le => "u32le",
+            Prim::FormatU64Be => "u64be",
+            Prim::FormatU64Le => "u64le",
+            Prim::FormatS8 => "s8",
+            Prim::FormatS16Be => "s16be",
+            Prim::FormatS16Le => "s16le",
+            Prim::FormatS32Be => "s32be",
+            Prim::FormatS32Le => "s32le",
+            Prim::FormatS64Be => "s64be",
+            Prim::FormatS64Le => "s64le",
+            Prim::FormatF32Be => "f32be",
+            Prim::FormatF32Le => "f32le",
+            Prim::FormatF64Be => "f64be",
+            Prim::FormatF64Le => "f64le",
+            Prim::FormatRepr => "Repr",
+        }
+    }
 }

@@ -65,17 +65,19 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
         Term::NumberLiteral((), number)
     }
 
-    fn synth_prim(&mut self, name: &'static str) -> Term<'arena, ()> {
-        Term::Name((), self.interner.borrow_mut().get_or_intern_static(name))
+    fn synth_prim(&mut self, prim: core::Prim) -> Term<'arena, ()> {
+        // FIXME: Check if shadowed
+        let name = self.interner.borrow_mut().get_or_intern_static(prim.name());
+        Term::Name((), name)
     }
 
     fn synth_number_literal<T: std::fmt::Display>(
         &mut self,
         number: T,
-        type_name: &'static str,
+        prim_type: core::Prim,
     ) -> Term<'arena, ()> {
         let expr = self.check_number_literal(number);
-        let r#type = self.synth_prim(type_name);
+        let r#type = self.synth_prim(prim_type);
 
         Term::Ann((), self.scope.to_scope(expr), self.scope.to_scope(r#type))
     }
@@ -248,31 +250,19 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 Term::RecordElim((), self.scope.to_scope(head_expr), ((), *label))
             }
 
-            core::Term::U8Type => self.synth_prim("U8"),
-            core::Term::U16Type => self.synth_prim("U16"),
-            core::Term::U32Type => self.synth_prim("U32"),
-            core::Term::U64Type => self.synth_prim("U64"),
-            core::Term::S8Type => self.synth_prim("S8"),
-            core::Term::S16Type => self.synth_prim("S16"),
-            core::Term::S32Type => self.synth_prim("S32"),
-            core::Term::S64Type => self.synth_prim("S64"),
-            core::Term::F32Type => self.synth_prim("F32"),
-            core::Term::F64Type => self.synth_prim("F64"),
+            core::Term::U8Intro(number) => self.synth_number_literal(number, core::Prim::U8Type),
+            core::Term::U16Intro(number) => self.synth_number_literal(number, core::Prim::U16Type),
+            core::Term::U32Intro(number) => self.synth_number_literal(number, core::Prim::U32Type),
+            core::Term::U64Intro(number) => self.synth_number_literal(number, core::Prim::U64Type),
+            core::Term::S8Intro(number) => self.synth_number_literal(number, core::Prim::S8Type),
+            core::Term::S16Intro(number) => self.synth_number_literal(number, core::Prim::S16Type),
+            core::Term::S32Intro(number) => self.synth_number_literal(number, core::Prim::S32Type),
+            core::Term::S64Intro(number) => self.synth_number_literal(number, core::Prim::S64Type),
+            core::Term::F32Intro(number) => self.synth_number_literal(number, core::Prim::F32Type),
+            core::Term::F64Intro(number) => self.synth_number_literal(number, core::Prim::F64Type),
 
-            core::Term::U8Intro(number) => self.synth_number_literal(number, "U8"),
-            core::Term::U16Intro(number) => self.synth_number_literal(number, "U16"),
-            core::Term::U32Intro(number) => self.synth_number_literal(number, "U32"),
-            core::Term::U64Intro(number) => self.synth_number_literal(number, "U64"),
-            core::Term::S8Intro(number) => self.synth_number_literal(number, "S8"),
-            core::Term::S16Intro(number) => self.synth_number_literal(number, "S16"),
-            core::Term::S32Intro(number) => self.synth_number_literal(number, "S32"),
-            core::Term::S64Intro(number) => self.synth_number_literal(number, "S64"),
-            core::Term::F32Intro(number) => self.synth_number_literal(number, "F32"),
-            core::Term::F64Intro(number) => self.synth_number_literal(number, "F64"),
-
-            core::Term::FormatType => self.synth_prim("Format"),
             core::Term::FormatRecord(labels, _) if labels.is_empty() => {
-                let format_type = self.synth_prim("Format");
+                let format_type = self.synth_prim(core::Prim::FormatType);
                 Term::Ann((), &Term::RecordEmpty(()), self.scope.to_scope(format_type))
             }
             core::Term::FormatRecord(labels, formats) => {
@@ -288,31 +278,8 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
 
                 Term::FormatRecord((), type_fields)
             }
-            core::Term::FormatFail => self.synth_prim("fail"),
-            core::Term::FormatU8 => self.synth_prim("u8"),
-            core::Term::FormatU16Be => self.synth_prim("u16be"),
-            core::Term::FormatU16Le => self.synth_prim("u16le"),
-            core::Term::FormatU32Be => self.synth_prim("u32be"),
-            core::Term::FormatU32Le => self.synth_prim("u32le"),
-            core::Term::FormatU64Be => self.synth_prim("u64be"),
-            core::Term::FormatU64Le => self.synth_prim("u64le"),
-            core::Term::FormatS8 => self.synth_prim("s8"),
-            core::Term::FormatS16Be => self.synth_prim("s16be"),
-            core::Term::FormatS16Le => self.synth_prim("s16le"),
-            core::Term::FormatS32Be => self.synth_prim("s32be"),
-            core::Term::FormatS32Le => self.synth_prim("s32le"),
-            core::Term::FormatS64Be => self.synth_prim("s64be"),
-            core::Term::FormatS64Le => self.synth_prim("s64le"),
-            core::Term::FormatF32Be => self.synth_prim("f32be"),
-            core::Term::FormatF32Le => self.synth_prim("f32le"),
-            core::Term::FormatF64Be => self.synth_prim("f64be"),
-            core::Term::FormatF64Le => self.synth_prim("f64le"),
-            core::Term::FormatRepr(expr) => {
-                let repr = self.synth_prim("Repr");
-                let expr = self.check(expr);
 
-                Term::FunElim((), self.scope.to_scope(repr), self.scope.to_scope(expr))
-            }
+            core::Term::Prim(prim) => self.synth_prim(*prim),
 
             // NOTE: Not sure if this is a great approach!
             core::Term::ReportedError => Term::Hole((), None),

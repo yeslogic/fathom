@@ -5,7 +5,7 @@ use scoped_arena::Scope;
 use std::panic::panic_any;
 use std::sync::Arc;
 
-use crate::core::{EntryInfo, Term};
+use crate::core::{EntryInfo, Prim, Term};
 use crate::env::{EnvLen, GlobalVar, SharedEnv, SliceEnv};
 use crate::{SliceBuilder, StringId};
 
@@ -32,27 +32,6 @@ pub enum Value<'arena> {
     /// Record introductions.
     RecordIntro(&'arena [StringId], Vec<ArcValue<'arena>>),
 
-    /// Type of unsigned, 8-bit integers.
-    U8Type,
-    /// Type of unsigned, 16-bit integers.
-    U16Type,
-    /// Type of unsigned, 32-bit integers.
-    U32Type,
-    /// Type of unsigned, 64-bit integers.
-    U64Type,
-    /// Type of signed, two's complement, 8-bit integers.
-    S8Type,
-    /// Type of signed, two's complement, 16-bit integers.
-    S16Type,
-    /// Type of signed, two's complement, 32-bit integers.
-    S32Type,
-    /// Type of signed, two's complement, 64-bit integers.
-    S64Type,
-    /// Type of 32-bit, IEEE-754 floating point numbers.
-    F32Type,
-    /// Type of 64-bit, IEEE-754 floating point numbers.
-    F64Type,
-
     U8Intro(u8),
     U16Intro(u16),
     U32Intro(u32),
@@ -64,51 +43,15 @@ pub enum Value<'arena> {
     F32Intro(f32),
     F64Intro(f64),
 
-    /// Type of format descriptions.
-    FormatType,
     /// Record formats, consisting of a list of dependent formats.
     FormatRecord(&'arena [StringId], Telescope<'arena>),
-    /// A format that always fails to parse.
-    FormatFail,
-    /// Unsigned, 8-bit integer formats.
-    FormatU8,
-    /// Unsigned, 16-bit integer formats (big-endian).
-    FormatU16Be,
-    /// Unsigned, 16-bit integer formats (little-endian).
-    FormatU16Le,
-    /// Unsigned, 32-bit integer formats (big-endian).
-    FormatU32Be,
-    /// Unsigned, 32-bit integer formats (little-endian).
-    FormatU32Le,
-    /// Unsigned, 64-bit integer formats (big-endian).
-    FormatU64Be,
-    /// Unsigned, 64-bit integer formats (little-endian).
-    FormatU64Le,
-    /// Signed, two's-complement, 8-bit integer formats.
-    FormatS8,
-    /// Signed, two's-complement, 16-bit integer formats (big-endian).
-    FormatS16Be,
-    /// Signed, two's-complement, 16-bit integer formats (little-endian).
-    FormatS16Le,
-    /// Signed, two's-complement, 32-bit integer formats (big-endian).
-    FormatS32Be,
-    /// Signed, two's-complement, 32-bit integer formats (little-endian).
-    FormatS32Le,
-    /// Signed, two's-complement, 64-bit integer formats (big-endian).
-    FormatS64Be,
-    /// Signed, two's-complement, 64-bit integer formats (little-endian).
-    FormatS64Le,
-    /// 32-bit, IEEE-754 floating point formats (big-endian).
-    FormatF32Be,
-    /// 32-bit, IEEE-754 floating point formats (little-endian).
-    FormatF32Le,
-    /// 64-bit, IEEE-754 floating point formats (big-endian).
-    FormatF64Be,
-    /// 64-bit, IEEE-754 floating point formats (little-endian).
-    FormatF64Le,
 }
 
 impl<'arena> Value<'arena> {
+    pub fn prim(prim: Prim) -> Value<'arena> {
+        Value::Stuck(Head::Prim(prim), Vec::new())
+    }
+
     pub fn rigid_var(global: GlobalVar) -> Value<'arena> {
         Value::Stuck(Head::RigidVar(global), Vec::new())
     }
@@ -120,11 +63,20 @@ impl<'arena> Value<'arena> {
     pub fn reported_error() -> Value<'arena> {
         Value::Stuck(Head::ReportedError, Vec::new())
     }
+
+    pub fn match_prim_spine(&self) -> Option<(Prim, &[Elim<'arena>])> {
+        match self {
+            Value::Stuck(Head::Prim(prim), spine) => Some((*prim, &spine)),
+            _ => None,
+        }
+    }
 }
 
 /// The head of a [stuck value][Value::Stuck].
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Head {
+    /// Format repr eliminations.
+    Prim(Prim),
     /// Variables that refer to rigid binders.
     RigidVar(GlobalVar),
     /// Variables that refer to unsolved flexible problems.
@@ -141,8 +93,6 @@ pub enum Elim<'arena> {
     Fun(ArcValue<'arena>),
     /// Record eliminations.
     Record(StringId),
-    /// Format repr eliminations.
-    FormatRepr,
 }
 
 /// A closure is a term that can later be instantiated with a value.
@@ -311,29 +261,18 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
                 let input_expr = self.eval(input_expr);
                 self.elim_context().apply_fun(head_expr, input_expr)
             }
-            Term::RecordType(labels, types) => Arc::new(Value::RecordType(
-                labels,
-                Telescope::new(self.rigid_exprs.clone(), types),
-            )),
-            Term::RecordIntro(labels, exprs) => Arc::new(Value::RecordIntro(
-                labels,
-                exprs.iter().map(|expr| self.eval(expr)).collect(),
-            )),
+            Term::RecordType(labels, types) => {
+                let types = Telescope::new(self.rigid_exprs.clone(), types);
+                Arc::new(Value::RecordType(labels, types))
+            }
+            Term::RecordIntro(labels, exprs) => {
+                let exprs = exprs.iter().map(|expr| self.eval(expr)).collect();
+                Arc::new(Value::RecordIntro(labels, exprs))
+            }
             Term::RecordElim(head_expr, label) => {
                 let head_expr = self.eval(head_expr);
                 self.elim_context().apply_record(head_expr, *label)
             }
-
-            Term::U8Type => Arc::new(Value::U8Type),
-            Term::U16Type => Arc::new(Value::U16Type),
-            Term::U32Type => Arc::new(Value::U32Type),
-            Term::U64Type => Arc::new(Value::U64Type),
-            Term::S8Type => Arc::new(Value::S8Type),
-            Term::S16Type => Arc::new(Value::S16Type),
-            Term::S32Type => Arc::new(Value::S32Type),
-            Term::S64Type => Arc::new(Value::S64Type),
-            Term::F32Type => Arc::new(Value::F32Type),
-            Term::F64Type => Arc::new(Value::F64Type),
 
             Term::U8Intro(number) => Arc::new(Value::U8Intro(*number)),
             Term::U16Intro(number) => Arc::new(Value::U16Intro(*number)),
@@ -346,34 +285,12 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
             Term::F32Intro(number) => Arc::new(Value::F32Intro(*number)),
             Term::F64Intro(number) => Arc::new(Value::F64Intro(*number)),
 
-            Term::FormatType => Arc::new(Value::FormatType),
-            Term::FormatRecord(labels, formats) => Arc::new(Value::FormatRecord(
-                labels,
-                Telescope::new(self.rigid_exprs.clone(), formats),
-            )),
-            Term::FormatFail => Arc::new(Value::FormatFail),
-            Term::FormatU8 => Arc::new(Value::FormatU8),
-            Term::FormatU16Be => Arc::new(Value::FormatU16Be),
-            Term::FormatU16Le => Arc::new(Value::FormatU16Le),
-            Term::FormatU32Be => Arc::new(Value::FormatU32Be),
-            Term::FormatU32Le => Arc::new(Value::FormatU32Le),
-            Term::FormatU64Be => Arc::new(Value::FormatU64Be),
-            Term::FormatU64Le => Arc::new(Value::FormatU64Le),
-            Term::FormatS8 => Arc::new(Value::FormatS8),
-            Term::FormatS16Be => Arc::new(Value::FormatS16Be),
-            Term::FormatS16Le => Arc::new(Value::FormatS16Le),
-            Term::FormatS32Be => Arc::new(Value::FormatS32Be),
-            Term::FormatS32Le => Arc::new(Value::FormatS32Le),
-            Term::FormatS64Be => Arc::new(Value::FormatS64Be),
-            Term::FormatS64Le => Arc::new(Value::FormatS64Le),
-            Term::FormatF32Be => Arc::new(Value::FormatF32Be),
-            Term::FormatF32Le => Arc::new(Value::FormatF32Le),
-            Term::FormatF64Be => Arc::new(Value::FormatF64Be),
-            Term::FormatF64Le => Arc::new(Value::FormatF64Le),
-            Term::FormatRepr(head_expr) => {
-                let head_expr = self.eval(head_expr);
-                self.elim_context().apply_format_repr(head_expr)
+            Term::FormatRecord(labels, formats) => {
+                let formats = Telescope::new(self.rigid_exprs.clone(), formats);
+                Arc::new(Value::FormatRecord(labels, formats))
             }
+
+            Term::Prim(prim) => Arc::new(Value::prim(*prim)),
 
             Term::ReportedError => Arc::new(Value::reported_error()),
         }
@@ -437,7 +354,7 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
         let (term, terms) = telescope.terms.split_first()?;
         let mut context = EvalContext::new(&mut telescope.rigid_exprs, self.flexible_exprs);
         let value = match telescope.apply_repr {
-            true => context.eval(&Term::FormatRepr(term)),
+            true => context.eval(&Term::FunElim(&Term::Prim(Prim::FormatRepr), term)),
             false => context.eval(term),
         };
 
@@ -461,11 +378,52 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
             // Beta-reduction
             Value::FunIntro(_, output_expr) => self.apply_closure(output_expr, input_expr),
             // The computation is stuck, preventing further reduction
-            Value::Stuck(_, spine) => {
+            Value::Stuck(head, spine) => {
                 spine.push(Elim::Fun(input_expr));
-                head_expr
+
+                match (head, &spine[..]) {
+                    (Head::Prim(Prim::FormatRepr), [Elim::Fun(format)]) => self.apply_repr(format),
+                    (_, _) => head_expr,
+                }
             }
             _ => panic_any(Error::InvalidFunctionElim),
+        }
+    }
+
+    pub fn apply_repr(&self, format: &ArcValue<'arena>) -> ArcValue<'arena> {
+        match format.as_ref() {
+            Value::FormatRecord(labels, formats) => {
+                // Defer reduction to the telescope
+                let types = Telescope::apply_repr(formats.clone());
+                Arc::new(Value::RecordType(labels, types))
+            }
+            Value::Stuck(Head::Prim(prim), spine) => match (prim, &spine[..]) {
+                (Prim::FormatFail, []) => todo!(), // Never type
+                (Prim::FormatU8, []) => Arc::new(Value::prim(Prim::U8Type)),
+                (Prim::FormatU16Be, []) => Arc::new(Value::prim(Prim::U16Type)),
+                (Prim::FormatU16Le, []) => Arc::new(Value::prim(Prim::U16Type)),
+                (Prim::FormatU32Be, []) => Arc::new(Value::prim(Prim::U32Type)),
+                (Prim::FormatU32Le, []) => Arc::new(Value::prim(Prim::U32Type)),
+                (Prim::FormatU64Be, []) => Arc::new(Value::prim(Prim::U64Type)),
+                (Prim::FormatU64Le, []) => Arc::new(Value::prim(Prim::U64Type)),
+                (Prim::FormatS8, []) => Arc::new(Value::prim(Prim::S8Type)),
+                (Prim::FormatS16Be, []) => Arc::new(Value::prim(Prim::S16Type)),
+                (Prim::FormatS16Le, []) => Arc::new(Value::prim(Prim::S16Type)),
+                (Prim::FormatS32Be, []) => Arc::new(Value::prim(Prim::S32Type)),
+                (Prim::FormatS32Le, []) => Arc::new(Value::prim(Prim::S32Type)),
+                (Prim::FormatS64Be, []) => Arc::new(Value::prim(Prim::S64Type)),
+                (Prim::FormatS64Le, []) => Arc::new(Value::prim(Prim::S64Type)),
+                (Prim::FormatF32Be, []) => Arc::new(Value::prim(Prim::F32Type)),
+                (Prim::FormatF32Le, []) => Arc::new(Value::prim(Prim::F32Type)),
+                (Prim::FormatF64Be, []) => Arc::new(Value::prim(Prim::F64Type)),
+                (Prim::FormatF64Le, []) => Arc::new(Value::prim(Prim::F64Type)),
+                _ => panic_any(Error::InvalidFormatRepr),
+            },
+            Value::Stuck(Head::ReportedError, _) => Arc::new(Value::Stuck(
+                Head::ReportedError,
+                vec![Elim::Fun(format.clone())],
+            )),
+            _ => panic_any(Error::InvalidFormatRepr),
         }
     }
 
@@ -493,43 +451,6 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
         }
     }
 
-    /// Find the representation type of a format expression.
-    pub fn apply_format_repr(&self, mut head_expr: ArcValue<'arena>) -> Arc<Value<'arena>> {
-        match Arc::make_mut(&mut head_expr) {
-            // Beta-reduction
-            Value::FormatRecord(labels, formats) => {
-                // Defer reduction to the telescope
-                let types = Telescope::apply_repr(formats.clone());
-                Arc::new(Value::RecordType(labels, types))
-            }
-            Value::FormatFail => todo!(), // Never type
-            Value::FormatU8 => Arc::new(Value::U8Type),
-            Value::FormatU16Be => Arc::new(Value::U16Type),
-            Value::FormatU16Le => Arc::new(Value::U16Type),
-            Value::FormatU32Be => Arc::new(Value::U32Type),
-            Value::FormatU32Le => Arc::new(Value::U32Type),
-            Value::FormatU64Be => Arc::new(Value::U64Type),
-            Value::FormatU64Le => Arc::new(Value::U64Type),
-            Value::FormatS8 => Arc::new(Value::S8Type),
-            Value::FormatS16Be => Arc::new(Value::S16Type),
-            Value::FormatS16Le => Arc::new(Value::S16Type),
-            Value::FormatS32Be => Arc::new(Value::S32Type),
-            Value::FormatS32Le => Arc::new(Value::S32Type),
-            Value::FormatS64Be => Arc::new(Value::S64Type),
-            Value::FormatS64Le => Arc::new(Value::S64Type),
-            Value::FormatF32Be => Arc::new(Value::F32Type),
-            Value::FormatF32Le => Arc::new(Value::F32Type),
-            Value::FormatF64Be => Arc::new(Value::F64Type),
-            Value::FormatF64Le => Arc::new(Value::F64Type),
-            // The computation is stuck, preventing further reduction
-            Value::Stuck(_, spine) => {
-                spine.push(Elim::FormatRepr);
-                head_expr
-            }
-            _ => panic_any(Error::InvalidFormatRepr),
-        }
-    }
-
     /// Apply an expression to an elimination spine.
     pub fn apply_spine(
         &self,
@@ -540,7 +461,6 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
             head_expr = match elim {
                 Elim::Fun(input_expr) => self.apply_fun(head_expr, input_expr.clone()),
                 Elim::Record(label) => self.apply_record(head_expr, *label),
-                Elim::FormatRepr => self.apply_format_repr(head_expr),
             };
         }
         head_expr
@@ -589,6 +509,7 @@ impl<'in_arena, 'out_arena, 'env> QuoteContext<'in_arena, 'out_arena, 'env> {
         match value.as_ref() {
             Value::Stuck(head, spine) => {
                 let mut head_expr = match head {
+                    Head::Prim(prim) => Term::Prim(*prim),
                     Head::RigidVar(var) => {
                         // FIXME: Unwrap
                         Term::RigidVar(self.rigid_exprs.global_to_local(*var).unwrap())
@@ -609,7 +530,6 @@ impl<'in_arena, 'out_arena, 'env> QuoteContext<'in_arena, 'out_arena, 'env> {
                         Elim::Record(label) => {
                             Term::RecordElim(self.scope.to_scope(head_expr), *label)
                         }
-                        Elim::FormatRepr => Term::FormatRepr(self.scope.to_scope(head_expr)),
                     };
                 }
 
@@ -645,17 +565,6 @@ impl<'in_arena, 'out_arena, 'env> QuoteContext<'in_arena, 'out_arena, 'env> {
                 Term::RecordIntro(labels, exprs)
             }
 
-            Value::U8Type => Term::U8Type,
-            Value::U16Type => Term::U16Type,
-            Value::U32Type => Term::U32Type,
-            Value::U64Type => Term::U64Type,
-            Value::S8Type => Term::S8Type,
-            Value::S16Type => Term::S16Type,
-            Value::S32Type => Term::S32Type,
-            Value::S64Type => Term::S64Type,
-            Value::F32Type => Term::F32Type,
-            Value::F64Type => Term::F64Type,
-
             Value::U8Intro(number) => Term::U8Intro(*number),
             Value::U16Intro(number) => Term::U16Intro(*number),
             Value::U32Intro(number) => Term::U32Intro(*number),
@@ -667,32 +576,12 @@ impl<'in_arena, 'out_arena, 'env> QuoteContext<'in_arena, 'out_arena, 'env> {
             Value::F32Intro(number) => Term::F32Intro(*number),
             Value::F64Intro(number) => Term::F64Intro(*number),
 
-            Value::FormatType => Term::FormatType,
             Value::FormatRecord(labels, formats) => {
                 let labels = self.scope.to_scope_from_iter(labels.iter().copied()); // FIXME: avoid copy if this is the same arena?
                 let formats = self.quote_telescope(formats);
 
                 Term::FormatRecord(labels, formats)
             }
-            Value::FormatFail => Term::FormatFail,
-            Value::FormatU8 => Term::FormatU8,
-            Value::FormatU16Be => Term::FormatU16Be,
-            Value::FormatU16Le => Term::FormatU16Le,
-            Value::FormatU32Be => Term::FormatU32Be,
-            Value::FormatU32Le => Term::FormatU32Le,
-            Value::FormatU64Be => Term::FormatU64Be,
-            Value::FormatU64Le => Term::FormatU64Le,
-            Value::FormatS8 => Term::FormatS8,
-            Value::FormatS16Be => Term::FormatS16Be,
-            Value::FormatS16Le => Term::FormatS16Le,
-            Value::FormatS32Be => Term::FormatS32Be,
-            Value::FormatS32Le => Term::FormatS32Le,
-            Value::FormatS64Be => Term::FormatS64Be,
-            Value::FormatS64Le => Term::FormatS64Le,
-            Value::FormatF32Be => Term::FormatF32Be,
-            Value::FormatF32Le => Term::FormatF32Le,
-            Value::FormatF64Be => Term::FormatF64Be,
-            Value::FormatF64Le => Term::FormatF64Le,
         }
     }
 
@@ -789,7 +678,6 @@ impl<'arena, 'env> ConversionContext<'arena, 'env> {
                         (Elim::Fun(input_expr0), Elim::Fun(input_expr1))
                             if self.is_equal(input_expr0, input_expr1) => {}
                         (Elim::Record(label0), Elim::Record(label1)) if label0 == label1 => {}
-                        (Elim::FormatRepr, Elim::FormatRepr) => {}
                         (_, _) => return false,
                     }
                 }
@@ -842,17 +730,6 @@ impl<'arena, 'env> ConversionContext<'arena, 'env> {
                 self.is_equal_record_intro_elim(labels, exprs, &value0)
             }
 
-            (Value::U8Type, Value::U8Type) => true,
-            (Value::U16Type, Value::U16Type) => true,
-            (Value::U32Type, Value::U32Type) => true,
-            (Value::U64Type, Value::U64Type) => true,
-            (Value::S8Type, Value::S8Type) => true,
-            (Value::S16Type, Value::S16Type) => true,
-            (Value::S32Type, Value::S32Type) => true,
-            (Value::S64Type, Value::S64Type) => true,
-            (Value::F32Type, Value::F32Type) => true,
-            (Value::F64Type, Value::F64Type) => true,
-
             (Value::U16Intro(n0), Value::U16Intro(n1)) => n0 == n1,
             (Value::U32Intro(n0), Value::U32Intro(n1)) => n0 == n1,
             (Value::U64Intro(n0), Value::U64Intro(n1)) => n0 == n1,
@@ -863,32 +740,12 @@ impl<'arena, 'env> ConversionContext<'arena, 'env> {
             (Value::F32Intro(n0), Value::F32Intro(n1)) => n0 == n1,
             (Value::F64Intro(n0), Value::F64Intro(n1)) => n0 == n1,
 
-            (Value::FormatType, Value::FormatType) => true,
             (Value::FormatRecord(labels0, formats0), Value::FormatRecord(labels1, formats1)) => {
                 if labels0 != labels1 {
                     return false;
                 }
                 self.is_equal_telescopes(formats0, formats1)
             }
-            (Value::FormatFail, Value::FormatFail) => true,
-            (Value::FormatU8, Value::FormatU8) => true,
-            (Value::FormatU16Be, Value::FormatU16Be) => true,
-            (Value::FormatU16Le, Value::FormatU16Le) => true,
-            (Value::FormatU32Be, Value::FormatU32Be) => true,
-            (Value::FormatU32Le, Value::FormatU32Le) => true,
-            (Value::FormatU64Be, Value::FormatU64Be) => true,
-            (Value::FormatU64Le, Value::FormatU64Le) => true,
-            (Value::FormatS8, Value::FormatS8) => true,
-            (Value::FormatS16Be, Value::FormatS16Be) => true,
-            (Value::FormatS16Le, Value::FormatS16Le) => true,
-            (Value::FormatS32Be, Value::FormatS32Be) => true,
-            (Value::FormatS32Le, Value::FormatS32Le) => true,
-            (Value::FormatS64Be, Value::FormatS64Be) => true,
-            (Value::FormatS64Le, Value::FormatS64Le) => true,
-            (Value::FormatF32Be, Value::FormatF32Be) => true,
-            (Value::FormatF32Le, Value::FormatF32Le) => true,
-            (Value::FormatF64Be, Value::FormatF64Be) => true,
-            (Value::FormatF64Le, Value::FormatF64Le) => true,
 
             (_, _) => false,
         }

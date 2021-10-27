@@ -171,6 +171,11 @@ impl<'arena, 'env> Context<'arena, 'env> {
             //
             // Both values have head variables in common, so all we need to do
             // is unify the elimination spines.
+            (Value::Stuck(Head::Prim(prim0), spine0), Value::Stuck(Head::Prim(prim1), spine1))
+                if prim0 == prim1 =>
+            {
+                self.unify_spines(spine0, spine1)
+            }
             (
                 Value::Stuck(Head::RigidVar(var0), spine0),
                 Value::Stuck(Head::RigidVar(var1), spine1),
@@ -221,17 +226,6 @@ impl<'arena, 'env> Context<'arena, 'env> {
                 self.unify_record_intro_elim(labels, exprs, &value0)
             }
 
-            (Value::U8Type, Value::U8Type) => Ok(()),
-            (Value::U16Type, Value::U16Type) => Ok(()),
-            (Value::U32Type, Value::U32Type) => Ok(()),
-            (Value::U64Type, Value::U64Type) => Ok(()),
-            (Value::S8Type, Value::S8Type) => Ok(()),
-            (Value::S16Type, Value::S16Type) => Ok(()),
-            (Value::S32Type, Value::S32Type) => Ok(()),
-            (Value::S64Type, Value::S64Type) => Ok(()),
-            (Value::F32Type, Value::F32Type) => Ok(()),
-            (Value::F64Type, Value::F64Type) => Ok(()),
-
             (Value::U16Intro(n0), Value::U16Intro(n1)) if n0 == n1 => Ok(()),
             (Value::U32Intro(n0), Value::U32Intro(n1)) if n0 == n1 => Ok(()),
             (Value::U64Intro(n0), Value::U64Intro(n1)) if n0 == n1 => Ok(()),
@@ -242,32 +236,12 @@ impl<'arena, 'env> Context<'arena, 'env> {
             (Value::F32Intro(n0), Value::F32Intro(n1)) if n0 == n1 => Ok(()),
             (Value::F64Intro(n0), Value::F64Intro(n1)) if n0 == n1 => Ok(()),
 
-            (Value::FormatType, Value::FormatType) => Ok(()),
             (Value::FormatRecord(labels0, formats0), Value::FormatRecord(labels1, formats1)) => {
                 if labels0 != labels1 {
                     return Err(Error::Mismatched);
                 }
                 self.unify_telescopes(formats0, formats1)
             }
-            (Value::FormatFail, Value::FormatFail) => Ok(()),
-            (Value::FormatU8, Value::FormatU8) => Ok(()),
-            (Value::FormatU16Be, Value::FormatU16Be) => Ok(()),
-            (Value::FormatU16Le, Value::FormatU16Le) => Ok(()),
-            (Value::FormatU32Be, Value::FormatU32Be) => Ok(()),
-            (Value::FormatU32Le, Value::FormatU32Le) => Ok(()),
-            (Value::FormatU64Be, Value::FormatU64Be) => Ok(()),
-            (Value::FormatU64Le, Value::FormatU64Le) => Ok(()),
-            (Value::FormatS8, Value::FormatS8) => Ok(()),
-            (Value::FormatS16Be, Value::FormatS16Be) => Ok(()),
-            (Value::FormatS16Le, Value::FormatS16Le) => Ok(()),
-            (Value::FormatS32Be, Value::FormatS32Be) => Ok(()),
-            (Value::FormatS32Le, Value::FormatS32Le) => Ok(()),
-            (Value::FormatS64Be, Value::FormatS64Be) => Ok(()),
-            (Value::FormatS64Le, Value::FormatS64Le) => Ok(()),
-            (Value::FormatF32Be, Value::FormatF32Be) => Ok(()),
-            (Value::FormatF32Le, Value::FormatF32Le) => Ok(()),
-            (Value::FormatF64Be, Value::FormatF64Be) => Ok(()),
-            (Value::FormatF64Le, Value::FormatF64Le) => Ok(()),
 
             // Flexible-rigid cases
             //
@@ -295,7 +269,6 @@ impl<'arena, 'env> Context<'arena, 'env> {
                     self.unify(input_expr0, input_expr1)?;
                 }
                 (Elim::Record(label0), Elim::Record(label1)) if label0 == label1 => {}
-                (Elim::FormatRepr, Elim::FormatRepr) => {}
                 (_, _) => return Err(Error::Mismatched),
             }
         }
@@ -426,7 +399,6 @@ impl<'arena, 'env> Context<'arena, 'env> {
                     _ => return Err(Error::NonLinearSpine),
                 },
                 Elim::Record(_) => todo!("needs expansion"), // TODO: Not sure how to handle this!
-                Elim::FormatRepr => todo!("needs expansion"), // TODO: Not sure how to handle this!
             }
         }
 
@@ -439,7 +411,6 @@ impl<'arena, 'env> Context<'arena, 'env> {
         spine.iter().fold(Ok(term), |term, elim| match elim {
             Elim::Fun(_) => Ok(Term::FunIntro(None, self.scope.to_scope(term?))),
             Elim::Record(_) => todo!("needs expansion"), // TODO: Not sure how to handle this!
-            Elim::FormatRepr => todo!("needs expansion"), // TODO: Not sure how to handle this!
         })
     }
 
@@ -459,6 +430,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
         match self.elim_context().force(value).as_ref() {
             Value::Stuck(head, spine) => {
                 let mut head_expr = match head {
+                    Head::Prim(prim) => Term::Prim(*prim),
                     Head::RigidVar(source_var) => match self.renaming.get_as_local(*source_var) {
                         None => return Err(Error::EscapingRigidVar),
                         Some(target_var) => Term::RigidVar(target_var),
@@ -482,7 +454,6 @@ impl<'arena, 'env> Context<'arena, 'env> {
                         Elim::Record(label) => {
                             Term::RecordElim(self.scope.to_scope(head_expr), *label)
                         }
-                        Elim::FormatRepr => Term::FormatRepr(self.scope.to_scope(head_expr)),
                     };
                 }
 
@@ -523,17 +494,6 @@ impl<'arena, 'env> Context<'arena, 'env> {
                 Ok(Term::RecordIntro(labels, new_exprs.into()))
             }
 
-            Value::U8Type => Ok(Term::U8Type),
-            Value::U16Type => Ok(Term::U16Type),
-            Value::U32Type => Ok(Term::U32Type),
-            Value::U64Type => Ok(Term::U64Type),
-            Value::S8Type => Ok(Term::S8Type),
-            Value::S16Type => Ok(Term::S16Type),
-            Value::S32Type => Ok(Term::S32Type),
-            Value::S64Type => Ok(Term::S64Type),
-            Value::F32Type => Ok(Term::F32Type),
-            Value::F64Type => Ok(Term::F64Type),
-
             Value::U8Intro(number) => Ok(Term::U8Intro(*number)),
             Value::U16Intro(number) => Ok(Term::U16Intro(*number)),
             Value::U32Intro(number) => Ok(Term::U32Intro(*number)),
@@ -545,32 +505,12 @@ impl<'arena, 'env> Context<'arena, 'env> {
             Value::F32Intro(number) => Ok(Term::F32Intro(*number)),
             Value::F64Intro(number) => Ok(Term::F64Intro(*number)),
 
-            Value::FormatType => Ok(Term::FormatType),
             Value::FormatRecord(labels, formats) => {
                 let labels = self.scope.to_scope(labels); // FIXME: avoid copy if this is the same arena?
                 let formats = self.rename_telescope(flexible_var, formats)?;
 
                 Ok(Term::FormatRecord(labels, formats))
             }
-            Value::FormatFail => Ok(Term::FormatFail),
-            Value::FormatU8 => Ok(Term::FormatU8),
-            Value::FormatU16Be => Ok(Term::FormatU16Be),
-            Value::FormatU16Le => Ok(Term::FormatU16Le),
-            Value::FormatU32Be => Ok(Term::FormatU32Be),
-            Value::FormatU32Le => Ok(Term::FormatU32Le),
-            Value::FormatU64Be => Ok(Term::FormatU64Be),
-            Value::FormatU64Le => Ok(Term::FormatU64Le),
-            Value::FormatS8 => Ok(Term::FormatS8),
-            Value::FormatS16Be => Ok(Term::FormatS16Be),
-            Value::FormatS16Le => Ok(Term::FormatS16Le),
-            Value::FormatS32Be => Ok(Term::FormatS32Be),
-            Value::FormatS32Le => Ok(Term::FormatS32Le),
-            Value::FormatS64Be => Ok(Term::FormatS64Be),
-            Value::FormatS64Le => Ok(Term::FormatS64Le),
-            Value::FormatF32Be => Ok(Term::FormatF32Be),
-            Value::FormatF32Le => Ok(Term::FormatF32Le),
-            Value::FormatF64Be => Ok(Term::FormatF64Be),
-            Value::FormatF64Le => Ok(Term::FormatF64Le),
         }
     }
 

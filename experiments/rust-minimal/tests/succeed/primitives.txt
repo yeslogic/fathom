@@ -40,5 +40,6 @@ let test_f32be : Format = f32be;
 let test_f32le : Format = f32le;
 let test_f64be : Format = f64be;
 let test_f64le : Format = f64le;
+let test_repr : Format -> Type = Repr;
 
 Type

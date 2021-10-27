@@ -43,55 +43,53 @@ impl<'arena> RigidEnv<'arena> {
         interner: &RefCell<StringInterner>,
         scope: &'arena Scope<'arena>,
     ) -> RigidEnv<'arena> {
-        use crate::core::Term;
-        use crate::env::LocalVar;
+        use crate::core::{Prim, Term};
 
         let mut env = RigidEnv::new();
 
-        let shared = |value: ArcValue<'static>| move || value.clone();
-
         let name = |name| Some(interner.borrow_mut().get_or_intern_static(name));
-        let universe = shared(Arc::new(Value::Universe));
-        let format_type = shared(Arc::new(Value::FormatType));
-
         let close = |term| Closure::new(SharedEnv::new(), scope.to_scope(term));
-        let var0 = scope.to_scope(Term::RigidVar(LocalVar::last()));
+        let shared = |value: ArcValue<'static>| move || value.clone();
+        let universe = shared(Arc::new(Value::Universe));
+        let format_type = shared(Arc::new(Value::prim(Prim::FormatType)));
 
-        env.push_def(name("U8"), Arc::new(Value::U8Type), universe());
-        env.push_def(name("U16"), Arc::new(Value::U16Type), universe());
-        env.push_def(name("U32"), Arc::new(Value::U32Type), universe());
-        env.push_def(name("U64"), Arc::new(Value::U64Type), universe());
-        env.push_def(name("S8"), Arc::new(Value::S8Type), universe());
-        env.push_def(name("S16"), Arc::new(Value::S16Type), universe());
-        env.push_def(name("S32"), Arc::new(Value::S32Type), universe());
-        env.push_def(name("S64"), Arc::new(Value::S64Type), universe());
-        env.push_def(name("F32"), Arc::new(Value::F32Type), universe());
-        env.push_def(name("F64"), Arc::new(Value::F64Type), universe());
+        let mut define_prim = |prim: Prim, r#type| {
+            env.push_def(name(prim.name()), Arc::new(Value::prim(prim)), r#type);
+        };
 
-        env.push_def(name("Format"), Arc::new(Value::FormatType), universe());
-        env.push_def(name("fail"), Arc::new(Value::FormatFail), format_type());
-        env.push_def(name("u8"), Arc::new(Value::FormatU8), format_type());
-        env.push_def(name("u16be"), Arc::new(Value::FormatU16Be), format_type());
-        env.push_def(name("u16le"), Arc::new(Value::FormatU16Le), format_type());
-        env.push_def(name("u32be"), Arc::new(Value::FormatU32Be), format_type());
-        env.push_def(name("u32le"), Arc::new(Value::FormatU32Le), format_type());
-        env.push_def(name("u64be"), Arc::new(Value::FormatU64Be), format_type());
-        env.push_def(name("u64le"), Arc::new(Value::FormatU64Le), format_type());
-        env.push_def(name("s8"), Arc::new(Value::FormatS8), format_type());
-        env.push_def(name("s16be"), Arc::new(Value::FormatS16Be), format_type());
-        env.push_def(name("s16le"), Arc::new(Value::FormatS16Le), format_type());
-        env.push_def(name("s32be"), Arc::new(Value::FormatS32Be), format_type());
-        env.push_def(name("s32le"), Arc::new(Value::FormatS32Le), format_type());
-        env.push_def(name("s64be"), Arc::new(Value::FormatS64Be), format_type());
-        env.push_def(name("s64le"), Arc::new(Value::FormatS64Le), format_type());
-        env.push_def(name("f32be"), Arc::new(Value::FormatF32Be), format_type());
-        env.push_def(name("f32le"), Arc::new(Value::FormatF32Le), format_type());
-        env.push_def(name("f64be"), Arc::new(Value::FormatF64Be), format_type());
-        env.push_def(name("f64le"), Arc::new(Value::FormatF64Le), format_type());
-        env.push_def(
-            name("Repr"),
-            // TODO: Clean up closure construction
-            Arc::new(Value::FunIntro(None, close(Term::FormatRepr(var0)))),
+        define_prim(Prim::U8Type, universe());
+        define_prim(Prim::U16Type, universe());
+        define_prim(Prim::U32Type, universe());
+        define_prim(Prim::U64Type, universe());
+        define_prim(Prim::S8Type, universe());
+        define_prim(Prim::S16Type, universe());
+        define_prim(Prim::S32Type, universe());
+        define_prim(Prim::S64Type, universe());
+        define_prim(Prim::F32Type, universe());
+        define_prim(Prim::F64Type, universe());
+
+        define_prim(Prim::FormatType, universe());
+        define_prim(Prim::FormatFail, format_type());
+        define_prim(Prim::FormatU8, format_type());
+        define_prim(Prim::FormatU16Be, format_type());
+        define_prim(Prim::FormatU16Le, format_type());
+        define_prim(Prim::FormatU32Be, format_type());
+        define_prim(Prim::FormatU32Le, format_type());
+        define_prim(Prim::FormatU64Be, format_type());
+        define_prim(Prim::FormatU64Le, format_type());
+        define_prim(Prim::FormatS8, format_type());
+        define_prim(Prim::FormatS16Be, format_type());
+        define_prim(Prim::FormatS16Le, format_type());
+        define_prim(Prim::FormatS32Be, format_type());
+        define_prim(Prim::FormatS32Le, format_type());
+        define_prim(Prim::FormatS64Be, format_type());
+        define_prim(Prim::FormatS64Le, format_type());
+        define_prim(Prim::FormatF32Be, format_type());
+        define_prim(Prim::FormatF32Le, format_type());
+        define_prim(Prim::FormatF64Be, format_type());
+        define_prim(Prim::FormatF64Le, format_type());
+        define_prim(
+            Prim::FormatRepr,
             Arc::new(Value::FunType(None, format_type(), close(Term::Universe))),
         );
 
@@ -474,22 +472,26 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
             }
             (Term::RecordEmpty(_), Value::Universe) => core::Term::RecordType(&[], &[]),
 
-            (Term::NumberLiteral(range, number), _) => match expected_type.as_ref() {
-                Value::U8Type => self.parse(*range, *number, core::Term::U8Intro),
-                Value::U16Type => self.parse(*range, *number, core::Term::U16Intro),
-                Value::U32Type => self.parse(*range, *number, core::Term::U32Intro),
-                Value::U64Type => self.parse(*range, *number, core::Term::U64Intro),
-                Value::S8Type => self.parse(*range, *number, core::Term::S8Intro),
-                Value::S16Type => self.parse(*range, *number, core::Term::S16Intro),
-                Value::S32Type => self.parse(*range, *number, core::Term::S32Intro),
-                Value::S64Type => self.parse(*range, *number, core::Term::S64Intro),
-                Value::F32Type => self.parse(*range, *number, core::Term::F32Intro),
-                Value::F64Type => self.parse(*range, *number, core::Term::F64Intro),
-                _ => {
-                    self.push_message(Message::NumericLiteralNotSupported { range: *range });
-                    core::Term::ReportedError
+            (Term::NumberLiteral(range, number), _) => {
+                use crate::core::{Prim, Term};
+
+                match expected_type.match_prim_spine() {
+                    Some((Prim::U8Type, &[])) => self.parse(*range, *number, Term::U8Intro),
+                    Some((Prim::U16Type, &[])) => self.parse(*range, *number, Term::U16Intro),
+                    Some((Prim::U32Type, &[])) => self.parse(*range, *number, Term::U32Intro),
+                    Some((Prim::U64Type, &[])) => self.parse(*range, *number, Term::U64Intro),
+                    Some((Prim::S8Type, &[])) => self.parse(*range, *number, Term::S8Intro),
+                    Some((Prim::S16Type, &[])) => self.parse(*range, *number, Term::S16Intro),
+                    Some((Prim::S32Type, &[])) => self.parse(*range, *number, Term::S32Intro),
+                    Some((Prim::S64Type, &[])) => self.parse(*range, *number, Term::S64Intro),
+                    Some((Prim::F32Type, &[])) => self.parse(*range, *number, Term::F32Intro),
+                    Some((Prim::F64Type, &[])) => self.parse(*range, *number, Term::F64Intro),
+                    _ => {
+                        self.push_message(Message::NumericLiteralNotSupported { range: *range });
+                        core::Term::ReportedError
+                    }
                 }
-            },
+            }
 
             (Term::ReportedError(_), _) => core::Term::ReportedError,
 
@@ -787,14 +789,16 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 let format_fields = (format_fields.iter().enumerate())
                     .filter_map(|(i, field)| (!duplicate_indices.contains(&i)).then(|| field));
 
+                let format_type = Arc::new(Value::prim(core::Prim::FormatType));
+
                 let labels = (self.scope)
                     .to_scope_from_iter(format_fields.clone().map(|((_, label), _)| *label));
                 let format_fields =
                     (self.scope).to_scope_from_iter(format_fields.map(|((_, label), format)| {
-                        let format = self.check(format, &Arc::new(Value::FormatType));
+                        let format = self.check(format, &format_type);
                         let r#type = {
-                            let format_value = self.eval_context().eval(&format);
-                            self.elim_context().apply_format_repr(format_value)
+                            let format = self.eval_context().eval(&format);
+                            self.elim_context().apply_repr(&format)
                         };
                         self.rigid_env.push_param(Some(*label), r#type);
                         format
@@ -803,7 +807,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 self.rigid_env.truncate(initial_rigid_len);
                 (
                     core::Term::FormatRecord(labels, format_fields),
-                    Arc::new(Value::FormatType),
+                    Arc::new(Value::prim(core::Prim::FormatType)),
                 )
             }
 
