@@ -335,8 +335,11 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         )
     }
 
-    pub fn distillation_context(&mut self) -> distillation::Context<'interner, 'arena, '_> {
-        distillation::Context::new(self.interner, self.scope, &mut self.rigid_env.names)
+    pub fn distillation_context<'out_arena>(
+        &mut self,
+        scope: &'out_arena Scope<'out_arena>,
+    ) -> distillation::Context<'interner, 'out_arena, '_> {
+        distillation::Context::new(self.interner, scope, &mut self.rigid_env.names)
     }
 
     /// Reports an error if there are duplicate fields found, returning a vector

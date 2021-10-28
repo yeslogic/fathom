@@ -100,7 +100,7 @@ fn main() -> ! {
                 || args.allow_errors
             {
                 surface_scope.reset(); // Reuse the surface scope for distillation
-                let mut context = context.distillation_context();
+                let mut context = context.distillation_context(&surface_scope);
                 let term = context.check(&term);
                 let r#type = context.check(&r#type);
 
@@ -130,7 +130,7 @@ fn main() -> ! {
                 || args.allow_errors
             {
                 surface_scope.reset(); // Reuse the surface scope for distillation
-                let mut context = context.distillation_context();
+                let mut context = context.distillation_context(&surface_scope);
                 let term = context.check(&term);
                 let r#type = context.check(&r#type);
 
@@ -159,7 +159,7 @@ fn main() -> ! {
                 || args.allow_errors
             {
                 surface_scope.reset(); // Reuse the surface scope for distillation
-                let mut context = context.distillation_context();
+                let mut context = context.distillation_context(&surface_scope);
                 let r#type = context.check(&r#type);
 
                 {
