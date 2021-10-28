@@ -222,7 +222,7 @@ impl<'doc> Context<'doc> {
                 self.space(),
                 self.text("}"),
             ]),
-            Term::ReportedError(_) => self.text("_"),
+            Term::ReportedError(_) => self.text("reported_error"),
         }
     }
 }

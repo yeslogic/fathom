@@ -6,10 +6,11 @@ use std::str::FromStr;
 use std::sync::Arc;
 
 use crate::core::semantics::{self, ArcValue, Closure, Telescope, Value};
+use crate::core::{self, Const, Prim};
 use crate::env::{self, EnvLen, GlobalVar, SharedEnv, UniqueEnv};
 use crate::surface::elaboration::reporting::Message;
 use crate::surface::{distillation, Term};
-use crate::{core, ByteRange, SliceBuilder, StringId, StringInterner};
+use crate::{ByteRange, SliceBuilder, StringId, StringInterner};
 
 mod reporting;
 mod unification;
@@ -43,7 +44,7 @@ impl<'arena> RigidEnv<'arena> {
         interner: &RefCell<StringInterner>,
         scope: &'arena Scope<'arena>,
     ) -> RigidEnv<'arena> {
-        use crate::core::{Prim, Term};
+        use crate::core::Term;
 
         let mut env = RigidEnv::new();
 
@@ -387,7 +388,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
             Err(error) => {
                 let message = error.to_string();
                 self.push_message(Message::InvalidNumericLiteral { range, message });
-                core::Term::ReportedError
+                core::Term::Prim(Prim::ReportedError)
             }
         }
     }
@@ -408,7 +409,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
             Ok(()) => expr,
             Err(error) => {
                 self.push_message(Message::FailedToUnify { range, error });
-                core::Term::ReportedError
+                core::Term::Prim(Prim::ReportedError)
             }
         }
     }
@@ -480,13 +481,16 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                             .collect(),
                         type_labels: labels.iter().copied().collect(),
                     });
-                    return core::Term::ReportedError;
+                    return core::Term::Prim(Prim::ReportedError);
                 }
 
                 let mut types = types.clone();
                 let mut expr_fields = expr_fields.iter();
-                let mut exprs =
-                    SliceBuilder::new(self.scope, types.len(), core::Term::ReportedError);
+                let mut exprs = SliceBuilder::new(
+                    self.scope,
+                    types.len(),
+                    core::Term::Prim(Prim::ReportedError),
+                );
 
                 while let Some(((_, expr), (r#type, next_types))) = Option::zip(
                     expr_fields.next(),
@@ -502,17 +506,16 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
             (Term::RecordEmpty(_), Value::Universe) => core::Term::RecordType(&[], &[]),
             (Term::ArrayLiteral(range, elem_exprs), _) => {
                 use crate::core::semantics::{Elim::Fun, Head};
-                use crate::core::{Const, Prim};
 
                 let (len, elem_type) = match expected_type.match_prim_spine() {
                     Some((Prim::Array8Type, [Fun(len), Fun(elem_type)])) => (len, elem_type),
                     Some((Prim::Array16Type, [Fun(len), Fun(elem_type)])) => (len, elem_type),
                     Some((Prim::Array32Type, [Fun(len), Fun(elem_type)])) => (len, elem_type),
                     Some((Prim::Array64Type, [Fun(len), Fun(elem_type)])) => (len, elem_type),
-                    // TODO: match on reported error
+                    Some((Prim::ReportedError, _)) => return core::Term::Prim(Prim::ReportedError),
                     _ => {
                         self.push_message(Message::ArrayLiteralNotSupported { range: *range });
-                        return core::Term::ReportedError;
+                        return core::Term::Prim(Prim::ReportedError);
                     }
                 };
 
@@ -521,7 +524,9 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                     Value::Const(Const::U16(len)) if elem_exprs.len() as u64 == *len as u64 => {}
                     Value::Const(Const::U32(len)) if elem_exprs.len() as u64 == *len as u64 => {}
                     Value::Const(Const::U64(len)) if elem_exprs.len() as u64 == *len as u64 => {}
-                    Value::Stuck(Head::ReportedError, _) => return core::Term::ReportedError,
+                    Value::Stuck(Head::Prim(Prim::ReportedError), _) => {
+                        return core::Term::Prim(Prim::ReportedError);
+                    }
                     _ => {
                         // Check the array elements anyway in order to report
                         // any errors inside the literal as well.
@@ -534,7 +539,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                             found_len: elem_exprs.len(),
                         });
 
-                        return core::Term::ReportedError;
+                        return core::Term::Prim(Prim::ReportedError);
                     }
                 }
 
@@ -544,28 +549,24 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
 
                 core::Term::ArrayIntro(elem_exprs)
             }
-            (Term::NumberLiteral(range, number), _) => {
-                use crate::core::{Const, Prim};
-
-                match expected_type.match_prim_spine() {
-                    Some((Prim::U8Type, [])) => self.parse(*range, *number, Const::U8),
-                    Some((Prim::U16Type, [])) => self.parse(*range, *number, Const::U16),
-                    Some((Prim::U32Type, [])) => self.parse(*range, *number, Const::U32),
-                    Some((Prim::U64Type, [])) => self.parse(*range, *number, Const::U64),
-                    Some((Prim::S8Type, [])) => self.parse(*range, *number, Const::S8),
-                    Some((Prim::S16Type, [])) => self.parse(*range, *number, Const::S16),
-                    Some((Prim::S32Type, [])) => self.parse(*range, *number, Const::S32),
-                    Some((Prim::S64Type, [])) => self.parse(*range, *number, Const::S64),
-                    Some((Prim::F32Type, [])) => self.parse(*range, *number, Const::F32),
-                    Some((Prim::F64Type, [])) => self.parse(*range, *number, Const::F64),
-                    // TODO: match on reported error
-                    _ => {
-                        self.push_message(Message::NumericLiteralNotSupported { range: *range });
-                        core::Term::ReportedError
-                    }
+            (Term::NumberLiteral(range, number), _) => match expected_type.match_prim_spine() {
+                Some((Prim::U8Type, [])) => self.parse(*range, *number, Const::U8),
+                Some((Prim::U16Type, [])) => self.parse(*range, *number, Const::U16),
+                Some((Prim::U32Type, [])) => self.parse(*range, *number, Const::U32),
+                Some((Prim::U64Type, [])) => self.parse(*range, *number, Const::U64),
+                Some((Prim::S8Type, [])) => self.parse(*range, *number, Const::S8),
+                Some((Prim::S16Type, [])) => self.parse(*range, *number, Const::S16),
+                Some((Prim::S32Type, [])) => self.parse(*range, *number, Const::S32),
+                Some((Prim::S64Type, [])) => self.parse(*range, *number, Const::S64),
+                Some((Prim::F32Type, [])) => self.parse(*range, *number, Const::F32),
+                Some((Prim::F64Type, [])) => self.parse(*range, *number, Const::F64),
+                Some((Prim::ReportedError, _)) => return core::Term::Prim(Prim::ReportedError),
+                _ => {
+                    self.push_message(Message::NumericLiteralNotSupported { range: *range });
+                    core::Term::Prim(Prim::ReportedError)
                 }
-            }
-            (Term::ReportedError(_), _) => core::Term::ReportedError,
+            },
+            (Term::ReportedError(_), _) => core::Term::Prim(Prim::ReportedError),
             (_, _) => {
                 let (core_term, synth_type) = self.synth(surface_term);
                 self.convert(surface_term.range(), core_term, &synth_type, &expected_type)
@@ -589,7 +590,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                         name: *name,
                     });
                     let r#type = self.push_flexible_value(*range, FlexSource::ReportedErrorType);
-                    (core::Term::ReportedError, r#type)
+                    (core::Term::Prim(Prim::ReportedError), r#type)
                 }
             },
             Term::Hole(range, name) => (
@@ -785,8 +786,10 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 let labels = (self.scope)
                     .to_scope_from_iter(expr_fields.clone().map(|((_, label), _)| *label));
                 let len = labels.len();
-                let mut types = SliceBuilder::new(self.scope, len, core::Term::ReportedError);
-                let mut exprs = SliceBuilder::new(self.scope, len, core::Term::ReportedError);
+                let mut types =
+                    SliceBuilder::new(self.scope, len, core::Term::Prim(Prim::ReportedError));
+                let mut exprs =
+                    SliceBuilder::new(self.scope, len, core::Term::Prim(Prim::ReportedError));
 
                 for (_, expr) in expr_fields {
                     let (expr, r#type) = self.synth(expr);
@@ -843,23 +846,23 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 });
 
                 (
-                    core::Term::ReportedError,
+                    core::Term::Prim(Prim::ReportedError),
                     self.push_flexible_value(surface_term.range(), FlexSource::ReportedErrorType),
                 )
             }
             Term::ArrayLiteral(range, _) => {
                 self.push_message(Message::AmbiguousNumericLiteral { range: *range });
                 let r#type = self.push_flexible_value(*range, FlexSource::ReportedErrorType);
-                (core::Term::ReportedError, r#type)
+                (core::Term::Prim(Prim::ReportedError), r#type)
             }
             Term::NumberLiteral(range, _) => {
                 // TODO: Stuck macros + unification like in Klister?
                 self.push_message(Message::AmbiguousNumericLiteral { range: *range });
                 let r#type = self.push_flexible_value(*range, FlexSource::ReportedErrorType);
-                (core::Term::ReportedError, r#type)
+                (core::Term::Prim(Prim::ReportedError), r#type)
             }
             Term::FormatRecord(range, format_fields) => {
-                let format_type = Arc::new(Value::prim(core::Prim::FormatType, []));
+                let format_type = Arc::new(Value::prim(Prim::FormatType, []));
                 let initial_rigid_len = self.rigid_env.len();
                 let duplicate_indices = self.report_duplicate_labels(*range, format_fields);
                 let format_fields = (format_fields.iter().enumerate())
@@ -883,7 +886,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 (core::Term::FormatRecord(labels, format_fields), format_type)
             }
             Term::ReportedError(range) => (
-                core::Term::ReportedError,
+                core::Term::Prim(Prim::ReportedError),
                 self.push_flexible_value(*range, FlexSource::ReportedErrorType),
             ),
         }

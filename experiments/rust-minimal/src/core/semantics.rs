@@ -53,10 +53,6 @@ impl<'arena> Value<'arena> {
         Value::Stuck(Head::FlexibleVar(global), Vec::new())
     }
 
-    pub fn reported_error() -> Value<'arena> {
-        Value::Stuck(Head::ReportedError, Vec::new())
-    }
-
     pub fn match_prim_spine(&self) -> Option<(Prim, &[Elim<'arena>])> {
         match self {
             Value::Stuck(Head::Prim(prim), spine) => Some((*prim, &spine)),
@@ -74,8 +70,6 @@ pub enum Head {
     RigidVar(GlobalVar),
     /// Variables that refer to unsolved flexible problems.
     FlexibleVar(GlobalVar), // TODO: Use a RefCell here?
-    /// Error sentinel.
-    ReportedError,
 }
 
 /// A pending elimination to be reduced if the [head][Head] of a [stuck
@@ -278,7 +272,6 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
             }
             Term::Prim(prim) => Arc::new(Value::prim(*prim, [])),
             Term::Const(r#const) => Arc::new(Value::Const(*r#const)),
-            Term::ReportedError => Arc::new(Value::reported_error()),
         }
     }
 }
@@ -512,7 +505,6 @@ impl<'in_arena, 'out_arena, 'env> QuoteContext<'in_arena, 'out_arena, 'env> {
                         Term::RigidVar(self.rigid_exprs.global_to_local(*var).unwrap())
                     }
                     Head::FlexibleVar(var) => Term::FlexibleVar(*var),
-                    Head::ReportedError => Term::ReportedError,
                 };
 
                 for elim in spine {
@@ -596,7 +588,8 @@ impl<'in_arena, 'out_arena, 'env> QuoteContext<'in_arena, 'out_arena, 'env> {
     ) -> &'out_arena mut [Term<'out_arena>] {
         let initial_rigid_len = self.rigid_exprs;
         let mut telescope = telescope.clone();
-        let mut terms = SliceBuilder::new(self.scope, telescope.len(), Term::ReportedError);
+        let mut terms =
+            SliceBuilder::new(self.scope, telescope.len(), Term::Prim(Prim::ReportedError));
 
         while let Some((value, next_telescope)) = self.elim_context().split_telescope(telescope) {
             let var = Arc::new(Value::rigid_var(self.rigid_exprs.next_global()));
@@ -658,8 +651,8 @@ impl<'arena, 'env> ConversionContext<'arena, 'env> {
         match (value0.as_ref(), value1.as_ref()) {
             // `ReportedError`s result from errors that have already been
             // reported, so we prevent them from triggering more errors.
-            (Value::Stuck(Head::ReportedError, _), _)
-            | (_, Value::Stuck(Head::ReportedError, _)) => true,
+            (Value::Stuck(Head::Prim(Prim::ReportedError), _), _)
+            | (_, Value::Stuck(Head::Prim(Prim::ReportedError), _)) => true,
 
             (Value::Stuck(head0, spine0), Value::Stuck(head1, spine1)) => {
                 if head0 != head1 || spine0.len() != spine1.len() {

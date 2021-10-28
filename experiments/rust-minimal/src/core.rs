@@ -140,8 +140,6 @@ pub enum Term<'arena> {
     Prim(Prim),
     /// Constants.
     Const(Const),
-    /// Reported errors.
-    ReportedError,
 }
 
 /// Primitives.
@@ -229,6 +227,9 @@ pub enum Prim {
     FormatArray64,
     /// Format representations.
     FormatRepr,
+
+    /// Reported errors.
+    ReportedError,
 }
 
 impl Prim {
@@ -276,6 +277,8 @@ impl Prim {
             Prim::FormatArray32 => "array32",
             Prim::FormatArray64 => "array64",
             Prim::FormatRepr => "Repr",
+
+            Prim::ReportedError => "reported_error",
         }
     }
 }

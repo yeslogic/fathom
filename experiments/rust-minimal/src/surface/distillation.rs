@@ -294,8 +294,6 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 core::Const::F32(number) => self.synth_number_literal(number, core::Prim::F32Type),
                 core::Const::F64(number) => self.synth_number_literal(number, core::Prim::F64Type),
             },
-            // NOTE: Not sure if this is a great approach!
-            core::Term::ReportedError => Term::Hole((), None),
         }
     }
 }
