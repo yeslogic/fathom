@@ -5,7 +5,7 @@ use std::cell::RefCell;
 use std::str::FromStr;
 use std::sync::Arc;
 
-use crate::core::semantics::{self, ArcValue, Closure, Telescope, Value};
+use crate::core::semantics::{self, ArcValue, Closure, Head, Telescope, Value};
 use crate::core::{self, Const, Prim};
 use crate::env::{self, EnvLen, GlobalVar, SharedEnv, UniqueEnv};
 use crate::surface::elaboration::reporting::Message;
@@ -505,7 +505,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
             }
             (Term::UnitLiteral(_), Value::Universe) => core::Term::RecordType(&[], &[]),
             (Term::ArrayLiteral(range, elem_exprs), _) => {
-                use crate::core::semantics::{Elim::Fun, Head};
+                use crate::core::semantics::Elim::Fun;
 
                 let (len, elem_type) = match expected_type.match_prim_spine() {
                     Some((Prim::Array8Type, [Fun(len), Fun(elem_type)])) => (len, elem_type),
@@ -589,8 +589,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                         range: *range,
                         name: *name,
                     });
-                    let r#type = self.push_flexible_value(*range, FlexSource::ReportedErrorType);
-                    (core::Term::Prim(Prim::ReportedError), r#type)
+                    self.synth_reported_error(*range)
                 }
             },
             Term::Hole(range, name) => (
@@ -697,7 +696,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                     )),
                 )
             }
-            Term::FunElim(_, head_expr, input_expr) => {
+            Term::FunElim(range, head_expr, input_expr) => {
                 let head_range = head_expr.range();
                 let (head_expr, head_type) = self.synth(head_expr);
 
@@ -707,6 +706,9 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                     // The simple case - it's easy to see that it is a function type!
                     Value::FunType(_, input_type, output_type) => {
                         (head_expr, input_type.clone(), output_type.clone())
+                    }
+                    Value::Stuck(Head::Prim(Prim::ReportedError), _) => {
+                        return self.synth_reported_error(*range);
                     }
                     // It's not immediately obvious that the head type is a
                     // function type, so instead we construct a function type
@@ -812,31 +814,35 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                     Telescope::new(SharedEnv::new(), &[]),
                 )),
             ),
-            Term::RecordElim(_, head_expr, (label_range, label)) => {
+            Term::RecordElim(range, head_expr, (label_range, label)) => {
                 let head_range = head_expr.range();
                 let (head_expr, head_type) = self.synth(head_expr);
                 let head_expr_value = self.eval_context().eval(&head_expr);
 
-                // TODO: check for reported error?
-                if let Value::RecordType(labels, types) =
-                    self.elim_context().force(&head_type).as_ref()
-                {
-                    let mut labels = labels.iter();
-                    let mut types = types.clone();
+                let head_type = self.elim_context().force(&head_type);
+                match head_type.as_ref() {
+                    Value::RecordType(labels, types) => {
+                        let mut labels = labels.iter();
+                        let mut types = types.clone();
 
-                    while let Some((type_label, (r#type, next_types))) =
-                        Option::zip(labels.next(), self.elim_context().split_telescope(types))
-                    {
-                        if label == type_label {
-                            let head_expr = self.scope.to_scope(head_expr);
-                            let expr = core::Term::RecordElim(head_expr, *label);
-                            return (expr, r#type);
-                        } else {
-                            let head_expr = head_expr_value.clone();
-                            let expr = self.elim_context().apply_record(head_expr, *type_label);
-                            types = next_types(expr);
+                        while let Some((type_label, (r#type, next_types))) =
+                            Option::zip(labels.next(), self.elim_context().split_telescope(types))
+                        {
+                            if label == type_label {
+                                let head_expr = self.scope.to_scope(head_expr);
+                                let expr = core::Term::RecordElim(head_expr, *label);
+                                return (expr, r#type);
+                            } else {
+                                let head_expr = head_expr_value.clone();
+                                let expr = self.elim_context().apply_record(head_expr, *type_label);
+                                types = next_types(expr);
+                            }
                         }
                     }
+                    Value::Stuck(Head::Prim(Prim::ReportedError), _) => {
+                        return self.synth_reported_error(*range);
+                    }
+                    _ => {}
                 }
 
                 self.push_message(Message::UnknownField {
@@ -844,22 +850,16 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                     label_range: *label_range,
                     label: *label,
                 });
-
-                (
-                    core::Term::Prim(Prim::ReportedError),
-                    self.push_flexible_value(surface_term.range(), FlexSource::ReportedErrorType),
-                )
+                self.synth_reported_error(*range)
             }
             Term::ArrayLiteral(range, _) => {
                 self.push_message(Message::AmbiguousNumericLiteral { range: *range });
-                let r#type = self.push_flexible_value(*range, FlexSource::ReportedErrorType);
-                (core::Term::Prim(Prim::ReportedError), r#type)
+                self.synth_reported_error(*range)
             }
             Term::NumberLiteral(range, _) => {
                 // TODO: Stuck macros + unification like in Klister?
                 self.push_message(Message::AmbiguousNumericLiteral { range: *range });
-                let r#type = self.push_flexible_value(*range, FlexSource::ReportedErrorType);
-                (core::Term::Prim(Prim::ReportedError), r#type)
+                self.synth_reported_error(*range)
             }
             Term::FormatRecord(range, format_fields) => {
                 let format_type = Arc::new(Value::prim(Prim::FormatType, []));
@@ -885,10 +885,12 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
 
                 (core::Term::FormatRecord(labels, format_fields), format_type)
             }
-            Term::ReportedError(range) => (
-                core::Term::Prim(Prim::ReportedError),
-                self.push_flexible_value(*range, FlexSource::ReportedErrorType),
-            ),
+            Term::ReportedError(range) => self.synth_reported_error(*range),
         }
+    }
+
+    fn synth_reported_error(&mut self, range: ByteRange) -> (core::Term<'arena>, ArcValue<'arena>) {
+        let r#type = self.push_flexible_value(range, FlexSource::ReportedErrorType);
+        (core::Term::Prim(Prim::ReportedError), r#type)
     }
 }
