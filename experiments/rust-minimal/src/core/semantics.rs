@@ -5,9 +5,10 @@ use scoped_arena::Scope;
 use std::panic::panic_any;
 use std::sync::Arc;
 
+use crate::alloc::SliceBuilder;
 use crate::core::{Const, EntryInfo, Prim, Term};
 use crate::env::{EnvLen, GlobalVar, SharedEnv, SliceEnv};
-use crate::{SliceBuilder, StringId};
+use crate::StringId;
 
 /// Atomically reference counted values. We use reference counting to increase
 /// the amount of sharing we can achieve during evaluation.
@@ -588,8 +589,7 @@ impl<'in_arena, 'out_arena, 'env> QuoteContext<'in_arena, 'out_arena, 'env> {
     ) -> &'out_arena mut [Term<'out_arena>] {
         let initial_rigid_len = self.rigid_exprs;
         let mut telescope = telescope.clone();
-        let mut terms =
-            SliceBuilder::new(self.scope, telescope.len(), Term::Prim(Prim::ReportedError));
+        let mut terms = SliceBuilder::new(self.scope, telescope.len());
 
         while let Some((value, next_telescope)) = self.elim_context().split_telescope(telescope) {
             let var = Arc::new(Value::rigid_var(self.rigid_exprs.next_global()));

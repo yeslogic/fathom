@@ -1,6 +1,6 @@
 //! Core language.
 
-use crate::env::{GlobalVar, LocalVar, UniqueEnv};
+use crate::env::{GlobalVar, LocalVar};
 use crate::StringId;
 
 pub mod semantics;
@@ -19,7 +19,7 @@ pub mod semantics;
 // - ? ::= definition | parameter
 //
 // See also: https://en.wikipedia.org/wiki/Abstract_and_concrete
-#[derive(Debug, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub enum EntryInfo {
     Concrete,
     Abstract,
@@ -107,7 +107,7 @@ pub enum Term<'arena> {
     //
     // - https://lib.rs/crates/smallbitvec
     // - https://lib.rs/crates/bit-vec
-    FlexibleInsertion(GlobalVar, UniqueEnv<EntryInfo>),
+    FlexibleInsertion(GlobalVar, &'arena [EntryInfo]),
     /// Annotated expressions.
     Ann(&'arena Term<'arena>, &'arena Term<'arena>),
     /// Let expressions.
@@ -297,4 +297,15 @@ pub enum Const {
     // TODO: use logical equality for floating point numbers
     F32(f32),
     F64(f64),
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn no_drop() {
+        assert!(!std::mem::needs_drop::<Term<'_>>());
+        assert!(!std::mem::needs_drop::<Term<'_>>());
+    }
 }

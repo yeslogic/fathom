@@ -5,12 +5,13 @@ use std::cell::RefCell;
 use std::str::FromStr;
 use std::sync::Arc;
 
+use crate::alloc::SliceBuilder;
 use crate::core::semantics::{self, ArcValue, Closure, Head, Telescope, Value};
 use crate::core::{self, Const, Prim};
 use crate::env::{self, EnvLen, GlobalVar, SharedEnv, UniqueEnv};
 use crate::surface::elaboration::reporting::Message;
 use crate::surface::{distillation, Term};
-use crate::{ByteRange, SliceBuilder, StringId, StringInterner};
+use crate::{ByteRange, StringId, StringInterner};
 
 mod reporting;
 mod unification;
@@ -293,7 +294,8 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
     fn push_flexible_term(&mut self, range: ByteRange, source: FlexSource) -> core::Term<'arena> {
         core::Term::FlexibleInsertion(
             self.flexible_env.push(range, source),
-            self.rigid_env.infos.clone(),
+            self.scope
+                .to_scope_from_iter(self.rigid_env.infos.iter().copied()),
         )
     }
 
@@ -489,11 +491,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
 
                 let mut types = types.clone();
                 let mut expr_fields = expr_fields.iter();
-                let mut exprs = SliceBuilder::new(
-                    self.scope,
-                    types.len(),
-                    core::Term::Prim(Prim::ReportedError),
-                );
+                let mut exprs = SliceBuilder::new(self.scope, types.len());
 
                 while let Some(((_, expr), (r#type, next_types))) = Option::zip(
                     expr_fields.next(),
@@ -790,11 +788,8 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
 
                 let labels = (self.scope)
                     .to_scope_from_iter(expr_fields.clone().map(|((_, label), _)| *label));
-                let len = labels.len();
-                let mut types =
-                    SliceBuilder::new(self.scope, len, core::Term::Prim(Prim::ReportedError));
-                let mut exprs =
-                    SliceBuilder::new(self.scope, len, core::Term::Prim(Prim::ReportedError));
+                let mut types = SliceBuilder::new(self.scope, labels.len());
+                let mut exprs = SliceBuilder::new(self.scope, labels.len());
 
                 for (_, expr) in expr_fields {
                     let (expr, r#type) = self.synth(expr);

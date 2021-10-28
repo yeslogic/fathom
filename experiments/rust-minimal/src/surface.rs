@@ -98,3 +98,14 @@ impl<'arena> Term<'arena, ByteRange> {
         grammar::TermParser::new().parse(interner, scope, lexer::tokens(source))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn no_drop() {
+        assert!(!std::mem::needs_drop::<Term<'_, ()>>());
+        assert!(!std::mem::needs_drop::<Term<'_, StringId>>());
+    }
+}
