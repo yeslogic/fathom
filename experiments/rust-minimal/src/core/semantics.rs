@@ -333,7 +333,7 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
         let (term, terms) = telescope.terms.split_first()?;
         let mut context = EvalContext::new(&mut telescope.rigid_exprs, self.flexible_exprs);
         let value = match telescope.apply_repr {
-            true => context.eval(&Term::FunElim(&Term::Prim(Prim::FormatRepr), term)),
+            true => context.elim_context().apply_repr(&context.eval(term)),
             false => context.eval(term),
         };
 
