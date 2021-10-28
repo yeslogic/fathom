@@ -456,7 +456,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 )
             }
             (
-                Term::FunIntro(_, (_, input_name), output_expr),
+                Term::FunLiteral(_, (_, input_name), output_expr),
                 Value::FunType(_, input_type, output_type),
             ) => {
                 let input_expr = self
@@ -468,7 +468,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
 
                 core::Term::FunIntro(Some(*input_name), self.scope.to_scope(output_expr))
             }
-            (Term::RecordIntro(range, expr_fields), Value::RecordType(labels, types)) => {
+            (Term::RecordLiteral(range, expr_fields), Value::RecordType(labels, types)) => {
                 // TODO: improve handling of duplicate labels
                 if expr_fields.len() != labels.len()
                     || Iterator::zip(expr_fields.iter(), labels.iter())
@@ -503,7 +503,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
 
                 core::Term::RecordIntro(labels, exprs.into())
             }
-            (Term::RecordEmpty(_), Value::Universe) => core::Term::RecordType(&[], &[]),
+            (Term::UnitLiteral(_), Value::Universe) => core::Term::RecordType(&[], &[]),
             (Term::ArrayLiteral(range, elem_exprs), _) => {
                 use crate::core::semantics::{Elim::Fun, Head};
 
@@ -640,7 +640,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 (let_expr, output_type)
             }
             Term::Universe(_) => (core::Term::Universe, Arc::new(Value::Universe)),
-            Term::FunArrow(_, input_type, output_type) => {
+            Term::Arrow(_, input_type, output_type) => {
                 let universe = Arc::new(Value::Universe); // FIXME: avoid temporary Arc
                 let input_type = self.check(input_type, &universe);
                 let input_type_value = self.eval_context().eval(&input_type);
@@ -675,7 +675,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
 
                 (fun_type, universe)
             }
-            Term::FunIntro(_, (input_range, input_name), output_expr) => {
+            Term::FunLiteral(_, (input_range, input_name), output_expr) => {
                 let input_name = Some(*input_name);
                 let input_type =
                     self.push_flexible_value(*input_range, FlexSource::FunInputType(input_name));
@@ -778,7 +778,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
 
                 (core::Term::RecordType(labels, type_fields), universe)
             }
-            Term::RecordIntro(range, expr_fields) => {
+            Term::RecordLiteral(range, expr_fields) => {
                 let duplicate_indices = self.report_duplicate_labels(*range, expr_fields);
                 let expr_fields = (expr_fields.iter().enumerate())
                     .filter_map(|(i, field)| (!duplicate_indices.contains(&i)).then(|| field));
@@ -805,7 +805,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                     )),
                 )
             }
-            Term::RecordEmpty(_) => (
+            Term::UnitLiteral(_) => (
                 core::Term::RecordIntro(&[], &[]),
                 Arc::new(Value::RecordType(
                     &[],

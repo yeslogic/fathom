@@ -108,16 +108,16 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 let output_expr = self.check(output_expr);
                 self.pop_rigid();
 
-                Term::FunIntro((), ((), input_name), self.scope.to_scope(output_expr))
+                Term::FunLiteral((), ((), input_name), self.scope.to_scope(output_expr))
             }
-            core::Term::RecordType(labels, _) if labels.is_empty() => Term::RecordEmpty(()),
-            core::Term::RecordIntro(labels, _) if labels.is_empty() => Term::RecordEmpty(()),
+            core::Term::RecordType(labels, _) if labels.is_empty() => Term::UnitLiteral(()),
+            core::Term::RecordIntro(labels, _) if labels.is_empty() => Term::UnitLiteral(()),
             core::Term::RecordIntro(labels, exprs) => {
                 let scope = self.scope;
                 let expr_fields = Iterator::zip(labels.iter(), exprs.iter())
                     .map(|(label, expr)| (((), *label), self.check(expr)));
 
-                Term::RecordIntro((), scope.to_scope_from_iter(expr_fields))
+                Term::RecordLiteral((), scope.to_scope_from_iter(expr_fields))
             }
             core::Term::ArrayIntro(elem_exprs) => {
                 let scope = self.scope;
@@ -215,7 +215,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 let output_expr = self.synth(output_expr);
                 self.pop_rigid();
 
-                Term::FunIntro((), ((), input_name), self.scope.to_scope(output_expr))
+                Term::FunLiteral((), ((), input_name), self.scope.to_scope(output_expr))
             }
             core::Term::FunElim(head_expr, input_expr) => {
                 let head_expr = self.synth(head_expr);
@@ -228,7 +228,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 )
             }
             core::Term::RecordType(labels, _) if labels.is_empty() => {
-                Term::Ann((), &Term::RecordEmpty(()), &Term::Universe(()))
+                Term::Ann((), &Term::UnitLiteral(()), &Term::Universe(()))
             }
             core::Term::RecordType(labels, types) => {
                 let initial_rigid_len = self.rigid_len();
@@ -243,14 +243,14 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
 
                 Term::RecordType((), type_fields)
             }
-            core::Term::RecordIntro(labels, _) if labels.is_empty() => Term::RecordEmpty(()),
+            core::Term::RecordIntro(labels, _) if labels.is_empty() => Term::UnitLiteral(()),
             core::Term::RecordIntro(labels, exprs) => {
                 let scope = self.scope;
                 let expr_fields = Iterator::zip(labels.iter(), exprs.iter())
                     .map(|(label, expr)| (((), *label), self.synth(expr)));
 
                 // TODO: type annotations?
-                Term::RecordIntro((), scope.to_scope_from_iter(expr_fields))
+                Term::RecordLiteral((), scope.to_scope_from_iter(expr_fields))
             }
             core::Term::RecordElim(head_expr, label) => {
                 let head_expr = self.synth(head_expr);
@@ -266,7 +266,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
             }
             core::Term::FormatRecord(labels, _) if labels.is_empty() => {
                 let format_type = self.synth_prim(core::Prim::FormatType);
-                Term::Ann((), &Term::RecordEmpty(()), self.scope.to_scope(format_type))
+                Term::Ann((), &Term::UnitLiteral(()), self.scope.to_scope(format_type))
             }
             core::Term::FormatRecord(labels, formats) => {
                 let initial_rigid_len = self.rigid_len();

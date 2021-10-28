@@ -36,7 +36,7 @@ pub enum Term<'arena, Range> {
         &'arena Term<'arena, Range>,
     ),
     Universe(Range),
-    FunArrow(
+    Arrow(
         Range,
         &'arena Term<'arena, Range>,
         &'arena Term<'arena, Range>,
@@ -47,18 +47,18 @@ pub enum Term<'arena, Range> {
         &'arena Term<'arena, Range>,
         &'arena Term<'arena, Range>,
     ),
-    FunIntro(Range, (Range, StringId), &'arena Term<'arena, Range>),
+    FunLiteral(Range, (Range, StringId), &'arena Term<'arena, Range>),
     FunElim(
         Range,
         &'arena Term<'arena, Range>,
         &'arena Term<'arena, Range>,
     ),
     RecordType(Range, &'arena [((Range, StringId), Term<'arena, Range>)]),
-    RecordIntro(Range, &'arena [((Range, StringId), Term<'arena, Range>)]),
-    RecordEmpty(Range),
+    RecordLiteral(Range, &'arena [((Range, StringId), Term<'arena, Range>)]),
+    UnitLiteral(Range),
     RecordElim(Range, &'arena Term<'arena, Range>, (Range, StringId)),
-    NumberLiteral(Range, StringId),
     ArrayLiteral(Range, &'arena [Term<'arena, Range>]),
+    NumberLiteral(Range, StringId),
     FormatRecord(Range, &'arena [((Range, StringId), Term<'arena, Range>)]),
     ReportedError(Range),
 }
@@ -71,15 +71,15 @@ impl<'arena, Range: Clone> Term<'arena, Range> {
             | Term::Ann(range, _, _)
             | Term::Let(range, _, _, _, _)
             | Term::Universe(range)
-            | Term::FunArrow(range, _, _)
+            | Term::Arrow(range, _, _)
             | Term::FunType(range, _, _, _)
-            | Term::FunIntro(range, _, _)
+            | Term::FunLiteral(range, _, _)
             | Term::FunElim(range, _, _)
             | Term::RecordType(range, _)
-            | Term::RecordIntro(range, _)
-            | Term::RecordEmpty(range)
-            | Term::RecordElim(range, _, _)
+            | Term::RecordLiteral(range, _)
+            | Term::UnitLiteral(range)
             | Term::ArrayLiteral(range, _)
+            | Term::RecordElim(range, _, _)
             | Term::NumberLiteral(range, _)
             | Term::FormatRecord(range, _)
             | Term::ReportedError(range) => range.clone(),

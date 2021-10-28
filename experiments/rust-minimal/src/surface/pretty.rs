@@ -118,7 +118,7 @@ impl<'doc> Context<'doc> {
                     self.term_prec(Prec::Fun, output_type),
                 ]),
             ),
-            Term::FunArrow(_, input_type, output_type) => self.paren(
+            Term::Arrow(_, input_type, output_type) => self.paren(
                 prec > Prec::Fun,
                 self.concat([
                     self.term_prec(Prec::App, input_type),
@@ -128,7 +128,7 @@ impl<'doc> Context<'doc> {
                     self.term_prec(Prec::Fun, output_type),
                 ]),
             ),
-            Term::FunIntro(_, (_, input_name), output_expr) => self.paren(
+            Term::FunLiteral(_, (_, input_name), output_expr) => self.paren(
                 prec > Prec::Fun,
                 self.concat([
                     self.concat([
@@ -169,7 +169,7 @@ impl<'doc> Context<'doc> {
                 self.space(),
                 self.text("}"),
             ]),
-            Term::RecordIntro(_, expr_fields) => self.concat([
+            Term::RecordLiteral(_, expr_fields) => self.concat([
                 self.text("{"),
                 self.space(),
                 self.intersperse(
@@ -187,13 +187,12 @@ impl<'doc> Context<'doc> {
                 self.space(),
                 self.text("}"),
             ]),
-            Term::RecordEmpty(_) => self.text("{}"),
+            Term::UnitLiteral(_) => self.text("{}"),
             Term::RecordElim(_, head_expr, (_, label)) => self.concat([
                 self.term_prec(Prec::Atomic, head_expr),
                 self.text("."),
                 self.string_id(*label),
             ]),
-            Term::NumberLiteral(_, number) => self.string_id(*number),
             Term::ArrayLiteral(_, exprs) => self.concat([
                 self.text("["),
                 self.space(),
@@ -204,6 +203,7 @@ impl<'doc> Context<'doc> {
                 self.space(),
                 self.text("]"),
             ]),
+            Term::NumberLiteral(_, number) => self.string_id(*number),
             Term::FormatRecord(_, format_fields) => self.concat([
                 self.text("{"),
                 self.space(),
