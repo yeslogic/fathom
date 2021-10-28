@@ -344,13 +344,13 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         distillation::Context::new(self.interner, scope, &mut self.rigid_env.names)
     }
 
-    /// Reports an error if there are duplicate fields found, returning a vector
-    /// containing the positions of the of the duplicates.
-    fn report_duplicate_labels(
+    /// Reports an error if there are duplicate fields found, returning an
+    /// iterator over the unique fields.
+    fn report_duplicate_labels<'fields, 'a>(
         &mut self,
         range: ByteRange,
-        fields: &[((ByteRange, StringId), Term<'_, ByteRange>)],
-    ) -> Vec<usize> {
+        fields: &'fields [((ByteRange, StringId), Term<'a, ByteRange>)],
+    ) -> impl Clone + Iterator<Item = &'fields ((ByteRange, StringId), Term<'a, ByteRange>)> {
         use itertools::Itertools;
 
         // Will only allocate when duplicates are encountered
@@ -374,7 +374,8 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
             });
         }
 
-        duplicate_indices
+        (fields.iter().enumerate())
+            .filter_map(move |(i, field)| (!duplicate_indices.contains(&i)).then(|| field))
     }
 
     /// Parse a term from a source string.
@@ -763,9 +764,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
             Term::RecordType(range, type_fields) => {
                 let universe = Arc::new(Value::Universe);
                 let initial_rigid_len = self.rigid_env.len();
-                let duplicate_indices = self.report_duplicate_labels(*range, type_fields);
-                let type_fields = (type_fields.iter().enumerate())
-                    .filter_map(|(i, field)| (!duplicate_indices.contains(&i)).then(|| field));
+                let type_fields = self.report_duplicate_labels(*range, type_fields);
 
                 let labels = (self.scope)
                     .to_scope_from_iter(type_fields.clone().map(|((_, label), _)| *label));
@@ -782,9 +781,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 (core::Term::RecordType(labels, type_fields), universe)
             }
             Term::RecordLiteral(range, expr_fields) => {
-                let duplicate_indices = self.report_duplicate_labels(*range, expr_fields);
-                let expr_fields = (expr_fields.iter().enumerate())
-                    .filter_map(|(i, field)| (!duplicate_indices.contains(&i)).then(|| field));
+                let expr_fields = self.report_duplicate_labels(*range, expr_fields);
 
                 let labels = (self.scope)
                     .to_scope_from_iter(expr_fields.clone().map(|((_, label), _)| *label));
@@ -862,9 +859,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
             Term::FormatRecord(range, format_fields) => {
                 let format_type = Arc::new(Value::prim(Prim::FormatType, []));
                 let initial_rigid_len = self.rigid_env.len();
-                let duplicate_indices = self.report_duplicate_labels(*range, format_fields);
-                let format_fields = (format_fields.iter().enumerate())
-                    .filter_map(|(i, field)| (!duplicate_indices.contains(&i)).then(|| field));
+                let format_fields = self.report_duplicate_labels(*range, format_fields);
 
                 let labels = (self.scope)
                     .to_scope_from_iter(format_fields.clone().map(|((_, label), _)| *label));
