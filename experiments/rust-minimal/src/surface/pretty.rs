@@ -222,17 +222,17 @@ impl<'doc> Context<'doc> {
                 self.space(),
                 self.text("}"),
             ]),
-            Term::ReportedError(_) => self.text("reported_error"),
+            Term::ReportedError(_) => self.text("#error"),
         }
     }
 }
 
-// NOTE: based on the `DocAllocator` implementation for `pretty::Arena`
 impl<'doc, A: 'doc> DocAllocator<'doc, A> for Context<'doc> {
     type Doc = RefDoc<'doc, A>;
 
     #[inline]
     fn alloc(&'doc self, doc: Doc<'doc, Self::Doc, A>) -> Self::Doc {
+        // Based on the `DocAllocator` implementation for `pretty::Arena`
         RefDoc(match doc {
             // Return 'static references for common variants to avoid some allocations
             Doc::Nil => &Doc::Nil,
@@ -259,6 +259,27 @@ impl<'doc, A: 'doc> DocAllocator<'doc, A> for Context<'doc> {
             Doc::Group(RefDoc(Doc::FlatAlt(RefDoc(Doc::Line), RefDoc(Doc::Nil)))) => {
                 &Doc::Group(RefDoc(&Doc::FlatAlt(RefDoc(&Doc::Line), RefDoc(&Doc::Nil))))
             }
+
+            // Language tokens
+            Doc::BorrowedText("fun") => &Doc::BorrowedText("fun"),
+            Doc::BorrowedText("let") => &Doc::BorrowedText("let"),
+            Doc::BorrowedText("Type") => &Doc::BorrowedText("Type"),
+            Doc::BorrowedText(":") => &Doc::BorrowedText(":"),
+            Doc::BorrowedText(",") => &Doc::BorrowedText(","),
+            Doc::BorrowedText("=") => &Doc::BorrowedText("="),
+            Doc::BorrowedText("=>") => &Doc::BorrowedText("=>"),
+            Doc::BorrowedText(".") => &Doc::BorrowedText("."),
+            Doc::BorrowedText("->") => &Doc::BorrowedText("->"),
+            Doc::BorrowedText("<-") => &Doc::BorrowedText("<-"),
+            Doc::BorrowedText(";") => &Doc::BorrowedText(";"),
+            Doc::BorrowedText("_") => &Doc::BorrowedText("_"),
+            Doc::BorrowedText("{") => &Doc::BorrowedText("{"),
+            Doc::BorrowedText("}") => &Doc::BorrowedText("}"),
+            Doc::BorrowedText("[") => &Doc::BorrowedText("["),
+            Doc::BorrowedText("]") => &Doc::BorrowedText("]"),
+            Doc::BorrowedText("(") => &Doc::BorrowedText("("),
+            Doc::BorrowedText(")") => &Doc::BorrowedText(")"),
+
             _ => self.scope.to_scope(doc),
         })
     }
