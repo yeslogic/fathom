@@ -151,8 +151,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 None => todo!("misbound variable"), // TODO: error?
             },
             core::Term::FlexibleVar(_var) => {
-                let name = None; // TODO: lookup flexible variable name
-                Term::Hole((), name)
+                Term::Placeholder(()) // TODO: lookup flexible variable name
             }
             core::Term::FlexibleInsertion(var, rigid_infos) => {
                 let mut head_expr = self.synth(&core::Term::FlexibleVar(*var));

@@ -22,7 +22,8 @@ pub type ParseError<'source> = lalrpop_util::ParseError<usize, lexer::Token<'sou
 #[derive(Debug, Clone)]
 pub enum Term<'arena, Range> {
     Name(Range, StringId),
-    Hole(Range, Option<StringId>),
+    Hole(Range, StringId),
+    Placeholder(Range),
     Ann(
         Range,
         &'arena Term<'arena, Range>,
@@ -68,6 +69,7 @@ impl<'arena, Range: Clone> Term<'arena, Range> {
         match self {
             Term::Name(range, _)
             | Term::Hole(range, _)
+            | Term::Placeholder(range)
             | Term::Ann(range, _, _)
             | Term::Let(range, _, _, _, _)
             | Term::Universe(range)

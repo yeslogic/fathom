@@ -230,11 +230,13 @@ impl Message {
             }
             Message::UnsolvedFlexibleVar { range, source } => {
                 let source_name = match source {
-                    FlexSource::HoleType(_) => "type of hole", // should never appear in user-facing output
-                    FlexSource::HoleExpr(_) => "hole",
-                    FlexSource::FunInputType(_) => "type of function input",
-                    FlexSource::FunOutputType => "type of function output",
-                    FlexSource::ReportedErrorType => "type of error", // should never appear in user-facing output
+                    FlexSource::HoleType(_) => "hole type", // should never appear in user-facing output
+                    FlexSource::HoleExpr(_) => "hole expression",
+                    FlexSource::PlaceholderType => "placeholder type", // should never appear in user-facing output
+                    FlexSource::PlaceholderExpr => "placeholder expression",
+                    FlexSource::FunInputType(_) => "function input type",
+                    FlexSource::FunOutputType => "function output type",
+                    FlexSource::ReportedErrorType => "error type", // should never appear in user-facing output
                 };
 
                 Diagnostic::error()

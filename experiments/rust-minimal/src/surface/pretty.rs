@@ -66,8 +66,8 @@ impl<'doc> Context<'doc> {
 
         match term {
             Term::Name(_, name) => self.string_id(*name),
-            Term::Hole(_, None) => self.text("_"),
-            Term::Hole(_, Some(name)) => self.concat([self.text("_"), self.string_id(*name)]),
+            Term::Hole(_, name) => self.concat([self.text("?"), self.string_id(*name)]),
+            Term::Placeholder(_) => self.text("_"),
             Term::Ann(_, expr, r#type) => self.ann(expr, r#type),
             Term::Let(_, (_, def_name), def_type, def_expr, output_expr) => self.paren(
                 prec > Prec::Let,

@@ -180,9 +180,13 @@ impl<'arena> RigidEnv<'arena> {
 #[derive(Debug, Copy, Clone)]
 pub enum FlexSource {
     /// The type of a hole.
-    HoleType(Option<StringId>),
+    HoleType(StringId),
     /// The expression of a hole.
-    HoleExpr(Option<StringId>),
+    HoleExpr(StringId),
+    /// The type of a placeholder
+    PlaceholderType,
+    /// The expression of a placeholder
+    PlaceholderExpr,
     /// The input type of a function.
     FunInputType(Option<StringId>),
     /// The output type of a function.
@@ -231,11 +235,12 @@ impl<'arena> FlexibleEnv<'arena> {
             |(&(range, source), expr)| match (expr, source) {
                 // Avoid producing messages for some unsolved flexible sources:
                 (None, FlexSource::HoleType(_)) => None, // should have an unsolved hole expression
+                (None, FlexSource::PlaceholderType) => None, // should have an unsolved placeholder expression
                 (None, FlexSource::ReportedErrorType) => None, // should already have an error reported
                 // For other sources, report an unsolved problem message
                 (None, source) => Some(Message::UnsolvedFlexibleVar { range, source }),
                 // Yield messages of solved named holes
-                (Some(_), FlexSource::HoleExpr(Some(name))) => {
+                (Some(_), FlexSource::HoleExpr(name)) => {
                     Some(Message::HoleSolution { range, name })
                 }
                 // Ignore solutions of anything else
@@ -597,6 +602,10 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
             Term::Hole(range, name) => (
                 self.push_flexible_term(*range, FlexSource::HoleExpr(*name)),
                 self.push_flexible_value(*range, FlexSource::HoleType(*name)),
+            ),
+            Term::Placeholder(range) => (
+                self.push_flexible_term(*range, FlexSource::PlaceholderExpr),
+                self.push_flexible_value(*range, FlexSource::PlaceholderType),
             ),
             Term::Ann(_, expr, r#type) => {
                 let r#type = self.check(r#type, &Arc::new(Value::Universe)); // FIXME: avoid temporary Arc

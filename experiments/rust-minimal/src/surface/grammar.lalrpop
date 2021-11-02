@@ -103,8 +103,8 @@ AppTerm: Term<'arena, ByteRange> = {
 
 AtomicTerm: Term<'arena, ByteRange> = {
     <start: @L> <name: Name> <end: @R> => Term::Name(ByteRange::new(start, end), name),
-    <start: @L> "_" <end: @R> => Term::Hole(ByteRange::new(start, end), None),
-    <start: @L> <name: Hole> <end: @R> => Term::Hole(ByteRange::new(start, end), Some(name)),
+    <start: @L> "_" <end: @R> => Term::Placeholder(ByteRange::new(start, end)),
+    <start: @L> <name: Hole> <end: @R> => Term::Hole(ByteRange::new(start, end), name),
     <start: @L> "Type" <end: @R> => Term::Universe(ByteRange::new(start, end)),
     <start: @L> <number: Number> <end: @R> => Term::NumberLiteral(ByteRange::new(start, end), number),
     <start: @L> "{" "}" <end: @R> => Term::UnitLiteral(ByteRange::new(start, end)),
