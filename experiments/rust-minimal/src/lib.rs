@@ -13,7 +13,6 @@ pub type StringId = string_interner::symbol::SymbolU16;
 
 /// String interner.
 pub type StringInterner = string_interner::StringInterner<
-    StringId,
     string_interner::backend::BucketBackend<StringId>,
     std::hash::BuildHasherDefault<fxhash::FxHasher32>,
 >;
