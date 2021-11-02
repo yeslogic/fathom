@@ -19,6 +19,9 @@ pub mod elaboration;
 // TODO: Convert to an internal error message
 pub type ParseError<'source> = lalrpop_util::ParseError<usize, lexer::Token<'source>, ()>;
 
+/// Surface patterns.
+pub type Pattern<Range> = (Range, Option<StringId>);
+
 /// Surface terms.
 #[derive(Debug, Clone)]
 pub enum Term<'arena, Range> {
@@ -45,11 +48,11 @@ pub enum Term<'arena, Range> {
     ),
     FunType(
         Range,
-        (Range, StringId),
+        Pattern<Range>,
         &'arena Term<'arena, Range>,
         &'arena Term<'arena, Range>,
     ),
-    FunLiteral(Range, (Range, StringId), &'arena Term<'arena, Range>),
+    FunLiteral(Range, Pattern<Range>, &'arena Term<'arena, Range>),
     FunElim(
         Range,
         &'arena Term<'arena, Range>,

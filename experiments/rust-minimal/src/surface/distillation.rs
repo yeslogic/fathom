@@ -108,7 +108,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 let output_expr = self.check(output_expr);
                 self.pop_rigid();
 
-                Term::FunLiteral((), ((), input_name), self.scope.to_scope(output_expr))
+                Term::FunLiteral((), ((), Some(input_name)), self.scope.to_scope(output_expr))
             }
             core::Term::RecordType(labels, _) if labels.is_empty() => Term::UnitLiteral(()),
             core::Term::RecordIntro(labels, _) if labels.is_empty() => Term::UnitLiteral(()),
@@ -204,7 +204,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 // TODO: distill to arrow if `input_name` is not bound in `output_type`
                 Term::FunType(
                     (),
-                    ((), input_name),
+                    ((), Some(input_name)),
                     self.scope.to_scope(input_type),
                     self.scope.to_scope(output_type),
                 )
@@ -214,7 +214,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 let output_expr = self.synth(output_expr);
                 self.pop_rigid();
 
-                Term::FunLiteral((), ((), input_name), self.scope.to_scope(output_expr))
+                Term::FunLiteral((), ((), Some(input_name)), self.scope.to_scope(output_expr))
             }
             core::Term::FunElim(head_expr, input_expr) => {
                 let head_expr = self.synth(head_expr);

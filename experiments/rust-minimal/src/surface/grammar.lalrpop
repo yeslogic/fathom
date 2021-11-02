@@ -3,7 +3,7 @@ use std::cell::RefCell;
 
 use crate::{StringId, StringInterner};
 use crate::source::ByteRange;
-use crate::surface::Term;
+use crate::surface::{Pattern, Term};
 use crate::surface::lexer::Token;
 
 grammar<'arena, 'source>(interner: &RefCell<StringInterner>, scope: &'arena Scope<'arena>);
@@ -74,18 +74,18 @@ FunTerm: Term<'arena, ByteRange> = {
             scope.to_scope(output_type),
         )
     },
-    <start: @L> "fun" "(" <input_name: RangedName> ":" <input_type: Term> ")" "->"  <output_type: FunTerm> <end: @R> => {
+    <start: @L> "fun" "(" <input_pattern: Pattern> ":" <input_type: Term> ")" "->"  <output_type: FunTerm> <end: @R> => {
         Term::FunType(
             ByteRange::new(start, end),
-            input_name,
+            input_pattern,
             scope.to_scope(input_type),
             scope.to_scope(output_type),
         )
     },
-    <start: @L> "fun" <input_name: RangedName> "=>" <output_type: FunTerm> <end: @R> => {
+    <start: @L> "fun" <input_pattern: Pattern> "=>" <output_type: FunTerm> <end: @R> => {
         Term::FunLiteral(
             ByteRange::new(start, end),
-            input_name,
+            input_pattern,
             scope.to_scope(output_type),
         )
     },
@@ -145,6 +145,11 @@ AtomicTerm: Term<'arena, ByteRange> = {
         )
     },
     "(" <term: Term> ")" => term,
+};
+
+Pattern : Pattern<ByteRange> = {
+    <start: @L> "_" <end: @R> => (ByteRange::new(start, end), None),
+    <start: @L> <name: Name> <end: @R> => (ByteRange::new(start, end), Some(name)),
 };
 
 #[inline] Name: StringId = { <"name"> => interner.borrow_mut().get_or_intern(<>) };

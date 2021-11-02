@@ -103,7 +103,10 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                         self.text("fun"),
                         self.space(),
                         self.text("("),
-                        self.string_id(*input_name),
+                        match input_name {
+                            Some(input_name) => self.string_id(*input_name),
+                            None => self.text("_"),
+                        },
                         self.space(),
                         self.text(":"),
                         self.softline(),
@@ -133,7 +136,10 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                     self.concat([
                         self.text("fun"),
                         self.space(),
-                        self.string_id(*input_name),
+                        match input_name {
+                            Some(input_name) => self.string_id(*input_name),
+                            None => self.text("_"),
+                        },
                         self.space(),
                         self.text("=>"),
                     ])

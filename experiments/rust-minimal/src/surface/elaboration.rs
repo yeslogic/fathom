@@ -487,14 +487,12 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 Term::FunLiteral(_, (_, input_name), output_expr),
                 Value::FunType(_, input_type, output_type),
             ) => {
-                let input_expr = self
-                    .rigid_env
-                    .push_param(Some(*input_name), input_type.clone());
+                let input_expr = self.rigid_env.push_param(*input_name, input_type.clone());
                 let output_type = self.elim_context().apply_closure(output_type, input_expr);
                 let output_expr = self.check(output_expr, &output_type);
                 self.rigid_env.pop();
 
-                core::Term::FunIntro(Some(*input_name), self.scope.to_scope(output_expr))
+                core::Term::FunIntro(*input_name, self.scope.to_scope(output_expr))
             }
             (Term::RecordLiteral(range, expr_fields), Value::RecordType(labels, types)) => {
                 // TODO: improve handling of duplicate labels
@@ -699,13 +697,12 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 let input_type = self.check(input_type, &universe);
                 let input_type_value = self.eval_context().eval(&input_type);
 
-                self.rigid_env
-                    .push_param(Some(*input_name), input_type_value);
+                self.rigid_env.push_param(*input_name, input_type_value);
                 let output_type = self.check(output_type, &universe);
                 self.rigid_env.pop();
 
                 let fun_type = core::Term::FunType(
-                    Some(*input_name),
+                    *input_name,
                     self.scope.to_scope(input_type),
                     self.scope.to_scope(output_type),
                 );
@@ -713,19 +710,18 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 (fun_type, universe)
             }
             Term::FunLiteral(_, (input_range, input_name), output_expr) => {
-                let input_name = Some(*input_name);
-                let input_source = FlexSource::FunInputType(*input_range, input_name);
+                let input_source = FlexSource::FunInputType(*input_range, *input_name);
                 let input_type = self.push_flexible_value(input_source, Arc::new(Value::Universe));
 
-                self.rigid_env.push_param(input_name, input_type.clone());
+                self.rigid_env.push_param(*input_name, input_type.clone());
                 let (output_expr, output_type) = self.synth(output_expr);
                 let output_type = self.quote_context(self.scope).quote(&output_type);
                 self.rigid_env.pop();
 
                 (
-                    core::Term::FunIntro(input_name, self.scope.to_scope(output_expr)),
+                    core::Term::FunIntro(*input_name, self.scope.to_scope(output_expr)),
                     Arc::new(Value::FunType(
-                        input_name,
+                        *input_name,
                         input_type,
                         Closure::new(
                             self.rigid_env.exprs.clone(),
