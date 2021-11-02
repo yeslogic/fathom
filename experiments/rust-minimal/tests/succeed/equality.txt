@@ -1,0 +1,33 @@
+let id : fun (A : _) -> A -> A
+  = fun A => fun a => a;
+
+let Eq : fun (A : _) -> A -> A -> Type
+  = fun A => fun a0 => fun a1 =>
+      fun (P : A -> Type) -> P a0 -> P a1;
+
+let refl : fun (A : _) -> fun (a : A) -> Eq A a a
+  = fun A => fun a => fun P => id (P a);
+
+
+// Function eta-tests
+
+let fun_eta_left  : fun (f : Type -> Type) -> Eq _ f (fun x => f x) = fun f => refl _ f;
+let fun_eta_right : fun (f : Type -> Type) -> Eq _ (fun x => f x) f = fun f => refl _ f;
+
+let fun_eta_left  : fun (f : Type -> Type -> Type) -> Eq _ f (fun x => f x) = fun f => refl _ f;
+let fun_eta_right : fun (f : Type -> Type -> Type) -> Eq _ (fun x => f x) f = fun f => refl _ f;
+
+let fun_eta_left  : fun (f : Type -> Type -> Type) -> Eq _ f (fun x => fun y => f x y) = fun f => refl _ f;
+let fun_eta_right : fun (f : Type -> Type -> Type) -> Eq _ (fun x => fun y => f x y) f = fun f => refl _ f;
+
+let fun_eta_left  : fun (f : Type -> Type -> Type) -> Eq _ (fun x => f x) (fun x => fun y => f x y) = fun f => refl _ f;
+let fun_eta_right : fun (f : Type -> Type -> Type) -> Eq _ (fun x => fun y => f x y) (fun x => f x) = fun f => refl _ f;
+
+
+// Record eta-tests
+
+let record_eta_left  : fun (r : { x : Type, y : Type }) -> Eq _ r { x = r.x, y = r.y } = fun r => refl _ r;
+let record_eta_right : fun (r : { x : Type, y : Type }) -> Eq _ { x = r.x, y = r.y } r = fun r => refl _ r;
+
+
+Type
