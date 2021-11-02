@@ -47,7 +47,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
     ) -> Option<(ArcValue<'arena>, &'bytes [u8])> {
         use crate::core::semantics::Elim::Fun;
 
-        match format.as_ref() {
+        match self.elim_context().force(format).as_ref() {
             Value::Stuck(Head::Prim(prim), slice) => match (*prim, &slice[..]) {
                 (Prim::FormatU8, []) => read_const(Const::U8, read_u8, bytes),
                 (Prim::FormatU16Be, []) => read_const(Const::U16, read_u16be, bytes),
@@ -107,7 +107,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
         elem_format: &ArcValue<'arena>,
         mut bytes: &'bytes [u8],
     ) -> Option<(ArcValue<'arena>, &'bytes [u8])> {
-        let (len, mut elem_exprs) = match len.as_ref() {
+        let (len, mut elem_exprs) = match self.elim_context().force(len).as_ref() {
             Value::Const(Const::U8(len)) => (*len as u64, Vec::with_capacity(*len as usize)),
             Value::Const(Const::U16(len)) => (*len as u64, Vec::with_capacity(*len as usize)),
             Value::Const(Const::U32(len)) => (*len as u64, Vec::with_capacity(*len as usize)),
