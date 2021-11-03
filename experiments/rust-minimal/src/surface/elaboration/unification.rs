@@ -431,7 +431,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
     ) -> Result<Term<'arena>> {
         match self.elim_context().force(value).as_ref() {
             Value::Stuck(head, spine) => {
-                let mut head_expr = match head {
+                let head_expr = match head {
                     Head::Prim(prim) => Term::Prim(*prim),
                     Head::RigidVar(source_var) => match self.renaming.get_as_local(*source_var) {
                         None => return Err(Error::EscapingRigidVar),
@@ -443,22 +443,17 @@ impl<'arena, 'env> Context<'arena, 'env> {
                     },
                 };
 
-                for elim in spine {
-                    head_expr = match elim {
-                        Elim::Fun(input_expr) => {
-                            let input_expr = self.rename(flexible_var, input_expr)?;
-                            Term::FunElim(
-                                self.scope.to_scope(head_expr),
-                                self.scope.to_scope(input_expr),
-                            )
-                        }
+                spine.iter().fold(Ok(head_expr), |head_expr, elim| {
+                    Ok(match elim {
+                        Elim::Fun(input_expr) => Term::FunElim(
+                            self.scope.to_scope(head_expr?),
+                            self.scope.to_scope(self.rename(flexible_var, input_expr)?),
+                        ),
                         Elim::Record(label) => {
-                            Term::RecordElim(self.scope.to_scope(head_expr), *label)
+                            Term::RecordElim(self.scope.to_scope(head_expr?), *label)
                         }
-                    };
-                }
-
-                Ok(head_expr)
+                    })
+                })
             }
             Value::Universe => Ok(Term::Universe),
             Value::FunType(input_name, input_type, output_type) => {

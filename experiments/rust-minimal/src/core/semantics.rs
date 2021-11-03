@@ -397,16 +397,13 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
     /// Apply an expression to an elimination spine.
     pub fn apply_spine(
         &self,
-        mut head_expr: ArcValue<'arena>,
+        head_expr: ArcValue<'arena>,
         spine: &[Elim<'arena>],
     ) -> ArcValue<'arena> {
-        for elim in spine {
-            head_expr = match elim {
-                Elim::Fun(input_expr) => self.apply_fun(head_expr, input_expr.clone()),
-                Elim::Record(label) => self.apply_record(head_expr, *label),
-            };
-        }
-        head_expr
+        spine.iter().fold(head_expr, |head_expr, elim| match elim {
+            Elim::Fun(input_expr) => self.apply_fun(head_expr, input_expr.clone()),
+            Elim::Record(label) => self.apply_record(head_expr, *label),
+        })
     }
 
     /// Find the representation type of a format description.
@@ -499,7 +496,7 @@ impl<'in_arena, 'out_arena, 'env> QuoteContext<'in_arena, 'out_arena, 'env> {
         let value = self.elim_context().force(value);
         match value.as_ref() {
             Value::Stuck(head, spine) => {
-                let mut head_expr = match head {
+                let head_expr = match head {
                     Head::Prim(prim) => Term::Prim(*prim),
                     Head::RigidVar(var) => {
                         // FIXME: Unwrap
@@ -508,22 +505,13 @@ impl<'in_arena, 'out_arena, 'env> QuoteContext<'in_arena, 'out_arena, 'env> {
                     Head::FlexibleVar(var) => Term::FlexibleVar(*var),
                 };
 
-                for elim in spine {
-                    head_expr = match elim {
-                        Elim::Fun(input_expr) => {
-                            let input_expr = self.quote(input_expr);
-                            Term::FunElim(
-                                self.scope.to_scope(head_expr),
-                                self.scope.to_scope(input_expr),
-                            )
-                        }
-                        Elim::Record(label) => {
-                            Term::RecordElim(self.scope.to_scope(head_expr), *label)
-                        }
-                    };
-                }
-
-                head_expr
+                spine.iter().fold(head_expr, |head_expr, elim| match elim {
+                    Elim::Fun(input_expr) => Term::FunElim(
+                        self.scope.to_scope(head_expr),
+                        self.scope.to_scope(self.quote(input_expr)),
+                    ),
+                    Elim::Record(label) => Term::RecordElim(self.scope.to_scope(head_expr), *label),
+                })
             }
             Value::Universe => Term::Universe,
             Value::FunType(input_name, input_type, output_type) => {
