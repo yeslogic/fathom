@@ -38,27 +38,33 @@ Using heredocs
     EOF
 "#)]
 enum Options {
-    /// Parse and elaborate a term, printing the elaborated term and type
-    Elab(Args),
-    /// Parse and elaborate a term, printing its normal form and type
-    Norm(Args),
-    /// Parse and elaborate a term, printing its type
-    Type(Args),
-}
-
-#[derive(StructOpt)]
-struct Args {
-    /// Path to a file containing the surface term (`-` to read from stdin)
-    #[structopt(
-        long = "surface-term",
-        name = "FILE",
-        default_value = "-",
-        parse(from_str)
-    )]
-    surface_term: Input,
-    /// Continue even if errors were encountered.
-    #[structopt(long = "allow-errors")]
-    allow_errors: bool,
+    /// Elaborate a term, printing the elaborated term and type
+    Elab {
+        /// Path to a file containing the surface term (`-` to read from stdin)
+        #[structopt(long = "term", name = "FILE", default_value = "-", parse(from_str))]
+        term_input: Input,
+        /// Continue even if errors were encountered.
+        #[structopt(long = "allow-errors")]
+        allow_errors: bool,
+    },
+    /// Elaborate a term, printing its normal form and type
+    Norm {
+        /// Path to a file containing the surface term (`-` to read from stdin)
+        #[structopt(long = "term", name = "FILE", default_value = "-", parse(from_str))]
+        term_input: Input,
+        /// Continue even if errors were encountered.
+        #[structopt(long = "allow-errors")]
+        allow_errors: bool,
+    },
+    /// Elaborate a term, printing its type
+    Type {
+        /// Path to a file containing the surface term (`-` to read from stdin)
+        #[structopt(long = "term", name = "FILE", default_value = "-", parse(from_str))]
+        term_input: Input,
+        /// Continue even if errors were encountered.
+        #[structopt(long = "allow-errors")]
+        allow_errors: bool,
+    },
 }
 
 enum Input {
@@ -88,8 +94,11 @@ fn main() -> ! {
     let core_scope = Scope::new(); // Long-term storage of core terms
 
     match Options::from_args() {
-        Options::Elab(args) => {
-            let file = load_input(&args.surface_term);
+        Options::Elab {
+            term_input,
+            allow_errors,
+        } => {
+            let file = load_input(&term_input);
             let surface_term = parse_term(&interner, &surface_scope, &file);
 
             let mut context = elaboration::Context::new(&interner, &core_scope);
@@ -97,7 +106,7 @@ fn main() -> ! {
             let r#type = context.quote_context(&core_scope).quote(&r#type);
 
             if check_elaboration(&mut writer, &term_config, &file, &interner, &mut context)
-                || args.allow_errors
+                || allow_errors
             {
                 surface_scope.reset(); // Reuse the surface scope for distillation
                 let mut context = context.distillation_context(&surface_scope);
@@ -118,8 +127,11 @@ fn main() -> ! {
                 std::process::exit(1);
             }
         }
-        Options::Norm(args) => {
-            let file = load_input(&args.surface_term);
+        Options::Norm {
+            term_input,
+            allow_errors,
+        } => {
+            let file = load_input(&term_input);
             let surface_term = parse_term(&interner, &surface_scope, &file);
 
             let mut context = elaboration::Context::new(&interner, &core_scope);
@@ -128,7 +140,7 @@ fn main() -> ! {
             let r#type = context.quote_context(&core_scope).quote(&r#type);
 
             if check_elaboration(&mut writer, &term_config, &file, &interner, &mut context)
-                || args.allow_errors
+                || allow_errors
             {
                 surface_scope.reset(); // Reuse the surface scope for distillation
                 let mut context = context.distillation_context(&surface_scope);
@@ -149,8 +161,11 @@ fn main() -> ! {
                 std::process::exit(1);
             }
         }
-        Options::Type(args) => {
-            let file = load_input(&args.surface_term);
+        Options::Type {
+            term_input,
+            allow_errors,
+        } => {
+            let file = load_input(&term_input);
             let surface_term = parse_term(&interner, &surface_scope, &file);
 
             let mut context = elaboration::Context::new(&interner, &core_scope);
@@ -158,7 +173,7 @@ fn main() -> ! {
             let r#type = context.quote_context(&core_scope).quote(&r#type);
 
             if check_elaboration(&mut writer, &term_config, &file, &interner, &mut context)
-                || args.allow_errors
+                || allow_errors
             {
                 surface_scope.reset(); // Reuse the surface scope for distillation
                 let mut context = context.distillation_context(&surface_scope);
