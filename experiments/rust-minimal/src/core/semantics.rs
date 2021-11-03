@@ -643,18 +643,15 @@ impl<'arena, 'env> ConversionContext<'arena, 'env> {
             | (_, Value::Stuck(Head::Prim(Prim::ReportedError), _)) => true,
 
             (Value::Stuck(head0, spine0), Value::Stuck(head1, spine1)) => {
-                if head0 != head1 || spine0.len() != spine1.len() {
-                    return false;
-                }
-                for (elim0, elim1) in Iterator::zip(spine0.iter(), spine1.iter()) {
-                    match (elim0, elim1) {
-                        (Elim::Fun(input_expr0), Elim::Fun(input_expr1))
-                            if self.is_equal(input_expr0, input_expr1) => {}
-                        (Elim::Record(label0), Elim::Record(label1)) if label0 == label1 => {}
-                        (_, _) => return false,
-                    }
-                }
-                true
+                head0 == head1
+                    && spine0.len() == spine1.len()
+                    && Iterator::zip(spine0.iter(), spine1.iter()).all(|(elim0, elim1)| {
+                        match (elim0, elim1) {
+                            (Elim::Fun(expr0), Elim::Fun(expr1)) => self.is_equal(expr0, expr1),
+                            (Elim::Record(label0), Elim::Record(label1)) => label0 == label1,
+                            (_, _) => false,
+                        }
+                    })
             }
             (Value::Universe, Value::Universe) => true,
 
@@ -678,22 +675,13 @@ impl<'arena, 'env> ConversionContext<'arena, 'env> {
             }
 
             (Value::RecordType(labels0, types0), Value::RecordType(labels1, types1)) => {
-                if labels0 != labels1 {
-                    return false;
-                }
-                self.is_equal_telescopes(types0, types1)
+                labels0 == labels1 && self.is_equal_telescopes(types0, types1)
             }
 
             (Value::RecordIntro(labels0, exprs0), Value::RecordIntro(labels1, exprs1)) => {
-                if labels0 != labels1 {
-                    return false;
-                }
-                for (expr0, expr1) in Iterator::zip(exprs0.iter(), exprs1.iter()) {
-                    if !self.is_equal(&expr0, &expr1) {
-                        return false;
-                    }
-                }
-                true
+                labels0 == labels1
+                    && Iterator::zip(exprs0.iter(), exprs1.iter())
+                        .all(|(expr0, expr1)| self.is_equal(&expr0, &expr1))
             }
             // Eta-conversion
             (Value::RecordIntro(labels, exprs), _) => {
@@ -704,21 +692,12 @@ impl<'arena, 'env> ConversionContext<'arena, 'env> {
             }
 
             (Value::ArrayIntro(elem_exprs0), Value::ArrayIntro(elem_exprs1)) => {
-                for (elem_expr0, elem_expr1) in
-                    Iterator::zip(elem_exprs0.iter(), elem_exprs1.iter())
-                {
-                    if !self.is_equal(&elem_expr0, &elem_expr1) {
-                        return false;
-                    }
-                }
-                true
+                Iterator::zip(elem_exprs0.iter(), elem_exprs1.iter())
+                    .all(|(elem_expr0, elem_expr1)| self.is_equal(&elem_expr0, &elem_expr1))
             }
 
             (Value::FormatRecord(labels0, formats0), Value::FormatRecord(labels1, formats1)) => {
-                if labels0 != labels1 {
-                    return false;
-                }
-                self.is_equal_telescopes(formats0, formats1)
+                labels0 == labels1 && self.is_equal_telescopes(formats0, formats1)
             }
 
             (Value::Const(const0), Value::Const(const1)) => const0 == const1,
@@ -793,12 +772,9 @@ impl<'arena, 'env> ConversionContext<'arena, 'env> {
         exprs: &[ArcValue<'_>],
         value: &ArcValue<'_>,
     ) -> bool {
-        for (label, expr) in Iterator::zip(labels.iter(), exprs.iter()) {
+        Iterator::zip(labels.iter(), exprs.iter()).all(|(label, expr)| {
             let field_value = self.elim_context().apply_record(value.clone(), *label);
-            if !self.is_equal(expr, &field_value) {
-                return false;
-            }
-        }
-        true
+            self.is_equal(expr, &field_value)
+        })
     }
 }
