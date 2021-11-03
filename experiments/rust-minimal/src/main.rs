@@ -105,7 +105,6 @@ fn main() -> ! {
                 let r#type = context.check(&r#type);
 
                 {
-                    let interner = interner.borrow();
                     let context = surface::pretty::Context::new(&interner, &surface_scope);
                     let doc = context.ann(&term, &r#type).into_doc();
 
@@ -135,7 +134,6 @@ fn main() -> ! {
                 let r#type = context.check(&r#type);
 
                 {
-                    let interner = interner.borrow();
                     let context = surface::pretty::Context::new(&interner, &surface_scope);
                     let doc = context.ann(&term, &r#type).into_doc();
 
@@ -163,7 +161,6 @@ fn main() -> ! {
                 let r#type = context.check(&r#type);
 
                 {
-                    let interner = interner.borrow();
                     let context = surface::pretty::Context::new(&interner, &surface_scope);
                     let doc = context.term(&r#type).into_doc();
 

@@ -1,5 +1,6 @@
 use pretty::{Doc, DocAllocator, DocBuilder, DocPtr, RefDoc};
 use scoped_arena::Scope;
+use std::cell::RefCell;
 
 use crate::surface::Term;
 use crate::{StringId, StringInterner};
@@ -14,25 +15,31 @@ pub enum Prec {
     Atomic,
 }
 
-pub struct Context<'doc> {
-    interner: &'doc StringInterner,
-    scope: &'doc Scope<'doc>,
+pub struct Context<'interner, 'arena> {
+    interner: &'interner RefCell<StringInterner>,
+    scope: &'arena Scope<'arena>,
 }
 
-impl<'doc> Context<'doc> {
-    pub fn new(interner: &'doc StringInterner, scope: &'doc Scope<'doc>) -> Context<'doc> {
+impl<'interner, 'arena> Context<'interner, 'arena> {
+    pub fn new(
+        interner: &'interner RefCell<StringInterner>,
+        scope: &'arena Scope<'arena>,
+    ) -> Context<'interner, 'arena> {
         Context { interner, scope }
     }
 
-    pub fn string_id(&'doc self, name: StringId) -> DocBuilder<'doc, Self> {
-        self.text(self.interner.resolve(name).unwrap_or("<ERROR>"))
+    pub fn string_id(&'arena self, name: StringId) -> DocBuilder<'arena, Self> {
+        match self.interner.borrow().resolve(name) {
+            Some(name) => self.text(name.to_owned()),
+            None => self.text("#error"),
+        }
     }
 
     pub fn ann<Range>(
-        &'doc self,
+        &'arena self,
         expr: &Term<'_, Range>,
         r#type: &Term<'_, Range>,
-    ) -> DocBuilder<'doc, Self> {
+    ) -> DocBuilder<'arena, Self> {
         self.concat([
             self.concat([
                 self.term_prec(Prec::Let, &expr),
@@ -45,7 +52,11 @@ impl<'doc> Context<'doc> {
         ])
     }
 
-    pub fn paren(&'doc self, wrap: bool, doc: DocBuilder<'doc, Self>) -> DocBuilder<'doc, Self> {
+    pub fn paren(
+        &'arena self,
+        wrap: bool,
+        doc: DocBuilder<'arena, Self>,
+    ) -> DocBuilder<'arena, Self> {
         if wrap {
             self.concat([self.text("("), doc, self.text(")")])
         } else {
@@ -53,15 +64,15 @@ impl<'doc> Context<'doc> {
         }
     }
 
-    pub fn term<Range>(&'doc self, term: &Term<'_, Range>) -> DocBuilder<'doc, Self> {
+    pub fn term<Range>(&'arena self, term: &Term<'_, Range>) -> DocBuilder<'arena, Self> {
         self.term_prec(Prec::Top, term)
     }
 
     pub fn term_prec<Range>(
-        &'doc self,
+        &'arena self,
         prec: Prec,
         term: &Term<'_, Range>,
-    ) -> DocBuilder<'doc, Self> {
+    ) -> DocBuilder<'arena, Self> {
         // FIXME: indentation and grouping
 
         match term {
@@ -227,11 +238,11 @@ impl<'doc> Context<'doc> {
     }
 }
 
-impl<'doc, A: 'doc> DocAllocator<'doc, A> for Context<'doc> {
-    type Doc = RefDoc<'doc, A>;
+impl<'interner, 'arena, A: 'arena> DocAllocator<'arena, A> for Context<'interner, 'arena> {
+    type Doc = RefDoc<'arena, A>;
 
     #[inline]
-    fn alloc(&'doc self, doc: Doc<'doc, Self::Doc, A>) -> Self::Doc {
+    fn alloc(&'arena self, doc: Doc<'arena, Self::Doc, A>) -> Self::Doc {
         // Based on the `DocAllocator` implementation for `pretty::Arena`
         RefDoc(match doc {
             // Return 'static references for common variants to avoid some allocations
@@ -285,16 +296,16 @@ impl<'doc, A: 'doc> DocAllocator<'doc, A> for Context<'doc> {
     }
 
     fn alloc_column_fn(
-        &'doc self,
-        f: impl 'doc + Fn(usize) -> Self::Doc,
-    ) -> <Self::Doc as DocPtr<'doc, A>>::ColumnFn {
+        &'arena self,
+        f: impl 'arena + Fn(usize) -> Self::Doc,
+    ) -> <Self::Doc as DocPtr<'arena, A>>::ColumnFn {
         self.scope.to_scope(f)
     }
 
     fn alloc_width_fn(
-        &'doc self,
-        f: impl 'doc + Fn(isize) -> Self::Doc,
-    ) -> <Self::Doc as DocPtr<'doc, A>>::WidthFn {
+        &'arena self,
+        f: impl 'arena + Fn(isize) -> Self::Doc,
+    ) -> <Self::Doc as DocPtr<'arena, A>>::WidthFn {
         self.scope.to_scope(f)
     }
 }
