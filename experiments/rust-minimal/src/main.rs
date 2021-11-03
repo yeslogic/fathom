@@ -106,7 +106,9 @@ fn main() -> ! {
 
                 {
                     let context = surface::pretty::Context::new(&interner, &surface_scope);
-                    let doc = context.ann(&term, &r#type).into_doc();
+                    let doc = context
+                        .term(&surface::Term::Ann((), &term, &r#type))
+                        .into_doc();
 
                     println!("{}", doc.pretty(get_pretty_width()));
                 }
@@ -135,7 +137,9 @@ fn main() -> ! {
 
                 {
                     let context = surface::pretty::Context::new(&interner, &surface_scope);
-                    let doc = context.ann(&term, &r#type).into_doc();
+                    let doc = context
+                        .term(&surface::Term::Ann((), &term, &r#type))
+                        .into_doc();
 
                     println!("{}", doc.pretty(get_pretty_width()));
                 }

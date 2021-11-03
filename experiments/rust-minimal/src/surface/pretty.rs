@@ -28,35 +28,14 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         Context { interner, scope }
     }
 
-    pub fn string_id(&'arena self, name: StringId) -> DocBuilder<'arena, Self> {
+    fn string_id(&'arena self, name: StringId) -> DocBuilder<'arena, Self> {
         match self.interner.borrow().resolve(name) {
             Some(name) => self.text(name.to_owned()),
             None => self.text("#error"),
         }
     }
 
-    pub fn ann<Range>(
-        &'arena self,
-        expr: &Term<'_, Range>,
-        r#type: &Term<'_, Range>,
-    ) -> DocBuilder<'arena, Self> {
-        self.concat([
-            self.concat([
-                self.term_prec(Prec::Let, &expr),
-                self.space(),
-                self.text(":"),
-            ])
-            .group(),
-            self.softline(),
-            self.term_prec(Prec::Top, &r#type),
-        ])
-    }
-
-    pub fn paren(
-        &'arena self,
-        wrap: bool,
-        doc: DocBuilder<'arena, Self>,
-    ) -> DocBuilder<'arena, Self> {
+    fn paren(&'arena self, wrap: bool, doc: DocBuilder<'arena, Self>) -> DocBuilder<'arena, Self> {
         if wrap {
             self.concat([self.text("("), doc, self.text(")")])
         } else {
@@ -79,7 +58,16 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
             Term::Name(_, name) => self.string_id(*name),
             Term::Hole(_, name) => self.concat([self.text("?"), self.string_id(*name)]),
             Term::Placeholder(_) => self.text("_"),
-            Term::Ann(_, expr, r#type) => self.ann(expr, r#type),
+            Term::Ann(_, expr, r#type) => self.concat([
+                self.concat([
+                    self.term_prec(Prec::Let, &expr),
+                    self.space(),
+                    self.text(":"),
+                ])
+                .group(),
+                self.softline(),
+                self.term_prec(Prec::Top, &r#type),
+            ]),
             Term::Let(_, (_, def_name), def_type, def_expr, output_expr) => self.paren(
                 prec > Prec::Let,
                 self.concat([
