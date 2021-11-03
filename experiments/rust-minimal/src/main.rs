@@ -63,14 +63,14 @@ struct Args {
 
 enum Input {
     StdIn,
-    Path(PathBuf),
+    File(PathBuf),
 }
 
 impl From<&str> for Input {
     fn from(src: &str) -> Input {
         match src {
             "-" => Input::StdIn,
-            _ => Input::Path(PathBuf::from(src)),
+            _ => Input::File(PathBuf::from(src)),
         }
     }
 }
@@ -222,7 +222,7 @@ fn load_input(input: &Input) -> SimpleFile<String, String> {
             std::io::stdin().read_to_string(&mut source).unwrap();
             "<stdin>".to_owned()
         }
-        Input::Path(path) => {
+        Input::File(path) => {
             let mut file = std::fs::File::open(path).unwrap(); // TODO: report errors
             file.read_to_string(&mut source).unwrap();
             path.to_string_lossy().into()
