@@ -1,8 +1,9 @@
 use codespan_reporting::diagnostic::{Diagnostic, Label};
 use itertools::Itertools;
+use std::cell::RefCell;
 
 use crate::surface::elaboration::{unification, FlexSource};
-use crate::{ByteRange, StringId, StringInterner};
+use crate::{ByteRange, FileId, StringId, StringInterner};
 
 /// Elaboration diagnostic messages.
 #[derive(Debug, Clone)]
@@ -79,26 +80,34 @@ pub enum Message {
 }
 
 impl Message {
-    pub fn to_diagnostic(&self, interner: &StringInterner) -> Diagnostic<()> {
+    pub fn to_diagnostic(
+        &self,
+        interner: &RefCell<StringInterner>,
+        file_id: FileId,
+    ) -> Diagnostic<FileId> {
         match self {
             Message::UnboundName { range, name } => {
+                let interner = interner.borrow();
                 let name = interner.resolve(*name).unwrap();
 
                 Diagnostic::error()
                     .with_message(format!("unbound name `{}`", name))
-                    .with_labels(vec![Label::primary((), *range).with_message("unbound name")])
+                    .with_labels(vec![
+                        Label::primary(file_id, *range).with_message("unbound name")
+                    ])
             }
             Message::UnknownField {
                 head_range: _,
                 label_range,
                 label,
             } => {
+                let interner = interner.borrow();
                 let label = interner.resolve(*label).unwrap();
 
                 Diagnostic::error()
                     .with_message(format!("unknown field `{}`", label))
                     .with_labels(vec![
-                        Label::primary((), *label_range).with_message("unknown field")
+                        Label::primary(file_id, *label_range).with_message("unknown field")
                     ])
             }
             Message::MismatchedFieldLabels {
@@ -106,6 +115,7 @@ impl Message {
                 expr_labels,
                 type_labels,
             } => {
+                let interner = interner.borrow();
                 let mut diagnostic_labels = Vec::new();
                 {
                     let mut expr_labels = expr_labels.iter().peekable();
@@ -117,7 +127,7 @@ impl Message {
                                 None => {
                                     let expr_label = interner.resolve(*expr_label).unwrap();
                                     diagnostic_labels.push(
-                                        Label::primary((), *range).with_message(format!(
+                                        Label::primary(file_id, *range).with_message(format!(
                                             "unexpected field `{}`",
                                             expr_label,
                                         )),
@@ -130,7 +140,7 @@ impl Message {
                                 Some(type_label) => {
                                     let type_label = interner.resolve(*type_label).unwrap();
                                     diagnostic_labels.push(
-                                        Label::primary((), *range).with_message(format!(
+                                        Label::primary(file_id, *range).with_message(format!(
                                             "expected field `{}`",
                                             type_label,
                                         )),
@@ -142,15 +152,18 @@ impl Message {
                     }
 
                     if type_labels.peek().is_some() {
-                        diagnostic_labels.push(Label::primary((), *range).with_message(format!(
+                        diagnostic_labels.push(Label::primary(file_id, *range).with_message(
+                            format!(
                             "missing fields {}",
                             type_labels
                                 .map(|label| interner.resolve(*label).unwrap())
                                 .format_with(", ", |label, f| f(&format_args!("`{}`", label))),
-                        )));
+                        ),
+                        ));
                     } else {
-                        diagnostic_labels
-                            .push(Label::secondary((), *range).with_message("the record literal"));
+                        diagnostic_labels.push(
+                            Label::secondary(file_id, *range).with_message("the record literal"),
+                        );
                     }
                 }
 
@@ -170,10 +183,13 @@ impl Message {
                     ])
             }
             Message::DuplicateFieldLabels { range, labels } => {
+                let interner = interner.borrow();
                 let diagnostic_labels = (labels.iter())
-                    .map(|(range, _)| Label::primary((), *range).with_message("duplicate field"))
+                    .map(|(range, _)| {
+                        Label::primary(file_id, *range).with_message("duplicate field")
+                    })
                     .chain(std::iter::once(
-                        Label::secondary((), *range).with_message("the record literal"),
+                        Label::secondary(file_id, *range).with_message("the record literal"),
                     ))
                     .collect();
 
@@ -189,44 +205,44 @@ impl Message {
             }
             Message::InvalidNumericLiteral { range, message } => Diagnostic::error()
                 .with_message("failed to parse numeric literal")
-                .with_labels(vec![(Label::primary((), *range)).with_message(message)]),
+                .with_labels(vec![(Label::primary(file_id, *range)).with_message(message)]),
             Message::ArrayLiteralNotSupported { range } => Diagnostic::error()
                 .with_message("array literal not supported for expected type")
-                .with_labels(vec![Label::primary((), *range)]),
+                .with_labels(vec![Label::primary(file_id, *range)]),
             Message::MismatchedArrayLength { range, found_len } => Diagnostic::error()
                 .with_message("mismatched array length")
-                .with_labels(vec![
-                    Label::primary((), *range).with_message(format!("found length: {}", found_len))
-                ]),
+                .with_labels(vec![Label::primary(file_id, *range)
+                    .with_message(format!("found length: {}", found_len))]),
             Message::AmbiguousArrayLiteral { range } => Diagnostic::error()
                 .with_message("ambiguous array literal")
-                .with_labels(vec![Label::primary((), *range)]),
+                .with_labels(vec![Label::primary(file_id, *range)]),
             Message::NumericLiteralNotSupported { range } => Diagnostic::error()
                 .with_message("numeric literal not supported for expected type")
-                .with_labels(vec![Label::primary((), *range)]),
+                .with_labels(vec![Label::primary(file_id, *range)]),
             Message::AmbiguousNumericLiteral { range } => Diagnostic::error()
                 .with_message("ambiguous numeric literal")
-                .with_labels(vec![Label::primary((), *range)]),
+                .with_labels(vec![Label::primary(file_id, *range)]),
             Message::FailedToUnify { range, error } => match error {
                 unification::Error::Mismatched => Diagnostic::error()
                     .with_message("type mismatch")
-                    .with_labels(vec![Label::primary((), *range)]),
+                    .with_labels(vec![Label::primary(file_id, *range)]),
                 unification::Error::NonLinearSpine => Diagnostic::error()
                     .with_message("non linear spine") // TODO: user-friendly message
-                    .with_labels(vec![Label::primary((), *range)]),
+                    .with_labels(vec![Label::primary(file_id, *range)]),
                 unification::Error::EscapingRigidVar => Diagnostic::error()
                     .with_message("escaping rigid variable") // TODO: user-friendly message
-                    .with_labels(vec![Label::primary((), *range)]),
+                    .with_labels(vec![Label::primary(file_id, *range)]),
                 unification::Error::InfiniteSolution => Diagnostic::error()
                     .with_message("infinite solution") // TODO: user-friendly message
-                    .with_labels(vec![Label::primary((), *range)]),
+                    .with_labels(vec![Label::primary(file_id, *range)]),
             },
             Message::HoleSolution { range, name } => {
+                let interner = interner.borrow();
                 let name = interner.resolve(*name).unwrap();
 
                 Diagnostic::note()
                     .with_message(format!("solution found for `?{}`", name))
-                    .with_labels(vec![Label::primary((), *range)])
+                    .with_labels(vec![Label::primary(file_id, *range)])
             }
             Message::UnsolvedFlexibleVar { range, source } => {
                 let source_name = match source {
@@ -241,7 +257,7 @@ impl Message {
 
                 Diagnostic::error()
                     .with_message(format!("failed to infer {}", source_name))
-                    .with_labels(vec![Label::primary((), *range)])
+                    .with_labels(vec![Label::primary(file_id, *range)])
             }
         }
     }

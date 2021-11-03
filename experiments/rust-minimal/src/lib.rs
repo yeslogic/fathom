@@ -8,6 +8,12 @@ pub mod env;
 pub mod core;
 pub mod surface;
 
+// Top level driver
+mod driver;
+
+// Public exports
+pub use driver::{Driver, Status};
+
 /// Interned strings.
 pub type StringId = string_interner::symbol::SymbolU16;
 
@@ -17,8 +23,13 @@ pub type StringInterner = string_interner::StringInterner<
     std::hash::BuildHasherDefault<fxhash::FxHasher32>,
 >;
 
+/// File id.
+pub type FileId = usize;
+
+/// Byte offsets into source files.
 pub type BytePos = usize;
 
+/// Byte ranges in source files.
 #[derive(Debug, Copy, Clone)]
 pub struct ByteRange {
     start: BytePos,
