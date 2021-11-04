@@ -5,8 +5,9 @@ use std::cell::RefCell;
 use std::io::Read;
 use std::path::Path;
 
+use crate::source::{ByteRange, FileId};
 use crate::surface::{self, elaboration};
-use crate::{ByteRange, FileId, StringInterner};
+use crate::StringInterner;
 
 #[derive(Debug, Copy, Clone)]
 pub enum Status {

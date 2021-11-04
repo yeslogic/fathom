@@ -4,7 +4,8 @@ use lalrpop_util::lalrpop_mod;
 use scoped_arena::Scope;
 use std::cell::RefCell;
 
-use crate::{ByteRange, StringId, StringInterner};
+use crate::source::ByteRange;
+use crate::{StringId, StringInterner};
 
 lalrpop_mod!(grammar, "/surface/grammar.rs");
 // FIXME: This lexer module should be private! LALRPOP's exports are somewhat broken, however.

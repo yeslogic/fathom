@@ -1,7 +1,8 @@
 use scoped_arena::Scope;
 use std::cell::RefCell;
 
-use crate::{ByteRange, StringId, StringInterner};
+use crate::{StringId, StringInterner};
+use crate::source::ByteRange;
 use crate::surface::Term;
 use crate::surface::lexer::Token;
 

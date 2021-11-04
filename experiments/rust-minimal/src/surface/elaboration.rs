@@ -9,9 +9,10 @@ use crate::alloc::SliceBuilder;
 use crate::core::semantics::{self, ArcValue, Closure, Head, Telescope, Value};
 use crate::core::{self, Const, Prim};
 use crate::env::{self, EnvLen, GlobalVar, SharedEnv, UniqueEnv};
+use crate::source::ByteRange;
 use crate::surface::elaboration::reporting::Message;
 use crate::surface::{distillation, Term};
-use crate::{ByteRange, StringId, StringInterner};
+use crate::{StringId, StringInterner};
 
 mod reporting;
 mod unification;

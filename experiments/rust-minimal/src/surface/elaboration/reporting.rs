@@ -2,8 +2,9 @@ use codespan_reporting::diagnostic::{Diagnostic, Label};
 use itertools::Itertools;
 use std::cell::RefCell;
 
+use crate::source::{ByteRange, FileId};
 use crate::surface::elaboration::{unification, FlexSource};
-use crate::{ByteRange, FileId, StringId, StringInterner};
+use crate::{StringId, StringInterner};
 
 /// Elaboration diagnostic messages.
 #[derive(Debug, Clone)]
