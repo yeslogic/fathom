@@ -857,7 +857,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 self.synth_reported_error(*range)
             }
             Term::ArrayLiteral(range, _) => {
-                self.push_message(Message::AmbiguousNumericLiteral { range: *range });
+                self.push_message(Message::AmbiguousArrayLiteral { range: *range });
                 self.synth_reported_error(*range)
             }
             Term::NumberLiteral(range, _) => {
