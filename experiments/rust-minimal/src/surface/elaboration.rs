@@ -354,27 +354,28 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         binary::Context::new(&self.flexible_env.exprs)
     }
 
-    /// Reports an error if there are duplicate fields found, returning an
-    /// iterator over the unique fields.
+    /// Reports an error if there are duplicate fields found, returning a slice
+    /// of the labels unique labels and an iterator over the unique fields.
     fn report_duplicate_labels<'fields, 'a>(
         &mut self,
         range: ByteRange,
         fields: &'fields [((ByteRange, StringId), Term<'a, ByteRange>)],
-    ) -> impl Clone + Iterator<Item = &'fields ((ByteRange, StringId), Term<'a, ByteRange>)> {
-        use itertools::Itertools;
-
+    ) -> (
+        &'arena [StringId],
+        impl Iterator<Item = &'fields ((ByteRange, StringId), Term<'a, ByteRange>)>,
+    ) {
+        let mut labels = SliceBuilder::new(self.scope, fields.len());
         // Will only allocate when duplicates are encountered
         let mut duplicate_indices = Vec::new();
         let mut duplicate_labels = Vec::new();
 
-        for (index, ranged_label) in (fields.iter())
-            .map(|(label, _)| *label)
-            .enumerate()
-            // TODO: avoid transient hashmap allocation
-            .duplicates_by(|(_, (_, label))| *label)
-        {
-            duplicate_indices.push(index);
-            duplicate_labels.push(ranged_label);
+        for (index, ((range, label), _)) in fields.iter().enumerate() {
+            if labels.as_slice().contains(label) {
+                duplicate_indices.push(index);
+                duplicate_labels.push((*range, *label));
+            } else {
+                labels.push(*label)
+            }
         }
 
         if !duplicate_labels.is_empty() {
@@ -384,8 +385,10 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
             });
         }
 
-        (fields.iter().enumerate())
-            .filter_map(move |(i, field)| (!duplicate_indices.contains(&i)).then(|| field))
+        let filtered_fields = (fields.iter().enumerate())
+            .filter_map(move |(index, field)| (!duplicate_indices.contains(&index)).then(|| field));
+
+        (labels.into(), filtered_fields)
     }
 
     /// Parse a term from a source string.
@@ -778,42 +781,36 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
             Term::RecordType(range, type_fields) => {
                 let universe = Arc::new(Value::Universe);
                 let initial_rigid_len = self.rigid_env.len();
-                let type_fields = self.report_duplicate_labels(*range, type_fields);
+                let (labels, type_fields) = self.report_duplicate_labels(*range, type_fields);
+                let mut types = SliceBuilder::new(self.scope, labels.len());
 
-                let labels = (self.scope)
-                    .to_scope_from_iter(type_fields.clone().map(|((_, label), _)| *label));
-                let type_fields =
-                    (self.scope).to_scope_from_iter(type_fields.map(|((_, label), r#type)| {
-                        let r#type = self.check(r#type, &universe);
-                        let type_value = self.eval_context().eval(&r#type);
-                        self.rigid_env.push_param(Some(*label), type_value);
-                        r#type
-                    }));
+                for ((_, label), r#type) in type_fields {
+                    let r#type = self.check(r#type, &universe);
+                    let type_value = self.eval_context().eval(&r#type);
+                    self.rigid_env.push_param(Some(*label), type_value);
+                    types.push(r#type);
+                }
 
                 self.rigid_env.truncate(initial_rigid_len);
 
-                (core::Term::RecordType(labels, type_fields), universe)
+                (core::Term::RecordType(labels, types.into()), universe)
             }
             Term::RecordLiteral(range, expr_fields) => {
-                let expr_fields = self.report_duplicate_labels(*range, expr_fields);
-
-                let labels = (self.scope)
-                    .to_scope_from_iter(expr_fields.clone().map(|((_, label), _)| *label));
+                let (labels, expr_fields) = self.report_duplicate_labels(*range, expr_fields);
                 let mut types = SliceBuilder::new(self.scope, labels.len());
                 let mut exprs = SliceBuilder::new(self.scope, labels.len());
 
                 for (_, expr) in expr_fields {
                     let (expr, r#type) = self.synth(expr);
-                    types.push(self.quote_context(self.scope).quote(&r#type)); // FIXME: These are misbound
+                    types.push(self.quote_context(self.scope).quote(&r#type)); // NOTE: Unsure if these are correctly bound!
                     exprs.push(expr);
                 }
 
+                let types = Telescope::new(self.rigid_env.exprs.clone(), types.into());
+
                 (
-                    core::Term::RecordIntro(labels as &[_], exprs.into()),
-                    Arc::new(Value::RecordType(
-                        labels as &[_],
-                        Telescope::new(self.rigid_env.exprs.clone(), types.into()),
-                    )),
+                    core::Term::RecordIntro(labels, exprs.into()),
+                    Arc::new(Value::RecordType(labels, types)),
                 )
             }
             Term::UnitLiteral(_) => (
@@ -873,24 +870,23 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
             Term::FormatRecord(range, format_fields) => {
                 let format_type = Arc::new(Value::prim(Prim::FormatType, []));
                 let initial_rigid_len = self.rigid_env.len();
-                let format_fields = self.report_duplicate_labels(*range, format_fields);
+                let (labels, format_fields) = self.report_duplicate_labels(*range, format_fields);
+                let mut formats = SliceBuilder::new(self.scope, labels.len());
 
-                let labels = (self.scope)
-                    .to_scope_from_iter(format_fields.clone().map(|((_, label), _)| *label));
-                let format_fields =
-                    (self.scope).to_scope_from_iter(format_fields.map(|((_, label), format)| {
-                        let format = self.check(format, &format_type);
-                        let r#type = {
-                            let format = self.eval_context().eval(&format);
-                            self.elim_context().apply_repr(&format)
-                        };
-                        self.rigid_env.push_param(Some(*label), r#type);
-                        format
-                    }));
+                for ((_, label), format) in format_fields {
+                    let format = self.check(format, &format_type);
+                    let format_value = self.eval_context().eval(&format);
+                    let r#type = self.elim_context().apply_repr(&format_value);
+                    self.rigid_env.push_param(Some(*label), r#type);
+                    formats.push(format);
+                }
 
                 self.rigid_env.truncate(initial_rigid_len);
 
-                (core::Term::FormatRecord(labels, format_fields), format_type)
+                (
+                    core::Term::FormatRecord(labels, formats.into()),
+                    format_type,
+                )
             }
             Term::ReportedError(range) => self.synth_reported_error(*range),
         }

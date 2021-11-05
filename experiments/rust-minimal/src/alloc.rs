@@ -43,6 +43,19 @@ impl<'a, Elem> SliceBuilder<'a, Elem> {
         self.elems[self.next_index] = MaybeUninit::new(elem);
         self.next_index += 1;
     }
+
+    /// Returns a slice of the currently initialized elements.
+    pub fn as_slice(&'a self) -> &'a [Elem] {
+        // SAFETY: This is safe because we know that `self.elems[..self.next_index]`
+        // only ever contains elements initialized with `MaybeUninit::new`.
+        // We know this because:
+        //
+        // - `self.next_index` is always initialized to `0` in `SliceBuilder::new`
+        // - `self.next_index` is only incremented in `SliceBuilder::push`,
+        //    and in that case we make sure `self.elems[self.next_index]`
+        //    has been initialized before hand.
+        unsafe { slice_assume_init_ref(&self.elems[..self.next_index]) }
+    }
 }
 
 impl<'a, Elem> Into<&'a [Elem]> for SliceBuilder<'a, Elem> {
@@ -59,34 +72,12 @@ impl<'a, Elem> Into<&'a [Elem]> for SliceBuilder<'a, Elem> {
     }
 }
 
-impl<'a, Elem> Into<&'a mut [Elem]> for SliceBuilder<'a, Elem> {
-    fn into(self) -> &'a mut [Elem] {
-        // SAFETY: This is safe because we know that `self.elems[..self.next_index]`
-        // only ever contains elements initialized with `MaybeUninit::new`.
-        // We know this because:
-        //
-        // - `self.next_index` is always initialized to `0` in `SliceBuilder::new`
-        // - `self.next_index` is only incremented in `SliceBuilder::push`,
-        //    and in that case we make sure `self.elems[self.next_index]`
-        //    has been initialized before hand.
-        unsafe { slice_assume_init_mut(&mut self.elems[..self.next_index]) }
-    }
-}
-
 // NOTE: This is the same implementation as `MaybeUninit::slice_assume_init_ref`,
 // which is currently unstable (see https://github.com/rust-lang/rust/issues/63569).
-pub unsafe fn slice_assume_init_ref<T>(slice: &[MaybeUninit<T>]) -> &[T] {
+pub unsafe fn slice_assume_init_ref<'a, T>(slice: &'a [MaybeUninit<T>]) -> &'a [T] {
     // SAFETY: casting slice to a `*const [T]` is safe since the caller guarantees that
     // `slice` is initialized, and`MaybeUninit` is guaranteed to have the same layout as `T`.
     // The pointer obtained is valid since it refers to memory owned by `slice` which is a
     // reference and thus guaranteed to be valid for reads.
     &*(slice as *const [MaybeUninit<T>] as *const [T])
-}
-
-// NOTE: This is the same implementation as `MaybeUninit::slice_assume_init_mut`,
-// which is currently unstable (see https://github.com/rust-lang/rust/issues/63569).
-pub unsafe fn slice_assume_init_mut<T>(slice: &mut [MaybeUninit<T>]) -> &mut [T] {
-    // SAFETY: similar to safety notes for `slice_get_ref`, but we have a
-    // mutable reference which is also guaranteed to be valid for writes.
-    &mut *(slice as *mut [MaybeUninit<T>] as *mut [T])
 }

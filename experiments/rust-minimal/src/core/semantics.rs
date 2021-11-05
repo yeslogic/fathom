@@ -574,7 +574,7 @@ impl<'in_arena, 'out_arena, 'env> QuoteContext<'in_arena, 'out_arena, 'env> {
     fn quote_telescope(
         &mut self,
         telescope: &Telescope<'in_arena>,
-    ) -> &'out_arena mut [Term<'out_arena>] {
+    ) -> &'out_arena [Term<'out_arena>] {
         let initial_rigid_len = self.rigid_exprs;
         let mut telescope = telescope.clone();
         let mut terms = SliceBuilder::new(self.scope, telescope.len());
