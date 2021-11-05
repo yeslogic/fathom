@@ -1,4 +1,12 @@
 use std::mem::MaybeUninit;
+use std::ops::Deref;
+
+// TODO: investigate if this could be replaced with an existing crate. For example:
+//
+// - https://lib.rs/crates/slicevec
+// - https://lib.rs/crates/fixed-slice-vec
+//
+// Our requirements around drop-glue might be an issue.
 
 /// A helpful type for allocating elements to a slice up to a maximum length.
 /// This can be helpful if we have initialization code that might be difficult
@@ -6,20 +14,20 @@ use std::mem::MaybeUninit;
 ///
 /// - when pushing to multiple slices at once
 /// - when element initialization code has the possibility of failure
-pub struct SliceBuilder<'a, Elem> {
+pub struct SliceVec<'a, Elem> {
     next_index: usize,
     // SAFETY: The slice `self.elems[..self.next_index]` should only ever
     //         contain elements initialized with `MaybeUninit::new`.
     elems: &'a mut [MaybeUninit<Elem>],
 }
 
-impl<'a, Elem> SliceBuilder<'a, Elem> {
+impl<'a, Elem> SliceVec<'a, Elem> {
     /// Allocates a new slice builder to the scope.
     ///
     /// # Panics
     ///
     /// If the type has drop-glue to be executed.
-    pub fn new(scope: &'a scoped_arena::Scope<'a>, max_len: usize) -> SliceBuilder<'a, Elem> {
+    pub fn new(scope: &'a scoped_arena::Scope<'a>, max_len: usize) -> SliceVec<'a, Elem> {
         // NOTE: Ensure that that the element type does not have any drop glue.
         //       This would be problematic as we have no way of registering the
         //       drop glue of `Elem` with `scoped_arena::Scope`.
@@ -27,7 +35,7 @@ impl<'a, Elem> SliceBuilder<'a, Elem> {
 
         let elems = std::iter::repeat_with(MaybeUninit::uninit).take(max_len);
 
-        SliceBuilder {
+        SliceVec {
             next_index: 0,
             elems: scope.to_scope_from_iter(elems),
         }
@@ -43,9 +51,12 @@ impl<'a, Elem> SliceBuilder<'a, Elem> {
         self.elems[self.next_index] = MaybeUninit::new(elem);
         self.next_index += 1;
     }
+}
 
-    /// Returns a slice of the currently initialized elements.
-    pub fn as_slice(&'a self) -> &'a [Elem] {
+impl<'a, Elem> Deref for SliceVec<'a, Elem> {
+    type Target = [Elem];
+
+    fn deref(&self) -> &[Elem] {
         // SAFETY: This is safe because we know that `self.elems[..self.next_index]`
         // only ever contains elements initialized with `MaybeUninit::new`.
         // We know this because:
@@ -58,7 +69,7 @@ impl<'a, Elem> SliceBuilder<'a, Elem> {
     }
 }
 
-impl<'a, Elem> Into<&'a [Elem]> for SliceBuilder<'a, Elem> {
+impl<'a, Elem> Into<&'a [Elem]> for SliceVec<'a, Elem> {
     fn into(self) -> &'a [Elem] {
         // SAFETY: This is safe because we know that `self.elems[..self.next_index]`
         // only ever contains elements initialized with `MaybeUninit::new`.

@@ -5,7 +5,7 @@ use std::cell::RefCell;
 use std::str::FromStr;
 use std::sync::Arc;
 
-use crate::alloc::SliceBuilder;
+use crate::alloc::SliceVec;
 use crate::core::semantics::{self, ArcValue, Closure, Head, Telescope, Value};
 use crate::core::{self, binary, Const, Prim};
 use crate::env::{self, EnvLen, GlobalVar, SharedEnv, UniqueEnv};
@@ -364,13 +364,13 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         &'arena [StringId],
         impl Iterator<Item = &'fields ((ByteRange, StringId), Term<'a, ByteRange>)>,
     ) {
-        let mut labels = SliceBuilder::new(self.scope, fields.len());
+        let mut labels = SliceVec::new(self.scope, fields.len());
         // Will only allocate when duplicates are encountered
         let mut duplicate_indices = Vec::new();
         let mut duplicate_labels = Vec::new();
 
         for (index, ((range, label), _)) in fields.iter().enumerate() {
-            if labels.as_slice().contains(label) {
+            if labels.contains(label) {
                 duplicate_indices.push(index);
                 duplicate_labels.push((*range, *label));
             } else {
@@ -505,7 +505,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
 
                 let mut types = types.clone();
                 let mut expr_fields = expr_fields.iter();
-                let mut exprs = SliceBuilder::new(self.scope, types.len());
+                let mut exprs = SliceVec::new(self.scope, types.len());
 
                 while let Some(((_, expr), (r#type, next_types))) = Option::zip(
                     expr_fields.next(),
@@ -782,7 +782,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 let universe = Arc::new(Value::Universe);
                 let initial_rigid_len = self.rigid_env.len();
                 let (labels, type_fields) = self.report_duplicate_labels(*range, type_fields);
-                let mut types = SliceBuilder::new(self.scope, labels.len());
+                let mut types = SliceVec::new(self.scope, labels.len());
 
                 for ((_, label), r#type) in type_fields {
                     let r#type = self.check(r#type, &universe);
@@ -797,8 +797,8 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
             }
             Term::RecordLiteral(range, expr_fields) => {
                 let (labels, expr_fields) = self.report_duplicate_labels(*range, expr_fields);
-                let mut types = SliceBuilder::new(self.scope, labels.len());
-                let mut exprs = SliceBuilder::new(self.scope, labels.len());
+                let mut types = SliceVec::new(self.scope, labels.len());
+                let mut exprs = SliceVec::new(self.scope, labels.len());
 
                 for (_, expr) in expr_fields {
                     let (expr, r#type) = self.synth(expr);
@@ -871,7 +871,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 let format_type = Arc::new(Value::prim(Prim::FormatType, []));
                 let initial_rigid_len = self.rigid_env.len();
                 let (labels, format_fields) = self.report_duplicate_labels(*range, format_fields);
-                let mut formats = SliceBuilder::new(self.scope, labels.len());
+                let mut formats = SliceVec::new(self.scope, labels.len());
 
                 for ((_, label), format) in format_fields {
                     let format = self.check(format, &format_type);

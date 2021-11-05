@@ -18,7 +18,7 @@
 use scoped_arena::Scope;
 use std::sync::Arc;
 
-use crate::alloc::SliceBuilder;
+use crate::alloc::SliceVec;
 use crate::core::semantics::{self, ArcValue, Closure, Elim, Head, Telescope, Value};
 use crate::core::{Prim, Term};
 use crate::env::{EnvLen, GlobalVar, LocalVar, SharedEnv, SliceEnv, UniqueEnv};
@@ -482,7 +482,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
             }
             Value::RecordIntro(labels, exprs) => {
                 let labels = self.scope.to_scope(labels); // FIXME: avoid copy if this is the same arena?
-                let mut new_exprs = SliceBuilder::new(self.scope, exprs.len());
+                let mut new_exprs = SliceVec::new(self.scope, exprs.len());
                 for expr in exprs {
                     new_exprs.push(self.rename(flexible_var, expr)?);
                 }
@@ -490,7 +490,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
                 Ok(Term::RecordIntro(labels, new_exprs.into()))
             }
             Value::ArrayIntro(elem_exprs) => {
-                let mut new_elem_exprs = SliceBuilder::new(self.scope, elem_exprs.len());
+                let mut new_elem_exprs = SliceVec::new(self.scope, elem_exprs.len());
                 for elem_expr in elem_exprs {
                     new_elem_exprs.push(self.rename(flexible_var, elem_expr)?);
                 }
@@ -531,7 +531,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
     ) -> Result<&'arena [Term<'arena>]> {
         let initial_rigid_len = self.rigid_exprs;
         let mut telescope = telescope.clone();
-        let mut terms = SliceBuilder::new(self.scope, telescope.len());
+        let mut terms = SliceVec::new(self.scope, telescope.len());
 
         while let Some((value, next_telescope)) = self.elim_context().split_telescope(telescope) {
             match self.rename(flexible_var, &value) {
