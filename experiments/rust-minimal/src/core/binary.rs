@@ -1,77 +1,57 @@
 //! Binary semantics of the data description language
 
-use std::convert::TryInto;
+use std::io::{self, Read};
 use std::sync::Arc;
 
 use crate::core::semantics::{self, ArcValue, Head, Value};
-use crate::core::{Const, Prim, Term};
-use crate::env::{SharedEnv, SliceEnv};
+use crate::core::{Const, Prim};
+use crate::env::SliceEnv;
 
 pub struct Context<'arena, 'env> {
-    rigid_exprs: &'env mut SharedEnv<ArcValue<'arena>>,
     flexible_exprs: &'env SliceEnv<Option<ArcValue<'arena>>>,
 }
 
 impl<'arena, 'env> Context<'arena, 'env> {
-    pub fn new(
-        rigid_exprs: &'env mut SharedEnv<ArcValue<'arena>>,
-        flexible_exprs: &'env SliceEnv<Option<ArcValue<'arena>>>,
-    ) -> Context<'arena, 'env> {
-        Context {
-            rigid_exprs,
-            flexible_exprs,
-        }
+    pub fn new(flexible_exprs: &'env SliceEnv<Option<ArcValue<'arena>>>) -> Context<'arena, 'env> {
+        Context { flexible_exprs }
     }
 
-    fn eval_context(&mut self) -> semantics::EvalContext<'arena, '_> {
-        semantics::EvalContext::new(self.rigid_exprs, self.flexible_exprs)
-    }
-
-    fn elim_context(&mut self) -> semantics::ElimContext<'arena, '_> {
+    fn elim_context(&self) -> semantics::ElimContext<'arena, '_> {
         semantics::ElimContext::new(self.flexible_exprs)
     }
 
-    pub fn read<'bytes>(
-        &mut self,
-        format: &Term<'arena>,
-        bytes: &'bytes [u8],
-    ) -> Option<(ArcValue<'arena>, &'bytes [u8])> {
-        let format = self.eval_context().eval(format);
-        self.read_value(&format, bytes)
-    }
-
-    fn read_value<'bytes>(
-        &mut self,
+    pub fn read(
+        &self,
+        reader: &mut dyn Read,
         format: &ArcValue<'arena>,
-        mut bytes: &'bytes [u8],
-    ) -> Option<(ArcValue<'arena>, &'bytes [u8])> {
+    ) -> io::Result<ArcValue<'arena>> {
         use crate::core::semantics::Elim::Fun;
 
         match self.elim_context().force(format).as_ref() {
             Value::Stuck(Head::Prim(prim), slice) => match (*prim, &slice[..]) {
-                (Prim::FormatU8, []) => read_const(Const::U8, read_u8, bytes),
-                (Prim::FormatU16Be, []) => read_const(Const::U16, read_u16be, bytes),
-                (Prim::FormatU16Le, []) => read_const(Const::U16, read_u16le, bytes),
-                (Prim::FormatU32Be, []) => read_const(Const::U32, read_u32be, bytes),
-                (Prim::FormatU32Le, []) => read_const(Const::U32, read_u32le, bytes),
-                (Prim::FormatU64Be, []) => read_const(Const::U64, read_u64be, bytes),
-                (Prim::FormatU64Le, []) => read_const(Const::U64, read_u64le, bytes),
-                (Prim::FormatS8, []) => read_const(Const::S8, read_s8, bytes),
-                (Prim::FormatS16Be, []) => read_const(Const::S16, read_s16be, bytes),
-                (Prim::FormatS16Le, []) => read_const(Const::S16, read_s16le, bytes),
-                (Prim::FormatS32Be, []) => read_const(Const::S32, read_s32be, bytes),
-                (Prim::FormatS32Le, []) => read_const(Const::S32, read_s32le, bytes),
-                (Prim::FormatS64Be, []) => read_const(Const::S64, read_s64be, bytes),
-                (Prim::FormatS64Le, []) => read_const(Const::S64, read_s64le, bytes),
-                (Prim::FormatF32Be, []) => read_const(Const::F32, read_f32be, bytes),
-                (Prim::FormatF32Le, []) => read_const(Const::F32, read_f32le, bytes),
-                (Prim::FormatF64Be, []) => read_const(Const::F64, read_f64be, bytes),
-                (Prim::FormatF64Le, []) => read_const(Const::F64, read_f64le, bytes),
-                (Prim::FormatArray8, [Fun(len), Fun(elem)]) => self.read_array(len, elem, bytes),
-                (Prim::FormatArray16, [Fun(len), Fun(elem)]) => self.read_array(len, elem, bytes),
-                (Prim::FormatArray32, [Fun(len), Fun(elem)]) => self.read_array(len, elem, bytes),
-                (Prim::FormatArray64, [Fun(len), Fun(elem)]) => self.read_array(len, elem, bytes),
-                _ => None,
+                (Prim::FormatU8, []) => read_const(reader, Const::U8, read_u8),
+                (Prim::FormatU16Be, []) => read_const(reader, Const::U16, read_u16be),
+                (Prim::FormatU16Le, []) => read_const(reader, Const::U16, read_u16le),
+                (Prim::FormatU32Be, []) => read_const(reader, Const::U32, read_u32be),
+                (Prim::FormatU32Le, []) => read_const(reader, Const::U32, read_u32le),
+                (Prim::FormatU64Be, []) => read_const(reader, Const::U64, read_u64be),
+                (Prim::FormatU64Le, []) => read_const(reader, Const::U64, read_u64le),
+                (Prim::FormatS8, []) => read_const(reader, Const::S8, read_s8),
+                (Prim::FormatS16Be, []) => read_const(reader, Const::S16, read_s16be),
+                (Prim::FormatS16Le, []) => read_const(reader, Const::S16, read_s16le),
+                (Prim::FormatS32Be, []) => read_const(reader, Const::S32, read_s32be),
+                (Prim::FormatS32Le, []) => read_const(reader, Const::S32, read_s32le),
+                (Prim::FormatS64Be, []) => read_const(reader, Const::S64, read_s64be),
+                (Prim::FormatS64Le, []) => read_const(reader, Const::S64, read_s64le),
+                (Prim::FormatF32Be, []) => read_const(reader, Const::F32, read_f32be),
+                (Prim::FormatF32Le, []) => read_const(reader, Const::F32, read_f32le),
+                (Prim::FormatF64Be, []) => read_const(reader, Const::F64, read_f64be),
+                (Prim::FormatF64Le, []) => read_const(reader, Const::F64, read_f64le),
+                (Prim::FormatArray8, [Fun(len), Fun(elem)]) => self.read_array(reader, len, elem),
+                (Prim::FormatArray16, [Fun(len), Fun(elem)]) => self.read_array(reader, len, elem),
+                (Prim::FormatArray32, [Fun(len), Fun(elem)]) => self.read_array(reader, len, elem),
+                (Prim::FormatArray64, [Fun(len), Fun(elem)]) => self.read_array(reader, len, elem),
+                _ => return Err(io::Error::new(io::ErrorKind::Other, "invalid format")),
             },
             Value::FormatRecord(labels, formats) => {
                 let mut formats = formats.clone();
@@ -80,13 +60,12 @@ impl<'arena, 'env> Context<'arena, 'env> {
                 while let Some((format, next_formats)) =
                     self.elim_context().split_telescope(formats)
                 {
-                    let (expr, next_bytes) = self.read_value(&format, bytes)?;
+                    let expr = self.read(reader, &format)?;
                     exprs.push(expr.clone());
-                    bytes = next_bytes;
                     formats = next_formats(expr);
                 }
 
-                Some((Arc::new(Value::RecordIntro(labels, exprs)), bytes))
+                Ok(Arc::new(Value::RecordIntro(labels, exprs)))
             }
 
             Value::Stuck(Head::RigidVar(_), _)
@@ -97,62 +76,66 @@ impl<'arena, 'env> Context<'arena, 'env> {
             | Value::RecordType(_, _)
             | Value::RecordIntro(_, _)
             | Value::ArrayIntro(_)
-            | Value::Const(_) => None,
+            | Value::Const(_) => {
+                return Err(io::Error::new(io::ErrorKind::Other, "invalid format"))
+            }
         }
     }
 
-    fn read_array<'bytes>(
-        &mut self,
+    fn read_array(
+        &self,
+        reader: &mut dyn Read,
         len: &ArcValue<'arena>,
         elem_format: &ArcValue<'arena>,
-        mut bytes: &'bytes [u8],
-    ) -> Option<(ArcValue<'arena>, &'bytes [u8])> {
+    ) -> io::Result<ArcValue<'arena>> {
         let (len, mut elem_exprs) = match self.elim_context().force(len).as_ref() {
             Value::Const(Const::U8(len)) => (*len as u64, Vec::with_capacity(*len as usize)),
             Value::Const(Const::U16(len)) => (*len as u64, Vec::with_capacity(*len as usize)),
             Value::Const(Const::U32(len)) => (*len as u64, Vec::with_capacity(*len as usize)),
             Value::Const(Const::U64(len)) => (*len as u64, Vec::with_capacity(*len as usize)),
-            _ => return None,
+            _ => return Err(io::Error::new(io::ErrorKind::Other, "invalid array length")),
         };
 
         for _ in 0..len {
-            let (expr, next_bytes) = self.read_value(elem_format, bytes)?;
+            let expr = self.read(reader, elem_format)?;
             elem_exprs.push(expr);
-            bytes = next_bytes;
         }
 
-        Some((Arc::new(Value::ArrayIntro(elem_exprs)), bytes))
+        Ok(Arc::new(Value::ArrayIntro(elem_exprs)))
     }
 }
 
-fn read_const<'arena, 'bytes, T>(
+fn read_const<'arena, T>(
+    reader: &mut dyn Read,
     wrap_const: fn(T) -> Const,
-    read: for<'b> fn(&'b [u8]) -> Option<(T, &'b [u8])>,
-    bytes: &'bytes [u8],
-) -> Option<(ArcValue<'arena>, &'bytes [u8])> {
-    let (data, bytes) = read(bytes)?;
-    Some((Arc::new(Value::Const(wrap_const(data))), bytes))
+    read: fn(&mut dyn Read) -> io::Result<T>,
+) -> io::Result<ArcValue<'arena>> {
+    let data = read(reader)?;
+    Ok(Arc::new(Value::Const(wrap_const(data))))
 }
 
-fn read_u8(bytes: &[u8]) -> Option<(u8, &[u8])> {
-    bytes.split_first().map(|(b0, bytes)| (*b0, bytes))
+fn read_u8(reader: &mut dyn Read) -> io::Result<u8> {
+    let [byte] = read_array(reader)?;
+    Ok(byte)
 }
 
-fn read_s8(bytes: &[u8]) -> Option<(i8, &[u8])> {
-    bytes.split_first().map(|(b0, bytes)| (*b0 as i8, bytes))
+fn read_s8(reader: &mut dyn Read) -> io::Result<i8> {
+    let [byte] = read_array(reader)?;
+    Ok(byte as i8)
 }
 
-fn split_array<const N: usize>(bytes: &[u8]) -> Option<([u8; N], &[u8])> {
-    let (left, right) = bytes.split_at(N);
-    Some((left.try_into().ok()?, right))
+fn read_array<const N: usize>(reader: &mut dyn Read) -> io::Result<[u8; N]> {
+    let mut buf = [0; N];
+    reader.read_exact(&mut buf)?;
+    Ok(buf)
 }
 
 /// Generates a function that reads a multi-byte primitive.
 macro_rules! read_multibyte_prim {
     ($read_multibyte_prim:ident, $from_bytes:ident, $T:ident) => {
-        fn $read_multibyte_prim(bytes: &[u8]) -> Option<($T, &[u8])> {
-            let (data, bytes) = split_array(bytes)?;
-            Some(($T::$from_bytes(data), bytes))
+        fn $read_multibyte_prim(reader: &mut dyn Read) -> io::Result<$T> {
+            let data = read_array(reader)?;
+            Ok($T::$from_bytes(data))
         }
     };
 }
