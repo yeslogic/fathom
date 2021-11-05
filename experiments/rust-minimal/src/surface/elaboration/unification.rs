@@ -148,7 +148,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
         }
     }
 
-    fn elim_context<'this: 'env>(&'this self) -> semantics::ElimContext<'arena, 'env> {
+    fn elim_context(&self) -> semantics::ElimContext<'arena, '_> {
         semantics::ElimContext::new(self.flexible_exprs)
     }
 
