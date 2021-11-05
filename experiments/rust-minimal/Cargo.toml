@@ -29,6 +29,7 @@ termsize = "0.1.6"
 lalrpop = "0.19.5"
 
 [dev-dependencies]
+globwalk = "0.8"
 itertools = "0.10.1"
 libtest-mimic = "0.3.0"
 serde = { version = "1.0", features = ["derive"] }

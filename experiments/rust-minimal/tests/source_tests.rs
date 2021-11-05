@@ -27,14 +27,17 @@ struct Config {
     ignore: bool,
     #[serde(default = "DEFAULT_EXIT_CODE")]
     exit_code: i32,
+    #[serde(default = "DEFAULT_EXAMPLE_DATA")]
+    example_data: Vec<String>,
 }
 
 const DEFAULT_IGNORE: fn() -> bool = || false;
 const DEFAULT_EXIT_CODE: fn() -> i32 = || 0;
+const DEFAULT_EXAMPLE_DATA: fn() -> Vec<String> = || Vec::new();
 
 struct TestFailure {
     name: &'static str,
-    details: Vec<(String, String)>,
+    details: Vec<(&'static str, String)>,
 }
 
 /// Recursively walk over test files under a file path.
@@ -81,7 +84,7 @@ fn run_test_impl(test: &libtest_mimic::Test<TestData>) -> libtest_mimic::Outcome
             Err(error) => {
                 failures.push(TestFailure {
                     name: "config parse error",
-                    details: vec![("toml::de::Error".to_owned(), error.to_string())],
+                    details: vec![("toml::de::Error", error.to_string())],
                 });
 
                 return failures_to_outcome(&failures);
@@ -93,42 +96,90 @@ fn run_test_impl(test: &libtest_mimic::Test<TestData>) -> libtest_mimic::Outcome
         return libtest_mimic::Outcome::Ignored;
     }
 
-    let output = Command::new(env!("CARGO_BIN_EXE_fathom-minimal"))
-        .arg("elab")
-        .args(["--term", test.data.input_file.to_string_lossy().as_ref()])
-        .output();
+    let mut command = Command::new(env!("CARGO_BIN_EXE_fathom-minimal"));
+    command.arg("elab");
+    command.args(["--term", test.data.input_file.to_string_lossy().as_ref()]);
 
-    let output = match output {
-        Ok(output) => output,
+    match command.output() {
+        Ok(output) => {
+            if output.status.code() != Some(config.exit_code) {
+                let mut details = Vec::new();
+
+                // TODO: Improve output
+                details.push(("command", format!("{:?}", command)));
+
+                if output.status.code() != Some(config.exit_code) {
+                    details.push(("status", output.status.to_string()));
+                }
+                if !output.stdout.is_empty() {
+                    let data = String::from_utf8_lossy(&output.stdout).into();
+                    details.push(("stdout", data));
+                }
+                if !output.stderr.is_empty() {
+                    let data = String::from_utf8_lossy(&output.stderr).into();
+                    details.push(("stderr", data));
+                }
+
+                failures.push(TestFailure {
+                    name: "unexpected command output",
+                    details,
+                });
+            }
+        }
         Err(error) => {
             failures.push(TestFailure {
                 name: "unexpected command error",
-                details: vec![("std::io::Error".to_owned(), error.to_string())],
+                details: vec![("std::io::Error", error.to_string())],
             });
-
-            return failures_to_outcome(&failures);
         }
-    };
+    }
 
-    if output.status.code() != Some(config.exit_code) {
-        let mut details = Vec::new();
+    let base_dir = test.data.input_file.with_file_name("");
+    let example_data = globwalk::GlobWalkerBuilder::from_patterns(&base_dir, &config.example_data)
+        .build()
+        .unwrap();
 
-        if output.status.code() != Some(config.exit_code) {
-            details.push(("status".to_owned(), output.status.to_string()));
-        }
-        if !output.stdout.is_empty() {
-            let data = String::from_utf8_lossy(&output.stdout).into();
-            details.push(("stdout".to_owned(), data));
-        }
-        if !output.stderr.is_empty() {
-            let data = String::from_utf8_lossy(&output.stderr).into();
-            details.push(("stderr".to_owned(), data));
-        }
+    for example_file in example_data.filter_map(Result::ok) {
+        let mut command = Command::new(env!("CARGO_BIN_EXE_fathom-minimal"));
+        command.arg("data");
+        command.args(["--format", test.data.input_file.to_string_lossy().as_ref()]);
+        command.arg(example_file.path());
 
-        failures.push(TestFailure {
-            name: "unexpected command output",
-            details,
-        });
+        match command.output() {
+            Ok(output) => {
+                if output.status.code() != Some(0) {
+                    let mut details = Vec::new();
+
+                    // TODO: Improve output
+                    details.push(("command", format!("{:?}", command)));
+
+                    if output.status.code() != Some(0) {
+                        details.push(("status", output.status.to_string()));
+                    }
+                    if !output.stdout.is_empty() {
+                        let data = String::from_utf8_lossy(&output.stdout).into();
+                        details.push(("stdout", data));
+                    }
+                    if !output.stderr.is_empty() {
+                        let data = String::from_utf8_lossy(&output.stderr).into();
+                        details.push(("stderr", data));
+                    }
+
+                    failures.push(TestFailure {
+                        name: "unexpected command output",
+                        details,
+                    });
+                }
+            }
+            Err(error) => {
+                failures.push(TestFailure {
+                    name: "unexpected command error",
+                    details: vec![("std::io::Error", error.to_string())],
+                });
+
+                return failures_to_outcome(&failures);
+            }
+        };
     }
 
     failures_to_outcome(&failures)
