@@ -7,7 +7,7 @@ use std::sync::Arc;
 
 use crate::alloc::SliceBuilder;
 use crate::core::semantics::{self, ArcValue, Closure, Head, Telescope, Value};
-use crate::core::{self, Const, Prim};
+use crate::core::{self, binary, Const, Prim};
 use crate::env::{self, EnvLen, GlobalVar, SharedEnv, UniqueEnv};
 use crate::source::ByteRange;
 use crate::surface::elaboration::reporting::Message;
@@ -348,6 +348,10 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         scope: &'out_arena Scope<'out_arena>,
     ) -> distillation::Context<'interner, 'out_arena, '_> {
         distillation::Context::new(self.interner, scope, &mut self.rigid_env.names)
+    }
+
+    pub fn binary_context(&self) -> binary::Context<'arena, '_> {
+        binary::Context::new(&self.flexible_env.exprs)
     }
 
     /// Reports an error if there are duplicate fields found, returning an

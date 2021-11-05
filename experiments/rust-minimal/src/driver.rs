@@ -231,6 +231,45 @@ impl<'surface, 'core> Driver<'surface, 'core> {
         Status::Ok
     }
 
+    pub fn read_format(&mut self, file_id: FileId, reader: &mut dyn Read) -> Status {
+        use std::sync::Arc;
+
+        use crate::core::semantics::Value;
+        use crate::core::Prim;
+
+        let surface_term = self.parse_term(file_id);
+
+        let mut context = elaboration::Context::new(&self.interner, &self.core_scope);
+        let format = context.check(&surface_term, &Arc::new(Value::prim(Prim::FormatType, [])));
+
+        let diagnostics = context
+            .drain_messages()
+            .map(|message| message.to_diagnostic(&self.interner, file_id));
+
+        if !(self.emit_diagnostics(diagnostics) || self.allow_errors) {
+            return Status::Error;
+        }
+
+        let format = context.eval_context().eval(&format);
+        let data = context.binary_context().read(reader, &format).unwrap(); // TODO: render nicer errors
+        let data = context.quote_context(&self.core_scope).quote(&data);
+
+        self.surface_scope.reset(); // Reuse the surface scope for distillation
+        let mut context = context.distillation_context(&self.surface_scope);
+        let data = context.check(&data);
+
+        let context = surface::pretty::Context::new(&self.interner, &self.surface_scope);
+        let doc = context.term(&data).into_doc();
+
+        let mut emit_writer = self.emit_writer.borrow_mut();
+        writeln!(emit_writer, "{}", doc.pretty(self.emit_width)).unwrap();
+        emit_writer.flush().unwrap();
+
+        self.surface_scope.reset(); // Reuse the surface scope for distillation
+
+        Status::Ok
+    }
+
     fn parse_term(&'surface self, file_id: FileId) -> surface::Term<'surface, ByteRange> {
         // TODO: render diagnostics
         let term_source = self.files.get(file_id).unwrap().source();
