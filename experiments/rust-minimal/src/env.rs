@@ -2,8 +2,13 @@
 //!
 //! # Variables
 //!
-//! Nameless variables are used, which makes alpha equivalence and variable
-//! lookup faster.
+//! Nameless variables are used to avoid the expense of keeping track of name
+//! substitutions during evaluation and conversion checking. We use a
+//! combination of [de Bruijn indices][LocalVar] in terms and [de Bruijn
+//! levels][GlobalVar] in values in order to avoid the expensive and error-prone
+//! shifting operations that are often associated with nameless approaches to
+//! environments. For mor information on this approach, see section 3.1 of
+//! [Abel's habilitation thesis](https://www.cse.chalmers.se/~abela/habil.pdf).
 //!
 //! # Environments
 //!
@@ -17,23 +22,23 @@ use std::fmt;
 /// Underlying variable representation.
 type RawVar = u16;
 
-/// A [de Bruijn index] in the current environment.
-///
-/// De Bruijn indices describe an occurrence of a variable in terms of the
-/// number of binders between the occurrence and its associated binder.
-/// For example:
+/// A [de Bruijn index], which represents a variable counting the number of
+/// binders between a variable occurrence and its associated binder. For
+/// example:
 ///
 /// | Representation    | Example (S combinator)  |
 /// | ----------------- | ----------------------- |
 /// | Named             | `λx. λy. λz. x z (y z)` |
-/// | De Bruijn indices | `λ_. λ_. λ_. 2 0 (1 0)` |
+/// | de Bruijn indices | `λ_. λ_. λ_. 2 0 (1 0)` |
 ///
 /// This is a helpful representation because it allows us to easily compare
-/// terms for equivalence based on their binding structure without maintaining a
-/// list of name substitutions. For example we want `λx. x` to be the same as
-/// `λy. y`. With de Bruijn indices these would both be described as `λ 0`.
+/// terms for [alpha-equivalence] based on their binding structure without
+/// maintaining a list of name substitutions. For example we want `λx. x` to be
+/// the same as `λy. y`. With de Bruijn indices these would both be described as
+/// `λ 0`.
 ///
 /// [de Bruijn index]: https://en.wikipedia.org/wiki/De_Bruijn_index
+/// [alpha-equivalence]: https://ncatlab.org/nlab/show/alpha-equivalence
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct LocalVar(RawVar);
 
@@ -62,24 +67,19 @@ pub fn local_vars() -> impl Iterator<Item = LocalVar> {
     (0..).map(LocalVar)
 }
 
-/// A de Bruijn level in the current environment.
-///
-/// This describes an occurrence of a variable by counting the binders inwards
-/// from the top of the term until the occurrence is reached. For example:
+/// A de Bruijn level, which represents a variable by counting the number of
+/// binders between the variable's associated binder and the start of the
+/// environment. For example:
 ///
 /// | Representation    | Example (S combinator)  |
 /// | ----------------- | ----------------------- |
 /// | Named             | `λx. λy. λz. x z (y z)` |
-/// | De Bruijn levels  | `λ_. λ_. λ_. 0 2 (1 2)` |
+/// | de Bruijn levels  | `λ_. λ_. λ_. 0 2 (1 2)` |
 ///
 /// Levels are used in [values][crate::core::semantics::Value] because they
-/// are not context- dependent (this is in contrast to [indices][LocalVar]).
+/// are not tied to a specific binding depth, unlike [indices][LocalVar].
 /// Because of this, we're able to sidestep the need for expensive variable
-/// shifting in the semantics. More information can be found in Soham
-/// Chowdhury's blog post, “[Real-world type theory I: untyped normalisation by
-/// evaluation for λ-calculus][untyped-nbe-for-lc]”.
-///
-/// [untyped-nbe-for-lc]: https://colimit.net/posts/normalisation-by-evaluation/
+/// shifting during [normalisation][crate::core::semantics::EvalContext::normalise].
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct GlobalVar(RawVar);
 
