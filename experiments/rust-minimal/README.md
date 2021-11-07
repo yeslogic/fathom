@@ -133,7 +133,13 @@ _elab.context_ ::=\
     - [x] numeric formats
     - [x] array formats
   - [ ] type refinements
-  - [ ] pattern matching
+  - [ ] match expressions
+  - [ ] patterns
+    - [x] wildcard patterns
+    - [x] named patterns
+    - [ ] annotated patterns
+    - [ ] numeric literal patterns
+    - [ ] record literal patterns
   - [ ] invertible format descriptions
 - implementation
   - [x] command line interface

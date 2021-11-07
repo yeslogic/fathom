@@ -11,7 +11,7 @@ use crate::core::{self, binary, Const, Prim};
 use crate::env::{self, EnvLen, GlobalVar, SharedEnv, UniqueEnv};
 use crate::source::ByteRange;
 use crate::surface::elaboration::reporting::Message;
-use crate::surface::{distillation, Term};
+use crate::surface::{distillation, Pattern, Term};
 use crate::{StringId, StringInterner};
 
 mod reporting;
@@ -188,8 +188,12 @@ pub enum FlexSource {
     PlaceholderType(ByteRange),
     /// The expression of a placeholder
     PlaceholderExpr(ByteRange),
+    /// The type of a placholder pattern.
+    PlaceholderPatternType(ByteRange),
+    /// The type of a named pattern.
+    NamedPatternType(ByteRange, StringId),
     /// The input type of a function.
-    FunInputType(ByteRange, Option<StringId>),
+    FunInputType(ByteRange),
     /// The output type of a function.
     FunOutputType(ByteRange),
     /// The type of a reported error.
@@ -442,6 +446,116 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         }
     }
 
+    /// Check pattern that a pattern matches an expected type, and add its
+    /// binding to the context.
+    ///
+    /// Returns a tuple containing:
+    ///
+    /// - the name of the bound variable
+    /// - an expression that refers to the bound variable
+    fn check_param_pattern(
+        &mut self,
+        pattern: &Pattern<ByteRange>,
+        r#type: &ArcValue<'arena>,
+    ) -> (Option<StringId>, ArcValue<'arena>) {
+        match pattern {
+            Pattern::Placeholder(_) => {
+                let expr = self.rigid_env.push_param(None, r#type.clone());
+                (None, expr)
+            }
+            Pattern::Name(_, name) => {
+                let expr = self.rigid_env.push_param(Some(*name), r#type.clone());
+                (Some(*name), expr)
+            }
+        }
+    }
+
+    /// Synthesize the type of a pattern and add its binding to the context.
+    ///
+    /// Returns a tuple containing:
+    ///
+    /// - the name of the bound variable
+    /// - an expression that refers to the bound variable
+    /// - the type of the bound variable
+    fn synth_param_pattern(
+        &mut self,
+        pattern: &Pattern<ByteRange>,
+    ) -> (Option<StringId>, ArcValue<'arena>, ArcValue<'arena>) {
+        match pattern {
+            Pattern::Placeholder(range) => {
+                let source = FlexSource::PlaceholderPatternType(*range);
+                let r#type = self.push_flexible_value(source, Arc::new(Value::Universe));
+                let expr = self.rigid_env.push_param(None, r#type.clone());
+                (None, expr, r#type)
+            }
+            Pattern::Name(range, name) => {
+                let source = FlexSource::NamedPatternType(*range, *name);
+                let r#type = self.push_flexible_value(source, Arc::new(Value::Universe));
+                let expr = self.rigid_env.push_param(Some(*name), r#type.clone());
+                (Some(*name), expr, r#type)
+            }
+        }
+    }
+
+    /// Check pattern that a pattern matches an expected type, and add its
+    /// binding to the context.
+    ///
+    /// Returns a tuple containing:
+    ///
+    /// - the name of the bound variable
+    /// - the elaborated definition expression
+    fn check_def_pattern(
+        &mut self,
+        pattern: &Pattern<ByteRange>,
+        surface_expr: &Term<'_, ByteRange>,
+        r#type: &ArcValue<'arena>,
+    ) -> (Option<StringId>, core::Term<'arena>) {
+        match pattern {
+            Pattern::Placeholder(_) => {
+                let expr = self.check(surface_expr, r#type);
+                let expr_value = self.eval_context().eval(&expr);
+                self.rigid_env.push_def(None, expr_value, r#type.clone());
+                (None, expr)
+            }
+            Pattern::Name(_, name) => {
+                let expr = self.check(surface_expr, r#type);
+                let expr_value = self.eval_context().eval(&expr);
+                self.rigid_env
+                    .push_def(Some(*name), expr_value, r#type.clone());
+                (Some(*name), expr)
+            }
+        }
+    }
+
+    /// Synthesize the type of a pattern and add its binding to the context.
+    ///
+    /// Returns a tuple containing:
+    ///
+    /// - the name of the bound variable
+    /// - the elaborated definition expression
+    /// - the type of the bound variable
+    fn synth_def_pattern(
+        &mut self,
+        pattern: &Pattern<ByteRange>,
+        surface_expr: &Term<'_, ByteRange>,
+    ) -> (Option<StringId>, core::Term<'arena>, ArcValue<'arena>) {
+        match pattern {
+            Pattern::Placeholder(_) => {
+                let (expr, r#type) = self.synth(surface_expr);
+                let expr_value = self.eval_context().eval(&expr);
+                self.rigid_env.push_def(None, expr_value, r#type.clone());
+                (None, expr, r#type)
+            }
+            Pattern::Name(_, name) => {
+                let (expr, r#type) = self.synth(surface_expr);
+                let expr_value = self.eval_context().eval(&expr);
+                self.rigid_env
+                    .push_def(Some(*name), expr_value, r#type.clone());
+                (Some(*name), expr, r#type)
+            }
+        }
+    }
+
     /// Check that a surface term conforms to the given type.
     ///
     /// Returns the elaborated term in the core language.
@@ -453,46 +567,45 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         let expected_type = self.elim_context().force(expected_type);
 
         match (surface_term, expected_type.as_ref()) {
-            (Term::Let(_, (_, def_name), def_type, def_expr, output_expr), _) => {
-                let (def_expr, def_type_value) = match def_type {
-                    None => self.synth(def_expr),
+            (Term::Let(_, def_pattern, def_type, def_expr, output_expr), _) => {
+                let (def_name, def_expr, _) = match def_type {
+                    None => self.synth_def_pattern(def_pattern, def_expr),
                     Some(def_type) => {
                         let def_type = self.check(def_type, &Arc::new(Value::Universe)); // FIXME: avoid temporary Arc
                         let def_type_value = self.eval_context().eval(&def_type);
 
-                        let def_expr = self.check(def_expr, &def_type_value);
+                        let (def_name, def_expr) =
+                            self.check_def_pattern(def_pattern, def_expr, &def_type_value);
+
                         let def_expr = core::Term::Ann(
                             self.scope.to_scope(def_expr),
                             self.scope.to_scope(def_type),
                         );
 
-                        (def_expr, def_type_value)
+                        (def_name, def_expr, def_type_value)
                     }
                 };
 
-                let def_expr_value = self.eval_context().eval(&def_expr);
-
-                self.rigid_env
-                    .push_def(*def_name, def_expr_value, def_type_value);
                 let output_expr = self.check(output_expr, &expected_type);
                 self.rigid_env.pop();
 
                 core::Term::Let(
-                    *def_name,
+                    def_name,
                     self.scope.to_scope(def_expr),
                     self.scope.to_scope(output_expr),
                 )
             }
             (
-                Term::FunLiteral(_, (_, input_name), output_expr),
+                Term::FunLiteral(_, input_pattern, output_expr),
                 Value::FunType(_, input_type, output_type),
             ) => {
-                let input_expr = self.rigid_env.push_param(*input_name, input_type.clone());
+                let (input_name, input_expr) = self.check_param_pattern(input_pattern, input_type);
                 let output_type = self.elim_context().apply_closure(output_type, input_expr);
                 let output_expr = self.check(output_expr, &output_type);
+
                 self.rigid_env.pop();
 
-                core::Term::FunIntro(*input_name, self.scope.to_scope(output_expr))
+                core::Term::FunIntro(input_name, self.scope.to_scope(output_expr))
             }
             (Term::RecordLiteral(range, expr_fields), Value::RecordType(labels, types)) => {
                 // TODO: improve handling of duplicate labels
@@ -642,32 +755,30 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
 
                 (ann_expr, type_value)
             }
-            Term::Let(_, (_, def_name), def_type, def_expr, output_expr) => {
-                let (def_expr, def_type_value) = match def_type {
-                    None => self.synth(def_expr),
+            Term::Let(_, def_pattern, def_type, def_expr, output_expr) => {
+                let (def_name, def_expr, _) = match def_type {
+                    None => self.synth_def_pattern(def_pattern, def_expr),
                     Some(def_type) => {
                         let def_type = self.check(def_type, &Arc::new(Value::Universe)); // FIXME: avoid temporary Arc
                         let def_type_value = self.eval_context().eval(&def_type);
 
-                        let def_expr = self.check(def_expr, &def_type_value);
+                        let (def_name, def_expr) =
+                            self.check_def_pattern(def_pattern, def_expr, &def_type_value);
+
                         let def_expr = core::Term::Ann(
                             self.scope.to_scope(def_expr),
                             self.scope.to_scope(def_type),
                         );
 
-                        (def_expr, def_type_value)
+                        (def_name, def_expr, def_type_value)
                     }
                 };
 
-                let def_expr_value = self.eval_context().eval(&def_expr);
-
-                self.rigid_env
-                    .push_def(*def_name, def_expr_value, def_type_value);
                 let (output_expr, output_type) = self.synth(output_expr);
                 self.rigid_env.pop();
 
                 let let_expr = core::Term::Let(
-                    *def_name,
+                    def_name,
                     self.scope.to_scope(def_expr),
                     self.scope.to_scope(output_expr),
                 );
@@ -692,36 +803,33 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
 
                 (fun_type, universe)
             }
-            Term::FunType(_, (_, input_name), input_type, output_type) => {
+            Term::FunType(_, input_pattern, input_type, output_type) => {
                 let universe = Arc::new(Value::Universe); // FIXME: avoid temporary Arc
                 let input_type = self.check(input_type, &universe);
                 let input_type_value = self.eval_context().eval(&input_type);
 
-                self.rigid_env.push_param(*input_name, input_type_value);
+                let (input_name, _) = self.check_param_pattern(input_pattern, &input_type_value);
                 let output_type = self.check(output_type, &universe);
                 self.rigid_env.pop();
 
                 let fun_type = core::Term::FunType(
-                    *input_name,
+                    input_name,
                     self.scope.to_scope(input_type),
                     self.scope.to_scope(output_type),
                 );
 
                 (fun_type, universe)
             }
-            Term::FunLiteral(_, (input_range, input_name), output_expr) => {
-                let input_source = FlexSource::FunInputType(*input_range, *input_name);
-                let input_type = self.push_flexible_value(input_source, Arc::new(Value::Universe));
-
-                self.rigid_env.push_param(*input_name, input_type.clone());
+            Term::FunLiteral(_, input_pattern, output_expr) => {
+                let (input_name, _, input_type) = self.synth_param_pattern(input_pattern);
                 let (output_expr, output_type) = self.synth(output_expr);
                 let output_type = self.quote_context(self.scope).quote(&output_type);
                 self.rigid_env.pop();
 
                 (
-                    core::Term::FunIntro(*input_name, self.scope.to_scope(output_expr)),
+                    core::Term::FunIntro(input_name, self.scope.to_scope(output_expr)),
                     Arc::new(Value::FunType(
-                        *input_name,
+                        input_name,
                         input_type,
                         Closure::new(
                             self.rigid_env.exprs.clone(),
@@ -752,7 +860,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                     _ => {
                         let universe = Arc::new(Value::Universe);
                         // Create a flexible input type
-                        let input_source = FlexSource::FunInputType(head_range, None);
+                        let input_source = FlexSource::FunInputType(head_range);
                         let input_type = self.push_flexible_value(input_source, universe.clone());
 
                         // Create a flexible output type, with the input bound

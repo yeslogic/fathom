@@ -2,7 +2,7 @@ use pretty::{Doc, DocAllocator, DocBuilder, DocPtr, RefDoc};
 use scoped_arena::Scope;
 use std::cell::RefCell;
 
-use crate::surface::Term;
+use crate::surface::{Pattern, Term};
 use crate::{StringId, StringInterner};
 
 /// Term precedences
@@ -43,6 +43,13 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         }
     }
 
+    pub fn pattern<Range>(&'arena self, pattern: &Pattern<Range>) -> DocBuilder<'arena, Self> {
+        match pattern {
+            Pattern::Placeholder(_) => self.text("_"),
+            Pattern::Name(_, name) => self.string_id(*name),
+        }
+    }
+
     pub fn term<Range>(&'arena self, term: &Term<'_, Range>) -> DocBuilder<'arena, Self> {
         self.term_prec(Prec::Top, term)
     }
@@ -71,16 +78,13 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                     self.term_prec(Prec::Top, &r#type),
                 ]),
             ),
-            Term::Let(_, (_, def_name), def_type, def_expr, output_expr) => self.paren(
+            Term::Let(_, def_pattern, def_type, def_expr, output_expr) => self.paren(
                 prec > Prec::Let,
                 self.concat([
                     self.concat([
                         self.text("let"),
                         self.space(),
-                        match def_name {
-                            Some(def_name) => self.string_id(*def_name),
-                            None => self.text("_"),
-                        },
+                        self.pattern(def_pattern),
                         self.space(),
                         match def_type {
                             None => self.nil(),
@@ -102,17 +106,14 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 ]),
             ),
             Term::Universe(_) => self.text("Type"),
-            Term::FunType(_, (_, input_name), input_type, output_type) => self.paren(
+            Term::FunType(_, input_pattern, input_type, output_type) => self.paren(
                 prec > Prec::Fun,
                 self.concat([
                     self.concat([
                         self.text("fun"),
                         self.space(),
                         self.text("("),
-                        match input_name {
-                            Some(input_name) => self.string_id(*input_name),
-                            None => self.text("_"),
-                        },
+                        self.pattern(input_pattern),
                         self.space(),
                         self.text(":"),
                         self.softline(),
@@ -136,16 +137,13 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                     self.term_prec(Prec::Fun, output_type),
                 ]),
             ),
-            Term::FunLiteral(_, (_, input_name), output_expr) => self.paren(
+            Term::FunLiteral(_, input_pattern, output_expr) => self.paren(
                 prec > Prec::Fun,
                 self.concat([
                     self.concat([
                         self.text("fun"),
                         self.space(),
-                        match input_name {
-                            Some(input_name) => self.string_id(*input_name),
-                            None => self.text("_"),
-                        },
+                        self.pattern(input_pattern),
                         self.space(),
                         self.text("=>"),
                     ])

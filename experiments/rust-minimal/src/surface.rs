@@ -20,7 +20,11 @@ pub mod elaboration;
 pub type ParseError<'source> = lalrpop_util::ParseError<usize, lexer::Token<'source>, ()>;
 
 /// Surface patterns.
-pub type Pattern<Range> = (Range, Option<StringId>);
+#[derive(Debug, Clone)]
+pub enum Pattern<Range> {
+    Placeholder(Range),
+    Name(Range, StringId),
+}
 
 /// Surface terms.
 #[derive(Debug, Clone)]
@@ -113,5 +117,6 @@ mod tests {
     fn no_drop() {
         assert!(!std::mem::needs_drop::<Term<'_, ()>>());
         assert!(!std::mem::needs_drop::<Term<'_, StringId>>());
+        assert!(!std::mem::needs_drop::<Pattern<StringId>>());
     }
 }

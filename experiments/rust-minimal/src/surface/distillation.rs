@@ -4,7 +4,7 @@ use scoped_arena::Scope;
 use std::cell::RefCell;
 
 use crate::env::{self, EnvLen, LocalVar, UniqueEnv};
-use crate::surface::Term;
+use crate::surface::{Pattern, Term};
 use crate::{core, StringId, StringInterner};
 
 /// Distillation context.
@@ -99,16 +99,21 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 let output_expr = self.check(output_expr);
                 self.pop_rigid();
 
+                let def_pattern = Pattern::Name((), def_name);
                 let output_expr = self.scope.to_scope(output_expr);
 
-                Term::Let((), ((), Some(def_name)), def_type, def_expr, output_expr)
+                Term::Let((), def_pattern, def_type, def_expr, output_expr)
             }
             core::Term::FunIntro(input_name, output_expr) => {
                 let input_name = self.push_rigid(*input_name);
                 let output_expr = self.check(output_expr);
                 self.pop_rigid();
 
-                Term::FunLiteral((), ((), Some(input_name)), self.scope.to_scope(output_expr))
+                Term::FunLiteral(
+                    (),
+                    Pattern::Name((), input_name),
+                    self.scope.to_scope(output_expr),
+                )
             }
             core::Term::RecordType(labels, _) if labels.is_empty() => Term::UnitLiteral(()),
             core::Term::RecordIntro(labels, _) if labels.is_empty() => Term::UnitLiteral(()),
@@ -189,9 +194,10 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 let output_expr = self.synth(output_expr);
                 self.pop_rigid();
 
+                let def_pattern = Pattern::Name((), def_name);
                 let output_expr = self.scope.to_scope(output_expr);
 
-                Term::Let((), ((), Some(def_name)), def_type, def_expr, output_expr)
+                Term::Let((), def_pattern, def_type, def_expr, output_expr)
             }
             core::Term::Universe => Term::Universe(()),
             core::Term::FunType(input_name, input_type, output_type) => {
@@ -204,7 +210,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 // TODO: distill to arrow if `input_name` is not bound in `output_type`
                 Term::FunType(
                     (),
-                    ((), Some(input_name)),
+                    Pattern::Name((), input_name),
                     self.scope.to_scope(input_type),
                     self.scope.to_scope(output_type),
                 )
@@ -214,7 +220,11 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 let output_expr = self.synth(output_expr);
                 self.pop_rigid();
 
-                Term::FunLiteral((), ((), Some(input_name)), self.scope.to_scope(output_expr))
+                Term::FunLiteral(
+                    (),
+                    Pattern::Name((), input_name),
+                    self.scope.to_scope(output_expr),
+                )
             }
             core::Term::FunElim(head_expr, input_expr) => {
                 let head_expr = self.synth(head_expr);

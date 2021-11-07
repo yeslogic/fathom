@@ -270,7 +270,11 @@ impl Message {
                     FlexSource::HoleExpr(range, _) => (*range, "hole expression"),
                     FlexSource::PlaceholderType(range) => (*range, "placeholder type"), // should never appear in user-facing output
                     FlexSource::PlaceholderExpr(range) => (*range, "placeholder expression"),
-                    FlexSource::FunInputType(range, _) => (*range, "function input type"),
+                    FlexSource::PlaceholderPatternType(range) => {
+                        (*range, "placeholder pattern type")
+                    }
+                    FlexSource::NamedPatternType(range, _) => (*range, "named pattern type"),
+                    FlexSource::FunInputType(range) => (*range, "function input type"),
                     FlexSource::FunOutputType(range) => (*range, "function output type"),
                     FlexSource::ReportedErrorType(range) => (*range, "error type"), // should never appear in user-facing output
                 };

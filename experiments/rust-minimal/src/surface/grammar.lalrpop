@@ -40,6 +40,11 @@ extern {
     }
 }
 
+Pattern : Pattern<ByteRange> = {
+    <start: @L> "_" <end: @R> => Pattern::Placeholder(ByteRange::new(start, end)),
+    <start: @L> <name: Name> <end: @R> => Pattern::Name(ByteRange::new(start, end), name),
+};
+
 pub Term: Term<'arena, ByteRange> = {
     LetTerm,
     // FIXME: LALRPOP does not accept raw identifiers (see: https://github.com/lalrpop/lalrpop/issues/613)
@@ -145,11 +150,6 @@ AtomicTerm: Term<'arena, ByteRange> = {
         )
     },
     "(" <term: Term> ")" => term,
-};
-
-Pattern : Pattern<ByteRange> = {
-    <start: @L> "_" <end: @R> => (ByteRange::new(start, end), None),
-    <start: @L> <name: Name> <end: @R> => (ByteRange::new(start, end), Some(name)),
 };
 
 #[inline] Name: StringId = { <"name"> => interner.borrow_mut().get_or_intern(<>) };
