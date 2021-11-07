@@ -91,13 +91,14 @@ impl Message {
                 let name = interner.resolve(*name).unwrap();
 
                 Diagnostic::error()
-                    .with_message(format!("unbound name `{}`", name))
+                    .with_message(format!("cannot find `{}` in scope", name))
                     .with_labels(vec![
                         Label::primary(file_id, *range).with_message("unbound name")
                     ])
+                // TODO: list suggestions
             }
             Message::UnknownField {
-                head_range: _,
+                head_range,
                 label_range,
                 label,
             } => {
@@ -105,10 +106,13 @@ impl Message {
                 let label = interner.resolve(*label).unwrap();
 
                 Diagnostic::error()
-                    .with_message(format!("unknown field `{}`", label))
+                    .with_message(format!("cannot find `{}` in projection head", label))
                     .with_labels(vec![
-                        Label::primary(file_id, *label_range).with_message("unknown field")
+                        Label::primary(file_id, *label_range).with_message("unknown label"),
+                        Label::secondary(file_id, *head_range)
+                            .with_message(format!("head expression")),
                     ])
+                // TODO: list suggestions
             }
             Message::MismatchedFieldLabels {
                 range,
@@ -273,7 +277,8 @@ impl Message {
 
                 Diagnostic::error()
                     .with_message(format!("failed to infer {}", source_name))
-                    .with_labels(vec![Label::primary(file_id, range)])
+                    .with_labels(vec![Label::primary(file_id, range)
+                        .with_message(format!("unsolved {}", source_name))])
             }
         }
     }
