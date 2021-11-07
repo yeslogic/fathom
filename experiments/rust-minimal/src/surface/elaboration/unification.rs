@@ -38,7 +38,28 @@ pub enum Error {
     /// value that we are comparing against.
     //
     // TODO: Return some sort of type-diff
-    Mismatched,
+    Mismatch,
+    /// An error that was found in the problem spine.
+    Spine(SpineError),
+    /// An error that occurred when renaming the solution.
+    Rename(RenameError),
+}
+
+impl From<SpineError> for Error {
+    fn from(error: SpineError) -> Error {
+        Error::Spine(error)
+    }
+}
+
+impl From<RenameError> for Error {
+    fn from(error: RenameError) -> Error {
+        Error::Rename(error)
+    }
+}
+
+/// An error that was found in the problem spine.
+#[derive(Debug, Clone)]
+pub enum SpineError {
     /// A rigid variable appeared multiple times in a flexible spine.
     ///
     /// For example:
@@ -79,7 +100,16 @@ pub enum Error {
     /// variables, even if the return type is dependent, rigid variables block
     /// all computation in the return type, and the pattern solution is
     /// guaranteed to be well-typed.
-    NonLinearSpine,
+    NonLinearSpine(GlobalVar),
+    /// A non-rigid-variable function elimination was found in the problem spine.
+    NonRigidFunElim,
+    /// A record projection was found in the problem spine.
+    RecordElim(StringId),
+}
+
+/// An error that occurred when renaming the solution.
+#[derive(Debug, Clone)]
+pub enum RenameError {
     /// A free rigid variable in the compared value does not occur in the
     /// flexible spine.
     ///
@@ -92,7 +122,7 @@ pub enum Error {
     /// There is no solution for this flexible variable because `?α` is the
     /// topmost-level scope, so it can only abstract over `x` and `y`, but
     /// these don't occur in `z -> z`.
-    EscapingRigidVar,
+    EscapingRigidVar(GlobalVar),
     /// The flexible variable occurs in the value being compared against.
     /// This is sometimes referred to as an 'occurs check' failure.
     ///
@@ -116,8 +146,6 @@ pub enum Error {
     /// [equi-recursive types]: https://www.cs.cornell.edu/courses/cs4110/2012fa/lectures/lecture27.pdf
     InfiniteSolution,
 }
-
-pub type Result<T> = std::result::Result<T, Error>;
 
 /// Unification context.
 pub struct Context<'arena, 'env> {
@@ -153,7 +181,11 @@ impl<'arena, 'env> Context<'arena, 'env> {
     }
 
     /// Unify two values, updating the solution environment if necessary.
-    pub fn unify(&mut self, value0: &ArcValue<'arena>, value1: &ArcValue<'arena>) -> Result<()> {
+    pub fn unify(
+        &mut self,
+        value0: &ArcValue<'arena>,
+        value1: &ArcValue<'arena>,
+    ) -> Result<(), Error> {
         // Check for pointer equality before trying to force the values
         if Arc::ptr_eq(value0, value1) {
             return Ok(());
@@ -205,14 +237,14 @@ impl<'arena, 'env> Context<'arena, 'env> {
 
             (Value::RecordType(labels0, types0), Value::RecordType(labels1, types1)) => {
                 if labels0 != labels1 {
-                    return Err(Error::Mismatched);
+                    return Err(Error::Mismatch);
                 }
                 self.unify_telescopes(types0, types1)
             }
 
             (Value::RecordIntro(labels0, exprs0), Value::RecordIntro(labels1, exprs1)) => {
                 if labels0 != labels1 {
-                    return Err(Error::Mismatched);
+                    return Err(Error::Mismatch);
                 }
                 for (expr0, expr1) in Iterator::zip(exprs0.iter(), exprs1.iter()) {
                     self.unify(&expr0, &expr1)?;
@@ -238,7 +270,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
 
             (Value::FormatRecord(labels0, formats0), Value::FormatRecord(labels1, formats1)) => {
                 if labels0 != labels1 {
-                    return Err(Error::Mismatched);
+                    return Err(Error::Mismatch);
                 }
                 self.unify_telescopes(formats0, formats1)
             }
@@ -256,14 +288,18 @@ impl<'arena, 'env> Context<'arena, 'env> {
                 self.solve(*var1, spine1, &value0)
             }
 
-            (_, _) => Err(Error::Mismatched),
+            (_, _) => Err(Error::Mismatch),
         }
     }
 
     /// Unify two elimination spines.
-    fn unify_spines(&mut self, spine0: &[Elim<'arena>], spine1: &[Elim<'arena>]) -> Result<()> {
+    fn unify_spines(
+        &mut self,
+        spine0: &[Elim<'arena>],
+        spine1: &[Elim<'arena>],
+    ) -> Result<(), Error> {
         if spine0.len() != spine1.len() {
-            return Err(Error::Mismatched);
+            return Err(Error::Mismatch);
         }
         for (elim0, elim1) in Iterator::zip(spine0.iter(), spine1.iter()) {
             match (elim0, elim1) {
@@ -271,7 +307,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
                     self.unify(input_expr0, input_expr1)?;
                 }
                 (Elim::Record(label0), Elim::Record(label1)) if label0 == label1 => {}
-                (_, _) => return Err(Error::Mismatched),
+                (_, _) => return Err(Error::Mismatch),
             }
         }
         Ok(())
@@ -282,7 +318,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
         &mut self,
         closure0: &Closure<'arena>,
         closure1: &Closure<'arena>,
-    ) -> Result<()> {
+    ) -> Result<(), Error> {
         let var = Arc::new(Value::rigid_var(self.rigid_exprs.next_global()));
         let value0 = self.elim_context().apply_closure(closure0, var.clone());
         let value1 = self.elim_context().apply_closure(closure1, var);
@@ -299,9 +335,9 @@ impl<'arena, 'env> Context<'arena, 'env> {
         &mut self,
         telescope0: &Telescope<'arena>,
         telescope1: &Telescope<'arena>,
-    ) -> Result<()> {
+    ) -> Result<(), Error> {
         if telescope0.len() != telescope1.len() {
-            return Err(Error::Mismatched);
+            return Err(Error::Mismatch);
         }
 
         let initial_rigid_len = self.rigid_exprs;
@@ -332,7 +368,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
         &mut self,
         output_expr: &Closure<'arena>,
         value: &ArcValue<'arena>,
-    ) -> Result<()> {
+    ) -> Result<(), Error> {
         let var = Arc::new(Value::rigid_var(self.rigid_exprs.next_global()));
         let value = self.elim_context().apply_fun(value.clone(), var.clone());
         let output_expr = self.elim_context().apply_closure(output_expr, var);
@@ -350,7 +386,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
         labels: &[StringId],
         exprs: &[ArcValue<'arena>],
         value: &ArcValue<'arena>,
-    ) -> Result<()> {
+    ) -> Result<(), Error> {
         for (label, expr) in Iterator::zip(labels.iter(), exprs.iter()) {
             let field_value = self.elim_context().apply_record(value.clone(), *label);
             self.unify(expr, &field_value)?;
@@ -375,10 +411,10 @@ impl<'arena, 'env> Context<'arena, 'env> {
         flexible_var: GlobalVar,
         spine: &[Elim<'arena>],
         value: &ArcValue<'arena>,
-    ) -> Result<()> {
+    ) -> Result<(), Error> {
         self.init_renaming(spine)?;
         let term = self.rename(flexible_var, value)?;
-        let fun_term = self.fun_intros(spine, term)?;
+        let fun_term = self.fun_intros(spine, term);
         let solution =
             semantics::EvalContext::new(&mut SharedEnv::new(), self.flexible_exprs).eval(&fun_term);
 
@@ -390,7 +426,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
     /// Re-initialise the [`Context::renaming`] by mapping the rigid variables
     /// in the spine to the rigid variables in the solution. This can fail if
     /// the spine does not contain distinct rigid variables.
-    fn init_renaming(&mut self, spine: &[Elim<'arena>]) -> Result<()> {
+    fn init_renaming(&mut self, spine: &[Elim<'arena>]) -> Result<(), SpineError> {
         self.renaming.init(self.rigid_exprs);
 
         for elim in spine {
@@ -398,9 +434,12 @@ impl<'arena, 'env> Context<'arena, 'env> {
                 Elim::Fun(input_expr) => match self.elim_context().force(input_expr).as_ref() {
                     Value::Stuck(Head::RigidVar(source_var), spine)
                         if spine.is_empty() && self.renaming.set_rigid(*source_var) => {}
-                    _ => return Err(Error::NonLinearSpine),
+                    Value::Stuck(Head::RigidVar(source_var), _) => {
+                        return Err(SpineError::NonLinearSpine(*source_var))
+                    }
+                    _ => return Err(SpineError::NonRigidFunElim),
                 },
-                Elim::Record(_) => todo!("needs expansion"), // TODO: Not sure how to handle this!
+                Elim::Record(label) => return Err(SpineError::RecordElim(*label)),
             }
         }
 
@@ -409,10 +448,10 @@ impl<'arena, 'env> Context<'arena, 'env> {
 
     /// Wrap a `term` in [function introductions][Term::FunIntro] that
     /// correspond to the given `spine`.
-    fn fun_intros(&self, spine: &[Elim<'arena>], term: Term<'arena>) -> Result<Term<'arena>> {
-        spine.iter().fold(Ok(term), |term, elim| match elim {
-            Elim::Fun(_) => Ok(Term::FunIntro(None, self.scope.to_scope(term?))),
-            Elim::Record(_) => todo!("needs expansion"), // TODO: Not sure how to handle this!
+    fn fun_intros(&self, spine: &[Elim<'arena>], term: Term<'arena>) -> Term<'arena> {
+        spine.iter().fold(term, |term, elim| match elim {
+            Elim::Fun(_) => Term::FunIntro(None, self.scope.to_scope(term)),
+            Elim::Record(_) => unreachable!("should have been caught by `init_renaming`"),
         })
     }
 
@@ -428,17 +467,17 @@ impl<'arena, 'env> Context<'arena, 'env> {
         &mut self,
         flexible_var: GlobalVar,
         value: &ArcValue<'arena>,
-    ) -> Result<Term<'arena>> {
+    ) -> Result<Term<'arena>, RenameError> {
         match self.elim_context().force(value).as_ref() {
             Value::Stuck(head, spine) => {
                 let head_expr = match head {
                     Head::Prim(prim) => Term::Prim(*prim),
                     Head::RigidVar(source_var) => match self.renaming.get_as_local(*source_var) {
-                        None => return Err(Error::EscapingRigidVar),
+                        None => return Err(RenameError::EscapingRigidVar(*source_var)),
                         Some(target_var) => Term::RigidVar(target_var),
                     },
                     Head::FlexibleVar(var) => match *var {
-                        var if flexible_var == var => return Err(Error::InfiniteSolution),
+                        var if flexible_var == var => return Err(RenameError::InfiniteSolution),
                         var => Term::FlexibleVar(var),
                     },
                 };
@@ -512,7 +551,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
         &mut self,
         flexible_var: GlobalVar,
         closure: &Closure<'arena>,
-    ) -> Result<Term<'arena>> {
+    ) -> Result<Term<'arena>, RenameError> {
         let source_var = self.renaming.next_rigid_var();
         let value = self.elim_context().apply_closure(closure, source_var);
 
@@ -528,7 +567,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
         &mut self,
         flexible_var: GlobalVar,
         telescope: &Telescope<'arena>,
-    ) -> Result<&'arena [Term<'arena>]> {
+    ) -> Result<&'arena [Term<'arena>], RenameError> {
         let initial_rigid_len = self.rigid_exprs;
         let mut telescope = telescope.clone();
         let mut terms = SliceVec::new(self.scope, telescope.len());

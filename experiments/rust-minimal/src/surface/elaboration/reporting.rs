@@ -222,20 +222,36 @@ impl Message {
             Message::AmbiguousNumericLiteral { range } => Diagnostic::error()
                 .with_message("ambiguous numeric literal")
                 .with_labels(vec![Label::primary(file_id, *range)]),
-            Message::FailedToUnify { range, error } => match error {
-                unification::Error::Mismatched => Diagnostic::error()
-                    .with_message("type mismatch")
-                    .with_labels(vec![Label::primary(file_id, *range)]),
-                unification::Error::NonLinearSpine => Diagnostic::error()
-                    .with_message("non linear spine") // TODO: user-friendly message
-                    .with_labels(vec![Label::primary(file_id, *range)]),
-                unification::Error::EscapingRigidVar => Diagnostic::error()
-                    .with_message("escaping rigid variable") // TODO: user-friendly message
-                    .with_labels(vec![Label::primary(file_id, *range)]),
-                unification::Error::InfiniteSolution => Diagnostic::error()
-                    .with_message("infinite solution") // TODO: user-friendly message
-                    .with_labels(vec![Label::primary(file_id, *range)]),
-            },
+            Message::FailedToUnify { range, error } => {
+                use unification::{Error, RenameError, SpineError};
+
+                // TODO: Make these errors more user-friendly
+                match error {
+                    Error::Mismatch => Diagnostic::error()
+                        .with_message("type mismatch")
+                        .with_labels(vec![Label::primary(file_id, *range)]),
+                    // TODO: reduce confusion around ‘problem spines’
+                    Error::Spine(error) => match error {
+                        SpineError::NonLinearSpine(_var) => Diagnostic::error()
+                            .with_message("variable appeared more than once in problem spine")
+                            .with_labels(vec![Label::primary(file_id, *range)]),
+                        SpineError::NonRigidFunElim => Diagnostic::error()
+                            .with_message("non-variable function application in problem spine")
+                            .with_labels(vec![Label::primary(file_id, *range)]),
+                        SpineError::RecordElim(_label) => Diagnostic::error()
+                            .with_message("record projection in problem spine")
+                            .with_labels(vec![Label::primary(file_id, *range)]),
+                    },
+                    Error::Rename(error) => match error {
+                        RenameError::EscapingRigidVar(_var) => Diagnostic::error()
+                            .with_message("escaping rigid variable")
+                            .with_labels(vec![Label::primary(file_id, *range)]),
+                        RenameError::InfiniteSolution => Diagnostic::error()
+                            .with_message("infinite solution")
+                            .with_labels(vec![Label::primary(file_id, *range)]),
+                    },
+                }
+            }
             Message::HoleSolution { range, name } => {
                 let interner = interner.borrow();
                 let name = interner.resolve(*name).unwrap();
