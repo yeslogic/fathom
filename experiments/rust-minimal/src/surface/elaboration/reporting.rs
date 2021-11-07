@@ -66,7 +66,6 @@ pub enum Message {
     },
     /// A solution for a flexible variable could not be found.
     UnsolvedFlexibleVar {
-        range: ByteRange,
         source: FlexSource,
         // TODO: add type
         // type: Doc<_>,
@@ -245,20 +244,20 @@ impl Message {
                     .with_message(format!("solution found for `?{}`", name))
                     .with_labels(vec![Label::primary(file_id, *range)])
             }
-            Message::UnsolvedFlexibleVar { range, source } => {
-                let source_name = match source {
-                    FlexSource::HoleType(_) => "hole type", // should never appear in user-facing output
-                    FlexSource::HoleExpr(_) => "hole expression",
-                    FlexSource::PlaceholderType => "placeholder type", // should never appear in user-facing output
-                    FlexSource::PlaceholderExpr => "placeholder expression",
-                    FlexSource::FunInputType(_) => "function input type",
-                    FlexSource::FunOutputType => "function output type",
-                    FlexSource::ReportedErrorType => "error type", // should never appear in user-facing output
+            Message::UnsolvedFlexibleVar { source } => {
+                let (range, source_name) = match source {
+                    FlexSource::HoleType(range, _) => (*range, "hole type"), // should never appear in user-facing output
+                    FlexSource::HoleExpr(range, _) => (*range, "hole expression"),
+                    FlexSource::PlaceholderType(range) => (*range, "placeholder type"), // should never appear in user-facing output
+                    FlexSource::PlaceholderExpr(range) => (*range, "placeholder expression"),
+                    FlexSource::FunInputType(range, _) => (*range, "function input type"),
+                    FlexSource::FunOutputType(range) => (*range, "function output type"),
+                    FlexSource::ReportedErrorType(range) => (*range, "error type"), // should never appear in user-facing output
                 };
 
                 Diagnostic::error()
                     .with_message(format!("failed to infer {}", source_name))
-                    .with_labels(vec![Label::primary(file_id, *range)])
+                    .with_labels(vec![Label::primary(file_id, range)])
             }
         }
     }

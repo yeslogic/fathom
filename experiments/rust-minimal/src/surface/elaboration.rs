@@ -181,26 +181,28 @@ impl<'arena> RigidEnv<'arena> {
 #[derive(Debug, Copy, Clone)]
 pub enum FlexSource {
     /// The type of a hole.
-    HoleType(StringId),
+    HoleType(ByteRange, StringId),
     /// The expression of a hole.
-    HoleExpr(StringId),
+    HoleExpr(ByteRange, StringId),
     /// The type of a placeholder
-    PlaceholderType,
+    PlaceholderType(ByteRange),
     /// The expression of a placeholder
-    PlaceholderExpr,
+    PlaceholderExpr(ByteRange),
     /// The input type of a function.
-    FunInputType(Option<StringId>),
+    FunInputType(ByteRange, Option<StringId>),
     /// The output type of a function.
-    FunOutputType,
+    FunOutputType(ByteRange),
     /// The type of a reported error.
-    ReportedErrorType,
+    ReportedErrorType(ByteRange),
 }
 
 /// Flexible environment.
 pub struct FlexibleEnv<'arena> {
     /// The source of inserted flexible variables, used when reporting [unsolved
     /// flexible variables][Message::UnsolvedFlexibleVar].
-    sources: UniqueEnv<(ByteRange, FlexSource)>,
+    sources: UniqueEnv<FlexSource>,
+    /// Types of flexible variables.
+    types: UniqueEnv</* TODO: lazy value */ ArcValue<'arena>>,
     /// Expressions that will be substituted for flexible variables during
     /// [evaluation][EvalContext::eval].
     ///
@@ -215,16 +217,18 @@ impl<'arena> FlexibleEnv<'arena> {
     pub fn new() -> FlexibleEnv<'arena> {
         FlexibleEnv {
             sources: UniqueEnv::new(),
+            types: UniqueEnv::new(),
             exprs: UniqueEnv::new(),
         }
     }
 
     /// Push an unsolved flexible binder onto the context.
-    fn push(&mut self, range: ByteRange, source: FlexSource) -> GlobalVar {
+    fn push(&mut self, source: FlexSource, r#type: ArcValue<'arena>) -> GlobalVar {
         // TODO: check that hole name is not already in use
         let var = self.exprs.len().next_global();
 
-        self.sources.push((range, source));
+        self.sources.push(source);
+        self.types.push(r#type);
         self.exprs.push(None);
 
         var
@@ -232,22 +236,22 @@ impl<'arena> FlexibleEnv<'arena> {
 
     /// Report on any unsolved flexible variables, or solved named holes.
     fn report<'this>(&'this self) -> impl 'this + Iterator<Item = Message> {
-        Iterator::zip(self.sources.iter(), self.exprs.iter()).filter_map(
-            |(&(range, source), expr)| match (expr, source) {
+        Iterator::zip(self.sources.iter(), self.exprs.iter()).filter_map(|(&source, expr)| {
+            match (expr, source) {
                 // Avoid producing messages for some unsolved flexible sources:
-                (None, FlexSource::HoleType(_)) => None, // should have an unsolved hole expression
-                (None, FlexSource::PlaceholderType) => None, // should have an unsolved placeholder expression
-                (None, FlexSource::ReportedErrorType) => None, // should already have an error reported
+                (None, FlexSource::HoleType(_, _)) => None, // should have an unsolved hole expression
+                (None, FlexSource::PlaceholderType(_)) => None, // should have an unsolved placeholder expression
+                (None, FlexSource::ReportedErrorType(_)) => None, // should already have an error reported
                 // For other sources, report an unsolved problem message
-                (None, source) => Some(Message::UnsolvedFlexibleVar { range, source }),
+                (None, source) => Some(Message::UnsolvedFlexibleVar { source }),
                 // Yield messages of solved named holes
-                (Some(_), FlexSource::HoleExpr(name)) => {
+                (Some(_), FlexSource::HoleExpr(range, name)) => {
                     Some(Message::HoleSolution { range, name })
                 }
                 // Ignore solutions of anything else
                 (Some(_), _) => None,
-            },
-        )
+            }
+        })
     }
 }
 
@@ -297,17 +301,22 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
     }
 
     /// Push an unsolved flexible binder onto the context.
-    fn push_flexible_term(&mut self, range: ByteRange, source: FlexSource) -> core::Term<'arena> {
-        core::Term::FlexibleInsertion(
-            self.flexible_env.push(range, source),
-            self.scope
-                .to_scope_from_iter(self.rigid_env.infos.iter().copied()),
-        )
+    fn push_flexible_term(
+        &mut self,
+        source: FlexSource,
+        r#type: ArcValue<'arena>,
+    ) -> core::Term<'arena> {
+        let rigid_infos = (self.scope).to_scope_from_iter(self.rigid_env.infos.iter().copied());
+        core::Term::FlexibleInsertion(self.flexible_env.push(source, r#type), rigid_infos)
     }
 
     /// Push an unsolved flexible binder onto the context.
-    fn push_flexible_value(&mut self, range: ByteRange, source: FlexSource) -> ArcValue<'arena> {
-        let term = self.push_flexible_term(range, source);
+    fn push_flexible_value(
+        &mut self,
+        source: FlexSource,
+        r#type: ArcValue<'arena>,
+    ) -> ArcValue<'arena> {
+        let term = self.push_flexible_term(source, r#type); // TODO: Could avoid allocating the rigid infos
         self.eval_context().eval(&term)
     }
 
@@ -607,14 +616,24 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                     self.synth_reported_error(*range)
                 }
             },
-            Term::Hole(range, name) => (
-                self.push_flexible_term(*range, FlexSource::HoleExpr(*name)),
-                self.push_flexible_value(*range, FlexSource::HoleType(*name)),
-            ),
-            Term::Placeholder(range) => (
-                self.push_flexible_term(*range, FlexSource::PlaceholderExpr),
-                self.push_flexible_value(*range, FlexSource::PlaceholderType),
-            ),
+            Term::Hole(range, name) => {
+                let type_source = FlexSource::HoleType(*range, *name);
+                let expr_source = FlexSource::HoleExpr(*range, *name);
+
+                let r#type = self.push_flexible_value(type_source, Arc::new(Value::Universe));
+                let expr = self.push_flexible_term(expr_source, r#type.clone());
+
+                (expr, r#type)
+            }
+            Term::Placeholder(range) => {
+                let type_source = FlexSource::PlaceholderType(*range);
+                let expr_source = FlexSource::PlaceholderExpr(*range);
+
+                let r#type = self.push_flexible_value(type_source, Arc::new(Value::Universe));
+                let expr = self.push_flexible_term(expr_source, r#type.clone());
+
+                (expr, r#type)
+            }
             Term::Ann(_, expr, r#type) => {
                 let r#type = self.check(r#type, &Arc::new(Value::Universe)); // FIXME: avoid temporary Arc
                 let type_value = self.eval_context().eval(&r#type);
@@ -695,8 +714,8 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
             }
             Term::FunLiteral(_, (input_range, input_name), output_expr) => {
                 let input_name = Some(*input_name);
-                let input_type =
-                    self.push_flexible_value(*input_range, FlexSource::FunInputType(input_name));
+                let input_source = FlexSource::FunInputType(*input_range, input_name);
+                let input_type = self.push_flexible_value(input_source, Arc::new(Value::Universe));
 
                 self.rigid_env.push_param(input_name, input_type.clone());
                 let (output_expr, output_type) = self.synth(output_expr);
@@ -735,14 +754,15 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                     // output types, and then we attempt to unify the head type
                     // against it.
                     _ => {
+                        let universe = Arc::new(Value::Universe);
                         // Create a flexible input type
-                        let input_type =
-                            self.push_flexible_value(head_range, FlexSource::FunInputType(None));
+                        let input_source = FlexSource::FunInputType(head_range, None);
+                        let input_type = self.push_flexible_value(input_source, universe.clone());
 
                         // Create a flexible output type, with the input bound
                         self.rigid_env.push_param(None, input_type.clone());
-                        let output_type =
-                            self.push_flexible_term(head_range, FlexSource::FunOutputType);
+                        let output_source = FlexSource::FunOutputType(head_range);
+                        let output_type = self.push_flexible_term(output_source, universe);
                         self.rigid_env.pop();
 
                         // Create a function type between the flexible variables.
@@ -893,7 +913,8 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
     }
 
     fn synth_reported_error(&mut self, range: ByteRange) -> (core::Term<'arena>, ArcValue<'arena>) {
-        let r#type = self.push_flexible_value(range, FlexSource::ReportedErrorType);
+        let type_source = FlexSource::ReportedErrorType(range);
+        let r#type = self.push_flexible_value(type_source, Arc::new(Value::Universe));
         (core::Term::Prim(Prim::ReportedError), r#type)
     }
 }
