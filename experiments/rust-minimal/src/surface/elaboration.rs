@@ -24,10 +24,10 @@ pub struct RigidEnv<'arena> {
     /// Types of rigid variables.
     types: UniqueEnv<ArcValue<'arena>>,
     /// Information about the binders. Used when inserting new flexible
-    /// variables during [evaluation][EvalContext::eval].
+    /// variables during [evaluation][semantics::EvalContext::eval].
     infos: UniqueEnv<core::EntryInfo>,
     /// Expressions that will be substituted for rigid variables during
-    /// [evaluation][EvalContext::eval].
+    /// [evaluation][semantics::EvalContext::eval].
     exprs: SharedEnv<ArcValue<'arena>>,
 }
 
@@ -204,7 +204,7 @@ pub struct FlexibleEnv<'arena> {
     /// Types of flexible variables.
     types: UniqueEnv</* TODO: lazy value */ ArcValue<'arena>>,
     /// Expressions that will be substituted for flexible variables during
-    /// [evaluation][EvalContext::eval].
+    /// [evaluation][semantics::EvalContext::eval].
     ///
     /// These will be set to [`None`] when a flexible variable is first
     /// [inserted][Context::push_flexible_term], then will be set to [`Some`]

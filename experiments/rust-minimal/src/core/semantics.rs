@@ -86,8 +86,9 @@ pub enum Elim<'arena> {
 /// A closure is a term that can later be instantiated with a value.
 #[derive(Debug, Clone)]
 pub struct Closure<'arena> {
-    /// Rigid environment where the closed [term] is bound. A new entry will
-    /// need to be pushed to this environment before evaluating the term.
+    /// Rigid environment where the closed [term][Self.term] is bound. A new
+    /// entry will need to be pushed to this environment before evaluating the
+    /// term.
     rigid_exprs: SharedEnv<ArcValue<'arena>>,
     /// The term that is closed over.
     term: &'arena Term<'arena>,
@@ -105,7 +106,7 @@ impl<'arena> Closure<'arena> {
 /// A series of terms where each term might depend on previous terms.
 #[derive(Debug, Clone)]
 pub struct Telescope<'arena> {
-    /// Rigid environment where the telescope's [terms] are bound.
+    /// Rigid environment where the telescope's [terms][Self.terms] are bound.
     rigid_exprs: SharedEnv<ArcValue<'arena>>,
     /// `Repr` should be applied to each term in the telescope.
     apply_repr: bool,
