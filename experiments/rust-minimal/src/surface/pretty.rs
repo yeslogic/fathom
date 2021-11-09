@@ -58,16 +58,19 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
             Term::Name(_, name) => self.string_id(*name),
             Term::Hole(_, name) => self.concat([self.text("?"), self.string_id(*name)]),
             Term::Placeholder(_) => self.text("_"),
-            Term::Ann(_, expr, r#type) => self.concat([
+            Term::Ann(_, expr, r#type) => self.paren(
+                prec > Prec::Top,
                 self.concat([
-                    self.term_prec(Prec::Let, &expr),
-                    self.space(),
-                    self.text(":"),
-                ])
-                .group(),
-                self.softline(),
-                self.term_prec(Prec::Top, &r#type),
-            ]),
+                    self.concat([
+                        self.term_prec(Prec::Let, &expr),
+                        self.space(),
+                        self.text(":"),
+                    ])
+                    .group(),
+                    self.softline(),
+                    self.term_prec(Prec::Top, &r#type),
+                ]),
+            ),
             Term::Let(_, (_, def_name), def_type, def_expr, output_expr) => self.paren(
                 prec > Prec::Let,
                 self.concat([
