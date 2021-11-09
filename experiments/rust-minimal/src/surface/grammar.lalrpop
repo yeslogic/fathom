@@ -54,10 +54,10 @@ pub Term: Term<'arena, ByteRange> = {
 
 LetTerm: Term<'arena, ByteRange> = {
     FunTerm,
-    <start: @L> "let" <def_name: RangedName> <def_type: (":" <FunTerm>)?> "=" <def_expr: LetTerm> ";" <body_expr: LetTerm> <end: @R> => {
+    <start: @L> "let" <def_pattern: Pattern> <def_type: (":" <FunTerm>)?> "=" <def_expr: LetTerm> ";" <body_expr: LetTerm> <end: @R> => {
         Term::Let(
             ByteRange::new(start, end),
-            def_name,
+            def_pattern,
             def_type.map(|def_type| scope.to_scope(def_type) as &_),
             scope.to_scope(def_expr),
             scope.to_scope(body_expr),

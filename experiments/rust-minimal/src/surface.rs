@@ -35,7 +35,7 @@ pub enum Term<'arena, Range> {
     ),
     Let(
         Range,
-        (Range, StringId),
+        Pattern<Range>,
         Option<&'arena Term<'arena, Range>>,
         &'arena Term<'arena, Range>,
         &'arena Term<'arena, Range>,

@@ -77,7 +77,10 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                     self.concat([
                         self.text("let"),
                         self.space(),
-                        self.string_id(*def_name),
+                        match def_name {
+                            Some(def_name) => self.string_id(*def_name),
+                            None => self.text("_"),
+                        },
                         self.space(),
                         match def_type {
                             None => self.nil(),

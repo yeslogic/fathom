@@ -473,7 +473,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 let def_expr_value = self.eval_context().eval(&def_expr);
 
                 self.rigid_env
-                    .push_def(Some(*def_name), def_expr_value, def_type_value);
+                    .push_def(*def_name, def_expr_value, def_type_value);
                 let output_expr = self.check(output_expr, &expected_type);
                 self.rigid_env.pop();
 
@@ -662,7 +662,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 let def_expr_value = self.eval_context().eval(&def_expr);
 
                 self.rigid_env
-                    .push_def(Some(*def_name), def_expr_value, def_type_value);
+                    .push_def(*def_name, def_expr_value, def_type_value);
                 let (output_expr, output_type) = self.synth(output_expr);
                 self.rigid_env.pop();
 

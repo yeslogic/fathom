@@ -95,13 +95,13 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                     expr => (self.scope.to_scope(expr) as &_, None),
                 };
 
-                let def_name = self.push_rigid(Some(*def_name));
+                let def_name = self.push_rigid(*def_name);
                 let output_expr = self.check(output_expr);
                 self.pop_rigid();
 
                 let output_expr = self.scope.to_scope(output_expr);
 
-                Term::Let((), ((), def_name), def_type, def_expr, output_expr)
+                Term::Let((), ((), Some(def_name)), def_type, def_expr, output_expr)
             }
             core::Term::FunIntro(input_name, output_expr) => {
                 let input_name = self.push_rigid(*input_name);
@@ -185,13 +185,13 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                     expr => (self.scope.to_scope(expr) as &_, None),
                 };
 
-                let def_name = self.push_rigid(Some(*def_name));
+                let def_name = self.push_rigid(*def_name);
                 let output_expr = self.synth(output_expr);
                 self.pop_rigid();
 
                 let output_expr = self.scope.to_scope(output_expr);
 
-                Term::Let((), ((), def_name), def_type, def_expr, output_expr)
+                Term::Let((), ((), Some(def_name)), def_type, def_expr, output_expr)
             }
             core::Term::Universe => Term::Universe(()),
             core::Term::FunType(input_name, input_type, output_type) => {
