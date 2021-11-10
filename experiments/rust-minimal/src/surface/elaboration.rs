@@ -453,21 +453,20 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
     ///
     /// - the name of the bound variable
     /// - an expression that refers to the bound variable
-    /// - the type of the bound variable
     fn check_param_pattern(
         &mut self,
         pattern: &Pattern<'_, ByteRange>,
         expected_type: &ArcValue<'arena>,
-    ) -> (Option<StringId>, ArcValue<'arena>, ArcValue<'arena>) {
+    ) -> (Option<StringId>, ArcValue<'arena>) {
         match pattern {
             Pattern::Name(_, name) => {
                 let name = Some(*name);
                 let expr = self.rigid_env.push_param(name, expected_type.clone());
-                (name, expr, expected_type.clone())
+                (name, expr)
             }
             Pattern::Placeholder(_) => {
                 let expr = self.rigid_env.push_param(None, expected_type.clone());
-                (None, expr, expected_type.clone())
+                (None, expr)
             }
             Pattern::Ann(_, pattern, r#type) => {
                 let type_range = r#type.range();
@@ -518,7 +517,8 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
             Pattern::Ann(_, pattern, r#type) => {
                 let r#type = self.check(r#type, &Arc::new(Value::Universe)); // FIXME: avoid temporary Arc
                 let type_value = self.eval_context().eval(&r#type);
-                self.check_param_pattern(pattern, &type_value)
+                let (name, expr) = self.check_param_pattern(pattern, &type_value);
+                (name, expr, type_value)
             }
         }
     }
@@ -637,8 +637,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 Term::FunLiteral(_, input_pattern, output_expr),
                 Value::FunType(_, input_type, output_type),
             ) => {
-                let (input_name, input_expr, _) =
-                    self.check_param_pattern(input_pattern, input_type);
+                let (input_name, input_expr) = self.check_param_pattern(input_pattern, input_type);
                 let output_type = self.elim_context().apply_closure(output_type, input_expr);
                 let output_expr = self.check(output_expr, &output_type);
 
