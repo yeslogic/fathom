@@ -460,14 +460,14 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         expected_type: &ArcValue<'arena>,
     ) -> (Option<StringId>, ArcValue<'arena>, ArcValue<'arena>) {
         match pattern {
-            Pattern::Placeholder(_) => {
-                let expr = self.rigid_env.push_param(None, expected_type.clone());
-                (None, expr, expected_type.clone())
-            }
             Pattern::Name(_, name) => {
                 let name = Some(*name);
                 let expr = self.rigid_env.push_param(name, expected_type.clone());
                 (name, expr, expected_type.clone())
+            }
+            Pattern::Placeholder(_) => {
+                let expr = self.rigid_env.push_param(None, expected_type.clone());
+                (None, expr, expected_type.clone())
             }
             Pattern::Ann(_, pattern, r#type) => {
                 let type_range = r#type.range();
@@ -503,17 +503,17 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         pattern: &Pattern<'_, ByteRange>,
     ) -> (Option<StringId>, ArcValue<'arena>, ArcValue<'arena>) {
         match pattern {
-            Pattern::Placeholder(range) => {
-                let source = FlexSource::PlaceholderPatternType(*range);
-                let r#type = self.push_flexible_value(source, Arc::new(Value::Universe));
-                let expr = self.rigid_env.push_param(None, r#type.clone());
-                (None, expr, r#type)
-            }
             Pattern::Name(range, name) => {
                 let source = FlexSource::NamedPatternType(*range, *name);
                 let r#type = self.push_flexible_value(source, Arc::new(Value::Universe));
                 let expr = self.rigid_env.push_param(Some(*name), r#type.clone());
                 (Some(*name), expr, r#type)
+            }
+            Pattern::Placeholder(range) => {
+                let source = FlexSource::PlaceholderPatternType(*range);
+                let r#type = self.push_flexible_value(source, Arc::new(Value::Universe));
+                let expr = self.rigid_env.push_param(None, r#type.clone());
+                (None, expr, r#type)
             }
             Pattern::Ann(_, pattern, r#type) => {
                 let r#type = self.check(r#type, &Arc::new(Value::Universe)); // FIXME: avoid temporary Arc
@@ -537,19 +537,19 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         expected_type: &ArcValue<'arena>,
     ) -> (Option<StringId>, core::Term<'arena>) {
         match pattern {
-            Pattern::Placeholder(_) => {
-                let expr = self.check(surface_expr, expected_type);
-                let expr_value = self.eval_context().eval(&expr);
-                self.rigid_env
-                    .push_def(None, expr_value, expected_type.clone());
-                (None, expr)
-            }
             Pattern::Name(_, name) => {
                 let expr = self.check(surface_expr, expected_type);
                 let expr_value = self.eval_context().eval(&expr);
                 self.rigid_env
                     .push_def(Some(*name), expr_value, expected_type.clone());
                 (Some(*name), expr)
+            }
+            Pattern::Placeholder(_) => {
+                let expr = self.check(surface_expr, expected_type);
+                let expr_value = self.eval_context().eval(&expr);
+                self.rigid_env
+                    .push_def(None, expr_value, expected_type.clone());
+                (None, expr)
             }
             Pattern::Ann(_, pattern, r#type) => {
                 let type_range = r#type.range();
@@ -586,18 +586,18 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         surface_expr: &Term<'_, ByteRange>,
     ) -> (Option<StringId>, core::Term<'arena>, ArcValue<'arena>) {
         match pattern {
-            Pattern::Placeholder(_) => {
-                let (expr, r#type) = self.synth(surface_expr);
-                let expr_value = self.eval_context().eval(&expr);
-                self.rigid_env.push_def(None, expr_value, r#type.clone());
-                (None, expr, r#type)
-            }
             Pattern::Name(_, name) => {
                 let (expr, r#type) = self.synth(surface_expr);
                 let expr_value = self.eval_context().eval(&expr);
                 self.rigid_env
                     .push_def(Some(*name), expr_value, r#type.clone());
                 (Some(*name), expr, r#type)
+            }
+            Pattern::Placeholder(_) => {
+                let (expr, r#type) = self.synth(surface_expr);
+                let expr_value = self.eval_context().eval(&expr);
+                self.rigid_env.push_def(None, expr_value, r#type.clone());
+                (None, expr, r#type)
             }
             Pattern::Ann(_, pattern, r#type) => {
                 let r#type = self.check(r#type, &Arc::new(Value::Universe)); // FIXME: avoid temporary Arc

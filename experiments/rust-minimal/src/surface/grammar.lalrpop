@@ -54,8 +54,8 @@ Pattern : Pattern<'arena, ByteRange> = {
 AtomicPattern : Pattern<'arena, ByteRange> = {
     "(" <pattern: Pattern> ")" => pattern,
 
-    <start: @L> "_" <end: @R> => Pattern::Placeholder(ByteRange::new(start, end)),
     <start: @L> <name: Name> <end: @R> => Pattern::Name(ByteRange::new(start, end), name),
+    <start: @L> "_" <end: @R> => Pattern::Placeholder(ByteRange::new(start, end)),
 };
 
 pub Term: Term<'arena, ByteRange> = {

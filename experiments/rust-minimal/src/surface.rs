@@ -22,8 +22,8 @@ pub type ParseError<'source> = lalrpop_util::ParseError<usize, lexer::Token<'sou
 /// Surface patterns.
 #[derive(Debug, Clone)]
 pub enum Pattern<'arena, Range> {
-    Placeholder(Range),
     Name(Range, StringId),
+    Placeholder(Range),
     Ann(
         Range,
         &'arena Pattern<'arena, Range>,
