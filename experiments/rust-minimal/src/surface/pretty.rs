@@ -43,10 +43,31 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         }
     }
 
-    pub fn pattern<Range>(&'arena self, pattern: &Pattern<Range>) -> DocBuilder<'arena, Self> {
+    pub fn pattern<Range>(&'arena self, pattern: &Pattern<'_, Range>) -> DocBuilder<'arena, Self> {
+        self.pattern_prec(Prec::Top, pattern)
+    }
+
+    pub fn pattern_prec<Range>(
+        &'arena self,
+        prec: Prec,
+        pattern: &Pattern<'_, Range>,
+    ) -> DocBuilder<'arena, Self> {
         match pattern {
             Pattern::Placeholder(_) => self.text("_"),
             Pattern::Name(_, name) => self.string_id(*name),
+            Pattern::Ann(_, pattern, r#type) => self.paren(
+                prec > Prec::Top,
+                self.concat([
+                    self.concat([
+                        self.pattern_prec(Prec::Top, &pattern),
+                        self.space(),
+                        self.text(":"),
+                    ])
+                    .group(),
+                    self.softline(),
+                    self.term_prec(Prec::Top, &r#type),
+                ]),
+            ),
         }
     }
 
@@ -78,23 +99,14 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                     self.term_prec(Prec::Top, &r#type),
                 ]),
             ),
-            Term::Let(_, def_pattern, def_type, def_expr, output_expr) => self.paren(
+            Term::Let(_, def_pattern, def_expr, output_expr) => self.paren(
                 prec > Prec::Let,
                 self.concat([
                     self.concat([
                         self.text("let"),
                         self.space(),
-                        self.pattern(def_pattern),
+                        self.pattern_prec(Prec::Top, def_pattern),
                         self.space(),
-                        match def_type {
-                            None => self.nil(),
-                            Some(def_type) => self.concat([
-                                self.text(":"),
-                                self.softline(),
-                                self.term_prec(Prec::Fun, def_type),
-                                self.space(),
-                            ]),
-                        },
                         self.text("="),
                         self.softline(),
                         self.term_prec(Prec::Let, def_expr),
@@ -106,19 +118,13 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 ]),
             ),
             Term::Universe(_) => self.text("Type"),
-            Term::FunType(_, input_pattern, input_type, output_type) => self.paren(
+            Term::FunType(_, input_pattern, output_type) => self.paren(
                 prec > Prec::Fun,
                 self.concat([
                     self.concat([
                         self.text("fun"),
                         self.space(),
-                        self.text("("),
-                        self.pattern(input_pattern),
-                        self.space(),
-                        self.text(":"),
-                        self.softline(),
-                        self.term_prec(Prec::Top, input_type),
-                        self.text(")"),
+                        self.pattern_prec(Prec::Atomic, input_pattern),
                         self.space(),
                         self.text("->"),
                     ])
@@ -143,7 +149,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                     self.concat([
                         self.text("fun"),
                         self.space(),
-                        self.pattern(input_pattern),
+                        self.pattern_prec(Prec::Atomic, input_pattern),
                         self.space(),
                         self.text("=>"),
                     ])

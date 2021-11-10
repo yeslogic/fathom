@@ -21,9 +21,14 @@ pub type ParseError<'source> = lalrpop_util::ParseError<usize, lexer::Token<'sou
 
 /// Surface patterns.
 #[derive(Debug, Clone)]
-pub enum Pattern<Range> {
+pub enum Pattern<'arena, Range> {
     Placeholder(Range),
     Name(Range, StringId),
+    Ann(
+        Range,
+        &'arena Pattern<'arena, Range>,
+        &'arena Term<'arena, Range>,
+    ),
 }
 
 /// Surface terms.
@@ -39,8 +44,7 @@ pub enum Term<'arena, Range> {
     ),
     Let(
         Range,
-        Pattern<Range>,
-        Option<&'arena Term<'arena, Range>>,
+        &'arena Pattern<'arena, Range>,
         &'arena Term<'arena, Range>,
         &'arena Term<'arena, Range>,
     ),
@@ -52,11 +56,14 @@ pub enum Term<'arena, Range> {
     ),
     FunType(
         Range,
-        Pattern<Range>,
-        &'arena Term<'arena, Range>,
+        &'arena Pattern<'arena, Range>,
         &'arena Term<'arena, Range>,
     ),
-    FunLiteral(Range, Pattern<Range>, &'arena Term<'arena, Range>),
+    FunLiteral(
+        Range,
+        &'arena Pattern<'arena, Range>,
+        &'arena Term<'arena, Range>,
+    ),
     FunElim(
         Range,
         &'arena Term<'arena, Range>,
@@ -79,10 +86,10 @@ impl<'arena, Range: Clone> Term<'arena, Range> {
             | Term::Hole(range, _)
             | Term::Placeholder(range)
             | Term::Ann(range, _, _)
-            | Term::Let(range, _, _, _, _)
+            | Term::Let(range, _, _, _)
             | Term::Universe(range)
             | Term::Arrow(range, _, _)
-            | Term::FunType(range, _, _, _)
+            | Term::FunType(range, _, _)
             | Term::FunLiteral(range, _, _)
             | Term::FunElim(range, _, _)
             | Term::RecordType(range, _)

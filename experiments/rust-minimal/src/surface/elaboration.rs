@@ -453,19 +453,40 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
     ///
     /// - the name of the bound variable
     /// - an expression that refers to the bound variable
+    /// - the type of the bound variable
     fn check_param_pattern(
         &mut self,
-        pattern: &Pattern<ByteRange>,
-        r#type: &ArcValue<'arena>,
-    ) -> (Option<StringId>, ArcValue<'arena>) {
+        pattern: &Pattern<'_, ByteRange>,
+        expected_type: &ArcValue<'arena>,
+    ) -> (Option<StringId>, ArcValue<'arena>, ArcValue<'arena>) {
         match pattern {
             Pattern::Placeholder(_) => {
-                let expr = self.rigid_env.push_param(None, r#type.clone());
-                (None, expr)
+                let expr = self.rigid_env.push_param(None, expected_type.clone());
+                (None, expr, expected_type.clone())
             }
             Pattern::Name(_, name) => {
-                let expr = self.rigid_env.push_param(Some(*name), r#type.clone());
-                (Some(*name), expr)
+                let name = Some(*name);
+                let expr = self.rigid_env.push_param(name, expected_type.clone());
+                (name, expr, expected_type.clone())
+            }
+            Pattern::Ann(_, pattern, r#type) => {
+                let type_range = r#type.range();
+                let r#type = self.check(r#type, &Arc::new(Value::Universe)); // FIXME: avoid temporary Arc
+                let type_value = self.eval_context().eval(&r#type);
+
+                match (self.unification_context()).unify(&type_value, &expected_type) {
+                    Ok(()) => self.check_param_pattern(pattern, &type_value),
+                    Err(error) => {
+                        self.push_message(Message::FailedToUnify {
+                            range: type_range,
+                            error,
+                        });
+
+                        let source = FlexSource::ReportedErrorType(type_range);
+                        let r#type = self.push_flexible_value(source, Arc::new(Value::Universe));
+                        self.check_param_pattern(pattern, &r#type)
+                    }
+                }
             }
         }
     }
@@ -479,7 +500,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
     /// - the type of the bound variable
     fn synth_param_pattern(
         &mut self,
-        pattern: &Pattern<ByteRange>,
+        pattern: &Pattern<'_, ByteRange>,
     ) -> (Option<StringId>, ArcValue<'arena>, ArcValue<'arena>) {
         match pattern {
             Pattern::Placeholder(range) => {
@@ -494,6 +515,11 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 let expr = self.rigid_env.push_param(Some(*name), r#type.clone());
                 (Some(*name), expr, r#type)
             }
+            Pattern::Ann(_, pattern, r#type) => {
+                let r#type = self.check(r#type, &Arc::new(Value::Universe)); // FIXME: avoid temporary Arc
+                let type_value = self.eval_context().eval(&r#type);
+                self.check_param_pattern(pattern, &type_value)
+            }
         }
     }
 
@@ -506,23 +532,43 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
     /// - the elaborated definition expression
     fn check_def_pattern(
         &mut self,
-        pattern: &Pattern<ByteRange>,
+        pattern: &Pattern<'_, ByteRange>,
         surface_expr: &Term<'_, ByteRange>,
-        r#type: &ArcValue<'arena>,
+        expected_type: &ArcValue<'arena>,
     ) -> (Option<StringId>, core::Term<'arena>) {
         match pattern {
             Pattern::Placeholder(_) => {
-                let expr = self.check(surface_expr, r#type);
+                let expr = self.check(surface_expr, expected_type);
                 let expr_value = self.eval_context().eval(&expr);
-                self.rigid_env.push_def(None, expr_value, r#type.clone());
+                self.rigid_env
+                    .push_def(None, expr_value, expected_type.clone());
                 (None, expr)
             }
             Pattern::Name(_, name) => {
-                let expr = self.check(surface_expr, r#type);
+                let expr = self.check(surface_expr, expected_type);
                 let expr_value = self.eval_context().eval(&expr);
                 self.rigid_env
-                    .push_def(Some(*name), expr_value, r#type.clone());
+                    .push_def(Some(*name), expr_value, expected_type.clone());
                 (Some(*name), expr)
+            }
+            Pattern::Ann(_, pattern, r#type) => {
+                let type_range = r#type.range();
+                let r#type = self.check(r#type, &Arc::new(Value::Universe)); // FIXME: avoid temporary Arc
+                let type_value = self.eval_context().eval(&r#type);
+
+                match (self.unification_context()).unify(&type_value, &expected_type) {
+                    Ok(()) => self.check_def_pattern(pattern, surface_expr, &type_value),
+                    Err(error) => {
+                        self.push_message(Message::FailedToUnify {
+                            range: type_range,
+                            error,
+                        });
+
+                        let source = FlexSource::ReportedErrorType(type_range);
+                        let r#type = self.push_flexible_value(source, Arc::new(Value::Universe));
+                        self.check_def_pattern(pattern, surface_expr, &r#type)
+                    }
+                }
             }
         }
     }
@@ -536,7 +582,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
     /// - the type of the bound variable
     fn synth_def_pattern(
         &mut self,
-        pattern: &Pattern<ByteRange>,
+        pattern: &Pattern<'_, ByteRange>,
         surface_expr: &Term<'_, ByteRange>,
     ) -> (Option<StringId>, core::Term<'arena>, ArcValue<'arena>) {
         match pattern {
@@ -553,6 +599,15 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                     .push_def(Some(*name), expr_value, r#type.clone());
                 (Some(*name), expr, r#type)
             }
+            Pattern::Ann(_, pattern, r#type) => {
+                let r#type = self.check(r#type, &Arc::new(Value::Universe)); // FIXME: avoid temporary Arc
+                let type_value = self.eval_context().eval(&r#type);
+
+                let (name, expr) = self.check_def_pattern(pattern, surface_expr, &type_value);
+                let expr = core::Term::Ann(self.scope.to_scope(expr), self.scope.to_scope(r#type));
+
+                (name, expr, type_value)
+            }
         }
     }
 
@@ -567,25 +622,8 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         let expected_type = self.elim_context().force(expected_type);
 
         match (surface_term, expected_type.as_ref()) {
-            (Term::Let(_, def_pattern, def_type, def_expr, output_expr), _) => {
-                let (def_name, def_expr, _) = match def_type {
-                    None => self.synth_def_pattern(def_pattern, def_expr),
-                    Some(def_type) => {
-                        let def_type = self.check(def_type, &Arc::new(Value::Universe)); // FIXME: avoid temporary Arc
-                        let def_type_value = self.eval_context().eval(&def_type);
-
-                        let (def_name, def_expr) =
-                            self.check_def_pattern(def_pattern, def_expr, &def_type_value);
-
-                        let def_expr = core::Term::Ann(
-                            self.scope.to_scope(def_expr),
-                            self.scope.to_scope(def_type),
-                        );
-
-                        (def_name, def_expr, def_type_value)
-                    }
-                };
-
+            (Term::Let(_, def_pattern, def_expr, output_expr), _) => {
+                let (def_name, def_expr, _) = self.synth_def_pattern(def_pattern, def_expr);
                 let output_expr = self.check(output_expr, &expected_type);
                 self.rigid_env.pop();
 
@@ -599,7 +637,8 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 Term::FunLiteral(_, input_pattern, output_expr),
                 Value::FunType(_, input_type, output_type),
             ) => {
-                let (input_name, input_expr) = self.check_param_pattern(input_pattern, input_type);
+                let (input_name, input_expr, _) =
+                    self.check_param_pattern(input_pattern, input_type);
                 let output_type = self.elim_context().apply_closure(output_type, input_expr);
                 let output_expr = self.check(output_expr, &output_type);
 
@@ -755,25 +794,8 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
 
                 (ann_expr, type_value)
             }
-            Term::Let(_, def_pattern, def_type, def_expr, output_expr) => {
-                let (def_name, def_expr, _) = match def_type {
-                    None => self.synth_def_pattern(def_pattern, def_expr),
-                    Some(def_type) => {
-                        let def_type = self.check(def_type, &Arc::new(Value::Universe)); // FIXME: avoid temporary Arc
-                        let def_type_value = self.eval_context().eval(&def_type);
-
-                        let (def_name, def_expr) =
-                            self.check_def_pattern(def_pattern, def_expr, &def_type_value);
-
-                        let def_expr = core::Term::Ann(
-                            self.scope.to_scope(def_expr),
-                            self.scope.to_scope(def_type),
-                        );
-
-                        (def_name, def_expr, def_type_value)
-                    }
-                };
-
+            Term::Let(_, def_pattern, def_expr, output_expr) => {
+                let (def_name, def_expr, _) = self.synth_def_pattern(def_pattern, def_expr);
                 let (output_expr, output_type) = self.synth(output_expr);
                 self.rigid_env.pop();
 
@@ -803,15 +825,14 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
 
                 (fun_type, universe)
             }
-            Term::FunType(_, input_pattern, input_type, output_type) => {
+            Term::FunType(_, input_pattern, output_type) => {
                 let universe = Arc::new(Value::Universe); // FIXME: avoid temporary Arc
-                let input_type = self.check(input_type, &universe);
-                let input_type_value = self.eval_context().eval(&input_type);
-
-                let (input_name, _) = self.check_param_pattern(input_pattern, &input_type_value);
+                let (input_name, _, input_type) = self.synth_param_pattern(input_pattern);
                 let output_type = self.check(output_type, &universe);
                 self.rigid_env.pop();
 
+                // FIXME: avoid requoting?
+                let input_type = self.quote_context(self.scope).quote(&input_type);
                 let fun_type = core::Term::FunType(
                     input_name,
                     self.scope.to_scope(input_type),

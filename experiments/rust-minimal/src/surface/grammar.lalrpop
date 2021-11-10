@@ -40,7 +40,20 @@ extern {
     }
 }
 
-Pattern : Pattern<ByteRange> = {
+Pattern : Pattern<'arena, ByteRange> = {
+    AtomicPattern,
+    <start: @L> <pattern: Pattern> ":" <type_: LetTerm> <end: @R> => {
+        Pattern::Ann(
+            ByteRange::new(start, end),
+            scope.to_scope(pattern),
+            scope.to_scope(type_),
+        )
+    },
+};
+
+AtomicPattern : Pattern<'arena, ByteRange> = {
+    "(" <pattern: Pattern> ")" => pattern,
+
     <start: @L> "_" <end: @R> => Pattern::Placeholder(ByteRange::new(start, end)),
     <start: @L> <name: Name> <end: @R> => Pattern::Name(ByteRange::new(start, end), name),
 };
@@ -48,7 +61,7 @@ Pattern : Pattern<ByteRange> = {
 pub Term: Term<'arena, ByteRange> = {
     LetTerm,
     // FIXME: LALRPOP does not accept raw identifiers (see: https://github.com/lalrpop/lalrpop/issues/613)
-    <start: @L> <expr: LetTerm> ":" <type_: Term> <end: @R> => {
+    <start: @L> <expr: LetTerm> ":" <type_: LetTerm> <end: @R> => {
         Term::Ann(
             ByteRange::new(start, end),
             scope.to_scope(expr),
@@ -59,11 +72,10 @@ pub Term: Term<'arena, ByteRange> = {
 
 LetTerm: Term<'arena, ByteRange> = {
     FunTerm,
-    <start: @L> "let" <def_pattern: Pattern> <def_type: (":" <FunTerm>)?> "=" <def_expr: LetTerm> ";" <body_expr: LetTerm> <end: @R> => {
+    <start: @L> "let" <def_pattern: Pattern> "=" <def_expr: LetTerm> ";" <body_expr: LetTerm> <end: @R> => {
         Term::Let(
             ByteRange::new(start, end),
-            def_pattern,
-            def_type.map(|def_type| scope.to_scope(def_type) as &_),
+            scope.to_scope(def_pattern),
             scope.to_scope(def_expr),
             scope.to_scope(body_expr),
         )
@@ -79,18 +91,17 @@ FunTerm: Term<'arena, ByteRange> = {
             scope.to_scope(output_type),
         )
     },
-    <start: @L> "fun" "(" <input_pattern: Pattern> ":" <input_type: Term> ")" "->"  <output_type: FunTerm> <end: @R> => {
+    <start: @L> "fun" <input_pattern: AtomicPattern> "->"  <output_type: FunTerm> <end: @R> => {
         Term::FunType(
             ByteRange::new(start, end),
-            input_pattern,
-            scope.to_scope(input_type),
+            scope.to_scope(input_pattern),
             scope.to_scope(output_type),
         )
     },
-    <start: @L> "fun" <input_pattern: Pattern> "=>" <output_type: FunTerm> <end: @R> => {
+    <start: @L> "fun" <input_pattern: AtomicPattern> "=>" <output_type: FunTerm> <end: @R> => {
         Term::FunLiteral(
             ByteRange::new(start, end),
-            input_pattern,
+            scope.to_scope(input_pattern),
             scope.to_scope(output_type),
         )
     },
@@ -108,6 +119,8 @@ AppTerm: Term<'arena, ByteRange> = {
 };
 
 AtomicTerm: Term<'arena, ByteRange> = {
+    "(" <term: Term> ")" => term,
+
     <start: @L> <name: Name> <end: @R> => Term::Name(ByteRange::new(start, end), name),
     <start: @L> "_" <end: @R> => Term::Placeholder(ByteRange::new(start, end)),
     <start: @L> <name: Hole> <end: @R> => Term::Hole(ByteRange::new(start, end), name),
@@ -149,7 +162,6 @@ AtomicTerm: Term<'arena, ByteRange> = {
             scope.to_scope_from_iter(exprs),
         )
     },
-    "(" <term: Term> ")" => term,
 };
 
 #[inline] Name: StringId = { <"name"> => interner.borrow_mut().get_or_intern(<>) };

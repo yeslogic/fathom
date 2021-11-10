@@ -90,19 +90,25 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 self.check(expr)
             }
             core::Term::Let(def_name, def_expr, output_expr) => {
-                let (def_expr, def_type) = match self.synth(def_expr) {
-                    Term::Ann(_, expr, r#type) => (expr, Some(r#type)),
-                    expr => (self.scope.to_scope(expr) as &_, None),
+                let (def_pattern, def_expr) = match self.synth(def_expr) {
+                    Term::Ann(_, expr, r#type) => {
+                        let def_name = Pattern::Name((), self.push_rigid(*def_name));
+                        let def_pattern = Pattern::Ann((), self.scope.to_scope(def_name), r#type);
+                        (self.scope.to_scope(def_pattern), expr)
+                    }
+                    expr => {
+                        let def_name = Pattern::Name((), self.push_rigid(*def_name));
+                        (
+                            self.scope.to_scope(def_name),
+                            self.scope.to_scope(expr) as &_,
+                        )
+                    }
                 };
 
-                let def_name = self.push_rigid(*def_name);
-                let output_expr = self.check(output_expr);
+                let output_expr = self.scope.to_scope(self.check(output_expr));
                 self.pop_rigid();
 
-                let def_pattern = Pattern::Name((), def_name);
-                let output_expr = self.scope.to_scope(output_expr);
-
-                Term::Let((), def_pattern, def_type, def_expr, output_expr)
+                Term::Let((), def_pattern, def_expr, output_expr)
             }
             core::Term::FunIntro(input_name, output_expr) => {
                 let input_name = self.push_rigid(*input_name);
@@ -111,7 +117,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
 
                 Term::FunLiteral(
                     (),
-                    Pattern::Name((), input_name),
+                    self.scope.to_scope(Pattern::Name((), input_name)),
                     self.scope.to_scope(output_expr),
                 )
             }
@@ -185,19 +191,25 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 Term::Ann((), self.scope.to_scope(expr), self.scope.to_scope(r#type))
             }
             core::Term::Let(def_name, def_expr, output_expr) => {
-                let (def_expr, def_type) = match self.synth(def_expr) {
-                    Term::Ann(_, expr, r#type) => (expr, Some(r#type)),
-                    expr => (self.scope.to_scope(expr) as &_, None),
+                let (def_pattern, def_expr) = match self.synth(def_expr) {
+                    Term::Ann(_, expr, r#type) => {
+                        let def_name = Pattern::Name((), self.push_rigid(*def_name));
+                        let def_pattern = Pattern::Ann((), self.scope.to_scope(def_name), r#type);
+                        (self.scope.to_scope(def_pattern), expr)
+                    }
+                    expr => {
+                        let def_name = Pattern::Name((), self.push_rigid(*def_name));
+                        (
+                            self.scope.to_scope(def_name),
+                            self.scope.to_scope(expr) as &_,
+                        )
+                    }
                 };
 
-                let def_name = self.push_rigid(*def_name);
-                let output_expr = self.synth(output_expr);
+                let output_expr = self.scope.to_scope(self.synth(output_expr));
                 self.pop_rigid();
 
-                let def_pattern = Pattern::Name((), def_name);
-                let output_expr = self.scope.to_scope(output_expr);
-
-                Term::Let((), def_pattern, def_type, def_expr, output_expr)
+                Term::Let((), def_pattern, def_expr, output_expr)
             }
             core::Term::Universe => Term::Universe(()),
             core::Term::FunType(input_name, input_type, output_type) => {
@@ -210,8 +222,11 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 // TODO: distill to arrow if `input_name` is not bound in `output_type`
                 Term::FunType(
                     (),
-                    Pattern::Name((), input_name),
-                    self.scope.to_scope(input_type),
+                    self.scope.to_scope(Pattern::Ann(
+                        (),
+                        self.scope.to_scope(Pattern::Name((), input_name)),
+                        self.scope.to_scope(input_type),
+                    )),
                     self.scope.to_scope(output_type),
                 )
             }
@@ -222,7 +237,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
 
                 Term::FunLiteral(
                     (),
-                    Pattern::Name((), input_name),
+                    self.scope.to_scope(Pattern::Name((), input_name)),
                     self.scope.to_scope(output_expr),
                 )
             }

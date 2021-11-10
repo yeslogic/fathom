@@ -137,7 +137,7 @@ _elab.context_ ::=\
   - [ ] patterns
     - [x] wildcard patterns
     - [x] named patterns
-    - [ ] annotated patterns
+    - [x] annotated patterns
     - [ ] numeric literal patterns
     - [ ] record literal patterns
   - [ ] invertible format descriptions
