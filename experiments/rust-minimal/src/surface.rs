@@ -22,64 +22,88 @@ pub type ParseError<'source> = lalrpop_util::ParseError<usize, lexer::Token<'sou
 /// Surface patterns.
 #[derive(Debug, Clone)]
 pub enum Pattern<'arena, Range> {
+    /// Named patterns.
     Name(Range, StringId),
+    /// Placeholder patterns.
     Placeholder(Range),
+    /// Annotated patterns.
     Ann(
         Range,
         &'arena Pattern<'arena, Range>,
         &'arena Term<'arena, Range>,
     ),
+    // TODO: Number literal patterns
+    // TODO: Record literal patterns
 }
 
 /// Surface terms.
 #[derive(Debug, Clone)]
 pub enum Term<'arena, Range> {
+    /// Named patterns.
     Name(Range, StringId),
+    /// Hole expressions.
     Hole(Range, StringId),
+    /// Placeholder expressions.
     Placeholder(Range),
+    /// Annotated expressions.
     Ann(
         Range,
         &'arena Term<'arena, Range>,
         &'arena Term<'arena, Range>,
     ),
+    /// Let expressions.
     Let(
         Range,
         &'arena Pattern<'arena, Range>,
         &'arena Term<'arena, Range>,
         &'arena Term<'arena, Range>,
     ),
+    /// The type of types.
     Universe(Range),
+    /// Arrow types.
     Arrow(
         Range,
         &'arena Term<'arena, Range>,
         &'arena Term<'arena, Range>,
     ),
+    /// Dependent function types.
     FunType(
         Range,
         &'arena Pattern<'arena, Range>,
         &'arena Term<'arena, Range>,
     ),
+    /// Function literals.
     FunLiteral(
         Range,
         &'arena Pattern<'arena, Range>,
         &'arena Term<'arena, Range>,
     ),
+    /// Function eliminations.
     FunElim(
         Range,
         &'arena Term<'arena, Range>,
         &'arena Term<'arena, Range>,
     ),
+    /// Dependent record types.
     RecordType(Range, &'arena [((Range, StringId), Term<'arena, Range>)]),
+    /// Record literals.
     RecordLiteral(Range, &'arena [((Range, StringId), Term<'arena, Range>)]),
+    /// Unit literals.
     UnitLiteral(Range),
+    /// Record eliminations.
     RecordElim(Range, &'arena Term<'arena, Range>, (Range, StringId)),
+    /// Array literals.
     ArrayLiteral(Range, &'arena [Term<'arena, Range>]),
+    /// Number literals.
     NumberLiteral(Range, StringId),
+    /// Record format.
     FormatRecord(Range, &'arena [((Range, StringId), Term<'arena, Range>)]),
+    /// Reported error sentinel.
     ReportedError(Range),
 }
 
 impl<'arena, Range: Clone> Term<'arena, Range> {
+    /// Get the source range of the term.
     pub fn range(&self) -> Range {
         match self {
             Term::Name(range, _)
