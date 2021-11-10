@@ -23,8 +23,8 @@ use std::fmt;
 type RawVar = u16;
 
 /// A [de Bruijn index], which represents a variable counting the number of
-/// binders between a variable occurrence and its associated binder. For
-/// example:
+/// binders between a variable occurrence and the binder that introduced the
+/// variable. For example:
 ///
 /// | Representation    | Example (S combinator)  |
 /// | ----------------- | ----------------------- |
@@ -68,7 +68,7 @@ pub fn local_vars() -> impl Iterator<Item = LocalVar> {
 }
 
 /// A de Bruijn level, which represents a variable by counting the number of
-/// binders between the variable's associated binder and the start of the
+/// binders between the binder that introduced the variable and the start of the
 /// environment. For example:
 ///
 /// | Representation    | Example (S combinator)  |
