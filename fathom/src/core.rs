@@ -141,6 +141,13 @@ pub enum Term<'arena> {
     Prim(Prim),
     /// Constants.
     Const(Const),
+    // TODO:
+    // /// Constant elimination.
+    // ConstElim(
+    //     &'arena Term<'arena>,
+    //     &'arena [(Const, Term<'arena>)],
+    //     &'arena Term<'arena>,
+    // ),
 }
 
 /// Primitives.

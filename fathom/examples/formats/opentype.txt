@@ -116,8 +116,9 @@ let version16dot16 = {
 ///
 /// - [Microsoft's OpenType Spec: Font Tables](https://docs.microsoft.com/en-us/typography/opentype/spec/otff#font-tables)
 /// - [Apple's TrueType Reference Manual: TrueType Font files](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6.html#Overview)
-let font_table = fun (table_id : Repr tag) => fun (length : U32) =>
-    fail; // TODO: match on `table_id`
+let font_table = fun (table_id : Repr tag) => fun (length : U32) => match table_id {
+    _ => fail, // TODO: Table formats
+};
 
 /// # Table Record
 ///

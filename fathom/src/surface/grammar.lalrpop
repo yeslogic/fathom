@@ -20,6 +20,7 @@ extern {
 
         "fun" => Token::KeywordFun,
         "let" => Token::KeywordLet,
+        "match" => Token::KeywordMatch,
         "Type" => Token::KeywordType,
 
         ":" => Token::Colon,
@@ -125,6 +126,16 @@ AtomicTerm: Term<'arena, ByteRange> = {
     <start: @L> <name: Name> <end: @R> => Term::Name(ByteRange::new(start, end), name),
     <start: @L> "_" <end: @R> => Term::Placeholder(ByteRange::new(start, end)),
     <start: @L> <name: Hole> <end: @R> => Term::Hole(ByteRange::new(start, end), name),
+    <start: @L> "match" <scrutinee: AtomicTerm> "{"
+        <equations: (<Pattern> "=>" <Term> ",")*> <last: (<Pattern> "=>" <Term>)?>
+    "}" <end: @R> => {
+        let equations = equations.into_iter().chain(last);
+        Term::Match(
+            ByteRange::new(start, end),
+            scope.to_scope(scrutinee),
+            scope.to_scope_from_iter(equations),
+        )
+    },
     <start: @L> "Type" <end: @R> => Term::Universe(ByteRange::new(start, end)),
     <start: @L> <string: StringLiteral> <end: @R> => Term::StringLiteral(ByteRange::new(start, end), string),
     <start: @L> <number: NumberLiteral> <end: @R> => Term::NumberLiteral(ByteRange::new(start, end), number),

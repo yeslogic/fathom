@@ -33,7 +33,19 @@ pub enum Pattern<'arena, Range> {
         &'arena Term<'arena, Range>,
     ),
     // TODO: Number literal patterns
+    // NumberLiteral(Range, StringId),
     // TODO: Record literal patterns
+    // RecordLiteral(Range, &'arena [((ByteRange, StringId), Pattern<'arena, Range>)]),
+}
+
+impl<'arena, Range: Clone> Pattern<'arena, Range> {
+    fn range(&self) -> Range {
+        match self {
+            Pattern::Name(range, _) | Pattern::Placeholder(range) | Pattern::Ann(range, _, _) => {
+                range.clone()
+            }
+        }
+    }
 }
 
 /// Surface terms.
@@ -57,6 +69,12 @@ pub enum Term<'arena, Range> {
         &'arena Pattern<'arena, Range>,
         &'arena Term<'arena, Range>,
         &'arena Term<'arena, Range>,
+    ),
+    /// Match expressions
+    Match(
+        Range,
+        &'arena Term<'arena, Range>,
+        &'arena [(Pattern<'arena, Range>, Term<'arena, Range>)],
     ),
     /// The type of types.
     Universe(Range),
@@ -113,6 +131,7 @@ impl<'arena, Range: Clone> Term<'arena, Range> {
             | Term::Placeholder(range)
             | Term::Ann(range, _, _)
             | Term::Let(range, _, _, _)
+            | Term::Match(range, _, _)
             | Term::Universe(range)
             | Term::Arrow(range, _, _)
             | Term::FunType(range, _, _)

@@ -140,7 +140,10 @@ _elab.context_ ::=\
     - [ ] choice formats
     - [ ] repeat formats
   - [ ] type refinements
-  - [ ] match expressions
+  - [x] match expressions
+    - [ ] single-layer pattern matching
+    - [ ] multi-layer pattern matching
+    - [ ] dependent pattern matching
   - [ ] patterns
     - [x] wildcard patterns
     - [x] named patterns

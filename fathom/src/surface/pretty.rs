@@ -117,6 +117,29 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                     self.term_prec(Prec::Let, output_expr),
                 ]),
             ),
+            Term::Match(_, scrutinee, equations) => self
+                .concat([
+                    self.text("match"),
+                    self.space(),
+                    self.term_prec(Prec::Atomic, scrutinee),
+                    self.space(),
+                    self.text("{"),
+                    self.softline(),
+                    self.intersperse(
+                        equations.iter().map(|(pattern, output_expr)| {
+                            self.concat([
+                                self.pattern_prec(Prec::Top, pattern),
+                                self.space(),
+                                self.text("=>"),
+                                self.space(),
+                                self.term_prec(Prec::Top, r#output_expr),
+                            ])
+                        }),
+                        self.concat([self.text(","), self.softline()]),
+                    ),
+                    self.text("}"),
+                ])
+                .group(),
             Term::Universe(_) => self.text("Type"),
             Term::FunType(_, input_pattern, output_type) => self.paren(
                 prec > Prec::Fun,

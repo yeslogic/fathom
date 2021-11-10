@@ -15,6 +15,8 @@ pub enum Token<'source> {
     KeywordFun,
     #[token("let")]
     KeywordLet,
+    #[token("match")]
+    KeywordMatch,
     #[token("Type")]
     KeywordType,
 

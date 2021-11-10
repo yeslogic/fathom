@@ -14,6 +14,13 @@ pub enum Message {
         range: ByteRange,
         name: StringId,
     },
+    NonExhaustiveMatchExpr {
+        match_expr_range: ByteRange,
+        scrutinee_expr_range: ByteRange,
+    },
+    UnreachablePattern {
+        range: ByteRange,
+    },
     UnknownField {
         head_range: ByteRange,
         // TODO: add head type
@@ -112,6 +119,20 @@ impl Message {
                     ])
                 // TODO: list suggestions
             }
+            Message::NonExhaustiveMatchExpr {
+                match_expr_range,
+                scrutinee_expr_range,
+            } => Diagnostic::error()
+                .with_message("non-exhaustive patterns in match expression")
+                .with_labels(vec![
+                    Label::primary(file_id, *scrutinee_expr_range)
+                        .with_message("patterns not covered"),
+                    Label::secondary(file_id, *match_expr_range)
+                        .with_message("in match expression"),
+                ]),
+            Message::UnreachablePattern { range } => Diagnostic::warning()
+                .with_message("unreachable pattern")
+                .with_labels(vec![Label::primary(file_id, *range)]),
             Message::UnknownField {
                 head_range,
                 label_range,
