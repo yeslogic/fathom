@@ -104,6 +104,12 @@ impl<'arena> Closure<'arena> {
 }
 
 /// A series of terms where each term might depend on previous terms.
+///
+/// The term ‘telescope’ was [coined by de Bruijn] to allude to how each
+/// variable scopes over subsequent variables in a nested fashion, like how the
+/// segments of an “old-fashioned” expandable telescope slide into each other.
+///
+/// [coined by de Bruijn]: https://doi.org/10.1016/0890-5401(91)90066-B
 #[derive(Debug, Clone)]
 pub struct Telescope<'arena> {
     /// Rigid environment where the telescope's [terms][Self.terms] are bound.
@@ -324,7 +330,7 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
     }
 
     /// Split a telescope into the first value, and a continuation that returns
-    /// the a telescope containing the rest of the values.
+    /// a telescope containing the rest of the values.
     pub fn split_telescope(
         &self,
         mut telescope: Telescope<'arena>,
