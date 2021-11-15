@@ -30,4 +30,10 @@ let record_eta_left  : fun (r : { x : Type, y : Type }) -> Eq _ r { x = r.x, y =
 let record_eta_right : fun (r : { x : Type, y : Type }) -> Eq _ { x = r.x, y = r.y } r = fun r => refl _ r;
 
 
+// Literals
+
+let four_chars : Eq U32 "beng" 1650814567 = refl _ _;
+let three_chars : Eq U32 "BEN " 1111838240 = refl _ _;
+
+
 Type

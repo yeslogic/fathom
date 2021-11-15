@@ -94,6 +94,8 @@ pub enum Term<'arena, Range> {
     RecordElim(Range, &'arena Term<'arena, Range>, (Range, StringId)),
     /// Array literals.
     ArrayLiteral(Range, &'arena [Term<'arena, Range>]),
+    /// String literal.
+    StringLiteral(Range, StringId),
     /// Number literals.
     NumberLiteral(Range, StringId),
     /// Record format.
@@ -119,8 +121,9 @@ impl<'arena, Range: Clone> Term<'arena, Range> {
             | Term::RecordType(range, _)
             | Term::RecordLiteral(range, _)
             | Term::UnitLiteral(range)
-            | Term::ArrayLiteral(range, _)
             | Term::RecordElim(range, _, _)
+            | Term::ArrayLiteral(range, _)
+            | Term::StringLiteral(range, _)
             | Term::NumberLiteral(range, _)
             | Term::FormatRecord(range, _)
             | Term::ReportedError(range) => range.clone(),

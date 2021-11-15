@@ -218,6 +218,9 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 self.space(),
                 self.text("]"),
             ]),
+            Term::StringLiteral(_, number) => {
+                self.concat([self.text("\""), self.string_id(*number), self.text("\"")])
+            }
             Term::NumberLiteral(_, number) => self.string_id(*number),
             Term::FormatRecord(_, format_fields) => self.concat([
                 self.text("{"),

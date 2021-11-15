@@ -32,11 +32,6 @@ pub enum Message {
         range: ByteRange,
         labels: Vec<(ByteRange, StringId)>,
     },
-    InvalidNumericLiteral {
-        range: ByteRange,
-        message: String,
-        // expected_type: Doc<_>,
-    },
     ArrayLiteralNotSupported {
         range: ByteRange,
         // expected_type: Doc<_>,
@@ -48,6 +43,26 @@ pub enum Message {
     },
     AmbiguousArrayLiteral {
         range: ByteRange,
+    },
+    AmbiguousStringLiteral {
+        range: ByteRange,
+    },
+    MismatchedStringLiteralByteLength {
+        range: ByteRange,
+        expected_len: usize,
+        found_len: usize,
+    },
+    NonAsciiStringLiteral {
+        invalid_range: ByteRange,
+    },
+    StringLiteralNotSupported {
+        range: ByteRange,
+        // expected_type: Doc<_>,
+    },
+    InvalidNumericLiteral {
+        range: ByteRange,
+        message: String,
+        // expected_type: Doc<_>,
     },
     NumericLiteralNotSupported {
         range: ByteRange,
@@ -207,9 +222,6 @@ impl Message {
                             .format_with(", ", |label, f| f(&format_args!("`{}`", label)))
                     )])
             }
-            Message::InvalidNumericLiteral { range, message } => Diagnostic::error()
-                .with_message("failed to parse numeric literal")
-                .with_labels(vec![(Label::primary(file_id, *range)).with_message(message)]),
             Message::ArrayLiteralNotSupported { range } => Diagnostic::error()
                 .with_message("array literal not supported for expected type")
                 .with_labels(vec![Label::primary(file_id, *range)]),
@@ -219,13 +231,46 @@ impl Message {
                     .with_message(format!("found length: {}", found_len))]),
             Message::AmbiguousArrayLiteral { range } => Diagnostic::error()
                 .with_message("ambiguous array literal")
+                .with_labels(vec![
+                    Label::primary(file_id, *range).with_message("type annotations needed")
+                ]),
+            Message::MismatchedStringLiteralByteLength {
+                range,
+                expected_len,
+                found_len,
+            } => Diagnostic::error()
+                .with_message("mismatched number of bytes in string literal")
+                .with_labels(vec![
+                    Label::primary(file_id, *range).with_message("invalid string literal")
+                ])
+                .with_notes(vec![
+                    format!("expected byte length {}", expected_len),
+                    format!("   found byte length {}", found_len),
+                ]),
+            Message::NonAsciiStringLiteral { invalid_range } => Diagnostic::error()
+                .with_message("non-ASCII character found in string literal")
+                .with_labels(vec![
+                    Label::primary(file_id, *invalid_range).with_message("non-ASCII character")
+                ]),
+            Message::StringLiteralNotSupported { range } => Diagnostic::error()
+                .with_message("string literal not supported for expected type")
                 .with_labels(vec![Label::primary(file_id, *range)]),
+            Message::AmbiguousStringLiteral { range } => Diagnostic::error()
+                .with_message("ambiguous string literal")
+                .with_labels(vec![
+                    Label::primary(file_id, *range).with_message("type annotations needed")
+                ]),
+            Message::InvalidNumericLiteral { range, message } => Diagnostic::error()
+                .with_message("failed to parse numeric literal")
+                .with_labels(vec![(Label::primary(file_id, *range)).with_message(message)]),
             Message::NumericLiteralNotSupported { range } => Diagnostic::error()
                 .with_message("numeric literal not supported for expected type")
                 .with_labels(vec![Label::primary(file_id, *range)]),
             Message::AmbiguousNumericLiteral { range } => Diagnostic::error()
                 .with_message("ambiguous numeric literal")
-                .with_labels(vec![Label::primary(file_id, *range)]),
+                .with_labels(vec![
+                    Label::primary(file_id, *range).with_message("type annotations needed")
+                ]),
             Message::FailedToUnify { range, error } => {
                 use unification::{Error, RenameError, SpineError};
 

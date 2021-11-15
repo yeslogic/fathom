@@ -418,8 +418,63 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         (labels.into(), filtered_fields)
     }
 
-    /// Parse a term from a source string.
-    fn parse<T: FromStr>(
+    /// Parse a source string into number, assuming an ASCII encoding.
+    fn parse_string_number<T>(
+        &mut self,
+        range: ByteRange,
+        string_id: StringId,
+        make_const: fn(T) -> core::Const,
+    ) -> core::Term<'arena>
+    where
+        T: From<u8> + std::ops::Shl<Output = T> + std::ops::BitOr<Output = T>,
+    {
+        // TODO: Parse escape codes
+        // TODO: Alternate byte orders
+        // TODO: Non-ASCII encodings
+
+        let interner = self.interner.borrow();
+        let mut data = Some(T::from(0));
+        let mut count: u8 = 0;
+
+        for (offset, ch) in interner.resolve(string_id).unwrap().char_indices() {
+            if !ch.is_ascii() {
+                let ch_start = range.start() + 1 + offset;
+                let ch_end = ch_start + ch.len_utf8();
+
+                self.push_message(Message::NonAsciiStringLiteral {
+                    invalid_range: ByteRange::new(ch_start, ch_end),
+                });
+                data = None;
+            }
+
+            data = data
+                .filter(|_| usize::from(count) < std::mem::size_of::<T>())
+                .map(|data| {
+                    // Yikes this is a tad ugly
+                    // Setting the bytes in reverse order...
+                    let offset = 8 * (std::mem::size_of::<T>() as u8 - (count + 1));
+                    data | (T::from(ch as u8) << T::from(offset))
+                });
+            count += 1;
+        }
+
+        if count as usize != std::mem::size_of::<T>() {
+            self.push_message(Message::MismatchedStringLiteralByteLength {
+                range,
+                expected_len: std::mem::size_of::<T>(),
+                found_len: count as usize,
+            });
+            data = None;
+        }
+
+        match data {
+            Some(data) => core::Term::Const(make_const(data)),
+            None => core::Term::Prim(Prim::ReportedError),
+        }
+    }
+
+    /// Parse a source string into a number.
+    fn parse_number<T: FromStr>(
         &mut self,
         range: ByteRange,
         string_id: StringId,
@@ -726,17 +781,32 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
 
                 core::Term::ArrayIntro(elem_exprs)
             }
+            (Term::StringLiteral(range, string), _) => match expected_type.match_prim_spine() {
+                Some((Prim::U8Type, [])) => self.parse_string_number(*range, *string, Const::U8),
+                Some((Prim::U16Type, [])) => self.parse_string_number(*range, *string, Const::U16),
+                Some((Prim::U32Type, [])) => self.parse_string_number(*range, *string, Const::U32),
+                Some((Prim::U64Type, [])) => self.parse_string_number(*range, *string, Const::U64),
+                // TODO: Byte array literals:
+                // Some((Prim::Array8Type, [len, _])) => todo!(),
+                // Some((Prim::Array16Type, [len, _])) => todo!(),
+                // Some((Prim::Array32Type, [len, _])) => todo!(),
+                // Some((Prim::Array64Type, [len, _])) => todo!(),
+                _ => {
+                    self.push_message(Message::StringLiteralNotSupported { range: *range });
+                    core::Term::Prim(Prim::ReportedError)
+                }
+            },
             (Term::NumberLiteral(range, number), _) => match expected_type.match_prim_spine() {
-                Some((Prim::U8Type, [])) => self.parse(*range, *number, Const::U8),
-                Some((Prim::U16Type, [])) => self.parse(*range, *number, Const::U16),
-                Some((Prim::U32Type, [])) => self.parse(*range, *number, Const::U32),
-                Some((Prim::U64Type, [])) => self.parse(*range, *number, Const::U64),
-                Some((Prim::S8Type, [])) => self.parse(*range, *number, Const::S8),
-                Some((Prim::S16Type, [])) => self.parse(*range, *number, Const::S16),
-                Some((Prim::S32Type, [])) => self.parse(*range, *number, Const::S32),
-                Some((Prim::S64Type, [])) => self.parse(*range, *number, Const::S64),
-                Some((Prim::F32Type, [])) => self.parse(*range, *number, Const::F32),
-                Some((Prim::F64Type, [])) => self.parse(*range, *number, Const::F64),
+                Some((Prim::U8Type, [])) => self.parse_number(*range, *number, Const::U8),
+                Some((Prim::U16Type, [])) => self.parse_number(*range, *number, Const::U16),
+                Some((Prim::U32Type, [])) => self.parse_number(*range, *number, Const::U32),
+                Some((Prim::U64Type, [])) => self.parse_number(*range, *number, Const::U64),
+                Some((Prim::S8Type, [])) => self.parse_number(*range, *number, Const::S8),
+                Some((Prim::S16Type, [])) => self.parse_number(*range, *number, Const::S16),
+                Some((Prim::S32Type, [])) => self.parse_number(*range, *number, Const::S32),
+                Some((Prim::S64Type, [])) => self.parse_number(*range, *number, Const::S64),
+                Some((Prim::F32Type, [])) => self.parse_number(*range, *number, Const::F32),
+                Some((Prim::F64Type, [])) => self.parse_number(*range, *number, Const::F64),
                 Some((Prim::ReportedError, _)) => return core::Term::Prim(Prim::ReportedError),
                 _ => {
                     self.push_message(Message::NumericLiteralNotSupported { range: *range });
@@ -1016,8 +1086,13 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 self.push_message(Message::AmbiguousArrayLiteral { range: *range });
                 self.synth_reported_error(*range)
             }
+            // TODO: Stuck macros + unification like in Klister?
+            Term::StringLiteral(range, _) => {
+                self.push_message(Message::AmbiguousStringLiteral { range: *range });
+                self.synth_reported_error(*range)
+            }
+            // TODO: Stuck macros + unification like in Klister?
             Term::NumberLiteral(range, _) => {
-                // TODO: Stuck macros + unification like in Klister?
                 self.push_message(Message::AmbiguousNumericLiteral { range: *range });
                 self.synth_reported_error(*range)
             }

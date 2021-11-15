@@ -6,8 +6,10 @@ pub enum Token<'source> {
     Name(&'source str),
     #[regex(r"\?[a-zA-Z_][a-zA-Z0-9_]*", |lex| &lex.slice()[1..])]
     Hole(&'source str),
+    #[regex(r#""([^"\\]|\\.)*""#, |lex| &lex.slice()[1..(lex.slice().len() - 1)])]
+    StringLiteral(&'source str),
     #[regex(r"[+-]?[0-9][a-zA-Z0-9_]*")]
-    Number(&'source str),
+    NumberLiteral(&'source str),
 
     #[token("fun")]
     KeywordFun,
