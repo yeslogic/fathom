@@ -177,6 +177,8 @@ pub enum Prim {
     Array32Type,
     /// Type of arrays, with 64-bit indices.
     Array64Type,
+    /// Type of stream positions.
+    PosType,
 
     /// Type of format descriptions.
     FormatType,
@@ -218,14 +220,16 @@ pub enum Prim {
     FormatF64Be,
     /// 64-bit, IEEE-754 floating point formats (little-endian).
     FormatF64Le,
-    // Array formats, with 8-bit indices
+    /// Array formats, with 8-bit indices.
     FormatArray8,
-    // Array formats, with 16-bit indices
+    /// Array formats, with 16-bit indices.
     FormatArray16,
-    // Array formats, with 32-bit indices
+    /// Array formats, with 32-bit indices.
     FormatArray32,
-    // Array formats, with 64-bit indices
+    /// Array formats, with 64-bit indices.
     FormatArray64,
+    /// A format which returns the current position in the input stream.
+    FormatStreamPos,
     /// Format representations.
     FormatRepr,
 
@@ -252,6 +256,7 @@ impl Prim {
             Prim::Array16Type => "Array16",
             Prim::Array32Type => "Array32",
             Prim::Array64Type => "Array64",
+            Prim::PosType => "Pos",
 
             Prim::FormatType => "Format",
             Prim::FormatFail => "fail",
@@ -277,6 +282,7 @@ impl Prim {
             Prim::FormatArray16 => "array16",
             Prim::FormatArray32 => "array32",
             Prim::FormatArray64 => "array64",
+            Prim::FormatStreamPos => "stream_pos",
             Prim::FormatRepr => "Repr",
 
             Prim::ReportedError => "reported_error",
@@ -298,6 +304,7 @@ pub enum Const {
     // TODO: use logical equality for floating point numbers
     F32(f32),
     F64(f64),
+    Pos(u64),
 }
 
 #[cfg(test)]

@@ -148,6 +148,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 core::Const::S64(number) => self.check_number_literal(number),
                 core::Const::F32(number) => self.check_number_literal(number),
                 core::Const::F64(number) => self.check_number_literal(number),
+                core::Const::Pos(number) => self.check_number_literal(number),
             },
 
             _ => self.synth(core_term),
@@ -317,6 +318,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 core::Const::S64(number) => self.synth_number_literal(number, core::Prim::S64Type),
                 core::Const::F32(number) => self.synth_number_literal(number, core::Prim::F32Type),
                 core::Const::F64(number) => self.synth_number_literal(number, core::Prim::F64Type),
+                core::Const::Pos(number) => self.synth_number_literal(number, core::Prim::PosType),
             },
         }
     }

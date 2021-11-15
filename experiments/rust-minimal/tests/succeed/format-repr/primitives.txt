@@ -27,4 +27,6 @@ let test_array32 : fun (n : U32) -> fun (f : Format) -> Repr (array32 n f) -> Ar
 let test_array64 : fun (n : U64) -> fun (f : Format) -> Repr (array64 n f) -> Array64 n (Repr f) =
     fun len => fun f => fun array => array;
 
+let test_stream_pos : Repr stream_pos -> Pos = fun x => x;
+
 Type

@@ -5,6 +5,7 @@ use std::cell::RefCell;
 use std::io::Read;
 use std::path::Path;
 
+use crate::core::binary;
 use crate::source::{ByteRange, FileId};
 use crate::surface::{self, elaboration};
 use crate::StringInterner;
@@ -231,7 +232,7 @@ impl<'surface, 'core> Driver<'surface, 'core> {
         Status::Ok
     }
 
-    pub fn read_format(&mut self, file_id: FileId, reader: &mut dyn Read) -> Status {
+    pub fn read_format(&mut self, file_id: FileId, reader: &mut dyn binary::SeekRead) -> Status {
         use std::sync::Arc;
 
         use crate::core::semantics::Value;

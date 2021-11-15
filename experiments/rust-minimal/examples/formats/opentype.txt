@@ -1,5 +1,3 @@
-//~ ignore = true
-
 // # Common Formats
 //
 // Common formats to be used in the OpenType specification.
@@ -52,7 +50,7 @@ let long_date_time : Format = s64be;
 /// ## References
 ///
 /// - [Microsoft's OpenType Spec: Tag](https://docs.microsoft.com/en-us/typography/opentype/spec/otff#dt_Tag)
-let tag : Format = array8 4 U8;
+let tag : Format = array8 4 u8;
 
 /// A format that consumes no input.
 let empty : Format = {};
@@ -62,12 +60,12 @@ let empty : Format = {};
 /// ## References
 ///
 /// - [Microsoft's OpenType Spec: Offset16](https://docs.microsoft.com/en-us/typography/opentype/spec/otff#dt_Offset16)
-let offset16 (base : Pos) (format : Format) = {
+let offset16 = fun (base : Pos) => fun (format : Format) => {
     offset <- u16be,
-    link <- match offset {
-        0 => empty,
-        _ => link base offset format, // TODO: Use an option type?
-    },
+    // link <- match offset {
+    //     0 => empty,
+    //     _ => link base offset format, // TODO: Use an option type?
+    // },
 };
 
 /// 32-bit offset to a `format`, relative to some `base` position.
@@ -75,12 +73,12 @@ let offset16 (base : Pos) (format : Format) = {
 /// ## References
 ///
 /// - [Microsoft's OpenType Spec: Offset32](https://docs.microsoft.com/en-us/typography/opentype/spec/otff#dt_Offset32)
-let offset32 (base : Pos) (format : Format) = {
+let offset32 = fun (base : Pos) => fun (format : Format) => {
     offset <- u32be,
-    link <- match offset {
-        0 => empty,
-        _ => link base offset format, // TODO: Use an option type?
-    },
+    // link <- match offset {
+    //     0 => empty,
+    //     _ => link base offset format, // TODO: Use an option type?
+    // },
 };
 
 /// Packed 32-bit value with major and minor version numbers.
@@ -113,9 +111,8 @@ let version16dot16 = {
 ///
 /// - [Microsoft's OpenType Spec: Font Tables](https://docs.microsoft.com/en-us/typography/opentype/spec/otff#font-tables)
 /// - [Apple's TrueType Reference Manual: TrueType Font files](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6.html#Overview)
-let font_table (table_id : Repr tag) (length : U32) = match table_id {
-    _ => fail, // TODO: table formats
-};
+let font_table = fun (table_id : Repr tag) => fun (length : U32) =>
+    fail; // TODO: match on `table_id`
 
 /// # Table Record
 ///
@@ -125,7 +122,7 @@ let font_table (table_id : Repr tag) (length : U32) = match table_id {
 ///
 /// - [Microsoft's OpenType Spec: Table Directory](https://docs.microsoft.com/en-us/typography/opentype/spec/otff#table-directory)
 /// - [Apple's TrueType Reference Manual: The Font Directory](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6.html#Directory)
-let table_record (file_start : Pos) = {
+let table_record = fun (file_start : Pos) => {
     /// Table identifier.
     table_id <- tag,
     /// CheckSum for this table.
@@ -138,8 +135,9 @@ let table_record (file_start : Pos) = {
     offset <- u32be,
     /// Length of this table.
     length <- u32be,
-    /// The computed position of this table.
-    link <- link file_start offset (font_table table_id length)
+    // TODO: links
+    // /// The computed position of this table.
+    // link <- link file_start offset (font_table table_id length)
 };
 
 /// # Table Directory
@@ -150,7 +148,7 @@ let table_record (file_start : Pos) = {
 ///
 /// - [Microsoft's OpenType Spec: Table Directory](https://docs.microsoft.com/en-us/typography/opentype/spec/otff#table-directory)
 /// - [Apple's TrueType Reference Manual: The Font Directory](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6.html#Directory)
-let table_directory (file_start : Pos) = {
+let table_directory = fun (file_start : Pos) => {
     /// Version of the font.
     ///
     /// - `0x00010000` for fonts containing TrueType outlines
@@ -181,7 +179,7 @@ let table_directory (file_start : Pos) = {
 /// - [Apple's TrueType Reference Manual: TrueType Font files](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6.html#Overview)
 let main = {
     /// The start of the font file.
-    start <- get_pos,
+    start <- stream_pos,
     /// The directory of tables in the font.
     directory <- table_directory start,
 };

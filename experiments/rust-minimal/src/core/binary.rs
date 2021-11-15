@@ -1,6 +1,6 @@
 //! Binary semantics of the data description language
 
-use std::io::{self, Read};
+use std::io::{self, Read, Seek};
 use std::sync::Arc;
 
 use crate::core::semantics::{self, ArcValue, Head, Value};
@@ -22,7 +22,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
 
     pub fn read(
         &self,
-        reader: &mut dyn Read,
+        reader: &mut dyn SeekRead,
         format: &ArcValue<'arena>,
     ) -> io::Result<ArcValue<'arena>> {
         use crate::core::semantics::Elim::Fun;
@@ -51,6 +51,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
                 (Prim::FormatArray16, [Fun(len), Fun(elem)]) => self.read_array(reader, len, elem),
                 (Prim::FormatArray32, [Fun(len), Fun(elem)]) => self.read_array(reader, len, elem),
                 (Prim::FormatArray64, [Fun(len), Fun(elem)]) => self.read_array(reader, len, elem),
+                (Prim::FormatStreamPos, []) => read_stream_pos(reader),
                 _ => return Err(io::Error::new(io::ErrorKind::Other, "invalid format")),
             },
             Value::FormatRecord(labels, formats) => {
@@ -84,7 +85,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
 
     fn read_array(
         &self,
-        reader: &mut dyn Read,
+        reader: &mut dyn SeekRead,
         len: &ArcValue<'arena>,
         elem_format: &ArcValue<'arena>,
     ) -> io::Result<ArcValue<'arena>> {
@@ -105,26 +106,35 @@ impl<'arena, 'env> Context<'arena, 'env> {
     }
 }
 
+pub trait SeekRead: Seek + Read {}
+
+impl<T: Seek + Read> SeekRead for T {}
+
+fn read_stream_pos<'arena>(reader: &mut dyn SeekRead) -> io::Result<ArcValue<'arena>> {
+    let pos = reader.stream_position()?;
+    Ok(Arc::new(Value::Const(Const::Pos(pos))))
+}
+
 fn read_const<'arena, T>(
-    reader: &mut dyn Read,
+    reader: &mut dyn SeekRead,
     wrap_const: fn(T) -> Const,
-    read: fn(&mut dyn Read) -> io::Result<T>,
+    read: fn(&mut dyn SeekRead) -> io::Result<T>,
 ) -> io::Result<ArcValue<'arena>> {
     let data = read(reader)?;
     Ok(Arc::new(Value::Const(wrap_const(data))))
 }
 
-fn read_u8(reader: &mut dyn Read) -> io::Result<u8> {
+fn read_u8(reader: &mut dyn SeekRead) -> io::Result<u8> {
     let [byte] = read_array(reader)?;
     Ok(byte)
 }
 
-fn read_s8(reader: &mut dyn Read) -> io::Result<i8> {
+fn read_s8(reader: &mut dyn SeekRead) -> io::Result<i8> {
     let [byte] = read_array(reader)?;
     Ok(byte as i8)
 }
 
-fn read_array<const N: usize>(reader: &mut dyn Read) -> io::Result<[u8; N]> {
+fn read_array<const N: usize>(reader: &mut dyn SeekRead) -> io::Result<[u8; N]> {
     let mut buf = [0; N];
     reader.read_exact(&mut buf)?;
     Ok(buf)
@@ -133,7 +143,7 @@ fn read_array<const N: usize>(reader: &mut dyn Read) -> io::Result<[u8; N]> {
 /// Generates a function that reads a multi-byte primitive.
 macro_rules! read_multibyte_prim {
     ($read_multibyte_prim:ident, $from_bytes:ident, $T:ident) => {
-        fn $read_multibyte_prim(reader: &mut dyn Read) -> io::Result<$T> {
+        fn $read_multibyte_prim(reader: &mut dyn SeekRead) -> io::Result<$T> {
             let data = read_array(reader)?;
             Ok($T::$from_bytes(data))
         }

@@ -1,3 +1,4 @@
+use std::io::BufReader;
 use std::path::PathBuf;
 use structopt::StructOpt;
 
@@ -63,9 +64,9 @@ enum Options {
         /// Continue even if errors were encountered
         #[structopt(long = "allow-errors")]
         allow_errors: bool,
-        /// The binary file to read (`-` to read from stdin)
-        #[structopt(name = "BINARY", default_value = "-", parse(from_str))]
-        binary_input: Input, // TODO: parse multiple binary files?
+        /// The binary file to read
+        #[structopt(name = "BINARY", parse(from_str))]
+        binary_path: PathBuf, // TODO: parse multiple binary files?
     },
 }
 
@@ -149,7 +150,7 @@ fn main() -> ! {
         Options::Data {
             format_input,
             allow_errors,
-            binary_input,
+            binary_path,
         } => {
             let mut driver = fathom_minimal::Driver::new();
             driver.install_panic_hook();
@@ -161,13 +162,8 @@ fn main() -> ! {
                 Input::File(path) => driver.read_source_path(&path),
             };
 
-            let status = match binary_input {
-                Input::StdIn => driver.read_format(file_id, &mut std::io::stdin()),
-                Input::File(path) => {
-                    let mut reader = std::fs::File::open(path).unwrap(); // TODO: report errors
-                    driver.read_format(file_id, &mut reader)
-                }
-            };
+            let mut reader = BufReader::new(std::fs::File::open(binary_path).unwrap()); // TODO: report errors
+            let status = driver.read_format(file_id, &mut reader);
 
             std::process::exit(status.exit_code());
         }

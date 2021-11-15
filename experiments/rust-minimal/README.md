@@ -129,6 +129,8 @@ _elab.context_ ::=\
     - [x] record formats
       - [ ] conditional field sugar
       - [ ] skipped fields
+    - [x] position formats
+    - [ ] link formats formats
     - [ ] map formats
     - [x] numeric formats
     - [x] array formats

@@ -447,6 +447,8 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
                     (Prim::FormatArray64, [Elim::Fun(len), Elim::Fun(elem)]) => Arc::new(
                         Value::prim(Prim::Array64Type, [len.clone(), self.apply_repr(elem)]),
                     ),
+                    (Prim::FormatStreamPos, []) => Arc::new(Value::prim(Prim::PosType, [])),
+                    (Prim::ReportedError, []) => Arc::new(Value::prim(Prim::ReportedError, [])),
                     _ => panic_any(Error::InvalidFormatRepr),
                 }
             }

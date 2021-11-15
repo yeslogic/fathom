@@ -95,6 +95,7 @@ impl<'arena> RigidEnv<'arena> {
         define_prim(Prim::Array16Type, array_type(Prim::U16Type));
         define_prim(Prim::Array32Type, array_type(Prim::U32Type));
         define_prim(Prim::Array64Type, array_type(Prim::U64Type));
+        define_prim(Prim::PosType, universe());
 
         define_prim(Prim::FormatType, universe());
         define_prim(Prim::FormatFail, format_type());
@@ -120,6 +121,7 @@ impl<'arena> RigidEnv<'arena> {
         define_prim(Prim::FormatArray16, format_array(Prim::U16Type));
         define_prim(Prim::FormatArray32, format_array(Prim::U32Type));
         define_prim(Prim::FormatArray64, format_array(Prim::U64Type));
+        define_prim(Prim::FormatStreamPos, format_type());
         define_prim(
             Prim::FormatRepr,
             Arc::new(Value::FunType(None, format_type(), close(Term::Universe))),
@@ -659,6 +661,14 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 core::Term::RecordIntro(labels, exprs.into())
             }
             (Term::UnitLiteral(_), Value::Universe) => core::Term::RecordType(&[], &[]),
+            (Term::UnitLiteral(_), _)
+                if matches!(
+                    expected_type.match_prim_spine(),
+                    Some((Prim::FormatType, [])),
+                ) =>
+            {
+                core::Term::FormatRecord(&[], &[])
+            }
             (Term::ArrayLiteral(range, elem_exprs), _) => {
                 use crate::core::semantics::Elim::Fun;
 
