@@ -1,5 +1,3 @@
-//~ ignore = true
-
 //! # Apple Icon Image format
 //!
 //! ## References
@@ -7,21 +5,21 @@
 //! - [Wikipedia](https://en.wikipedia.org/wiki/Apple_Icon_Image_format)
 
 let header = {
-    magic <- u32be == ascii "icns",
+    magic <- u32be,                 // TODO: where magic == ascii "icns",
     file_length <- u32be,
 };
 
 let icon_data = {
-    icon_type <- u32be,              // TODO: bit patterns
+    icon_type <- u32be,             // TODO: bit patterns
     icon_data_length <- u32be,
     // TODO: decode data based on `icon_type`
     // TODO: while `current_pos < data_start + icon_data_length`
-    data <- array 0 u8,
+    data <- array8 0 u8,
 };
 
 let main = {
     header <- header,
-    icons <- array 0 icon_data, // TODO: while not EOF
+    icons <- array8 0 icon_data,    // TODO: while not EOF
 };
 
 main

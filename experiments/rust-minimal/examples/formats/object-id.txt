@@ -1,10 +1,11 @@
-//~ ignore = true
-
 //! # BSON ObjectId
 //!
 //! ## References
 //!
 //! - [Mongo Reference](https://docs.mongodb.com/manual/reference/bson-types/#objectid)
+
+// TODO: make this a primitive
+let u24be = array8 3 u8;
 
 {
     /// 4-byte timestamp value representing the creation time of the ObjectId,
@@ -14,5 +15,5 @@
     /// the machine and process.
     random <- array8 5 u8,
     /// Incrementing counter, initialized to a random value.
-    counter <- u24be, // TODO: u24be
+    counter <- u24be,
 }

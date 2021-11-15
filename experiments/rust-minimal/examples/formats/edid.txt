@@ -1,5 +1,3 @@
-//~ ignore = true
-
 //! # Extended Display Identification Data
 //!
 //! ## References
@@ -9,7 +7,7 @@
 // TODO: Versions 1.0-1.4
 
 let header = {
-    magic <- u64le == 0x00ffffffffffff00,
+    magic <- u64le,                          // TODO: where magic == 0x00ffffffffffff00,
     manufacturer_id <- u16le,                // TODO: bit patterns
     product_code <- u16le,
     serial <- u32le,
@@ -44,7 +42,7 @@ let established_timing = {
     mode_bitmap <- array8 3 u8,             // TODO: bit patterns
 };
 
-let standard_timing_information = {
+let standard_timing_information : Format = {
     // TODO: Standard timing information
 };
 
