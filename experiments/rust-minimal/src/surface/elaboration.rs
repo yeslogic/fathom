@@ -57,22 +57,17 @@ impl<'arena> RigidEnv<'arena> {
         let format_type = shared(Arc::new(Value::prim(Prim::FormatType, [])));
 
         let array_type = |index_type: Prim| {
-            Arc::new(Value::FunType(
-                None,
-                Arc::new(Value::prim(index_type, [])),
-                close(Term::FunType(None, &Term::Universe, &Term::Universe)),
-            ))
+            let index_type = Arc::new(Value::prim(index_type, []));
+            let output_type = close(Term::FunType(None, &Term::Universe, &Term::Universe));
+
+            Arc::new(Value::FunType(None, index_type, output_type))
         };
         let format_array = |index_type: Prim| {
-            Arc::new(Value::FunType(
-                None,
-                Arc::new(Value::prim(index_type, [])),
-                close(Term::FunType(
-                    None,
-                    &Term::Prim(Prim::FormatType),
-                    &Term::Prim(Prim::FormatType),
-                )),
-            ))
+            let index_type = Arc::new(Value::prim(index_type, []));
+            let format_type = &Term::Prim(Prim::FormatType);
+            let output_type = close(Term::FunType(None, format_type, format_type));
+
+            Arc::new(Value::FunType(None, index_type, output_type))
         };
 
         let mut define_prim = |prim: Prim, r#type| {
