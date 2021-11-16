@@ -14,9 +14,13 @@
 let logical_screen_descriptor = {
     image_width <- u16le,
     image_height <- u16le,
-    flags <- u8,                     // TODO: interpret flags
+    flags <- u8,
     bg_color_index <- u8,
     pixel_aspect_ratio <- u8,
+
+    // TODO: interpret flags
+    // has_color_table : Bool = (flags & 0b10000000) != 0,
+    // color_table_size : U16 = 2 << (flags & 7),
 };
 
 /// # Header
@@ -46,7 +50,6 @@ let color_table_entry = {
 ///
 /// - [GIF89a Specification: Section 19](https://www.w3.org/Graphics/GIF/spec-gif89a.txt)
 let global_color_table = fun (len : U16) => {
-    // TODO: use a function rather than a struct
     entries <- array16 len color_table_entry,
 };
 
