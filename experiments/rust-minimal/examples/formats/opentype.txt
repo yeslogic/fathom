@@ -47,10 +47,15 @@ let long_date_time : Format = s64be;
 /// Array of four `U8`s used to identify a table, design-variation axis, script,
 /// language system, feature, or baseline.
 ///
+/// The elements of the array are expected to be in the range [0x20, 0x7E].
+/// This corresponds to the range of printable ASCII characters.
+///
 /// ## References
 ///
 /// - [Microsoft's OpenType Spec: Tag](https://docs.microsoft.com/en-us/typography/opentype/spec/otff#dt_Tag)
-let tag : Format = array8 4 u8;
+let tag : Format =
+    // TODO: constrain array elements to the range 0x20 to 0x7E.
+    array8 4 u8;
 
 /// A format that consumes no input.
 let empty : Format = {};
