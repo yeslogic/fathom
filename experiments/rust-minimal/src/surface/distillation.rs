@@ -14,8 +14,6 @@ pub struct Context<'interner, 'arena, 'env> {
     scope: &'arena Scope<'arena>,
     /// Rigid name environment.
     rigid_names: &'env mut UniqueEnv<Option<StringId>>,
-
-    placeholder_string: StringId,
 }
 
 impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
@@ -25,13 +23,10 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
         scope: &'arena Scope<'arena>,
         rigid_names: &'env mut UniqueEnv<Option<StringId>>,
     ) -> Context<'interner, 'arena, 'env> {
-        let placeholder_string = interner.borrow_mut().get_or_intern("_");
-
         Context {
             interner,
             scope,
             rigid_names,
-            placeholder_string,
         }
     }
 
@@ -44,7 +39,9 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
     }
 
     fn push_rigid(&mut self, name: Option<StringId>) -> StringId {
-        let name = name.unwrap_or(self.placeholder_string); // TODO: choose a better name?
+        let name = name.unwrap_or_else(|| {
+            self.interner.borrow_mut().get_or_intern_static("_") // TODO: choose a better name?
+        });
 
         // TODO: avoid globals
         // TODO: ensure we chose a correctly bound name
