@@ -3,7 +3,8 @@
 use scoped_arena::Scope;
 use std::cell::RefCell;
 
-use crate::env::{self, EnvLen, LocalVar, UniqueEnv};
+use crate::env::{self, EnvLen, GlobalVar, LocalVar, UniqueEnv};
+use crate::surface::elaboration::FlexSource;
 use crate::surface::{Pattern, Term};
 use crate::{core, StringId, StringInterner};
 
@@ -14,6 +15,8 @@ pub struct Context<'interner, 'arena, 'env> {
     scope: &'arena Scope<'arena>,
     /// Rigid name environment.
     rigid_names: &'env mut UniqueEnv<Option<StringId>>,
+    /// Flexible sources.
+    flexible_sources: &'env UniqueEnv<FlexSource>,
 }
 
 impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
@@ -22,11 +25,13 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
         interner: &'interner RefCell<StringInterner>,
         scope: &'arena Scope<'arena>,
         rigid_names: &'env mut UniqueEnv<Option<StringId>>,
+        flexible_sources: &'env UniqueEnv<FlexSource>,
     ) -> Context<'interner, 'arena, 'env> {
         Context {
             interner,
             scope,
             rigid_names,
+            flexible_sources,
         }
     }
 
@@ -55,6 +60,13 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
 
     fn truncate_rigid(&mut self, len: EnvLen) {
         self.rigid_names.truncate(len);
+    }
+
+    fn get_flexible_name(&self, var: GlobalVar) -> Option<StringId> {
+        match self.flexible_sources.get_global(var)? {
+            FlexSource::HoleExpr(_, name) => Some(*name),
+            _ => None,
+        }
     }
 
     fn check_number_literal<T: std::fmt::Display>(&mut self, number: T) -> Term<'arena, ()> {
@@ -159,9 +171,10 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 Some(name) => Term::Name((), name),
                 None => todo!("misbound variable"), // TODO: error?
             },
-            core::Term::FlexibleVar(_var) => {
-                Term::Placeholder(()) // TODO: lookup flexible variable name
-            }
+            core::Term::FlexibleVar(var) => match self.get_flexible_name(*var) {
+                Some(name) => Term::Hole((), name),
+                None => Term::Placeholder(()),
+            },
             core::Term::FlexibleInsertion(var, rigid_infos) => {
                 let mut head_expr = self.synth(&core::Term::FlexibleVar(*var));
 

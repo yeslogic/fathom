@@ -357,7 +357,12 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         &mut self,
         scope: &'out_arena Scope<'out_arena>,
     ) -> distillation::Context<'interner, 'out_arena, '_> {
-        distillation::Context::new(self.interner, scope, &mut self.rigid_env.names)
+        distillation::Context::new(
+            self.interner,
+            scope,
+            &mut self.rigid_env.names,
+            &self.flexible_env.sources,
+        )
     }
 
     pub fn binary_context(&self) -> binary::Context<'arena, '_> {
