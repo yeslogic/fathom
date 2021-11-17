@@ -96,7 +96,7 @@ fn run_test_impl(test: &libtest_mimic::Test<TestData>) -> libtest_mimic::Outcome
         return libtest_mimic::Outcome::Ignored;
     }
 
-    let mut command = Command::new(env!("CARGO_BIN_EXE_fathom-minimal"));
+    let mut command = Command::new(env!("CARGO_BIN_EXE_fathom"));
     command.arg("elab");
     command.args(["--term", test.data.input_file.to_string_lossy().as_ref()]);
 
@@ -140,7 +140,7 @@ fn run_test_impl(test: &libtest_mimic::Test<TestData>) -> libtest_mimic::Outcome
         .unwrap();
 
     for example_file in example_data.filter_map(Result::ok) {
-        let mut command = Command::new(env!("CARGO_BIN_EXE_fathom-minimal"));
+        let mut command = Command::new(env!("CARGO_BIN_EXE_fathom"));
         command.arg("data");
         command.args(["--format", test.data.input_file.to_string_lossy().as_ref()]);
         command.arg(example_file.path());

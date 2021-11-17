@@ -8,20 +8,20 @@ use structopt::StructOpt;
 
 Using arguments
 
-    fathom-minimal elab --surface-term=examples/prelude.txt
-    fathom-minimal norm --surface-term=examples/prelude.txt
+    fathom elab --surface-term=examples/prelude.txt
+    fathom norm --surface-term=examples/prelude.txt
 
 Using pipes and redirects
 
-    echo "fun (A : Type) -> A -> A" | fathom-minimal elab
-    cat examples/prelude.txt | fathom-minimal elab
-    fathom-minimal elab < examples/prelude.txt
+    echo "fun (A : Type) -> A -> A" | fathom elab
+    cat examples/prelude.txt | fathom elab
+    fathom elab < examples/prelude.txt
 
 Using heredocs
 
-    fathom-minimal elab <<< "fun (A : Type) -> A -> A"
+    fathom elab <<< "fun (A : Type) -> A -> A"
 
-    fathom-minimal norm <<EOF
+    fathom norm <<EOF
         let id : fun (A : Type) -> A -> A
           = fun A => fun a => a;
 
@@ -97,7 +97,7 @@ fn main() -> ! {
             term_input,
             allow_errors,
         } => {
-            let mut driver = fathom_minimal::Driver::new();
+            let mut driver = fathom::Driver::new();
             driver.install_panic_hook();
             driver.set_allow_errors(allow_errors);
             driver.set_emit_width(get_pretty_width());
@@ -115,7 +115,7 @@ fn main() -> ! {
             term_input,
             allow_errors,
         } => {
-            let mut driver = fathom_minimal::Driver::new();
+            let mut driver = fathom::Driver::new();
             driver.install_panic_hook();
             driver.set_allow_errors(allow_errors);
             driver.set_emit_width(get_pretty_width());
@@ -133,7 +133,7 @@ fn main() -> ! {
             term_input,
             allow_errors,
         } => {
-            let mut driver = fathom_minimal::Driver::new();
+            let mut driver = fathom::Driver::new();
             driver.install_panic_hook();
             driver.set_allow_errors(allow_errors);
             driver.set_emit_width(get_pretty_width());
@@ -152,7 +152,7 @@ fn main() -> ! {
             allow_errors,
             binary_path,
         } => {
-            let mut driver = fathom_minimal::Driver::new();
+            let mut driver = fathom::Driver::new();
             driver.install_panic_hook();
             driver.set_allow_errors(allow_errors);
             driver.set_emit_width(get_pretty_width());
