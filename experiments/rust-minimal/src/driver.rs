@@ -158,14 +158,7 @@ impl<'surface, 'core> Driver<'surface, 'core> {
         let term = context.check(&term);
         let r#type = context.check(&r#type);
 
-        let context = surface::pretty::Context::new(&self.interner, &self.surface_scope);
-        let doc = context
-            .term(&surface::Term::Ann((), &term, &r#type))
-            .into_doc();
-
-        let mut emit_writer = self.emit_writer.borrow_mut();
-        writeln!(emit_writer, "{}", doc.pretty(self.emit_width)).unwrap();
-        emit_writer.flush().unwrap();
+        self.emit_term(&surface::Term::Ann((), &term, &r#type));
 
         Status::Ok
     }
@@ -191,14 +184,7 @@ impl<'surface, 'core> Driver<'surface, 'core> {
         let term = context.check(&term);
         let r#type = context.check(&r#type);
 
-        let context = surface::pretty::Context::new(&self.interner, &self.surface_scope);
-        let doc = context
-            .term(&surface::Term::Ann((), &term, &r#type))
-            .into_doc();
-
-        let mut emit_writer = self.emit_writer.borrow_mut();
-        writeln!(emit_writer, "{}", doc.pretty(self.emit_width)).unwrap();
-        emit_writer.flush().unwrap();
+        self.emit_term(&surface::Term::Ann((), &term, &r#type));
 
         Status::Ok
     }
@@ -222,12 +208,7 @@ impl<'surface, 'core> Driver<'surface, 'core> {
         let mut context = context.distillation_context(&self.surface_scope);
         let r#type = context.check(&r#type);
 
-        let context = surface::pretty::Context::new(&self.interner, &self.surface_scope);
-        let doc = context.term(&r#type).into_doc();
-
-        let mut emit_writer = self.emit_writer.borrow_mut();
-        writeln!(emit_writer, "{}", doc.pretty(self.emit_width)).unwrap();
-        emit_writer.flush().unwrap();
+        self.emit_term(&r#type);
 
         Status::Ok
     }
@@ -259,12 +240,7 @@ impl<'surface, 'core> Driver<'surface, 'core> {
         let mut context = context.distillation_context(&self.surface_scope);
         let data = context.check(&data);
 
-        let context = surface::pretty::Context::new(&self.interner, &self.surface_scope);
-        let doc = context.term(&data).into_doc();
-
-        let mut emit_writer = self.emit_writer.borrow_mut();
-        writeln!(emit_writer, "{}", doc.pretty(self.emit_width)).unwrap();
-        emit_writer.flush().unwrap();
+        self.emit_term(&data);
 
         self.surface_scope.reset(); // Reuse the surface scope for distillation
 
@@ -275,6 +251,15 @@ impl<'surface, 'core> Driver<'surface, 'core> {
         // TODO: render diagnostics
         let term_source = self.files.get(file_id).unwrap().source();
         surface::Term::parse(&self.interner, &self.surface_scope, term_source).unwrap()
+    }
+
+    fn emit_term(&self, term: &surface::Term<'_, ()>) {
+        let context = surface::pretty::Context::new(&self.interner, &self.surface_scope);
+        let doc = context.term(term).into_doc();
+
+        let mut emit_writer = self.emit_writer.borrow_mut();
+        writeln!(emit_writer, "{}", doc.pretty(self.emit_width)).unwrap();
+        emit_writer.flush().unwrap();
     }
 
     fn emit_diagnostics(&self, diagnostics: impl Iterator<Item = Diagnostic<FileId>>) -> bool {
