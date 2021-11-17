@@ -1,7 +1,6 @@
 {
   "private": true,
   "workspaces": [
-    "book",
     "experiments/makam-spec"
   ]
 }

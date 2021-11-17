@@ -6,16 +6,17 @@ Perhaps you might find them useful!
 
 In rough chronological order:
 
-1.  [mercury-prototype](./mercury-prototype) (@mikeday)
-2.  [rust-prototype-v1](./rust-prototype-v1) (@brendanzab)
-3.  [lean](./lean) (@brendanzab)
-4.  [prolog-prototype](./prolog-prototype) (@markbrown)
-5.  [rust-prototype-v2](./rust-prototype-v2) (@brendanzab)
-6.  [makam-spec](./makam-spec) (@brendanzab)
+1. [mercury-prototype](./mercury-prototype) (@mikeday)
+2. [rust-prototype-v1](./rust-prototype-v1) (@brendanzab)
+3. [lean](./lean) (@brendanzab)
+4. [prolog-prototype](./prolog-prototype) (@markbrown)
+5. [rust-prototype-v2](./rust-prototype-v2) (@brendanzab)
+6. [makam-spec](./makam-spec) (@brendanzab)
+7. [rust-prototype-v3](./rust-prototype-v3) (@brendanzab)
 
 The following repositories also provided us with valuable experience along the way:
 
--   [brendanzab/idris-power-of-pi](https://github.com/brendanzab/idris-power-of-pi)
--   [brendanzab/moniker](https://github.com/brendanzab/moniker)
--   [pikelet-lang/pikelet](https://github.com/pikelet-lang/pikelet)
--   [brendanzab/rust-nbe-for-mltt](https://github.com/brendanzab/rust-nbe-for-mltt)
+- [brendanzab/idris-power-of-pi](https://github.com/brendanzab/idris-power-of-pi)
+- [brendanzab/moniker](https://github.com/brendanzab/moniker)
+- [pikelet-lang/pikelet](https://github.com/pikelet-lang/pikelet)
+- [brendanzab/rust-nbe-for-mltt](https://github.com/brendanzab/rust-nbe-for-mltt)
