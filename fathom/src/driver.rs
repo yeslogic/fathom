@@ -242,8 +242,6 @@ impl<'surface, 'core> Driver<'surface, 'core> {
 
         self.emit_term(&data);
 
-        self.surface_scope.reset(); // Reuse the surface scope for distillation
-
         Status::Ok
     }
 
