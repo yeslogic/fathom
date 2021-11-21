@@ -125,7 +125,9 @@ _elab.context_ ::=\
   - [x] array types
   - [x] array literals
   - [ ] binary format descriptions
-    - [x] error formats
+    - [x] succcess formats
+    - [x] failure formats
+    - [ ] end-of-input formats
     - [x] record formats
       - [ ] conditional field sugar
       - [ ] skipped fields

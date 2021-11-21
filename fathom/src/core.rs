@@ -182,6 +182,8 @@ pub enum Prim {
 
     /// Type of format descriptions.
     FormatType,
+    /// A format that always succeeds with some data.
+    FormatSucceed,
     /// A format that always fails to parse.
     FormatFail,
     /// Unsigned, 8-bit integer formats.
@@ -259,6 +261,7 @@ impl Prim {
             Prim::PosType => "Pos",
 
             Prim::FormatType => "Format",
+            Prim::FormatSucceed => "succeed",
             Prim::FormatFail => "fail",
             Prim::FormatU8 => "u8",
             Prim::FormatU16Be => "u16be",

@@ -29,6 +29,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
 
         match self.elim_context().force(format).as_ref() {
             Value::Stuck(Head::Prim(prim), slice) => match (*prim, &slice[..]) {
+                (Prim::FormatSucceed, [_, Fun(r#elem)]) => Ok(r#elem.clone()),
                 (Prim::FormatU8, []) => read_const(reader, Const::U8, read_u8),
                 (Prim::FormatU16Be, []) => read_const(reader, Const::U16, read_u16be),
                 (Prim::FormatU16Le, []) => read_const(reader, Const::U16, read_u16le),

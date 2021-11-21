@@ -44,12 +44,12 @@ pub struct LocalVar(RawVar);
 
 impl LocalVar {
     /// The last variable to be bound in the environment.
-    pub fn last() -> LocalVar {
+    pub const fn last() -> LocalVar {
         LocalVar(0)
     }
 
     /// Returns the previously bound variable, relative to this one.
-    pub fn prev(self) -> LocalVar {
+    pub const fn prev(self) -> LocalVar {
         LocalVar(self.0 + 1) // FIXME: check overflow?
     }
 }
@@ -85,12 +85,12 @@ pub struct GlobalVar(RawVar);
 
 impl GlobalVar {
     /// The first variable to be bound in the environment.
-    pub fn first() -> LocalVar {
+    pub const fn first() -> LocalVar {
         LocalVar(0)
     }
 
     /// Returns the next bound variable, relative to this one.
-    pub fn next(self) -> GlobalVar {
+    pub const fn next(self) -> GlobalVar {
         GlobalVar(self.0 + 1) // FIXME: check overflow?
     }
 }

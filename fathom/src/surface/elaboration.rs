@@ -44,28 +44,32 @@ impl<'arena> RigidEnv<'arena> {
 
     pub fn default(
         interner: &RefCell<StringInterner>,
-        scope: &'arena Scope<'arena>,
+        _scope: &'arena Scope<'arena>,
     ) -> RigidEnv<'arena> {
         use crate::core::Term;
+        use crate::env::LocalVar;
+
+        const UNIVERSE: Term<'_> = Term::Universe;
+        const VAR0: Term<'_> = Term::RigidVar(LocalVar::last());
+        const FORMAT_TYPE: Term<'_> = Term::Prim(Prim::FormatType);
 
         let mut env = RigidEnv::new();
 
         let name = |name| Some(interner.borrow_mut().get_or_intern_static(name));
-        let close = |term| Closure::new(SharedEnv::new(), scope.to_scope(term));
+        let close = |term| Closure::new(SharedEnv::new(), term);
         let shared = |value: ArcValue<'static>| move || value.clone();
         let universe = shared(Arc::new(Value::Universe));
         let format_type = shared(Arc::new(Value::prim(Prim::FormatType, [])));
 
         let array_type = |index_type: Prim| {
             let index_type = Arc::new(Value::prim(index_type, []));
-            let output_type = close(Term::FunType(None, &Term::Universe, &Term::Universe));
+            let output_type = close(&Term::FunType(None, &UNIVERSE, &UNIVERSE));
 
             Arc::new(Value::FunType(None, index_type, output_type))
         };
         let format_array = |index_type: Prim| {
             let index_type = Arc::new(Value::prim(index_type, []));
-            let format_type = &Term::Prim(Prim::FormatType);
-            let output_type = close(Term::FunType(None, format_type, format_type));
+            let output_type = close(&Term::FunType(None, &FORMAT_TYPE, &FORMAT_TYPE));
 
             Arc::new(Value::FunType(None, index_type, output_type))
         };
@@ -93,6 +97,14 @@ impl<'arena> RigidEnv<'arena> {
         define_prim(Prim::PosType, universe());
 
         define_prim(Prim::FormatType, universe());
+        define_prim(
+            Prim::FormatSucceed,
+            Arc::new(Value::FunType(
+                name("Elem"),
+                universe(),
+                close(&Term::FunType(None, &VAR0, &FORMAT_TYPE)),
+            )),
+        );
         define_prim(Prim::FormatFail, format_type());
         define_prim(Prim::FormatU8, format_type());
         define_prim(Prim::FormatU16Be, format_type());
@@ -119,7 +131,7 @@ impl<'arena> RigidEnv<'arena> {
         define_prim(Prim::FormatStreamPos, format_type());
         define_prim(
             Prim::FormatRepr,
-            Arc::new(Value::FunType(None, format_type(), close(Term::Universe))),
+            Arc::new(Value::FunType(None, format_type(), close(&UNIVERSE))),
         );
 
         env

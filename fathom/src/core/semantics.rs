@@ -422,6 +422,7 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
             }
             Value::Stuck(Head::Prim(prim), spine) => {
                 match (prim, &spine[..]) {
+                    (Prim::FormatSucceed, [Elim::Fun(r#elem), _]) => r#elem.clone(),
                     (Prim::FormatFail, []) => Arc::new(Value::prim(Prim::VoidType, [])),
                     (Prim::FormatU8, []) => Arc::new(Value::prim(Prim::U8Type, [])),
                     (Prim::FormatU16Be, []) => Arc::new(Value::prim(Prim::U16Type, [])),
