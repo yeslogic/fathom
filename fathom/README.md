@@ -136,6 +136,9 @@ _elab.context_ ::=\
     - [ ] map formats
     - [x] numeric formats
     - [x] array formats
+    - [ ] uniform-choice formats
+    - [ ] choice formats
+    - [ ] repeat formats
   - [ ] type refinements
   - [ ] match expressions
   - [ ] patterns
