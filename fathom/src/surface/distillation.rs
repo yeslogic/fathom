@@ -98,26 +98,24 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 // Avoid adding extraneous type annotations!
                 self.check(expr)
             }
-            core::Term::Let(def_name, def_expr, output_expr) => {
-                let (def_pattern, def_expr) = match self.synth(def_expr) {
-                    Term::Ann(_, expr, r#type) => {
-                        let def_name = Pattern::Name((), self.push_rigid(*def_name));
-                        let def_pattern = Pattern::Ann((), self.scope.to_scope(def_name), r#type);
-                        (self.scope.to_scope(def_pattern), expr)
-                    }
-                    expr => {
-                        let def_name = Pattern::Name((), self.push_rigid(*def_name));
-                        (
-                            self.scope.to_scope(def_name),
-                            self.scope.to_scope(expr) as &_,
-                        )
-                    }
-                };
+            core::Term::Let(def_name, def_type, def_expr, output_expr) => {
+                let def_type = self.synth(def_type);
+                let def_expr = self.check(def_expr);
 
-                let output_expr = self.scope.to_scope(self.check(output_expr));
+                let def_name = self.push_rigid(*def_name);
+                let output_expr = self.check(output_expr);
                 self.pop_rigid();
 
-                Term::Let((), def_pattern, def_expr, output_expr)
+                Term::Let(
+                    (),
+                    self.scope.to_scope(Pattern::Ann(
+                        (),
+                        self.scope.to_scope(Pattern::Name((), def_name)),
+                        self.scope.to_scope(def_type),
+                    )),
+                    self.scope.to_scope(def_expr),
+                    self.scope.to_scope(output_expr),
+                )
             }
             core::Term::FunIntro(input_name, output_expr) => {
                 let input_name = self.push_rigid(*input_name);
@@ -201,26 +199,24 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
 
                 Term::Ann((), self.scope.to_scope(expr), self.scope.to_scope(r#type))
             }
-            core::Term::Let(def_name, def_expr, output_expr) => {
-                let (def_pattern, def_expr) = match self.synth(def_expr) {
-                    Term::Ann(_, expr, r#type) => {
-                        let def_name = Pattern::Name((), self.push_rigid(*def_name));
-                        let def_pattern = Pattern::Ann((), self.scope.to_scope(def_name), r#type);
-                        (self.scope.to_scope(def_pattern), expr)
-                    }
-                    expr => {
-                        let def_name = Pattern::Name((), self.push_rigid(*def_name));
-                        (
-                            self.scope.to_scope(def_name),
-                            self.scope.to_scope(expr) as &_,
-                        )
-                    }
-                };
+            core::Term::Let(def_name, def_type, def_expr, output_expr) => {
+                let def_type = self.synth(def_type);
+                let def_expr = self.check(def_expr);
 
-                let output_expr = self.scope.to_scope(self.synth(output_expr));
+                let def_name = self.push_rigid(*def_name);
+                let output_expr = self.synth(output_expr);
                 self.pop_rigid();
 
-                Term::Let((), def_pattern, def_expr, output_expr)
+                Term::Let(
+                    (),
+                    self.scope.to_scope(Pattern::Ann(
+                        (),
+                        self.scope.to_scope(Pattern::Name((), def_name)),
+                        self.scope.to_scope(def_type),
+                    )),
+                    self.scope.to_scope(def_expr),
+                    self.scope.to_scope(output_expr),
+                )
             }
             core::Term::Universe => Term::Universe(()),
             core::Term::FunType(input_name, input_type, output_type) => {

@@ -234,7 +234,7 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
                 head_expr
             }
             Term::Ann(expr, _) => self.eval(expr),
-            Term::Let(_, def_expr, output_expr) => {
+            Term::Let(_, _, def_expr, output_expr) => {
                 let def_expr = self.eval(def_expr);
                 self.rigid_exprs.push(def_expr);
                 let output_expr = self.eval(output_expr);

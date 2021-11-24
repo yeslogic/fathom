@@ -112,7 +112,12 @@ pub enum Term<'arena> {
     /// Annotated expressions.
     Ann(&'arena Term<'arena>, &'arena Term<'arena>),
     /// Let expressions.
-    Let(Option<StringId>, &'arena Term<'arena>, &'arena Term<'arena>),
+    Let(
+        Option<StringId>,
+        &'arena Term<'arena>,
+        &'arena Term<'arena>,
+        &'arena Term<'arena>,
+    ),
     /// The type of types.
     Universe,
     /// Dependent function types.

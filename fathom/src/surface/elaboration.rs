@@ -515,13 +515,13 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         }
     }
 
-    /// Check that a parameter pattern matches an expected type.
+    /// Check that a pattern matches an expected type.
     ///
     /// Returns a tuple containing:
     ///
     /// - the name of the bound variable
     /// - the type of the bound variable
-    fn check_param_pattern(
+    fn check_pattern(
         &mut self,
         pattern: &Pattern<'_, ByteRange>,
         expected_type: &ArcValue<'arena>,
@@ -535,7 +535,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 let type_value = self.eval_context().eval(&r#type);
 
                 match (self.unification_context()).unify(&type_value, &expected_type) {
-                    Ok(()) => self.check_param_pattern(pattern, &type_value),
+                    Ok(()) => self.check_pattern(pattern, &type_value),
                     Err(error) => {
                         self.push_message(Message::FailedToUnify {
                             range: type_range,
@@ -544,20 +544,20 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
 
                         let source = FlexSource::ReportedErrorType(type_range);
                         let r#type = self.push_flexible_value(source, Arc::new(Value::Universe));
-                        self.check_param_pattern(pattern, &r#type)
+                        self.check_pattern(pattern, &r#type)
                     }
                 }
             }
         }
     }
 
-    /// Synthesize the bindings of a parameter pattern.
+    /// Synthesize the type of a pattern.
     ///
     /// Returns a tuple containing:
     ///
     /// - the name of the bound variable
     /// - the type of the bound variable
-    fn synth_param_pattern(
+    fn synth_pattern(
         &mut self,
         pattern: &Pattern<'_, ByteRange>,
     ) -> (Option<StringId>, ArcValue<'arena>) {
@@ -575,84 +575,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
             Pattern::Ann(_, pattern, r#type) => {
                 let r#type = self.check(r#type, &Arc::new(Value::Universe)); // FIXME: avoid temporary Arc
                 let type_value = self.eval_context().eval(&r#type);
-                self.check_param_pattern(pattern, &type_value)
-            }
-        }
-    }
-
-    /// Check that a definition pattern matches an expected type.
-    ///
-    /// Returns a tuple containing:
-    ///
-    /// - the name of the bound variable
-    /// - the elaborated definition expression
-    fn check_def_pattern(
-        &mut self,
-        pattern: &Pattern<'_, ByteRange>,
-        surface_expr: &Term<'_, ByteRange>,
-        expected_type: &ArcValue<'arena>,
-    ) -> (Option<StringId>, core::Term<'arena>, ArcValue<'arena>) {
-        match pattern {
-            Pattern::Name(_, name) => {
-                let expr = self.check(surface_expr, expected_type);
-                (Some(*name), expr, expected_type.clone())
-            }
-            Pattern::Placeholder(_) => {
-                let expr = self.check(surface_expr, expected_type);
-                (None, expr, expected_type.clone())
-            }
-            Pattern::Ann(_, pattern, r#type) => {
-                let type_range = r#type.range();
-                let r#type = self.check(r#type, &Arc::new(Value::Universe)); // FIXME: avoid temporary Arc
-                let type_value = self.eval_context().eval(&r#type);
-
-                match (self.unification_context()).unify(&type_value, &expected_type) {
-                    Ok(()) => self.check_def_pattern(pattern, surface_expr, &type_value),
-                    Err(error) => {
-                        self.push_message(Message::FailedToUnify {
-                            range: type_range,
-                            error,
-                        });
-
-                        let source = FlexSource::ReportedErrorType(type_range);
-                        let r#type = self.push_flexible_value(source, Arc::new(Value::Universe));
-                        self.check_def_pattern(pattern, surface_expr, &r#type)
-                    }
-                }
-            }
-        }
-    }
-
-    /// Synthesize the type of a definition pattern.
-    ///
-    /// Returns a tuple containing:
-    ///
-    /// - the name of the bound variable
-    /// - the elaborated definition expression
-    /// - the type of the bound variable
-    fn synth_def_pattern(
-        &mut self,
-        pattern: &Pattern<'_, ByteRange>,
-        surface_expr: &Term<'_, ByteRange>,
-    ) -> (Option<StringId>, core::Term<'arena>, ArcValue<'arena>) {
-        match pattern {
-            Pattern::Name(_, name) => {
-                let (expr, r#type) = self.synth(surface_expr);
-                (Some(*name), expr, r#type)
-            }
-            Pattern::Placeholder(_) => {
-                let (expr, r#type) = self.synth(surface_expr);
-                (None, expr, r#type)
-            }
-            Pattern::Ann(_, pattern, r#type) => {
-                let r#type = self.check(r#type, &Arc::new(Value::Universe)); // FIXME: avoid temporary Arc
-                let type_value = self.eval_context().eval(&r#type);
-
-                let (name, expr, type_value) =
-                    self.check_def_pattern(pattern, surface_expr, &type_value);
-                let expr = core::Term::Ann(self.scope.to_scope(expr), self.scope.to_scope(r#type));
-
-                (name, expr, type_value)
+                self.check_pattern(pattern, &type_value)
             }
         }
     }
@@ -669,15 +592,19 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
 
         match (surface_term, expected_type.as_ref()) {
             (Term::Let(_, def_pattern, def_expr, output_expr), _) => {
-                let (def_name, def_expr, def_type) = self.synth_def_pattern(def_pattern, def_expr);
+                let (def_name, def_type_value) = self.synth_pattern(def_pattern);
+                let def_type = self.quote_context(self.scope).quote(&def_type_value); // FIXME: avoid requote if possible?
+                let def_expr = self.check(def_expr, &def_type_value);
                 let def_expr_value = self.eval_context().eval(&def_expr);
 
-                self.rigid_env.push_def(def_name, def_expr_value, def_type);
+                self.rigid_env
+                    .push_def(def_name, def_expr_value, def_type_value);
                 let output_expr = self.check(output_expr, &expected_type);
                 self.rigid_env.pop();
 
                 core::Term::Let(
                     def_name,
+                    self.scope.to_scope(def_type),
                     self.scope.to_scope(def_expr),
                     self.scope.to_scope(output_expr),
                 )
@@ -686,53 +613,53 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 let scrutinee_expr_range = scrutinee_expr.range();
                 let (scrutinee_expr, scrutinee_type) = self.synth(scrutinee_expr);
 
-                match equations.split_first() {
-                    Some(((pattern, output_expr), equations)) => {
-                        let (def_name, def_type) =
-                            self.check_param_pattern(pattern, &scrutinee_type);
-
-                        let def_expr = self.eval_context().eval(&scrutinee_expr);
-                        self.rigid_env.push_def(def_name, def_expr, def_type);
-                        let output_expr = self.check(output_expr, &expected_type);
-                        self.rigid_env.pop();
-
-                        // These patterns are unreachable, but check them anyway!
-                        for (pattern, output_expr) in equations {
-                            let (def_name, def_type) =
-                                self.check_param_pattern(pattern, &scrutinee_type);
-
-                            // Warn about unreachable patterns
-                            self.push_message(Message::UnreachablePattern {
-                                range: pattern.range(),
-                            });
-
-                            let def_expr = self.eval_context().eval(&scrutinee_expr);
-                            self.rigid_env.push_def(def_name, def_expr, def_type);
-                            self.check(output_expr, &expected_type);
-                            self.rigid_env.pop();
-                        }
-
-                        core::Term::Let(
-                            def_name,
-                            self.scope.to_scope(scrutinee_expr),
-                            self.scope.to_scope(output_expr),
-                        )
-                    }
+                let ((pattern, output_expr), equations) = match equations.split_first() {
+                    Some(equations) => equations,
                     None => {
                         // TODO: Void type?
                         self.push_message(Message::NonExhaustiveMatchExpr {
                             match_expr_range: *range,
                             scrutinee_expr_range,
                         });
-                        core::Term::Prim(Prim::ReportedError)
+                        return core::Term::Prim(Prim::ReportedError);
                     }
+                };
+
+                let (def_name, def_type_value) = self.check_pattern(pattern, &scrutinee_type);
+                let def_type = self.quote_context(self.scope).quote(&def_type_value);
+
+                let def_expr = self.eval_context().eval(&scrutinee_expr);
+                self.rigid_env.push_def(def_name, def_expr, def_type_value);
+                let output_expr = self.check(output_expr, &expected_type);
+                self.rigid_env.pop();
+
+                // These patterns are unreachable, but check them anyway!
+                for (pattern, output_expr) in equations {
+                    let (def_name, def_type) = self.check_pattern(pattern, &scrutinee_type);
+
+                    // Warn about unreachable patterns
+                    self.push_message(Message::UnreachablePattern {
+                        range: pattern.range(),
+                    });
+
+                    let def_expr = self.eval_context().eval(&scrutinee_expr);
+                    self.rigid_env.push_def(def_name, def_expr, def_type);
+                    self.check(output_expr, &expected_type);
+                    self.rigid_env.pop();
                 }
+
+                core::Term::Let(
+                    def_name,
+                    self.scope.to_scope(def_type),
+                    self.scope.to_scope(scrutinee_expr),
+                    self.scope.to_scope(output_expr),
+                )
             }
             (
                 Term::FunLiteral(_, input_pattern, output_expr),
                 Value::FunType(_, input_type, output_type),
             ) => {
-                let (input_name, input_type) = self.check_param_pattern(input_pattern, input_type);
+                let (input_name, input_type) = self.check_pattern(input_pattern, input_type);
 
                 let input_expr = self.rigid_env.push_param(input_name, input_type);
                 let output_type = self.elim_context().apply_closure(output_type, input_expr);
@@ -914,15 +841,19 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 (ann_expr, type_value)
             }
             Term::Let(_, def_pattern, def_expr, output_expr) => {
-                let (def_name, def_expr, def_type) = self.synth_def_pattern(def_pattern, def_expr);
+                let (def_name, def_type_value) = self.synth_pattern(def_pattern);
+                let def_type = self.quote_context(self.scope).quote(&def_type_value); // FIXME: avoid requote if possible?
+                let def_expr = self.check(def_expr, &def_type_value);
                 let def_expr_value = self.eval_context().eval(&def_expr);
 
-                self.rigid_env.push_def(def_name, def_expr_value, def_type);
+                self.rigid_env
+                    .push_def(def_name, def_expr_value, def_type_value);
                 let (output_expr, output_type) = self.synth(output_expr);
                 self.rigid_env.pop();
 
                 let let_expr = core::Term::Let(
                     def_name,
+                    self.scope.to_scope(def_type),
                     self.scope.to_scope(def_expr),
                     self.scope.to_scope(output_expr),
                 );
@@ -933,49 +864,49 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 let scrutinee_expr_range = scrutinee_expr.range();
                 let (scrutinee_expr, scrutinee_type) = self.synth(scrutinee_expr);
 
-                match equations.split_first() {
-                    Some(((pattern, output_expr), equations)) => {
-                        let (def_name, def_type) =
-                            self.check_param_pattern(pattern, &scrutinee_type);
-
-                        let def_expr = self.eval_context().eval(&scrutinee_expr);
-                        self.rigid_env.push_def(def_name, def_expr, def_type);
-                        let (output_expr, output_type) = self.synth(output_expr);
-                        self.rigid_env.pop();
-
-                        // These patterns are unreachable, but check them anyway!
-                        for (pattern, output_expr) in equations {
-                            let (def_name, def_type) =
-                                self.check_param_pattern(pattern, &scrutinee_type);
-
-                            // Warn about unreachable patterns
-                            self.push_message(Message::UnreachablePattern {
-                                range: pattern.range(),
-                            });
-
-                            let def_expr = self.eval_context().eval(&scrutinee_expr);
-                            self.rigid_env.push_def(def_name, def_expr, def_type);
-                            self.check(output_expr, &output_type);
-                            self.rigid_env.pop();
-                        }
-
-                        let let_expr = core::Term::Let(
-                            def_name,
-                            self.scope.to_scope(scrutinee_expr),
-                            self.scope.to_scope(output_expr),
-                        );
-
-                        (let_expr, output_type)
-                    }
+                let ((pattern, output_expr), equations) = match equations.split_first() {
+                    Some(equations) => equations,
                     None => {
                         // TODO: Void type?
                         self.push_message(Message::NonExhaustiveMatchExpr {
                             match_expr_range: *range,
                             scrutinee_expr_range,
                         });
-                        self.synth_reported_error(*range)
+                        return self.synth_reported_error(*range);
                     }
+                };
+
+                let (def_name, def_type_value) = self.check_pattern(pattern, &scrutinee_type);
+                let def_type = self.quote_context(self.scope).quote(&def_type_value); // FIXME: avoid requote if possible?
+
+                let def_expr = self.eval_context().eval(&scrutinee_expr);
+                self.rigid_env.push_def(def_name, def_expr, def_type_value);
+                let (output_expr, output_type) = self.synth(output_expr);
+                self.rigid_env.pop();
+
+                // These patterns are unreachable, but check them anyway!
+                for (pattern, output_expr) in equations {
+                    let (def_name, def_type) = self.check_pattern(pattern, &scrutinee_type);
+
+                    // Warn about unreachable patterns
+                    self.push_message(Message::UnreachablePattern {
+                        range: pattern.range(),
+                    });
+
+                    let def_expr = self.eval_context().eval(&scrutinee_expr);
+                    self.rigid_env.push_def(def_name, def_expr, def_type);
+                    self.check(output_expr, &output_type);
+                    self.rigid_env.pop();
                 }
+
+                let let_expr = core::Term::Let(
+                    def_name,
+                    self.scope.to_scope(def_type),
+                    self.scope.to_scope(scrutinee_expr),
+                    self.scope.to_scope(output_expr),
+                );
+
+                (let_expr, output_type)
             }
             Term::Universe(_) => (core::Term::Universe, Arc::new(Value::Universe)),
             Term::Arrow(_, input_type, output_type) => {
@@ -997,8 +928,8 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
             }
             Term::FunType(_, input_pattern, output_type) => {
                 let universe = Arc::new(Value::Universe); // FIXME: avoid temporary Arc
-                let (input_name, input_type_value) = self.synth_param_pattern(input_pattern);
-                let input_type = self.quote_context(self.scope).quote(&input_type_value); // FIXME: avoid requote?
+                let (input_name, input_type_value) = self.synth_pattern(input_pattern);
+                let input_type = self.quote_context(self.scope).quote(&input_type_value); // FIXME: avoid requote if possible?
 
                 self.rigid_env.push_param(input_name, input_type_value);
                 let output_type = self.check(output_type, &universe);
@@ -1013,7 +944,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 (fun_type, universe)
             }
             Term::FunLiteral(_, input_pattern, output_expr) => {
-                let (input_name, input_type) = self.synth_param_pattern(input_pattern);
+                let (input_name, input_type) = self.synth_pattern(input_pattern);
 
                 self.rigid_env.push_param(input_name, input_type.clone());
                 let (output_expr, output_type) = self.synth(output_expr);
