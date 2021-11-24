@@ -1,0 +1,1 @@
+fun (a : U32 : Type : Type) => a : U32 -> U32

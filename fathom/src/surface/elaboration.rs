@@ -529,24 +529,48 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         match pattern {
             Pattern::Name(_, name) => (Some(*name), expected_type.clone()),
             Pattern::Placeholder(_) => (None, expected_type.clone()),
-            Pattern::Ann(_, pattern, r#type) => {
-                let type_range = r#type.range();
+            Pattern::Ann(range, pattern, r#type) => {
                 let r#type = self.check(r#type, &Arc::new(Value::Universe)); // FIXME: avoid temporary Arc
-                let type_value = self.eval_context().eval(&r#type);
+                let r#type = self.eval_context().eval(&r#type);
 
-                match (self.unification_context()).unify(&type_value, &expected_type) {
-                    Ok(()) => self.check_pattern(pattern, &type_value),
+                let (pattern_name, pattern_type) = self.synth_ann_pattern(pattern, r#type);
+
+                match (self.unification_context()).unify(&pattern_type, &expected_type) {
+                    Ok(()) => (pattern_name, pattern_type),
                     Err(error) => {
                         self.push_message(Message::FailedToUnify {
-                            range: type_range,
+                            range: *range,
                             error,
                         });
 
-                        let source = FlexSource::ReportedErrorType(type_range);
+                        let source = FlexSource::ReportedErrorType(*range);
                         let r#type = self.push_flexible_value(source, Arc::new(Value::Universe));
-                        self.check_pattern(pattern, &r#type)
+
+                        (pattern_name, r#type)
                     }
                 }
+            }
+        }
+    }
+
+    /// Synthesize the type of an annotated pattern.
+    ///
+    /// Returns a tuple containing:
+    ///
+    /// - the name of the bound variable
+    /// - the type of the bound variable
+    fn synth_ann_pattern(
+        &mut self,
+        pattern: &Pattern<'_, ByteRange>,
+        pattern_type: ArcValue<'arena>,
+    ) -> (Option<StringId>, ArcValue<'arena>) {
+        match pattern {
+            Pattern::Name(_, name) => (Some(*name), pattern_type),
+            Pattern::Placeholder(_) => (None, pattern_type),
+            Pattern::Ann(_, pattern, r#type) => {
+                let r#type = self.check(r#type, &pattern_type);
+                let r#type = self.eval_context().eval(&r#type);
+                self.synth_ann_pattern(pattern, r#type)
             }
         }
     }
@@ -574,8 +598,8 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
             }
             Pattern::Ann(_, pattern, r#type) => {
                 let r#type = self.check(r#type, &Arc::new(Value::Universe)); // FIXME: avoid temporary Arc
-                let type_value = self.eval_context().eval(&r#type);
-                self.check_pattern(pattern, &type_value)
+                let r#type = self.eval_context().eval(&r#type);
+                self.synth_ann_pattern(pattern, r#type)
             }
         }
     }

@@ -1,0 +1,5 @@
+match (3 : U8) {
+    x : U8 : Type => 4,
+    y : U8 : Type => 3,
+    y : U8 : Type => 7,
+} : U32
