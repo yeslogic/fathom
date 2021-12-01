@@ -1,0 +1,8 @@
+{
+    "recommendations": [
+        "arrterian.nix-env-selector",
+        "cab404.vscode-direnv",
+        "jnoortheen.nix-ide",
+        "matklad.rust-analyzer",
+    ]
+}
