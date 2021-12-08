@@ -11,12 +11,10 @@
 
     # Build rust crates from `Cargo.lock` dependencies
     naersk.url = "github:nmattia/naersk";
-    # Avoid duplicate dependencies in `flake.lock`
     naersk.inputs.nixpkgs.follows = "nixpkgs";
 
     # Rust toolchain
     rust-overlay.url = "github:oxalica/rust-overlay";
-    # Avoid duplicate dependencies in `flake.lock`
     rust-overlay.inputs.nixpkgs.follows = "nixpkgs";
     rust-overlay.inputs.flake-utils.follows = "flake-utils";
   };
@@ -28,26 +26,46 @@
     #     nix build .#packages.<system>.<name>
     flake-utils.lib.eachDefaultSystem (system:
       let
-        # The rust toolcheckian to use for development
-        # TODO: Figure out how to let users select this?
-        rustChannel = "1.56.0";
-        crateName = "fathom";
-
         # Package set with the rust overlay included added
         pkgs = import nixpkgs {
           inherit system;
           overlays = [ (import rust-overlay) ];
         };
+
+        # Crate containing the `fathom` binary
+        crateName = "fathom";
+        # TODO: find the manifest for ${crateName} in the workspace
+        # minRustVersion = (builtins.fromTOML (builtins.readFile ./Cargo.toml)).package.rust-version;
+        minRustVersion = "1.56.0";
+
+        # Setup Rust toolchains to build and test against
+        rustNightly = pkgs.rust-bin.nightly.latest.minimal;
+        rustStable = pkgs.rust-bin.stable.latest.minimal;
+        rustMin = pkgs.rust-bin.stable.${minRustVersion}.minimal;
+
+        # Override Naersk with the MSRV version of Rust
+        naerskLibMin = naersk.lib."${system}".override {
+          cargo = rustMin;
+          rustc = rustMin;
+        };
+
+        # Creates a development shell using a specific version of Rust
+        createShell = { rust }: pkgs.mkShell {
+          packages = [ (rust.override { extensions = [ "rust-src" "rustfmt" ]; }) ];
+          # Certain tools like `rust-analyzer` won't work without this
+          RUST_SRC_PATH = "${rust}/lib/rustlib/src/rust/library";
+        };
       in
       {
         # Used by `nix build .#<name>`
-        packages.${crateName} = naersk.lib.${system}.buildPackage {
+        packages.${crateName} = naerskLibMin.buildPackage {
           pname = crateName;
           root = ./.;
         };
 
-        # Used by `nix run`
+        # Used by `nix build`
         defaultPackage = self.packages.${system}.${crateName};
+
 
         # Used by `nix run .#<name>`
         apps.${crateName} = flake-utils.lib.mkApp {
@@ -57,18 +75,14 @@
         # Executed by `nix run . -- <args?>`
         defaultApp = self.apps.${system}.${crateName};
 
-        # Used by `nix develop`
-        devShell = pkgs.mkShell {
-          # Tools needed for development go here.
-          buildInputs = [
-            pkgs.rust-bin.stable.${rustChannel}.default
-            pkgs.clippy
-          ];
 
-          # Certain Rust tools (like `rust-analyzer`) won't work without this
-          RUST_SRC_PATH =
-            "${pkgs.rust-bin.stable.${rustChannel}.rust-src}/lib/rustlib/src/rust/library";
-        };
+        # Use `nix develop .#stableShell` to enter each dev env.
+        packages.nightlyShell = createShell { rust = rustNightly; };
+        packages.stableShell = createShell { rust = rustStable; };
+        packages.msrvShell = createShell { rust = rustMin; };
+
+        # Used by `nix develop`
+        devShell = self.packages.${system}.stableShell;
       }
     );
 }
