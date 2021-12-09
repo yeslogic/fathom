@@ -1,5 +1,11 @@
 {
   # Flake dependency specification
+  #
+  # To update individual inputs use:
+  #
+  # ```
+  # nix flake lock --update-input <input>
+  # ```
   inputs = {
     # Nix package repository
     nixpkgs.url = "github:nixos/nixpkgs/nixpkgs-unstable";
