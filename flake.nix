@@ -63,17 +63,17 @@
         };
       in
       {
-        # Used by `nix build .#<name>`
+        # Executed by `nix build .#<name>`
         packages.${crateName} = naerskLibMin.buildPackage {
           pname = crateName;
           root = ./.;
         };
 
-        # Used by `nix build`
+        # Executed by `nix build`
         defaultPackage = self.packages.${system}.${crateName};
 
 
-        # Used by `nix run .#<name>`
+        # Executed by `nix run .#<name>`
         apps.${crateName} = flake-utils.lib.mkApp {
           drv = self.packages.${system}.${crateName};
         };
