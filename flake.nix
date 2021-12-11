@@ -45,14 +45,17 @@
         minRustVersion = "1.56.0";
 
         # Setup Rust toolchains to build and test against
-        rustNightly = pkgs.rust-bin.nightly.latest.minimal;
-        rustStable = pkgs.rust-bin.stable.latest.minimal;
-        rustMin = pkgs.rust-bin.stable.${minRustVersion}.minimal;
+        rust = {
+          nightly = pkgs.rust-bin.nightly.latest.minimal;
+          stable = pkgs.rust-bin.stable.latest.minimal;
+          minimum = pkgs.rust-bin.stable.${minRustVersion}.minimal;
+        };
 
         # Override Naersk with the MSRV version of Rust
-        naerskLibMin = naersk.lib."${system}".override {
-          cargo = rustMin;
-          rustc = rustMin;
+        naersk-lib = {
+          # nightly = naersk.lib."${system}".override { cargo = rust.nightly; rustc = rust.nightly; };
+          # stable = naersk.lib."${system}".override { cargo = rust.stable; rustc = rust.stable; };
+          minimum = naersk.lib."${system}".override { cargo = rust.minimum; rustc = rust.minimum; };
         };
 
         # Creates a development shell using a specific version of Rust
@@ -63,8 +66,41 @@
         };
       in
       {
+        # Executed by `nix flake check`
+        checks = {
+          # Check Rust crate tests
+          # TODO: test using `rust.nightly`, `rust.stable`, and `rust.minimum`
+          ${crateName} = naersk-lib.minimum.buildPackage {
+            pname = crateName;
+            root = ./.;
+            doCheck = true;
+          };
+
+          # Check Rust formatting
+          rustfmt = pkgs.runCommand "check-rustfmt"
+            {
+              buildInputs = [
+                (rust.stable.override { extensions = [ "rustfmt" ]; })
+              ];
+            }
+            ''
+              mkdir $out
+              cargo fmt --manifest-path ${./.}/Cargo.toml -- --check
+            '';
+
+          # Check Nix formatting
+          nixpkgs-fmt = pkgs.runCommand "check-nixpkgs-fmt"
+            {
+              buildInputs = [ pkgs.nixpkgs-fmt ];
+            }
+            ''
+              mkdir $out
+              nixpkgs-fmt --check ${./.}
+            '';
+        };
+
         # Executed by `nix build .#<name>`
-        packages.${crateName} = naerskLibMin.buildPackage {
+        packages.${crateName} = naersk-lib.minimum.buildPackage {
           pname = crateName;
           root = ./.;
         };
@@ -83,9 +119,9 @@
 
 
         # Use `nix develop .#stableShell` to enter each dev env.
-        packages.nightlyShell = createShell { rust = rustNightly; };
-        packages.stableShell = createShell { rust = rustStable; };
-        packages.msrvShell = createShell { rust = rustMin; };
+        packages.nightlyShell = createShell { rust = rust.nightly; };
+        packages.stableShell = createShell { rust = rust.stable; };
+        packages.minimumShell = createShell { rust = rust.minimum; };
 
         # Used by `nix develop`
         devShell = self.packages.${system}.stableShell;
