@@ -41,14 +41,14 @@
         # Crate containing the `fathom` binary
         crateName = "fathom";
         # TODO: find the manifest for ${crateName} in the workspace
-        # minRustVersion = (builtins.fromTOML (builtins.readFile ./Cargo.toml)).package.rust-version;
-        minRustVersion = "1.56.0";
+        # minimumRustVersion = (builtins.fromTOML (builtins.readFile ./Cargo.toml)).package.rust-version;
+        minimumRustVersion = "1.56.0";
 
         # Setup Rust toolchains to build and test against
         rust = {
           nightly = pkgs.rust-bin.nightly.latest.minimal;
           stable = pkgs.rust-bin.stable.latest.minimal;
-          minimum = pkgs.rust-bin.stable.${minRustVersion}.minimal;
+          minimum = pkgs.rust-bin.stable.${minimumRustVersion}.minimal;
         };
 
         # Override Naersk with the MSRV version of Rust
@@ -56,13 +56,6 @@
           # nightly = naersk.lib."${system}".override { cargo = rust.nightly; rustc = rust.nightly; };
           # stable = naersk.lib."${system}".override { cargo = rust.stable; rustc = rust.stable; };
           minimum = naersk.lib."${system}".override { cargo = rust.minimum; rustc = rust.minimum; };
-        };
-
-        # Creates a development shell using a specific version of Rust
-        createShell = { rust }: pkgs.mkShell {
-          packages = [ (rust.override { extensions = [ "rust-src" "rustfmt" ]; }) ];
-          # Certain tools like `rust-analyzer` won't work without this
-          RUST_SRC_PATH = "${rust}/lib/rustlib/src/rust/library";
         };
       in
       {
@@ -118,13 +111,25 @@
         defaultApp = self.apps.${system}.${crateName};
 
 
-        # Use `nix develop .#stableShell` to enter each dev env.
-        packages.nightlyShell = createShell { rust = rust.nightly; };
-        packages.stableShell = createShell { rust = rust.stable; };
-        packages.minimumShell = createShell { rust = rust.minimum; };
+        # Used by `nix develop .#<name>`
+        devShells = (
+          let
+            # Creates a development shell using a specific Rust toolchain
+            createShell = { rust }: pkgs.mkShell {
+              packages = [ (rust.override { extensions = [ "rust-src" "rustfmt" ]; }) ];
+              # Certain tools like `rust-analyzer` won't work without this
+              RUST_SRC_PATH = "${rust}/lib/rustlib/src/rust/library";
+            };
+          in
+          {
+            nightly = createShell { rust = rust.nightly; };
+            stable = createShell { rust = rust.stable; };
+            minimum = createShell { rust = rust.minimum; };
+          }
+        );
 
         # Used by `nix develop`
-        devShell = self.packages.${system}.stableShell;
+        devShell = self.devShells.${system}.stable;
       }
     );
 }
