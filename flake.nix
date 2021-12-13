@@ -122,7 +122,10 @@
           let
             # Creates a development shell using a specific Rust toolchain
             createShell = { rust }: pkgs.mkShell {
-              packages = [ (rust.override { extensions = [ "rust-src" "rustfmt" ]; }) ];
+              packages = [
+                (rust.override { extensions = [ "rust-src" "rustfmt" ]; })
+                pkgs.nixpkgs-fmt
+              ];
               # Certain tools like `rust-analyzer` won't work without this
               RUST_SRC_PATH = "${rust}/lib/rustlib/src/rust/library";
             };
