@@ -40,9 +40,15 @@
 
         # Crate containing the `fathom` binary
         crateName = "fathom";
-        # TODO: find the manifest for ${crateName} in the workspace
-        # minimumRustVersion = (builtins.fromTOML (builtins.readFile ./Cargo.toml)).package.rust-version;
         minimumRustVersion = "1.56.0";
+
+        # TODO: detect the above variables dynamically using the `Cargo.toml` file.
+        # NOTE: using a workspace complicates this
+
+        # manifest = builtins.fromTOML (builtins.readFile ./Cargo.toml);
+        #
+        # crateName = manifest.package.name;
+        # minimumRustVersion = manifest.package.rust-version;
 
         # Setup Rust toolchains to build and test against
         rust = {
