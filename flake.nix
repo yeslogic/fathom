@@ -12,6 +12,8 @@
 
     # Convenience functions for writing flakes
     flake-utils.url = "github:numtide/flake-utils";
+    # Precisely filter files copied to the nix store
+    nix-filter.url = "github:numtide/nix-filter";
 
     # Build rust crates from `Cargo.lock` dependencies
     naersk.url = "github:nmattia/naersk";
@@ -23,7 +25,7 @@
     rust-overlay.inputs.flake-utils.follows = "flake-utils";
   };
 
-  outputs = { self, nixpkgs, flake-utils, naersk, rust-overlay }:
+  outputs = { self, nixpkgs, flake-utils, nix-filter, naersk, rust-overlay }:
     # Build the output set for each default system and map system sets into
     # attributes, resulting in paths such as:
     #
@@ -55,11 +57,29 @@
           minimum = pkgs.rust-bin.stable.${minimumRustVersion}.minimal;
         };
 
-        # Override Naersk with the MSRV version of Rust
+        # Override Naersk for each Rust toolchain
         naersk-lib = {
           # nightly = naersk.lib."${system}".override { cargo = rust.nightly; rustc = rust.nightly; };
           # stable = naersk.lib."${system}".override { cargo = rust.stable; rustc = rust.stable; };
           minimum = naersk.lib."${system}".override { cargo = rust.minimum; rustc = rust.minimum; };
+        };
+
+        # Restrict the sources copied to the nix store
+        crate-sources = nix-filter.lib.filter {
+          name = "fathom";
+          root = ./.;
+          include = [
+            ./Cargo.toml
+            ./Cargo.lock
+            (nix-filter.lib.inDirectory "fathom")
+          ];
+        };
+        nix-sources = nix-filter.lib.filter {
+          name = "fathom";
+          root = ./.;
+          include = [
+            (nix-filter.lib.matchExt "nix")
+          ];
         };
       in
       {
@@ -69,7 +89,7 @@
           # TODO: test using `rust.nightly`, `rust.stable`, and `rust.minimum`
           ${crateName} = naersk-lib.minimum.buildPackage {
             pname = crateName;
-            root = ./.;
+            root = crate-sources;
             doCheck = true;
           };
 
@@ -82,7 +102,7 @@
             }
             ''
               mkdir $out
-              cargo fmt --manifest-path ${./.}/Cargo.toml -- --check
+              cargo fmt --manifest-path ${crate-sources}/Cargo.toml -- --check
             '';
 
           # Check Nix formatting
@@ -92,14 +112,14 @@
             }
             ''
               mkdir $out
-              nixpkgs-fmt --check ${./.}
+              nixpkgs-fmt --check ${nix-sources}
             '';
         };
 
         # Executed by `nix build .#<name>`
         packages.${crateName} = naersk-lib.minimum.buildPackage {
           pname = crateName;
-          root = ./.;
+          root = crate-sources;
         };
 
         # Executed by `nix build`
