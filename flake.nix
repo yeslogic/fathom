@@ -12,8 +12,6 @@
 
     # Convenience functions for writing flakes
     flake-utils.url = "github:numtide/flake-utils";
-    # Legacy shim used in `./default.nix` and `./shell.nix`
-    flake-compat = { url = "github:edolstra/flake-compat"; flake = false; };
 
     # Build rust crates from `Cargo.lock` dependencies
     naersk.url = "github:nmattia/naersk";
@@ -25,7 +23,7 @@
     rust-overlay.inputs.flake-utils.follows = "flake-utils";
   };
 
-  outputs = { self, nixpkgs, flake-utils, naersk, rust-overlay, ... }:
+  outputs = { self, nixpkgs, flake-utils, naersk, rust-overlay }:
     # Build the output set for each default system and map system sets into
     # attributes, resulting in paths such as:
     #
