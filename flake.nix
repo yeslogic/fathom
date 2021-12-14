@@ -64,8 +64,21 @@
           minimum = naersk.lib."${system}".override { cargo = rust.minimum; rustc = rust.minimum; };
         };
 
-        # Restrict the sources copied to the nix store
+        # Restrict sources copied to the nix store
         crate-sources = nix-filter.lib.filter {
+          name = "fathom";
+          root = ./.;
+          include = [
+            ./Cargo.toml
+            ./Cargo.lock
+            (nix-filter.lib.inDirectory "fathom")
+          ];
+          exclude = [
+            (nix-filter.lib.inDirectory "fathom/examples")
+            (nix-filter.lib.inDirectory "fathom/test")
+          ];
+        };
+        crate-check-sources = nix-filter.lib.filter {
           name = "fathom";
           root = ./.;
           include = [
@@ -89,7 +102,7 @@
           # TODO: test using `rust.nightly`, `rust.stable`, and `rust.minimum`
           ${crateName} = naersk-lib.minimum.buildPackage {
             pname = crateName;
-            root = crate-sources;
+            root = crate-check-sources;
             doCheck = true;
           };
 
@@ -102,7 +115,7 @@
             }
             ''
               mkdir $out
-              cargo fmt --manifest-path ${crate-sources}/Cargo.toml -- --check
+              cargo fmt --manifest-path ${crate-check-sources}/Cargo.toml -- --check
             '';
 
           # Check Nix formatting
