@@ -201,6 +201,8 @@ pub enum FlexSource {
     PlaceholderPatternType(ByteRange),
     /// The type of a named pattern.
     NamedPatternType(ByteRange, StringId),
+    /// The output type of a match expression
+    MatchOutputType(ByteRange),
     /// The input type of a function.
     FunInputType(ByteRange),
     /// The output type of a function.
@@ -634,49 +636,16 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 )
             }
             (Term::Match(range, scrutinee_expr, equations), _) => {
-                let scrutinee_expr_range = scrutinee_expr.range();
+                let scrutinee_range = scrutinee_expr.range();
                 let (scrutinee_expr, scrutinee_type) = self.synth(scrutinee_expr);
 
-                let ((pattern, output_expr), equations) = match equations.split_first() {
-                    Some(equations) => equations,
-                    None => {
-                        // TODO: Void type?
-                        self.push_message(Message::NonExhaustiveMatchExpr {
-                            match_expr_range: *range,
-                            scrutinee_expr_range,
-                        });
-                        return core::Term::Prim(Prim::ReportedError);
-                    }
-                };
-
-                let (def_name, def_type_value) = self.check_pattern(pattern, &scrutinee_type);
-                let def_type = self.quote_context(self.scope).quote(&def_type_value);
-
-                let def_expr = self.eval_context().eval(&scrutinee_expr);
-                self.rigid_env.push_def(def_name, def_expr, def_type_value);
-                let output_expr = self.check(output_expr, &expected_type);
-                self.rigid_env.pop();
-
-                // These patterns are unreachable, but check them anyway!
-                for (pattern, output_expr) in equations {
-                    let (def_name, def_type) = self.check_pattern(pattern, &scrutinee_type);
-
-                    // Warn about unreachable patterns
-                    self.push_message(Message::UnreachablePattern {
-                        range: pattern.range(),
-                    });
-
-                    let def_expr = self.eval_context().eval(&scrutinee_expr);
-                    self.rigid_env.push_def(def_name, def_expr, def_type);
-                    self.check(output_expr, &expected_type);
-                    self.rigid_env.pop();
-                }
-
-                core::Term::Let(
-                    def_name,
-                    self.scope.to_scope(def_type),
-                    self.scope.to_scope(scrutinee_expr),
-                    self.scope.to_scope(output_expr),
+                self.check_match(
+                    *range,
+                    scrutinee_range,
+                    scrutinee_expr,
+                    &scrutinee_type,
+                    equations,
+                    &expected_type,
                 )
             }
             (
@@ -885,52 +854,26 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 (let_expr, output_type)
             }
             Term::Match(range, scrutinee_expr, equations) => {
-                let scrutinee_expr_range = scrutinee_expr.range();
+                let scrutinee_range = scrutinee_expr.range();
                 let (scrutinee_expr, scrutinee_type) = self.synth(scrutinee_expr);
 
-                let ((pattern, output_expr), equations) = match equations.split_first() {
-                    Some(equations) => equations,
-                    None => {
-                        // TODO: Void type?
-                        self.push_message(Message::NonExhaustiveMatchExpr {
-                            match_expr_range: *range,
-                            scrutinee_expr_range,
-                        });
-                        return self.synth_reported_error(*range);
-                    }
-                };
+                // Create a single flexible variable representing the type of
+                // the match expression's output expressions, allowing us to
+                // unify them together.
+                let source = FlexSource::MatchOutputType(*range);
+                let universe = Arc::new(Value::Universe);
+                let output_type = self.push_flexible_value(source, universe);
 
-                let (def_name, def_type_value) = self.check_pattern(pattern, &scrutinee_type);
-                let def_type = self.quote_context(self.scope).quote(&def_type_value); // FIXME: avoid requote if possible?
-
-                let def_expr = self.eval_context().eval(&scrutinee_expr);
-                self.rigid_env.push_def(def_name, def_expr, def_type_value);
-                let (output_expr, output_type) = self.synth(output_expr);
-                self.rigid_env.pop();
-
-                // These patterns are unreachable, but check them anyway!
-                for (pattern, output_expr) in equations {
-                    let (def_name, def_type) = self.check_pattern(pattern, &scrutinee_type);
-
-                    // Warn about unreachable patterns
-                    self.push_message(Message::UnreachablePattern {
-                        range: pattern.range(),
-                    });
-
-                    let def_expr = self.eval_context().eval(&scrutinee_expr);
-                    self.rigid_env.push_def(def_name, def_expr, def_type);
-                    self.check(output_expr, &output_type);
-                    self.rigid_env.pop();
-                }
-
-                let let_expr = core::Term::Let(
-                    def_name,
-                    self.scope.to_scope(def_type),
-                    self.scope.to_scope(scrutinee_expr),
-                    self.scope.to_scope(output_expr),
+                let match_expr = self.check_match(
+                    *range,
+                    scrutinee_range,
+                    scrutinee_expr,
+                    &scrutinee_type,
+                    equations,
+                    &output_type,
                 );
 
-                (let_expr, output_type)
+                (match_expr, output_type)
             }
             Term::Universe(_) => (core::Term::Universe, Arc::new(Value::Universe)),
             Term::Arrow(_, input_type, output_type) => {
@@ -1174,5 +1117,54 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         let type_source = FlexSource::ReportedErrorType(range);
         let r#type = self.push_flexible_value(type_source, Arc::new(Value::Universe));
         (core::Term::Prim(Prim::ReportedError), r#type)
+    }
+
+    fn check_match(
+        &mut self,
+        match_range: ByteRange,
+        scrutinee_range: ByteRange,
+        scrutinee_expr: core::Term<'arena>,
+        scrutinee_type: &ArcValue<'arena>,
+        equations: &[(Pattern<'_, ByteRange>, Term<'_, ByteRange>)],
+        expected_type: &ArcValue<'arena>,
+    ) -> core::Term<'arena> {
+        if let Some(((pattern, output_expr), equations)) = equations.split_first() {
+            let (def_name, def_type_value) = self.check_pattern(pattern, &scrutinee_type);
+            let def_type = self.quote_context(self.scope).quote(&def_type_value); // FIXME: avoid requote if possible?
+
+            let def_expr = self.eval_context().eval(&scrutinee_expr);
+            self.rigid_env.push_def(def_name, def_expr, def_type_value);
+            let output_expr = self.check(output_expr, expected_type);
+            self.rigid_env.pop();
+
+            // These patterns are unreachable, but check them anyway!
+            for (pattern, output_expr) in equations {
+                let (def_name, def_type) = self.check_pattern(pattern, &scrutinee_type);
+
+                // Warn about unreachable patterns
+                self.push_message(Message::UnreachablePattern {
+                    range: pattern.range(),
+                });
+
+                let def_expr = self.eval_context().eval(&scrutinee_expr);
+                self.rigid_env.push_def(def_name, def_expr, def_type);
+                self.check(output_expr, &expected_type);
+                self.rigid_env.pop();
+            }
+
+            core::Term::Let(
+                def_name,
+                self.scope.to_scope(def_type),
+                self.scope.to_scope(scrutinee_expr),
+                self.scope.to_scope(output_expr),
+            )
+        } else {
+            // TODO: Void type?
+            self.push_message(Message::NonExhaustiveMatchExpr {
+                match_expr_range: match_range,
+                scrutinee_expr_range: scrutinee_range,
+            });
+            core::Term::Prim(Prim::ReportedError)
+        }
     }
 }

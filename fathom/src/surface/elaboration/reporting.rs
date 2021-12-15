@@ -340,6 +340,7 @@ impl Message {
                         (*range, "placeholder pattern type")
                     }
                     FlexSource::NamedPatternType(range, _) => (*range, "named pattern type"),
+                    FlexSource::MatchOutputType(range) => (*range, "match output type"),
                     FlexSource::FunInputType(range) => (*range, "function input type"),
                     FlexSource::FunOutputType(range) => (*range, "function output type"),
                     FlexSource::ReportedErrorType(range) => (*range, "error type"), // should never appear in user-facing output
