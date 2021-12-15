@@ -55,7 +55,9 @@ let long_date_time : Format = s64be;
 /// - [Microsoft's OpenType Spec: Tag](https://docs.microsoft.com/en-us/typography/opentype/spec/otff#dt_Tag)
 let tag : Format =
     // TODO: constrain array elements to the range 0x20 to 0x7E.
-    array8 4 u8;
+    // TODO: pattern matching on arrays
+    // array8 4 u8;
+    u32be;
 
 /// A format that consumes no input.
 let empty : Format = {};
@@ -116,7 +118,81 @@ let version16dot16 = {
 /// - [Microsoft's OpenType Spec: Font Tables](https://docs.microsoft.com/en-us/typography/opentype/spec/otff#font-tables)
 /// - [Apple's TrueType Reference Manual: TrueType Font files](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6.html#Overview)
 let font_table = fun (table_id : Repr tag) => fun (length : U32) => match table_id {
-    _ => fail, // TODO: Table formats
+    // Required Tables
+    "cmap" => fail,
+    "head" => fail,
+    "hhea" => fail,
+    "hmtx" => fail,
+    "maxp" => fail,
+    "name" => fail,
+    "OS/2" => fail,
+    "post" => fail,
+
+    // TrueType Outline Tables
+    "cvt " => fail,
+    "fpgm" => fail,
+    "glyf" => fail,
+    "loca" => fail,
+    "prep" => fail,
+    "gasp" => fail,
+
+    // CFF Outline Tables
+    "CFF " => fail,
+    "CFF2" => fail,
+    "VORG" => fail,
+
+    // SVG Outline Tables
+    "SVG " => fail,
+
+    // Bitmap Glyph Tables
+    "EBDT" => fail,
+    "EBLC" => fail,
+    "EBSC" => fail,
+    "CBDT" => fail,
+    "CBLC" => fail,
+    "sbix" => fail,
+
+    // Advanced Typographic Tables
+    "BASE" => fail,
+    "GDEF" => fail,
+    "GPOS" => fail,
+    "GSUB" => fail,
+    "JSTF" => fail,
+    "MATH" => fail,
+
+    // OpenType Font Variation Tables
+    "avar" => fail,
+    "cvar" => fail,
+    "fvar" => fail,
+    "gvar" => fail,
+    "HVAR" => fail,
+    "MVAR" => fail,
+    "STAT" => fail,
+    "VVAR" => fail,
+
+    // Color Font Tables
+    "COLR" => fail,
+    "CPAL" => fail,
+    "CBDT" => fail,
+    "CBLC" => fail,
+    "sbix" => fail,
+    "SVG " => fail,
+
+    // Other OpenType Tables
+    "DSIG" => fail,
+    "hdmx" => fail,
+    "kern" => fail,
+    "LTSH" => fail,
+    "MERG" => fail,
+    "meta" => fail,
+    "STAT" => fail,
+    "PCLT" => fail,
+    "VDMX" => fail,
+    "vhea" => fail,
+    "vmtx" => fail,
+
+    // TODO: Error message
+    _ => fail,
 };
 
 /// # Table Record

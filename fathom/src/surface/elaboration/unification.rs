@@ -105,6 +105,8 @@ pub enum SpineError {
     NonRigidFunElim,
     /// A record projection was found in the problem spine.
     RecordElim(StringId),
+    /// A constant elimination was found in the problem spine.
+    ConstElim,
 }
 
 /// An error that occurred when renaming the solution.
@@ -440,6 +442,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
                     _ => return Err(SpineError::NonRigidFunElim),
                 },
                 Elim::Record(label) => return Err(SpineError::RecordElim(*label)),
+                Elim::Const(_) => return Err(SpineError::ConstElim),
             }
         }
 
@@ -451,7 +454,9 @@ impl<'arena, 'env> Context<'arena, 'env> {
     fn fun_intros(&self, spine: &[Elim<'arena>], term: Term<'arena>) -> Term<'arena> {
         spine.iter().fold(term, |term, elim| match elim {
             Elim::Fun(_) => Term::FunIntro(None, self.scope.to_scope(term)),
-            Elim::Record(_) => unreachable!("should have been caught by `init_renaming`"),
+            Elim::Record(_) | Elim::Const(_) => {
+                unreachable!("should have been caught by `init_renaming`")
+            }
         })
     }
 
@@ -490,6 +495,31 @@ impl<'arena, 'env> Context<'arena, 'env> {
                         ),
                         Elim::Record(label) => {
                             Term::RecordElim(self.scope.to_scope(head_expr?), *label)
+                        }
+                        Elim::Const(split) => {
+                            let mut split = split.clone();
+                            let mut branches = SliceVec::new(self.scope, split.branches_len());
+
+                            let default_expr = loop {
+                                match self.elim_context().split_const_branches(split) {
+                                    Ok(((r#const, output_expr), next_split)) => {
+                                        branches.push((
+                                            r#const,
+                                            self.rename(flexible_var, &output_expr)?,
+                                        ));
+                                        split = next_split;
+                                    }
+                                    Err(default_expr) => {
+                                        break self.rename_closure(flexible_var, &default_expr)?;
+                                    }
+                                }
+                            };
+
+                            Term::ConstElim(
+                                self.scope.to_scope(head_expr?),
+                                branches.into(),
+                                self.scope.to_scope(default_expr),
+                            )
                         }
                     })
                 })

@@ -58,6 +58,8 @@ AtomicPattern : Pattern<'arena, ByteRange> = {
 
     <start: @L> <name: Name> <end: @R> => Pattern::Name(ByteRange::new(start, end), name),
     <start: @L> "_" <end: @R> => Pattern::Placeholder(ByteRange::new(start, end)),
+    <start: @L> <string: StringLiteral> <end: @R> => Pattern::StringLiteral(ByteRange::new(start, end), string),
+    <start: @L> <number: NumberLiteral> <end: @R> => Pattern::NumberLiteral(ByteRange::new(start, end), number),
 };
 
 pub Term: Term<'arena, ByteRange> = {

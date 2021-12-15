@@ -14,6 +14,9 @@ pub enum Message {
         range: ByteRange,
         name: StringId,
     },
+    RefutablePattern {
+        pattern_range: ByteRange,
+    },
     NonExhaustiveMatchExpr {
         match_expr_range: ByteRange,
         scrutinee_expr_range: ByteRange,
@@ -119,6 +122,12 @@ impl Message {
                     ])
                 // TODO: list suggestions
             }
+            Message::RefutablePattern { pattern_range } => Diagnostic::error()
+                .with_message("refutable patterns found in binding")
+                .with_labels(vec![
+                    Label::primary(file_id, *pattern_range).with_message("refutable pattern")
+                ])
+                .with_notes(vec!["expected an irrefutable pattern".to_owned()]),
             Message::NonExhaustiveMatchExpr {
                 match_expr_range,
                 scrutinee_expr_range,
@@ -309,7 +318,10 @@ impl Message {
                             .with_message("non-variable function application in problem spine")
                             .with_labels(vec![Label::primary(file_id, *range)]),
                         SpineError::RecordElim(_label) => Diagnostic::error()
-                            .with_message("record projection in problem spine")
+                            .with_message("record projection found in problem spine")
+                            .with_labels(vec![Label::primary(file_id, *range)]),
+                        SpineError::ConstElim => Diagnostic::error()
+                            .with_message("constant elimination found in problem spine")
                             .with_labels(vec![Label::primary(file_id, *range)]),
                     },
                     Error::Rename(error) => match error {

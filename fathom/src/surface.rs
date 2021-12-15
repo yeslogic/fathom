@@ -32,8 +32,10 @@ pub enum Pattern<'arena, Range> {
         &'arena Pattern<'arena, Range>,
         &'arena Term<'arena, Range>,
     ),
-    // TODO: Number literal patterns
-    // NumberLiteral(Range, StringId),
+    /// String literal patterns
+    StringLiteral(Range, StringId),
+    /// Number literal patterns
+    NumberLiteral(Range, StringId),
     // TODO: Record literal patterns
     // RecordLiteral(Range, &'arena [((ByteRange, StringId), Pattern<'arena, Range>)]),
 }
@@ -41,9 +43,11 @@ pub enum Pattern<'arena, Range> {
 impl<'arena, Range: Clone> Pattern<'arena, Range> {
     fn range(&self) -> Range {
         match self {
-            Pattern::Name(range, _) | Pattern::Placeholder(range) | Pattern::Ann(range, _, _) => {
-                range.clone()
-            }
+            Pattern::Name(range, _)
+            | Pattern::Placeholder(range)
+            | Pattern::Ann(range, _, _)
+            | Pattern::StringLiteral(range, _)
+            | Pattern::NumberLiteral(range, _) => range.clone(),
         }
     }
 }

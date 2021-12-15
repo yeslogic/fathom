@@ -68,6 +68,8 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                     self.term_prec(Prec::Top, &r#type),
                 ]),
             ),
+            Pattern::StringLiteral(_, number) => self.string_id(*number),
+            Pattern::NumberLiteral(_, number) => self.string_id(*number),
         }
     }
 

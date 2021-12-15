@@ -270,6 +270,13 @@ impl<'arena> FlexibleEnv<'arena> {
     }
 }
 
+enum CheckedPattern {
+    Name(ByteRange, StringId),
+    Placeholder(ByteRange),
+    Const(ByteRange, Const),
+    ReportedError(ByteRange),
+}
+
 /// Elaboration context.
 pub struct Context<'interner, 'arena> {
     /// Global string interner.
@@ -421,12 +428,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
     }
 
     /// Parse a source string into number, assuming an ASCII encoding.
-    fn parse_string_number<T>(
-        &mut self,
-        range: ByteRange,
-        string_id: StringId,
-        make_const: fn(T) -> core::Const,
-    ) -> core::Term<'arena>
+    fn parse_ascii<T>(&mut self, range: ByteRange, string_id: StringId) -> Option<T>
     where
         T: From<u8> + std::ops::Shl<Output = T> + std::ops::BitOr<Output = T>,
     {
@@ -449,14 +451,12 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 data = None;
             }
 
-            data = data
-                .filter(|_| usize::from(count) < std::mem::size_of::<T>())
-                .map(|data| {
-                    // Yikes this is a tad ugly
-                    // Setting the bytes in reverse order...
-                    let offset = 8 * (std::mem::size_of::<T>() as u8 - (count + 1));
-                    data | (T::from(ch as u8) << T::from(offset))
-                });
+            data = data.filter(|_| usize::from(count) < std::mem::size_of::<T>());
+            data = data.map(|data| {
+                // Yikes this is a tad ugly. Setting the bytes in reverse order...
+                let offset = 8 * (std::mem::size_of::<T>() as u8 - (count + 1));
+                data | (T::from(ch as u8) << T::from(offset))
+            });
             count += 1;
         }
 
@@ -469,29 +469,21 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
             data = None;
         }
 
-        match data {
-            Some(data) => core::Term::Const(make_const(data)),
-            None => core::Term::Prim(Prim::ReportedError),
-        }
+        data
     }
 
     /// Parse a source string into a number.
-    fn parse_number<T: FromStr>(
-        &mut self,
-        range: ByteRange,
-        string_id: StringId,
-        make_const: fn(T) -> core::Const,
-    ) -> core::Term<'arena>
+    fn parse_number<T: FromStr>(&mut self, range: ByteRange, string_id: StringId) -> Option<T>
     where
         T::Err: std::fmt::Display,
     {
         // TODO: Custom parsing and improved errors
         match self.interner.borrow().resolve(string_id).unwrap().parse() {
-            Ok(data) => core::Term::Const(make_const(data)),
+            Ok(data) => Some(data),
             Err(error) => {
                 let message = error.to_string();
                 self.push_message(Message::InvalidNumericLiteral { range, message });
-                core::Term::Prim(Prim::ReportedError)
+                None
             }
         }
     }
@@ -527,10 +519,14 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         &mut self,
         pattern: &Pattern<'_, ByteRange>,
         expected_type: &ArcValue<'arena>,
-    ) -> (Option<StringId>, ArcValue<'arena>) {
+    ) -> (CheckedPattern, ArcValue<'arena>) {
         match pattern {
-            Pattern::Name(_, name) => (Some(*name), expected_type.clone()),
-            Pattern::Placeholder(_) => (None, expected_type.clone()),
+            Pattern::Name(range, name) => {
+                (CheckedPattern::Name(*range, *name), expected_type.clone())
+            }
+            Pattern::Placeholder(range) => {
+                (CheckedPattern::Placeholder(*range), expected_type.clone())
+            }
             Pattern::Ann(range, pattern, r#type) => {
                 let r#type = self.check(r#type, &Arc::new(Value::Universe)); // FIXME: avoid temporary Arc
                 let r#type = self.eval_context().eval(&r#type);
@@ -548,7 +544,69 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                         let source = FlexSource::ReportedErrorType(*range);
                         let r#type = self.push_flexible_value(source, Arc::new(Value::Universe));
 
-                        (pattern_name, r#type)
+                        (CheckedPattern::ReportedError(*range), r#type)
+                    }
+                }
+            }
+            Pattern::StringLiteral(range, string) => {
+                let constant = match expected_type.match_prim_spine() {
+                    Some((Prim::U8Type, [])) => self.parse_ascii(*range, *string).map(Const::U8),
+                    Some((Prim::U16Type, [])) => self.parse_ascii(*range, *string).map(Const::U16),
+                    Some((Prim::U32Type, [])) => self.parse_ascii(*range, *string).map(Const::U32),
+                    Some((Prim::U64Type, [])) => self.parse_ascii(*range, *string).map(Const::U64),
+                    // Some((Prim::Array8Type, [len, _])) => todo!(),
+                    // Some((Prim::Array16Type, [len, _])) => todo!(),
+                    // Some((Prim::Array32Type, [len, _])) => todo!(),
+                    // Some((Prim::Array64Type, [len, _])) => todo!(),
+                    Some((Prim::ReportedError, _)) => None,
+                    _ => {
+                        self.push_message(Message::StringLiteralNotSupported { range: *range });
+                        None
+                    }
+                };
+
+                match constant {
+                    Some(constant) => (
+                        CheckedPattern::Const(*range, constant),
+                        expected_type.clone(),
+                    ),
+                    None => {
+                        let source = FlexSource::ReportedErrorType(*range);
+                        let r#type = self.push_flexible_value(source, Arc::new(Value::Universe));
+
+                        (CheckedPattern::ReportedError(*range), r#type)
+                    }
+                }
+            }
+            Pattern::NumberLiteral(range, number) => {
+                let constant = match expected_type.match_prim_spine() {
+                    Some((Prim::U8Type, [])) => self.parse_number(*range, *number).map(Const::U8),
+                    Some((Prim::U16Type, [])) => self.parse_number(*range, *number).map(Const::U16),
+                    Some((Prim::U32Type, [])) => self.parse_number(*range, *number).map(Const::U32),
+                    Some((Prim::U64Type, [])) => self.parse_number(*range, *number).map(Const::U64),
+                    Some((Prim::S8Type, [])) => self.parse_number(*range, *number).map(Const::S8),
+                    Some((Prim::S16Type, [])) => self.parse_number(*range, *number).map(Const::S16),
+                    Some((Prim::S32Type, [])) => self.parse_number(*range, *number).map(Const::S32),
+                    Some((Prim::S64Type, [])) => self.parse_number(*range, *number).map(Const::S64),
+                    Some((Prim::F32Type, [])) => self.parse_number(*range, *number).map(Const::F32),
+                    Some((Prim::F64Type, [])) => self.parse_number(*range, *number).map(Const::F64),
+                    Some((Prim::ReportedError, _)) => None,
+                    _ => {
+                        self.push_message(Message::NumericLiteralNotSupported { range: *range });
+                        None
+                    }
+                };
+
+                match constant {
+                    Some(constant) => (
+                        CheckedPattern::Const(*range, constant),
+                        expected_type.clone(),
+                    ),
+                    None => {
+                        let source = FlexSource::ReportedErrorType(*range);
+                        let r#type = self.push_flexible_value(source, Arc::new(Value::Universe));
+
+                        (CheckedPattern::ReportedError(*range), r#type)
                     }
                 }
             }
@@ -565,15 +623,14 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         &mut self,
         pattern: &Pattern<'_, ByteRange>,
         pattern_type: ArcValue<'arena>,
-    ) -> (Option<StringId>, ArcValue<'arena>) {
+    ) -> (CheckedPattern, ArcValue<'arena>) {
         match pattern {
-            Pattern::Name(_, name) => (Some(*name), pattern_type),
-            Pattern::Placeholder(_) => (None, pattern_type),
             Pattern::Ann(_, pattern, r#type) => {
                 let r#type = self.check(r#type, &pattern_type);
                 let r#type = self.eval_context().eval(&r#type);
                 self.synth_ann_pattern(pattern, r#type)
             }
+            _ => self.check_pattern(pattern, &pattern_type),
         }
     }
 
@@ -586,24 +643,87 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
     fn synth_pattern(
         &mut self,
         pattern: &Pattern<'_, ByteRange>,
-    ) -> (Option<StringId>, ArcValue<'arena>) {
+    ) -> (CheckedPattern, ArcValue<'arena>) {
         match pattern {
             Pattern::Name(range, name) => {
                 let source = FlexSource::NamedPatternType(*range, *name);
                 let r#type = self.push_flexible_value(source, Arc::new(Value::Universe));
-                (Some(*name), r#type)
+                (CheckedPattern::Name(*range, *name), r#type)
             }
             Pattern::Placeholder(range) => {
                 let source = FlexSource::PlaceholderPatternType(*range);
                 let r#type = self.push_flexible_value(source, Arc::new(Value::Universe));
-                (None, r#type)
+                (CheckedPattern::Placeholder(*range), r#type)
             }
             Pattern::Ann(_, pattern, r#type) => {
                 let r#type = self.check(r#type, &Arc::new(Value::Universe)); // FIXME: avoid temporary Arc
                 let r#type = self.eval_context().eval(&r#type);
                 self.synth_ann_pattern(pattern, r#type)
             }
+            Pattern::StringLiteral(range, _) => {
+                self.push_message(Message::AmbiguousStringLiteral { range: *range });
+                let source = FlexSource::ReportedErrorType(*range);
+                let r#type = self.push_flexible_value(source, Arc::new(Value::Universe));
+                (CheckedPattern::ReportedError(*range), r#type)
+            }
+            Pattern::NumberLiteral(range, _) => {
+                self.push_message(Message::AmbiguousNumericLiteral { range: *range });
+                let source = FlexSource::ReportedErrorType(*range);
+                let r#type = self.push_flexible_value(source, Arc::new(Value::Universe));
+                (CheckedPattern::ReportedError(*range), r#type)
+            }
         }
+    }
+
+    /// Push a rigid definition onto the context.
+    /// The supplied `pattern` is expected to be irrefutable.
+    fn push_rigid_def(
+        &mut self,
+        pattern: CheckedPattern,
+        expr: ArcValue<'arena>,
+        r#type: ArcValue<'arena>,
+    ) -> Option<StringId> {
+        let name = match pattern {
+            CheckedPattern::Name(_, name) => Some(name),
+            CheckedPattern::Placeholder(_) => None,
+            // FIXME: generate failing output expressions?
+            CheckedPattern::Const(range, _) => {
+                self.push_message(Message::RefutablePattern {
+                    pattern_range: range,
+                });
+                None
+            }
+            CheckedPattern::ReportedError(_) => None,
+        };
+
+        self.rigid_env.push_def(name, expr, r#type);
+
+        name
+    }
+
+    /// Push a rigid parameter onto the context.
+    /// The supplied `pattern` is expected to be irrefutable.
+    fn push_rigid_param(
+        &mut self,
+        pattern: CheckedPattern,
+        r#type: ArcValue<'arena>,
+    ) -> (Option<StringId>, ArcValue<'arena>) {
+        let name = match pattern {
+            CheckedPattern::Name(_, name) => Some(name),
+            CheckedPattern::Placeholder(_) => None,
+            // FIXME: generate failing output expressions?
+            CheckedPattern::Const(range, _) => {
+                self.push_message(Message::RefutablePattern {
+                    pattern_range: range,
+                });
+                None
+            }
+            CheckedPattern::ReportedError(_) => None,
+        };
+
+        let expr = self.rigid_env.push_param(name, r#type);
+
+        (name, expr)
     }
 
     /// Check that a surface term conforms to the given type.
@@ -618,13 +738,12 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
 
         match (surface_term, expected_type.as_ref()) {
             (Term::Let(_, def_pattern, def_expr, output_expr), _) => {
-                let (def_name, def_type_value) = self.synth_pattern(def_pattern);
+                let (def_pattern, def_type_value) = self.synth_pattern(def_pattern);
                 let def_type = self.quote_context(self.scope).quote(&def_type_value); // FIXME: avoid requote if possible?
                 let def_expr = self.check(def_expr, &def_type_value);
                 let def_expr_value = self.eval_context().eval(&def_expr);
 
-                self.rigid_env
-                    .push_def(def_name, def_expr_value, def_type_value);
+                let def_name = self.push_rigid_def(def_pattern, def_expr_value, def_type_value); // TODO: split on constants
                 let output_expr = self.check(output_expr, &expected_type);
                 self.rigid_env.pop();
 
@@ -640,9 +759,10 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 let (scrutinee_expr, scrutinee_type) = self.synth(scrutinee_expr);
 
                 self.check_match(
+                    true,
                     *range,
                     scrutinee_range,
-                    scrutinee_expr,
+                    self.scope.to_scope(scrutinee_expr),
                     &scrutinee_type,
                     equations,
                     &expected_type,
@@ -654,7 +774,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
             ) => {
                 let (input_name, input_type) = self.check_pattern(input_pattern, input_type);
 
-                let input_expr = self.rigid_env.push_param(input_name, input_type);
+                let (input_name, input_expr) = self.push_rigid_param(input_name, input_type);
                 let output_type = self.elim_context().apply_closure(output_type, input_expr);
                 let output_expr = self.check(output_expr, &output_type);
 
@@ -747,38 +867,52 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
 
                 core::Term::ArrayIntro(elem_exprs)
             }
-            (Term::StringLiteral(range, string), _) => match expected_type.match_prim_spine() {
-                Some((Prim::U8Type, [])) => self.parse_string_number(*range, *string, Const::U8),
-                Some((Prim::U16Type, [])) => self.parse_string_number(*range, *string, Const::U16),
-                Some((Prim::U32Type, [])) => self.parse_string_number(*range, *string, Const::U32),
-                Some((Prim::U64Type, [])) => self.parse_string_number(*range, *string, Const::U64),
-                // TODO: Byte array literals:
-                // Some((Prim::Array8Type, [len, _])) => todo!(),
-                // Some((Prim::Array16Type, [len, _])) => todo!(),
-                // Some((Prim::Array32Type, [len, _])) => todo!(),
-                // Some((Prim::Array64Type, [len, _])) => todo!(),
-                _ => {
-                    self.push_message(Message::StringLiteralNotSupported { range: *range });
-                    core::Term::Prim(Prim::ReportedError)
+            (Term::StringLiteral(range, string), _) => {
+                let constant = match expected_type.match_prim_spine() {
+                    Some((Prim::U8Type, [])) => self.parse_ascii(*range, *string).map(Const::U8),
+                    Some((Prim::U16Type, [])) => self.parse_ascii(*range, *string).map(Const::U16),
+                    Some((Prim::U32Type, [])) => self.parse_ascii(*range, *string).map(Const::U32),
+                    Some((Prim::U64Type, [])) => self.parse_ascii(*range, *string).map(Const::U64),
+                    // Some((Prim::Array8Type, [len, _])) => todo!(),
+                    // Some((Prim::Array16Type, [len, _])) => todo!(),
+                    // Some((Prim::Array32Type, [len, _])) => todo!(),
+                    // Some((Prim::Array64Type, [len, _])) => todo!(),
+                    Some((Prim::ReportedError, _)) => None,
+                    _ => {
+                        self.push_message(Message::StringLiteralNotSupported { range: *range });
+                        None
+                    }
+                };
+
+                match constant {
+                    Some(constant) => core::Term::Const(constant),
+                    None => core::Term::Prim(Prim::ReportedError),
                 }
-            },
-            (Term::NumberLiteral(range, number), _) => match expected_type.match_prim_spine() {
-                Some((Prim::U8Type, [])) => self.parse_number(*range, *number, Const::U8),
-                Some((Prim::U16Type, [])) => self.parse_number(*range, *number, Const::U16),
-                Some((Prim::U32Type, [])) => self.parse_number(*range, *number, Const::U32),
-                Some((Prim::U64Type, [])) => self.parse_number(*range, *number, Const::U64),
-                Some((Prim::S8Type, [])) => self.parse_number(*range, *number, Const::S8),
-                Some((Prim::S16Type, [])) => self.parse_number(*range, *number, Const::S16),
-                Some((Prim::S32Type, [])) => self.parse_number(*range, *number, Const::S32),
-                Some((Prim::S64Type, [])) => self.parse_number(*range, *number, Const::S64),
-                Some((Prim::F32Type, [])) => self.parse_number(*range, *number, Const::F32),
-                Some((Prim::F64Type, [])) => self.parse_number(*range, *number, Const::F64),
-                Some((Prim::ReportedError, _)) => return core::Term::Prim(Prim::ReportedError),
-                _ => {
-                    self.push_message(Message::NumericLiteralNotSupported { range: *range });
-                    core::Term::Prim(Prim::ReportedError)
+            }
+            (Term::NumberLiteral(range, number), _) => {
+                let constant = match expected_type.match_prim_spine() {
+                    Some((Prim::U8Type, [])) => self.parse_number(*range, *number).map(Const::U8),
+                    Some((Prim::U16Type, [])) => self.parse_number(*range, *number).map(Const::U16),
+                    Some((Prim::U32Type, [])) => self.parse_number(*range, *number).map(Const::U32),
+                    Some((Prim::U64Type, [])) => self.parse_number(*range, *number).map(Const::U64),
+                    Some((Prim::S8Type, [])) => self.parse_number(*range, *number).map(Const::S8),
+                    Some((Prim::S16Type, [])) => self.parse_number(*range, *number).map(Const::S16),
+                    Some((Prim::S32Type, [])) => self.parse_number(*range, *number).map(Const::S32),
+                    Some((Prim::S64Type, [])) => self.parse_number(*range, *number).map(Const::S64),
+                    Some((Prim::F32Type, [])) => self.parse_number(*range, *number).map(Const::F32),
+                    Some((Prim::F64Type, [])) => self.parse_number(*range, *number).map(Const::F64),
+                    Some((Prim::ReportedError, _)) => None,
+                    _ => {
+                        self.push_message(Message::NumericLiteralNotSupported { range: *range });
+                        return core::Term::Prim(Prim::ReportedError);
+                    }
+                };
+
+                match constant {
+                    Some(constant) => core::Term::Const(constant),
+                    None => core::Term::Prim(Prim::ReportedError),
                 }
-            },
+            }
             (Term::ReportedError(_), _) => core::Term::Prim(Prim::ReportedError),
             (_, _) => {
                 let (core_term, synth_type) = self.synth(surface_term);
@@ -834,13 +968,12 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 (ann_expr, type_value)
             }
             Term::Let(_, def_pattern, def_expr, output_expr) => {
-                let (def_name, def_type_value) = self.synth_pattern(def_pattern);
+                let (def_pattern, def_type_value) = self.synth_pattern(def_pattern);
                 let def_type = self.quote_context(self.scope).quote(&def_type_value); // FIXME: avoid requote if possible?
                 let def_expr = self.check(def_expr, &def_type_value);
                 let def_expr_value = self.eval_context().eval(&def_expr);
 
-                self.rigid_env
-                    .push_def(def_name, def_expr_value, def_type_value);
+                let def_name = self.push_rigid_def(def_pattern, def_expr_value, def_type_value);
                 let (output_expr, output_type) = self.synth(output_expr);
                 self.rigid_env.pop();
 
@@ -865,9 +998,10 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 let output_type = self.push_flexible_value(source, universe);
 
                 let match_expr = self.check_match(
+                    true,
                     *range,
                     scrutinee_range,
-                    scrutinee_expr,
+                    self.scope.to_scope(scrutinee_expr),
                     &scrutinee_type,
                     equations,
                     &output_type,
@@ -895,10 +1029,10 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
             }
             Term::FunType(_, input_pattern, output_type) => {
                 let universe = Arc::new(Value::Universe); // FIXME: avoid temporary Arc
-                let (input_name, input_type_value) = self.synth_pattern(input_pattern);
+                let (input_pattern, input_type_value) = self.synth_pattern(input_pattern);
                 let input_type = self.quote_context(self.scope).quote(&input_type_value); // FIXME: avoid requote if possible?
 
-                self.rigid_env.push_param(input_name, input_type_value);
+                let (input_name, _) = self.push_rigid_param(input_pattern, input_type_value);
                 let output_type = self.check(output_type, &universe);
                 self.rigid_env.pop();
 
@@ -911,9 +1045,9 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 (fun_type, universe)
             }
             Term::FunLiteral(_, input_pattern, output_expr) => {
-                let (input_name, input_type) = self.synth_pattern(input_pattern);
+                let (input_pattern, input_type) = self.synth_pattern(input_pattern);
 
-                self.rigid_env.push_param(input_name, input_type.clone());
+                let (input_name, _) = self.push_rigid_param(input_pattern, input_type.clone());
                 let (output_expr, output_type) = self.synth(output_expr);
                 let output_type = self.quote_context(self.scope).quote(&output_type);
                 self.rigid_env.pop();
@@ -1119,52 +1253,152 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         (core::Term::Prim(Prim::ReportedError), r#type)
     }
 
+    /// Elaborate a pattern match.
     fn check_match(
         &mut self,
+        is_reachable: bool,
         match_range: ByteRange,
         scrutinee_range: ByteRange,
-        scrutinee_expr: core::Term<'arena>,
+        scrutinee_expr: &'arena core::Term<'arena>,
         scrutinee_type: &ArcValue<'arena>,
-        equations: &[(Pattern<'_, ByteRange>, Term<'_, ByteRange>)],
+        mut equations: &[(Pattern<'_, ByteRange>, Term<'_, ByteRange>)],
+        /* default expression: &Fn() -> Term<'arena> */
         expected_type: &ArcValue<'arena>,
     ) -> core::Term<'arena> {
-        if let Some(((pattern, output_expr), equations)) = equations.split_first() {
-            let (def_name, def_type_value) = self.check_pattern(pattern, &scrutinee_type);
-            let def_type = self.quote_context(self.scope).quote(&def_type_value); // FIXME: avoid requote if possible?
+        match equations.split_first() {
+            Some(((pattern, output_expr), next_equations)) => {
+                let (def_pattern, def_type_value) = self.check_pattern(pattern, &scrutinee_type);
+                let def_type = self.quote_context(self.scope).quote(&def_type_value); // FIXME: avoid requote if possible?
 
-            let def_expr = self.eval_context().eval(&scrutinee_expr);
-            self.rigid_env.push_def(def_name, def_expr, def_type_value);
-            let output_expr = self.check(output_expr, expected_type);
-            self.rigid_env.pop();
+                // Warn about unreachable patterns, only when checking the pattern was a success
+                if !is_reachable && !matches!(def_pattern, CheckedPattern::ReportedError(_)) {
+                    self.push_message(Message::UnreachablePattern {
+                        range: pattern.range(),
+                    });
+                }
 
-            // These patterns are unreachable, but check them anyway!
-            for (pattern, output_expr) in equations {
-                let (def_name, def_type) = self.check_pattern(pattern, &scrutinee_type);
+                match def_pattern {
+                    CheckedPattern::Name(_, name) => {
+                        let def_name = Some(name);
+                        let def_expr = self.eval_context().eval(&scrutinee_expr);
+                        self.rigid_env.push_def(def_name, def_expr, def_type_value);
+                        let output_expr = self.check(output_expr, &expected_type);
+                        self.rigid_env.pop();
 
-                // Warn about unreachable patterns
-                self.push_message(Message::UnreachablePattern {
-                    range: pattern.range(),
-                });
+                        // These patterns are unreachable, but check them anyway!
+                        self.check_match(
+                            false,
+                            match_range,
+                            scrutinee_range,
+                            scrutinee_expr,
+                            scrutinee_type,
+                            next_equations,
+                            expected_type,
+                        );
 
-                let def_expr = self.eval_context().eval(&scrutinee_expr);
-                self.rigid_env.push_def(def_name, def_expr, def_type);
-                self.check(output_expr, &expected_type);
-                self.rigid_env.pop();
+                        core::Term::Let(
+                            def_name,
+                            self.scope.to_scope(def_type),
+                            scrutinee_expr,
+                            self.scope.to_scope(output_expr),
+                        )
+                    }
+                    CheckedPattern::Placeholder(_) => {
+                        let output_expr = self.check(output_expr, &expected_type);
+
+                        // These patterns are unreachable, but check them anyway!
+                        self.check_match(
+                            false,
+                            match_range,
+                            scrutinee_range,
+                            scrutinee_expr,
+                            scrutinee_type,
+                            next_equations,
+                            expected_type,
+                        );
+
+                        output_expr
+                    }
+                    CheckedPattern::Const(_, _) => {
+                        // Temporary vector for accumulating branches
+                        let mut branches = Vec::new();
+
+                        // Collect a run of constant patterns
+                        while let Some(((pattern, output_expr), next_equations)) =
+                            equations.split_first()
+                        {
+                            let (def_pattern, _) = self.check_pattern(pattern, &scrutinee_type);
+                            match def_pattern {
+                                // Accumulate constant pattern
+                                CheckedPattern::Const(_, r#const) => {
+                                    let output_term = self.check(output_expr, expected_type);
+                                    // TODO: push in order
+                                    // TODO: check for/avoid duplicates
+                                    branches.push((r#const, output_term));
+                                    equations = next_equations;
+                                }
+
+                                // Time for the default pattern
+                                CheckedPattern::Name(_, _)
+                                | CheckedPattern::Placeholder(_)
+                                | CheckedPattern::ReportedError(_) => {
+                                    // Check the default expression and any other
+                                    // unreachable equaltions following that.
+                                    let default_expr = self.check_match(
+                                        true,
+                                        match_range,
+                                        scrutinee_range,
+                                        scrutinee_expr,
+                                        scrutinee_type,
+                                        equations,
+                                        expected_type,
+                                    );
+
+                                    return core::Term::ConstElim(
+                                        scrutinee_expr,
+                                        self.scope.to_scope_from_iter(branches.into_iter()),
+                                        self.scope.to_scope(default_expr),
+                                    );
+                                }
+                            }
+                        }
+
+                        if is_reachable {
+                            // TODO: this should be admitted if the scrutinee type is uninhabited
+                            self.push_message(Message::NonExhaustiveMatchExpr {
+                                match_expr_range: match_range,
+                                scrutinee_expr_range: scrutinee_range,
+                            });
+                        }
+                        core::Term::Prim(Prim::ReportedError)
+                    }
+                    CheckedPattern::ReportedError(_) => {
+                        // Check for any further errors in the first equation's output expression.
+                        self.check(output_expr, expected_type);
+                        self.check_match(
+                            false,
+                            match_range,
+                            scrutinee_range,
+                            scrutinee_expr,
+                            scrutinee_type,
+                            next_equations,
+                            expected_type,
+                        );
+
+                        core::Term::Prim(Prim::ReportedError)
+                    }
+                }
             }
-
-            core::Term::Let(
-                def_name,
-                self.scope.to_scope(def_type),
-                self.scope.to_scope(scrutinee_expr),
-                self.scope.to_scope(output_expr),
-            )
-        } else {
-            // TODO: Void type?
-            self.push_message(Message::NonExhaustiveMatchExpr {
-                match_expr_range: match_range,
-                scrutinee_expr_range: scrutinee_range,
-            });
-            core::Term::Prim(Prim::ReportedError)
+            None => {
+                if is_reachable {
+                    // TODO: this should be admitted if the scrutinee type is uninhabited
+                    self.push_message(Message::NonExhaustiveMatchExpr {
+                        match_expr_range: match_range,
+                        scrutinee_expr_range: scrutinee_range,
+                    });
+                }
+                core::Term::Prim(Prim::ReportedError)
+            }
         }
     }
 }

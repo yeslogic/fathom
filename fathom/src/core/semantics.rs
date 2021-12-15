@@ -81,6 +81,8 @@ pub enum Elim<'arena> {
     Fun(ArcValue<'arena>),
     /// Record eliminations.
     Record(StringId),
+    /// Constant Eliminations.
+    Const(Split<'arena>),
 }
 
 /// A closure is a term that can later be instantiated with a value.
@@ -95,6 +97,7 @@ pub struct Closure<'arena> {
 }
 
 impl<'arena> Closure<'arena> {
+    /// Construct a closure.
     pub fn new(
         rigid_exprs: SharedEnv<ArcValue<'arena>>,
         term: &'arena Term<'arena>,
@@ -121,6 +124,7 @@ pub struct Telescope<'arena> {
 }
 
 impl<'arena> Telescope<'arena> {
+    /// Construct a telescope.
     pub fn new(
         rigid_exprs: SharedEnv<ArcValue<'arena>>,
         terms: &'arena [Term<'arena>],
@@ -143,6 +147,34 @@ impl<'arena> Telescope<'arena> {
     /// The number of terms in the telescope.
     pub fn len(&self) -> usize {
         self.terms.len()
+    }
+}
+
+/// The branches of a case split.
+#[derive(Debug, Clone)]
+pub struct Split<'arena> {
+    rigid_exprs: SharedEnv<ArcValue<'arena>>,
+    branches: &'arena [(Const, Term<'arena>)],
+    default_expr: &'arena Term<'arena>,
+}
+
+impl<'arena> Split<'arena> {
+    /// Construct a case split.
+    pub fn new(
+        rigid_exprs: SharedEnv<ArcValue<'arena>>,
+        branches: &'arena [(Const, Term<'arena>)],
+        default_expr: &'arena Term<'arena>,
+    ) -> Split<'arena> {
+        Split {
+            rigid_exprs,
+            branches,
+            default_expr,
+        }
+    }
+
+    /// The number of branches in the case split.
+    pub fn branches_len(&self) -> usize {
+        self.branches.len()
     }
 }
 
@@ -280,6 +312,13 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
             }
             Term::Prim(prim) => Arc::new(Value::prim(*prim, [])),
             Term::Const(r#const) => Arc::new(Value::Const(*r#const)),
+            Term::ConstElim(head_expr, branches, default_expr) => {
+                let head_expr = self.eval(head_expr);
+                self.elim_context().apply_const(
+                    head_expr,
+                    Split::new(self.rigid_exprs.clone(), branches, &default_expr),
+                )
+            }
         }
     }
 }
@@ -352,6 +391,24 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
         }))
     }
 
+    pub fn split_const_branches(
+        &self,
+        mut const_branches: Split<'arena>,
+    ) -> Result<((Const, ArcValue<'arena>), Split<'arena>), Closure<'arena>> {
+        match const_branches.branches.split_first() {
+            Some(((r#const, output_expr), branches)) => {
+                const_branches.branches = branches;
+                let mut context =
+                    EvalContext::new(&mut const_branches.rigid_exprs, self.flexible_exprs);
+                Ok(((*r#const, context.eval(output_expr)), const_branches))
+            }
+            None => Err(Closure::new(
+                const_branches.rigid_exprs,
+                const_branches.default_expr,
+            )),
+        }
+    }
+
     /// Apply a function elimination to an expression, performing
     /// [beta-reduction] if possible.
     ///
@@ -401,6 +458,38 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
         }
     }
 
+    /// Apply a constant elimination to an expression, performing
+    /// [beta-reduction] if possible.
+    ///
+    /// [beta-reduction]: https://ncatlab.org/nlab/show/beta-reduction
+    fn apply_const(
+        &self,
+        mut head_expr: ArcValue<'arena>,
+        mut split: Split<'arena>,
+    ) -> ArcValue<'arena> {
+        match Arc::make_mut(&mut head_expr) {
+            Value::Const(r#const) => {
+                // Try each branch
+                for (branch_const, output_expr) in split.branches {
+                    if r#const == branch_const {
+                        return EvalContext::new(&mut split.rigid_exprs, self.flexible_exprs)
+                            .eval(output_expr);
+                    }
+                }
+                // Otherwise call default with `head_expr`
+                let mut rigid_exprs = split.rigid_exprs.clone();
+                rigid_exprs.push(head_expr);
+                EvalContext::new(&mut rigid_exprs, self.flexible_exprs).eval(split.default_expr)
+            }
+            // The computation is stuck, preventing further reduction
+            Value::Stuck(_, spine) => {
+                spine.push(Elim::Const(split));
+                head_expr
+            }
+            _ => panic_any(Error::InvalidRecordElim),
+        }
+    }
+
     /// Apply an expression to an elimination spine.
     pub fn apply_spine(
         &self,
@@ -410,6 +499,7 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
         spine.iter().fold(head_expr, |head_expr, elim| match elim {
             Elim::Fun(input_expr) => self.apply_fun(head_expr, input_expr.clone()),
             Elim::Record(label) => self.apply_record(head_expr, *label),
+            Elim::Const(split) => self.apply_const(head_expr, split.clone()),
         })
     }
 
@@ -521,6 +611,26 @@ impl<'in_arena, 'out_arena, 'env> QuoteContext<'in_arena, 'out_arena, 'env> {
                         self.scope.to_scope(self.quote(input_expr)),
                     ),
                     Elim::Record(label) => Term::RecordElim(self.scope.to_scope(head_expr), *label),
+                    Elim::Const(split) => {
+                        let mut split = split.clone();
+                        let mut branches = SliceVec::new(self.scope, split.branches_len());
+
+                        let default_expr = loop {
+                            match self.elim_context().split_const_branches(split) {
+                                Ok(((r#const, output_expr), next_split)) => {
+                                    branches.push((r#const, self.quote(&output_expr)));
+                                    split = next_split;
+                                }
+                                Err(default_expr) => break self.quote_closure(&default_expr),
+                            }
+                        };
+
+                        Term::ConstElim(
+                            self.scope.to_scope(head_expr),
+                            branches.into(),
+                            self.scope.to_scope(default_expr),
+                        )
+                    }
                 })
             }
             Value::Universe => Term::Universe,

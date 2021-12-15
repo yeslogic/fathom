@@ -74,6 +74,27 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
         Term::NumberLiteral((), number)
     }
 
+    fn check_number_pattern<T: std::fmt::Display>(&mut self, number: T) -> Pattern<'arena, ()> {
+        let number = self.interner.borrow_mut().get_or_intern(number.to_string());
+        Pattern::NumberLiteral((), number)
+    }
+
+    fn check_constant_pattern(&mut self, r#const: &core::Const) -> Pattern<'arena, ()> {
+        match r#const {
+            core::Const::U8(number) => self.check_number_pattern(number),
+            core::Const::U16(number) => self.check_number_pattern(number),
+            core::Const::U32(number) => self.check_number_pattern(number),
+            core::Const::U64(number) => self.check_number_pattern(number),
+            core::Const::S8(number) => self.check_number_pattern(number),
+            core::Const::S16(number) => self.check_number_pattern(number),
+            core::Const::S32(number) => self.check_number_pattern(number),
+            core::Const::S64(number) => self.check_number_pattern(number),
+            core::Const::F32(number) => self.check_number_pattern(number),
+            core::Const::F64(number) => self.check_number_pattern(number),
+            core::Const::Pos(number) => self.check_number_pattern(number),
+        }
+    }
+
     fn synth_prim(&mut self, prim: core::Prim) -> Term<'arena, ()> {
         // FIXME: Check if shadowed
         let name = self.interner.borrow_mut().get_or_intern_static(prim.name());
@@ -143,7 +164,6 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
 
                 Term::ArrayLiteral((), scope.to_scope_from_iter(elem_exprs))
             }
-
             core::Term::Const(r#const) => match r#const {
                 core::Const::U8(number) => self.check_number_literal(number),
                 core::Const::U16(number) => self.check_number_literal(number),
@@ -157,6 +177,31 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 core::Const::F64(number) => self.check_number_literal(number),
                 core::Const::Pos(number) => self.check_number_literal(number),
             },
+            core::Term::ConstElim(head_expr, branches, default_expr) => {
+                let head_expr = self.synth(head_expr);
+                let default_branch = {
+                    let name = self.push_rigid(None);
+                    let default_expr = self.check(default_expr);
+                    self.pop_rigid();
+
+                    (Pattern::Name((), name), default_expr)
+                };
+
+                Term::Match(
+                    (),
+                    self.scope.to_scope(head_expr),
+                    self.scope.to_scope_from_iter(
+                        branches
+                            .iter()
+                            .map(|(r#const, output_expr)| {
+                                let pattern = self.check_constant_pattern(r#const);
+                                let output_expr = self.check(output_expr);
+                                (pattern, output_expr)
+                            })
+                            .chain(std::iter::once(default_branch)),
+                    ),
+                )
+            }
 
             _ => self.synth(core_term),
         }
@@ -326,6 +371,31 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 core::Const::F64(number) => self.synth_number_literal(number, core::Prim::F64Type),
                 core::Const::Pos(number) => self.synth_number_literal(number, core::Prim::PosType),
             },
+            core::Term::ConstElim(head_expr, branches, default_expr) => {
+                let head_expr = self.synth(head_expr);
+                let default_branch = {
+                    let name = self.push_rigid(None);
+                    let default_expr = self.synth(default_expr);
+                    self.pop_rigid();
+
+                    (Pattern::Name((), name), default_expr)
+                };
+
+                Term::Match(
+                    (),
+                    self.scope.to_scope(head_expr),
+                    self.scope.to_scope_from_iter(
+                        branches
+                            .iter()
+                            .map(|(r#const, output_expr)| {
+                                let pattern = self.check_constant_pattern(r#const);
+                                let output_expr = self.synth(output_expr);
+                                (pattern, output_expr)
+                            })
+                            .chain(std::iter::once(default_branch)),
+                    ),
+                )
+            }
         }
     }
 }
