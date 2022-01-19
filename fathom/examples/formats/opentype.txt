@@ -109,8 +109,7 @@ let version16dot16 = {
 
 /// # Font Table
 ///
-/// Defines a mapping between a given `tag` and the format description of its
-/// corresponding font table.
+/// A mapping between a given `tag` and a corresponding font table.
 ///
 /// ## References
 ///
