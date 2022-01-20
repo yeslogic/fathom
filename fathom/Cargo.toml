@@ -6,6 +6,10 @@ repository = "https://github.com/yeslogic/fathom"
 edition = "2018"
 publish = false
 
+description = "A language for declaratively specifying binary data formats"
+readme = "../README.md"
+license = "Apache-2.0"
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [[test]]
