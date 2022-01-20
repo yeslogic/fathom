@@ -11,7 +11,7 @@
 [license-badge]: https://img.shields.io/github/license/yeslogic/fathom
 [license-url]: ./LICENSE
 
-A language for specifying data-dependent binary data formats.
+A language for specifying data-dependent binary formats.
 
 ## Example
 
