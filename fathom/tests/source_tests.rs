@@ -7,8 +7,10 @@ use walkdir::WalkDir;
 fn main() {
     let args = libtest_mimic::Arguments::from_args();
 
+    std::env::set_current_dir("..").unwrap();
+
     let tests = std::iter::empty()
-        .chain(find_source_files("examples").map(extract_test))
+        .chain(find_source_files("formats").map(extract_test))
         .chain(find_source_files("tests").map(extract_test))
         .collect();
 
