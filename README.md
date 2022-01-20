@@ -31,6 +31,8 @@ let image = {
 image
 ```
 
+More examples can be found in the [formats](./formats) directory.
+
 ## References
 
 We were originally inspired by [“The next 700 Data Description Languages”](https://doi.org/10.1145/1111037.1111039)
