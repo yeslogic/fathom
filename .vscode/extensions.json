@@ -1,0 +1,7 @@
+{
+    "recommendations": [
+        "cab404.vscode-direnv",
+        "jnoortheen.nix-ide",
+        "matklad.rust-analyzer",
+    ]
+}

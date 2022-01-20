@@ -1,0 +1,190 @@
+use scoped_arena::Scope;
+use std::cell::RefCell;
+
+use crate::{StringId, StringInterner};
+use crate::source::ByteRange;
+use crate::surface::{Pattern, Term};
+use crate::surface::lexer::Token;
+
+grammar<'arena, 'source>(interner: &RefCell<StringInterner>, scope: &'arena Scope<'arena>);
+
+extern {
+    type Location = usize;
+    type Error = ();
+
+    enum Token<'source> {
+        "name" => Token::Name(<&'source str>),
+        "hole" => Token::Hole(<&'source str>),
+        "string literal" => Token::StringLiteral(<&'source str>),
+        "number literal" => Token::NumberLiteral(<&'source str>),
+
+        "fun" => Token::KeywordFun,
+        "let" => Token::KeywordLet,
+        "match" => Token::KeywordMatch,
+        "Type" => Token::KeywordType,
+
+        ":" => Token::Colon,
+        "," => Token::Comma,
+        "=" => Token::Equals,
+        "=>" => Token::EqualsGreater,
+        "." => Token::FullStop,
+        "->" => Token::HyphenGreater,
+        "<-" => Token::LessHyphen,
+        ";" => Token::Semicolon,
+        "_" => Token::Underscore,
+
+        "{" => Token::OpenBrace,
+        "}" => Token::CloseBrace,
+        "[" => Token::OpenBracket,
+        "]" => Token::CloseBracket,
+        "(" => Token::OpenParen,
+        ")" => Token::CloseParen,
+    }
+}
+
+Pattern : Pattern<'arena, ByteRange> = {
+    AtomicPattern,
+    <start: @L> <pattern: Pattern> ":" <type_: LetTerm> <end: @R> => {
+        Pattern::Ann(
+            ByteRange::new(start, end),
+            scope.to_scope(pattern),
+            scope.to_scope(type_),
+        )
+    },
+};
+
+AtomicPattern : Pattern<'arena, ByteRange> = {
+    "(" <pattern: Pattern> ")" => pattern,
+
+    <start: @L> <name: Name> <end: @R> => Pattern::Name(ByteRange::new(start, end), name),
+    <start: @L> "_" <end: @R> => Pattern::Placeholder(ByteRange::new(start, end)),
+    <start: @L> <string: StringLiteral> <end: @R> => Pattern::StringLiteral(ByteRange::new(start, end), string),
+    <start: @L> <number: NumberLiteral> <end: @R> => Pattern::NumberLiteral(ByteRange::new(start, end), number),
+};
+
+pub Term: Term<'arena, ByteRange> = {
+    LetTerm,
+    // FIXME: LALRPOP does not accept raw identifiers (see: https://github.com/lalrpop/lalrpop/issues/613)
+    <start: @L> <expr: LetTerm> ":" <type_: LetTerm> <end: @R> => {
+        Term::Ann(
+            ByteRange::new(start, end),
+            scope.to_scope(expr),
+            scope.to_scope(type_),
+        )
+    },
+};
+
+LetTerm: Term<'arena, ByteRange> = {
+    FunTerm,
+    <start: @L> "let" <def_pattern: Pattern> "=" <def_expr: LetTerm> ";" <body_expr: LetTerm> <end: @R> => {
+        Term::Let(
+            ByteRange::new(start, end),
+            scope.to_scope(def_pattern),
+            scope.to_scope(def_expr),
+            scope.to_scope(body_expr),
+        )
+    },
+};
+
+FunTerm: Term<'arena, ByteRange> = {
+    AppTerm,
+    <start: @L> <input_type: AppTerm> "->"  <output_type: FunTerm> <end: @R> => {
+        Term::Arrow(
+            ByteRange::new(start, end),
+            scope.to_scope(input_type),
+            scope.to_scope(output_type),
+        )
+    },
+    <start: @L> "fun" <input_pattern: AtomicPattern> "->"  <output_type: FunTerm> <end: @R> => {
+        Term::FunType(
+            ByteRange::new(start, end),
+            scope.to_scope(input_pattern),
+            scope.to_scope(output_type),
+        )
+    },
+    <start: @L> "fun" <input_pattern: AtomicPattern> "=>" <output_type: FunTerm> <end: @R> => {
+        Term::FunLiteral(
+            ByteRange::new(start, end),
+            scope.to_scope(input_pattern),
+            scope.to_scope(output_type),
+        )
+    },
+};
+
+AppTerm: Term<'arena, ByteRange> = {
+    AtomicTerm,
+    <start: @L> <head_expr: AppTerm> <input_expr: AtomicTerm> <end: @R> => {
+        Term::FunElim(
+            ByteRange::new(start, end),
+            scope.to_scope(head_expr),
+            scope.to_scope(input_expr),
+        )
+    },
+};
+
+AtomicTerm: Term<'arena, ByteRange> = {
+    "(" <term: Term> ")" => term,
+
+    <start: @L> <name: Name> <end: @R> => Term::Name(ByteRange::new(start, end), name),
+    <start: @L> "_" <end: @R> => Term::Placeholder(ByteRange::new(start, end)),
+    <start: @L> <name: Hole> <end: @R> => Term::Hole(ByteRange::new(start, end), name),
+    <start: @L> "match" <scrutinee: AtomicTerm> "{"
+        <equations: (<Pattern> "=>" <Term> ",")*> <last: (<Pattern> "=>" <Term>)?>
+    "}" <end: @R> => {
+        let equations = equations.into_iter().chain(last);
+        Term::Match(
+            ByteRange::new(start, end),
+            scope.to_scope(scrutinee),
+            scope.to_scope_from_iter(equations),
+        )
+    },
+    <start: @L> "Type" <end: @R> => Term::Universe(ByteRange::new(start, end)),
+    <start: @L> <string: StringLiteral> <end: @R> => Term::StringLiteral(ByteRange::new(start, end), string),
+    <start: @L> <number: NumberLiteral> <end: @R> => Term::NumberLiteral(ByteRange::new(start, end), number),
+    <start: @L> "{" "}" <end: @R> => Term::UnitLiteral(ByteRange::new(start, end)),
+    <start: @L> "{" <first: (<RangedName> ":" <Term>)> <type_fields: ("," <RangedName> ":" <Term>)*> ","?  "}" <end: @R> => {
+        let type_fields = std::iter::once(first).chain(type_fields);
+        Term::RecordType(
+            ByteRange::new(start, end),
+            scope.to_scope_from_iter(type_fields),
+        )
+    },
+    <start: @L> "{" <first: (<RangedName> "=" <Term>)> <expr_fields: ("," <RangedName> "=" <Term>)*> ","?  "}" <end: @R> => {
+        let expr_fields = std::iter::once(first).chain(expr_fields);
+        Term::RecordLiteral(
+            ByteRange::new(start, end),
+            scope.to_scope_from_iter(expr_fields),
+        )
+    },
+    <start: @L> "{" <first: (<RangedName> "<-" <Term>)> <format_fields: ("," <RangedName> "<-" <Term>)*> ","?  "}" <end: @R> => {
+        let format_fields = std::iter::once(first).chain(format_fields);
+        Term::FormatRecord(
+            ByteRange::new(start, end),
+            scope.to_scope_from_iter(format_fields),
+        )
+    },
+    <start: @L> <head_expr: AtomicTerm> "." <label: RangedName> <end: @R> => {
+        Term::RecordElim(
+            ByteRange::new(start, end),
+            scope.to_scope(head_expr),
+            label,
+        )
+    },
+    <start: @L> "[" <exprs: (<Term> ",")*> <last: Term?> "]" <end: @R> => {
+        let exprs = exprs.into_iter().chain(last);
+        Term::ArrayLiteral(
+            ByteRange::new(start, end),
+            scope.to_scope_from_iter(exprs),
+        )
+    },
+};
+
+#[inline] Name: StringId = { <"name"> => interner.borrow_mut().get_or_intern(<>) };
+#[inline] Hole: StringId = { <"hole"> => interner.borrow_mut().get_or_intern(<>) };
+#[inline] StringLiteral: StringId = { <"string literal"> => interner.borrow_mut().get_or_intern(<>) };
+#[inline] NumberLiteral: StringId = { <"number literal"> => interner.borrow_mut().get_or_intern(<>) };
+
+#[inline]
+RangedName: (ByteRange, StringId) = {
+    <start: @L> <name: Name> <end: @R> => (ByteRange::new(start, end), name),
+};

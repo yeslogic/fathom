@@ -1,32 +1,41 @@
 [package]
 name = "fathom"
 version = "0.1.0"
-authors = ["YesLogic Pty. Ltd. <info@yeslogic.com>"]
+authors = ["Brendan Zabarauskas <bjzaba@yahoo.com.au>"]
+repository = "https://github.com/yeslogic/fathom"
 edition = "2018"
-publish = false # TODO: Remove this when we are ready to publish to crates.io
+publish = false
 
 description = "A language for declaratively specifying binary data formats"
-readme = "../../README.md"
+readme = "../README.md"
 license = "Apache-2.0"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-[dependencies]
-codespan-reporting = "0.11"
-contracts = "0.6"
-fathom-runtime = { version = "0.1.0", path="../fathom-runtime" }
-im = "15"
-itertools = "0.10"
-lalrpop-util = "0.19"
-lazy_static = "1.4"
-logos = "0.12"
-num-bigint = "0.4"
-num-traits = "0.2"
-pretty = "0.10"
-termsize = "0.1"
+[[test]]
+name = "source_tests"
+harness = false
 
-[dev-dependencies]
-proptest = "1"
+[dependencies]
+codespan-reporting = "0.11.1"
+fxhash = "0.2"
+itertools = "0.10"
+lalrpop-util = "0.19.5"
+logos = "0.12"
+pretty = "0.10"
+rpds = "0.10"
+scoped-arena = "0.3"
+string-interner = "0.14.0"
+structopt = "0.3"
+termsize = "0.1.6"
 
 [build-dependencies]
-lalrpop = "0.19"
+lalrpop = "0.19.5"
+
+[dev-dependencies]
+globwalk = "0.8"
+itertools = "0.10.1"
+libtest-mimic = "0.3.0"
+serde = { version = "1.0", features = ["derive"] }
+toml = "0.5"
+walkdir = "2.3.2"

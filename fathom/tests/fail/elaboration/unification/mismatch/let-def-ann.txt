@@ -1,0 +1,5 @@
+//~ exit-code = 1
+
+let x : Type : U32 = {};
+
+x

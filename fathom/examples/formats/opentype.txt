@@ -1,0 +1,353 @@
+// # OpenType Font File Format
+
+
+// -----------------------------------------------------------------------------
+
+// # Common Formats
+//
+// Common formats to be used in the OpenType specification.
+//
+// ## References
+//
+// - [Microsoft's OpenType Spec: Data Types](https://docs.microsoft.com/en-us/typography/opentype/spec/otff#data-types)
+// - [Apple's TrueType Reference Manual: Data Types](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6.html#Types)
+
+// TODO: move to separate module
+
+/// Signed 32-bit fixed-point number (16.16)
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: Fixed](https://docs.microsoft.com/en-us/typography/opentype/spec/otff#dt_Fixed)
+let fixed : Format = u32be;
+
+/// Signed, 16-bit integer that describes a quantity in font design units.
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: FWORD](https://docs.microsoft.com/en-us/typography/opentype/spec/otff#dt_FWORD)
+let fword : Format = s16be;
+
+/// Unsigned, 16-bit integer that describes a quantity in font design units.
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: UFWORD](https://docs.microsoft.com/en-us/typography/opentype/spec/otff#dt_UFWORD)
+let ufword : Format = u16be;
+
+/// Signed 16-bit fixed number with the low 14 bits of fraction (2.14).
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: F2DOT14](https://docs.microsoft.com/en-us/typography/opentype/spec/otff#dt_F2DOT14)
+let f2dot14 : Format = s16be;
+
+/// Date represented in number of seconds since 12:00 midnight, January 1, 1904.
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: LONGDATETIME](https://docs.microsoft.com/en-us/typography/opentype/spec/otff#dt_LONGDATETIME)
+let long_date_time : Format = s64be;
+
+/// Array of four `U8`s used to identify a table, design-variation axis, script,
+/// language system, feature, or baseline.
+///
+/// The elements of the array are expected to be in the range [0x20, 0x7E].
+/// This corresponds to the range of printable ASCII characters.
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: Tag](https://docs.microsoft.com/en-us/typography/opentype/spec/otff#dt_Tag)
+let tag : Format =
+    // TODO: constrain array elements to the range 0x20 to 0x7E.
+    // TODO: pattern matching on arrays
+    // array8 4 u8;
+    u32be;
+
+/// A format that consumes no input.
+let empty : Format = {};
+
+/// 16-bit offset to a `format`, relative to some `base` position.
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: Offset16](https://docs.microsoft.com/en-us/typography/opentype/spec/otff#dt_Offset16)
+let offset16 = fun (base : Pos) => fun (format : Format) => {
+    offset <- u16be,
+    // link <- match offset {
+    //     0 => empty,
+    //     _ => link base offset format, // TODO: Use an option type?
+    // },
+};
+
+/// 32-bit offset to a `format`, relative to some `base` position.
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: Offset32](https://docs.microsoft.com/en-us/typography/opentype/spec/otff#dt_Offset32)
+let offset32 = fun (base : Pos) => fun (format : Format) => {
+    offset <- u32be,
+    // link <- match offset {
+    //     0 => empty,
+    //     _ => link base offset format, // TODO: Use an option type?
+    // },
+};
+
+/// Packed 32-bit value with major and minor version numbers.
+///
+/// Used only in the 'maxp', 'post' and 'vhea' tables, for backward
+/// compatibility reasons.
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: Version16Dot16](https://docs.microsoft.com/en-us/typography/opentype/spec/otff#dt_Version16Dot16)
+let version16dot16 = {
+    major <- u16be,
+    minor <- u16be,
+};
+
+
+// -----------------------------------------------------------------------------
+
+// # Chararacter to Glyph Index Mappings
+//
+// Formats related to the character mapping table. This table is responsible for
+// mapping character codes to glyph indices used in the font.
+//
+// ## References
+//
+// - [Microsoft's OpenType Spec: cmap — Character to Glyph Index Mapping Table](https://docs.microsoft.com/en-us/typography/opentype/spec/cmap)
+// - [Apple's TrueType Reference Manual: The `'cmap'` table](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6cmap.html)
+
+// TODO: Platform IDs
+// TODO: Uncode platforms
+// TODO: Macintosh platform
+// TODO: ISO platform
+// TODO: Windows platform
+// TODO: Custom platform
+
+
+// TODO: Format 0: Byte encoding table
+// TODO: Format 2: High-byte mapping through table
+// TODO: Format 4: Segment mapping to delta values
+// TODO: Format 6: Trimmed table mapping
+// TODO: Format 8: mixed 16-bit and 32-bit coverage
+// TODO: Format 10: Trimmed array
+// TODO: Format 12: Segmented coverage
+// TODO: Format 13: Many-to-one range mappings
+// TODO: Format 14: Unicode Variation Sequences
+
+/// # Character Mapping subtable
+let character_map_subtable = {
+    /// Format number of the subtable
+    format <- u16be,
+    /// The length ot the subtable in bytes
+    length <- u16be,
+    /// The language ID of the subtable
+    language <- u16be,
+    // TODO: format-specific subtable data
+};
+
+
+/// # Encoding record
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: Encoding records and encodings](https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#encoding-records-and-encodings)
+let encoding_record = fun (table_start : Pos) => {
+    /// Platform ID
+    platform_id <- u16be,
+    /// Platform-specific encoding ID
+    encoding_id <- u16be,
+    /// Byte offset to the subtable data
+    subtable_offset <- offset32 table_start character_map_subtable,
+};
+
+/// # Character Mapping Table
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: 'cmap' Header](https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#cmap-header)
+let character_map = {
+    /// The start of the character mapping table
+    table_start <- stream_pos,
+    /// The version of the character
+    version <- u16be,
+    /// The number of encoding tables that follow
+    num_tables <- u16be,
+    /// An array of encoding records in the character mapping table
+    encoding_records <- array16 num_tables (encoding_record table_start),
+};
+
+
+// -----------------------------------------------------------------------------
+
+// # OpenType Top Level Organization
+//
+// Formats that form the top-level of an OpenType font file.
+//
+// ## References
+//
+// - [Microsoft's OpenType Spec: Organization of an OpenType Font](https://docs.microsoft.com/en-us/typography/opentype/spec/otff#organization-of-an-opentype-font)
+// - [Apple's TrueType Reference Manual: TrueType Font files](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6.html#Overview)
+
+/// # Font Table
+///
+/// A mapping between a given `tag` and a corresponding font table.
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: Font Tables](https://docs.microsoft.com/en-us/typography/opentype/spec/otff#font-tables)
+/// - [Apple's TrueType Reference Manual: TrueType Font files](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6.html#Overview)
+let font_table = fun (table_id : Repr tag) => fun (length : U32) => match table_id {
+    // Required Tables
+    "cmap" => character_map,
+    "head" => fail,
+    "hhea" => fail,
+    "hmtx" => fail,
+    "maxp" => fail,
+    "name" => fail,
+    "OS/2" => fail,
+    "post" => fail,
+
+    // TrueType Outline Tables
+    "cvt " => fail,
+    "fpgm" => fail,
+    "glyf" => fail,
+    "loca" => fail,
+    "prep" => fail,
+    "gasp" => fail,
+
+    // CFF Outline Tables
+    "CFF " => fail,
+    "CFF2" => fail,
+    "VORG" => fail,
+
+    // SVG Outline Tables
+    "SVG " => fail,
+
+    // Bitmap Glyph Tables
+    "EBDT" => fail,
+    "EBLC" => fail,
+    "EBSC" => fail,
+    "CBDT" => fail,
+    "CBLC" => fail,
+    "sbix" => fail,
+
+    // Advanced Typographic Tables
+    "BASE" => fail,
+    "GDEF" => fail,
+    "GPOS" => fail,
+    "GSUB" => fail,
+    "JSTF" => fail,
+    "MATH" => fail,
+
+    // OpenType Font Variation Tables
+    "avar" => fail,
+    "cvar" => fail,
+    "fvar" => fail,
+    "gvar" => fail,
+    "HVAR" => fail,
+    "MVAR" => fail,
+    "STAT" => fail,
+    "VVAR" => fail,
+
+    // Color Font Tables
+    "COLR" => fail,
+    "CPAL" => fail,
+    "CBDT" => fail,
+    "CBLC" => fail,
+    "sbix" => fail,
+    "SVG " => fail,
+
+    // Other OpenType Tables
+    "DSIG" => fail,
+    "hdmx" => fail,
+    "kern" => fail,
+    "LTSH" => fail,
+    "MERG" => fail,
+    "meta" => fail,
+    "STAT" => fail,
+    "PCLT" => fail,
+    "VDMX" => fail,
+    "vhea" => fail,
+    "vmtx" => fail,
+
+    // TODO: Error message
+    _ => fail,
+};
+
+/// # Table Record
+///
+/// A record that stores an offset to another table in the font file.
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: Table Directory](https://docs.microsoft.com/en-us/typography/opentype/spec/otff#table-directory)
+/// - [Apple's TrueType Reference Manual: The Font Directory](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6.html#Directory)
+let table_record = fun (file_start : Pos) => {
+    /// Table identifier.
+    table_id <- tag,
+    /// CheckSum for this table.
+    ///
+    /// ## References
+    ///
+    /// - [Microsoft's OpenType Spec: Calculating Checksums](https://docs.microsoft.com/en-us/typography/opentype/spec/otff#calculating-checksums)
+    checksum <- u32be,
+    /// Offset from the beginning of the TrueType font file.
+    offset <- u32be,
+    /// Length of this table.
+    length <- u32be,
+    // TODO: links
+    // /// The computed position of this table.
+    // link <- link file_start offset (font_table table_id length)
+};
+
+/// # Table Directory
+///
+/// A directory of the top-level tables in the font.
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: Table Directory](https://docs.microsoft.com/en-us/typography/opentype/spec/otff#table-directory)
+/// - [Apple's TrueType Reference Manual: The Font Directory](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6.html#Directory)
+let table_directory = fun (file_start : Pos) => {
+    /// Version of the font.
+    ///
+    /// - `0x00010000` for fonts containing TrueType outlines
+    /// - `0x4F54544F` (`'OTTO'`) for fonts containing CFF data
+    ///
+    /// Apple allows 'true' and 'typ1', but this should not be found in OpenType files.
+    sfnt_version <- u32be,       // TODO: where sfnt_version == 0x00010000 || sfnt_version == 'OTTO',
+    /// Number of tables in the directory.
+    num_tables <- u16be,
+    /// For enabling quick binary searches.
+    search_range <- u16be,       // TODO: (Maximum power of 2 <= num_tables) x 16
+    /// For enabling quick binary searches.
+    entry_selector <- u16be,     // TODO: Log2(maximum power of 2 <= num_tables)
+    /// For enabling quick binary searches.
+    range_shift <- u16be,        // TODO: NumTables x 16-searchRange
+    /// An array of table records
+    // FIXME: sorted in ascending order by tag
+    table_records <- array16 num_tables (table_record file_start),
+};
+
+/// # OpenType file
+///
+/// The main entrypoint of an OpenType font file.
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: Organization of an OpenType Font](https://docs.microsoft.com/en-us/typography/opentype/spec/otff#organization-of-an-opentype-font)
+/// - [Apple's TrueType Reference Manual: TrueType Font files](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6.html#Overview)
+let main = {
+    /// The start of the font file.
+    start <- stream_pos,
+    /// The directory of tables in the font.
+    directory <- table_directory start,
+};
+
+
+// -----------------------------------------------------------------------------
+
+main

@@ -1,0 +1,7 @@
+let Id : Type -> Type
+    = fun A => A;
+
+let test_id : fun (A : Type) -> Id A -> A
+    = fun A => fun a => a;
+
+Type

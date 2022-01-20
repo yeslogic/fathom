@@ -1,0 +1,58 @@
+let test_Void : Type = Void;
+
+let test_U8 : Type = U8;
+let test_U16 : Type = U16;
+let test_U32 : Type = U32;
+let test_U64 : Type = U64;
+let test_S8 : Type = S8;
+let test_S16 : Type = S16;
+let test_S32 : Type = S32;
+let test_S64 : Type = S64;
+let test_F32 : Type = F32;
+let test_F64 : Type = F64;
+let test_Array8 : U8 -> Type -> Type = Array8;
+let test_Array16 : U16 -> Type -> Type = Array16;
+let test_Array32 : U32 -> Type -> Type = Array32;
+let test_Array64 : U64 -> Type -> Type = Array64;
+let test_Pos : Type = Pos;
+
+let test_U8_literal : U8 = 1;
+let test_U16_literal : U16 = 1;
+let test_U32_literal : U32 = 1;
+let test_U64_literal : U64 = 1;
+let test_S8_literal : S8 = 1;
+let test_S16_literal : S16 = 1;
+let test_S32_literal : S32 = 1;
+let test_S64_literal : S64 = 1;
+let test_F32_literal : F32 = 1;
+let test_F64_literal : F64 = 1;
+
+let test_format : Type = Format;
+let test_succeed : fun (Elem : Type) -> Elem -> Format = succeed;
+let test_fail : Format = fail;
+let test_u8 : Format = u8;
+let test_u16be : Format = u16be;
+let test_u16le : Format = u16le;
+let test_u32be : Format = u32be;
+let test_u32le : Format = u32le;
+let test_u64be : Format = u64be;
+let test_u64le : Format = u64le;
+let test_s8 : Format = s8;
+let test_s16be : Format = s16be;
+let test_s16le : Format = s16le;
+let test_s32be : Format = s32be;
+let test_s32le : Format = s32le;
+let test_s64be : Format = s64be;
+let test_s64le : Format = s64le;
+let test_f32be : Format = f32be;
+let test_f32le : Format = f32le;
+let test_f64be : Format = f64be;
+let test_f64le : Format = f64le;
+let test_array8 : U8 -> Format -> Format = array8;
+let test_array16 : U16 -> Format -> Format = array16;
+let test_array32 : U32 -> Format -> Format = array32;
+let test_array64 : U64 -> Format -> Format = array64;
+let test_stream_pos : Format = stream_pos;
+let test_repr : Format -> Type = Repr;
+
+Type

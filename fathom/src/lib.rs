@@ -1,10 +1,25 @@
-// #![warn(rust_2018_idioms)]
+#![doc = include_str!("../../README.md")]
 
-pub mod driver;
+// Supporting modules
+mod alloc;
+pub mod env;
+pub mod source;
 
-pub mod lang;
-pub mod pass;
+// Intermediate languages
+pub mod core;
+pub mod surface;
 
-mod ieee754;
-mod literal;
-pub mod reporting;
+// Top level driver
+mod driver;
+
+// Public exports
+pub use driver::{Driver, Status};
+
+/// Interned strings.
+pub type StringId = string_interner::symbol::SymbolU16;
+
+/// String interner.
+pub type StringInterner = string_interner::StringInterner<
+    string_interner::backend::BucketBackend<StringId>,
+    std::hash::BuildHasherDefault<fxhash::FxHasher32>,
+>;

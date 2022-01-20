@@ -1,0 +1,3 @@
+let x : U32 : Type : Type = 2;
+
+x : U32

@@ -1,0 +1,10 @@
+//~ exit-code = 1
+
+let test :
+    fun (Wrap : Type -> Type) ->
+    fun (f : fun (A : _) -> (A -> Wrap A) -> Type) ->
+      Type
+  = fun Wrap => fun f =>
+      f _ (fun a => a);
+
+Type

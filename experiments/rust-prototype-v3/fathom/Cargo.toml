@@ -1,0 +1,32 @@
+[package]
+name = "fathom"
+version = "0.1.0"
+authors = ["YesLogic Pty. Ltd. <info@yeslogic.com>"]
+edition = "2018"
+publish = false # TODO: Remove this when we are ready to publish to crates.io
+
+description = "A language for declaratively specifying binary data formats"
+readme = "../../README.md"
+license = "Apache-2.0"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+codespan-reporting = "0.11"
+contracts = "0.6"
+fathom-runtime = { version = "0.1.0", path="../fathom-runtime" }
+im = "15"
+itertools = "0.10"
+lalrpop-util = "0.19"
+lazy_static = "1.4"
+logos = "0.12"
+num-bigint = "0.4"
+num-traits = "0.2"
+pretty = "0.10"
+termsize = "0.1"
+
+[dev-dependencies]
+proptest = "1"
+
+[build-dependencies]
+lalrpop = "0.19"
