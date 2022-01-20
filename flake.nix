@@ -74,8 +74,8 @@
             (nix-filter.lib.inDirectory "fathom")
           ];
           exclude = [
-            (nix-filter.lib.inDirectory "fathom/examples")
-            (nix-filter.lib.inDirectory "fathom/test")
+            (nix-filter.lib.inDirectory "examples")
+            (nix-filter.lib.inDirectory "test")
           ];
         };
         crate-check-sources = nix-filter.lib.filter {
