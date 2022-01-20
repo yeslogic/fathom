@@ -1,3 +1,8 @@
+// # OpenType Font File Format
+
+
+// -----------------------------------------------------------------------------
+
 // # Common Formats
 //
 // Common formats to be used in the OpenType specification.
@@ -102,7 +107,84 @@ let version16dot16 = {
 };
 
 
+// -----------------------------------------------------------------------------
+
+// # Chararacter to Glyph Index Mappings
+//
+// Formats related to the character mapping table. This table is responsible for
+// mapping character codes to glyph indices used in the font.
+//
+// ## References
+//
+// - [Microsoft's OpenType Spec: cmap — Character to Glyph Index Mapping Table](https://docs.microsoft.com/en-us/typography/opentype/spec/cmap)
+// - [Apple's TrueType Reference Manual: The `'cmap'` table](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6cmap.html)
+
+// TODO: Platform IDs
+// TODO: Uncode platforms
+// TODO: Macintosh platform
+// TODO: ISO platform
+// TODO: Windows platform
+// TODO: Custom platform
+
+
+// TODO: Format 0: Byte encoding table
+// TODO: Format 2: High-byte mapping through table
+// TODO: Format 4: Segment mapping to delta values
+// TODO: Format 6: Trimmed table mapping
+// TODO: Format 8: mixed 16-bit and 32-bit coverage
+// TODO: Format 10: Trimmed array
+// TODO: Format 12: Segmented coverage
+// TODO: Format 13: Many-to-one range mappings
+// TODO: Format 14: Unicode Variation Sequences
+
+/// # Character Mapping subtable
+let character_map_subtable = {
+    /// Format number of the subtable
+    format <- u16be,
+    /// The length ot the subtable in bytes
+    length <- u16be,
+    /// The language ID of the subtable
+    language <- u16be,
+    // TODO: format-specific subtable data
+};
+
+
+/// # Encoding record
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: Encoding records and encodings](https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#encoding-records-and-encodings)
+let encoding_record = fun (table_start : Pos) => {
+    /// Platform ID
+    platform_id <- u16be,
+    /// Platform-specific encoding ID
+    encoding_id <- u16be,
+    /// Byte offset to the subtable data
+    subtable_offset <- offset32 table_start character_map_subtable,
+};
+
+/// # Character Mapping Table
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: 'cmap' Header](https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#cmap-header)
+let character_map = {
+    /// The start of the character mapping table
+    table_start <- stream_pos,
+    /// The version of the character
+    version <- u16be,
+    /// The number of encoding tables that follow
+    num_tables <- u16be,
+    /// An array of encoding records in the character mapping table
+    encoding_records <- array16 num_tables (encoding_record table_start),
+};
+
+
+// -----------------------------------------------------------------------------
+
 // # OpenType Top Level Organization
+//
+// Formats that form the top-level of an OpenType font file.
 //
 // ## References
 //
@@ -119,7 +201,7 @@ let version16dot16 = {
 /// - [Apple's TrueType Reference Manual: TrueType Font files](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6.html#Overview)
 let font_table = fun (table_id : Repr tag) => fun (length : U32) => match table_id {
     // Required Tables
-    "cmap" => fail,
+    "cmap" => character_map,
     "head" => fail,
     "hhea" => fail,
     "hmtx" => fail,
@@ -264,5 +346,8 @@ let main = {
     /// The directory of tables in the font.
     directory <- table_directory start,
 };
+
+
+// -----------------------------------------------------------------------------
 
 main
