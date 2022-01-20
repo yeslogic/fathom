@@ -141,14 +141,14 @@ _elab.context_ ::=\
     - [ ] repeat formats
   - [ ] type refinements
   - [x] match expressions
-    - [ ] single-layer pattern matching
+    - [x] single-layer pattern matching
     - [ ] multi-layer pattern matching
     - [ ] dependent pattern matching
   - [ ] patterns
     - [x] wildcard patterns
     - [x] named patterns
     - [x] annotated patterns
-    - [ ] numeric literal patterns
+    - [x] numeric literal patterns
     - [ ] record literal patterns
   - [ ] invertible format descriptions
 - implementation
