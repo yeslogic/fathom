@@ -8,8 +8,8 @@ use structopt::StructOpt;
 
 Using arguments
 
-    fathom elab --surface-term=examples/prelude.txt
-    fathom norm --surface-term=examples/prelude.txt
+    fathom elab --term=examples/prelude.txt
+    fathom norm --term=examples/prelude.txt
 
 Using pipes and redirects
 
