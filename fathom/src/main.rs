@@ -1,15 +1,16 @@
+use clap::Parser;
 use std::io::BufReader;
 use std::path::PathBuf;
-use structopt::StructOpt;
 
 /// CLI for the programming language prototype.
-#[derive(StructOpt)]
-#[structopt(after_help = r#"EXAMPLES:
+#[derive(Parser)]
+#[clap(author, version, about, long_about = None)]
+#[clap(after_help = r#"EXAMPLES:
 
 Using arguments
 
-    fathom elab --surface-term=examples/prelude.txt
-    fathom norm --surface-term=examples/prelude.txt
+    fathom elab --term=examples/prelude.txt
+    fathom norm --term=examples/prelude.txt
 
 Using pipes and redirects
 
@@ -32,40 +33,40 @@ enum Options {
     /// Elaborate a term, printing the elaborated term and type
     Elab {
         /// Path to a file containing the surface term (`-` to read from stdin)
-        #[structopt(long = "term", name = "FILE", default_value = "-", parse(from_str))]
+        #[clap(long = "term", name = "FILE", default_value = "-", parse(from_str))]
         term_input: Input,
         /// Continue even if errors were encountered.
-        #[structopt(long = "allow-errors")]
+        #[clap(long = "allow-errors")]
         allow_errors: bool,
     },
     /// Elaborate a term, printing its normal form and type
     Norm {
         /// Path to a file containing the surface term (`-` to read from stdin)
-        #[structopt(long = "term", name = "FILE", default_value = "-", parse(from_str))]
+        #[clap(long = "term", name = "FILE", default_value = "-", parse(from_str))]
         term_input: Input,
         /// Continue even if errors were encountered.
-        #[structopt(long = "allow-errors")]
+        #[clap(long = "allow-errors")]
         allow_errors: bool,
     },
     /// Elaborate a term, printing its type
     Type {
         /// Path to a file containing the surface term (`-` to read from stdin)
-        #[structopt(long = "term", name = "FILE", default_value = "-", parse(from_str))]
+        #[clap(long = "term", name = "FILE", default_value = "-", parse(from_str))]
         term_input: Input,
-        /// Continue even if errors were encountered.
-        #[structopt(long = "allow-errors")]
+        /// Continue even if errors were encountered. v
+        #[clap(long = "allow-errors")]
         allow_errors: bool,
     },
     /// Manipulate binary data
     Data {
         /// Path to a file containing the surface term (`-` to read from stdin)
-        #[structopt(long = "format", name = "FILE", parse(from_str))]
+        #[clap(long = "format", name = "FILE", parse(from_str))]
         format_input: Input,
         /// Continue even if errors were encountered
-        #[structopt(long = "allow-errors")]
+        #[clap(long = "allow-errors")]
         allow_errors: bool,
         /// The binary file to read
-        #[structopt(name = "BINARY", parse(from_str))]
+        #[clap(name = "BINARY", parse(from_str))]
         binary_path: PathBuf, // TODO: parse multiple binary files?
     },
 }
@@ -92,7 +93,7 @@ fn get_pretty_width() -> usize {
 }
 
 fn main() -> ! {
-    match Options::from_args() {
+    match Options::parse() {
         Options::Elab {
             term_input,
             allow_errors,
