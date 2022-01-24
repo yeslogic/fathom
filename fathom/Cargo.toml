@@ -17,6 +17,7 @@ name = "source_tests"
 harness = false
 
 [dependencies]
+clap = { version = "3.0.10", features = ["derive"] }
 codespan-reporting = "0.11.1"
 fxhash = "0.2"
 itertools = "0.10"
@@ -26,7 +27,6 @@ pretty = "0.10"
 rpds = "0.10"
 scoped-arena = "0.3"
 string-interner = "0.14.0"
-structopt = "0.3"
 termsize = "0.1.6"
 
 [build-dependencies]
