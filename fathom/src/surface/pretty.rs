@@ -279,28 +279,32 @@ impl<'interner, 'arena, A: 'arena> DocAllocator<'arena, A> for Context<'interner
         RefDoc(match doc {
             // Return 'static references for common variants to avoid some allocations
             Doc::Nil => &Doc::Nil,
-            Doc::Line => &Doc::Line,
+            Doc::Hardline => &Doc::Hardline,
             Doc::Fail => &Doc::Fail,
             // space()
             Doc::BorrowedText(" ") => &Doc::BorrowedText(" "),
             // line()
-            Doc::FlatAlt(RefDoc(Doc::Line), RefDoc(Doc::BorrowedText(" "))) => {
-                &Doc::FlatAlt(RefDoc(&Doc::Line), RefDoc(&Doc::BorrowedText(" ")))
+            Doc::FlatAlt(RefDoc(Doc::Hardline), RefDoc(Doc::BorrowedText(" "))) => {
+                &Doc::FlatAlt(RefDoc(&Doc::Hardline), RefDoc(&Doc::BorrowedText(" ")))
             }
             // line_()
-            Doc::FlatAlt(RefDoc(Doc::Line), RefDoc(Doc::Nil)) => {
-                &Doc::FlatAlt(RefDoc(&Doc::Line), RefDoc(&Doc::Nil))
+            Doc::FlatAlt(RefDoc(Doc::Hardline), RefDoc(Doc::Nil)) => {
+                &Doc::FlatAlt(RefDoc(&Doc::Hardline), RefDoc(&Doc::Nil))
             }
             // softline()
-            Doc::Group(RefDoc(Doc::FlatAlt(RefDoc(Doc::Line), RefDoc(Doc::BorrowedText(" "))))) => {
-                &Doc::Group(RefDoc(&Doc::FlatAlt(
-                    RefDoc(&Doc::Line),
-                    RefDoc(&Doc::BorrowedText(" ")),
-                )))
-            }
+            Doc::Group(RefDoc(Doc::FlatAlt(
+                RefDoc(Doc::Hardline),
+                RefDoc(Doc::BorrowedText(" ")),
+            ))) => &Doc::Group(RefDoc(&Doc::FlatAlt(
+                RefDoc(&Doc::Hardline),
+                RefDoc(&Doc::BorrowedText(" ")),
+            ))),
             // softline_()
-            Doc::Group(RefDoc(Doc::FlatAlt(RefDoc(Doc::Line), RefDoc(Doc::Nil)))) => {
-                &Doc::Group(RefDoc(&Doc::FlatAlt(RefDoc(&Doc::Line), RefDoc(&Doc::Nil))))
+            Doc::Group(RefDoc(Doc::FlatAlt(RefDoc(Doc::Hardline), RefDoc(Doc::Nil)))) => {
+                &Doc::Group(RefDoc(&Doc::FlatAlt(
+                    RefDoc(&Doc::Hardline),
+                    RefDoc(&Doc::Nil),
+                )))
             }
 
             // Language tokens
