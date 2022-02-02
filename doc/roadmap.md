@@ -52,6 +52,10 @@
 ## Implementation
 
 - [x] command line interface
+  - [ ] parse arbitrary top-level items
+  - [ ] parse from an offset
+  - [ ] navigation through links and offsets
+  - [ ] serialise data to JSON for use with tools like jq
 - [x] parser
 - [ ] pretty printing
   - [x] surface language
