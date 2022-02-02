@@ -11,3 +11,15 @@ arenas for allocating source terms, and reference-counting in values, and
 reduce allocations/indirection where possible.
 
 [elaboration-zoo]: https://github.com/AndrasKovacs/elaboration-zoo/
+
+## Related projects
+
+- [binary-data](https://github.com/dylan-lang/binary-data)
+- [Daedalus](https://github.com/GaloisInc/daedalus)
+- [Kaitai Struct](https://kaitai.io/)
+- [Narcissus](https://github.com/mit-plv/fiat/tree/master/src/Narcissus)
+- [PADS](http://www.padsproj.org/)
+- [Wuffs](https://github.com/google/wuffs)
+
+More can be be found in dloss' excellent [list of tools](https://github.com/dloss/binary-parsing)
+for binary parsing.
