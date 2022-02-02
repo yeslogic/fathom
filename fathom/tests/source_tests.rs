@@ -48,7 +48,7 @@ pub fn find_source_files(root: impl AsRef<Path>) -> impl Iterator<Item = PathBuf
         .into_iter()
         .filter_map(|entry| entry.ok())
         .filter(|entry| entry.file_type().is_file())
-        .filter(|entry| matches!(entry.path().extension(), Some(ext) if ext == "txt"))
+        .filter(|entry| matches!(entry.path().extension(), Some(ext) if ext == "fathom"))
         .map(|entry| entry.into_path())
 }
 
