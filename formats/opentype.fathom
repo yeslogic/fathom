@@ -596,8 +596,10 @@ let table_record = fun (file_start : Pos) => {
 let table_directory = fun (file_start : Pos) => {
     /// Version of the font.
     ///
-    /// - `0x00010000` for fonts containing TrueType outlines
-    /// - `0x4F54544F` (`'OTTO'`) for fonts containing CFF data
+    /// | Value         | Meaning                                   |
+    /// | ------------- | ----------------------------------------- |
+    /// | `0x00010000`  | for fonts containing TrueType outlines    |
+    /// | `0x4F54544F`  | (`'OTTO'`) for fonts containing CFF data  |
     ///
     /// Apple allows 'true' and 'typ1', but this should not be found in OpenType files.
     sfnt_version <- u32be,       // TODO: where sfnt_version == 0x00010000 || sfnt_version == 'OTTO',
