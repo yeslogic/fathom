@@ -5,12 +5,12 @@
 
 /// Reserved formats
 let reserved = fun (format : Format) => fun (default : Repr format) =>
-    // TODO: set to `default` during readback
+    // TODO: set to `default` during serialisation
     format;
 
 /// Deprecated formats
 let deprecated = fun (format : Format) => fun (default : Repr format) =>
-    // TODO: set to `default` during readback
+    // TODO: set to `default` during serialisation
     format;
 
 
