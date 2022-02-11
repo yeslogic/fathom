@@ -136,8 +136,33 @@ let version16dot16 = u32be;
 // TODO: Windows platform
 // TODO: Custom platform
 
+/// A small glyph ID, limited to a glyph set of 256 glyphs.
+let small_glyph_id = u8;
 
-// TODO: Format 0: Byte encoding table
+
+/// # Format 0: Byte encoding table
+///
+/// A character mapping table for fonts with character codes and glyph indices
+/// that can be stored within single bytes.
+///
+/// This table but was originally used as the standard character mapping table
+/// on older Macintosh platforms when TrueType was first introduced, but is no
+/// longer required on as fonts have become larger.
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: Format 0: Byte encoding table](https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#format-0-byte-encoding-table)
+/// - [Apple's TrueType Reference Manual: `'cmap'` format 0](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6cmap.html)
+let byte_encoding_table = {
+    /// The language ID of the subtable
+    language <- u16be,
+    /// A 1 to 1 mapping that converts character codes to glyph indexes (limited
+    /// to 256 glyphs). Only the first 256 glyphs will be accessible for larger
+    /// glyph sets.
+    glyph_id_array <- array16 256 small_glyph_id,
+};
+
+
 // TODO: Format 2: High-byte mapping through table
 // TODO: Format 4: Segment mapping to delta values
 // TODO: Format 6: Trimmed table mapping
@@ -153,9 +178,19 @@ let character_map_subtable = {
     format <- u16be,
     /// The length ot the subtable in bytes
     length <- u16be,
-    /// The language ID of the subtable
-    language <- u16be,
     // TODO: format-specific subtable data
+    data <- match format {
+        0 => byte_encoding_table,
+        2 => fail, // TODO: Format 2: High-byte mapping through table
+        4 => fail, // TODO: Format 4: Segment mapping to delta values
+        6 => fail, // TODO: Format 6: Trimmed table mapping
+        8 => fail, // TODO: Format 8: mixed 16-bit and 32-bit coverage
+        10 => fail, // TODO: Format 10: Trimmed array
+        12 => fail, // TODO: Format 12: Segmented coverage
+        13 => fail, // TODO: Format 13: Many-to-one range mappings
+        14 => fail, // TODO: Format 14: Unicode Variation Sequences
+        _ => fail,
+    },
 };
 
 
