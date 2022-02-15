@@ -129,16 +129,41 @@ let version16dot16 = u32be;
 // - [Microsoft's OpenType Spec: cmap — Character to Glyph Index Mapping Table](https://docs.microsoft.com/en-us/typography/opentype/spec/cmap)
 // - [Apple's TrueType Reference Manual: The `'cmap'` table](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6cmap.html)
 
-// TODO: Platform IDs
-// TODO: Uncode platforms
-// TODO: Macintosh platform
-// TODO: ISO platform
-// TODO: Windows platform
-// TODO: Custom platform
+
+/// # Platform identifiers
+///
+// TODO: document platform IDs
+let platform_id =
+    // TODO: Uncode platforms
+    // TODO: Macintosh platform
+    // TODO: ISO platform
+    // TODO: Windows platform
+    // TODO: Custom platform
+    u16be;
+
+/// # Encoding identifiers
+///
+// TODO: document encoding IDs
+let encoding_id =
+    u16be;
+
+/// # Language identifiers
+///
+/// This must be set to `0` for all subtables that have a platform ID other than
+/// ‘Macintosh’.
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: Use of the language field in 'cmap' subtables](https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#use-of-the-language-field-in-cmap-subtables)
+/// - [Apple's TrueType Reference Manual: : The `'cmap'` table and language codes](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6cmap.html)
+///
+// TODO: add more details to docs
+let language_id =
+    u16be;
+
 
 /// A small glyph ID, limited to a glyph set of 256 glyphs.
 let small_glyph_id = u8;
-
 
 /// # Format 0: Byte encoding table
 ///
@@ -155,7 +180,7 @@ let small_glyph_id = u8;
 /// - [Apple's TrueType Reference Manual: `'cmap'` format 0](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6cmap.html)
 let byte_encoding_table = {
     /// The language ID of the subtable
-    language <- u16be,
+    language <- language_id,
     /// A 1 to 1 mapping that converts character codes to glyph indexes (limited
     /// to 256 glyphs). Only the first 256 glyphs will be accessible for larger
     /// glyph sets.
@@ -201,9 +226,9 @@ let character_map_subtable = {
 /// - [Microsoft's OpenType Spec: Encoding records and encodings](https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#encoding-records-and-encodings)
 let encoding_record = fun (table_start : Pos) => {
     /// Platform ID
-    platform_id <- u16be,
+    platform_id <- platform_id,
     /// Platform-specific encoding ID
-    encoding_id <- u16be,
+    encoding_id <- encoding_id,
     /// Byte offset to the subtable data
     subtable_offset <- offset32 table_start character_map_subtable,
 };
