@@ -522,6 +522,87 @@ let maximum_profile = {
 
 // -----------------------------------------------------------------------------
 
+// # Name storage
+//
+// Multilingual name storage for OpenType fonts.
+//
+// This describes the storage of string data for use in other areas of OpenType
+// fonts, for example in font names, family names, style names, descriptions,
+// etc.
+//
+// ## References
+//
+// - [Microsoft's OpenType Spec: name — Naming Table](https://docs.microsoft.com/en-us/typography/opentype/spec/name)
+// - [Apple's TrueType Reference Manual: The `'name'` table](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6name.html)
+
+/// Name record
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: Name records](https://docs.microsoft.com/en-us/typography/opentype/spec/name#name-records)
+/// - [Apple's TrueType Reference Manual: The `'name'` table](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6name.html)
+let name_record = fun (storage_start : Pos) => {
+    /// Platform identifier
+    platform_id <- u16be,
+    /// Platform-specific encoding identifier
+    encoding_id <- u16be,
+    /// Language identifier
+    language_id <- u16be,
+    /// Name identifier
+    name_id <- u16be,
+    /// String length
+    length <- u16be,
+    /// Offset to the string data
+    offset <- offset16 storage_start (array16 length u8),
+};
+
+/// # Language tag record
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: Naming table header](https://docs.microsoft.com/en-us/typography/opentype/spec/name#naming-table-header)
+/// - [Apple's TrueType Reference Manual: The `'name'` table](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6name.html)
+let lang_tag_record = fun (storage_start : Pos) => {
+    /// Language tag string length
+    length <- u16be,
+    /// Offset to the language tag string data
+    offset <- offset16 storage_start (array16 length u8),
+};
+
+/// # Naming table
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: Naming table header](https://docs.microsoft.com/en-us/typography/opentype/spec/name#naming-table-header)
+/// - [Apple's TrueType Reference Manual: The `'name'` table](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6name.html)
+let naming = {
+    /// The start of the naming table
+    table_start <- stream_pos,
+
+    /// Table version
+    version <- u16be,
+    /// The number of `name_records` to expect
+    name_count <- u16be,
+    /// The offset to the string storage area, relative to the start of the naming table.
+    storage_offset <- u16be,
+    // /// The array of name records
+    // TODO: position operations
+    // name_records <- array16 count (name_record (table_start + storage_offset)),
+
+    // TODO: Conditional fields
+
+    // if version <= 1 {
+    // /// The number of language tags to expect
+    // lang_tag_count <- u16be,
+    // // /// The array of language tag records
+    // // TODO: position operations
+    // // lang_tag_records <- array16 lang_tag_count (lang_tag_record (table_start + storage_offset)),
+    // }
+};
+
+
+// -----------------------------------------------------------------------------
+
 // # OpenType Top Level Organization
 //
 // Formats that form the top-level of an OpenType font file.
@@ -548,7 +629,7 @@ let font_table = fun (table_id : Repr tag) => fun (length : U32) => match table_
     // TODO: Use `num_glyphs` from `maximum_profile` table
     "hmtx" => horizontal_metrics 0 0,
     "maxp" => maximum_profile,
-    "name" => fail,
+    "name" => naming,
     "OS/2" => fail,
     "post" => fail,
 
