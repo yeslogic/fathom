@@ -651,6 +651,43 @@ let naming = {
 
 // -----------------------------------------------------------------------------
 
+// TODO: "OS/2" .. "BASE" tables
+
+
+// -----------------------------------------------------------------------------
+
+// TODO: "GDEF" table
+//
+// - [Microsoft's OpenType Spec: GDEF — Glyph Definition Table](https://docs.microsoft.com/en-us/typography/opentype/spec/gdef)
+
+let glyph_definition_data = ({} : Format);
+
+
+// -----------------------------------------------------------------------------
+
+// TODO: "GPOS" table
+//
+// - [Microsoft's OpenType Spec: GPOS — Glyph Positioning Table](https://docs.microsoft.com/en-us/typography/opentype/spec/gpos)
+
+let glyph_positioning_data = ({} : Format);
+
+
+// -----------------------------------------------------------------------------
+
+// TODO: "GSUB" table
+//
+// - [Microsoft's OpenType Spec: GSUB — Glyph Substitution Table](https://docs.microsoft.com/en-us/typography/opentype/spec/gsub)
+
+let glyph_substitution_data = ({} : Format);
+
+
+// -----------------------------------------------------------------------------
+
+// TODO: "JSTF" .. "vmtx" tables
+
+
+// -----------------------------------------------------------------------------
+
 // # OpenType Top Level Organization
 //
 // Formats that form the top-level of an OpenType font file.
@@ -670,6 +707,8 @@ let naming = {
 /// - [Apple's TrueType Reference Manual: TrueType Font files](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6.html#Overview)
 let font_table = fun (table_id : Repr tag) => fun (length : U32) => match table_id {
     // Required Tables
+    //
+    // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#required-tables
     "cmap" => character_map,
     "head" => font_header,
     "hhea" => horizontal_header,
@@ -682,6 +721,8 @@ let font_table = fun (table_id : Repr tag) => fun (length : U32) => match table_
     "post" => fail,
 
     // TrueType Outline Tables
+    //
+    // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#tables-related-to-truetype-outlines
     "cvt " => fail,
     "fpgm" => fail,
     "glyf" => fail,
@@ -690,14 +731,20 @@ let font_table = fun (table_id : Repr tag) => fun (length : U32) => match table_
     "gasp" => fail,
 
     // CFF Outline Tables
+    //
+    // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#tables-related-to-cff-outlines
     "CFF " => fail,
     "CFF2" => fail,
     "VORG" => fail,
 
     // SVG Outline Tables
+    //
+    // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#table-related-to-svg-outlines
     "SVG " => fail,
 
     // Bitmap Glyph Tables
+    //
+    // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#tables-related-to-bitmap-glyphs
     "EBDT" => fail,
     "EBLC" => fail,
     "EBSC" => fail,
@@ -706,14 +753,18 @@ let font_table = fun (table_id : Repr tag) => fun (length : U32) => match table_
     "sbix" => fail,
 
     // Advanced Typographic Tables
+    //
+    // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#advanced-typographic-tables
     "BASE" => fail,
-    "GDEF" => fail,
-    "GPOS" => fail,
-    "GSUB" => fail,
+    "GDEF" => glyph_definition_data,
+    "GPOS" => glyph_positioning_data,
+    "GSUB" => glyph_substitution_data,
     "JSTF" => fail,
     "MATH" => fail,
 
     // OpenType Font Variation Tables
+    //
+    // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#tables-used-for-opentype-font-variations
     "avar" => fail,
     "cvar" => fail,
     "fvar" => fail,
@@ -724,6 +775,8 @@ let font_table = fun (table_id : Repr tag) => fun (length : U32) => match table_
     "VVAR" => fail,
 
     // Color Font Tables
+    //
+    // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#tables-related-to-color-fonts
     "COLR" => fail,
     "CPAL" => fail,
     "CBDT" => fail,
@@ -732,6 +785,8 @@ let font_table = fun (table_id : Repr tag) => fun (length : U32) => match table_
     "SVG " => fail,
 
     // Other OpenType Tables
+    //
+    // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#other-opentype-tables
     "DSIG" => fail,
     "hdmx" => fail,
     "kern" => fail,
