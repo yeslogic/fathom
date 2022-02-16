@@ -121,13 +121,26 @@ let version16dot16 = u32be;
 
 /// # Platform identifiers
 ///
-// TODO: document platform IDs
+/// | Value         | Meaning                           |
+/// | ------------- | --------------------------------- |
+/// | `0`           | Unicode                           |
+/// | `1`           | Macintosh                         |
+/// | `2`           | ISO (deprecated in OpenType v1.3) |
+/// | `3`           | Windows                           |
+/// | `4`           | Custom                            |
+/// | `5..<240`     | Reserved                          |
+/// | `240..<256`   | User-defined                      |
+///
+/// Value `1` (Macintosh) is discouraged on current platforms – prefer a value
+/// of `3` (Windows) for maximum compatibility.
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: Platform IDs](https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#platform-ids)
+/// - [Microsoft's OpenType Spec: Platform, encoding and language](https://docs.microsoft.com/en-us/typography/opentype/spec/name#platform-encoding-and-language)
+/// - [Apple's TrueType Reference Manual: The `'cmap'` encoding subtables](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6cmap.html)
+/// - [Apple's TrueType Reference Manual: The platform identifier](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6name.html)
 let platform_id =
-    // TODO: Uncode platforms
-    // TODO: Macintosh platform
-    // TODO: ISO platform
-    // TODO: Windows platform
-    // TODO: Custom platform
     u16be;
 
 /// # Platform-specific encoding identifiers
@@ -144,7 +157,7 @@ let encoding_id = fun (platform : Repr platform_id) =>
 /// ## References
 ///
 /// - [Microsoft's OpenType Spec: Use of the language field in 'cmap' subtables](https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#use-of-the-language-field-in-cmap-subtables)
-/// - [Apple's TrueType Reference Manual: : The `'cmap'` table and language codes](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6cmap.html)
+/// - [Apple's TrueType Reference Manual: The `'cmap'` table and language codes](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6cmap.html)
 ///
 // TODO: add more details to docs
 let language_id =
