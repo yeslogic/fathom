@@ -119,17 +119,6 @@ let version16dot16 = u32be;
 
 // -----------------------------------------------------------------------------
 
-// # Chararacter to Glyph Index Mappings
-//
-// Formats related to the character mapping table. This table is responsible for
-// mapping character codes to glyph indices used in the font.
-//
-// ## References
-//
-// - [Microsoft's OpenType Spec: cmap — Character to Glyph Index Mapping Table](https://docs.microsoft.com/en-us/typography/opentype/spec/cmap)
-// - [Apple's TrueType Reference Manual: The `'cmap'` table](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6cmap.html)
-
-
 /// # Platform identifiers
 ///
 // TODO: document platform IDs
@@ -141,10 +130,10 @@ let platform_id =
     // TODO: Custom platform
     u16be;
 
-/// # Encoding identifiers
+/// # Platform-specific encoding identifiers
 ///
 // TODO: document encoding IDs
-let encoding_id =
+let encoding_id = fun (platform : Repr platform_id) =>
     u16be;
 
 /// # Language identifiers
@@ -160,6 +149,34 @@ let encoding_id =
 // TODO: add more details to docs
 let language_id =
     u16be;
+
+
+// -----------------------------------------------------------------------------
+
+// # Chararacter to Glyph Index Mappings
+//
+// Formats related to the character mapping table. This table is responsible for
+// mapping character codes to glyph indices used in the font.
+//
+// ## References
+//
+// - [Microsoft's OpenType Spec: cmap — Character to Glyph Index Mapping Table](https://docs.microsoft.com/en-us/typography/opentype/spec/cmap)
+// - [Apple's TrueType Reference Manual: The `'cmap'` table](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6cmap.html)
+
+
+/// # Language identifiers
+///
+/// This must be set to `0` for all subtables that have a platform ID other than
+/// ‘Macintosh’.
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: Use of the language field in 'cmap' subtables](https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#use-of-the-language-field-in-cmap-subtables)
+/// - [Apple's TrueType Reference Manual: : The `'cmap'` table and language codes](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6cmap.html)
+///
+// TODO: add more details to docs
+let cmap_language_id = fun (platform : Repr platform_id) =>
+    language_id;
 
 
 /// A small glyph ID, limited to a glyph set of 256 glyphs.
@@ -178,9 +195,9 @@ let small_glyph_id = u8;
 ///
 /// - [Microsoft's OpenType Spec: Format 0: Byte encoding table](https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#format-0-byte-encoding-table)
 /// - [Apple's TrueType Reference Manual: `'cmap'` format 0](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6cmap.html)
-let byte_encoding_table = {
+let byte_encoding_table = fun (platform : Repr platform_id) => {
     /// The language ID of the subtable
-    language <- language_id,
+    language <- cmap_language_id platform,
     /// A 1 to 1 mapping that converts character codes to glyph indexes (limited
     /// to 256 glyphs). Only the first 256 glyphs will be accessible for larger
     /// glyph sets.
@@ -198,14 +215,14 @@ let byte_encoding_table = {
 // TODO: Format 14: Unicode Variation Sequences
 
 /// # Character Mapping subtable
-let character_map_subtable = {
+let character_map_subtable = fun (platform : Repr platform_id) => {
     /// Format number of the subtable
     format <- u16be,
     /// The length ot the subtable in bytes
     length <- u16be,
     // TODO: format-specific subtable data
     data <- match format {
-        0 => byte_encoding_table,
+        0 => byte_encoding_table platform,
         2 => fail, // TODO: Format 2: High-byte mapping through table
         4 => fail, // TODO: Format 4: Segment mapping to delta values
         6 => fail, // TODO: Format 6: Trimmed table mapping
@@ -225,12 +242,12 @@ let character_map_subtable = {
 ///
 /// - [Microsoft's OpenType Spec: Encoding records and encodings](https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#encoding-records-and-encodings)
 let encoding_record = fun (table_start : Pos) => {
-    /// Platform ID
-    platform_id <- platform_id,
-    /// Platform-specific encoding ID
-    encoding_id <- encoding_id,
+    /// Platform identifier
+    platform <- platform_id,
+    /// Platform-specific encoding identifier
+    encoding <- encoding_id platform,
     /// Byte offset to the subtable data
-    subtable_offset <- offset32 table_start character_map_subtable,
+    subtable_offset <- offset32 table_start (character_map_subtable platform),
 };
 
 /// # Character Mapping Table (`cmap`)
@@ -543,11 +560,11 @@ let maximum_profile = {
 /// - [Apple's TrueType Reference Manual: The `'name'` table](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6name.html)
 let name_record = fun (storage_start : Pos) => {
     /// Platform identifier
-    platform_id <- u16be,
+    platform <- platform_id,
     /// Platform-specific encoding identifier
-    encoding_id <- u16be,
+    encoding <- encoding_id platform,
     /// Language identifier
-    language_id <- u16be,
+    language <- language_id,
     /// Name identifier
     name_id <- u16be,
     /// String length
