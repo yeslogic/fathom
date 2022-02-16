@@ -566,10 +566,41 @@ let name_record = fun (storage_start : Pos) => {
     /// Language identifier
     language <- language_id,
     /// Name identifier
+    ///
+    /// | Value         | Meaning                               |
+    /// | ------------- | ------------------------------------- |
+    /// | 0             | copyright notice                      |
+    /// | 1             | font family name                      |
+    /// | 2             | font subfamily name                   |
+    /// | 3             | unique font identification            |
+    /// | 4             | full font name                        |
+    /// | 5             | version string                        |
+    /// | 6             | PostScript name                       |
+    /// | 7             | trademark notice                      |
+    /// | 8             | manufacturer name                     |
+    /// | 9             | typeface designer name                |
+    /// | 10            | typeface description                  |
+    /// | 11            | font vendor url                       |
+    /// | 12            | font designer url                     |
+    /// | 13            | license description                   |
+    /// | 14            | license info url                      |
+    /// | 15            | reserved                              |
+    /// | 16            | typographic family name               |
+    /// | 17            | typographic subfamily name            |
+    /// | 18            | compatible full name                  |
+    /// | 19            | sample text                           |
+    /// | 20            | PostScript font name                  |
+    /// | 21            | WWS family name                       |
+    /// | 22            | WWS subfamily name                    |
+    /// | 23            | light background palette              |
+    /// | 24            | dark background palette               |
+    /// | 25            | variations PostScript name prefix     |
+    /// | 26..<256      | reserved                              |
+    //  | 256..<32768   | font-specific names                   |
     name_id <- u16be,
     /// String length
     length <- u16be,
-    /// Offset to the string data
+    /// Offset to the string data, relative to the start of the storage area
     offset <- offset16 storage_start (array16 length u8),
 };
 
