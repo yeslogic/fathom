@@ -664,7 +664,16 @@ let naming = {
 
 // -----------------------------------------------------------------------------
 
-// TODO: "OS/2" .. "BASE" tables
+// TODO: "OS/2" .. "sbix" tables
+
+
+// -----------------------------------------------------------------------------
+
+// TODO: "BASE" table
+//
+// - [Microsoft's OpenType Spec: BASE — Baseline Table](https://docs.microsoft.com/en-us/typography/opentype/spec/base)
+
+let baseline_data = fail;
 
 
 // -----------------------------------------------------------------------------
@@ -673,7 +682,7 @@ let naming = {
 //
 // - [Microsoft's OpenType Spec: GDEF — Glyph Definition Table](https://docs.microsoft.com/en-us/typography/opentype/spec/gdef)
 
-let glyph_definition_data = ({} : Format);
+let glyph_definition_data = fail;
 
 
 // -----------------------------------------------------------------------------
@@ -682,7 +691,7 @@ let glyph_definition_data = ({} : Format);
 //
 // - [Microsoft's OpenType Spec: GPOS — Glyph Positioning Table](https://docs.microsoft.com/en-us/typography/opentype/spec/gpos)
 
-let glyph_positioning_data = ({} : Format);
+let glyph_positioning_data = fail;
 
 
 // -----------------------------------------------------------------------------
@@ -691,12 +700,30 @@ let glyph_positioning_data = ({} : Format);
 //
 // - [Microsoft's OpenType Spec: GSUB — Glyph Substitution Table](https://docs.microsoft.com/en-us/typography/opentype/spec/gsub)
 
-let glyph_substitution_data = ({} : Format);
+let glyph_substitution_data = fail;
 
 
 // -----------------------------------------------------------------------------
 
-// TODO: "JSTF" .. "vmtx" tables
+// TODO: "JSTF" table
+//
+// - [Microsoft's OpenType Spec: JSTF — Justification Table](https://docs.microsoft.com/en-us/typography/opentype/spec/jstf)
+
+let justification_data = fail;
+
+
+// -----------------------------------------------------------------------------
+
+// TODO: "MATH" table
+//
+// - [Microsoft's OpenType Spec: MATH - The Mathematical Typesetting Table](https://docs.microsoft.com/en-us/typography/opentype/spec/math)
+
+let math_layout_data = fail;
+
+
+// -----------------------------------------------------------------------------
+
+// TODO: "avar" .. "vmtx" tables
 
 
 // -----------------------------------------------------------------------------
@@ -768,12 +795,12 @@ let font_table = fun (table_id : Repr tag) => fun (length : U32) => match table_
     // Advanced Typographic Tables
     //
     // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#advanced-typographic-tables
-    "BASE" => fail,
+    "BASE" => baseline_data,
     "GDEF" => glyph_definition_data,
     "GPOS" => glyph_positioning_data,
     "GSUB" => glyph_substitution_data,
-    "JSTF" => fail,
-    "MATH" => fail,
+    "JSTF" => justification_data,
+    "MATH" => math_layout_data,
 
     // OpenType Font Variation Tables
     //
