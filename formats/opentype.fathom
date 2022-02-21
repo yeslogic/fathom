@@ -5,12 +5,12 @@
 
 /// Reserved formats
 let reserved = fun (format : Format) => fun (default : Repr format) =>
-    // TODO: set to `default` during readback
+    // TODO: set to `default` during serialisation
     format;
 
 /// Deprecated formats
 let deprecated = fun (format : Format) => fun (default : Repr format) =>
-    // TODO: set to `default` during readback
+    // TODO: set to `default` during serialisation
     format;
 
 
@@ -114,10 +114,54 @@ let offset32 = fun (base : Pos) => fun (format : Format) => {
 /// ## References
 ///
 /// - [Microsoft's OpenType Spec: Version16Dot16](https://docs.microsoft.com/en-us/typography/opentype/spec/otff#dt_Version16Dot16)
-let version16dot16 = {
-    major <- u16be,
-    minor <- u16be,
-};
+let version16dot16 = u32be;
+
+
+// -----------------------------------------------------------------------------
+
+/// # Platform identifiers
+///
+/// | Value         | Meaning                           |
+/// | ------------- | --------------------------------- |
+/// | `0`           | Unicode                           |
+/// | `1`           | Macintosh                         |
+/// | `2`           | ISO (deprecated in OpenType v1.3) |
+/// | `3`           | Windows                           |
+/// | `4`           | Custom                            |
+/// | `5..<240`     | Reserved                          |
+/// | `240..<256`   | User-defined                      |
+///
+/// Value `1` (Macintosh) is discouraged on current platforms – prefer a value
+/// of `3` (Windows) for maximum compatibility.
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: Platform IDs](https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#platform-ids)
+/// - [Microsoft's OpenType Spec: Platform, encoding and language](https://docs.microsoft.com/en-us/typography/opentype/spec/name#platform-encoding-and-language)
+/// - [Apple's TrueType Reference Manual: The `'cmap'` encoding subtables](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6cmap.html)
+/// - [Apple's TrueType Reference Manual: The platform identifier](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6name.html)
+let platform_id =
+    u16be;
+
+/// # Platform-specific encoding identifiers
+///
+// TODO: document encoding IDs
+let encoding_id = fun (platform : Repr platform_id) =>
+    u16be;
+
+/// # Language identifiers
+///
+/// This must be set to `0` for all subtables that have a platform ID other than
+/// ‘Macintosh’.
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: Use of the language field in 'cmap' subtables](https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#use-of-the-language-field-in-cmap-subtables)
+/// - [Apple's TrueType Reference Manual: The `'cmap'` table and language codes](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6cmap.html)
+///
+// TODO: add more details to docs
+let language_id =
+    u16be;
 
 
 // -----------------------------------------------------------------------------
@@ -132,15 +176,48 @@ let version16dot16 = {
 // - [Microsoft's OpenType Spec: cmap — Character to Glyph Index Mapping Table](https://docs.microsoft.com/en-us/typography/opentype/spec/cmap)
 // - [Apple's TrueType Reference Manual: The `'cmap'` table](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6cmap.html)
 
-// TODO: Platform IDs
-// TODO: Uncode platforms
-// TODO: Macintosh platform
-// TODO: ISO platform
-// TODO: Windows platform
-// TODO: Custom platform
+
+/// # Language identifiers
+///
+/// This must be set to `0` for all subtables that have a platform ID other than
+/// ‘Macintosh’.
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: Use of the language field in 'cmap' subtables](https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#use-of-the-language-field-in-cmap-subtables)
+/// - [Apple's TrueType Reference Manual: : The `'cmap'` table and language codes](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6cmap.html)
+///
+// TODO: add more details to docs
+let cmap_language_id = fun (platform : Repr platform_id) =>
+    language_id;
 
 
-// TODO: Format 0: Byte encoding table
+/// A small glyph ID, limited to a glyph set of 256 glyphs.
+let small_glyph_id = u8;
+
+/// # Format 0: Byte encoding table
+///
+/// A character mapping table for fonts with character codes and glyph indices
+/// that can be stored within single bytes.
+///
+/// This table but was originally used as the standard character mapping table
+/// on older Macintosh platforms when TrueType was first introduced, but is no
+/// longer required on as fonts have become larger.
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: Format 0: Byte encoding table](https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#format-0-byte-encoding-table)
+/// - [Apple's TrueType Reference Manual: `'cmap'` format 0](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6cmap.html)
+let byte_encoding_table = fun (platform : Repr platform_id) => {
+    /// The language ID of the subtable
+    language <- cmap_language_id platform,
+    /// A 1 to 1 mapping that converts character codes to glyph indexes (limited
+    /// to 256 glyphs). Only the first 256 glyphs will be accessible for larger
+    /// glyph sets.
+    glyph_id_array <- array16 256 small_glyph_id,
+};
+
+
 // TODO: Format 2: High-byte mapping through table
 // TODO: Format 4: Segment mapping to delta values
 // TODO: Format 6: Trimmed table mapping
@@ -151,14 +228,24 @@ let version16dot16 = {
 // TODO: Format 14: Unicode Variation Sequences
 
 /// # Character Mapping subtable
-let character_map_subtable = {
+let character_map_subtable = fun (platform : Repr platform_id) => {
     /// Format number of the subtable
     format <- u16be,
     /// The length ot the subtable in bytes
     length <- u16be,
-    /// The language ID of the subtable
-    language <- u16be,
     // TODO: format-specific subtable data
+    data <- match format {
+        0 => byte_encoding_table platform,
+        2 => fail, // TODO: Format 2: High-byte mapping through table
+        4 => fail, // TODO: Format 4: Segment mapping to delta values
+        6 => fail, // TODO: Format 6: Trimmed table mapping
+        8 => fail, // TODO: Format 8: mixed 16-bit and 32-bit coverage
+        10 => fail, // TODO: Format 10: Trimmed array
+        12 => fail, // TODO: Format 12: Segmented coverage
+        13 => fail, // TODO: Format 13: Many-to-one range mappings
+        14 => fail, // TODO: Format 14: Unicode Variation Sequences
+        _ => fail,
+    },
 };
 
 
@@ -168,12 +255,12 @@ let character_map_subtable = {
 ///
 /// - [Microsoft's OpenType Spec: Encoding records and encodings](https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#encoding-records-and-encodings)
 let encoding_record = fun (table_start : Pos) => {
-    /// Platform ID
-    platform_id <- u16be,
-    /// Platform-specific encoding ID
-    encoding_id <- u16be,
+    /// Platform identifier
+    platform <- platform_id,
+    /// Platform-specific encoding identifier
+    encoding <- encoding_id platform,
     /// Byte offset to the subtable data
-    subtable_offset <- offset32 table_start character_map_subtable,
+    subtable_offset <- offset32 table_start (character_map_subtable platform),
 };
 
 /// # Character Mapping Table (`cmap`)
@@ -348,9 +435,295 @@ let horizontal_header = {
 
     /// Set to `0` for current format.
     metric_data_format <- s16be,
-    /// Number of advance widths in the `horizontal_metrics` table.
-    number_of_h_metrics <- u16be,
+    /// Number of `long_horizontal_metric` records in the in the
+    /// `horizontal_metrics` table.
+    number_of_long_horizontal_metrics <- u16be,
 };
+
+
+// -----------------------------------------------------------------------------
+
+// # Horizontal Metrics
+//
+// Information about the metrics used for horizontal layout for each of the
+// glyphs in the font.
+//
+// ## References
+//
+// - [Microsoft's OpenType Spec: hmtx — Horizontal Metrics Table](https://docs.microsoft.com/en-us/typography/opentype/spec/hmtx)
+// - [Apple's TrueType Reference Manual: The `'hmtx'` table](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6hmtx.html)
+
+/// Horizontal metrics that provide an `advance_width`.
+let long_horizontal_metric = {
+    /// Advance width, in font design units.
+    advance_width <- u16be,
+    /// Glyph left side bearing, in font design units.
+    left_side_bearing <- s16be
+};
+
+/// # Horizontal Metrics Table (`hmtx`)
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: hmtx — Horizontal Metrics Table](https://docs.microsoft.com/en-us/typography/opentype/spec/hmtx)
+/// - [Apple's TrueType Reference Manual: The `'hmtx'` table](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6hmtx.html)
+let horizontal_metrics = fun (number_of_long_horizontal_metrics : U16) => fun (num_glyphs : U16) => {
+    /// Long horizontal metrics, indexed by the glyph ID.
+    h_metrics <- array16 number_of_long_horizontal_metrics long_horizontal_metric,
+    // /// Left side bearings for glyph IDs greater than or equal to the
+    // /// `number_of_long_horizontal_metrics`.
+    // left_side_bearings <- array16 (num_glyphs - number_of_long_horizontal_metrics) s16be, // TODO: Subtraction
+};
+
+
+// -----------------------------------------------------------------------------
+
+// # Maximium Profile
+//
+// Information about the memory requirements of a font.
+//
+// ## References
+//
+// - [Microsoft's OpenType Spec: maxp — Maximum Profile](https://docs.microsoft.com/en-us/typography/opentype/spec/maxp)
+// - [Apple's TrueType Reference Manual: The `'maxp'` table](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6maxp.html)
+
+/// # Maximium Profile Table (`maxp`)
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: maxp — Maximum Profile](https://docs.microsoft.com/en-us/typography/opentype/spec/maxp)
+/// - [Apple's TrueType Reference Manual: The `'maxp'` table](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6maxp.html)
+let maximum_profile = {
+    /// The version of the table
+    version <- version16dot16,
+
+    // TODO: Conditional fields
+
+    // if version == 0x00005000 {
+        /// The number of glyphs in the font.
+        num_glyphs <- u16be,
+    // }
+
+    // if version == 0x00010000 {
+    //     /// The number of glyphs in the font.
+    //     num_glyphs <- u16be,
+    //     /// Maximum points in non-composite glyphs.
+    //     max_points <- u16be,
+    //     /// Maximum contours in non-composite glyphs.
+    //     max_contours <- u16be,
+    //     /// Maximum points in composite glyphs.
+    //     max_composite_points <- u16be,
+    //     /// Maximum contours in composite glyphs.
+    //     max_composite_contours <- u16be,
+    //     /// Should be set to `2` in most cases.
+    //     ///
+    //     /// | Value | Meaning                                           |
+    //     /// | ----- | ------------------------------------------------- |
+    //     /// | `1`   | instructions do not use the twilight zone (Z0)    |
+    //     /// | `2`   | instructions do use Z0                            |
+    //     max_zones <- u16be,
+    //     /// Maximum points used in in the twilight zone (Z0).
+    //     max_twilight_points <- u16be,
+    //     /// Number of Storage Area locations.
+    //     max_storage <- u16be,
+    //     /// Number of function definitions (FDEFs).
+    //     max_function_defs <- u16be,
+    //     /// Number of instruction definitions (IDEFs).
+    //     max_instruction_defs <- u16be,
+    //     /// Maximum stack depth across the Font Program ('fpgm' table), the
+    //     /// Control Value Program ('prep' table), and all glyph instructions
+    //     /// (in the 'glyf' table)
+    //     max_stack_elements <- u16be,
+    //     /// Maximum size in bytes used for all glyph instructions.
+    //     max_size_of_instructions <- u16be,
+    //     /// Maximum number of components referenced at “top level” of all
+    //     /// composite glyphs.
+    //     max_component_elements <- u16be,
+    //     /// Maximum levels of recursion used when constructing compound glyphs.
+    //     ///
+    //     /// | Value | Meaning                                           |
+    //     /// | ----- | ------------------------------------------------- |
+    //     /// | `0`   | the font only contains simple glyphs              |
+    //     /// | `1`   | compound glyphs only contain simple glyphs (there are no components within components) |
+    //     max_component_depth <- u16be, // TODO: where max_component_depth in 0..16
+    // }
+};
+
+
+// -----------------------------------------------------------------------------
+
+// # Name storage
+//
+// Multilingual name storage for OpenType fonts.
+//
+// This describes the storage of string data for use in other areas of OpenType
+// fonts, for example in font names, family names, style names, descriptions,
+// etc.
+//
+// ## References
+//
+// - [Microsoft's OpenType Spec: name — Naming Table](https://docs.microsoft.com/en-us/typography/opentype/spec/name)
+// - [Apple's TrueType Reference Manual: The `'name'` table](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6name.html)
+
+/// Name record
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: Name records](https://docs.microsoft.com/en-us/typography/opentype/spec/name#name-records)
+/// - [Apple's TrueType Reference Manual: The `'name'` table](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6name.html)
+let name_record = fun (storage_start : Pos) => {
+    /// Platform identifier
+    platform <- platform_id,
+    /// Platform-specific encoding identifier
+    encoding <- encoding_id platform,
+    /// Language identifier
+    language <- language_id,
+    /// Name identifier
+    ///
+    /// | Value         | Meaning                               |
+    /// | ------------- | ------------------------------------- |
+    /// | `0`           | copyright notice                      |
+    /// | `1`           | font family name                      |
+    /// | `2`           | font subfamily name                   |
+    /// | `3`           | unique font identification            |
+    /// | `4`           | full font name                        |
+    /// | `5`           | version string                        |
+    /// | `6`           | PostScript name                       |
+    /// | `7`           | trademark notice                      |
+    /// | `8`           | manufacturer name                     |
+    /// | `9`           | typeface designer name                |
+    /// | `10`          | typeface description                  |
+    /// | `11`          | font vendor url                       |
+    /// | `12`          | font designer url                     |
+    /// | `13`          | license description                   |
+    /// | `14`          | license info url                      |
+    /// | `15`          | reserved                              |
+    /// | `16`          | typographic family name               |
+    /// | `17`          | typographic subfamily name            |
+    /// | `18`          | compatible full name                  |
+    /// | `19`          | sample text                           |
+    /// | `20`          | PostScript font name                  |
+    /// | `21`          | WWS family name                       |
+    /// | `22`          | WWS subfamily name                    |
+    /// | `23`          | light background palette              |
+    /// | `24`          | dark background palette               |
+    /// | `25`          | variations PostScript name prefix     |
+    /// | `26..<256`    | reserved                              |
+    /// | `256..<32768` | font-specific names                   |
+    name_id <- u16be,
+    /// String length
+    length <- u16be,
+    /// Offset to the string data, relative to the start of the storage area
+    offset <- offset16 storage_start (array16 length u8),
+};
+
+/// # Language tag record
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: Naming table header](https://docs.microsoft.com/en-us/typography/opentype/spec/name#naming-table-header)
+/// - [Apple's TrueType Reference Manual: The `'name'` table](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6name.html)
+let lang_tag_record = fun (storage_start : Pos) => {
+    /// Language tag string length
+    length <- u16be,
+    /// Offset to the language tag string data
+    offset <- offset16 storage_start (array16 length u8),
+};
+
+/// # Naming table
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: Naming table header](https://docs.microsoft.com/en-us/typography/opentype/spec/name#naming-table-header)
+/// - [Apple's TrueType Reference Manual: The `'name'` table](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6name.html)
+let naming = {
+    /// The start of the naming table
+    table_start <- stream_pos,
+
+    /// Table version
+    version <- u16be,
+    /// The number of `name_records` to expect
+    name_count <- u16be,
+    /// The offset to the string storage area, relative to the start of the naming table.
+    storage_offset <- u16be,
+    // /// The array of name records
+    // TODO: position operations
+    // name_records <- array16 count (name_record (table_start + storage_offset)),
+
+    // TODO: Conditional fields
+
+    // if version <= 1 {
+    // /// The number of language tags to expect
+    // lang_tag_count <- u16be,
+    // // /// The array of language tag records
+    // // TODO: position operations
+    // // lang_tag_records <- array16 lang_tag_count (lang_tag_record (table_start + storage_offset)),
+    // }
+};
+
+
+// -----------------------------------------------------------------------------
+
+// TODO: "OS/2" .. "sbix" tables
+
+
+// -----------------------------------------------------------------------------
+
+// TODO: "BASE" table
+//
+// - [Microsoft's OpenType Spec: BASE — Baseline Table](https://docs.microsoft.com/en-us/typography/opentype/spec/base)
+
+let baseline_data = fail;
+
+
+// -----------------------------------------------------------------------------
+
+// TODO: "GDEF" table
+//
+// - [Microsoft's OpenType Spec: GDEF — Glyph Definition Table](https://docs.microsoft.com/en-us/typography/opentype/spec/gdef)
+
+let glyph_definition_data = fail;
+
+
+// -----------------------------------------------------------------------------
+
+// TODO: "GPOS" table
+//
+// - [Microsoft's OpenType Spec: GPOS — Glyph Positioning Table](https://docs.microsoft.com/en-us/typography/opentype/spec/gpos)
+
+let glyph_positioning_data = fail;
+
+
+// -----------------------------------------------------------------------------
+
+// TODO: "GSUB" table
+//
+// - [Microsoft's OpenType Spec: GSUB — Glyph Substitution Table](https://docs.microsoft.com/en-us/typography/opentype/spec/gsub)
+
+let glyph_substitution_data = fail;
+
+
+// -----------------------------------------------------------------------------
+
+// TODO: "JSTF" table
+//
+// - [Microsoft's OpenType Spec: JSTF — Justification Table](https://docs.microsoft.com/en-us/typography/opentype/spec/jstf)
+
+let justification_data = fail;
+
+
+// -----------------------------------------------------------------------------
+
+// TODO: "MATH" table
+//
+// - [Microsoft's OpenType Spec: MATH - The Mathematical Typesetting Table](https://docs.microsoft.com/en-us/typography/opentype/spec/math)
+
+let math_layout_data = fail;
+
+
+// -----------------------------------------------------------------------------
+
+// TODO: "avar" .. "vmtx" tables
 
 
 // -----------------------------------------------------------------------------
@@ -374,16 +747,22 @@ let horizontal_header = {
 /// - [Apple's TrueType Reference Manual: TrueType Font files](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6.html#Overview)
 let font_table = fun (table_id : Repr tag) => fun (length : U32) => match table_id {
     // Required Tables
+    //
+    // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#required-tables
     "cmap" => character_map,
     "head" => font_header,
     "hhea" => horizontal_header,
-    "hmtx" => fail,
-    "maxp" => fail,
-    "name" => fail,
+    // TODO: Use `number_of_long_horizontal_metrics` from `horizontal_header` table
+    // TODO: Use `num_glyphs` from `maximum_profile` table
+    "hmtx" => horizontal_metrics 0 0,
+    "maxp" => maximum_profile,
+    "name" => naming,
     "OS/2" => fail,
     "post" => fail,
 
     // TrueType Outline Tables
+    //
+    // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#tables-related-to-truetype-outlines
     "cvt " => fail,
     "fpgm" => fail,
     "glyf" => fail,
@@ -392,14 +771,20 @@ let font_table = fun (table_id : Repr tag) => fun (length : U32) => match table_
     "gasp" => fail,
 
     // CFF Outline Tables
+    //
+    // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#tables-related-to-cff-outlines
     "CFF " => fail,
     "CFF2" => fail,
     "VORG" => fail,
 
     // SVG Outline Tables
+    //
+    // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#table-related-to-svg-outlines
     "SVG " => fail,
 
     // Bitmap Glyph Tables
+    //
+    // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#tables-related-to-bitmap-glyphs
     "EBDT" => fail,
     "EBLC" => fail,
     "EBSC" => fail,
@@ -408,14 +793,18 @@ let font_table = fun (table_id : Repr tag) => fun (length : U32) => match table_
     "sbix" => fail,
 
     // Advanced Typographic Tables
-    "BASE" => fail,
-    "GDEF" => fail,
-    "GPOS" => fail,
-    "GSUB" => fail,
-    "JSTF" => fail,
-    "MATH" => fail,
+    //
+    // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#advanced-typographic-tables
+    "BASE" => baseline_data,
+    "GDEF" => glyph_definition_data,
+    "GPOS" => glyph_positioning_data,
+    "GSUB" => glyph_substitution_data,
+    "JSTF" => justification_data,
+    "MATH" => math_layout_data,
 
     // OpenType Font Variation Tables
+    //
+    // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#tables-used-for-opentype-font-variations
     "avar" => fail,
     "cvar" => fail,
     "fvar" => fail,
@@ -426,6 +815,8 @@ let font_table = fun (table_id : Repr tag) => fun (length : U32) => match table_
     "VVAR" => fail,
 
     // Color Font Tables
+    //
+    // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#tables-related-to-color-fonts
     "COLR" => fail,
     "CPAL" => fail,
     "CBDT" => fail,
@@ -434,6 +825,8 @@ let font_table = fun (table_id : Repr tag) => fun (length : U32) => match table_
     "SVG " => fail,
 
     // Other OpenType Tables
+    //
+    // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#other-opentype-tables
     "DSIG" => fail,
     "hdmx" => fail,
     "kern" => fail,
@@ -487,8 +880,10 @@ let table_record = fun (file_start : Pos) => {
 let table_directory = fun (file_start : Pos) => {
     /// Version of the font.
     ///
-    /// - `0x00010000` for fonts containing TrueType outlines
-    /// - `0x4F54544F` (`'OTTO'`) for fonts containing CFF data
+    /// | Value         | Meaning                                   |
+    /// | ------------- | ----------------------------------------- |
+    /// | `0x00010000`  | for fonts containing TrueType outlines    |
+    /// | `0x4F54544F`  | (`'OTTO'`) for fonts containing CFF data  |
     ///
     /// Apple allows 'true' and 'typ1', but this should not be found in OpenType files.
     sfnt_version <- u32be,       // TODO: where sfnt_version == 0x00010000 || sfnt_version == 'OTTO',
