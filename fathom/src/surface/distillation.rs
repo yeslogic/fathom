@@ -345,17 +345,10 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 Term::Ann((), &Term::UnitLiteral(()), self.scope.to_scope(format_type))
             }
             core::Term::FormatRecord(labels, formats) => {
-                let initial_rigid_len = self.rigid_len();
-                let type_fields = (self.scope).to_scope_from_iter(
-                    Iterator::zip(labels.iter(), formats.iter()).map(|(label, format)| {
-                        let format = self.check(format);
-                        self.push_rigid(Some(*label));
-                        (((), *label), format)
-                    }),
-                );
-                self.truncate_rigid(initial_rigid_len);
-
-                Term::FormatRecord((), type_fields)
+                Term::FormatRecord((), self.synth_format_fields(labels, formats))
+            }
+            core::Term::FormatOverlap(labels, formats) => {
+                Term::FormatOverlap((), self.synth_format_fields(labels, formats))
             }
             core::Term::Prim(prim) => self.synth_prim(*prim),
             core::Term::Const(r#const) => match r#const {
@@ -397,5 +390,23 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 )
             }
         }
+    }
+
+    fn synth_format_fields(
+        &mut self,
+        labels: &[StringId],
+        core_formats: &[core::Term<'_>],
+    ) -> &'arena [(((), StringId), Term<'arena, ()>)] {
+        let initial_rigid_len = self.rigid_len();
+        let format_fields = (self.scope).to_scope_from_iter(
+            Iterator::zip(labels.iter(), core_formats.iter()).map(|(label, format)| {
+                let format = self.check(format);
+                self.push_rigid(Some(*label));
+                (((), *label), format)
+            }),
+        );
+        self.truncate_rigid(initial_rigid_len);
+
+        format_fields
     }
 }

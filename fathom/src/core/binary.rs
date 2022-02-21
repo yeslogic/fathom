@@ -1,6 +1,6 @@
 //! Binary semantics of the data description language
 
-use std::io::{self, Read, Seek};
+use std::io::{self, Read, Seek, SeekFrom};
 use std::sync::Arc;
 
 use crate::core::semantics::{self, ArcValue, Head, Value};
@@ -66,6 +66,32 @@ impl<'arena, 'env> Context<'arena, 'env> {
                     exprs.push(expr.clone());
                     formats = next_formats(expr);
                 }
+
+                Ok(Arc::new(Value::RecordIntro(labels, exprs)))
+            }
+            Value::FormatOverlap(labels, formats) => {
+                let initial_pos = reader.stream_position()?;
+                let mut max_pos = initial_pos;
+
+                let mut formats = formats.clone();
+                let mut exprs = Vec::with_capacity(formats.len());
+
+                while let Some((format, next_formats)) =
+                    self.elim_context().split_telescope(formats)
+                {
+                    // Reset the stream to the start
+                    reader.seek(SeekFrom::Start(initial_pos))?;
+
+                    let expr = self.read(reader, &format)?;
+                    exprs.push(expr.clone());
+                    formats = next_formats(expr);
+
+                    // Update the max position
+                    max_pos = std::cmp::max(max_pos, reader.stream_position()?);
+                }
+
+                // Seek to the maximum stream length
+                reader.seek(SeekFrom::Start(max_pos))?;
 
                 Ok(Arc::new(Value::RecordIntro(labels, exprs)))
             }

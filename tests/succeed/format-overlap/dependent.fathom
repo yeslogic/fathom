@@ -1,0 +1,25 @@
+// This is kind of a pointless example to show dependencies between overlapped
+// formats. More compelling examples once we add more language features.
+
+let record0 = {
+    length <- u8,
+};
+
+let record1 = fun (length : U8) => {
+    _length <- u8, // Skip length
+    data <- array8 length u8,
+};
+
+let silly = overlap {
+    record0 <- record0,
+    record1 <- record1 record0.length,
+};
+
+let _ :
+        Repr silly -> {
+            record0 : { length : U8 },
+            record1 : { _length : U8, data : Array8 record0.length U8 },
+        }
+    = fun silly => silly;
+
+{}

@@ -142,6 +142,9 @@ pub enum Term<'arena> {
     ArrayIntro(&'arena [Term<'arena>]),
     /// Record formats, consisting of a list of dependent formats.
     FormatRecord(&'arena [StringId], &'arena [Term<'arena>]),
+    /// Overlap formats, consisting of a list of dependent formats, overlapping
+    /// in memory.
+    FormatOverlap(&'arena [StringId], &'arena [Term<'arena>]),
     /// Primitives.
     Prim(Prim),
     /// Constants.

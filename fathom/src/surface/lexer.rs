@@ -17,6 +17,8 @@ pub enum Token<'source> {
     KeywordLet,
     #[token("match")]
     KeywordMatch,
+    #[token("overlap")]
+    KeywordOverlap,
     #[token("Type")]
     KeywordType,
 
