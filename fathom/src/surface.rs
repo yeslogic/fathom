@@ -122,6 +122,8 @@ pub enum Term<'arena, Range> {
     NumberLiteral(Range, StringId),
     /// Record format.
     FormatRecord(Range, &'arena [((Range, StringId), Term<'arena, Range>)]),
+    /// Overlap format.
+    FormatOverlap(Range, &'arena [((Range, StringId), Term<'arena, Range>)]),
     /// Reported error sentinel.
     ReportedError(Range),
 }
@@ -149,6 +151,7 @@ impl<'arena, Range: Clone> Term<'arena, Range> {
             | Term::StringLiteral(range, _)
             | Term::NumberLiteral(range, _)
             | Term::FormatRecord(range, _)
+            | Term::FormatOverlap(range, _)
             | Term::ReportedError(range) => range.clone(),
         }
     }

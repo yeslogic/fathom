@@ -36,6 +36,9 @@ pub enum Value<'arena> {
     ArrayIntro(Vec<ArcValue<'arena>>),
     /// Record formats, consisting of a list of dependent formats.
     FormatRecord(&'arena [StringId], Telescope<'arena>),
+    /// Overlap formats, consisting of a list of dependent formats, overlapping
+    /// in memory.
+    FormatOverlap(&'arena [StringId], Telescope<'arena>),
     /// Constants.
     Const(Const),
 }
@@ -310,6 +313,10 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
                 let formats = Telescope::new(self.rigid_exprs.clone(), formats);
                 Arc::new(Value::FormatRecord(labels, formats))
             }
+            Term::FormatOverlap(labels, formats) => {
+                let formats = Telescope::new(self.rigid_exprs.clone(), formats);
+                Arc::new(Value::FormatOverlap(labels, formats))
+            }
             Term::Prim(prim) => Arc::new(Value::prim(*prim, [])),
             Term::Const(r#const) => Arc::new(Value::Const(*r#const)),
             Term::ConstElim(head_expr, branches, default_expr) => {
@@ -506,8 +513,7 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
     /// Find the representation type of a format description.
     pub fn apply_repr(&self, format: &ArcValue<'arena>) -> ArcValue<'arena> {
         match format.as_ref() {
-            Value::FormatRecord(labels, formats) => {
-                // Defer reduction to the telescope
+            Value::FormatRecord(labels, formats) | Value::FormatOverlap(labels, formats) => {
                 Arc::new(Value::RecordType(labels, formats.clone().apply_repr()))
             }
             Value::Stuck(Head::Prim(prim), spine) => {
@@ -673,6 +679,12 @@ impl<'in_arena, 'out_arena, 'env> QuoteContext<'in_arena, 'out_arena, 'env> {
                 let formats = self.quote_telescope(formats);
 
                 Term::FormatRecord(labels, formats)
+            }
+            Value::FormatOverlap(labels, formats) => {
+                let labels = self.scope.to_scope_from_iter(labels.iter().copied()); // FIXME: avoid copy if this is the same arena?
+                let formats = self.quote_telescope(formats);
+
+                Term::FormatOverlap(labels, formats)
             }
             Value::Const(r#const) => Term::Const(*r#const),
         }

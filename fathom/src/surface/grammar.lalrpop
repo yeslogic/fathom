@@ -21,6 +21,7 @@ extern {
         "fun" => Token::KeywordFun,
         "let" => Token::KeywordLet,
         "match" => Token::KeywordMatch,
+        "overlap" => Token::KeywordOverlap,
         "Type" => Token::KeywordType,
 
         ":" => Token::Colon,
@@ -159,6 +160,13 @@ AtomicTerm: Term<'arena, ByteRange> = {
     <start: @L> "{" <first: (<RangedName> "<-" <Term>)> <format_fields: ("," <RangedName> "<-" <Term>)*> ","?  "}" <end: @R> => {
         let format_fields = std::iter::once(first).chain(format_fields);
         Term::FormatRecord(
+            ByteRange::new(start, end),
+            scope.to_scope_from_iter(format_fields),
+        )
+    },
+    <start: @L> "overlap" "{" <format_fields: (<RangedName> "<-" <Term> ",")*> <last: (<RangedName> "<-" <Term>)?> "}" <end: @R> => {
+        let format_fields = format_fields.into_iter().chain(last);
+        Term::FormatOverlap(
             ByteRange::new(start, end),
             scope.to_scope_from_iter(format_fields),
         )

@@ -1224,24 +1224,15 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
             }
             Term::FormatRecord(range, format_fields) => {
                 let format_type = Arc::new(Value::prim(Prim::FormatType, []));
-                let initial_rigid_len = self.rigid_env.len();
-                let (labels, format_fields) = self.report_duplicate_labels(*range, format_fields);
-                let mut formats = SliceVec::new(self.scope, labels.len());
+                let (labels, formats) = self.check_format_fields(*range, format_fields);
 
-                for ((_, label), format) in format_fields {
-                    let format = self.check(format, &format_type);
-                    let format_value = self.eval_context().eval(&format);
-                    let r#type = self.elim_context().apply_repr(&format_value);
-                    self.rigid_env.push_param(Some(*label), r#type);
-                    formats.push(format);
-                }
+                (core::Term::FormatRecord(labels, formats), format_type)
+            }
+            Term::FormatOverlap(range, format_fields) => {
+                let format_type = Arc::new(Value::prim(Prim::FormatType, []));
+                let (labels, formats) = self.check_format_fields(*range, format_fields);
 
-                self.rigid_env.truncate(initial_rigid_len);
-
-                (
-                    core::Term::FormatRecord(labels, formats.into()),
-                    format_type,
-                )
+                (core::Term::FormatOverlap(labels, formats), format_type)
             }
             Term::ReportedError(range) => self.synth_reported_error(*range),
         }
@@ -1251,6 +1242,30 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         let type_source = FlexSource::ReportedErrorType(range);
         let r#type = self.push_flexible_value(type_source, Arc::new(Value::Universe));
         (core::Term::Prim(Prim::ReportedError), r#type)
+    }
+
+    /// Check a series of format fields
+    fn check_format_fields(
+        &mut self,
+        range: ByteRange,
+        format_fields: &[((ByteRange, StringId), Term<'_, ByteRange>)],
+    ) -> (&'arena [StringId], &'arena [core::Term<'arena>]) {
+        let format_type = Arc::new(Value::prim(Prim::FormatType, []));
+        let initial_rigid_len = self.rigid_env.len();
+        let (labels, format_fields) = self.report_duplicate_labels(range, format_fields);
+        let mut formats = SliceVec::new(self.scope, labels.len());
+
+        for ((_, label), format) in format_fields {
+            let format = self.check(format, &format_type);
+            let format_value = self.eval_context().eval(&format);
+            let r#type = self.elim_context().apply_repr(&format_value);
+            self.rigid_env.push_param(Some(*label), r#type);
+            formats.push(format);
+        }
+
+        self.rigid_env.truncate(initial_rigid_len);
+
+        (labels, formats.into())
     }
 
     /// Elaborate a pattern match.
