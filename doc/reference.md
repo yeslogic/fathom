@@ -19,6 +19,7 @@ elaboration, and core language is forthcoming.
 - [Universes](#universes)
 - [Formats](#formats)
   - [Format types](#format-types)
+  - [Format representations](#format-representations)
   - [Record formats](#record-formats)
   - [Overlap formats](#overlap-formats)
   - [Number formats](#number-formats)
@@ -26,7 +27,6 @@ elaboration, and core language is forthcoming.
   - [Stream position formats](#stream-position-formats)
   - [Succeed format](#succeed-format)
   - [Fail format](#fail-format)
-  - [Format representations](#format-representations)
 - [Patterns](#patterns)
   - [Name patterns](#name-patterns)
   - [Placeholder patterns](#placeholder-patterns)
@@ -198,6 +198,13 @@ The type of formats is formed using the `Format` primitive:
 
 - `Format : Type`
 
+### Format representations
+
+Every binary format has a unique host representation, which is accessed via the
+built-in `Repr` operator:
+
+- `Repr : Format -> Type`
+
 ### Record formats
 
 Record formats are sequences of formats that are parsed one after the other.
@@ -244,11 +251,25 @@ the type of `array8`:
 array8 3 {}
 ```
 
+#### Representation of record formats
+
+The [representation](#format-representations) of a record format is a dependent
+record type, with the `Repr` operation applied to each of the field's formats,
+preserving dependencies as required.
+
+Some examples are as follows:
+
+| format                                     | `Repr` format                          |
+| ------------------------------------------ | -------------------------------------- |
+| `{}`                                       | `{}`                                   |
+| `{ x <- f32le, y <- f32le }`               | `{ x : F32, y : F32 }`                 |
+| `{ len <- u16be, data <- array16 len s8 }` | `{ len : U16, data : Array16 len S8 }` |
+
 ### Overlap formats
 
-Overlap formats are very similar to record formats, only each field is parsed
-over the same space in memory. This allows for formats to be enriched with
-information that occurs later on in the stream:
+Overlap formats are very similar to [record formats](#record-formats), only each
+field is parsed over the same space in memory. This allows for formats to be
+enriched with information that occurs later on in the stream:
 
 ```fathom
 overlap {
@@ -256,6 +277,12 @@ overlap {
   records1 : array16 len (array_record0 records0),
 }
 ```
+
+#### Representation of overlap formats
+
+Overlap formats are [represented](#format-representations) as dependent record
+types that preserve dependencies between the fields present in the original
+format.
 
 ### Number formats
 
@@ -281,61 +308,6 @@ number types. Multi-byte numbers come in big endian and little endian flavours:
 - `f64be : Format`
 - `f64le : Format`
 
-### Array formats
-
-There are four array formats, corresponding to the four array types:
-
-- `array8 : U8 -> Format -> Format`
-- `array16 : U16 -> Format -> Format`
-- `array32 : U32 -> Format -> Format`
-- `array64 : U64 -> Format -> Format`
-
-### Stream position formats
-
-The stream position format is interpreted as the current stream position during
-parsing:
-
-- `stream_pos : Format`
-
-### Succeed format
-
-The succeed format allows values to be embedded in the resulting parsed output.
-
-- `succeed : fun (A : Type) -> A -> Format`
-
-### Fail format
-
-The fail format always results in a parse failure if it is encountered during
-parsing.
-
-- `fail : Format`
-
-### Format representations
-
-Every binary format has a unique host representation, which is accessed via the
-built-in `Repr` operator:
-
-- `Repr : Format -> Type`
-
-#### Representation of record formats
-
-The representation of a record format is a dependent record type, with the
-`Repr` operation applied to each of the field's formats, preserving dependencies
-as required.
-
-Some examples are as follows:
-
-| format                                     | `Repr` format                          |
-| ------------------------------------------ | -------------------------------------- |
-| `{}`                                       | `{}`                                   |
-| `{ x <- f32le, y <- f32le }`               | `{ x : F32, y : F32 }`                 |
-| `{ len <- u16be, data <- array16 len s8 }` | `{ len : U16, data : Array16 len S8 }` |
-
-#### Representation of overlap formats
-
-Overlap formats are represented as dependent record types that preserve
-dependencies between the fields present in the original format.
-
 #### Representation of number formats
 
 Number formats lose their endianness as they are interpreted as their
@@ -354,11 +326,20 @@ corresponding host representation:
 | `f32be`, `f32le`  | `F32`         |
 | `f64be`, `f64le`  | `F64`         |
 
+### Array formats
+
+There are four array formats, corresponding to the four array types:
+
+- `array8 : U8 -> Format -> Format`
+- `array16 : U16 -> Format -> Format`
+- `array32 : U32 -> Format -> Format`
+- `array64 : U64 -> Format -> Format`
+
 #### Representation of array formats
 
-The representation of the array formats preserve the lengths, and use the
-representation of the element formats as the element types of the host array
-types.
+The [representation](#format-representations) of the array formats preserve the
+lengths, and use the representation of the element formats as the element types
+of the host array types.
 
 | format                 | `Repr` format                       |
 | ---------------------- | ----------------------------------- |
@@ -367,17 +348,37 @@ types.
 | `array32 len format`   | `Array32 len (Repr format)`         |
 | `array64 len format`   | `Array64 len (Repr format)`         |
 
+### Stream position formats
+
+The stream position format is interpreted as the current stream position during
+parsing:
+
+- `stream_pos : Format`
+
 #### Representation of stream position formats
 
 | format       | `Repr` format |
 | ------------ | ------------- |
 | `stream_pos` | `Pos`         |
 
+### Succeed format
+
+The succeed format allows values to be embedded in the resulting parsed output.
+
+- `succeed : fun (A : Type) -> A -> Format`
+
 #### Representation of succeed format
 
 | format        | `Repr` format |
 | ------------- | ------------- |
 | `succeed A a` | `A`           |
+
+### Fail format
+
+The fail format always results in a parse failure if it is encountered during
+parsing.
+
+- `fail : Format`
 
 #### Representation of fail format
 
