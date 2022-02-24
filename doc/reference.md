@@ -20,6 +20,7 @@ elaboration, and core language is forthcoming.
 - [Formats](#formats)
   - [Format types](#format-types)
   - [Record formats](#record-formats)
+  - [Overlap formats](#overlap-formats)
   - [Number formats](#number-formats)
   - [Array formats](#array-formats)
   - [Stream position formats](#stream-position-formats)
@@ -243,6 +244,19 @@ the type of `array8`:
 array8 3 {}
 ```
 
+### Overlap formats
+
+Overlap formats are very similar to record formats, only each field is parsed
+over the same space in memory. This allows for formats to be enriched with
+information that occurs later on in the stream:
+
+```fathom
+overlap {
+  records0 : array16 len array_record0,
+  records1 : array16 len (array_record0 records0),
+}
+```
+
 ### Number formats
 
 There are formats for unsigned integer, signed integer, and floating point
@@ -303,7 +317,7 @@ built-in `Repr` operator:
 
 - `Repr : Format -> Type`
 
-#### Representations of record formats
+#### Representation of record formats
 
 The representation of a record format is a dependent record type, with the
 `Repr` operation applied to each of the field's formats, preserving dependencies
@@ -317,7 +331,12 @@ Some examples are as follows:
 | `{ x <- f32le, y <- f32le }`               | `{ x : F32, y : F32 }`                 |
 | `{ len <- u16be, data <- array16 len s8 }` | `{ len : U16, data : Array16 len S8 }` |
 
-#### Representations of number formats
+#### Representation of overlap formats
+
+Overlap formats are represented as dependent record types that preserve
+dependencies between the fields present in the original format.
+
+#### Representation of number formats
 
 Number formats lose their endianness as they are interpreted as their
 corresponding host representation:
@@ -335,7 +354,7 @@ corresponding host representation:
 | `f32be`, `f32le`  | `F32`         |
 | `f64be`, `f64le`  | `F64`         |
 
-#### Representations of array formats
+#### Representation of array formats
 
 The representation of the array formats preserve the lengths, and use the
 representation of the element formats as the element types of the host array
