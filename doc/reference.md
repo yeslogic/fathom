@@ -49,7 +49,6 @@ elaboration, and core language is forthcoming.
   - [Array literals](#array-literals)
 - [Positions](#positions)
 - [Void](#void)
-  - [Void type](#void-type)
 
 ## Structure
 
@@ -160,8 +159,8 @@ fun (A : ?param_type) -> A -> A
 
 ### Annotated terms
 
-Terms can be annotated with explicit types using a colon (`:`). This can be used to
-help type inference if an expression is ambiguous.
+Terms can be annotated with explicit types using a colon (`:`). This can be used
+to help type inference if an expression is ambiguous.
 
 For example:
 
@@ -275,17 +274,23 @@ There are four array formats, corresponding to the four array types:
 
 ### Stream position formats
 
-- `stream_pos : Format`
+The stream position format is interpreted as the current stream position during
+parsing:
 
-> **TODO**: document stream position formats
+- `stream_pos : Format`
 
 ### Succeed format
 
-> **TODO**: document succeed format
+The succeed format allows values to be embedded in the resulting parsed output.
+
+- `succeed : fun (A : Type) -> A -> Format`
 
 ### Fail format
 
-> **TODO**: document fail format
+The fail format always results in a parse failure if it is encountered during
+parsing.
+
+- `fail : Format`
 
 ### Format representations
 
@@ -339,9 +344,23 @@ types.
 | `array32 len format`   | `Array32 len (Repr format)`         |
 | `array64 len format`   | `Array64 len (Repr format)`         |
 
-> **TODO**: Stream position formats\
-> **TODO**: Succeed format\
-> **TODO**: Fail format
+#### Representation of stream position formats
+
+| format       | `Repr` format |
+| ------------ | ------------- |
+| `stream_pos` | `Pos`         |
+
+#### Representation of succeed format
+
+| format        | `Repr` format |
+| ------------- | ------------- |
+| `succeed A a` | `A`           |
+
+#### Representation of fail format
+
+| format | `Repr` format |
+| ------ | ------------- |
+| `fail` | `Void`        |
 
 ## Patterns
 
@@ -409,7 +428,13 @@ Parentheses can be used to group patterns.
 
 ### Number literals
 
-> **TODO**: document number literals
+- `1 : U8`
+- `42 : S32`
+- `-42 : S32`
+
+### String literals
+
+- `"GSUB" : U16`
 
 ## Arrays
 
@@ -424,20 +449,33 @@ Array types are formed with the following primitives:
 - `Array32 : U32 -> Type -> Type`
 - `Array64 : U64 -> Type -> Type`
 
+For example, this is the type of an array of three signed 32-bit integers:
+
+```fathom
+Array8 3 S32
+```
+
 ### Array literals
 
-> **TODO**: document number literals
+Arrays can be constructed as sequences of terms within square
+brackets. For example:
+
+```fathom
+[] : Array32 0 S32
+[3, 32, -6] : Array8 3 S32
+```
 
 ## Positions
 
-> **TODO**: document positions
+Stream positions are represented as an abstract datatype:
+
+- `Pos : Type`
+
+Positions are usually encountered as a result of parsing a [stream position
+format](#stream-position-formats).
 
 ## Void
 
-Void can be used to mark terms that must never be constructed.
-
-### Void type
-
-The void type is formed with the following primitive:
+The void type is be used to mark terms that must never be constructed:
 
 - `Void : Type`
