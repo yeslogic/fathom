@@ -199,10 +199,26 @@ The type of formats is formed using the `Format` primitive:
 
 ### Record formats
 
+Record formats are sequences of formats that are parsed one after the other.
+For example, a point format could be defined as:
+
 ```fathom
 {
     x <- u32be,
     y <- u32be,
+}
+```
+
+Subsequent fields of a record format can depend on the values parsed from
+previous fields. This can be useful for defining more complicated,
+data-dependent formats. For example:
+
+```fathom
+{
+    len <- u32be,
+    data <- array32 len { x <- u32be, y <- u32be },
+    //               ▲
+    //               └─── type of `len` is `Repr u32be`
 }
 ```
 
@@ -220,23 +236,11 @@ let unit : Format =
 ...
 ```
 
-No annotations needed, as the type can be inferred from the type of `array8`:
+No annotations needed in the following example, as the type can be inferred from
+the type of `array8`:
 
 ```fathom
 array8 3 {}
-```
-
-Subsequent fields of a record format can depend on the information parsed data
-from previous fields. This can be useful for defining more complex,
-data-dependent formats. For example:
-
-```fathom
-{
-    len <- u32be,
-    data <- array32 len { x <- u32be, y <- u32be },
-    //               ▲
-    //               └─── type of `len` is `Repr u32be`
-}
 ```
 
 ### Number formats
