@@ -457,24 +457,35 @@ associated with a corresponding parameter.
 
 ### Record types
 
-> **TODO**: document non-dependent record types
+Record types are formed as sequences of fields:
 
 ```fathom
 { x : F32, y : F32 }
 ```
 
-> **TODO**: document dependent record types
+The types of later fields and depend on previous fields:
 
 ```fathom
 {
     len : U32,
     data : Array32 len S32,
+    //        ▲
+    //        └─── error: expected `Array 3 S32`, found `Array 2 S32`
 }
 ```
 
 ### Record literals
 
-> **TODO**: document record literals
+Records literals consist of a sequence of field assignments. For example:
+
+```fathom
+let Point = { x : U32, y : U32 };
+
+let origin : Point = {
+    x = 0,
+    y = 0,
+};
+```
 
 When checking dependent record types, the values assigned to field expressions
 will substituted into the types of subsequent fields. For example:
@@ -483,6 +494,8 @@ will substituted into the types of subsequent fields. For example:
 let Data = {
     len : U32,
     data : Array32 len S32,
+    //              ▲
+    //              └─── this type depends on the value of the `len` field
 };
 
 {
@@ -496,7 +509,7 @@ let Data = {
 ### Record projections
 
 The fields in a record can be accessed using the dot (`.`) operator,
-followed by the desired field label
+followed by the desired field label. For example:
 
 ```fathom
 let Color : Type = { r : U8, g : U8, b : U8 };
