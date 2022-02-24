@@ -390,18 +390,61 @@ Parentheses can be used to group patterns.
 
 ## Functions
 
+Functions enable terms to be abstracted with parameters. As Fathom is a
+dependently typed programming language, functions also play the role of
+‘generics’, allowing types and terms to be parameterised by other types or
+terms.
+
 ### Function types
 
-> **TODO**: document non-dependent function types\
-> **TODO**: document dependent function types
+Simple, non-dependent function types are formed using the arrow operator:
+
+```fathom
+A -> B
+```
+
+Dependent functions (where the output type depends on the applied argument) are
+formed using the `fun` keyword, followed by a parameter pattern, then an arrow
+`->` and finally a body type:
+
+```fathom
+fun (a : A) -> B a
+```
+
+For example, the type of the identity function is:
+
+```fathom
+fun (A : Type) -> A -> A
+```
 
 ### Function literals
 
-> **TODO**: document record literals
+Function literals are constructed using the `fun` keyword, followed by a
+parameter pattern, then a fat arrow `=>` and a body expression:
+
+```fathom
+fun a => a : Type -> Type
+```
 
 ### Function applications
 
-> **TODO**: document function applications
+Functions are applied using juxtaposition:
+
+```fathom
+let id : fun (A : Type) -> A -> A =
+  fun _ a => a;
+
+id Type S32
+```
+
+The above could also be defined as:
+
+```fathom
+let id =
+  fun (A : Type) => fun (a : A) => a;
+
+id Type S32
+```
 
 ## Records
 
