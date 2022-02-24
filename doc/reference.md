@@ -448,18 +448,77 @@ id Type S32
 
 ## Records
 
+Records are types formed out of a combination of other types, each type
+associated with a corresponding parameter.
+
 ### Record types
 
-> **TODO**: document non-dependent record types\
+> **TODO**: document non-dependent record types
+
+```fathom
+{ x : F32, y : F32 }
+```
+
 > **TODO**: document dependent record types
+
+```fathom
+{
+  len : U32,
+  data : Array32 len S32,
+}
+```
 
 ### Record literals
 
 > **TODO**: document record literals
 
+When checking dependent record types, the values assigned to field expressions
+will substituted into the types of subsequent fields. For example:
+
+```fathom
+let Data = {
+  len : U32,
+  data : Array32 len S32,
+};
+
+{
+  len = 3,
+  data = [1, 2],
+  //        ▲
+  //        └─── error: expected `Array 3 S32`, found `Array 2 S32`
+} : Data
+```
+
 ### Record projections
 
-> **TODO**: document record projections
+The fields in a record can be accessed using the dot (`.`) operator,
+followed by the desired field label
+
+```fathom
+let Color : Type = { r : U8, g : U8, b : U8 };
+let yellow : Color = { r = 255, g = 255, b = 0 };
+
+yellow.g
+```
+
+Record projections preserve data dependencies. For example:
+
+```fathom
+let Data = {
+  len : U32,
+  data : Array32 len S32,
+};
+
+let some-data : Data = {
+  len = 3,
+  data = [1, 2, 3];
+};
+
+some-data.data : Array3 some-data.len S32
+//                                 ▲
+//                                 └─── dependency on `len` is preserved
+//                                      in type of the projected term
+```
 
 ## Numbers
 
