@@ -119,9 +119,9 @@ For example:
 
 ```fathom
 match x {
-  1 => { one : {} },
-  2 => { two : {} },
-  n => { any : Array32 n {} },
+    1 => { one : {} },
+    2 => { two : {} },
+    n => { any : Array32 n {} },
 }
 ```
 
@@ -215,7 +215,7 @@ to disambiguate them from unit record types and literals. For example:
 
 ```fathom
 let unit : Format =
-  {};
+    {};
 
 ...
 ```
@@ -432,7 +432,7 @@ Functions are applied using juxtaposition:
 
 ```fathom
 let id : fun (A : Type) -> A -> A =
-  fun _ a => a;
+    fun _ a => a;
 
 id Type S32
 ```
@@ -441,7 +441,7 @@ The above could also be defined as:
 
 ```fathom
 let id =
-  fun (A : Type) => fun (a : A) => a;
+    fun (A : Type) => fun (a : A) => a;
 
 id Type S32
 ```
@@ -463,8 +463,8 @@ associated with a corresponding parameter.
 
 ```fathom
 {
-  len : U32,
-  data : Array32 len S32,
+    len : U32,
+    data : Array32 len S32,
 }
 ```
 
@@ -477,15 +477,15 @@ will substituted into the types of subsequent fields. For example:
 
 ```fathom
 let Data = {
-  len : U32,
-  data : Array32 len S32,
+    len : U32,
+    data : Array32 len S32,
 };
 
 {
-  len = 3,
-  data = [1, 2],
-  //        ▲
-  //        └─── error: expected `Array 3 S32`, found `Array 2 S32`
+    len = 3,
+    data = [1, 2],
+    //        ▲
+    //        └─── error: expected `Array 3 S32`, found `Array 2 S32`
 } : Data
 ```
 
@@ -505,13 +505,13 @@ Record projections preserve data dependencies. For example:
 
 ```fathom
 let Data = {
-  len : U32,
-  data : Array32 len S32,
+    len : U32,
+    data : Array32 len S32,
 };
 
 let some-data : Data = {
-  len = 3,
-  data = [1, 2, 3];
+    len = 3,
+    data = [1, 2, 3];
 };
 
 some-data.data : Array3 some-data.len S32
