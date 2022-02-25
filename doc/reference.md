@@ -253,9 +253,9 @@ array8 3 {}
 
 #### Representation of record formats
 
-The [representation](#format-representations) of a record format is a dependent
-record type, with the `Repr` operation applied to each of the field's formats,
-preserving dependencies as required.
+The [representation](#format-representations) of a record format is a [dependent
+record type](#records), with the `Repr` operation applied to each of the field's
+formats, preserving dependencies as required.
 
 Some examples are as follows:
 
@@ -280,9 +280,9 @@ overlap {
 
 #### Representation of overlap formats
 
-Overlap formats are [represented](#format-representations) as dependent record
-types that preserve dependencies between the fields present in the original
-format.
+Overlap formats are [represented](#format-representations) as [dependent record
+types](#records) that preserve dependencies between the fields present in the
+original format.
 
 ### Number formats
 
@@ -328,7 +328,7 @@ corresponding host representation:
 
 ### Array formats
 
-There are four array formats, corresponding to the four array types:
+There are four array formats, corresponding to the four [array types](#arrays):
 
 - `array8 : U8 -> Format -> Format`
 - `array16 : U16 -> Format -> Format`
