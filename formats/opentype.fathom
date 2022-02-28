@@ -94,10 +94,10 @@ let empty : Format = {};
 /// - [Microsoft's OpenType Spec: Offset16](https://docs.microsoft.com/en-us/typography/opentype/spec/otff#dt_Offset16)
 let offset16 = fun (base : Pos) => fun (format : Format) => {
     offset <- u16be,
-    // link <- match offset {
-    //     0 => empty,
-    //     _ => link base offset format, // TODO: Use an option type?
-    // },
+    link <- match offset {
+        0 => empty,
+        _ => link16 base offset format, // TODO: Use an option type?
+    },
 };
 
 /// 32-bit offset to a `format`, relative to some `base` position.
@@ -107,10 +107,10 @@ let offset16 = fun (base : Pos) => fun (format : Format) => {
 /// - [Microsoft's OpenType Spec: Offset32](https://docs.microsoft.com/en-us/typography/opentype/spec/otff#dt_Offset32)
 let offset32 = fun (base : Pos) => fun (format : Format) => {
     offset <- u32be,
-    // link <- match offset {
-    //     0 => empty,
-    //     _ => link base offset format, // TODO: Use an option type?
-    // },
+    link <- match offset {
+        0 => empty,
+        _ => link32 base offset format, // TODO: Use an option type?
+    },
 };
 
 /// Packed 32-bit value with major and minor version numbers.
@@ -753,7 +753,7 @@ let math_layout_data = unknown_table;
 ///
 /// - [Microsoft's OpenType Spec: Font Tables](https://docs.microsoft.com/en-us/typography/opentype/spec/otff#font-tables)
 /// - [Apple's TrueType Reference Manual: TrueType Font files](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6.html#Overview)
-let font_table = fun (table_id : Repr tag) => fun (length : U32) => match table_id {
+let font_table = fun (table_id : Repr tag) => match table_id {
     // Required Tables
     //
     // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#required-tables
@@ -872,9 +872,8 @@ let table_record = fun (file_start : Pos) => {
     offset <- u32be,
     /// Length of this table.
     length <- u32be,
-    // TODO: links
-    // /// The computed position of this table.
-    // link <- link file_start offset (font_table table_id length)
+    /// The computed position of this table.
+    link <- link32 file_start offset (font_table table_id)
 };
 
 /// # Table Directory

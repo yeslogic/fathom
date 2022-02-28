@@ -1,27 +1,91 @@
 //! Binary semantics of the data description language
 
+use std::collections::HashMap;
 use std::io::{self, Read, Seek, SeekFrom};
 use std::sync::Arc;
 
 use crate::core::semantics::{self, ArcValue, Head, Value};
 use crate::core::{Const, Prim};
-use crate::env::SliceEnv;
+use crate::env::{EnvLen, SliceEnv};
 
 pub struct Context<'arena, 'env> {
     flexible_exprs: &'env SliceEnv<Option<ArcValue<'arena>>>,
+    pending_formats: Vec<(u64, ArcValue<'arena>)>,
+}
+
+pub struct RefData<'arena> {
+    pub r#type: ArcValue<'arena>,
+    pub expr: ArcValue<'arena>,
 }
 
 impl<'arena, 'env> Context<'arena, 'env> {
     pub fn new(flexible_exprs: &'env SliceEnv<Option<ArcValue<'arena>>>) -> Context<'arena, 'env> {
-        Context { flexible_exprs }
+        Context {
+            flexible_exprs,
+            pending_formats: Vec::new(),
+        }
     }
 
     fn elim_context(&self) -> semantics::ElimContext<'arena, '_> {
         semantics::ElimContext::new(self.flexible_exprs)
     }
 
-    pub fn read(
-        &self,
+    fn conversion_context(&self) -> semantics::ConversionContext<'arena, '_> {
+        semantics::ConversionContext::new(EnvLen::new(), self.flexible_exprs)
+    }
+
+    // TODO: allow refs to be streamed
+    pub fn read_entrypoint(
+        &mut self,
+        reader: &mut dyn SeekRead,
+        format: ArcValue<'arena>,
+    ) -> io::Result<HashMap<u64, RefData<'arena>>> {
+        let initial_pos = reader.stream_position()?;
+        let mut refs = HashMap::<_, RefData<'_>>::new();
+
+        // Parse the entrypoint from the beginning start of the binary data
+        self.pending_formats.push((0, format));
+
+        // NOTE: This could lead to non-termination if we aren't careful!
+        while let Some((pos, format)) = self.pending_formats.pop() {
+            use std::collections::hash_map::Entry;
+
+            let format_repr = self.elim_context().apply_repr(&format);
+
+            match refs.entry(pos) {
+                Entry::Occupied(entry) => {
+                    let RefData { r#type, .. } = entry.get();
+                    // Ensure that the format's representation type matches the
+                    // type of the stored reference.
+                    if !self.conversion_context().is_equal(r#type, &format_repr) {
+                        return Err(io::Error::new(
+                            io::ErrorKind::Other,
+                            "ref is occupied by an incompatible type",
+                        ));
+                    }
+                }
+                Entry::Vacant(entry) => {
+                    // Seek to current current ref location
+                    reader.seek(SeekFrom::Start(pos))?;
+                    // Parse the data at that location
+                    let expr = self.read_format(reader, &format)?;
+                    // Record the data in the `refs` hashmap
+                    entry.insert(RefData {
+                        r#type: format_repr,
+                        expr,
+                    });
+                }
+            }
+        }
+
+        // Reset reader back to the start
+        reader.seek(SeekFrom::Start(initial_pos))?;
+
+        Ok(refs)
+    }
+
+    fn read_format(
+        &mut self,
         reader: &mut dyn SeekRead,
         format: &ArcValue<'arena>,
     ) -> io::Result<ArcValue<'arena>> {
@@ -52,6 +116,18 @@ impl<'arena, 'env> Context<'arena, 'env> {
                 (Prim::FormatArray16, [Fun(len), Fun(elem)]) => self.read_array(reader, len, elem),
                 (Prim::FormatArray32, [Fun(len), Fun(elem)]) => self.read_array(reader, len, elem),
                 (Prim::FormatArray64, [Fun(len), Fun(elem)]) => self.read_array(reader, len, elem),
+                (Prim::FormatLink8, [Fun(pos), Fun(offset), Fun(elem)]) => {
+                    self.read_link(pos, offset, elem)
+                }
+                (Prim::FormatLink16, [Fun(pos), Fun(offset), Fun(elem)]) => {
+                    self.read_link(pos, offset, elem)
+                }
+                (Prim::FormatLink32, [Fun(pos), Fun(offset), Fun(elem)]) => {
+                    self.read_link(pos, offset, elem)
+                }
+                (Prim::FormatLink64, [Fun(pos), Fun(offset), Fun(elem)]) => {
+                    self.read_link(pos, offset, elem)
+                }
                 (Prim::FormatStreamPos, []) => read_stream_pos(reader),
                 (Prim::FormatFail, []) => {
                     Err(io::Error::new(io::ErrorKind::Other, "parse failure"))
@@ -65,7 +141,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
                 while let Some((format, next_formats)) =
                     self.elim_context().split_telescope(formats)
                 {
-                    let expr = self.read(reader, &format)?;
+                    let expr = self.read_format(reader, &format)?;
                     exprs.push(expr.clone());
                     formats = next_formats(expr);
                 }
@@ -85,7 +161,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
                     // Reset the stream to the start
                     reader.seek(SeekFrom::Start(initial_pos))?;
 
-                    let expr = self.read(reader, &format)?;
+                    let expr = self.read_format(reader, &format)?;
                     exprs.push(expr.clone());
                     formats = next_formats(expr);
 
@@ -112,7 +188,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
     }
 
     fn read_array(
-        &self,
+        &mut self,
         reader: &mut dyn SeekRead,
         len: &ArcValue<'arena>,
         elem_format: &ArcValue<'arena>,
@@ -126,11 +202,37 @@ impl<'arena, 'env> Context<'arena, 'env> {
         };
 
         for _ in 0..len {
-            let expr = self.read(reader, elem_format)?;
+            let expr = self.read_format(reader, elem_format)?;
             elem_exprs.push(expr);
         }
 
         Ok(Arc::new(Value::ArrayIntro(elem_exprs)))
+    }
+
+    pub fn read_link(
+        &mut self,
+        pos: &ArcValue<'arena>,
+        offset: &ArcValue<'arena>,
+        elem_format: &ArcValue<'arena>,
+    ) -> io::Result<ArcValue<'arena>> {
+        let pos = match self.elim_context().force(pos).as_ref() {
+            Value::Const(Const::Pos(pos)) => *pos,
+            _ => return Err(io::Error::new(io::ErrorKind::Other, "invalid link pos")),
+        };
+        let offset = match self.elim_context().force(offset).as_ref() {
+            Value::Const(Const::U8(len)) => *len as u64,
+            Value::Const(Const::U16(len)) => *len as u64,
+            Value::Const(Const::U32(len)) => *len as u64,
+            Value::Const(Const::U64(len)) => *len as u64,
+            _ => return Err(io::Error::new(io::ErrorKind::Other, "invalid link offset")),
+        };
+
+        let r#ref = u64::checked_add(pos, offset)
+            .ok_or_else(|| io::Error::new(io::ErrorKind::Other, "overflowing link"))?;
+
+        self.pending_formats.push((r#ref, elem_format.clone()));
+
+        Ok(Arc::new(Value::Const(Const::Ref(r#ref))))
     }
 }
 
