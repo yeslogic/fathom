@@ -27,13 +27,6 @@ elaboration, and core language is forthcoming.
   - [Stream position formats](#stream-position-formats)
   - [Succeed format](#succeed-format)
   - [Fail format](#fail-format)
-- [Patterns](#patterns)
-  - [Name patterns](#name-patterns)
-  - [Placeholder patterns](#placeholder-patterns)
-  - [Number literal patterns](#number-literal-patterns)
-  - [String literal patterns](#string-literal-patterns)
-  - [Annotated patterns](#annotated-patterns)
-  - [Grouped patterns](#grouped-patterns)
 - [Functions](#functions)
   - [Function types](#function-types)
   - [Function literals](#function-literals)
@@ -92,9 +85,9 @@ If no binding is found, names can refer to one of the built-in primitives:
 
 Shared definitions can be described using let expressions.
 
-A let expression is begun using the `let` keyword, followed by a
-[pattern](#patterns) binding. Any bindings introduced by the pattern are then
-bound as definitions in the _body term_ that follows.
+A let expression is begun using the `let` keyword, followed by a pattern
+binding. Any bindings introduced by the pattern are then bound as definitions
+in the _body term_ that follows.
 
 For example:
 
@@ -110,9 +103,9 @@ origin.x
 Branching can be achieved though the use of match expressions.
 
 Match expressions begin with a `match` keyword, followed by a head expression,
-and a sequence of zero-or-more equations. The equations consist of a
-[pattern](#patterns) and a body expression. Any bindings introduced by the
-pattern are then bound as parameters in the body expression.
+and a sequence of zero-or-more equations. The equations consist of a pattern and
+a body expression. Any bindings introduced by the pattern are then bound as
+parameters in the body expression.
 
 An error is reported if there are any cases missing in the pattern match.
 
@@ -385,32 +378,6 @@ parsing.
 | format | `Repr` format |
 | ------ | ------------- |
 | `fail` | `Void`        |
-
-## Patterns
-
-### Name patterns
-
-> **TODO**: document name patterns
-
-### Placeholder patterns
-
-> **TODO**: document placeholder patterns
-
-### Number literal patterns
-
-> **TODO**: number literal patterns
-
-### String literal patterns
-
-> **TODO**: document string literal patterns
-
-### Annotated patterns
-
-> **TODO**: annotated patterns
-
-### Grouped patterns
-
-Parentheses can be used to group patterns.
 
 ## Functions
 
