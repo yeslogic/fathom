@@ -59,7 +59,8 @@ During elaboration, names are resolved to variables bound by:
 - [let expressions](#let-expressions)
 - [function types](#function-types)
 - [function literals](#function-literals)
-- [sequence formats](#sequence-formats)
+- [record formats](#record-formats)
+- [overlap formats](#overlap-formats)
 - [record types](#record-types)
 
 Depending on the binder, these variables might either be bound as definitions or
