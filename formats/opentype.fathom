@@ -77,6 +77,13 @@ let tag : Format =
     // array8 4 u8;
     u32be;
 
+/// # Unknown table format
+///
+/// This is a placeholder for a table that has an unknown identifier (due to the
+/// file conforming to a newer version of the specification), or for a table has
+/// not yet been implemented.
+let unknown_table : Format = {};
+
 /// A format that consumes no input.
 let empty : Format = {};
 
@@ -236,15 +243,15 @@ let character_map_subtable = fun (platform : Repr platform_id) => {
     // TODO: format-specific subtable data
     data <- match format {
         0 => byte_encoding_table platform,
-        2 => fail, // TODO: Format 2: High-byte mapping through table
-        4 => fail, // TODO: Format 4: Segment mapping to delta values
-        6 => fail, // TODO: Format 6: Trimmed table mapping
-        8 => fail, // TODO: Format 8: mixed 16-bit and 32-bit coverage
-        10 => fail, // TODO: Format 10: Trimmed array
-        12 => fail, // TODO: Format 12: Segmented coverage
-        13 => fail, // TODO: Format 13: Many-to-one range mappings
-        14 => fail, // TODO: Format 14: Unicode Variation Sequences
-        _ => fail,
+        2 => unknown_table, // TODO: Format 2: High-byte mapping through table
+        4 => unknown_table, // TODO: Format 4: Segment mapping to delta values
+        6 => unknown_table, // TODO: Format 6: Trimmed table mapping
+        8 => unknown_table, // TODO: Format 8: mixed 16-bit and 32-bit coverage
+        10 => unknown_table, // TODO: Format 10: Trimmed array
+        12 => unknown_table, // TODO: Format 12: Segmented coverage
+        13 => unknown_table, // TODO: Format 13: Many-to-one range mappings
+        14 => unknown_table, // TODO: Format 14: Unicode Variation Sequences
+        _ => unknown_table,
     },
 };
 
@@ -673,7 +680,7 @@ let naming = {
 //
 // - [Microsoft's OpenType Spec: BASE — Baseline Table](https://docs.microsoft.com/en-us/typography/opentype/spec/base)
 
-let baseline_data = fail;
+let baseline_data = unknown_table;
 
 
 // -----------------------------------------------------------------------------
@@ -682,7 +689,7 @@ let baseline_data = fail;
 //
 // - [Microsoft's OpenType Spec: GDEF — Glyph Definition Table](https://docs.microsoft.com/en-us/typography/opentype/spec/gdef)
 
-let glyph_definition_data = fail;
+let glyph_definition_data = unknown_table;
 
 
 // -----------------------------------------------------------------------------
@@ -691,7 +698,7 @@ let glyph_definition_data = fail;
 //
 // - [Microsoft's OpenType Spec: GPOS — Glyph Positioning Table](https://docs.microsoft.com/en-us/typography/opentype/spec/gpos)
 
-let glyph_positioning_data = fail;
+let glyph_positioning_data = unknown_table;
 
 
 // -----------------------------------------------------------------------------
@@ -700,7 +707,7 @@ let glyph_positioning_data = fail;
 //
 // - [Microsoft's OpenType Spec: GSUB — Glyph Substitution Table](https://docs.microsoft.com/en-us/typography/opentype/spec/gsub)
 
-let glyph_substitution_data = fail;
+let glyph_substitution_data = unknown_table;
 
 
 // -----------------------------------------------------------------------------
@@ -709,7 +716,7 @@ let glyph_substitution_data = fail;
 //
 // - [Microsoft's OpenType Spec: JSTF — Justification Table](https://docs.microsoft.com/en-us/typography/opentype/spec/jstf)
 
-let justification_data = fail;
+let justification_data = unknown_table;
 
 
 // -----------------------------------------------------------------------------
@@ -718,7 +725,7 @@ let justification_data = fail;
 //
 // - [Microsoft's OpenType Spec: MATH - The Mathematical Typesetting Table](https://docs.microsoft.com/en-us/typography/opentype/spec/math)
 
-let math_layout_data = fail;
+let math_layout_data = unknown_table;
 
 
 // -----------------------------------------------------------------------------
@@ -736,6 +743,7 @@ let math_layout_data = fail;
 //
 // - [Microsoft's OpenType Spec: Organization of an OpenType Font](https://docs.microsoft.com/en-us/typography/opentype/spec/otff#organization-of-an-opentype-font)
 // - [Apple's TrueType Reference Manual: TrueType Font files](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6.html#Overview)
+
 
 /// # Font Table
 ///
@@ -757,40 +765,40 @@ let font_table = fun (table_id : Repr tag) => fun (length : U32) => match table_
     "hmtx" => horizontal_metrics 0 0,
     "maxp" => maximum_profile,
     "name" => naming,
-    "OS/2" => fail,
-    "post" => fail,
+    "OS/2" => unknown_table,
+    "post" => unknown_table,
 
     // TrueType Outline Tables
     //
     // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#tables-related-to-truetype-outlines
-    "cvt " => fail,
-    "fpgm" => fail,
-    "glyf" => fail,
-    "loca" => fail,
-    "prep" => fail,
-    "gasp" => fail,
+    "cvt " => unknown_table,
+    "fpgm" => unknown_table,
+    "glyf" => unknown_table,
+    "loca" => unknown_table,
+    "prep" => unknown_table,
+    "gasp" => unknown_table,
 
     // CFF Outline Tables
     //
     // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#tables-related-to-cff-outlines
-    "CFF " => fail,
-    "CFF2" => fail,
-    "VORG" => fail,
+    "CFF " => unknown_table,
+    "CFF2" => unknown_table,
+    "VORG" => unknown_table,
 
     // SVG Outline Tables
     //
     // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#table-related-to-svg-outlines
-    "SVG " => fail,
+    "SVG " => unknown_table,
 
     // Bitmap Glyph Tables
     //
     // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#tables-related-to-bitmap-glyphs
-    "EBDT" => fail,
-    "EBLC" => fail,
-    "EBSC" => fail,
-    "CBDT" => fail,
-    "CBLC" => fail,
-    "sbix" => fail,
+    "EBDT" => unknown_table,
+    "EBLC" => unknown_table,
+    "EBSC" => unknown_table,
+    "CBDT" => unknown_table,
+    "CBLC" => unknown_table,
+    "sbix" => unknown_table,
 
     // Advanced Typographic Tables
     //
@@ -805,42 +813,42 @@ let font_table = fun (table_id : Repr tag) => fun (length : U32) => match table_
     // OpenType Font Variation Tables
     //
     // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#tables-used-for-opentype-font-variations
-    "avar" => fail,
-    "cvar" => fail,
-    "fvar" => fail,
-    "gvar" => fail,
-    "HVAR" => fail,
-    "MVAR" => fail,
-    "STAT" => fail,
-    "VVAR" => fail,
+    "avar" => unknown_table,
+    "cvar" => unknown_table,
+    "fvar" => unknown_table,
+    "gvar" => unknown_table,
+    "HVAR" => unknown_table,
+    "MVAR" => unknown_table,
+    "STAT" => unknown_table,
+    "VVAR" => unknown_table,
 
     // Color Font Tables
     //
     // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#tables-related-to-color-fonts
-    "COLR" => fail,
-    "CPAL" => fail,
-    "CBDT" => fail,
-    "CBLC" => fail,
-    "sbix" => fail,
-    "SVG " => fail,
+    "COLR" => unknown_table,
+    "CPAL" => unknown_table,
+    "CBDT" => unknown_table,
+    "CBLC" => unknown_table,
+    "sbix" => unknown_table,
+    "SVG " => unknown_table,
 
     // Other OpenType Tables
     //
     // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#other-opentype-tables
-    "DSIG" => fail,
-    "hdmx" => fail,
-    "kern" => fail,
-    "LTSH" => fail,
-    "MERG" => fail,
-    "meta" => fail,
-    "STAT" => fail,
-    "PCLT" => fail,
-    "VDMX" => fail,
-    "vhea" => fail,
-    "vmtx" => fail,
+    "DSIG" => unknown_table,
+    "hdmx" => unknown_table,
+    "kern" => unknown_table,
+    "LTSH" => unknown_table,
+    "MERG" => unknown_table,
+    "meta" => unknown_table,
+    "STAT" => unknown_table,
+    "PCLT" => unknown_table,
+    "VDMX" => unknown_table,
+    "vhea" => unknown_table,
+    "vmtx" => unknown_table,
 
     // TODO: Error message
-    _ => fail,
+    _ => unknown_table,
 };
 
 /// # Table Record
