@@ -53,7 +53,10 @@ impl<'arena, 'env> Context<'arena, 'env> {
                 (Prim::FormatArray32, [Fun(len), Fun(elem)]) => self.read_array(reader, len, elem),
                 (Prim::FormatArray64, [Fun(len), Fun(elem)]) => self.read_array(reader, len, elem),
                 (Prim::FormatStreamPos, []) => read_stream_pos(reader),
-                _ => return Err(io::Error::new(io::ErrorKind::Other, "invalid format")),
+                (Prim::FormatFail, []) => {
+                    Err(io::Error::new(io::ErrorKind::Other, "parse failure"))
+                }
+                _ => Err(io::Error::new(io::ErrorKind::Other, "invalid format")),
             },
             Value::FormatRecord(labels, formats) => {
                 let mut formats = formats.clone();
@@ -104,9 +107,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
             | Value::RecordType(_, _)
             | Value::RecordIntro(_, _)
             | Value::ArrayIntro(_)
-            | Value::Const(_) => {
-                return Err(io::Error::new(io::ErrorKind::Other, "invalid format"))
-            }
+            | Value::Const(_) => Err(io::Error::new(io::ErrorKind::Other, "invalid format")),
         }
     }
 
