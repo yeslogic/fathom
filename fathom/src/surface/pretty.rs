@@ -281,10 +281,10 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 start_delim.clone(),
                 self.concat(
                     docs.clone()
-                        .map(|doc| self.concat([self.line(), doc, separator.clone()])),
+                        .map(|doc| self.concat([self.hardline(), doc, separator.clone()])),
                 )
                 .nest(INDENT),
-                self.line(),
+                self.hardline(),
                 end_delim.clone(),
             ]),
             self.concat([
