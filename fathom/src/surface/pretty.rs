@@ -15,6 +15,8 @@ pub enum Prec {
     Atomic,
 }
 
+const INDENT: isize = 4;
+
 pub struct Context<'interner, 'arena> {
     interner: &'interner RefCell<StringInterner>,
     scope: &'arena Scope<'arena>,
@@ -32,14 +34,6 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         match self.interner.borrow().resolve(name) {
             Some(name) => self.text(name.to_owned()),
             None => self.text("#error"),
-        }
-    }
-
-    fn paren(&'arena self, wrap: bool, doc: DocBuilder<'arena, Self>) -> DocBuilder<'arena, Self> {
-        if wrap {
-            self.concat([self.text("("), doc, self.text(")")])
-        } else {
-            doc
         }
     }
 
@@ -119,29 +113,26 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                     self.term_prec(Prec::Let, output_expr),
                 ]),
             ),
-            Term::Match(_, scrutinee, equations) => self
-                .concat([
+            Term::Match(_, scrutinee, equations) => self.sequence(
+                self.concat([
                     self.text("match"),
                     self.space(),
                     self.term_prec(Prec::Atomic, scrutinee),
                     self.space(),
                     self.text("{"),
-                    self.softline(),
-                    self.intersperse(
-                        equations.iter().map(|(pattern, output_expr)| {
-                            self.concat([
-                                self.pattern_prec(Prec::Top, pattern),
-                                self.space(),
-                                self.text("=>"),
-                                self.space(),
-                                self.term_prec(Prec::Top, r#output_expr),
-                            ])
-                        }),
-                        self.concat([self.text(","), self.softline()]),
-                    ),
-                    self.text("}"),
-                ])
-                .group(),
+                ]),
+                equations.iter().map(|(pattern, output_expr)| {
+                    self.concat([
+                        self.pattern_prec(Prec::Top, pattern),
+                        self.space(),
+                        self.text("=>"),
+                        self.space(),
+                        self.term_prec(Prec::Top, r#output_expr),
+                    ])
+                }),
+                self.text(","),
+                self.text("}"),
+            ),
             Term::Universe(_) => self.text("Type"),
             Term::FunType(_, input_pattern, output_type) => self.paren(
                 prec > Prec::Fun,
@@ -191,102 +182,119 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                     self.term_prec(Prec::Atomic, input_expr),
                 ]),
             ),
-            Term::RecordType(_, type_fields) => self.concat([
+            Term::RecordType(_, type_fields) => self.sequence(
                 self.text("{"),
-                self.space(),
-                self.intersperse(
-                    type_fields.iter().map(|((_, label), r#type)| {
-                        self.concat([
-                            self.string_id(*label),
-                            self.space(),
-                            self.text(":"),
-                            self.space(),
-                            self.term_prec(Prec::Top, r#type),
-                        ])
-                    }),
-                    self.concat([self.text(","), self.space()]),
-                ),
-                self.space(),
+                type_fields.iter().map(|((_, label), r#type)| {
+                    self.concat([
+                        self.string_id(*label),
+                        self.space(),
+                        self.text(":"),
+                        self.space(),
+                        self.term_prec(Prec::Top, r#type),
+                    ])
+                }),
+                self.text(","),
                 self.text("}"),
-            ]),
-            Term::RecordLiteral(_, expr_fields) => self.concat([
+            ),
+            Term::RecordLiteral(_, expr_fields) => self.sequence(
                 self.text("{"),
-                self.space(),
-                self.intersperse(
-                    expr_fields.iter().map(|((_, label), r#expr)| {
-                        self.concat([
-                            self.string_id(*label),
-                            self.space(),
-                            self.text("="),
-                            self.space(),
-                            self.term_prec(Prec::Top, r#expr),
-                        ])
-                    }),
-                    self.concat([self.text(","), self.space()]),
-                ),
-                self.space(),
+                expr_fields.iter().map(|((_, label), r#expr)| {
+                    self.concat([
+                        self.string_id(*label),
+                        self.space(),
+                        self.text("="),
+                        self.space(),
+                        self.term_prec(Prec::Top, r#expr),
+                    ])
+                }),
+                self.text(","),
                 self.text("}"),
-            ]),
+            ),
             Term::UnitLiteral(_) => self.text("{}"),
             Term::RecordElim(_, head_expr, (_, label)) => self.concat([
                 self.term_prec(Prec::Atomic, head_expr),
                 self.text("."),
                 self.string_id(*label),
             ]),
-            Term::ArrayLiteral(_, exprs) => self.concat([
+            Term::ArrayLiteral(_, exprs) => self.sequence(
                 self.text("["),
-                self.space(),
-                self.intersperse(
-                    exprs.iter().map(|expr| self.term_prec(Prec::Top, expr)),
-                    self.concat([self.text(","), self.space()]),
-                ),
-                self.space(),
+                exprs.iter().map(|expr| self.term_prec(Prec::Top, expr)),
+                self.text(","),
                 self.text("]"),
-            ]),
+            ),
             Term::StringLiteral(_, number) => {
                 self.concat([self.text("\""), self.string_id(*number), self.text("\"")])
             }
             Term::NumberLiteral(_, number) => self.string_id(*number),
-            Term::FormatRecord(_, format_fields) => self.concat([
+            Term::FormatRecord(_, format_fields) => self.sequence(
                 self.text("{"),
-                self.space(),
-                self.intersperse(
-                    format_fields.iter().map(|((_, label), format)| {
-                        self.concat([
-                            self.string_id(*label),
-                            self.space(),
-                            self.text("<-"),
-                            self.space(),
-                            self.term_prec(Prec::Top, format),
-                        ])
-                    }),
-                    self.concat([self.text(","), self.space()]),
-                ),
-                self.space(),
+                format_fields.iter().map(|((_, label), format)| {
+                    self.concat([
+                        self.string_id(*label),
+                        self.space(),
+                        self.text("<-"),
+                        self.space(),
+                        self.term_prec(Prec::Top, format),
+                    ])
+                }),
+                self.text(","),
                 self.text("}"),
-            ]),
-            Term::FormatOverlap(_, format_fields) => self.concat([
-                self.text("overlap "),
-                self.space(),
-                self.text("{"),
-                self.space(),
-                self.intersperse(
-                    format_fields.iter().map(|((_, label), format)| {
-                        self.concat([
-                            self.string_id(*label),
-                            self.space(),
-                            self.text("<-"),
-                            self.space(),
-                            self.term_prec(Prec::Top, format),
-                        ])
-                    }),
-                    self.concat([self.text(","), self.space()]),
-                ),
-                self.space(),
+            ),
+            Term::FormatOverlap(_, format_fields) => self.sequence(
+                self.concat([self.text("overlap"), self.space(), self.text("{")]),
+                format_fields.iter().map(|((_, label), format)| {
+                    self.concat([
+                        self.string_id(*label),
+                        self.space(),
+                        self.text("<-"),
+                        self.space(),
+                        self.term_prec(Prec::Top, format),
+                    ])
+                }),
+                self.text(","),
                 self.text("}"),
-            ]),
+            ),
             Term::ReportedError(_) => self.text("#error"),
         }
+    }
+
+    /// Wrap a document in parens.
+    fn paren(&'arena self, wrap: bool, doc: DocBuilder<'arena, Self>) -> DocBuilder<'arena, Self> {
+        if wrap {
+            self.concat([self.text("("), doc, self.text(")")])
+        } else {
+            doc
+        }
+    }
+
+    /// Pretty prints a delimited sequence of documents with a trailing
+    /// separator if it is formatted over multiple lines.
+    fn sequence(
+        &'arena self,
+        start_delim: DocBuilder<'arena, Self>,
+        docs: impl Iterator<Item = DocBuilder<'arena, Self>> + Clone,
+        separator: DocBuilder<'arena, Self>,
+        end_delim: DocBuilder<'arena, Self>,
+    ) -> DocBuilder<'arena, Self> {
+        DocBuilder::flat_alt(
+            self.concat([
+                start_delim.clone(),
+                self.concat(
+                    docs.clone()
+                        .map(|doc| self.concat([self.line(), doc, separator.clone()])),
+                )
+                .nest(INDENT),
+                self.line(),
+                end_delim.clone(),
+            ]),
+            self.concat([
+                start_delim,
+                self.space(),
+                self.intersperse(docs, self.concat([separator, self.space()])),
+                self.space(),
+                end_delim,
+            ]),
+        )
     }
 }
 
@@ -330,6 +338,7 @@ impl<'interner, 'arena, A: 'arena> DocAllocator<'arena, A> for Context<'interner
             // Language tokens
             Doc::BorrowedText("fun") => &Doc::BorrowedText("fun"),
             Doc::BorrowedText("let") => &Doc::BorrowedText("let"),
+            Doc::BorrowedText("overlap") => &Doc::BorrowedText("overlap"),
             Doc::BorrowedText("Type") => &Doc::BorrowedText("Type"),
             Doc::BorrowedText(":") => &Doc::BorrowedText(":"),
             Doc::BorrowedText(",") => &Doc::BorrowedText(","),
