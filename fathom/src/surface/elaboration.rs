@@ -1277,7 +1277,6 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         scrutinee_expr: &'arena core::Term<'arena>,
         scrutinee_type: &ArcValue<'arena>,
         mut equations: &[(Pattern<'_, ByteRange>, Term<'_, ByteRange>)],
-        /* default expression: &Fn() -> Term<'arena> */
         expected_type: &ArcValue<'arena>,
     ) -> core::Term<'arena> {
         match equations.split_first() {
@@ -1357,6 +1356,9 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                                 CheckedPattern::Name(_, _)
                                 | CheckedPattern::Placeholder(_)
                                 | CheckedPattern::ReportedError(_) => {
+                                    // Push the default parameter of the constant elimination
+                                    self.push_rigid_param(def_pattern, scrutinee_type.clone());
+
                                     // Check the default expression and any other
                                     // unreachable equaltions following that.
                                     let default_expr = self.check_match(
@@ -1368,6 +1370,8 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                                         equations,
                                         expected_type,
                                     );
+
+                                    self.rigid_env.pop();
 
                                     return core::Term::ConstElim(
                                         scrutinee_expr,
