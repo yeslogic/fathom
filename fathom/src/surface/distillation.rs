@@ -164,6 +164,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
 
                 Term::ArrayLiteral((), scope.to_scope_from_iter(elem_exprs))
             }
+            core::Term::FormatRecord(labels, _) if labels.is_empty() => Term::UnitLiteral(()),
             core::Term::Const(r#const) => match r#const {
                 core::Const::U8(number) => self.check_number_literal(number),
                 core::Const::U16(number) => self.check_number_literal(number),
@@ -226,7 +227,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                         core::EntryInfo::Concrete => {}
                         core::EntryInfo::Abstract => {
                             let var = self.rigid_len().global_to_local(var).unwrap();
-                            let input_expr = self.synth(&core::Term::RigidVar(var));
+                            let input_expr = self.check(&core::Term::RigidVar(var));
                             head_expr = Term::FunElim(
                                 (),
                                 self.scope.to_scope(head_expr),
@@ -295,7 +296,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
             }
             core::Term::FunElim(head_expr, input_expr) => {
                 let head_expr = self.synth(head_expr);
-                let input_expr = self.synth(input_expr);
+                let input_expr = self.check(input_expr);
 
                 Term::FunElim(
                     (),
