@@ -44,7 +44,7 @@ impl<'arena> RigidEnv<'arena> {
 
     pub fn default(
         interner: &RefCell<StringInterner>,
-        _scope: &'arena Scope<'arena>,
+        scope: &'arena Scope<'arena>,
     ) -> RigidEnv<'arena> {
         use crate::core::Term;
         use crate::env::LocalVar;
@@ -52,6 +52,7 @@ impl<'arena> RigidEnv<'arena> {
         const UNIVERSE: Term<'_> = Term::Universe;
         const VAR0: Term<'_> = Term::RigidVar(LocalVar::last());
         const FORMAT_TYPE: Term<'_> = Term::Prim(Prim::FormatType);
+        const FORMAT_FUN: Term<'_> = Term::FunType(None, &FORMAT_TYPE, &FORMAT_TYPE);
 
         let mut env = RigidEnv::new();
 
@@ -69,9 +70,15 @@ impl<'arena> RigidEnv<'arena> {
         };
         let format_array = |index_type: Prim| {
             let index_type = Arc::new(Value::prim(index_type, []));
-            let output_type = close(&Term::FunType(None, &FORMAT_TYPE, &FORMAT_TYPE));
 
-            Arc::new(Value::FunType(None, index_type, output_type))
+            Arc::new(Value::FunType(None, index_type, close(&FORMAT_FUN)))
+        };
+        let format_link = |offset_type: Prim| {
+            let pos_type = Arc::new(Value::prim(Prim::PosType, []));
+            let offset_type = scope.to_scope(Term::Prim(offset_type));
+            let output_type = close(scope.to_scope(Term::FunType(None, offset_type, &FORMAT_FUN)));
+
+            Arc::new(Value::FunType(None, pos_type, output_type))
         };
 
         let mut define_prim = |prim: Prim, r#type| {
@@ -95,6 +102,10 @@ impl<'arena> RigidEnv<'arena> {
         define_prim(Prim::Array32Type, array_type(Prim::U32Type));
         define_prim(Prim::Array64Type, array_type(Prim::U64Type));
         define_prim(Prim::PosType, universe());
+        define_prim(
+            Prim::RefType,
+            Arc::new(Value::FunType(None, universe(), close(&UNIVERSE))),
+        );
 
         define_prim(Prim::FormatType, universe());
         define_prim(
@@ -128,6 +139,10 @@ impl<'arena> RigidEnv<'arena> {
         define_prim(Prim::FormatArray16, format_array(Prim::U16Type));
         define_prim(Prim::FormatArray32, format_array(Prim::U32Type));
         define_prim(Prim::FormatArray64, format_array(Prim::U64Type));
+        define_prim(Prim::FormatLink8, format_link(Prim::U8Type));
+        define_prim(Prim::FormatLink16, format_link(Prim::U16Type));
+        define_prim(Prim::FormatLink32, format_link(Prim::U32Type));
+        define_prim(Prim::FormatLink64, format_link(Prim::U64Type));
         define_prim(Prim::FormatStreamPos, format_type());
         define_prim(
             Prim::FormatRepr,
@@ -1277,7 +1292,6 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         scrutinee_expr: &'arena core::Term<'arena>,
         scrutinee_type: &ArcValue<'arena>,
         mut equations: &[(Pattern<'_, ByteRange>, Term<'_, ByteRange>)],
-        /* default expression: &Fn() -> Term<'arena> */
         expected_type: &ArcValue<'arena>,
     ) -> core::Term<'arena> {
         match equations.split_first() {
@@ -1357,6 +1371,9 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                                 CheckedPattern::Name(_, _)
                                 | CheckedPattern::Placeholder(_)
                                 | CheckedPattern::ReportedError(_) => {
+                                    // Push the default parameter of the constant elimination
+                                    self.push_rigid_param(def_pattern, scrutinee_type.clone());
+
                                     // Check the default expression and any other
                                     // unreachable equaltions following that.
                                     let default_expr = self.check_match(
@@ -1368,6 +1385,8 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                                         equations,
                                         expected_type,
                                     );
+
+                                    self.rigid_env.pop();
 
                                     return core::Term::ConstElim(
                                         scrutinee_expr,

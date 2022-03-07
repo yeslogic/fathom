@@ -15,6 +15,7 @@ let test_Array16 : U16 -> Type -> Type = Array16;
 let test_Array32 : U32 -> Type -> Type = Array32;
 let test_Array64 : U64 -> Type -> Type = Array64;
 let test_Pos : Type = Pos;
+let test_Ref : Type -> Type = Ref;
 
 let test_U8_literal : U8 = 1;
 let test_U16_literal : U16 = 1;
@@ -52,6 +53,10 @@ let test_array8 : U8 -> Format -> Format = array8;
 let test_array16 : U16 -> Format -> Format = array16;
 let test_array32 : U32 -> Format -> Format = array32;
 let test_array64 : U64 -> Format -> Format = array64;
+let test_link8 : Pos -> U8 -> Format -> Format = link8;
+let test_link16 : Pos -> U16 -> Format -> Format = link16;
+let test_link32 : Pos -> U32 -> Format -> Format = link32;
+let test_link64 : Pos -> U64 -> Format -> Format = link64;
 let test_stream_pos : Format = stream_pos;
 let test_repr : Format -> Type = Repr;
 

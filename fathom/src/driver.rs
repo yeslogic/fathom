@@ -214,6 +214,8 @@ impl<'surface, 'core> Driver<'surface, 'core> {
     }
 
     pub fn read_format(&mut self, file_id: FileId, reader: &mut dyn binary::SeekRead) -> Status {
+        use itertools::Itertools;
+        use pretty::DocAllocator;
         use std::sync::Arc;
 
         use crate::core::semantics::Value;
@@ -233,14 +235,33 @@ impl<'surface, 'core> Driver<'surface, 'core> {
         }
 
         let format = context.eval_context().eval(&format);
-        let data = context.binary_context().read(reader, &format).unwrap(); // TODO: render nicer errors
-        let data = context.quote_context(&self.core_scope).quote(&data);
+        let refs = context
+            .binary_context()
+            .read_entrypoint(reader, format)
+            .unwrap(); // TODO: render nicer errors
 
-        self.surface_scope.reset(); // Reuse the surface scope for distillation
-        let mut context = context.distillation_context(&self.surface_scope);
-        let data = context.check(&data);
+        for (pos, data) in refs.into_iter().sorted_by_key(|(pos, _)| *pos) {
+            let expr = context.quote_context(&self.core_scope).quote(&data.expr);
 
-        self.emit_term(&data);
+            self.surface_scope.reset(); // Reuse the surface scope for distillation
+            let expr = context
+                .distillation_context(&self.surface_scope)
+                .check(&expr);
+
+            let context = surface::pretty::Context::new(&self.interner, &self.surface_scope);
+            let pos = pos.to_string();
+            let doc = context
+                .concat([
+                    context.text(&pos),
+                    context.space(),
+                    context.text("="),
+                    context.space(),
+                    context.term(&expr),
+                ])
+                .into_doc();
+
+            self.emit_doc(doc);
+        }
 
         Status::Ok
     }
@@ -253,8 +274,10 @@ impl<'surface, 'core> Driver<'surface, 'core> {
 
     fn emit_term(&self, term: &surface::Term<'_, ()>) {
         let context = surface::pretty::Context::new(&self.interner, &self.surface_scope);
-        let doc = context.term(term).into_doc();
+        self.emit_doc(context.term(term).into_doc());
+    }
 
+    fn emit_doc(&self, doc: pretty::RefDoc) {
         let mut emit_writer = self.emit_writer.borrow_mut();
         writeln!(emit_writer, "{}", doc.pretty(self.emit_width)).unwrap();
         emit_writer.flush().unwrap();

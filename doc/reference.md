@@ -24,6 +24,7 @@ elaboration, and core language is forthcoming.
   - [Overlap formats](#overlap-formats)
   - [Number formats](#number-formats)
   - [Array formats](#array-formats)
+  - [Link formats](#link-formats)
   - [Stream position formats](#stream-position-formats)
   - [Succeed format](#succeed-format)
   - [Fail format](#fail-format)
@@ -42,6 +43,7 @@ elaboration, and core language is forthcoming.
   - [Array types](#array-types)
   - [Array literals](#array-literals)
 - [Positions](#positions)
+- [References](#references)
 - [Void](#void)
 
 ## Structure
@@ -69,17 +71,17 @@ definition during evaluation.
 
 If no binding is found, names can refer to one of the built-in primitives:
 
-- `Format`
+- `Format`, `Repr`
 - `u8`, `u16be`, `u16le`, `u32be`, `u32le`, `u64be`, `u64le`
 - `s8`, `s16be`, `s16le`, `s32be`, `s32le`, `s64be`, `s64le`
 - `f32be`, `f32le`, `f64be`, `f64le`
 - `array8`, `array16`, `array32`, `array64`
+- `link8`, `link16`, `link32`, `link64`
 - `stream_pos`
 - `succeed`, `fail`
-- `Repr`
 - `U8`, `U16`, `U32`, `U64`, `S8`, `S16`, `S32`, `S64`, `F32`, `F64`
 - `Array8`, `Array16`, `Array32`, `Array64`
-- `Pos`
+- `Pos`, `Ref`
 - `Void`
 
 ### Let expressions
@@ -342,6 +344,31 @@ of the host array types.
 | `array32 len format`   | `Array32 len (Repr format)`         |
 | `array64 len format`   | `Array64 len (Repr format)`         |
 
+### Link formats
+
+Link formats allow for references to other parts of a binary stream to be
+registered during parsing. They take a base [position](#positions), an offset
+from that position, and a format to expect at that position.
+
+There is a different link type for each unsigned integer offset:
+
+- `link8 : Pos -> U8 -> Format -> Format`
+- `link16 : Pos -> U16 -> Format -> Format`
+- `link32 : Pos -> U32 -> Format -> Format`
+- `link64 : Pos -> U64 -> Format -> Format`
+
+#### Representation of link formats
+
+Links formats are [represented](#format-representations) as typed
+[references](#references) to other parts of the binary stream.
+
+| format                       | `Repr` format               |
+| ---------------------------- | --------------------------- |
+| `link8 pos offset format`    | `Ref (Repr format)`         |
+| `link16 pos offset format`   | `Ref (Repr format)`         |
+| `link32 pos offset format`   | `Ref (Repr format)`         |
+| `link64 pos offset format`   | `Ref (Repr format)`         |
+
 ### Stream position formats
 
 The stream position format is interpreted as the current stream position during
@@ -375,6 +402,8 @@ parsing.
 - `fail : Format`
 
 #### Representation of fail format
+
+The fail format should never produce a term, so is represented with [void](#void).
 
 | format | `Repr` format |
 | ------ | ------------- |
@@ -580,6 +609,16 @@ Stream positions are represented as an abstract datatype:
 
 Positions are usually encountered as a result of parsing a [stream position
 format](#stream-position-formats).
+
+## References
+
+References are like [stream positions](#positions), only they also have an
+expected type given as well:
+
+- `Ref : Type -> Type`
+
+References are usually encountered as a result of parsing a [link
+format](#link-formats).
 
 ## Void
 

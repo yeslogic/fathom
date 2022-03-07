@@ -92,6 +92,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
             core::Const::F32(number) => self.check_number_pattern(number),
             core::Const::F64(number) => self.check_number_pattern(number),
             core::Const::Pos(number) => self.check_number_pattern(number),
+            core::Const::Ref(number) => self.check_number_pattern(number),
         }
     }
 
@@ -177,6 +178,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 core::Const::F32(number) => self.check_number_literal(number),
                 core::Const::F64(number) => self.check_number_literal(number),
                 core::Const::Pos(number) => self.check_number_literal(number),
+                core::Const::Ref(number) => self.check_number_literal(number),
             },
             core::Term::ConstElim(head_expr, branches, default_expr) => {
                 let head_expr = self.synth(head_expr);
@@ -364,6 +366,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 core::Const::F32(number) => self.synth_number_literal(number, core::Prim::F32Type),
                 core::Const::F64(number) => self.synth_number_literal(number, core::Prim::F64Type),
                 core::Const::Pos(number) => self.synth_number_literal(number, core::Prim::PosType),
+                core::Const::Ref(number) => self.synth_number_literal(number, core::Prim::RefType),
             },
             core::Term::ConstElim(head_expr, branches, default_expr) => {
                 let head_expr = self.synth(head_expr);
