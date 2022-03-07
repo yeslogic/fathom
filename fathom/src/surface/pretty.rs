@@ -272,29 +272,33 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
     fn sequence(
         &'arena self,
         start_delim: DocBuilder<'arena, Self>,
-        docs: impl Iterator<Item = DocBuilder<'arena, Self>> + Clone,
+        docs: impl ExactSizeIterator<Item = DocBuilder<'arena, Self>> + Clone,
         separator: DocBuilder<'arena, Self>,
         end_delim: DocBuilder<'arena, Self>,
     ) -> DocBuilder<'arena, Self> {
-        DocBuilder::flat_alt(
-            self.concat([
-                start_delim.clone(),
-                self.concat(
-                    docs.clone()
-                        .map(|doc| self.concat([self.hardline(), doc, separator.clone()])),
-                )
-                .nest(INDENT),
-                self.hardline(),
-                end_delim.clone(),
-            ]),
-            self.concat([
-                start_delim,
-                self.space(),
-                self.intersperse(docs, self.concat([separator, self.space()])),
-                self.space(),
-                end_delim,
-            ]),
-        )
+        if docs.len() == 0 {
+            self.concat([start_delim, end_delim])
+        } else {
+            DocBuilder::flat_alt(
+                self.concat([
+                    start_delim.clone(),
+                    self.concat(
+                        docs.clone()
+                            .map(|doc| self.concat([self.hardline(), doc, separator.clone()])),
+                    )
+                    .nest(INDENT),
+                    self.hardline(),
+                    end_delim.clone(),
+                ]),
+                self.concat([
+                    start_delim,
+                    self.space(),
+                    self.intersperse(docs, self.concat([separator, self.space()])),
+                    self.space(),
+                    end_delim,
+                ]),
+            )
+        }
     }
 }
 
