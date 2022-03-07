@@ -793,6 +793,9 @@ impl<'arena, 'env> ConversionContext<'arena, 'env> {
                         match (elim0, elim1) {
                             (Elim::Fun(expr0), Elim::Fun(expr1)) => self.is_equal(expr0, expr1),
                             (Elim::Record(label0), Elim::Record(label1)) => label0 == label1,
+                            (Elim::Const(split0), Elim::Const(split1)) => {
+                                self.is_equal_splits(split0, split1)
+                            }
                             (_, _) => false,
                         }
                     })
@@ -840,7 +843,8 @@ impl<'arena, 'env> ConversionContext<'arena, 'env> {
                     .all(|(elem_expr0, elem_expr1)| self.is_equal(&elem_expr0, &elem_expr1))
             }
 
-            (Value::FormatRecord(labels0, formats0), Value::FormatRecord(labels1, formats1)) => {
+            (Value::FormatRecord(labels0, formats0), Value::FormatRecord(labels1, formats1))
+            | (Value::FormatOverlap(labels0, formats0), Value::FormatOverlap(labels1, formats1)) => {
                 labels0 == labels1 && self.is_equal_telescopes(formats0, formats1)
             }
 
@@ -894,6 +898,31 @@ impl<'arena, 'env> ConversionContext<'arena, 'env> {
 
         self.rigid_exprs.truncate(initial_rigid_len);
         true
+    }
+
+    /// Check that two [case splits][Split] are equal.
+    fn is_equal_splits(&mut self, split0: &Split<'_>, split1: &Split<'_>) -> bool {
+        let mut split0 = split0.clone();
+        let mut split1 = split1.clone();
+
+        loop {
+            match (
+                self.elim_context().split_const_branches(split0),
+                self.elim_context().split_const_branches(split1),
+            ) {
+                (
+                    Ok(((const0, output_expr0), next_split0)),
+                    Ok(((const1, output_expr1), next_split1)),
+                ) if const0 == const1 && self.is_equal(&output_expr0, &output_expr1) => {
+                    split0 = next_split0;
+                    split1 = next_split1;
+                }
+                (Err(default_expr0), Err(default_expr1)) => {
+                    return self.is_equal_closures(&default_expr0, &default_expr1);
+                }
+                (_, _) => return false,
+            }
+        }
     }
 
     /// Check that a function is equal to a value, using eta-conversion.
