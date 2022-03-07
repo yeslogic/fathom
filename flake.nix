@@ -157,6 +157,8 @@
                 (rust.override { extensions = [ "rust-src" "rustfmt" ]; })
                 pkgs.nixpkgs-fmt
               ];
+              # Print backtraces on panics
+              RUST_BACKTRACE = 1;
               # Certain tools like `rust-analyzer` won't work without this
               RUST_SRC_PATH = "${rust}/lib/rustlib/src/rust/library";
             };
