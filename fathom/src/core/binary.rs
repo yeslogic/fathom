@@ -30,11 +30,11 @@ impl<'arena, 'env> Context<'arena, 'env> {
         }
     }
 
-    fn elim_context(&self) -> semantics::ElimContext<'arena, '_> {
+    fn elim_context(&self) -> semantics::ElimContext<'arena, 'env> {
         semantics::ElimContext::new(self.flexible_exprs)
     }
 
-    fn conversion_context(&self) -> semantics::ConversionContext<'arena, '_> {
+    fn conversion_context(&self) -> semantics::ConversionContext<'arena, 'env> {
         semantics::ConversionContext::new(EnvLen::new(), self.flexible_exprs)
     }
 
