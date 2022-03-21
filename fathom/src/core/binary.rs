@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::io::{self, Read, Seek, SeekFrom};
 use std::sync::Arc;
 
-use crate::core::semantics::{self, ArcValue, Head, Value};
+use crate::core::semantics::{self, ArcValue, Elim, Head, Value};
 use crate::core::{Const, Prim};
 use crate::env::{EnvLen, SliceEnv};
 
@@ -77,51 +77,8 @@ impl<'arena, 'env> Context<'arena, 'env> {
         reader: &mut dyn SeekRead,
         format: &ArcValue<'arena>,
     ) -> io::Result<ArcValue<'arena>> {
-        use crate::core::semantics::Elim::Fun;
-
         match self.elim_context().force(format).as_ref() {
-            Value::Stuck(Head::Prim(prim), slice) => match (*prim, &slice[..]) {
-                (Prim::FormatSucceed, [_, Fun(r#elem)]) => Ok(r#elem.clone()),
-                (Prim::FormatU8, []) => read_const(reader, Const::U8, read_u8),
-                (Prim::FormatU16Be, []) => read_const(reader, Const::U16, read_u16be),
-                (Prim::FormatU16Le, []) => read_const(reader, Const::U16, read_u16le),
-                (Prim::FormatU32Be, []) => read_const(reader, Const::U32, read_u32be),
-                (Prim::FormatU32Le, []) => read_const(reader, Const::U32, read_u32le),
-                (Prim::FormatU64Be, []) => read_const(reader, Const::U64, read_u64be),
-                (Prim::FormatU64Le, []) => read_const(reader, Const::U64, read_u64le),
-                (Prim::FormatS8, []) => read_const(reader, Const::S8, read_s8),
-                (Prim::FormatS16Be, []) => read_const(reader, Const::S16, read_s16be),
-                (Prim::FormatS16Le, []) => read_const(reader, Const::S16, read_s16le),
-                (Prim::FormatS32Be, []) => read_const(reader, Const::S32, read_s32be),
-                (Prim::FormatS32Le, []) => read_const(reader, Const::S32, read_s32le),
-                (Prim::FormatS64Be, []) => read_const(reader, Const::S64, read_s64be),
-                (Prim::FormatS64Le, []) => read_const(reader, Const::S64, read_s64le),
-                (Prim::FormatF32Be, []) => read_const(reader, Const::F32, read_f32be),
-                (Prim::FormatF32Le, []) => read_const(reader, Const::F32, read_f32le),
-                (Prim::FormatF64Be, []) => read_const(reader, Const::F64, read_f64be),
-                (Prim::FormatF64Le, []) => read_const(reader, Const::F64, read_f64le),
-                (Prim::FormatArray8, [Fun(len), Fun(elem)]) => self.read_array(reader, len, elem),
-                (Prim::FormatArray16, [Fun(len), Fun(elem)]) => self.read_array(reader, len, elem),
-                (Prim::FormatArray32, [Fun(len), Fun(elem)]) => self.read_array(reader, len, elem),
-                (Prim::FormatArray64, [Fun(len), Fun(elem)]) => self.read_array(reader, len, elem),
-                (Prim::FormatLink8, [Fun(pos), Fun(offset), Fun(elem)]) => {
-                    self.read_link(pos, offset, elem)
-                }
-                (Prim::FormatLink16, [Fun(pos), Fun(offset), Fun(elem)]) => {
-                    self.read_link(pos, offset, elem)
-                }
-                (Prim::FormatLink32, [Fun(pos), Fun(offset), Fun(elem)]) => {
-                    self.read_link(pos, offset, elem)
-                }
-                (Prim::FormatLink64, [Fun(pos), Fun(offset), Fun(elem)]) => {
-                    self.read_link(pos, offset, elem)
-                }
-                (Prim::FormatStreamPos, []) => read_stream_pos(reader),
-                (Prim::FormatFail, []) => {
-                    Err(io::Error::new(io::ErrorKind::Other, "parse failure"))
-                }
-                _ => Err(io::Error::new(io::ErrorKind::Other, "invalid format")),
-            },
+            Value::Stuck(Head::Prim(prim), slice) => self.read_prim(reader, *prim, slice),
             Value::FormatRecord(labels, formats) => {
                 let mut formats = formats.clone();
                 let mut exprs = Vec::with_capacity(formats.len());
@@ -172,6 +129,49 @@ impl<'arena, 'env> Context<'arena, 'env> {
             | Value::RecordIntro(_, _)
             | Value::ArrayIntro(_)
             | Value::Const(_) => Err(io::Error::new(io::ErrorKind::Other, "invalid format")),
+        }
+    }
+
+    #[rustfmt::skip]
+    fn read_prim(
+        &mut self,
+        reader: &mut dyn SeekRead,
+        prim: Prim,
+        slice: &[Elim<'arena>],
+    ) -> io::Result<ArcValue<'arena>> {
+        use crate::core::semantics::Elim::Fun;
+
+        match (prim, &slice[..]) {
+            (Prim::FormatSucceed, [_, Fun(r#elem)]) => Ok(r#elem.clone()),
+            (Prim::FormatU8, []) => read_const(reader, Const::U8, read_u8),
+            (Prim::FormatU16Be, []) => read_const(reader, Const::U16, read_u16be),
+            (Prim::FormatU16Le, []) => read_const(reader, Const::U16, read_u16le),
+            (Prim::FormatU32Be, []) => read_const(reader, Const::U32, read_u32be),
+            (Prim::FormatU32Le, []) => read_const(reader, Const::U32, read_u32le),
+            (Prim::FormatU64Be, []) => read_const(reader, Const::U64, read_u64be),
+            (Prim::FormatU64Le, []) => read_const(reader, Const::U64, read_u64le),
+            (Prim::FormatS8, []) => read_const(reader, Const::S8, read_s8),
+            (Prim::FormatS16Be, []) => read_const(reader, Const::S16, read_s16be),
+            (Prim::FormatS16Le, []) => read_const(reader, Const::S16, read_s16le),
+            (Prim::FormatS32Be, []) => read_const(reader, Const::S32, read_s32be),
+            (Prim::FormatS32Le, []) => read_const(reader, Const::S32, read_s32le),
+            (Prim::FormatS64Be, []) => read_const(reader, Const::S64, read_s64be),
+            (Prim::FormatS64Le, []) => read_const(reader, Const::S64, read_s64le),
+            (Prim::FormatF32Be, []) => read_const(reader, Const::F32, read_f32be),
+            (Prim::FormatF32Le, []) => read_const(reader, Const::F32, read_f32le),
+            (Prim::FormatF64Be, []) => read_const(reader, Const::F64, read_f64be),
+            (Prim::FormatF64Le, []) => read_const(reader, Const::F64, read_f64le),
+            (Prim::FormatArray8, [Fun(len), Fun(elem_format)]) => self.read_array(reader, len, elem_format),
+            (Prim::FormatArray16, [Fun(len), Fun(elem_format)]) => self.read_array(reader, len, elem_format),
+            (Prim::FormatArray32, [Fun(len), Fun(elem_format)]) => self.read_array(reader, len, elem_format),
+            (Prim::FormatArray64, [Fun(len), Fun(elem_format)]) => self.read_array(reader, len, elem_format),
+            (Prim::FormatLink8, [Fun(pos), Fun(offset), Fun(elem_format)]) => self.read_link(pos, offset, elem_format),
+            (Prim::FormatLink16, [Fun(pos), Fun(offset), Fun(elem_format)]) => self.read_link(pos, offset, elem_format),
+            (Prim::FormatLink32, [Fun(pos), Fun(offset), Fun(elem_format)]) => self.read_link(pos, offset, elem_format),
+            (Prim::FormatLink64, [Fun(pos), Fun(offset), Fun(elem_format)]) => self.read_link(pos, offset, elem_format),
+            (Prim::FormatStreamPos, []) => read_stream_pos(reader),
+            (Prim::FormatFail, []) => Err(io::Error::new(io::ErrorKind::Other, "parse failure")),
+            _ => Err(io::Error::new(io::ErrorKind::Other, "invalid format")),
         }
     }
 
