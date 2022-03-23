@@ -72,3 +72,35 @@ pub fn tokens<'source>(
             token => Ok((range.start, token, range.end)),
         })
 }
+
+impl<'source> Token<'source> {
+    pub fn description(&self) -> &'static str {
+        match self {
+            Token::Name(_) => "name",
+            Token::Hole(_) => "hole",
+            Token::StringLiteral(_) => "string literal",
+            Token::NumberLiteral(_) => "number literal",
+            Token::KeywordFun => "fun",
+            Token::KeywordLet => "let",
+            Token::KeywordMatch => "match",
+            Token::KeywordOverlap => "overlap",
+            Token::KeywordType => "Type",
+            Token::Colon => ":",
+            Token::Comma => ",",
+            Token::Equals => "=>",
+            Token::EqualsGreater => "=>",
+            Token::FullStop => ".",
+            Token::HyphenGreater => "->",
+            Token::LessHyphen => "<-",
+            Token::Semicolon => ";",
+            Token::Underscore => "_",
+            Token::OpenBrace => "{",
+            Token::CloseBrace => "}",
+            Token::OpenBracket => "[",
+            Token::CloseBracket => "]",
+            Token::OpenParen => "(",
+            Token::CloseParen => ")",
+            Token::Error => "error",
+        }
+    }
+}

@@ -1,10 +1,11 @@
 //! Surface language.
 
+use codespan_reporting::diagnostic::{Diagnostic, Label};
 use lalrpop_util::lalrpop_mod;
 use scoped_arena::Scope;
 use std::cell::RefCell;
 
-use crate::source::ByteRange;
+use crate::source::{ByteRange, FileId};
 use crate::{StringId, StringInterner};
 
 lalrpop_mod!(grammar, "/surface/grammar.rs");
@@ -15,9 +16,6 @@ pub mod pretty;
 
 pub mod distillation;
 pub mod elaboration;
-
-// TODO: Convert to an internal error message
-pub type ParseError<'source> = lalrpop_util::ParseError<usize, lexer::Token<'source>, ()>;
 
 /// Surface patterns.
 #[derive(Debug, Clone)]
@@ -164,9 +162,99 @@ impl<'arena> Term<'arena, ByteRange> {
         interner: &RefCell<StringInterner>,
         scope: &'arena Scope<'arena>,
         source: &'source str,
-    ) -> Result<Term<'arena, ByteRange>, ParseError<'source>> {
-        grammar::TermParser::new().parse(interner, scope, lexer::tokens(source))
+    ) -> Result<Term<'arena, ByteRange>, ParseMessage> {
+        use lalrpop_util::ParseError;
+
+        grammar::TermParser::new()
+            .parse(interner, scope, lexer::tokens(source))
+            .map_err(|err| match err {
+                ParseError::InvalidToken { location } => ParseMessage::InvalidToken {
+                    range: ByteRange::new(location, location),
+                },
+                ParseError::UnrecognizedEOF { location, expected } => {
+                    ParseMessage::UnrecognizedEof {
+                        range: ByteRange::new(location, location),
+                        expected, // TODO: convert to descriptions?
+                    }
+                }
+                ParseError::UnrecognizedToken {
+                    token: (start, token, end),
+                    expected,
+                } => ParseMessage::UnrecognizedToken {
+                    range: ByteRange::new(start, end),
+                    token: token.description(),
+                    expected,
+                },
+                ParseError::ExtraToken {
+                    token: (start, token, end),
+                } => ParseMessage::ExtraToken {
+                    range: ByteRange::new(start, end),
+                    token: token.description(),
+                },
+                ParseError::User { error: () } => unreachable!(),
+            })
     }
+}
+
+/// Messages produced during parsing
+#[derive(Clone, Debug)]
+pub enum ParseMessage {
+    InvalidToken {
+        range: ByteRange,
+    },
+    UnrecognizedEof {
+        range: ByteRange,
+        expected: Vec<String>,
+    },
+    UnrecognizedToken {
+        range: ByteRange,
+        token: &'static str,
+        expected: Vec<String>,
+    },
+    ExtraToken {
+        range: ByteRange,
+        token: &'static str,
+    },
+}
+
+impl ParseMessage {
+    pub fn to_diagnostic(&self, file_id: FileId) -> Diagnostic<FileId> {
+        match self {
+            ParseMessage::InvalidToken { range } => Diagnostic::error()
+                .with_message("invalid token")
+                .with_labels(vec![Label::primary(file_id, *range)]),
+            ParseMessage::UnrecognizedEof { range, expected } => Diagnostic::error()
+                .with_message("unexpected end of file")
+                .with_labels(vec![
+                    Label::primary(file_id, *range).with_message("unexpected end of file")
+                ])
+                .with_notes(format_expected(expected).map_or(Vec::new(), |message| vec![message])),
+            ParseMessage::UnrecognizedToken {
+                range,
+                token,
+                expected,
+            } => Diagnostic::error()
+                .with_message(format!("unexpected token {}", token))
+                .with_labels(vec![
+                    Label::primary(file_id, *range).with_message("unexpected token")
+                ])
+                .with_notes(format_expected(expected).map_or(Vec::new(), |message| vec![message])),
+            ParseMessage::ExtraToken { range, token } => Diagnostic::error()
+                .with_message(format!("extra token {}", token))
+                .with_labels(vec![
+                    Label::primary(file_id, *range).with_message("extra token")
+                ]),
+        }
+    }
+}
+
+fn format_expected(expected: &[impl std::fmt::Display]) -> Option<String> {
+    use itertools::Itertools;
+
+    expected.split_last().map(|items| match items {
+        (last, []) => format!("expected {}", last),
+        (last, expected) => format!("expected {} or {}", expected.iter().format(", "), last),
+    })
 }
 
 #[cfg(test)]
