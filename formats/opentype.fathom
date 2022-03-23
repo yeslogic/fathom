@@ -381,7 +381,28 @@ let cmap_subtable_format10 = fun (platform : Repr platform_id) => {
     glyph_id_array <- array32 num_chars u16be,
 };
 
-// TODO: Format 12: Segmented coverage
+/// Format 12: Segmented coverage
+///
+/// This is the standard character-to-glyph-index mapping subtable for fonts supporting Unicode
+/// character repertoires that include supplementary-plane characters (U+10000 to U+10FFFF).
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: Format 12: Segment mapping to delta values](https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#format-12-segmented-coverage)
+/// - [Apple's TrueType Reference Manual: `'cmap'` format 12](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6cmap.html)
+let cmap_subtable_format12 = fun (platform : Repr platform_id) => {
+    /// Set to 0.
+    _reserved <- reserved u16be 0,
+    /// The length of the subtable in bytes (including the header)
+    length <- u32be,
+    /// The language ID of the subtable
+    language <- cmap_language_id32 platform,
+    /// Number of groupings which follow
+    num_groups <- u32be,
+    /// Array of SequentialMapGroup records.
+    groups <- array32 num_groups sequential_map_group,
+};
+
 // TODO: Format 13: Many-to-one range mappings
 // TODO: Format 14: Unicode Variation Sequences
 
@@ -397,7 +418,7 @@ let character_map_subtable = fun (platform : Repr platform_id) => {
         6 => cmap_subtable_format6 platform,
         8 => cmap_subtable_format8 platform,
         10 => cmap_subtable_format10 platform,
-        12 => unknown_table, // TODO: Format 12: Segmented coverage
+        12 => cmap_subtable_format12 platform,
         13 => unknown_table, // TODO: Format 13: Many-to-one range mappings
         14 => unknown_table, // TODO: Format 14: Unicode Variation Sequences
         _ => unknown_table,
