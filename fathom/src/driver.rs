@@ -139,7 +139,10 @@ impl<'surface, 'core> Driver<'surface, 'core> {
     }
 
     pub fn elaborate(&mut self, file_id: FileId) -> Status {
-        let surface_term = self.parse_term(file_id);
+        let surface_term = match self.parse_term(file_id) {
+            Some(term) => term,
+            None => return Status::Error,
+        };
 
         let mut context = elaboration::Context::new(&self.interner, &self.core_scope);
         let (term, r#type) = context.synth(&surface_term);
@@ -164,7 +167,10 @@ impl<'surface, 'core> Driver<'surface, 'core> {
     }
 
     pub fn normalise(&mut self, file_id: FileId) -> Status {
-        let surface_term = self.parse_term(file_id);
+        let surface_term = match self.parse_term(file_id) {
+            Some(term) => term,
+            None => return Status::Error,
+        };
 
         let mut context = elaboration::Context::new(&self.interner, &self.core_scope);
         let (term, r#type) = context.synth(&surface_term);
@@ -190,7 +196,10 @@ impl<'surface, 'core> Driver<'surface, 'core> {
     }
 
     pub fn r#type(&mut self, file_id: FileId) -> Status {
-        let surface_term = self.parse_term(file_id);
+        let surface_term = match self.parse_term(file_id) {
+            Some(term) => term,
+            None => return Status::Error,
+        };
 
         let mut context = elaboration::Context::new(&self.interner, &self.core_scope);
         let (_, r#type) = context.synth(&surface_term);
@@ -221,7 +230,10 @@ impl<'surface, 'core> Driver<'surface, 'core> {
         use crate::core::semantics::Value;
         use crate::core::Prim;
 
-        let surface_term = self.parse_term(file_id);
+        let surface_term = match self.parse_term(file_id) {
+            Some(term) => term,
+            None => return Status::Error,
+        };
 
         let mut context = elaboration::Context::new(&self.interner, &self.core_scope);
         let format = context.check(&surface_term, &Arc::new(Value::prim(Prim::FormatType, [])));
@@ -266,10 +278,15 @@ impl<'surface, 'core> Driver<'surface, 'core> {
         Status::Ok
     }
 
-    fn parse_term(&'surface self, file_id: FileId) -> surface::Term<'surface, ByteRange> {
-        // TODO: render diagnostics
+    fn parse_term(&'surface self, file_id: FileId) -> Option<surface::Term<'surface, ByteRange>> {
         let term_source = self.files.get(file_id).unwrap().source();
-        surface::Term::parse(&self.interner, &self.surface_scope, term_source).unwrap()
+        match surface::Term::parse(&self.interner, &self.surface_scope, term_source) {
+            Ok(term) => Some(term),
+            Err(err) => {
+                self.emit_diagnostics(std::iter::once(err.to_diagnostic(file_id)));
+                None
+            }
+        }
     }
 
     fn emit_term(&self, term: &surface::Term<'_, ()>) {

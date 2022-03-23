@@ -1,4 +1,7 @@
+use codespan_reporting::diagnostic::{Diagnostic, Label};
 use logos::Logos;
+
+use crate::source::{ByteRange, FileId};
 
 #[derive(Clone, Debug, Logos)]
 pub enum Token<'source> {
@@ -62,13 +65,62 @@ pub enum Token<'source> {
 
 pub type Spanned<Tok, Loc> = (Loc, Tok, Loc);
 
+#[derive(Clone, Debug)]
+pub enum Error {
+    UnexpectedCharacter { range: ByteRange },
+}
+
+impl Error {
+    pub fn to_diagnostic(&self, file_id: FileId) -> Diagnostic<FileId> {
+        match self {
+            Error::UnexpectedCharacter { range } => Diagnostic::error()
+                .with_message("unexpected character")
+                .with_labels(vec![Label::primary(file_id, *range)]),
+        }
+    }
+}
+
 pub fn tokens<'source>(
     source: &'source str,
-) -> impl 'source + Iterator<Item = Result<Spanned<Token<'source>, usize>, ()>> {
+) -> impl 'source + Iterator<Item = Result<Spanned<Token<'source>, usize>, Error>> {
     Token::lexer(source)
         .spanned()
         .map(|(token, range)| match token {
-            Token::Error => Err(()),
+            Token::Error => Err(Error::UnexpectedCharacter {
+                range: ByteRange::new(range.start, range.end),
+            }),
             token => Ok((range.start, token, range.end)),
         })
+}
+
+impl<'source> Token<'source> {
+    pub fn description(&self) -> &'static str {
+        match self {
+            Token::Name(_) => "name",
+            Token::Hole(_) => "hole",
+            Token::StringLiteral(_) => "string literal",
+            Token::NumberLiteral(_) => "number literal",
+            Token::KeywordFun => "fun",
+            Token::KeywordLet => "let",
+            Token::KeywordMatch => "match",
+            Token::KeywordOverlap => "overlap",
+            Token::KeywordType => "Type",
+            Token::Colon => ":",
+            Token::Comma => ",",
+            Token::Equals => "=>",
+            Token::EqualsGreater => "=>",
+            Token::FullStop => ".",
+            Token::HyphenGreater => "->",
+            Token::LessHyphen => "<-",
+            Token::Semicolon => ";",
+            Token::Underscore => "_",
+            Token::OpenBrace => "{",
+            Token::CloseBrace => "}",
+            Token::OpenBracket => "[",
+            Token::CloseBracket => "]",
+            Token::OpenParen => "(",
+            Token::CloseParen => ")",
+            Token::Error => "error",
+        }
+    }
 }
