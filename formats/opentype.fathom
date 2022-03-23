@@ -207,6 +207,28 @@ let cmap_language_id32 = fun (platform : Repr platform_id) =>
 /// A small glyph ID, limited to a glyph set of 256 glyphs.
 let small_glyph_id = u8;
 
+/// SequentialMapGroup Record
+///
+/// Each sequential map group record specifies a character range and the starting glyph ID mapped
+/// from the first character. Glyph IDs for subsequent characters follow in sequence.
+let sequential_map_group = {
+    /// First character code in this group; note that if this group is for one or more 16-bit
+    /// character codes (which is determined from the is32 array), this 32-bit value will have the
+    /// high 16-bits set to zero
+    start_char_code <- u32be,
+    /// Last character code in this group; same condition as listed above for the startCharCode
+    end_char_code <- u32be,
+    /// Glyph index corresponding to the starting character code
+    start_glyph_id <- u32be,
+};
+
+/// ConstantMapGroup Record
+///
+/// The constant map group record has the same structure as the sequential map group record, with
+/// start and end character codes and a mapped glyph ID. However, the same glyph ID applies to all
+/// characters in the specified range rather than sequential glyph IDs.
+let constant_map_group = sequential_map_group;
+
 /// # Format 0: Byte encoding table
 ///
 /// A character mapping table for fonts with character codes and glyph indices
@@ -329,17 +351,6 @@ let cmap_subtable_format6 = fun (platform : Repr platform_id) => {
 ///
 /// - [Microsoft's OpenType Spec: Format 8: Segment mapping to delta values](https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#format-8-mixed-16-bit-and-32-bit-coverage)
 /// - [Apple's TrueType Reference Manual: `'cmap'` format 8](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6cmap.html)
-let sequential_map_group = {
-    /// First character code in this group; note that if this group is for one or more 16-bit
-    /// character codes (which is determined from the is32 array), this 32-bit value will have the
-    /// high 16-bits set to zero
-    start_char_code <- u32be,
-    /// Last character code in this group; same condition as listed above for the startCharCode
-    end_char_code <- u32be,
-    /// Glyph index corresponding to the starting character code
-    start_glyph_id <- u32be,
-};
-
 let cmap_subtable_format8 = fun (platform : Repr platform_id) => {
     /// Set to 0.
     _reserved <- reserved u16be 0,
@@ -403,7 +414,30 @@ let cmap_subtable_format12 = fun (platform : Repr platform_id) => {
     groups <- array32 num_groups sequential_map_group,
 };
 
-// TODO: Format 13: Many-to-one range mappings
+/// Format 13: Many-to-one range mappings
+///
+/// This subtable provides for situations in which the same glyph is used for hundreds or even
+/// thousands of consecutive characters spanning across multiple ranges of the code space. This
+/// subtable format may be useful for “last resort” fonts, although these fonts may use other
+/// suitable subtable formats as well.
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: Format 13: Segment mapping to delta values](https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#format-13-many-to-one-range-mappings)
+/// - [Apple's TrueType Reference Manual: `'cmap'` format 13](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6cmap.html)
+let cmap_subtable_format13 = fun (platform : Repr platform_id) => {
+    /// Set to 0.
+    _reserved <- reserved u16be 0,
+    /// The length of the subtable in bytes (including the header)
+    length <- u32be,
+    /// The language ID of the subtable
+    language <- cmap_language_id32 platform,
+    /// Number of groupings which follow
+    num_groups <- u32be,
+    /// Array of ConstantMapGroup records.
+    groups <- array32 num_groups constant_map_group,
+};
+
 // TODO: Format 14: Unicode Variation Sequences
 
 /// # Character Mapping subtable
@@ -419,7 +453,7 @@ let character_map_subtable = fun (platform : Repr platform_id) => {
         8 => cmap_subtable_format8 platform,
         10 => cmap_subtable_format10 platform,
         12 => cmap_subtable_format12 platform,
-        13 => unknown_table, // TODO: Format 13: Many-to-one range mappings
+        13 => cmap_subtable_format13 platform,
         14 => unknown_table, // TODO: Format 14: Unicode Variation Sequences
         _ => unknown_table,
     },
