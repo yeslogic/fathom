@@ -170,6 +170,8 @@ let encoding_id = fun (platform : Repr platform_id) =>
 let language_id =
     u16be;
 
+let language_id32 =
+    u32be;
 
 // -----------------------------------------------------------------------------
 
@@ -198,6 +200,9 @@ let language_id =
 let cmap_language_id = fun (platform : Repr platform_id) =>
     language_id;
 
+// cmap sub-table format 8 has a 32-bit language code
+let cmap_language_id32 = fun (platform : Repr platform_id) =>
+    language_id32;
 
 /// A small glyph ID, limited to a glyph set of 256 glyphs.
 let small_glyph_id = u8;
@@ -216,6 +221,8 @@ let small_glyph_id = u8;
 /// - [Microsoft's OpenType Spec: Format 0: Byte encoding table](https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#format-0-byte-encoding-table)
 /// - [Apple's TrueType Reference Manual: `'cmap'` format 0](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6cmap.html)
 let byte_encoding_table = fun (platform : Repr platform_id) => {
+    /// The length of the subtable in bytes
+    length <- u16be,
     /// The language ID of the subtable
     language <- cmap_language_id platform,
     /// A 1 to 1 mapping that converts character codes to glyph indexes (limited
@@ -235,6 +242,8 @@ let byte_encoding_table = fun (platform : Repr platform_id) => {
 /// - [Microsoft's OpenType Spec: Format 2: Segment mapping to delta values](https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#format-2-high-byte-mapping-through-table)
 /// - [Apple's TrueType Reference Manual: `'cmap'` format 2](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6cmap.html)
 let cmap_subtable_format2 = fun (platform : Repr platform_id) => {
+    /// The length of the subtable in bytes
+    length <- u16be,
     /// The language ID of the subtable
     language <- cmap_language_id platform,
     /// Array that maps high bytes to subHeaders: value is subHeader index × 8.
@@ -257,6 +266,8 @@ let cmap_subtable_format2 = fun (platform : Repr platform_id) => {
 /// - [Microsoft's OpenType Spec: Format 4: Segment mapping to delta values](https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#format-4-segment-mapping-to-delta-values)
 /// - [Apple's TrueType Reference Manual: `'cmap'` format 4](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6cmap.html)
 let cmap_subtable_format4 = fun (platform : Repr platform_id) => {
+    /// The length of the subtable in bytes
+    length <- u16be,
     /// The language ID of the subtable
     language <- cmap_language_id platform,
     /// 2 × segCount.
@@ -292,9 +303,11 @@ let cmap_subtable_format4 = fun (platform : Repr platform_id) => {
 ///
 /// ## References
 ///
-/// - [Microsoft's OpenType Spec: Format 4: Segment mapping to delta values](https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#format-6-trimmed-table-mapping)
-/// - [Apple's TrueType Reference Manual: `'cmap'` format 4](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6cmap.html)
+/// - [Microsoft's OpenType Spec: Format 6: Segment mapping to delta values](https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#format-6-trimmed-table-mapping)
+/// - [Apple's TrueType Reference Manual: `'cmap'` format 6](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6cmap.html)
 let cmap_subtable_format6 = fun (platform : Repr platform_id) => {
+    /// The length of the subtable in bytes
+    length <- u16be,
     /// The language ID of the subtable
     language <- cmap_language_id platform,
     /// First character code of subrange.
@@ -305,7 +318,44 @@ let cmap_subtable_format6 = fun (platform : Repr platform_id) => {
     glyph_id_array <- array16 entry_count u16be,
 };
 
-// TODO: Format 8: mixed 16-bit and 32-bit coverage
+/// Format 8: mixed 16-bit and 32-bit coverage
+///
+/// Subtable format 8 was designed to support Unicode supplementary-plane characters in UTF-16
+/// encoding, though it is not commonly used. Format 8 is similar to format 2, in that it provides
+/// for mixed-length character codes. Instead of allowing for 8- and 16-bit character codes,
+/// however, it allows for 16- and 32-bit character codes.
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: Format 8: Segment mapping to delta values](https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#format-8-mixed-16-bit-and-32-bit-coverage)
+/// - [Apple's TrueType Reference Manual: `'cmap'` format 8](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6cmap.html)
+let sequential_map_group = {
+    /// First character code in this group; note that if this group is for one or more 16-bit
+    /// character codes (which is determined from the is32 array), this 32-bit value will have the
+    /// high 16-bits set to zero
+    start_char_code <- u32be,
+    /// Last character code in this group; same condition as listed above for the startCharCode
+    end_char_code <- u32be,
+    /// Glyph index corresponding to the starting character code
+    start_glyph_id <- u32be,
+};
+
+let cmap_subtable_format8 = fun (platform : Repr platform_id) => {
+    /// Set to 0.
+    _reserved <- reserved u16be 0,
+    /// The length of the subtable in bytes (including the header)
+    length <- u32be,
+    /// The language ID of the subtable
+    language <- cmap_language_id32 platform,
+    /// Tightly packed array of bits (8K bytes total) indicating whether the particular 16-bit
+    /// (index) value is the start of a 32-bit character code
+    is32 <- array16 8192 u8,
+    /// Number of groupings which follow
+    num_groups <- u32be,
+    /// Array of SequentialMapGroup records.
+    groups <- array32 num_groups sequential_map_group,
+};
+
 // TODO: Format 10: Trimmed array
 // TODO: Format 12: Segmented coverage
 // TODO: Format 13: Many-to-one range mappings
@@ -315,15 +365,13 @@ let cmap_subtable_format6 = fun (platform : Repr platform_id) => {
 let character_map_subtable = fun (platform : Repr platform_id) => {
     /// Format number of the subtable
     format <- u16be,
-    /// The length ot the subtable in bytes
-    length <- u16be,
     // TODO: format-specific subtable data 
     data <- match format {
         0 => byte_encoding_table platform,
         2 => cmap_subtable_format2 platform,
         4 => cmap_subtable_format4 platform,
         6 => cmap_subtable_format6 platform,
-        8 => unknown_table, // TODO: Format 8: mixed 16-bit and 32-bit coverage
+        8 => cmap_subtable_format8 platform,
         10 => unknown_table, // TODO: Format 10: Trimmed array
         12 => unknown_table, // TODO: Format 12: Segmented coverage
         13 => unknown_table, // TODO: Format 13: Many-to-one range mappings
