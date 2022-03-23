@@ -224,6 +224,28 @@ let byte_encoding_table = fun (platform : Repr platform_id) => {
     glyph_id_array <- array16 256 small_glyph_id,
 };
 
+/// # Format 2: High-byte mapping through table
+///
+/// This subtable format was created for “double-byte” encodings following the national character
+/// code standards used for Japanese, Chinese, and Korean characters. These code standards use a
+/// mixed 8-/16-bit encoding. This format is not commonly used today.
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: Format 2: Segment mapping to delta values](https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#format-2-high-byte-mapping-through-table)
+/// - [Apple's TrueType Reference Manual: `'cmap'` format 2](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6cmap.html)
+let cmap_subtable_format2 = fun (platform : Repr platform_id) => {
+    /// The language ID of the subtable
+    language <- cmap_language_id platform,
+    /// Array that maps high bytes to subHeaders: value is subHeader index × 8.
+    sub_header_keys <- array16 256 u16be,
+    // TODO: These probably need length limiting formats
+    // https://github.com/yeslogic/fathom/pull/310
+    // /// Variable-length array of SubHeader records.
+    // sub_headers[ ]  <- SubHeader,
+    // /// Variable-length array containing subarrays used for mapping the low byte of 2-byte characters.
+    // glyph_id_array[ ]  <- uint16,
+};
 
 /// # Format 4: Segment mapping to delta values
 ///
@@ -281,7 +303,7 @@ let character_map_subtable = fun (platform : Repr platform_id) => {
     // TODO: format-specific subtable data 
     data <- match format {
         0 => byte_encoding_table platform,
-        2 => unknown_table, // TODO: Format 2: High-byte mapping through table
+        2 => cmap_subtable_format2 platform,
         4 => cmap_subtable_format4 platform,
         6 => unknown_table, // TODO: Format 6: Trimmed table mapping
         8 => unknown_table, // TODO: Format 8: mixed 16-bit and 32-bit coverage
