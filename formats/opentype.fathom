@@ -225,6 +225,44 @@ let byte_encoding_table = fun (platform : Repr platform_id) => {
 };
 
 
+/// # Format 4: Segment mapping to delta values
+///
+/// This is the standard character-to-glyph-index mapping subtable for fonts that support only
+/// Unicode Basic Multilingual Plane characters (U+0000 to U+FFFF).
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: Format 4: Segment mapping to delta values](https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#format-4-segment-mapping-to-delta-values)
+/// - [Apple's TrueType Reference Manual: `'cmap'` format 4](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6cmap.html)
+let cmap_subtable_format4 = fun (platform : Repr platform_id) => {
+    /// The language ID of the subtable
+    language <- cmap_language_id platform,
+    /// 2 × segCount.
+    seg_count_x2 <- u16be,
+    /// Maximum power of 2 less than or equal to segCount, times 2 ((2**floor(log₂(segCount))) * 2,
+    /// where “**” is an exponentiation operator)
+    search_range <- u16be,
+    /// Log₂ of the maximum power of 2 less than or equal to numTables (log₂(searchRange/2), which
+    /// is equal to floor(log₂(segCount)))
+    entry_selector <- u16be,
+    /// segCount times 2, minus searchRange ((segCount * 2) - searchRange)
+    range_shift <- u16be,
+    /// End characterCode for each segment, last=0xFFFF.
+    end_code <- array16 seg_count_x2 u16be, // TODO: seg count / 2
+    /// Set to 0.
+    _reserved_pad <- reserved s16be 0,
+
+    // TODO these need arithmetic
+    // /// Start character code for each segment.
+    // start_code[segCount]  <- u16be,
+    // /// Delta for all character codes in segment.
+    // id_delta[segCount]  <- int16,
+    // /// Offsets into glyphIdArray or 0
+    // id_range_offsets[segCount]  <- u16be,
+    // /// Glyph index array (arbitrary length)
+    // glyph_id_array[ ]  <- u16be,
+};
+
 // TODO: Format 2: High-byte mapping through table
 // TODO: Format 4: Segment mapping to delta values
 // TODO: Format 6: Trimmed table mapping
@@ -240,11 +278,11 @@ let character_map_subtable = fun (platform : Repr platform_id) => {
     format <- u16be,
     /// The length ot the subtable in bytes
     length <- u16be,
-    // TODO: format-specific subtable data
+    // TODO: format-specific subtable data 
     data <- match format {
         0 => byte_encoding_table platform,
         2 => unknown_table, // TODO: Format 2: High-byte mapping through table
-        4 => unknown_table, // TODO: Format 4: Segment mapping to delta values
+        4 => cmap_subtable_format4 platform,
         6 => unknown_table, // TODO: Format 6: Trimmed table mapping
         8 => unknown_table, // TODO: Format 8: mixed 16-bit and 32-bit coverage
         10 => unknown_table, // TODO: Format 10: Trimmed array
