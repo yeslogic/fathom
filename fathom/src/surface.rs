@@ -191,7 +191,7 @@ impl<'arena> Term<'arena, ByteRange> {
                     range: ByteRange::new(start, end),
                     token: token.description(),
                 },
-                ParseError::User { error: () } => unreachable!(),
+                ParseError::User { error } => ParseMessage::Lexer(error),
             })
     }
 }
@@ -199,6 +199,7 @@ impl<'arena> Term<'arena, ByteRange> {
 /// Messages produced during parsing
 #[derive(Clone, Debug)]
 pub enum ParseMessage {
+    Lexer(lexer::Error),
     InvalidToken {
         range: ByteRange,
     },
@@ -220,6 +221,7 @@ pub enum ParseMessage {
 impl ParseMessage {
     pub fn to_diagnostic(&self, file_id: FileId) -> Diagnostic<FileId> {
         match self {
+            ParseMessage::Lexer(error) => error.to_diagnostic(file_id),
             ParseMessage::InvalidToken { range } => Diagnostic::error()
                 .with_message("invalid token")
                 .with_labels(vec![Label::primary(file_id, *range)]),

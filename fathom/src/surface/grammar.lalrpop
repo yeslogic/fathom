@@ -4,13 +4,13 @@ use std::cell::RefCell;
 use crate::{StringId, StringInterner};
 use crate::source::ByteRange;
 use crate::surface::{Pattern, Term};
-use crate::surface::lexer::Token;
+use crate::surface::lexer::{Error as LexerError, Token};
 
 grammar<'arena, 'source>(interner: &RefCell<StringInterner>, scope: &'arena Scope<'arena>);
 
 extern {
     type Location = usize;
-    type Error = ();
+    type Error = LexerError;
 
     enum Token<'source> {
         "name" => Token::Name(<&'source str>),
