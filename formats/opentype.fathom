@@ -356,7 +356,31 @@ let cmap_subtable_format8 = fun (platform : Repr platform_id) => {
     groups <- array32 num_groups sequential_map_group,
 };
 
-// TODO: Format 10: Trimmed array
+/// Format 10: Trimmed table mapping
+///
+/// Subtable format 10 was designed to support Unicode supplementary-plane characters, though it is
+/// not commonly used. Format 10 is similar to format 6, in that it defines a trimmed array for a
+/// tight range of character codes. It differs, however, in that is uses 32-bit character codes.
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: Format 10: Segment mapping to delta values](https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#format-10-trimmed-array)
+/// - [Apple's TrueType Reference Manual: `'cmap'` format 10](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6cmap.html)
+let cmap_subtable_format10 = fun (platform : Repr platform_id) => {
+    /// Set to 0.
+    _reserved <- reserved u16be 0,
+    /// The length of the subtable in bytes (including the header)
+    length <- u32be,
+    /// The language ID of the subtable
+    language <- cmap_language_id32 platform,
+    /// First character code covered
+    start_char_code <- u32be,
+    /// Number of character codes covered
+    num_chars <- u32be,
+    /// Array of glyph indices for the character codes covered
+    glyph_id_array <- array32 num_chars u16be,
+};
+
 // TODO: Format 12: Segmented coverage
 // TODO: Format 13: Many-to-one range mappings
 // TODO: Format 14: Unicode Variation Sequences
@@ -372,7 +396,7 @@ let character_map_subtable = fun (platform : Repr platform_id) => {
         4 => cmap_subtable_format4 platform,
         6 => cmap_subtable_format6 platform,
         8 => cmap_subtable_format8 platform,
-        10 => unknown_table, // TODO: Format 10: Trimmed array
+        10 => cmap_subtable_format10 platform,
         12 => unknown_table, // TODO: Format 12: Segmented coverage
         13 => unknown_table, // TODO: Format 13: Many-to-one range mappings
         14 => unknown_table, // TODO: Format 14: Unicode Variation Sequences
