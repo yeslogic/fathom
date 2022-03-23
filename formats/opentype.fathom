@@ -285,9 +285,26 @@ let cmap_subtable_format4 = fun (platform : Repr platform_id) => {
     // glyph_id_array[ ]  <- u16be,
 };
 
-// TODO: Format 2: High-byte mapping through table
-// TODO: Format 4: Segment mapping to delta values
-// TODO: Format 6: Trimmed table mapping
+/// Format 6: Trimmed table mapping
+///
+/// Format 6 was designed to map 16-bit characters to glyph indexes when the character codes for a
+/// font fall into a single contiguous range.
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: Format 4: Segment mapping to delta values](https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#format-6-trimmed-table-mapping)
+/// - [Apple's TrueType Reference Manual: `'cmap'` format 4](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6cmap.html)
+let cmap_subtable_format6 = fun (platform : Repr platform_id) => {
+    /// The language ID of the subtable
+    language <- cmap_language_id platform,
+    /// First character code of subrange.
+    first_code <- u16be,
+    /// Number of character codes in subrange.
+    entry_count <- u16be,
+    /// Array of glyph index values for character codes in the range.
+    glyph_id_array <- array16 entry_count u16be,
+};
+
 // TODO: Format 8: mixed 16-bit and 32-bit coverage
 // TODO: Format 10: Trimmed array
 // TODO: Format 12: Segmented coverage
@@ -305,7 +322,7 @@ let character_map_subtable = fun (platform : Repr platform_id) => {
         0 => byte_encoding_table platform,
         2 => cmap_subtable_format2 platform,
         4 => cmap_subtable_format4 platform,
-        6 => unknown_table, // TODO: Format 6: Trimmed table mapping
+        6 => cmap_subtable_format6 platform,
         8 => unknown_table, // TODO: Format 8: mixed 16-bit and 32-bit coverage
         10 => unknown_table, // TODO: Format 10: Trimmed array
         12 => unknown_table, // TODO: Format 12: Segmented coverage
