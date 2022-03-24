@@ -157,173 +157,130 @@ pub enum Term<'arena> {
     ),
 }
 
-/// Primitives.
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub enum Prim {
-    /// Void type.
-    VoidType,
+macro_rules! def_prims {
+    ($($(#[$prim_attr:meta])* $PrimName:ident => $prim_name:literal),* $(,)?) => {
+        /// Primitives.
+        #[derive(Debug, Copy, Clone, PartialEq, Eq)]
+        pub enum Prim {
+            $($(#[$prim_attr])* $PrimName),*
+        }
 
-    /// Type of unsigned, 8-bit integers.
-    U8Type,
-    /// Type of unsigned, 16-bit integers.
-    U16Type,
-    /// Type of unsigned, 32-bit integers.
-    U32Type,
-    /// Type of unsigned, 64-bit integers.
-    U64Type,
-    /// Type of signed, two's complement, 8-bit integers.
-    S8Type,
-    /// Type of signed, two's complement, 16-bit integers.
-    S16Type,
-    /// Type of signed, two's complement, 32-bit integers.
-    S32Type,
-    /// Type of signed, two's complement, 64-bit integers.
-    S64Type,
-    /// Type of 32-bit, IEEE-754 floating point numbers.
-    F32Type,
-    /// Type of 64-bit, IEEE-754 floating point numbers.
-    F64Type,
-    /// Type of arrays, with 8-bit indices.
-    Array8Type,
-    /// Type of arrays, with 16-bit indices.
-    Array16Type,
-    /// Type of arrays, with 32-bit indices.
-    Array32Type,
-    /// Type of arrays, with 64-bit indices.
-    Array64Type,
-    /// Type of stream positions.
-    PosType,
-    /// Type of stream references.
-    RefType,
-
-    /// Type of format descriptions.
-    FormatType,
-    /// A format that always succeeds with some data.
-    FormatSucceed,
-    /// A format that always fails to parse.
-    FormatFail,
-    /// Unsigned, 8-bit integer formats.
-    FormatU8,
-    /// Unsigned, 16-bit integer formats (big-endian).
-    FormatU16Be,
-    /// Unsigned, 16-bit integer formats (little-endian).
-    FormatU16Le,
-    /// Unsigned, 32-bit integer formats (big-endian).
-    FormatU32Be,
-    /// Unsigned, 32-bit integer formats (little-endian).
-    FormatU32Le,
-    /// Unsigned, 64-bit integer formats (big-endian).
-    FormatU64Be,
-    /// Unsigned, 64-bit integer formats (little-endian).
-    FormatU64Le,
-    /// Signed, two's complement, 8-bit integer formats.
-    FormatS8,
-    /// Signed, two's complement, 16-bit integer formats (big-endian).
-    FormatS16Be,
-    /// Signed, two's complement, 16-bit integer formats (little-endian).
-    FormatS16Le,
-    /// Signed, two's complement, 32-bit integer formats (big-endian).
-    FormatS32Be,
-    /// Signed, two's complement, 32-bit integer formats (little-endian).
-    FormatS32Le,
-    /// Signed, two's complement, 64-bit integer formats (big-endian).
-    FormatS64Be,
-    /// Signed, two's complement, 64-bit integer formats (little-endian).
-    FormatS64Le,
-    /// 32-bit, IEEE-754 floating point formats (big-endian).
-    FormatF32Be,
-    /// 32-bit, IEEE-754 floating point formats (little-endian).
-    FormatF32Le,
-    /// 64-bit, IEEE-754 floating point formats (big-endian).
-    FormatF64Be,
-    /// 64-bit, IEEE-754 floating point formats (little-endian).
-    FormatF64Le,
-    /// Array formats, with unsigned 8-bit indices.
-    FormatArray8,
-    /// Array formats, with unsigned 16-bit indices.
-    FormatArray16,
-    /// Array formats, with unsigned 32-bit indices.
-    FormatArray32,
-    /// Array formats, with unsigned 64-bit indices.
-    FormatArray64,
-    /// A format which returns the current position in the input stream.
-    FormatStreamPos,
-    /// A format that links to another location in the binary data stream,
-    /// relative to a base position and a unsigned 8-bit offset.
-    FormatLink8,
-    /// A format that links to another location in the binary data stream,
-    /// relative to a base position and a unsigned 16-bit offset.
-    FormatLink16,
-    /// A format that links to another location in the binary data stream,
-    /// relative to a base position and a unsigned 32-bit offset.
-    FormatLink32,
-    /// A format that links to another location in the binary data stream,
-    /// relative to a base position and a unsigned 64-bit offset.
-    FormatLink64,
-    /// Format representations.
-    FormatRepr,
-
-    /// Reported errors.
-    ReportedError,
+        impl Prim {
+            pub const fn name(&self) -> &'static str {
+                match self {
+                    $(Prim::$PrimName => $prim_name),*
+                }
+            }
+        }
+    };
 }
 
-impl Prim {
-    pub const fn name(&self) -> &'static str {
-        match self {
-            Prim::VoidType => "Void",
+def_prims! {
+    /// Void type.
+    VoidType => "Void",
 
-            Prim::U8Type => "U8",
-            Prim::U16Type => "U16",
-            Prim::U32Type => "U32",
-            Prim::U64Type => "U64",
-            Prim::S8Type => "S8",
-            Prim::S16Type => "S16",
-            Prim::S32Type => "S32",
-            Prim::S64Type => "S64",
-            Prim::F32Type => "F32",
-            Prim::F64Type => "F64",
-            Prim::Array8Type => "Array8",
-            Prim::Array16Type => "Array16",
-            Prim::Array32Type => "Array32",
-            Prim::Array64Type => "Array64",
-            Prim::PosType => "Pos",
-            Prim::RefType => "Ref",
+    /// Type of unsigned, 8-bit integers.
+    U8Type => "U8",
+    /// Type of unsigned, 16-bit integers.
+    U16Type => "U16",
+    /// Type of unsigned, 32-bit integers.
+    U32Type => "U32",
+    /// Type of unsigned, 64-bit integers.
+    U64Type => "U64",
+    /// Type of signed, two's complement, 8-bit integers.
+    S8Type => "S8",
+    /// Type of signed, two's complement, 16-bit integers.
+    S16Type => "S16",
+    /// Type of signed, two's complement, 32-bit integers.
+    S32Type => "S32",
+    /// Type of signed, two's complement, 64-bit integers.
+    S64Type => "S64",
+    /// Type of 32-bit, IEEE-754 floating point numbers.
+    F32Type => "F32",
+    /// Type of 64-bit, IEEE-754 floating point numbers.
+    F64Type => "F64",
+    /// Type of arrays, with 8-bit indices.
+    Array8Type => "Array8",
+    /// Type of arrays, with 16-bit indices.
+    Array16Type => "Array16",
+    /// Type of arrays, with 32-bit indices.
+    Array32Type => "Array32",
+    /// Type of arrays, with 64-bit indices.
+    Array64Type => "Array64",
+    /// Type of stream positions.
+    PosType => "Pos",
+    /// Type of stream references.
+    RefType => "Ref",
 
-            Prim::FormatType => "Format",
-            Prim::FormatSucceed => "succeed",
-            Prim::FormatFail => "fail",
-            Prim::FormatU8 => "u8",
-            Prim::FormatU16Be => "u16be",
-            Prim::FormatU16Le => "u16le",
-            Prim::FormatU32Be => "u32be",
-            Prim::FormatU32Le => "u32le",
-            Prim::FormatU64Be => "u64be",
-            Prim::FormatU64Le => "u64le",
-            Prim::FormatS8 => "s8",
-            Prim::FormatS16Be => "s16be",
-            Prim::FormatS16Le => "s16le",
-            Prim::FormatS32Be => "s32be",
-            Prim::FormatS32Le => "s32le",
-            Prim::FormatS64Be => "s64be",
-            Prim::FormatS64Le => "s64le",
-            Prim::FormatF32Be => "f32be",
-            Prim::FormatF32Le => "f32le",
-            Prim::FormatF64Be => "f64be",
-            Prim::FormatF64Le => "f64le",
-            Prim::FormatArray8 => "array8",
-            Prim::FormatArray16 => "array16",
-            Prim::FormatArray32 => "array32",
-            Prim::FormatArray64 => "array64",
-            Prim::FormatLink8 => "link8",
-            Prim::FormatLink16 => "link16",
-            Prim::FormatLink32 => "link32",
-            Prim::FormatLink64 => "link64",
-            Prim::FormatStreamPos => "stream_pos",
-            Prim::FormatRepr => "Repr",
+    /// Type of format descriptions.
+    FormatType => "Format",
+    /// A format that always succeeds with some data.
+    FormatSucceed => "succeed",
+    /// A format that always fails to parse.
+    FormatFail => "fail",
+    /// Unsigned, 8-bit integer formats.
+    FormatU8 => "u8",
+    /// Unsigned, 16-bit integer formats (big-endian).
+    FormatU16Be => "u16be",
+    /// Unsigned, 16-bit integer formats (little-endian).
+    FormatU16Le => "u16le",
+    /// Unsigned, 32-bit integer formats (big-endian).
+    FormatU32Be => "u32be",
+    /// Unsigned, 32-bit integer formats (little-endian).
+    FormatU32Le => "u32le",
+    /// Unsigned, 64-bit integer formats (big-endian).
+    FormatU64Be => "u64be",
+    /// Unsigned, 64-bit integer formats (little-endian).
+    FormatU64Le => "u64le",
+    /// Signed, two's complement, 8-bit integer formats.
+    FormatS8 => "s8",
+    /// Signed, two's complement, 16-bit integer formats (big-endian).
+    FormatS16Be => "s16be",
+    /// Signed, two's complement, 16-bit integer formats (little-endian).
+    FormatS16Le => "s16le",
+    /// Signed, two's complement, 32-bit integer formats (big-endian).
+    FormatS32Be => "s32be",
+    /// Signed, two's complement, 32-bit integer formats (little-endian).
+    FormatS32Le => "s32le",
+    /// Signed, two's complement, 64-bit integer formats (big-endian).
+    FormatS64Be => "s64be",
+    /// Signed, two's complement, 64-bit integer formats (little-endian).
+    FormatS64Le => "s64le",
+    /// 32-bit, IEEE-754 floating point formats (big-endian).
+    FormatF32Be => "f32be",
+    /// 32-bit, IEEE-754 floating point formats (little-endian).
+    FormatF32Le => "f32le",
+    /// 64-bit, IEEE-754 floating point formats (big-endian).
+    FormatF64Be => "f64be",
+    /// 64-bit, IEEE-754 floating point formats (little-endian).
+    FormatF64Le => "f64le",
+    /// Array formats, with unsigned 8-bit indices.
+    FormatArray8 => "array8",
+    /// Array formats, with unsigned 16-bit indices.
+    FormatArray16 => "array16",
+    /// Array formats, with unsigned 32-bit indices.
+    FormatArray32 => "array32",
+    /// Array formats, with unsigned 64-bit indices.
+    FormatArray64 => "array64",
+    /// A format which returns the current position in the input stream.
+    FormatStreamPos => "stream_pos",
+    /// A format that links to another location in the binary data stream,
+    /// relative to a base position and a unsigned 8-bit offset.
+    FormatLink8 => "link8",
+    /// A format that links to another location in the binary data stream,
+    /// relative to a base position and a unsigned 16-bit offset.
+    FormatLink16 => "link16",
+    /// A format that links to another location in the binary data stream,
+    /// relative to a base position and a unsigned 32-bit offset.
+    FormatLink32 => "link32",
+    /// A format that links to another location in the binary data stream,
+    /// relative to a base position and a unsigned 64-bit offset.
+    FormatLink64 => "link64",
+    /// Format representations.
+    FormatRepr => "Repr",
 
-            Prim::ReportedError => "reported_error",
-        }
-    }
+    /// Reported errors.
+    ReportedError => "reported_error",
 }
 
 /// Constants
