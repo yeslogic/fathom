@@ -514,6 +514,8 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         let s = s.resolve(string_id).unwrap();
         let (s, radix) = if s.starts_with("0x") {
             (&s[2..], 16)
+        } else if s.starts_with("0b") {
+            (&s[2..], 2)
         } else {
             (s, 10)
         };
