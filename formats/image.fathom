@@ -1,5 +1,3 @@
-//~ ignore = true
-
 //! A simple image data format.
 
 let pixel = {
@@ -8,7 +6,7 @@ let pixel = {
     /// Green value.
     green <- s32be,
     /// Blue value.
-    blue <- s32Be,
+    blue <- s32be,
 };
 
 let main = {
@@ -17,7 +15,7 @@ let main = {
     /// The height of the image, in pixels.
     height <- u32be,
     /// The pixel data.
-    pixels <- array32 (width * height) pixel, // TODO: multiplication
+    pixels <- array32 (u32_mul width height) pixel, // TODO: binary operators
 };
 
 main
