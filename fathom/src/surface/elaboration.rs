@@ -209,40 +209,24 @@ impl<'arena> RigidEnv<'arena> {
         define_prim(Prim::S8Sub, binary_op(Prim::S8Type));
         define_prim(Prim::S8Mul, binary_op(Prim::S8Type));
         define_prim(Prim::S8Div, binary_op(Prim::S8Type));
-        define_prim(Prim::S8Not, unary_op(Prim::S8Type));
-        define_prim(Prim::S8Shl, binary_op(Prim::S8Type));
-        define_prim(Prim::S8Shr, binary_op(Prim::S8Type));
-        define_prim(Prim::S8Xor, binary_op(Prim::S8Type));
 
         define_prim(Prim::S16Neg, unary_op(Prim::S16Type));
         define_prim(Prim::S16Add, binary_op(Prim::S16Type));
         define_prim(Prim::S16Sub, binary_op(Prim::S16Type));
         define_prim(Prim::S16Mul, binary_op(Prim::S16Type));
         define_prim(Prim::S16Div, binary_op(Prim::S16Type));
-        define_prim(Prim::S16Not, unary_op(Prim::S16Type));
-        define_prim(Prim::S16Shl, binary_op(Prim::S16Type));
-        define_prim(Prim::S16Shr, binary_op(Prim::S16Type));
-        define_prim(Prim::S16Xor, binary_op(Prim::S16Type));
 
         define_prim(Prim::S32Neg, unary_op(Prim::S32Type));
         define_prim(Prim::S32Add, binary_op(Prim::S32Type));
         define_prim(Prim::S32Sub, binary_op(Prim::S32Type));
         define_prim(Prim::S32Mul, binary_op(Prim::S32Type));
         define_prim(Prim::S32Div, binary_op(Prim::S32Type));
-        define_prim(Prim::S32Not, unary_op(Prim::S32Type));
-        define_prim(Prim::S32Shl, binary_op(Prim::S32Type));
-        define_prim(Prim::S32Shr, binary_op(Prim::S32Type));
-        define_prim(Prim::S32Xor, binary_op(Prim::S32Type));
 
         define_prim(Prim::S64Neg, unary_op(Prim::S64Type));
         define_prim(Prim::S64Add, binary_op(Prim::S64Type));
         define_prim(Prim::S64Sub, binary_op(Prim::S64Type));
         define_prim(Prim::S64Mul, binary_op(Prim::S64Type));
         define_prim(Prim::S64Div, binary_op(Prim::S64Type));
-        define_prim(Prim::S64Not, unary_op(Prim::S64Type));
-        define_prim(Prim::S64Shl, binary_op(Prim::S64Type));
-        define_prim(Prim::S64Shr, binary_op(Prim::S64Type));
-        define_prim(Prim::S64Xor, binary_op(Prim::S64Type));
 
         env
     }
