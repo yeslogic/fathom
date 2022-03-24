@@ -291,7 +291,7 @@ let variation_selector = fun (table_start : Pos) => {
 ///
 /// - [Microsoft's OpenType Spec: Format 0: Byte encoding table](https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#format-0-byte-encoding-table)
 /// - [Apple's TrueType Reference Manual: `'cmap'` format 0](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6cmap.html)
-let byte_encoding_table = fun (platform : Repr platform_id) => {
+let cmap_subtable_format0 = fun (platform : Repr platform_id) => {
     /// The length of the subtable in bytes
     length <- u16be,
     /// The language ID of the subtable
@@ -515,7 +515,7 @@ let character_map_subtable = fun (platform : Repr platform_id) => {
     /// Format number of the subtable
     format <- u16be,
     data <- match format {
-        0 => byte_encoding_table platform,
+        0 => cmap_subtable_format0 platform,
         2 => cmap_subtable_format2 platform,
         4 => cmap_subtable_format4 platform,
         6 => cmap_subtable_format6 platform,
