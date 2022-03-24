@@ -55,6 +55,13 @@ let ufword : Format = u16be;
 /// - [Microsoft's OpenType Spec: F2DOT14](https://docs.microsoft.com/en-us/typography/opentype/spec/otff#dt_F2DOT14)
 let f2dot14 : Format = s16be;
 
+/// Unsigned 24-bit integer
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: uint24](https://docs.microsoft.com/en-us/typography/opentype/spec/otff#dt_uint24)
+let u24be : Format = array8 3 u8;
+
 /// Date represented in number of seconds since 12:00 midnight, January 1, 1904.
 ///
 /// ## References
@@ -228,6 +235,48 @@ let sequential_map_group = {
 /// start and end character codes and a mapped glyph ID. However, the same glyph ID applies to all
 /// characters in the specified range rather than sequential glyph IDs.
 let constant_map_group = sequential_map_group;
+
+/// ## UnicodeRange Record
+let unicode_range = {
+    /// First value in this range
+    start_unicode_value <- u24be,
+    /// Number of additional values in this range
+    additional_count <- u8,
+};
+
+/// ## DefaultUVS Table
+let default_uvs_table = {
+    /// Number of Unicode character ranges.
+    num_unicode_value_ranges <- u32be,
+    /// Array of UnicodeRange records.
+    ranges <- array32 num_unicode_value_ranges unicode_range,
+};
+
+/// ## UVSMapping Record
+let uvs_mapping = {
+    /// Base Unicode value of the UVS
+    unicode_value <- u24be,
+    /// Glyph ID of the UVS
+    glyph_id <- u16be,
+};
+
+/// ## NonDefaultUVS Table
+let non_default_uvs_table = {
+    /// Number of UVS Mappings that follow
+    num_uvs_mappings <- u32be,
+    /// Array of UVSMapping records.
+    uvs_mappings <- array32 num_uvs_mappings uvs_mapping,
+};
+
+/// VariationSelector Record for cmap sub-table format 14
+let variation_selector = fun (table_start : Pos) => {
+    /// Variation selector
+    var_selector <- u24be,
+    /// Offset from the start of the format 14 subtable to Default UVS Table. May be 0.
+    default_uvs_offset <- offset32 table_start default_uvs_table,
+    /// Offset from the start of the format 14 subtable to Non-Default UVS Table. May be 0.
+    non_default_uvs_offset <- offset32 table_start non_default_uvs_table,
+};
 
 /// # Format 0: Byte encoding table
 ///
@@ -438,13 +487,33 @@ let cmap_subtable_format13 = fun (platform : Repr platform_id) => {
     groups <- array32 num_groups constant_map_group,
 };
 
-// TODO: Format 14: Unicode Variation Sequences
+/// # Format 14: Unicode Variation Sequences
+///
+/// Subtable format 14 specifies the Unicode Variation Sequences (UVSes) supported by the font. A
+/// Variation Sequence, according to the Unicode Standard, comprises a base character followed by a
+/// variation selector. For example, <U+82A6, U+E0101>.
+///
+/// This subtable format must only be used under platform ID 0 and encoding ID 5.
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: Format 14: Segment mapping to delta values](https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#format-14-unicode-variation-sequences)
+/// - [Apple's TrueType Reference Manual: `'cmap'` format 14](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6cmap.html)
+let cmap_subtable_format14 = fun (platform : Repr platform_id) => fun (table_start : Pos) => {
+    /// The length of the subtable in bytes (including the header)
+    length <- u32be,
+    /// Number of variation Selector Records
+    num_var_selector_records <- u32be,
+    /// Array of VariationSelector records.
+    var_selector <- array32 num_var_selector_records (variation_selector table_start),
+};
 
 /// # Character Mapping subtable
 let character_map_subtable = fun (platform : Repr platform_id) => {
+    /// The start of the character mapping sub-table
+    table_start <- stream_pos,
     /// Format number of the subtable
     format <- u16be,
-    // TODO: format-specific subtable data 
     data <- match format {
         0 => byte_encoding_table platform,
         2 => cmap_subtable_format2 platform,
@@ -454,7 +523,7 @@ let character_map_subtable = fun (platform : Repr platform_id) => {
         10 => cmap_subtable_format10 platform,
         12 => cmap_subtable_format12 platform,
         13 => cmap_subtable_format13 platform,
-        14 => unknown_table, // TODO: Format 14: Unicode Variation Sequences
+        14 => cmap_subtable_format14 platform table_start,
         _ => unknown_table,
     },
 };
