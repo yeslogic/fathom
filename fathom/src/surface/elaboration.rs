@@ -175,6 +175,8 @@ impl<'arena> RigidEnv<'arena> {
         define_prim(Prim::U8Not, unary_op(Prim::U8Type));
         define_prim(Prim::U8Shl, binary_op(Prim::U8Type));
         define_prim(Prim::U8Shr, binary_op(Prim::U8Type));
+        define_prim(Prim::U8And, binary_op(Prim::U8Type));
+        define_prim(Prim::U8Or, binary_op(Prim::U8Type));
         define_prim(Prim::U8Xor, binary_op(Prim::U8Type));
 
         define_prim(Prim::U16Add, binary_op(Prim::U16Type));
@@ -184,6 +186,8 @@ impl<'arena> RigidEnv<'arena> {
         define_prim(Prim::U16Not, unary_op(Prim::U16Type));
         define_prim(Prim::U16Shl, binary_op(Prim::U16Type));
         define_prim(Prim::U16Shr, binary_op(Prim::U16Type));
+        define_prim(Prim::U16And, binary_op(Prim::U16Type));
+        define_prim(Prim::U16Or, binary_op(Prim::U16Type));
         define_prim(Prim::U16Xor, binary_op(Prim::U16Type));
 
         define_prim(Prim::U32Add, binary_op(Prim::U32Type));
@@ -193,6 +197,8 @@ impl<'arena> RigidEnv<'arena> {
         define_prim(Prim::U32Not, unary_op(Prim::U32Type));
         define_prim(Prim::U32Shl, binary_op(Prim::U32Type));
         define_prim(Prim::U32Shr, binary_op(Prim::U32Type));
+        define_prim(Prim::U32And, binary_op(Prim::U32Type));
+        define_prim(Prim::U32Or, binary_op(Prim::U32Type));
         define_prim(Prim::U32Xor, binary_op(Prim::U32Type));
 
         define_prim(Prim::U64Add, binary_op(Prim::U64Type));
@@ -202,6 +208,8 @@ impl<'arena> RigidEnv<'arena> {
         define_prim(Prim::U64Not, unary_op(Prim::U64Type));
         define_prim(Prim::U64Shl, binary_op(Prim::U64Type));
         define_prim(Prim::U64Shr, binary_op(Prim::U64Type));
+        define_prim(Prim::U64And, binary_op(Prim::U64Type));
+        define_prim(Prim::U64Or, binary_op(Prim::U64Type));
         define_prim(Prim::U64Xor, binary_op(Prim::U64Type));
 
         define_prim(Prim::S8Neg, unary_op(Prim::S8Type));

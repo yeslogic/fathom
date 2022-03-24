@@ -289,6 +289,8 @@ def_prims! {
     U8Not => "u8_not",
     U8Shl => "u8_shl",
     U8Shr => "u8_shr",
+    U8And => "u8_and",
+    U8Or => "u8_or",
     U8Xor => "u8_xor",
 
     U16Add => "u16_add",
@@ -298,6 +300,8 @@ def_prims! {
     U16Not => "u16_not",
     U16Shl => "u16_shl",
     U16Shr => "u16_shr",
+    U16And => "u16_and",
+    U16Or => "u16_or",
     U16Xor => "u16_xor",
 
     U32Add => "u32_add",
@@ -307,6 +311,8 @@ def_prims! {
     U32Not => "u32_not",
     U32Shl => "u32_shl",
     U32Shr => "u32_shr",
+    U32And => "u32_and",
+    U32Or => "u32_or",
     U32Xor => "u32_xor",
 
     U64Add => "u64_add",
@@ -316,6 +322,8 @@ def_prims! {
     U64Not => "u64_not",
     U64Shl => "u64_shl",
     U64Shr => "u64_shr",
+    U64And => "u64_and",
+    U64Or => "u64_or",
     U64Xor => "u64_xor",
 
     S8Neg => "s8_neg",

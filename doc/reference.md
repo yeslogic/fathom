@@ -585,6 +585,8 @@ A number of operations are defined for the numeric types:
 - `u8_not : U8 -> U8`
 - `u8_shl : U8 -> U8 -> U8`
 - `u8_shr : U8 -> U8 -> U8`
+- `u8_and : U8 -> U8 -> U8`
+- `u8_or : U8 -> U8 -> U8`
 - `u8_xor : U8 -> U8 -> U8`
 - `u16_add : U16 -> U16 -> U16`
 - `u16_sub : U16 -> U16 -> U16`
@@ -593,6 +595,8 @@ A number of operations are defined for the numeric types:
 - `u16_not : U16 -> U16`
 - `u16_shl : U16 -> U16 -> U16`
 - `u16_shr : U16 -> U16 -> U16`
+- `u16_and : U16 -> U16 -> U16`
+- `u16_or : U16 -> U16 -> U16`
 - `u16_xor : U16 -> U16 -> U16`
 - `u32_add : U32 -> U32 -> U32`
 - `u32_sub : U32 -> U32 -> U32`
@@ -601,6 +605,8 @@ A number of operations are defined for the numeric types:
 - `u32_not : U32 -> U32`
 - `u32_shl : U32 -> U32 -> U32`
 - `u32_shr : U32 -> U32 -> U32`
+- `u32_and : U32 -> U32 -> U32`
+- `u32_or : U32 -> U32 -> U32`
 - `u32_xor : U32 -> U32 -> U32`
 - `u64_add : U64 -> U64 -> U64`
 - `u64_sub : U64 -> U64 -> U64`
@@ -609,6 +615,8 @@ A number of operations are defined for the numeric types:
 - `u64_not : U64 -> U64`
 - `u64_shl : U64 -> U64 -> U64`
 - `u64_shr : U64 -> U64 -> U64`
+- `u64_and : U64 -> U64 -> U64`
+- `u64_or : U64 -> U64 -> U64`
 - `u64_xor : U64 -> U64 -> U64`
 - `s8_neg : S8 -> S8`
 - `s8_add : S8 -> S8 -> S8`

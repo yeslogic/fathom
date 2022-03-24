@@ -520,7 +520,7 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
     }
 
     fn apply_prim(&self, prim: Prim, spine: &[Elim<'arena>]) -> Option<ArcValue<'arena>> {
-        use std::ops::{Add, BitXor, Div, Mul, Neg, Not, Shl, Shr, Sub};
+        use std::ops::{Add, BitAnd, BitOr, BitXor, Div, Mul, Neg, Not, Shl, Shr, Sub};
 
         match (prim, spine) {
             (Prim::FormatRepr, [Elim::Fun(format)]) => Some(self.apply_repr(format)),
@@ -532,6 +532,8 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
             (Prim::U8Not, spine) => apply_const_step!(spine, [x: U8], U8, u8::not),
             (Prim::U8Shl, spine) => apply_const_step!(spine, [x: U8, y: U8], U8, u8::shl),
             (Prim::U8Shr, spine) => apply_const_step!(spine, [x: U8, y: U8], U8, u8::shr),
+            (Prim::U8And, spine) => apply_const_step!(spine, [x: U8, y: U8], U8, u8::bitand),
+            (Prim::U8Or, spine) => apply_const_step!(spine, [x: U8, y: U8], U8, u8::bitor),
             (Prim::U8Xor, spine) => apply_const_step!(spine, [x: U8, y: U8], U8, u8::bitxor),
 
             (Prim::U16Add, spine) => apply_const_step!(spine, [x: U16, y: U16], U16, u16::add),
@@ -541,6 +543,8 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
             (Prim::U16Not, spine) => apply_const_step!(spine, [x: U16], U16, u16::not),
             (Prim::U16Shl, spine) => apply_const_step!(spine, [x: U16, y: U16], U16, u16::shl),
             (Prim::U16Shr, spine) => apply_const_step!(spine, [x: U16, y: U16], U16, u16::shr),
+            (Prim::U16And, spine) => apply_const_step!(spine, [x: U16, y: U16], U16, u16::bitand),
+            (Prim::U16Or, spine) => apply_const_step!(spine, [x: U16, y: U16], U16, u16::bitor),
             (Prim::U16Xor, spine) => apply_const_step!(spine, [x: U16, y: U16], U16, u16::bitxor),
 
             (Prim::U32Add, spine) => apply_const_step!(spine, [x: U32, y: U32], U32, u32::add),
@@ -550,6 +554,8 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
             (Prim::U32Not, spine) => apply_const_step!(spine, [x: U32], U32, u32::not),
             (Prim::U32Shl, spine) => apply_const_step!(spine, [x: U32, y: U32], U32, u32::shl),
             (Prim::U32Shr, spine) => apply_const_step!(spine, [x: U32, y: U32], U32, u32::shr),
+            (Prim::U32And, spine) => apply_const_step!(spine, [x: U32, y: U32], U32, u32::bitand),
+            (Prim::U32Or, spine) => apply_const_step!(spine, [x: U32, y: U32], U32, u32::bitor),
             (Prim::U32Xor, spine) => apply_const_step!(spine, [x: U32, y: U32], U32, u32::bitxor),
 
             (Prim::U64Add, spine) => apply_const_step!(spine, [x: U64, y: U64], U64, u64::add),
@@ -559,6 +565,8 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
             (Prim::U64Not, spine) => apply_const_step!(spine, [x: U64], U64, u64::not),
             (Prim::U64Shl, spine) => apply_const_step!(spine, [x: U64, y: U64], U64, u64::shl),
             (Prim::U64Shr, spine) => apply_const_step!(spine, [x: U64, y: U64], U64, u64::shr),
+            (Prim::U64And, spine) => apply_const_step!(spine, [x: U64, y: U64], U64, u64::bitand),
+            (Prim::U64Or, spine) => apply_const_step!(spine, [x: U64, y: U64], U64, u64::bitor),
             (Prim::U64Xor, spine) => apply_const_step!(spine, [x: U64, y: U64], U64, u64::bitxor),
 
             (Prim::S8Neg, spine) => apply_const_step!(spine, [x: S8], S8, i8::neg),
