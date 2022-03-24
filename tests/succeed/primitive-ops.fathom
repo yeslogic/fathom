@@ -1,0 +1,11 @@
+let test : Array8 (u8_add 1 2) {} -> Array8 3 {} = fun x => x;
+let test : Array16 (u16_add 1 2) {} -> Array16 3 {} = fun x => x;
+let test : Array32 (u32_add 1 2) {} -> Array32 3 {} = fun x => x;
+let test : Array64 (u64_add 1 2) {} -> Array64 3 {} = fun x => x;
+
+let test : Array8 (u8_sub 3 1) {} -> Array8 2 {} = fun x => x;
+let test : Array16 (u16_sub 3 1) {} -> Array16 2 {} = fun x => x;
+let test : Array32 (u32_sub 3 1) {} -> Array32 2 {} = fun x => x;
+let test : Array64 (u64_sub 3 1) {} -> Array64 2 {} = fun x => x;
+
+Type

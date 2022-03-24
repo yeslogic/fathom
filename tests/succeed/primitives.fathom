@@ -60,4 +60,64 @@ let test_link64 : Pos -> U64 -> Format -> Format = link64;
 let test_stream_pos : Format = stream_pos;
 let test_repr : Format -> Type = Repr;
 
+let test_u8_add : U8 -> U8 -> U8 = u8_add;
+let test_u8_sub : U8 -> U8 -> U8 = u8_sub;
+let test_u8_mul : U8 -> U8 -> U8 = u8_mul;
+let test_u8_div : U8 -> U8 -> U8 = u8_div;
+let test_u8_not : U8 -> U8 = u8_not;
+let test_u8_shl : U8 -> U8 -> U8 = u8_shl;
+let test_u8_shr : U8 -> U8 -> U8 = u8_shr;
+let test_u8_xor : U8 -> U8 -> U8 = u8_xor;
+
+let test_u16_add : U16 -> U16 -> U16 = u16_add;
+let test_u16_sub : U16 -> U16 -> U16 = u16_sub;
+let test_u16_mul : U16 -> U16 -> U16 = u16_mul;
+let test_u16_div : U16 -> U16 -> U16 = u16_div;
+let test_u16_not : U16 -> U16 = u16_not;
+let test_u16_shl : U16 -> U16 -> U16 = u16_shl;
+let test_u16_shr : U16 -> U16 -> U16 = u16_shr;
+let test_u16_xor : U16 -> U16 -> U16 = u16_xor;
+
+let test_u32_add : U32 -> U32 -> U32 = u32_add;
+let test_u32_sub : U32 -> U32 -> U32 = u32_sub;
+let test_u32_mul : U32 -> U32 -> U32 = u32_mul;
+let test_u32_div : U32 -> U32 -> U32 = u32_div;
+let test_u32_not : U32 -> U32 = u32_not;
+let test_u32_shl : U32 -> U32 -> U32 = u32_shl;
+let test_u32_shr : U32 -> U32 -> U32 = u32_shr;
+let test_u32_xor : U32 -> U32 -> U32 = u32_xor;
+
+let test_u64_add : U64 -> U64 -> U64 = u64_add;
+let test_u64_sub : U64 -> U64 -> U64 = u64_sub;
+let test_u64_mul : U64 -> U64 -> U64 = u64_mul;
+let test_u64_div : U64 -> U64 -> U64 = u64_div;
+let test_u64_not : U64 -> U64 = u64_not;
+let test_u64_shl : U64 -> U64 -> U64 = u64_shl;
+let test_u64_shr : U64 -> U64 -> U64 = u64_shr;
+let test_u64_xor : U64 -> U64 -> U64 = u64_xor;
+
+let test_s8_neg : S8 -> S8 = s8_neg;
+let test_s8_add : S8 -> S8 -> S8 = s8_add;
+let test_s8_sub : S8 -> S8 -> S8 = s8_sub;
+let test_s8_mul : S8 -> S8 -> S8 = s8_mul;
+let test_s8_div : S8 -> S8 -> S8 = s8_div;
+
+let test_s16_neg : S16 -> S16 = s16_neg;
+let test_s16_add : S16 -> S16 -> S16 = s16_add;
+let test_s16_sub : S16 -> S16 -> S16 = s16_sub;
+let test_s16_mul : S16 -> S16 -> S16 = s16_mul;
+let test_s16_div : S16 -> S16 -> S16 = s16_div;
+
+let test_s32_neg : S32 -> S32 = s32_neg;
+let test_s32_add : S32 -> S32 -> S32 = s32_add;
+let test_s32_sub : S32 -> S32 -> S32 = s32_sub;
+let test_s32_mul : S32 -> S32 -> S32 = s32_mul;
+let test_s32_div : S32 -> S32 -> S32 = s32_div;
+
+let test_s64_neg : S64 -> S64 = s64_neg;
+let test_s64_add : S64 -> S64 -> S64 = s64_add;
+let test_s64_sub : S64 -> S64 -> S64 = s64_sub;
+let test_s64_mul : S64 -> S64 -> S64 = s64_mul;
+let test_s64_div : S64 -> S64 -> S64 = s64_div;
+
 Type
