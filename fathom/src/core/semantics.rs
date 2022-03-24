@@ -330,17 +330,104 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
     }
 }
 
-/// Generates code for applying an evaluation step for constants, for use in
-/// [`ElimContext::apply_prim`].
-macro_rules! apply_const_step {
-    ($spine:expr, [$($input:ident : $Input:ident),*], $Output:ident, $step:expr) => {{
-        if let [$(Elim::Fun($input)),*] = $spine {
-            if let ($(Value::Const(Const::$Input($input)),)*) = ($($input.as_ref(),)*) {
-                return Some(Arc::new(Value::Const(Const::$Output($step($(*$input),*)))));
+/// Generates an evaluation step between constants.
+macro_rules! const_step {
+    ([$($input:ident : $Input:ident),*], $Output:ident, $step:expr) => {
+        Some(|_, spine| {
+            if let [$(Elim::Fun($input)),*] = spine {
+                if let ($(Value::Const(Const::$Input($input)),)*) = ($($input.as_ref(),)*) {
+                    return Some(Arc::new(Value::Const(Const::$Output($step($(*$input),*)))));
+                }
             }
-        }
-        None
-    }};
+            None
+        })
+    };
+}
+
+/// Primitive evaluation step.
+type PrimStep =
+    for<'arena> fn(&ElimContext<'arena, '_>, &[Elim<'arena>]) -> Option<ArcValue<'arena>>;
+
+/// Returns an evaluation step for a primitive, if there is one defined.
+fn prim_step(prim: Prim) -> Option<PrimStep> {
+    use std::ops::{Add, BitAnd, BitOr, BitXor, Div, Mul, Neg, Not, Shl, Shr, Sub};
+
+    match prim {
+        Prim::FormatRepr => Some(|context, spine| match spine {
+            [Elim::Fun(format)] => Some(context.apply_repr(format)),
+            _ => None,
+        }),
+
+        Prim::U8Add => const_step!([x: U8, y: U8], U8, u8::add),
+        Prim::U8Sub => const_step!([x: U8, y: U8], U8, u8::sub),
+        Prim::U8Mul => const_step!([x: U8, y: U8], U8, u8::mul),
+        Prim::U8Div => const_step!([x: U8, y: U8], U8, u8::div),
+        Prim::U8Not => const_step!([x: U8], U8, u8::not),
+        Prim::U8Shl => const_step!([x: U8, y: U8], U8, u8::shl),
+        Prim::U8Shr => const_step!([x: U8, y: U8], U8, u8::shr),
+        Prim::U8And => const_step!([x: U8, y: U8], U8, u8::bitand),
+        Prim::U8Or => const_step!([x: U8, y: U8], U8, u8::bitor),
+        Prim::U8Xor => const_step!([x: U8, y: U8], U8, u8::bitxor),
+
+        Prim::U16Add => const_step!([x: U16, y: U16], U16, u16::add),
+        Prim::U16Sub => const_step!([x: U16, y: U16], U16, u16::sub),
+        Prim::U16Mul => const_step!([x: U16, y: U16], U16, u16::mul),
+        Prim::U16Div => const_step!([x: U16, y: U16], U16, u16::div),
+        Prim::U16Not => const_step!([x: U16], U16, u16::not),
+        Prim::U16Shl => const_step!([x: U16, y: U16], U16, u16::shl),
+        Prim::U16Shr => const_step!([x: U16, y: U16], U16, u16::shr),
+        Prim::U16And => const_step!([x: U16, y: U16], U16, u16::bitand),
+        Prim::U16Or => const_step!([x: U16, y: U16], U16, u16::bitor),
+        Prim::U16Xor => const_step!([x: U16, y: U16], U16, u16::bitxor),
+
+        Prim::U32Add => const_step!([x: U32, y: U32], U32, u32::add),
+        Prim::U32Sub => const_step!([x: U32, y: U32], U32, u32::sub),
+        Prim::U32Mul => const_step!([x: U32, y: U32], U32, u32::mul),
+        Prim::U32Div => const_step!([x: U32, y: U32], U32, u32::div),
+        Prim::U32Not => const_step!([x: U32], U32, u32::not),
+        Prim::U32Shl => const_step!([x: U32, y: U32], U32, u32::shl),
+        Prim::U32Shr => const_step!([x: U32, y: U32], U32, u32::shr),
+        Prim::U32And => const_step!([x: U32, y: U32], U32, u32::bitand),
+        Prim::U32Or => const_step!([x: U32, y: U32], U32, u32::bitor),
+        Prim::U32Xor => const_step!([x: U32, y: U32], U32, u32::bitxor),
+
+        Prim::U64Add => const_step!([x: U64, y: U64], U64, u64::add),
+        Prim::U64Sub => const_step!([x: U64, y: U64], U64, u64::sub),
+        Prim::U64Mul => const_step!([x: U64, y: U64], U64, u64::mul),
+        Prim::U64Div => const_step!([x: U64, y: U64], U64, u64::div),
+        Prim::U64Not => const_step!([x: U64], U64, u64::not),
+        Prim::U64Shl => const_step!([x: U64, y: U64], U64, u64::shl),
+        Prim::U64Shr => const_step!([x: U64, y: U64], U64, u64::shr),
+        Prim::U64And => const_step!([x: U64, y: U64], U64, u64::bitand),
+        Prim::U64Or => const_step!([x: U64, y: U64], U64, u64::bitor),
+        Prim::U64Xor => const_step!([x: U64, y: U64], U64, u64::bitxor),
+
+        Prim::S8Neg => const_step!([x: S8], S8, i8::neg),
+        Prim::S8Add => const_step!([x: S8, y: S8], S8, i8::add),
+        Prim::S8Sub => const_step!([x: S8, y: S8], S8, i8::sub),
+        Prim::S8Mul => const_step!([x: S8, y: S8], S8, i8::mul),
+        Prim::S8Div => const_step!([x: S8, y: S8], S8, i8::div),
+
+        Prim::S16Neg => const_step!([x: S16], S16, i16::neg),
+        Prim::S16Add => const_step!([x: S16, y: S16], S16, i16::add),
+        Prim::S16Sub => const_step!([x: S16, y: S16], S16, i16::sub),
+        Prim::S16Mul => const_step!([x: S16, y: S16], S16, i16::mul),
+        Prim::S16Div => const_step!([x: S16, y: S16], S16, i16::div),
+
+        Prim::S32Neg => const_step!([x: S32], S32, i32::neg),
+        Prim::S32Add => const_step!([x: S32, y: S32], S32, i32::add),
+        Prim::S32Sub => const_step!([x: S32, y: S32], S32, i32::sub),
+        Prim::S32Mul => const_step!([x: S32, y: S32], S32, i32::mul),
+        Prim::S32Div => const_step!([x: S32, y: S32], S32, i32::div),
+
+        Prim::S64Neg => const_step!([x: S64], S64, i64::neg),
+        Prim::S64Add => const_step!([x: S64, y: S64], S64, i64::add),
+        Prim::S64Sub => const_step!([x: S64, y: S64], S64, i64::sub),
+        Prim::S64Mul => const_step!([x: S64, y: S64], S64, i64::mul),
+        Prim::S64Div => const_step!([x: S64, y: S64], S64, i64::div),
+
+        _ => None,
+    }
 }
 
 /// Elimination context.
@@ -446,7 +533,9 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
                 spine.push(Elim::Fun(input_expr));
 
                 match head {
-                    Head::Prim(prim) => self.apply_prim(*prim, spine).unwrap_or(head_expr),
+                    Head::Prim(prim) => prim_step(*prim)
+                        .and_then(|step| step(self, spine))
+                        .unwrap_or(head_expr),
                     _ => head_expr,
                 }
             }
@@ -517,84 +606,6 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
             Elim::Record(label) => self.apply_record(head_expr, *label),
             Elim::Const(split) => self.apply_const(head_expr, split.clone()),
         })
-    }
-
-    fn apply_prim(&self, prim: Prim, spine: &[Elim<'arena>]) -> Option<ArcValue<'arena>> {
-        use std::ops::{Add, BitAnd, BitOr, BitXor, Div, Mul, Neg, Not, Shl, Shr, Sub};
-
-        match (prim, spine) {
-            (Prim::FormatRepr, [Elim::Fun(format)]) => Some(self.apply_repr(format)),
-
-            (Prim::U8Add, spine) => apply_const_step!(spine, [x: U8, y: U8], U8, u8::add),
-            (Prim::U8Sub, spine) => apply_const_step!(spine, [x: U8, y: U8], U8, u8::sub),
-            (Prim::U8Mul, spine) => apply_const_step!(spine, [x: U8, y: U8], U8, u8::mul),
-            (Prim::U8Div, spine) => apply_const_step!(spine, [x: U8, y: U8], U8, u8::div),
-            (Prim::U8Not, spine) => apply_const_step!(spine, [x: U8], U8, u8::not),
-            (Prim::U8Shl, spine) => apply_const_step!(spine, [x: U8, y: U8], U8, u8::shl),
-            (Prim::U8Shr, spine) => apply_const_step!(spine, [x: U8, y: U8], U8, u8::shr),
-            (Prim::U8And, spine) => apply_const_step!(spine, [x: U8, y: U8], U8, u8::bitand),
-            (Prim::U8Or, spine) => apply_const_step!(spine, [x: U8, y: U8], U8, u8::bitor),
-            (Prim::U8Xor, spine) => apply_const_step!(spine, [x: U8, y: U8], U8, u8::bitxor),
-
-            (Prim::U16Add, spine) => apply_const_step!(spine, [x: U16, y: U16], U16, u16::add),
-            (Prim::U16Sub, spine) => apply_const_step!(spine, [x: U16, y: U16], U16, u16::sub),
-            (Prim::U16Mul, spine) => apply_const_step!(spine, [x: U16, y: U16], U16, u16::mul),
-            (Prim::U16Div, spine) => apply_const_step!(spine, [x: U16, y: U16], U16, u16::div),
-            (Prim::U16Not, spine) => apply_const_step!(spine, [x: U16], U16, u16::not),
-            (Prim::U16Shl, spine) => apply_const_step!(spine, [x: U16, y: U16], U16, u16::shl),
-            (Prim::U16Shr, spine) => apply_const_step!(spine, [x: U16, y: U16], U16, u16::shr),
-            (Prim::U16And, spine) => apply_const_step!(spine, [x: U16, y: U16], U16, u16::bitand),
-            (Prim::U16Or, spine) => apply_const_step!(spine, [x: U16, y: U16], U16, u16::bitor),
-            (Prim::U16Xor, spine) => apply_const_step!(spine, [x: U16, y: U16], U16, u16::bitxor),
-
-            (Prim::U32Add, spine) => apply_const_step!(spine, [x: U32, y: U32], U32, u32::add),
-            (Prim::U32Sub, spine) => apply_const_step!(spine, [x: U32, y: U32], U32, u32::sub),
-            (Prim::U32Mul, spine) => apply_const_step!(spine, [x: U32, y: U32], U32, u32::mul),
-            (Prim::U32Div, spine) => apply_const_step!(spine, [x: U32, y: U32], U32, u32::div),
-            (Prim::U32Not, spine) => apply_const_step!(spine, [x: U32], U32, u32::not),
-            (Prim::U32Shl, spine) => apply_const_step!(spine, [x: U32, y: U32], U32, u32::shl),
-            (Prim::U32Shr, spine) => apply_const_step!(spine, [x: U32, y: U32], U32, u32::shr),
-            (Prim::U32And, spine) => apply_const_step!(spine, [x: U32, y: U32], U32, u32::bitand),
-            (Prim::U32Or, spine) => apply_const_step!(spine, [x: U32, y: U32], U32, u32::bitor),
-            (Prim::U32Xor, spine) => apply_const_step!(spine, [x: U32, y: U32], U32, u32::bitxor),
-
-            (Prim::U64Add, spine) => apply_const_step!(spine, [x: U64, y: U64], U64, u64::add),
-            (Prim::U64Sub, spine) => apply_const_step!(spine, [x: U64, y: U64], U64, u64::sub),
-            (Prim::U64Mul, spine) => apply_const_step!(spine, [x: U64, y: U64], U64, u64::mul),
-            (Prim::U64Div, spine) => apply_const_step!(spine, [x: U64, y: U64], U64, u64::div),
-            (Prim::U64Not, spine) => apply_const_step!(spine, [x: U64], U64, u64::not),
-            (Prim::U64Shl, spine) => apply_const_step!(spine, [x: U64, y: U64], U64, u64::shl),
-            (Prim::U64Shr, spine) => apply_const_step!(spine, [x: U64, y: U64], U64, u64::shr),
-            (Prim::U64And, spine) => apply_const_step!(spine, [x: U64, y: U64], U64, u64::bitand),
-            (Prim::U64Or, spine) => apply_const_step!(spine, [x: U64, y: U64], U64, u64::bitor),
-            (Prim::U64Xor, spine) => apply_const_step!(spine, [x: U64, y: U64], U64, u64::bitxor),
-
-            (Prim::S8Neg, spine) => apply_const_step!(spine, [x: S8], S8, i8::neg),
-            (Prim::S8Add, spine) => apply_const_step!(spine, [x: S8, y: S8], S8, i8::add),
-            (Prim::S8Sub, spine) => apply_const_step!(spine, [x: S8, y: S8], S8, i8::sub),
-            (Prim::S8Mul, spine) => apply_const_step!(spine, [x: S8, y: S8], S8, i8::mul),
-            (Prim::S8Div, spine) => apply_const_step!(spine, [x: S8, y: S8], S8, i8::div),
-
-            (Prim::S16Neg, spine) => apply_const_step!(spine, [x: S16], S16, i16::neg),
-            (Prim::S16Add, spine) => apply_const_step!(spine, [x: S16, y: S16], S16, i16::add),
-            (Prim::S16Sub, spine) => apply_const_step!(spine, [x: S16, y: S16], S16, i16::sub),
-            (Prim::S16Mul, spine) => apply_const_step!(spine, [x: S16, y: S16], S16, i16::mul),
-            (Prim::S16Div, spine) => apply_const_step!(spine, [x: S16, y: S16], S16, i16::div),
-
-            (Prim::S32Neg, spine) => apply_const_step!(spine, [x: S32], S32, i32::neg),
-            (Prim::S32Add, spine) => apply_const_step!(spine, [x: S32, y: S32], S32, i32::add),
-            (Prim::S32Sub, spine) => apply_const_step!(spine, [x: S32, y: S32], S32, i32::sub),
-            (Prim::S32Mul, spine) => apply_const_step!(spine, [x: S32, y: S32], S32, i32::mul),
-            (Prim::S32Div, spine) => apply_const_step!(spine, [x: S32, y: S32], S32, i32::div),
-
-            (Prim::S64Neg, spine) => apply_const_step!(spine, [x: S64], S64, i64::neg),
-            (Prim::S64Add, spine) => apply_const_step!(spine, [x: S64, y: S64], S64, i64::add),
-            (Prim::S64Sub, spine) => apply_const_step!(spine, [x: S64, y: S64], S64, i64::sub),
-            (Prim::S64Mul, spine) => apply_const_step!(spine, [x: S64, y: S64], S64, i64::mul),
-            (Prim::S64Div, spine) => apply_const_step!(spine, [x: S64, y: S64], S64, i64::div),
-
-            (_, _) => None,
-        }
     }
 
     /// Find the representation type of a format description.
