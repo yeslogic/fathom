@@ -503,6 +503,32 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         }
     }
 
+    /// Parse a source string into a number.
+    fn parse_number_radix<T: FromStrRadix>(
+        &mut self,
+        range: ByteRange,
+        string_id: StringId,
+    ) -> Option<T> {
+        // TODO: Custom parsing and improved errors
+        let s = self.interner.borrow();
+        let s = s.resolve(string_id).unwrap();
+        let (s, radix) = if s.starts_with("0x") {
+            (&s[2..], 16)
+        } else if s.starts_with("0b") {
+            (&s[2..], 2)
+        } else {
+            (s, 10)
+        };
+        match T::from_str_radix(s, radix) {
+            Ok(data) => Some(data),
+            Err(error) => {
+                let message = error.to_string();
+                self.push_message(Message::InvalidNumericLiteral { range, message });
+                None
+            }
+        }
+    }
+
     /// Conversion checking for `expr` under the types `type0` and `type1`.
     /// This will trigger unification, recording a unification error on failure.
     //
@@ -595,10 +621,18 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
             }
             Pattern::NumberLiteral(range, number) => {
                 let constant = match expected_type.match_prim_spine() {
-                    Some((Prim::U8Type, [])) => self.parse_number(*range, *number).map(Const::U8),
-                    Some((Prim::U16Type, [])) => self.parse_number(*range, *number).map(Const::U16),
-                    Some((Prim::U32Type, [])) => self.parse_number(*range, *number).map(Const::U32),
-                    Some((Prim::U64Type, [])) => self.parse_number(*range, *number).map(Const::U64),
+                    Some((Prim::U8Type, [])) => {
+                        self.parse_number_radix(*range, *number).map(Const::U8)
+                    }
+                    Some((Prim::U16Type, [])) => {
+                        self.parse_number_radix(*range, *number).map(Const::U16)
+                    }
+                    Some((Prim::U32Type, [])) => {
+                        self.parse_number_radix(*range, *number).map(Const::U32)
+                    }
+                    Some((Prim::U64Type, [])) => {
+                        self.parse_number_radix(*range, *number).map(Const::U64)
+                    }
                     Some((Prim::S8Type, [])) => self.parse_number(*range, *number).map(Const::S8),
                     Some((Prim::S16Type, [])) => self.parse_number(*range, *number).map(Const::S16),
                     Some((Prim::S32Type, [])) => self.parse_number(*range, *number).map(Const::S32),
@@ -906,10 +940,18 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
             }
             (Term::NumberLiteral(range, number), _) => {
                 let constant = match expected_type.match_prim_spine() {
-                    Some((Prim::U8Type, [])) => self.parse_number(*range, *number).map(Const::U8),
-                    Some((Prim::U16Type, [])) => self.parse_number(*range, *number).map(Const::U16),
-                    Some((Prim::U32Type, [])) => self.parse_number(*range, *number).map(Const::U32),
-                    Some((Prim::U64Type, [])) => self.parse_number(*range, *number).map(Const::U64),
+                    Some((Prim::U8Type, [])) => {
+                        self.parse_number_radix(*range, *number).map(Const::U8)
+                    }
+                    Some((Prim::U16Type, [])) => {
+                        self.parse_number_radix(*range, *number).map(Const::U16)
+                    }
+                    Some((Prim::U32Type, [])) => {
+                        self.parse_number_radix(*range, *number).map(Const::U32)
+                    }
+                    Some((Prim::U64Type, [])) => {
+                        self.parse_number_radix(*range, *number).map(Const::U64)
+                    }
                     Some((Prim::S8Type, [])) => self.parse_number(*range, *number).map(Const::S8),
                     Some((Prim::S16Type, [])) => self.parse_number(*range, *number).map(Const::S16),
                     Some((Prim::S32Type, [])) => self.parse_number(*range, *number).map(Const::S32),
@@ -1436,3 +1478,23 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         }
     }
 }
+
+trait FromStrRadix: Sized {
+    fn from_str_radix(src: &str, radix: u32) -> Result<Self, std::num::ParseIntError>;
+}
+
+macro_rules! impl_from_str_radix {
+    ($t:ty) => {
+        impl FromStrRadix for $t {
+            fn from_str_radix(src: &str, radix: u32) -> Result<Self, std::num::ParseIntError> {
+                // calls base implementation, not trait function
+                Self::from_str_radix(src, radix)
+            }
+        }
+    };
+}
+
+impl_from_str_radix!(u8);
+impl_from_str_radix!(u16);
+impl_from_str_radix!(u32);
+impl_from_str_radix!(u64);
