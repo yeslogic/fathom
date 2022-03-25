@@ -330,101 +330,102 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
     }
 }
 
-/// Generates an evaluation step between constants.
-macro_rules! const_step {
-    ([$($input:ident : $Input:ident),*], $Output:ident, $step:expr) => {
-        Some(|_, spine| {
-            if let [$(Elim::Fun($input)),*] = spine {
-                if let ($(Value::Const(Const::$Input($input)),)*) = ($($input.as_ref(),)*) {
-                    return Some(Arc::new(Value::Const(Const::$Output($step($(*$input),*)))));
-                }
-            }
-            None
-        })
-    };
-}
-
 /// Primitive evaluation step.
 type PrimStep =
     for<'arena> fn(&ElimContext<'arena, '_>, &[Elim<'arena>]) -> Option<ArcValue<'arena>>;
 
+macro_rules! step {
+    ($context:pat, [$($input:pat),*] => $output:expr) => {
+        Some(|$context, spine| match spine {
+            [$(Elim::Fun($input)),*] => Some($output),
+            _ => return None,
+        })
+    };
+}
+
+macro_rules! const_step {
+    ([$($input:ident : $Input:ident),*] => $output:expr) => {
+        step!(_, [$($input),*] => match ($($input.as_ref(),)*) {
+            ($(Value::Const(Const::$Input($input)),)*) => Arc::new(Value::Const($output)),
+            _ => return None,
+        })
+    };
+}
+
 /// Returns an evaluation step for a primitive, if there is one defined.
 fn prim_step(prim: Prim) -> Option<PrimStep> {
-    use std::ops::{Add, BitAnd, BitOr, BitXor, Div, Mul, Neg, Not, Shl, Shr, Sub};
+    use std::ops::{BitAnd, BitOr, BitXor, Not, Shl, Shr};
 
     match prim {
-        Prim::FormatRepr => Some(|context, spine| match spine {
-            [Elim::Fun(format)] => Some(context.apply_repr(format)),
-            _ => None,
-        }),
+        Prim::FormatRepr => step!(context, [format] => context.apply_repr(format)),
 
-        Prim::U8Add => const_step!([x: U8, y: U8], U8, u8::add),
-        Prim::U8Sub => const_step!([x: U8, y: U8], U8, u8::sub),
-        Prim::U8Mul => const_step!([x: U8, y: U8], U8, u8::mul),
-        Prim::U8Div => const_step!([x: U8, y: U8], U8, u8::div),
-        Prim::U8Not => const_step!([x: U8], U8, u8::not),
-        Prim::U8Shl => const_step!([x: U8, y: U8], U8, u8::shl),
-        Prim::U8Shr => const_step!([x: U8, y: U8], U8, u8::shr),
-        Prim::U8And => const_step!([x: U8, y: U8], U8, u8::bitand),
-        Prim::U8Or => const_step!([x: U8, y: U8], U8, u8::bitor),
-        Prim::U8Xor => const_step!([x: U8, y: U8], U8, u8::bitxor),
+        Prim::U8Add => const_step!([x: U8, y: U8] => Const::U8(u8::checked_add(*x, *y)?)),
+        Prim::U8Sub => const_step!([x: U8, y: U8] => Const::U8(u8::checked_sub(*x, *y)?)),
+        Prim::U8Mul => const_step!([x: U8, y: U8] => Const::U8(u8::checked_mul(*x, *y)?)),
+        Prim::U8Div => const_step!([x: U8, y: U8] => Const::U8(u8::checked_div(*x, *y)?)),
+        Prim::U8Not => const_step!([x: U8] => Const::U8(u8::not(*x))),
+        Prim::U8Shl => const_step!([x: U8, y: U8] => Const::U8(u8::shl(*x, *y))), // TODO: Use `checked_shl`
+        Prim::U8Shr => const_step!([x: U8, y: U8] => Const::U8(u8::shr(*x, *y))), // TODO: Use `checked_shr`
+        Prim::U8And => const_step!([x: U8, y: U8] => Const::U8(u8::bitand(*x, *y))),
+        Prim::U8Or => const_step!([x: U8, y: U8] => Const::U8(u8::bitor(*x, *y))),
+        Prim::U8Xor => const_step!([x: U8, y: U8] => Const::U8(u8::bitxor(*x, *y))),
 
-        Prim::U16Add => const_step!([x: U16, y: U16], U16, u16::add),
-        Prim::U16Sub => const_step!([x: U16, y: U16], U16, u16::sub),
-        Prim::U16Mul => const_step!([x: U16, y: U16], U16, u16::mul),
-        Prim::U16Div => const_step!([x: U16, y: U16], U16, u16::div),
-        Prim::U16Not => const_step!([x: U16], U16, u16::not),
-        Prim::U16Shl => const_step!([x: U16, y: U16], U16, u16::shl),
-        Prim::U16Shr => const_step!([x: U16, y: U16], U16, u16::shr),
-        Prim::U16And => const_step!([x: U16, y: U16], U16, u16::bitand),
-        Prim::U16Or => const_step!([x: U16, y: U16], U16, u16::bitor),
-        Prim::U16Xor => const_step!([x: U16, y: U16], U16, u16::bitxor),
+        Prim::U16Add => const_step!([x: U16, y: U16] => Const::U16(u16::checked_add(*x, *y)?)),
+        Prim::U16Sub => const_step!([x: U16, y: U16] => Const::U16(u16::checked_sub(*x, *y)?)),
+        Prim::U16Mul => const_step!([x: U16, y: U16] => Const::U16(u16::checked_mul(*x, *y)?)),
+        Prim::U16Div => const_step!([x: U16, y: U16] => Const::U16(u16::checked_div(*x, *y)?)),
+        Prim::U16Not => const_step!([x: U16] => Const::U16(u16::not(*x))),
+        Prim::U16Shl => const_step!([x: U16, y: U16] => Const::U16(u16::shl(*x, *y))), // TODO: Use `checked_shl`
+        Prim::U16Shr => const_step!([x: U16, y: U16] => Const::U16(u16::shr(*x, *y))), // TODO: Use `checked_shr`
+        Prim::U16And => const_step!([x: U16, y: U16] => Const::U16(u16::bitand(*x, *y))),
+        Prim::U16Or => const_step!([x: U16, y: U16] => Const::U16(u16::bitor(*x, *y))),
+        Prim::U16Xor => const_step!([x: U16, y: U16] => Const::U16(u16::bitxor(*x, *y))),
 
-        Prim::U32Add => const_step!([x: U32, y: U32], U32, u32::add),
-        Prim::U32Sub => const_step!([x: U32, y: U32], U32, u32::sub),
-        Prim::U32Mul => const_step!([x: U32, y: U32], U32, u32::mul),
-        Prim::U32Div => const_step!([x: U32, y: U32], U32, u32::div),
-        Prim::U32Not => const_step!([x: U32], U32, u32::not),
-        Prim::U32Shl => const_step!([x: U32, y: U32], U32, u32::shl),
-        Prim::U32Shr => const_step!([x: U32, y: U32], U32, u32::shr),
-        Prim::U32And => const_step!([x: U32, y: U32], U32, u32::bitand),
-        Prim::U32Or => const_step!([x: U32, y: U32], U32, u32::bitor),
-        Prim::U32Xor => const_step!([x: U32, y: U32], U32, u32::bitxor),
+        Prim::U32Add => const_step!([x: U32, y: U32] => Const::U32(u32::checked_add(*x, *y)?)),
+        Prim::U32Sub => const_step!([x: U32, y: U32] => Const::U32(u32::checked_sub(*x, *y)?)),
+        Prim::U32Mul => const_step!([x: U32, y: U32] => Const::U32(u32::checked_mul(*x, *y)?)),
+        Prim::U32Div => const_step!([x: U32, y: U32] => Const::U32(u32::checked_div(*x, *y)?)),
+        Prim::U32Not => const_step!([x: U32] => Const::U32(u32::not(*x))),
+        Prim::U32Shl => const_step!([x: U32, y: U32] => Const::U32(u32::shl(*x, *y))), // TODO: Use `checked_shl`
+        Prim::U32Shr => const_step!([x: U32, y: U32] => Const::U32(u32::shr(*x, *y))), // TODO: Use `checked_shr`
+        Prim::U32And => const_step!([x: U32, y: U32] => Const::U32(u32::bitand(*x, *y))),
+        Prim::U32Or => const_step!([x: U32, y: U32] => Const::U32(u32::bitor(*x, *y))),
+        Prim::U32Xor => const_step!([x: U32, y: U32] => Const::U32(u32::bitxor(*x, *y))),
 
-        Prim::U64Add => const_step!([x: U64, y: U64], U64, u64::add),
-        Prim::U64Sub => const_step!([x: U64, y: U64], U64, u64::sub),
-        Prim::U64Mul => const_step!([x: U64, y: U64], U64, u64::mul),
-        Prim::U64Div => const_step!([x: U64, y: U64], U64, u64::div),
-        Prim::U64Not => const_step!([x: U64], U64, u64::not),
-        Prim::U64Shl => const_step!([x: U64, y: U64], U64, u64::shl),
-        Prim::U64Shr => const_step!([x: U64, y: U64], U64, u64::shr),
-        Prim::U64And => const_step!([x: U64, y: U64], U64, u64::bitand),
-        Prim::U64Or => const_step!([x: U64, y: U64], U64, u64::bitor),
-        Prim::U64Xor => const_step!([x: U64, y: U64], U64, u64::bitxor),
+        Prim::U64Add => const_step!([x: U64, y: U64] => Const::U64(u64::checked_add(*x, *y)?)),
+        Prim::U64Sub => const_step!([x: U64, y: U64] => Const::U64(u64::checked_sub(*x, *y)?)),
+        Prim::U64Mul => const_step!([x: U64, y: U64] => Const::U64(u64::checked_mul(*x, *y)?)),
+        Prim::U64Div => const_step!([x: U64, y: U64] => Const::U64(u64::checked_div(*x, *y)?)),
+        Prim::U64Not => const_step!([x: U64] => Const::U64(u64::not(*x))),
+        Prim::U64Shl => const_step!([x: U64, y: U64] => Const::U64(u64::shl(*x, *y))), // TODO: Use `checked_shl`
+        Prim::U64Shr => const_step!([x: U64, y: U64] => Const::U64(u64::shr(*x, *y))), // TODO: Use `checked_shr`
+        Prim::U64And => const_step!([x: U64, y: U64] => Const::U64(u64::bitand(*x, *y))),
+        Prim::U64Or => const_step!([x: U64, y: U64] => Const::U64(u64::bitor(*x, *y))),
+        Prim::U64Xor => const_step!([x: U64, y: U64] => Const::U64(u64::bitxor(*x, *y))),
 
-        Prim::S8Neg => const_step!([x: S8], S8, i8::neg),
-        Prim::S8Add => const_step!([x: S8, y: S8], S8, i8::add),
-        Prim::S8Sub => const_step!([x: S8, y: S8], S8, i8::sub),
-        Prim::S8Mul => const_step!([x: S8, y: S8], S8, i8::mul),
-        Prim::S8Div => const_step!([x: S8, y: S8], S8, i8::div),
+        Prim::S8Neg => const_step!([x: S8] => Const::S8(i8::checked_neg(*x)?)),
+        Prim::S8Add => const_step!([x: S8, y: S8] => Const::S8(i8::checked_add(*x, *y)?)),
+        Prim::S8Sub => const_step!([x: S8, y: S8] => Const::S8(i8::checked_sub(*x, *y)?)),
+        Prim::S8Mul => const_step!([x: S8, y: S8] => Const::S8(i8::checked_mul(*x, *y)?)),
+        Prim::S8Div => const_step!([x: S8, y: S8] => Const::S8(i8::checked_div(*x, *y)?)),
 
-        Prim::S16Neg => const_step!([x: S16], S16, i16::neg),
-        Prim::S16Add => const_step!([x: S16, y: S16], S16, i16::add),
-        Prim::S16Sub => const_step!([x: S16, y: S16], S16, i16::sub),
-        Prim::S16Mul => const_step!([x: S16, y: S16], S16, i16::mul),
-        Prim::S16Div => const_step!([x: S16, y: S16], S16, i16::div),
+        Prim::S16Neg => const_step!([x: S16] => Const::S16(i16::checked_neg(*x)?)),
+        Prim::S16Add => const_step!([x: S16, y: S16] => Const::S16(i16::checked_add(*x, *y)?)),
+        Prim::S16Sub => const_step!([x: S16, y: S16] => Const::S16(i16::checked_sub(*x, *y)?)),
+        Prim::S16Mul => const_step!([x: S16, y: S16] => Const::S16(i16::checked_mul(*x, *y)?)),
+        Prim::S16Div => const_step!([x: S16, y: S16] => Const::S16(i16::checked_div(*x, *y)?)),
 
-        Prim::S32Neg => const_step!([x: S32], S32, i32::neg),
-        Prim::S32Add => const_step!([x: S32, y: S32], S32, i32::add),
-        Prim::S32Sub => const_step!([x: S32, y: S32], S32, i32::sub),
-        Prim::S32Mul => const_step!([x: S32, y: S32], S32, i32::mul),
-        Prim::S32Div => const_step!([x: S32, y: S32], S32, i32::div),
+        Prim::S32Neg => const_step!([x: S32] => Const::S32(i32::checked_neg(*x)?)),
+        Prim::S32Add => const_step!([x: S32, y: S32] => Const::S32(i32::checked_add(*x, *y)?)),
+        Prim::S32Sub => const_step!([x: S32, y: S32] => Const::S32(i32::checked_sub(*x, *y)?)),
+        Prim::S32Mul => const_step!([x: S32, y: S32] => Const::S32(i32::checked_mul(*x, *y)?)),
+        Prim::S32Div => const_step!([x: S32, y: S32] => Const::S32(i32::checked_div(*x, *y)?)),
 
-        Prim::S64Neg => const_step!([x: S64], S64, i64::neg),
-        Prim::S64Add => const_step!([x: S64, y: S64], S64, i64::add),
-        Prim::S64Sub => const_step!([x: S64, y: S64], S64, i64::sub),
-        Prim::S64Mul => const_step!([x: S64, y: S64], S64, i64::mul),
-        Prim::S64Div => const_step!([x: S64, y: S64], S64, i64::div),
+        Prim::S64Neg => const_step!([x: S64] => Const::S64(i64::checked_neg(*x)?)),
+        Prim::S64Add => const_step!([x: S64, y: S64] => Const::S64(i64::checked_add(*x, *y)?)),
+        Prim::S64Sub => const_step!([x: S64, y: S64] => Const::S64(i64::checked_sub(*x, *y)?)),
+        Prim::S64Mul => const_step!([x: S64, y: S64] => Const::S64(i64::checked_mul(*x, *y)?)),
+        Prim::S64Div => const_step!([x: S64, y: S64] => Const::S64(i64::checked_div(*x, *y)?)),
 
         _ => None,
     }
