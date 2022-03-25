@@ -214,10 +214,17 @@ let cmap_language_id32 = fun (platform : Repr platform_id) =>
 /// A small glyph ID, limited to a glyph set of 256 glyphs.
 let small_glyph_id = u8;
 
-/// SequentialMapGroup Record
+/// # SequentialMapGroup Record
 ///
 /// Each sequential map group record specifies a character range and the starting glyph ID mapped
 /// from the first character. Glyph IDs for subsequent characters follow in sequence.
+///
+/// Used in `cmap` sub-table formats 8 and 12.
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: cmap sub-table format 8](https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#format-8-mixed-16-bit-and-32-bit-coverage)
+/// - [Apple's TrueType Reference Manual: `'cmap'` format 8](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6cmap.html)
 let sequential_map_group = {
     /// First character code in this group; note that if this group is for one or more 16-bit
     /// character codes (which is determined from the is32 array), this 32-bit value will have the
@@ -229,14 +236,28 @@ let sequential_map_group = {
     start_glyph_id <- u32be,
 };
 
-/// ConstantMapGroup Record
+/// # ConstantMapGroup Record
 ///
 /// The constant map group record has the same structure as the sequential map group record, with
 /// start and end character codes and a mapped glyph ID. However, the same glyph ID applies to all
 /// characters in the specified range rather than sequential glyph IDs.
+///
+/// Used in `cmap` sub-table format 13.
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: cmap sub-table format 13](https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#format-13-many-to-one-range-mappings)
+/// - [Apple's TrueType Reference Manual: `'cmap'` format 13](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6cmap.html)
 let constant_map_group = sequential_map_group;
 
-/// ## UnicodeRange Record
+/// # UnicodeRange Record
+///
+/// A range record from the DefaultUVS Table used in `cmap` sub-table format 14.
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: cmap sub-table format 14](https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#format-14-unicode-variation-sequences)
+/// - [Apple's TrueType Reference Manual: `'cmap'` format 14](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6cmap.html)
 let unicode_range = {
     /// First value in this range
     start_unicode_value <- u24be,
@@ -244,7 +265,14 @@ let unicode_range = {
     additional_count <- u8,
 };
 
-/// ## DefaultUVS Table
+/// # DefaultUVS Table
+///
+/// A range-compressed list of Unicode scalar values used in `cmap` sub-table format 14.
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: cmap sub-table format 14](https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#format-14-unicode-variation-sequences)
+/// - [Apple's TrueType Reference Manual: `'cmap'` format 14](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6cmap.html)
 let default_uvs_table = {
     /// Number of Unicode character ranges.
     num_unicode_value_ranges <- u32be,
@@ -252,7 +280,15 @@ let default_uvs_table = {
     ranges <- array32 num_unicode_value_ranges unicode_range,
 };
 
-/// ## UVSMapping Record
+/// # UVSMapping Record
+///
+/// A glyph ID mapping for one base Unicode character used in `cmap` sub-table format 14
+/// NonDefaultUVS Table.
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: cmap sub-table format 14](https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#format-14-unicode-variation-sequences)
+/// - [Apple's TrueType Reference Manual: `'cmap'` format 14](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6cmap.html)
 let uvs_mapping = {
     /// Base Unicode value of the UVS
     unicode_value <- u24be,
@@ -260,7 +296,14 @@ let uvs_mapping = {
     glyph_id <- u16be,
 };
 
-/// ## NonDefaultUVS Table
+/// # NonDefaultUVS Table
+///
+/// A Non-Default UVS Table is a list of pairs of Unicode scalar values and glyph IDs.
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: cmap sub-table format 14](https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#format-14-unicode-variation-sequences)
+/// - [Apple's TrueType Reference Manual: `'cmap'` format 14](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6cmap.html)
 let non_default_uvs_table = {
     /// Number of UVS Mappings that follow
     num_uvs_mappings <- u32be,
@@ -268,7 +311,15 @@ let non_default_uvs_table = {
     uvs_mappings <- array32 num_uvs_mappings uvs_mapping,
 };
 
-/// VariationSelector Record for cmap sub-table format 14
+/// # VariationSelector Record for cmap sub-table format 14
+///
+/// Each variation selector record specifies a variation selector character, and offsets to
+/// default and non-default tables used to map variation sequences using that variation selector.
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: cmap sub-table format 14](https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#format-14-unicode-variation-sequences)
+/// - [Apple's TrueType Reference Manual: `'cmap'` format 14](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6cmap.html)
 let variation_selector = fun (table_start : Pos) => {
     /// Variation selector
     var_selector <- u24be,
@@ -367,7 +418,7 @@ let cmap_subtable_format4 = fun (platform : Repr platform_id) => {
     // glyph_id_array[ ]  <- u16be,
 };
 
-/// Format 6: Trimmed table mapping
+/// # Format 6: Trimmed table mapping
 ///
 /// Format 6 was designed to map 16-bit characters to glyph indexes when the character codes for a
 /// font fall into a single contiguous range.
@@ -389,7 +440,7 @@ let cmap_subtable_format6 = fun (platform : Repr platform_id) => {
     glyph_id_array <- array16 entry_count u16be,
 };
 
-/// Format 8: mixed 16-bit and 32-bit coverage
+/// # Format 8: mixed 16-bit and 32-bit coverage
 ///
 /// Subtable format 8 was designed to support Unicode supplementary-plane characters in UTF-16
 /// encoding, though it is not commonly used. Format 8 is similar to format 2, in that it provides
@@ -416,7 +467,7 @@ let cmap_subtable_format8 = fun (platform : Repr platform_id) => {
     groups <- array32 num_groups sequential_map_group,
 };
 
-/// Format 10: Trimmed table mapping
+/// # Format 10: Trimmed table mapping
 ///
 /// Subtable format 10 was designed to support Unicode supplementary-plane characters, though it is
 /// not commonly used. Format 10 is similar to format 6, in that it defines a trimmed array for a
@@ -441,7 +492,7 @@ let cmap_subtable_format10 = fun (platform : Repr platform_id) => {
     glyph_id_array <- array32 num_chars u16be,
 };
 
-/// Format 12: Segmented coverage
+/// # Format 12: Segmented coverage
 ///
 /// This is the standard character-to-glyph-index mapping subtable for fonts supporting Unicode
 /// character repertoires that include supplementary-plane characters (U+10000 to U+10FFFF).
@@ -463,7 +514,7 @@ let cmap_subtable_format12 = fun (platform : Repr platform_id) => {
     groups <- array32 num_groups sequential_map_group,
 };
 
-/// Format 13: Many-to-one range mappings
+/// # Format 13: Many-to-one range mappings
 ///
 /// This subtable provides for situations in which the same glyph is used for hundreds or even
 /// thousands of consecutive characters spanning across multiple ranges of the code space. This
