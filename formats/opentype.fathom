@@ -394,6 +394,7 @@ let cmap_subtable_format4 = fun (platform : Repr platform_id) => {
     language <- cmap_language_id platform,
     /// 2 × segCount.
     seg_count_x2 <- u16be,
+    seg_count <- succeed _ (u16_div seg_count_x2 2),
     /// Maximum power of 2 less than or equal to segCount, times 2 ((2**floor(log₂(segCount))) * 2,
     /// where “**” is an exponentiation operator)
     search_range <- u16be,
@@ -403,17 +404,16 @@ let cmap_subtable_format4 = fun (platform : Repr platform_id) => {
     /// segCount times 2, minus searchRange ((segCount * 2) - searchRange)
     range_shift <- u16be,
     /// End characterCode for each segment, last=0xFFFF.
-    end_code <- array16 seg_count_x2 u16be, // TODO: seg count / 2
+    end_code <- array16 seg_count u16be,
     /// Set to 0.
     _reserved_pad <- reserved s16be 0,
-
-    // TODO these need arithmetic
-    // /// Start character code for each segment.
-    // start_code[segCount]  <- u16be,
-    // /// Delta for all character codes in segment.
-    // id_delta[segCount]  <- int16,
-    // /// Offsets into glyphIdArray or 0
-    // id_range_offsets[segCount]  <- u16be,
+    /// Start character code for each segment.
+    start_code <- array16 seg_count u16be,
+    /// Delta for all character codes in segment.
+    id_delta <- array16 seg_count s16be,
+    /// Offsets into glyphIdArray or 0
+    id_range_offsets <- array16 seg_count u16be,
+    // TODO: Needs length limiting formats
     // /// Glyph index array (arbitrary length)
     // glyph_id_array[ ]  <- u16be,
 };
