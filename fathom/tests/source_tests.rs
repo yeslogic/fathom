@@ -14,7 +14,7 @@ fn main() {
         .chain(find_source_files("tests").map(extract_test))
         .collect();
 
-    libtest_mimic::run_tests(&args, tests, run_test()).exit();
+    libtest_mimic::run_tests(&args, tests, run_test).exit();
 }
 
 pub struct TestData {
@@ -62,12 +62,7 @@ pub fn extract_test(path: PathBuf) -> libtest_mimic::Test<TestData> {
     }
 }
 
-pub fn run_test(
-) -> impl 'static + Send + Sync + Fn(&libtest_mimic::Test<TestData>) -> libtest_mimic::Outcome {
-    move |test| run_test_impl(test)
-}
-
-fn run_test_impl(test: &libtest_mimic::Test<TestData>) -> libtest_mimic::Outcome {
+fn run_test(test: &libtest_mimic::Test<TestData>) -> libtest_mimic::Outcome {
     let mut failures = Vec::new();
 
     let config: Config = {
