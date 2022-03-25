@@ -39,6 +39,8 @@ elaboration, and core language is forthcoming.
 - [Numbers](#numbers)
   - [Number types](#number-types)
   - [Number literals](#array-literals)
+  - [String literals](#string-literals)
+  - [Number Operations](#number-operations)
 - [Arrays](#arrays)
   - [Array types](#array-types)
   - [Array literals](#array-literals)
@@ -571,6 +573,71 @@ some-data.data : Array3 some-data.len S32
 ### String literals
 
 - `"GSUB" : U16`
+
+### Number operations
+
+A number of operations are defined for the numeric types:
+
+- `u8_add : U8 -> U8 -> U8`
+- `u8_sub : U8 -> U8 -> U8`
+- `u8_mul : U8 -> U8 -> U8`
+- `u8_div : U8 -> U8 -> U8`
+- `u8_not : U8 -> U8`
+- `u8_shl : U8 -> U8 -> U8`
+- `u8_shr : U8 -> U8 -> U8`
+- `u8_and : U8 -> U8 -> U8`
+- `u8_or : U8 -> U8 -> U8`
+- `u8_xor : U8 -> U8 -> U8`
+- `u16_add : U16 -> U16 -> U16`
+- `u16_sub : U16 -> U16 -> U16`
+- `u16_mul : U16 -> U16 -> U16`
+- `u16_div : U16 -> U16 -> U16`
+- `u16_not : U16 -> U16`
+- `u16_shl : U16 -> U8 -> U16`
+- `u16_shr : U16 -> U8 -> U16`
+- `u16_and : U16 -> U16 -> U16`
+- `u16_or : U16 -> U16 -> U16`
+- `u16_xor : U16 -> U16 -> U16`
+- `u32_add : U32 -> U32 -> U32`
+- `u32_sub : U32 -> U32 -> U32`
+- `u32_mul : U32 -> U32 -> U32`
+- `u32_div : U32 -> U32 -> U32`
+- `u32_not : U32 -> U32`
+- `u32_shl : U32 -> U8 -> U32`
+- `u32_shr : U32 -> U8 -> U32`
+- `u32_and : U32 -> U32 -> U32`
+- `u32_or : U32 -> U32 -> U32`
+- `u32_xor : U32 -> U32 -> U32`
+- `u64_add : U64 -> U64 -> U64`
+- `u64_sub : U64 -> U64 -> U64`
+- `u64_mul : U64 -> U64 -> U64`
+- `u64_div : U64 -> U64 -> U64`
+- `u64_not : U64 -> U64`
+- `u64_shl : U64 -> U8 -> U64`
+- `u64_shr : U64 -> U8 -> U64`
+- `u64_and : U64 -> U64 -> U64`
+- `u64_or : U64 -> U64 -> U64`
+- `u64_xor : U64 -> U64 -> U64`
+- `s8_neg : S8 -> S8`
+- `s8_add : S8 -> S8 -> S8`
+- `s8_sub : S8 -> S8 -> S8`
+- `s8_mul : S8 -> S8 -> S8`
+- `s8_div : S8 -> S8 -> S8`
+- `s16_neg : S16 -> S16`
+- `s16_add : S16 -> S16 -> S16`
+- `s16_sub : S16 -> S16 -> S16`
+- `s16_mul : S16 -> S16 -> S16`
+- `s16_div : S16 -> S16 -> S16`
+- `s32_neg : S32 -> S32`
+- `s32_add : S32 -> S32 -> S32`
+- `s32_sub : S32 -> S32 -> S32`
+- `s32_mul : S32 -> S32 -> S32`
+- `s32_div : S32 -> S32 -> S32`
+- `s64_neg : S64 -> S64`
+- `s64_add : S64 -> S64 -> S64`
+- `s64_sub : S64 -> S64 -> S64`
+- `s64_mul : S64 -> S64 -> S64`
+- `s64_div : S64 -> S64 -> S64`
 
 ## Arrays
 
