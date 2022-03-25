@@ -46,12 +46,13 @@ impl<'arena> RigidEnv<'arena> {
         interner: &RefCell<StringInterner>,
         scope: &'arena Scope<'arena>,
     ) -> RigidEnv<'arena> {
+        use crate::core::Prim::*;
         use crate::core::Term;
         use crate::env::LocalVar;
 
         const UNIVERSE: Term<'_> = Term::Universe;
         const VAR0: Term<'_> = Term::RigidVar(LocalVar::last());
-        const FORMAT_TYPE: Term<'_> = Term::Prim(Prim::FormatType);
+        const FORMAT_TYPE: Term<'_> = Term::Prim(FormatType);
         const FORMAT_FUN: Term<'_> = Term::FunType(None, &FORMAT_TYPE, &FORMAT_TYPE);
 
         let mut env = RigidEnv::new();
@@ -60,7 +61,7 @@ impl<'arena> RigidEnv<'arena> {
         let close = |term| Closure::new(SharedEnv::new(), term);
         let shared = |value: ArcValue<'static>| move || value.clone();
         let universe = shared(Arc::new(Value::Universe));
-        let format_type = shared(Arc::new(Value::prim(Prim::FormatType, [])));
+        let format_type = shared(Arc::new(Value::prim(FormatType, [])));
 
         let array_type = |index_type: Prim| {
             let index_type = Arc::new(Value::prim(index_type, []));
@@ -74,28 +75,28 @@ impl<'arena> RigidEnv<'arena> {
             Arc::new(Value::FunType(None, index_type, close(&FORMAT_FUN)))
         };
         let format_link = |offset_type: Prim| {
-            let pos_type = Arc::new(Value::prim(Prim::PosType, []));
+            let pos_type = Arc::new(Value::prim(PosType, []));
             let offset_type = scope.to_scope(Term::Prim(offset_type));
             let output_type = close(scope.to_scope(Term::FunType(None, offset_type, &FORMAT_FUN)));
 
             Arc::new(Value::FunType(None, pos_type, output_type))
         };
 
-        let unary_op = |carrier: Prim| {
+        let unary_op = |input: Prim, output: Prim| {
             Arc::new(Value::FunType(
                 None,
-                Arc::new(Value::prim(carrier, [])),
-                close(scope.to_scope(Term::Prim(carrier))),
+                Arc::new(Value::prim(input, [])),
+                close(scope.to_scope(Term::Prim(output))),
             ))
         };
-        let binary_op = |carrier: Prim| {
+        let binary_op = |lhs: Prim, rhs: Prim, output: Prim| {
             Arc::new(Value::FunType(
                 None,
-                Arc::new(Value::prim(carrier, [])),
+                Arc::new(Value::prim(lhs, [])),
                 close(scope.to_scope(Term::FunType(
                     None,
-                    scope.to_scope(Term::Prim(carrier)),
-                    scope.to_scope(Term::Prim(carrier)),
+                    scope.to_scope(Term::Prim(rhs)),
+                    scope.to_scope(Term::Prim(output)),
                 ))),
             ))
         };
@@ -104,137 +105,137 @@ impl<'arena> RigidEnv<'arena> {
             env.push_def(name(prim.name()), Arc::new(Value::prim(prim, [])), r#type);
         };
 
-        define_prim(Prim::VoidType, universe());
+        define_prim(VoidType, universe());
 
-        define_prim(Prim::U8Type, universe());
-        define_prim(Prim::U16Type, universe());
-        define_prim(Prim::U32Type, universe());
-        define_prim(Prim::U64Type, universe());
-        define_prim(Prim::S8Type, universe());
-        define_prim(Prim::S16Type, universe());
-        define_prim(Prim::S32Type, universe());
-        define_prim(Prim::S64Type, universe());
-        define_prim(Prim::F32Type, universe());
-        define_prim(Prim::F64Type, universe());
-        define_prim(Prim::Array8Type, array_type(Prim::U8Type));
-        define_prim(Prim::Array16Type, array_type(Prim::U16Type));
-        define_prim(Prim::Array32Type, array_type(Prim::U32Type));
-        define_prim(Prim::Array64Type, array_type(Prim::U64Type));
-        define_prim(Prim::PosType, universe());
+        define_prim(U8Type, universe());
+        define_prim(U16Type, universe());
+        define_prim(U32Type, universe());
+        define_prim(U64Type, universe());
+        define_prim(S8Type, universe());
+        define_prim(S16Type, universe());
+        define_prim(S32Type, universe());
+        define_prim(S64Type, universe());
+        define_prim(F32Type, universe());
+        define_prim(F64Type, universe());
+        define_prim(Array8Type, array_type(U8Type));
+        define_prim(Array16Type, array_type(U16Type));
+        define_prim(Array32Type, array_type(U32Type));
+        define_prim(Array64Type, array_type(U64Type));
+        define_prim(PosType, universe());
         define_prim(
-            Prim::RefType,
+            RefType,
             Arc::new(Value::FunType(None, universe(), close(&UNIVERSE))),
         );
 
-        define_prim(Prim::FormatType, universe());
+        define_prim(FormatType, universe());
         define_prim(
-            Prim::FormatSucceed,
+            FormatSucceed,
             Arc::new(Value::FunType(
                 name("Elem"),
                 universe(),
                 close(&Term::FunType(None, &VAR0, &FORMAT_TYPE)),
             )),
         );
-        define_prim(Prim::FormatFail, format_type());
-        define_prim(Prim::FormatU8, format_type());
-        define_prim(Prim::FormatU16Be, format_type());
-        define_prim(Prim::FormatU16Le, format_type());
-        define_prim(Prim::FormatU32Be, format_type());
-        define_prim(Prim::FormatU32Le, format_type());
-        define_prim(Prim::FormatU64Be, format_type());
-        define_prim(Prim::FormatU64Le, format_type());
-        define_prim(Prim::FormatS8, format_type());
-        define_prim(Prim::FormatS16Be, format_type());
-        define_prim(Prim::FormatS16Le, format_type());
-        define_prim(Prim::FormatS32Be, format_type());
-        define_prim(Prim::FormatS32Le, format_type());
-        define_prim(Prim::FormatS64Be, format_type());
-        define_prim(Prim::FormatS64Le, format_type());
-        define_prim(Prim::FormatF32Be, format_type());
-        define_prim(Prim::FormatF32Le, format_type());
-        define_prim(Prim::FormatF64Be, format_type());
-        define_prim(Prim::FormatF64Le, format_type());
-        define_prim(Prim::FormatArray8, format_array(Prim::U8Type));
-        define_prim(Prim::FormatArray16, format_array(Prim::U16Type));
-        define_prim(Prim::FormatArray32, format_array(Prim::U32Type));
-        define_prim(Prim::FormatArray64, format_array(Prim::U64Type));
-        define_prim(Prim::FormatLink8, format_link(Prim::U8Type));
-        define_prim(Prim::FormatLink16, format_link(Prim::U16Type));
-        define_prim(Prim::FormatLink32, format_link(Prim::U32Type));
-        define_prim(Prim::FormatLink64, format_link(Prim::U64Type));
-        define_prim(Prim::FormatStreamPos, format_type());
+        define_prim(FormatFail, format_type());
+        define_prim(FormatU8, format_type());
+        define_prim(FormatU16Be, format_type());
+        define_prim(FormatU16Le, format_type());
+        define_prim(FormatU32Be, format_type());
+        define_prim(FormatU32Le, format_type());
+        define_prim(FormatU64Be, format_type());
+        define_prim(FormatU64Le, format_type());
+        define_prim(FormatS8, format_type());
+        define_prim(FormatS16Be, format_type());
+        define_prim(FormatS16Le, format_type());
+        define_prim(FormatS32Be, format_type());
+        define_prim(FormatS32Le, format_type());
+        define_prim(FormatS64Be, format_type());
+        define_prim(FormatS64Le, format_type());
+        define_prim(FormatF32Be, format_type());
+        define_prim(FormatF32Le, format_type());
+        define_prim(FormatF64Be, format_type());
+        define_prim(FormatF64Le, format_type());
+        define_prim(FormatArray8, format_array(U8Type));
+        define_prim(FormatArray16, format_array(U16Type));
+        define_prim(FormatArray32, format_array(U32Type));
+        define_prim(FormatArray64, format_array(U64Type));
+        define_prim(FormatLink8, format_link(U8Type));
+        define_prim(FormatLink16, format_link(U16Type));
+        define_prim(FormatLink32, format_link(U32Type));
+        define_prim(FormatLink64, format_link(U64Type));
+        define_prim(FormatStreamPos, format_type());
         define_prim(
-            Prim::FormatRepr,
+            FormatRepr,
             Arc::new(Value::FunType(None, format_type(), close(&UNIVERSE))),
         );
 
-        define_prim(Prim::U8Add, binary_op(Prim::U8Type));
-        define_prim(Prim::U8Sub, binary_op(Prim::U8Type));
-        define_prim(Prim::U8Mul, binary_op(Prim::U8Type));
-        define_prim(Prim::U8Div, binary_op(Prim::U8Type));
-        define_prim(Prim::U8Not, unary_op(Prim::U8Type));
-        define_prim(Prim::U8Shl, binary_op(Prim::U8Type));
-        define_prim(Prim::U8Shr, binary_op(Prim::U8Type));
-        define_prim(Prim::U8And, binary_op(Prim::U8Type));
-        define_prim(Prim::U8Or, binary_op(Prim::U8Type));
-        define_prim(Prim::U8Xor, binary_op(Prim::U8Type));
+        define_prim(U8Add, binary_op(U8Type, U8Type, U8Type));
+        define_prim(U8Sub, binary_op(U8Type, U8Type, U8Type));
+        define_prim(U8Mul, binary_op(U8Type, U8Type, U8Type));
+        define_prim(U8Div, binary_op(U8Type, U8Type, U8Type));
+        define_prim(U8Not, unary_op(U8Type, U8Type));
+        define_prim(U8Shl, binary_op(U8Type, U8Type, U8Type));
+        define_prim(U8Shr, binary_op(U8Type, U8Type, U8Type));
+        define_prim(U8And, binary_op(U8Type, U8Type, U8Type));
+        define_prim(U8Or, binary_op(U8Type, U8Type, U8Type));
+        define_prim(U8Xor, binary_op(U8Type, U8Type, U8Type));
 
-        define_prim(Prim::U16Add, binary_op(Prim::U16Type));
-        define_prim(Prim::U16Sub, binary_op(Prim::U16Type));
-        define_prim(Prim::U16Mul, binary_op(Prim::U16Type));
-        define_prim(Prim::U16Div, binary_op(Prim::U16Type));
-        define_prim(Prim::U16Not, unary_op(Prim::U16Type));
-        define_prim(Prim::U16Shl, binary_op(Prim::U16Type));
-        define_prim(Prim::U16Shr, binary_op(Prim::U16Type));
-        define_prim(Prim::U16And, binary_op(Prim::U16Type));
-        define_prim(Prim::U16Or, binary_op(Prim::U16Type));
-        define_prim(Prim::U16Xor, binary_op(Prim::U16Type));
+        define_prim(U16Add, binary_op(U16Type, U16Type, U16Type));
+        define_prim(U16Sub, binary_op(U16Type, U16Type, U16Type));
+        define_prim(U16Mul, binary_op(U16Type, U16Type, U16Type));
+        define_prim(U16Div, binary_op(U16Type, U16Type, U16Type));
+        define_prim(U16Not, unary_op(U16Type, U16Type));
+        define_prim(U16Shl, binary_op(U16Type, U8Type, U16Type));
+        define_prim(U16Shr, binary_op(U16Type, U8Type, U16Type));
+        define_prim(U16And, binary_op(U16Type, U16Type, U16Type));
+        define_prim(U16Or, binary_op(U16Type, U16Type, U16Type));
+        define_prim(U16Xor, binary_op(U16Type, U16Type, U16Type));
 
-        define_prim(Prim::U32Add, binary_op(Prim::U32Type));
-        define_prim(Prim::U32Sub, binary_op(Prim::U32Type));
-        define_prim(Prim::U32Mul, binary_op(Prim::U32Type));
-        define_prim(Prim::U32Div, binary_op(Prim::U32Type));
-        define_prim(Prim::U32Not, unary_op(Prim::U32Type));
-        define_prim(Prim::U32Shl, binary_op(Prim::U32Type));
-        define_prim(Prim::U32Shr, binary_op(Prim::U32Type));
-        define_prim(Prim::U32And, binary_op(Prim::U32Type));
-        define_prim(Prim::U32Or, binary_op(Prim::U32Type));
-        define_prim(Prim::U32Xor, binary_op(Prim::U32Type));
+        define_prim(U32Add, binary_op(U32Type, U32Type, U32Type));
+        define_prim(U32Sub, binary_op(U32Type, U32Type, U32Type));
+        define_prim(U32Mul, binary_op(U32Type, U32Type, U32Type));
+        define_prim(U32Div, binary_op(U32Type, U32Type, U32Type));
+        define_prim(U32Not, unary_op(U32Type, U32Type));
+        define_prim(U32Shl, binary_op(U32Type, U8Type, U32Type));
+        define_prim(U32Shr, binary_op(U32Type, U8Type, U32Type));
+        define_prim(U32And, binary_op(U32Type, U32Type, U32Type));
+        define_prim(U32Or, binary_op(U32Type, U32Type, U32Type));
+        define_prim(U32Xor, binary_op(U32Type, U32Type, U32Type));
 
-        define_prim(Prim::U64Add, binary_op(Prim::U64Type));
-        define_prim(Prim::U64Sub, binary_op(Prim::U64Type));
-        define_prim(Prim::U64Mul, binary_op(Prim::U64Type));
-        define_prim(Prim::U64Div, binary_op(Prim::U64Type));
-        define_prim(Prim::U64Not, unary_op(Prim::U64Type));
-        define_prim(Prim::U64Shl, binary_op(Prim::U64Type));
-        define_prim(Prim::U64Shr, binary_op(Prim::U64Type));
-        define_prim(Prim::U64And, binary_op(Prim::U64Type));
-        define_prim(Prim::U64Or, binary_op(Prim::U64Type));
-        define_prim(Prim::U64Xor, binary_op(Prim::U64Type));
+        define_prim(U64Add, binary_op(U64Type, U64Type, U64Type));
+        define_prim(U64Sub, binary_op(U64Type, U64Type, U64Type));
+        define_prim(U64Mul, binary_op(U64Type, U64Type, U64Type));
+        define_prim(U64Div, binary_op(U64Type, U64Type, U64Type));
+        define_prim(U64Not, unary_op(U64Type, U64Type));
+        define_prim(U64Shl, binary_op(U64Type, U8Type, U64Type));
+        define_prim(U64Shr, binary_op(U64Type, U8Type, U64Type));
+        define_prim(U64And, binary_op(U64Type, U64Type, U64Type));
+        define_prim(U64Or, binary_op(U64Type, U64Type, U64Type));
+        define_prim(U64Xor, binary_op(U64Type, U64Type, U64Type));
 
-        define_prim(Prim::S8Neg, unary_op(Prim::S8Type));
-        define_prim(Prim::S8Add, binary_op(Prim::S8Type));
-        define_prim(Prim::S8Sub, binary_op(Prim::S8Type));
-        define_prim(Prim::S8Mul, binary_op(Prim::S8Type));
-        define_prim(Prim::S8Div, binary_op(Prim::S8Type));
+        define_prim(S8Neg, unary_op(S8Type, S8Type));
+        define_prim(S8Add, binary_op(S8Type, S8Type, S8Type));
+        define_prim(S8Sub, binary_op(S8Type, S8Type, S8Type));
+        define_prim(S8Mul, binary_op(S8Type, S8Type, S8Type));
+        define_prim(S8Div, binary_op(S8Type, S8Type, S8Type));
 
-        define_prim(Prim::S16Neg, unary_op(Prim::S16Type));
-        define_prim(Prim::S16Add, binary_op(Prim::S16Type));
-        define_prim(Prim::S16Sub, binary_op(Prim::S16Type));
-        define_prim(Prim::S16Mul, binary_op(Prim::S16Type));
-        define_prim(Prim::S16Div, binary_op(Prim::S16Type));
+        define_prim(S16Neg, unary_op(S16Type, S16Type));
+        define_prim(S16Add, binary_op(S16Type, S16Type, S16Type));
+        define_prim(S16Sub, binary_op(S16Type, S16Type, S16Type));
+        define_prim(S16Mul, binary_op(S16Type, S16Type, S16Type));
+        define_prim(S16Div, binary_op(S16Type, S16Type, S16Type));
 
-        define_prim(Prim::S32Neg, unary_op(Prim::S32Type));
-        define_prim(Prim::S32Add, binary_op(Prim::S32Type));
-        define_prim(Prim::S32Sub, binary_op(Prim::S32Type));
-        define_prim(Prim::S32Mul, binary_op(Prim::S32Type));
-        define_prim(Prim::S32Div, binary_op(Prim::S32Type));
+        define_prim(S32Neg, unary_op(S32Type, S32Type));
+        define_prim(S32Add, binary_op(S32Type, S32Type, S32Type));
+        define_prim(S32Sub, binary_op(S32Type, S32Type, S32Type));
+        define_prim(S32Mul, binary_op(S32Type, S32Type, S32Type));
+        define_prim(S32Div, binary_op(S32Type, S32Type, S32Type));
 
-        define_prim(Prim::S64Neg, unary_op(Prim::S64Type));
-        define_prim(Prim::S64Add, binary_op(Prim::S64Type));
-        define_prim(Prim::S64Sub, binary_op(Prim::S64Type));
-        define_prim(Prim::S64Mul, binary_op(Prim::S64Type));
-        define_prim(Prim::S64Div, binary_op(Prim::S64Type));
+        define_prim(S64Neg, unary_op(S64Type, S64Type));
+        define_prim(S64Add, binary_op(S64Type, S64Type, S64Type));
+        define_prim(S64Sub, binary_op(S64Type, S64Type, S64Type));
+        define_prim(S64Mul, binary_op(S64Type, S64Type, S64Type));
+        define_prim(S64Div, binary_op(S64Type, S64Type, S64Type));
 
         env
     }
