@@ -77,7 +77,7 @@ pub Term: Term<'arena, ByteRange> = {
 
 LetTerm: Term<'arena, ByteRange> = {
     FunTerm,
-    <start: @L> "let" <def_pattern: Pattern> "=" <def_expr: LetTerm> ";" <body_expr: LetTerm> <end: @R> => {
+    <start: @L> "let" <def_pattern: Pattern> "=" <def_expr: Term> ";" <body_expr: LetTerm> <end: @R> => {
         Term::Let(
             ByteRange::new(start, end),
             scope.to_scope(def_pattern),
