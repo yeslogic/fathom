@@ -55,6 +55,13 @@ let ufword : Format = u16be;
 /// - [Microsoft's OpenType Spec: F2DOT14](https://docs.microsoft.com/en-us/typography/opentype/spec/otff#dt_F2DOT14)
 let f2dot14 : Format = s16be;
 
+/// Unsigned 24-bit integer
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: uint24](https://docs.microsoft.com/en-us/typography/opentype/spec/otff#dt_uint24)
+let u24be : Format = array8 3 u8;
+
 /// Date represented in number of seconds since 12:00 midnight, January 1, 1904.
 ///
 /// ## References
@@ -170,6 +177,8 @@ let encoding_id = fun (platform : Repr platform_id) =>
 let language_id =
     u16be;
 
+let language_id32 =
+    u32be;
 
 // -----------------------------------------------------------------------------
 
@@ -198,9 +207,127 @@ let language_id =
 let cmap_language_id = fun (platform : Repr platform_id) =>
     language_id;
 
+// cmap sub-table format 8 has a 32-bit language code
+let cmap_language_id32 = fun (platform : Repr platform_id) =>
+    language_id32;
 
 /// A small glyph ID, limited to a glyph set of 256 glyphs.
 let small_glyph_id = u8;
+
+/// # SequentialMapGroup Record
+///
+/// Each sequential map group record specifies a character range and the starting glyph ID mapped
+/// from the first character. Glyph IDs for subsequent characters follow in sequence.
+///
+/// Used in `cmap` sub-table formats 8 and 12.
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: cmap sub-table format 8](https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#format-8-mixed-16-bit-and-32-bit-coverage)
+/// - [Apple's TrueType Reference Manual: `'cmap'` format 8](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6cmap.html)
+let sequential_map_group = {
+    /// First character code in this group; note that if this group is for one or more 16-bit
+    /// character codes (which is determined from the is32 array), this 32-bit value will have the
+    /// high 16-bits set to zero
+    start_char_code <- u32be,
+    /// Last character code in this group; same condition as listed above for the startCharCode
+    end_char_code <- u32be,
+    /// Glyph index corresponding to the starting character code
+    start_glyph_id <- u32be,
+};
+
+/// # ConstantMapGroup Record
+///
+/// The constant map group record has the same structure as the sequential map group record, with
+/// start and end character codes and a mapped glyph ID. However, the same glyph ID applies to all
+/// characters in the specified range rather than sequential glyph IDs.
+///
+/// Used in `cmap` sub-table format 13.
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: cmap sub-table format 13](https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#format-13-many-to-one-range-mappings)
+/// - [Apple's TrueType Reference Manual: `'cmap'` format 13](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6cmap.html)
+let constant_map_group = sequential_map_group;
+
+/// # UnicodeRange Record
+///
+/// A range record from the DefaultUVS Table used in `cmap` sub-table format 14.
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: cmap sub-table format 14](https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#format-14-unicode-variation-sequences)
+/// - [Apple's TrueType Reference Manual: `'cmap'` format 14](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6cmap.html)
+let unicode_range = {
+    /// First value in this range
+    start_unicode_value <- u24be,
+    /// Number of additional values in this range
+    additional_count <- u8,
+};
+
+/// # DefaultUVS Table
+///
+/// A range-compressed list of Unicode scalar values used in `cmap` sub-table format 14.
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: cmap sub-table format 14](https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#format-14-unicode-variation-sequences)
+/// - [Apple's TrueType Reference Manual: `'cmap'` format 14](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6cmap.html)
+let default_uvs_table = {
+    /// Number of Unicode character ranges.
+    num_unicode_value_ranges <- u32be,
+    /// Array of UnicodeRange records.
+    ranges <- array32 num_unicode_value_ranges unicode_range,
+};
+
+/// # UVSMapping Record
+///
+/// A glyph ID mapping for one base Unicode character used in `cmap` sub-table format 14
+/// NonDefaultUVS Table.
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: cmap sub-table format 14](https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#format-14-unicode-variation-sequences)
+/// - [Apple's TrueType Reference Manual: `'cmap'` format 14](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6cmap.html)
+let uvs_mapping = {
+    /// Base Unicode value of the UVS
+    unicode_value <- u24be,
+    /// Glyph ID of the UVS
+    glyph_id <- u16be,
+};
+
+/// # NonDefaultUVS Table
+///
+/// A Non-Default UVS Table is a list of pairs of Unicode scalar values and glyph IDs.
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: cmap sub-table format 14](https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#format-14-unicode-variation-sequences)
+/// - [Apple's TrueType Reference Manual: `'cmap'` format 14](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6cmap.html)
+let non_default_uvs_table = {
+    /// Number of UVS Mappings that follow
+    num_uvs_mappings <- u32be,
+    /// Array of UVSMapping records.
+    uvs_mappings <- array32 num_uvs_mappings uvs_mapping,
+};
+
+/// # VariationSelector Record for cmap sub-table format 14
+///
+/// Each variation selector record specifies a variation selector character, and offsets to
+/// default and non-default tables used to map variation sequences using that variation selector.
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: cmap sub-table format 14](https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#format-14-unicode-variation-sequences)
+/// - [Apple's TrueType Reference Manual: `'cmap'` format 14](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6cmap.html)
+let variation_selector = fun (table_start : Pos) => {
+    /// Variation selector
+    var_selector <- u24be,
+    /// Offset from the start of the format 14 subtable to Default UVS Table. May be 0.
+    default_uvs_offset <- offset32 table_start default_uvs_table,
+    /// Offset from the start of the format 14 subtable to Non-Default UVS Table. May be 0.
+    non_default_uvs_offset <- offset32 table_start non_default_uvs_table,
+};
 
 /// # Format 0: Byte encoding table
 ///
@@ -215,7 +342,9 @@ let small_glyph_id = u8;
 ///
 /// - [Microsoft's OpenType Spec: Format 0: Byte encoding table](https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#format-0-byte-encoding-table)
 /// - [Apple's TrueType Reference Manual: `'cmap'` format 0](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6cmap.html)
-let byte_encoding_table = fun (platform : Repr platform_id) => {
+let cmap_subtable_format0 = fun (platform : Repr platform_id) => {
+    /// The length of the subtable in bytes
+    length <- u16be,
     /// The language ID of the subtable
     language <- cmap_language_id platform,
     /// A 1 to 1 mapping that converts character codes to glyph indexes (limited
@@ -224,33 +353,228 @@ let byte_encoding_table = fun (platform : Repr platform_id) => {
     glyph_id_array <- array16 256 small_glyph_id,
 };
 
+/// # Format 2: High-byte mapping through table
+///
+/// This subtable format was created for “double-byte” encodings following the national character
+/// code standards used for Japanese, Chinese, and Korean characters. These code standards use a
+/// mixed 8-/16-bit encoding. This format is not commonly used today.
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: Format 2: Segment mapping to delta values](https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#format-2-high-byte-mapping-through-table)
+/// - [Apple's TrueType Reference Manual: `'cmap'` format 2](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6cmap.html)
+let cmap_subtable_format2 = fun (platform : Repr platform_id) => {
+    /// The length of the subtable in bytes
+    length <- u16be,
+    /// The language ID of the subtable
+    language <- cmap_language_id platform,
+    /// Array that maps high bytes to subHeaders: value is subHeader index × 8.
+    sub_header_keys <- array16 256 u16be,
+    // TODO: These probably need length limiting formats
+    // https://github.com/yeslogic/fathom/pull/310
+    // /// Variable-length array of SubHeader records.
+    // sub_headers[ ]  <- SubHeader,
+    // /// Variable-length array containing subarrays used for mapping the low byte of 2-byte characters.
+    // glyph_id_array[ ]  <- uint16,
+};
 
-// TODO: Format 2: High-byte mapping through table
-// TODO: Format 4: Segment mapping to delta values
-// TODO: Format 6: Trimmed table mapping
-// TODO: Format 8: mixed 16-bit and 32-bit coverage
-// TODO: Format 10: Trimmed array
-// TODO: Format 12: Segmented coverage
-// TODO: Format 13: Many-to-one range mappings
-// TODO: Format 14: Unicode Variation Sequences
+/// # Format 4: Segment mapping to delta values
+///
+/// This is the standard character-to-glyph-index mapping subtable for fonts that support only
+/// Unicode Basic Multilingual Plane characters (U+0000 to U+FFFF).
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: Format 4: Segment mapping to delta values](https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#format-4-segment-mapping-to-delta-values)
+/// - [Apple's TrueType Reference Manual: `'cmap'` format 4](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6cmap.html)
+let cmap_subtable_format4 = fun (platform : Repr platform_id) => {
+    /// The length of the subtable in bytes
+    length <- u16be,
+    /// The language ID of the subtable
+    language <- cmap_language_id platform,
+    /// 2 × segCount.
+    seg_count_x2 <- u16be,
+    seg_count <- succeed _ (u16_div seg_count_x2 2),
+    /// Maximum power of 2 less than or equal to segCount, times 2 ((2**floor(log₂(segCount))) * 2,
+    /// where “**” is an exponentiation operator)
+    search_range <- u16be,
+    /// Log₂ of the maximum power of 2 less than or equal to numTables (log₂(searchRange/2), which
+    /// is equal to floor(log₂(segCount)))
+    entry_selector <- u16be,
+    /// segCount times 2, minus searchRange ((segCount * 2) - searchRange)
+    range_shift <- u16be,
+    /// End characterCode for each segment, last=0xFFFF.
+    end_code <- array16 seg_count u16be,
+    /// Set to 0.
+    _reserved_pad <- reserved s16be 0,
+    /// Start character code for each segment.
+    start_code <- array16 seg_count u16be,
+    /// Delta for all character codes in segment.
+    id_delta <- array16 seg_count s16be,
+    /// Offsets into glyphIdArray or 0
+    id_range_offsets <- array16 seg_count u16be,
+    // TODO: Needs length limiting formats
+    // /// Glyph index array (arbitrary length)
+    // glyph_id_array[ ]  <- u16be,
+};
+
+/// # Format 6: Trimmed table mapping
+///
+/// Format 6 was designed to map 16-bit characters to glyph indexes when the character codes for a
+/// font fall into a single contiguous range.
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: Format 6: Segment mapping to delta values](https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#format-6-trimmed-table-mapping)
+/// - [Apple's TrueType Reference Manual: `'cmap'` format 6](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6cmap.html)
+let cmap_subtable_format6 = fun (platform : Repr platform_id) => {
+    /// The length of the subtable in bytes
+    length <- u16be,
+    /// The language ID of the subtable
+    language <- cmap_language_id platform,
+    /// First character code of subrange.
+    first_code <- u16be,
+    /// Number of character codes in subrange.
+    entry_count <- u16be,
+    /// Array of glyph index values for character codes in the range.
+    glyph_id_array <- array16 entry_count u16be,
+};
+
+/// # Format 8: mixed 16-bit and 32-bit coverage
+///
+/// Subtable format 8 was designed to support Unicode supplementary-plane characters in UTF-16
+/// encoding, though it is not commonly used. Format 8 is similar to format 2, in that it provides
+/// for mixed-length character codes. Instead of allowing for 8- and 16-bit character codes,
+/// however, it allows for 16- and 32-bit character codes.
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: Format 8: Segment mapping to delta values](https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#format-8-mixed-16-bit-and-32-bit-coverage)
+/// - [Apple's TrueType Reference Manual: `'cmap'` format 8](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6cmap.html)
+let cmap_subtable_format8 = fun (platform : Repr platform_id) => {
+    /// Set to 0.
+    _reserved <- reserved u16be 0,
+    /// The length of the subtable in bytes (including the header)
+    length <- u32be,
+    /// The language ID of the subtable
+    language <- cmap_language_id32 platform,
+    /// Tightly packed array of bits (8K bytes total) indicating whether the particular 16-bit
+    /// (index) value is the start of a 32-bit character code
+    is32 <- array16 8192 u8,
+    /// Number of groupings which follow
+    num_groups <- u32be,
+    /// Array of SequentialMapGroup records.
+    groups <- array32 num_groups sequential_map_group,
+};
+
+/// # Format 10: Trimmed table mapping
+///
+/// Subtable format 10 was designed to support Unicode supplementary-plane characters, though it is
+/// not commonly used. Format 10 is similar to format 6, in that it defines a trimmed array for a
+/// tight range of character codes. It differs, however, in that is uses 32-bit character codes.
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: Format 10: Segment mapping to delta values](https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#format-10-trimmed-array)
+/// - [Apple's TrueType Reference Manual: `'cmap'` format 10](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6cmap.html)
+let cmap_subtable_format10 = fun (platform : Repr platform_id) => {
+    /// Set to 0.
+    _reserved <- reserved u16be 0,
+    /// The length of the subtable in bytes (including the header)
+    length <- u32be,
+    /// The language ID of the subtable
+    language <- cmap_language_id32 platform,
+    /// First character code covered
+    start_char_code <- u32be,
+    /// Number of character codes covered
+    num_chars <- u32be,
+    /// Array of glyph indices for the character codes covered
+    glyph_id_array <- array32 num_chars u16be,
+};
+
+/// # Format 12: Segmented coverage
+///
+/// This is the standard character-to-glyph-index mapping subtable for fonts supporting Unicode
+/// character repertoires that include supplementary-plane characters (U+10000 to U+10FFFF).
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: Format 12: Segment mapping to delta values](https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#format-12-segmented-coverage)
+/// - [Apple's TrueType Reference Manual: `'cmap'` format 12](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6cmap.html)
+let cmap_subtable_format12 = fun (platform : Repr platform_id) => {
+    /// Set to 0.
+    _reserved <- reserved u16be 0,
+    /// The length of the subtable in bytes (including the header)
+    length <- u32be,
+    /// The language ID of the subtable
+    language <- cmap_language_id32 platform,
+    /// Number of groupings which follow
+    num_groups <- u32be,
+    /// Array of SequentialMapGroup records.
+    groups <- array32 num_groups sequential_map_group,
+};
+
+/// # Format 13: Many-to-one range mappings
+///
+/// This subtable provides for situations in which the same glyph is used for hundreds or even
+/// thousands of consecutive characters spanning across multiple ranges of the code space. This
+/// subtable format may be useful for “last resort” fonts, although these fonts may use other
+/// suitable subtable formats as well.
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: Format 13: Segment mapping to delta values](https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#format-13-many-to-one-range-mappings)
+/// - [Apple's TrueType Reference Manual: `'cmap'` format 13](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6cmap.html)
+let cmap_subtable_format13 = fun (platform : Repr platform_id) => {
+    /// Set to 0.
+    _reserved <- reserved u16be 0,
+    /// The length of the subtable in bytes (including the header)
+    length <- u32be,
+    /// The language ID of the subtable
+    language <- cmap_language_id32 platform,
+    /// Number of groupings which follow
+    num_groups <- u32be,
+    /// Array of ConstantMapGroup records.
+    groups <- array32 num_groups constant_map_group,
+};
+
+/// # Format 14: Unicode Variation Sequences
+///
+/// Subtable format 14 specifies the Unicode Variation Sequences (UVSes) supported by the font. A
+/// Variation Sequence, according to the Unicode Standard, comprises a base character followed by a
+/// variation selector. For example, <U+82A6, U+E0101>.
+///
+/// This subtable format must only be used under platform ID 0 and encoding ID 5.
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: Format 14: Segment mapping to delta values](https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#format-14-unicode-variation-sequences)
+/// - [Apple's TrueType Reference Manual: `'cmap'` format 14](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6cmap.html)
+let cmap_subtable_format14 = fun (platform : Repr platform_id) => fun (table_start : Pos) => {
+    /// The length of the subtable in bytes (including the header)
+    length <- u32be,
+    /// Number of variation Selector Records
+    num_var_selector_records <- u32be,
+    /// Array of VariationSelector records.
+    var_selector <- array32 num_var_selector_records (variation_selector table_start),
+};
 
 /// # Character Mapping subtable
 let character_map_subtable = fun (platform : Repr platform_id) => {
+    /// The start of the character mapping sub-table
+    table_start <- stream_pos,
     /// Format number of the subtable
     format <- u16be,
-    /// The length ot the subtable in bytes
-    length <- u16be,
-    // TODO: format-specific subtable data
     data <- match format {
-        0 => byte_encoding_table platform,
-        2 => unknown_table, // TODO: Format 2: High-byte mapping through table
-        4 => unknown_table, // TODO: Format 4: Segment mapping to delta values
-        6 => unknown_table, // TODO: Format 6: Trimmed table mapping
-        8 => unknown_table, // TODO: Format 8: mixed 16-bit and 32-bit coverage
-        10 => unknown_table, // TODO: Format 10: Trimmed array
-        12 => unknown_table, // TODO: Format 12: Segmented coverage
-        13 => unknown_table, // TODO: Format 13: Many-to-one range mappings
-        14 => unknown_table, // TODO: Format 14: Unicode Variation Sequences
+        0 => cmap_subtable_format0 platform,
+        2 => cmap_subtable_format2 platform,
+        4 => cmap_subtable_format4 platform,
+        6 => cmap_subtable_format6 platform,
+        8 => cmap_subtable_format8 platform,
+        10 => cmap_subtable_format10 platform,
+        12 => cmap_subtable_format12 platform,
+        13 => cmap_subtable_format13 platform,
+        14 => cmap_subtable_format14 platform table_start,
         _ => unknown_table,
     },
 };
