@@ -165,10 +165,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
             (Prim::FormatArray16, [Fun(len), Fun(elem_format)]) => self.read_array(reader, len, elem_format),
             (Prim::FormatArray32, [Fun(len), Fun(elem_format)]) => self.read_array(reader, len, elem_format),
             (Prim::FormatArray64, [Fun(len), Fun(elem_format)]) => self.read_array(reader, len, elem_format),
-            (Prim::FormatLink8, [Fun(pos), Fun(offset), Fun(elem_format)]) => self.read_link(pos, offset, elem_format),
-            (Prim::FormatLink16, [Fun(pos), Fun(offset), Fun(elem_format)]) => self.read_link(pos, offset, elem_format),
-            (Prim::FormatLink32, [Fun(pos), Fun(offset), Fun(elem_format)]) => self.read_link(pos, offset, elem_format),
-            (Prim::FormatLink64, [Fun(pos), Fun(offset), Fun(elem_format)]) => self.read_link(pos, offset, elem_format),
+            (Prim::FormatLink, [Fun(pos), Fun(elem_format)]) => self.read_link(pos, elem_format),
             (Prim::FormatStreamPos, []) => read_stream_pos(reader),
             (Prim::FormatFail, []) => Err(io::Error::new(io::ErrorKind::Other, "parse failure")),
             _ => Err(io::Error::new(io::ErrorKind::Other, "invalid format")),
@@ -200,27 +197,16 @@ impl<'arena, 'env> Context<'arena, 'env> {
     pub fn read_link(
         &mut self,
         pos: &ArcValue<'arena>,
-        offset: &ArcValue<'arena>,
         elem_format: &ArcValue<'arena>,
     ) -> io::Result<ArcValue<'arena>> {
         let pos = match self.elim_context().force(pos).as_ref() {
             Value::Const(Const::Pos(pos)) => *pos,
             _ => return Err(io::Error::new(io::ErrorKind::Other, "invalid link pos")),
         };
-        let offset = match self.elim_context().force(offset).as_ref() {
-            Value::Const(Const::U8(len)) => *len as u64,
-            Value::Const(Const::U16(len)) => *len as u64,
-            Value::Const(Const::U32(len)) => *len as u64,
-            Value::Const(Const::U64(len)) => *len as u64,
-            _ => return Err(io::Error::new(io::ErrorKind::Other, "invalid link offset")),
-        };
 
-        let r#ref = u64::checked_add(pos, offset)
-            .ok_or_else(|| io::Error::new(io::ErrorKind::Other, "overflowing link"))?;
+        self.pending_formats.push((pos, elem_format.clone()));
 
-        self.pending_formats.push((r#ref, elem_format.clone()));
-
-        Ok(Arc::new(Value::Const(Const::Ref(r#ref))))
+        Ok(Arc::new(Value::Const(Const::Ref(pos))))
     }
 }
 

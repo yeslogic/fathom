@@ -45,6 +45,8 @@ elaboration, and core language is forthcoming.
   - [Array types](#array-types)
   - [Array literals](#array-literals)
 - [Positions](#positions)
+  - [Position types](#position-types)
+  - [Position operations](#position-operations)
 - [References](#references)
 - [Void](#void)
 
@@ -349,27 +351,19 @@ of the host array types.
 ### Link formats
 
 Link formats allow for references to other parts of a binary stream to be
-registered during parsing. They take a base [position](#positions), an offset
-from that position, and a format to expect at that position.
+registered during parsing. They take a base [position](#positions) and a format
+to expect at that position:
 
-There is a different link type for each unsigned integer offset:
-
-- `link8 : Pos -> U8 -> Format -> Format`
-- `link16 : Pos -> U16 -> Format -> Format`
-- `link32 : Pos -> U32 -> Format -> Format`
-- `link64 : Pos -> U64 -> Format -> Format`
+- `link : Pos -> Format -> Format`
 
 #### Representation of link formats
 
 Links formats are [represented](#format-representations) as typed
 [references](#references) to other parts of the binary stream.
 
-| format                       | `Repr` format               |
-| ---------------------------- | --------------------------- |
-| `link8 pos offset format`    | `Ref (Repr format)`         |
-| `link16 pos offset format`   | `Ref (Repr format)`         |
-| `link32 pos offset format`   | `Ref (Repr format)`         |
-| `link64 pos offset format`   | `Ref (Repr format)`         |
+| format               | `Repr` format               |
+| -------------------- | --------------------------- |
+| `link pos format`    | `Ref (Repr format)`         |
 
 ### Stream position formats
 
@@ -670,12 +664,26 @@ brackets. For example:
 
 ## Positions
 
-Stream positions are represented as an abstract datatype:
+Position types represent locations in the binary stream, relative to the
+beginning of the binary stream.
+
+### Position types
+
+Stream positions are formed with the primitive:
 
 - `Pos : Type`
 
 Positions are usually encountered as a result of parsing a [stream position
 format](#stream-position-formats).
+
+### Position operations
+
+A number of operations are defined for positions:
+
+- `pos_add_u8 : Pos -> U8 -> Pos`
+- `pos_add_u16 : Pos -> U16 -> Pos`
+- `pos_add_u32 : Pos -> U32 -> Pos`
+- `pos_add_u64 : Pos -> U64 -> Pos`
 
 ## References
 

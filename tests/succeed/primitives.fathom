@@ -53,10 +53,7 @@ let _ = array8 : U8 -> Format -> Format;
 let _ = array16 : U16 -> Format -> Format;
 let _ = array32 : U32 -> Format -> Format;
 let _ = array64 : U64 -> Format -> Format;
-let _ = link8 : Pos -> U8 -> Format -> Format;
-let _ = link16 : Pos -> U16 -> Format -> Format;
-let _ = link32 : Pos -> U32 -> Format -> Format;
-let _ = link64 : Pos -> U64 -> Format -> Format;
+let _ = link : Pos -> Format -> Format;
 let _ = stream_pos : Format;
 let _ = Repr : Format -> Type;
 
@@ -127,5 +124,10 @@ let _ = s64_add : S64 -> S64 -> S64;
 let _ = s64_sub : S64 -> S64 -> S64;
 let _ = s64_mul : S64 -> S64 -> S64;
 let _ = s64_div : S64 -> S64 -> S64;
+
+let _ = pos_add_u8 : Pos -> U8 -> Pos;
+let _ = pos_add_u16 : Pos -> U16 -> Pos;
+let _ = pos_add_u32 : Pos -> U32 -> Pos;
+let _ = pos_add_u64 : Pos -> U64 -> Pos;
 
 Type
