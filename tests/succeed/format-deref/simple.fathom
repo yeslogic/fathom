@@ -1,0 +1,5 @@
+{
+  start <- stream_pos,
+  len <- deref start u16be,
+  data <- array16 len u16be,
+}

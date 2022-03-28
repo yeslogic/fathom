@@ -24,7 +24,8 @@ let _ : fun n -> fun f -> Repr (array16 n f) -> Array16 n (Repr f) = fun _ => fu
 let _ : fun n -> fun f -> Repr (array32 n f) -> Array32 n (Repr f) = fun _ => fun _ => fun x => x;
 let _ : fun n -> fun f -> Repr (array64 n f) -> Array64 n (Repr f) = fun _ => fun _ => fun x => x;
 
-let _ : fun pos -> fun f -> Repr (link pos f) -> Ref (Repr f) = fun _ => fun _ => fun x => x;
 let _ : Repr stream_pos -> Pos = fun x => x;
+let _ : fun pos -> fun f -> Repr (deref pos f) -> Repr f = fun _ => fun _ => fun x => x;
+let _ : fun pos -> fun f -> Repr (link pos f) -> Ref (Repr f) = fun _ => fun _ => fun x => x;
 
 Type

@@ -24,8 +24,9 @@ elaboration, and core language is forthcoming.
   - [Overlap formats](#overlap-formats)
   - [Number formats](#number-formats)
   - [Array formats](#array-formats)
-  - [Link formats](#link-formats)
   - [Stream position formats](#stream-position-formats)
+  - [Deref formats](#deref-formats)
+  - [Link formats](#link-formats)
   - [Succeed format](#succeed-format)
   - [Fail format](#fail-format)
 - [Functions](#functions)
@@ -348,6 +349,34 @@ of the host array types.
 | `array32 len format`   | `Array32 len (Repr format)`         |
 | `array64 len format`   | `Array64 len (Repr format)`         |
 
+### Stream position formats
+
+The stream position format is interpreted as the current stream position during
+parsing:
+
+- `stream_pos : Format`
+
+#### Representation of stream position formats
+
+| format       | `Repr` format |
+| ------------ | ------------- |
+| `stream_pos` | `Pos`         |
+
+### Deref formats
+
+The deref format allows positions to be dereferenced using the supplied format:
+
+- `deref : Pos -> Format -> Format`
+
+#### Representation of deref formats
+
+Dereferenced formats are [represented](#format-representations) using the
+representation of the supplied format.
+
+| format             | `Repr` format |
+| ------------------ | ------------- |
+| `deref pos format` | `Repr format` |
+
 ### Link formats
 
 Link formats allow for references to other parts of a binary stream to be
@@ -364,19 +393,6 @@ Links formats are [represented](#format-representations) as typed
 | format               | `Repr` format               |
 | -------------------- | --------------------------- |
 | `link pos format`    | `Ref (Repr format)`         |
-
-### Stream position formats
-
-The stream position format is interpreted as the current stream position during
-parsing:
-
-- `stream_pos : Format`
-
-#### Representation of stream position formats
-
-| format       | `Repr` format |
-| ------------ | ------------- |
-| `stream_pos` | `Pos`         |
 
 ### Succeed format
 

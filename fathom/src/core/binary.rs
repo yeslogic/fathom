@@ -165,8 +165,9 @@ impl<'arena, 'env> Context<'arena, 'env> {
             (Prim::FormatArray16, [Fun(len), Fun(elem_format)]) => self.read_array(reader, len, elem_format),
             (Prim::FormatArray32, [Fun(len), Fun(elem_format)]) => self.read_array(reader, len, elem_format),
             (Prim::FormatArray64, [Fun(len), Fun(elem_format)]) => self.read_array(reader, len, elem_format),
-            (Prim::FormatLink, [Fun(pos), Fun(elem_format)]) => self.read_link(pos, elem_format),
             (Prim::FormatStreamPos, []) => read_stream_pos(reader),
+            (Prim::FormatDeref, [Fun(pos), Fun(elem_format)]) => self.read_deref(reader, pos, elem_format),
+            (Prim::FormatLink, [Fun(pos), Fun(elem_format)]) => self.read_link(pos, elem_format),
             (Prim::FormatFail, []) => Err(io::Error::new(io::ErrorKind::Other, "parse failure")),
             _ => Err(io::Error::new(io::ErrorKind::Other, "invalid format")),
         }
@@ -207,6 +208,34 @@ impl<'arena, 'env> Context<'arena, 'env> {
         self.pending_formats.push((pos, elem_format.clone()));
 
         Ok(Arc::new(Value::Const(Const::Ref(pos))))
+    }
+
+    fn read_deref(
+        &mut self,
+        reader: &mut dyn SeekRead,
+        pos: &ArcValue<'arena>,
+        elem_format: &ArcValue<'arena>,
+    ) -> io::Result<ArcValue<'arena>> {
+        let pos = match self.elim_context().force(pos).as_ref() {
+            Value::Const(Const::Pos(pos)) => *pos,
+            _ => {
+                return Err(io::Error::new(
+                    io::ErrorKind::Other,
+                    "invalid format reference",
+                ))
+            }
+        };
+
+        let initial_pos = reader.stream_position()?;
+
+        // Seek to the position in the file
+        reader.seek(SeekFrom::Start(pos))?;
+        let expr = self.read_format(reader, &elem_format)?;
+
+        // Reset the stream to the start
+        reader.seek(SeekFrom::Start(initial_pos))?;
+
+        Ok(expr)
     }
 }
 

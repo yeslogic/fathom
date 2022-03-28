@@ -152,8 +152,9 @@ impl<'arena> RigidEnv<'arena> {
         define_prim(FormatArray16, format_array(U16Type));
         define_prim(FormatArray32, format_array(U32Type));
         define_prim(FormatArray64, format_array(U64Type));
-        define_prim(FormatLink, binary_op(PosType, FormatType, FormatType));
         define_prim(FormatStreamPos, format_type());
+        define_prim(FormatDeref, binary_op(PosType, FormatType, FormatType));
+        define_prim(FormatLink, binary_op(PosType, FormatType, FormatType));
         define_prim(
             FormatRepr,
             Arc::new(Value::FunType(None, format_type(), close(&UNIVERSE))),

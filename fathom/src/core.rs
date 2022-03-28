@@ -264,6 +264,8 @@ def_prims! {
     FormatArray64 => "array64",
     /// A format which returns the current position in the input stream.
     FormatStreamPos => "stream_pos",
+    // TODO: Docs
+    FormatDeref => "deref",
     /// A format that links to another location in the binary data stream,
     /// relative to a base position.
     FormatLink => "link",

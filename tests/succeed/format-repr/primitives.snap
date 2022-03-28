@@ -27,9 +27,11 @@ let _ : fun (n : U32) -> fun (f : Format) -> fun (_ : Array32 n (Repr f)) ->
 Array32 n (Repr f) = fun _ => fun _ => fun x => x;
 let _ : fun (n : U64) -> fun (f : Format) -> fun (_ : Array64 n (Repr f)) ->
 Array64 n (Repr f) = fun _ => fun _ => fun x => x;
+let _ : fun (_ : Pos) -> Pos = fun x => x;
+let _ : fun (pos : Pos) -> fun (f : Format) -> fun (_ : Repr f) -> Repr f =
+fun _ => fun _ => fun x => x;
 let _ : fun (pos : Pos) -> fun (f : Format) -> fun (_ : Ref (Repr f)) ->
 Ref (Repr f) = fun _ => fun _ => fun x => x;
-let _ : fun (_ : Pos) -> Pos = fun x => x;
 Type : Type
 '''
 stderr = ''
