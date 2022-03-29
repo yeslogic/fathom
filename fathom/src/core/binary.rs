@@ -13,8 +13,12 @@ pub struct Context<'arena, 'env> {
     pending_formats: Vec<(u64, ArcValue<'arena>)>,
 }
 
-pub struct RefData<'arena> {
-    pub r#type: ArcValue<'arena>,
+pub struct ParsedRef<'arena> {
+    /// The format that this reference was parsed with
+    // Invariant: `format : Format`
+    pub format: ArcValue<'arena>,
+    /// The expression that was parsed for this reference
+    // Invariant: `expr : Repr format`
     pub expr: ArcValue<'arena>,
 }
 
@@ -39,42 +43,26 @@ impl<'arena, 'env> Context<'arena, 'env> {
         &mut self,
         reader: &mut dyn SeekRead,
         format: ArcValue<'arena>,
-    ) -> io::Result<HashMap<u64, RefData<'arena>>> {
+    ) -> io::Result<HashMap<u64, Vec<ParsedRef<'arena>>>> {
         let initial_pos = reader.stream_position()?;
-        let mut refs = HashMap::<_, RefData<'_>>::new();
+        let mut refs = HashMap::<_, Vec<ParsedRef<'_>>>::new();
 
         // Parse the entrypoint from the beginning start of the binary data
         self.pending_formats.push((0, format));
 
-        // NOTE: This could lead to non-termination if we aren't careful!
         while let Some((pos, format)) = self.pending_formats.pop() {
-            use std::collections::hash_map::Entry;
+            let parsed_refs = refs.entry(pos).or_insert(Vec::with_capacity(1));
 
-            let format_repr = self.elim_context().apply_repr(&format);
-
-            match refs.entry(pos) {
-                Entry::Occupied(entry) => {
-                    let RefData { r#type, .. } = entry.get();
-                    // Ensure that the format's representation type matches the
-                    // type of the stored reference.
-                    if !self.conversion_context().is_equal(r#type, &format_repr) {
-                        return Err(io::Error::new(
-                            io::ErrorKind::Other,
-                            "ref is occupied by an incompatible type",
-                        ));
-                    }
-                }
-                Entry::Vacant(entry) => {
-                    // Seek to current current ref location
-                    reader.seek(SeekFrom::Start(pos))?;
-                    // Parse the data at that location
-                    let expr = self.read_format(reader, &format)?;
-                    // Record the data in the `refs` hashmap
-                    entry.insert(RefData {
-                        r#type: format_repr,
-                        expr,
-                    });
-                }
+            if (parsed_refs.iter())
+                .find(|r| self.conversion_context().is_equal(&r.format, &format))
+                .is_none()
+            {
+                // Seek to current current ref location
+                reader.seek(SeekFrom::Start(pos))?;
+                // Parse the data at that location
+                let expr = self.read_format(reader, &format)?;
+                // Record the data in the refs at this position
+                parsed_refs.push(ParsedRef { format, expr });
             }
         }
 

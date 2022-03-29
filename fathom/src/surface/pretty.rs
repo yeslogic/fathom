@@ -269,7 +269,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
 
     /// Pretty prints a delimited sequence of documents with a trailing
     /// separator if it is formatted over multiple lines.
-    fn sequence(
+    pub fn sequence(
         &'arena self,
         start_delim: DocBuilder<'arena, Self>,
         docs: impl ExactSizeIterator<Item = DocBuilder<'arena, Self>> + Clone,
