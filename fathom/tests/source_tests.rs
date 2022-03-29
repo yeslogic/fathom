@@ -351,11 +351,25 @@ impl Snapshot {
 
 fn make_diff(actual: &str, expected: &str) -> Option<String> {
     let mut diff = String::new();
-    for (line, result) in diff::lines(expected, actual).into_iter().enumerate() {
+    let mut left_line_number = 0;
+    let mut right_line_number = 0;
+    let line_width = (actual.lines().count().max(expected.lines().count()) as f32)
+        .log10()
+        .ceil() as usize;
+    for result in diff::lines(expected, actual).into_iter() {
         match result {
-            diff::Result::Left(l) => diff.push_str(&format!("{}| - {}\n", line + 1, l)),
-            diff::Result::Both(_l, _r) => {}
-            diff::Result::Right(r) => diff.push_str(&format!("{}| + {}\n", line + 1, r)),
+            diff::Result::Left(l) => {
+                left_line_number += 1;
+                diff.push_str(&diff_line('-', left_line_number, line_width, l));
+            }
+            diff::Result::Both(_l, _r) => {
+                left_line_number += 1;
+                right_line_number += 1;
+            }
+            diff::Result::Right(r) => {
+                right_line_number += 1;
+                diff.push_str(&diff_line('+', right_line_number, line_width, r));
+            }
         }
     }
     if diff.is_empty() {
@@ -363,4 +377,14 @@ fn make_diff(actual: &str, expected: &str) -> Option<String> {
     } else {
         Some(diff)
     }
+}
+
+fn diff_line(sign: char, line_number: usize, line_width: usize, line: &str) -> String {
+    format!(
+        "{:>width$}| {} {}\n",
+        line_number,
+        sign,
+        line,
+        width = line_width
+    )
 }
