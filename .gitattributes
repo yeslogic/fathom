@@ -1,2 +1,3 @@
 *.bin binary
 *.pl linguist-language=Prolog
+*.snap linguist-language=TOML
