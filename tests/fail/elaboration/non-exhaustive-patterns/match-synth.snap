@@ -1,0 +1,24 @@
+stdout = ''
+stderr = '''
+error: cannot find `x` in scope
+  ┌─ tests/fail/elaboration/non-exhaustive-patterns/match-synth.fathom:3:8
+  │
+3 │ match (x : U8) {}
+  │        ^ unbound name
+
+error: non-exhaustive patterns in match expression
+  ┌─ tests/fail/elaboration/non-exhaustive-patterns/match-synth.fathom:3:8
+  │
+3 │ match (x : U8) {}
+  │ -------^^^^^^----
+  │ │      │
+  │ │      patterns not covered
+  │ in match expression
+
+error: failed to infer match output type
+  ┌─ tests/fail/elaboration/non-exhaustive-patterns/match-synth.fathom:3:1
+  │
+3 │ match (x : U8) {}
+  │ ^^^^^^^^^^^^^^^^^ unsolved match output type
+
+'''

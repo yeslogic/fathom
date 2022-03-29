@@ -1,0 +1,4 @@
+stdout = '''
+{ A : Type, a : A } : Type
+'''
+stderr = ''

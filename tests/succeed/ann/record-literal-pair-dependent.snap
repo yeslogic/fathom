@@ -1,0 +1,7 @@
+stdout = '''
+{ A = { x : Type }, a = { x = {} } } : {
+    A : Type,
+    a : A,
+}
+'''
+stderr = ''

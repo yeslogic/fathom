@@ -1,0 +1,11 @@
+stdout = ''
+stderr = '''
+error: cannot find `goodbye` in projection head
+  ┌─ tests/fail/elaboration/unknown-field/unit-literal.fathom:3:4
+  │
+3 │ {}.goodbye
+  │ -- ^^^^^^^ unknown label
+  │ │   
+  │ head expression
+
+'''

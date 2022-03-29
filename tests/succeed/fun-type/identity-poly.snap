@@ -1,0 +1,4 @@
+stdout = '''
+fun (A : Type) -> fun (a : A) -> A : Type
+'''
+stderr = ''

@@ -1,0 +1,17 @@
+stdout = '''
+let x : U8 = 3; x : U8
+'''
+stderr = '''
+warning: unreachable pattern
+  ┌─ tests/succeed/match/synth-simple-redundant.fathom:3:5
+  │
+3 │     y => 4,
+  │     ^
+
+warning: unreachable pattern
+  ┌─ tests/succeed/match/synth-simple-redundant.fathom:4:5
+  │
+4 │     y => y,
+  │     ^
+
+'''

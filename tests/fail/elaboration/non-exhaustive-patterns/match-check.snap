@@ -1,0 +1,18 @@
+stdout = ''
+stderr = '''
+error: cannot find `x` in scope
+  ┌─ tests/fail/elaboration/non-exhaustive-patterns/match-check.fathom:3:8
+  │
+3 │ match (x : U8) {} : U32
+  │        ^ unbound name
+
+error: non-exhaustive patterns in match expression
+  ┌─ tests/fail/elaboration/non-exhaustive-patterns/match-check.fathom:3:8
+  │
+3 │ match (x : U8) {} : U32
+  │ -------^^^^^^----
+  │ │      │
+  │ │      patterns not covered
+  │ in match expression
+
+'''

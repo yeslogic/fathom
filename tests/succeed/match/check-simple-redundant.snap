@@ -1,0 +1,11 @@
+stdout = '''
+let x : U8 = 3; 3 : U32
+'''
+stderr = '''
+warning: unreachable pattern
+  ┌─ tests/succeed/match/check-simple-redundant.fathom:3:5
+  │
+3 │     y => 4,
+  │     ^
+
+'''

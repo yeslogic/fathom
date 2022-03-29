@@ -1,0 +1,8 @@
+stdout = '''
+let id : fun (A : Type) -> fun (_ : A) -> A = fun A => fun a => a;
+let test_id_check0 : fun (_ : Type) -> Type = id Type;
+let test_id_check1 : Type = id Type Type;
+let test_id_synth : _ = id Type Type;
+Type : Type
+'''
+stderr = ''

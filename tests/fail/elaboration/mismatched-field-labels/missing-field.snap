@@ -1,0 +1,12 @@
+stdout = ''
+stderr = '''
+error: mismatched field labels in record literal
+  ┌─ tests/fail/elaboration/mismatched-field-labels/missing-field.fathom:3:1
+  │
+3 │ { x = {} } : { x : Type, y : Type }
+  │ ^^^^^^^^^^ missing fields `y`
+  │
+  = expected fields `x`, `y`
+  =    found fields `x`
+
+'''

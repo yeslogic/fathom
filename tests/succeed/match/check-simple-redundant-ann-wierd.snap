@@ -1,0 +1,17 @@
+stdout = '''
+let x : U8 = 3; 4 : U32
+'''
+stderr = '''
+warning: unreachable pattern
+  ┌─ tests/succeed/match/check-simple-redundant-ann-wierd.fathom:3:5
+  │
+3 │     y : U8 : Type => 3,
+  │     ^^^^^^^^^^^^^
+
+warning: unreachable pattern
+  ┌─ tests/succeed/match/check-simple-redundant-ann-wierd.fathom:4:5
+  │
+4 │     y : U8 : Type => 7,
+  │     ^^^^^^^^^^^^^
+
+'''

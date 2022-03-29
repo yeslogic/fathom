@@ -1,0 +1,11 @@
+stdout = ''
+stderr = '''
+error: cannot find `foo` in projection head
+  ┌─ tests/fail/elaboration/unknown-field/type.fathom:3:6
+  │
+3 │ Type.foo
+  │ ---- ^^^ unknown label
+  │ │     
+  │ head expression
+
+'''

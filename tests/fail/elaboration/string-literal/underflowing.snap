@@ -1,0 +1,12 @@
+stdout = ''
+stderr = '''
+error: mismatched number of bytes in string literal
+  ┌─ tests/fail/elaboration/string-literal/underflowing.fathom:3:1
+  │
+3 │ "oops" : U64
+  │ ^^^^^^ invalid string literal
+  │
+  = expected byte length 8
+  =    found byte length 4
+
+'''

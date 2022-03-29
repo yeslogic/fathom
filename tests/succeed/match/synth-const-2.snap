@@ -1,0 +1,4 @@
+stdout = '''
+let x : U8 = 3; match x { 1 => x, 3 => x, _ => let x : U8 = _; x } : U8
+'''
+stderr = ''

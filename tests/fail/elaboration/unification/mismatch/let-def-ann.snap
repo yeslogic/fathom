@@ -1,0 +1,9 @@
+stdout = ''
+stderr = '''
+error: type mismatch
+  ┌─ tests/fail/elaboration/unification/mismatch/let-def-ann.fathom:3:9
+  │
+3 │ let x : Type : U32 = {};
+  │         ^^^^
+
+'''

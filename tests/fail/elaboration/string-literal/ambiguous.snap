@@ -1,0 +1,9 @@
+stdout = ''
+stderr = '''
+error: ambiguous string literal
+  ┌─ tests/fail/elaboration/string-literal/ambiguous.fathom:3:1
+  │
+3 │ "hello"
+  │ ^^^^^^^ type annotations needed
+
+'''

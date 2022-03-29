@@ -1,0 +1,15 @@
+stdout = ''
+stderr = '''
+error: mismatched field labels in record literal
+  ┌─ tests/fail/elaboration/mismatched-field-labels/unexpected-field.fathom:3:11
+  │
+3 │ { x = {}, y = {} } : { x : Type }
+  │ ----------^-------
+  │ │         │
+  │ │         unexpected field `y`
+  │ the record literal
+  │
+  = expected fields `x`
+  =    found fields `x`, `y`
+
+'''

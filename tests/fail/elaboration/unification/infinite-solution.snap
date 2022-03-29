@@ -1,0 +1,15 @@
+stdout = ''
+stderr = '''
+error: infinite solution
+  ┌─ tests/fail/elaboration/unification/infinite-solution.fathom:8:21
+  │
+8 │       f _ (fun a => a);
+  │                     ^
+
+error: failed to infer placeholder expression
+  ┌─ tests/fail/elaboration/unification/infinite-solution.fathom:8:9
+  │
+8 │       f _ (fun a => a);
+  │         ^ unsolved placeholder expression
+
+'''

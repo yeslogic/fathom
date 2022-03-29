@@ -1,0 +1,33 @@
+stdout = ''
+stderr = '''
+error: cannot find `x` in scope
+  ┌─ tests/fail/elaboration/unification/mismatch/match-equation-output-exprs.fathom:3:8
+  │
+3 │ match (x : U8) {
+  │        ^ unbound name
+
+warning: unreachable pattern
+  ┌─ tests/fail/elaboration/unification/mismatch/match-equation-output-exprs.fathom:5:5
+  │
+5 │     _ => 4 : U64,
+  │     ^
+
+error: type mismatch
+  ┌─ tests/fail/elaboration/unification/mismatch/match-equation-output-exprs.fathom:5:10
+  │
+5 │     _ => 4 : U64,
+  │          ^^^^^^^
+
+warning: unreachable pattern
+  ┌─ tests/fail/elaboration/unification/mismatch/match-equation-output-exprs.fathom:6:5
+  │
+6 │     _ => Type,
+  │     ^
+
+error: type mismatch
+  ┌─ tests/fail/elaboration/unification/mismatch/match-equation-output-exprs.fathom:6:10
+  │
+6 │     _ => Type,
+  │          ^^^^
+
+'''

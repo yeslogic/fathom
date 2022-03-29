@@ -1,0 +1,4 @@
+stdout = '''
+let pair : _ = { fst <- u32be, snd <- u32be }; pair : Format
+'''
+stderr = ''

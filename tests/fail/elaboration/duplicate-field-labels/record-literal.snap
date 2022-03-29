@@ -1,0 +1,14 @@
+stdout = ''
+stderr = '''
+error: duplicate labels found in record
+  ┌─ tests/fail/elaboration/duplicate-field-labels/record-literal.fathom:3:23
+  │
+3 │ { x = Type, y = Type, x = Type }
+  │ ----------------------^---------
+  │ │                     │
+  │ │                     duplicate field
+  │ the record literal
+  │
+  = duplicate fields `x`
+
+'''
