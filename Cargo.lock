@@ -298,6 +298,7 @@ dependencies = [
 name = "fathom"
 version = "0.1.0"
 dependencies = [
+ "atty",
  "clap 3.0.10",
  "codespan-reporting",
  "fxhash",

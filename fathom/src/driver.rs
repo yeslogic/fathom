@@ -50,11 +50,21 @@ impl<'surface, 'core> Driver<'surface, 'core> {
             allow_errors: false,
             codespan_config: codespan_reporting::term::Config::default(),
             diagnostic_writer: RefCell::new(Box::new(BufferedStandardStream::stderr(
-                ColorChoice::Auto,
+                if atty::is(atty::Stream::Stderr) {
+                    ColorChoice::Auto
+                } else {
+                    ColorChoice::Never
+                },
             ))),
 
             emit_width: usize::MAX,
-            emit_writer: RefCell::new(Box::new(BufferedStandardStream::stdout(ColorChoice::Auto))),
+            emit_writer: RefCell::new(Box::new(BufferedStandardStream::stdout(
+                if atty::is(atty::Stream::Stdout) {
+                    ColorChoice::Auto
+                } else {
+                    ColorChoice::Never
+                },
+            ))),
         }
     }
 
@@ -93,7 +103,11 @@ impl<'surface, 'core> Driver<'surface, 'core> {
                     // TODO: print fathom backtrace
                 ]);
 
-            let mut writer = BufferedStandardStream::stderr(ColorChoice::Auto);
+            let mut writer = BufferedStandardStream::stderr(if atty::is(atty::Stream::Stderr) {
+                ColorChoice::Auto
+            } else {
+                ColorChoice::Never
+            });
             let dummy_files = SimpleFiles::<String, String>::new();
 
             default_hook(info);
