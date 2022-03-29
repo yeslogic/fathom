@@ -252,13 +252,20 @@ impl<'surface, 'core> Driver<'surface, 'core> {
             .read_entrypoint(reader, format)
             .unwrap(); // TODO: render nicer errors
 
-        for (pos, data) in refs.into_iter().sorted_by_key(|(pos, _)| *pos) {
-            let expr = context.quote_context(&self.core_scope).quote(&data.expr);
-
+        for (pos, parsed_refs) in refs.into_iter().sorted_by_key(|(pos, _)| *pos) {
             self.surface_scope.reset(); // Reuse the surface scope for distillation
-            let expr = context
-                .distillation_context(&self.surface_scope)
-                .check(&expr);
+
+            let exprs = parsed_refs
+                .iter()
+                .map(|parsed_ref| {
+                    let expr = context
+                        .quote_context(&self.core_scope)
+                        .quote(&parsed_ref.expr);
+                    context
+                        .distillation_context(&self.surface_scope)
+                        .check(&expr)
+                })
+                .collect::<Vec<_>>();
 
             let context = surface::pretty::Context::new(&self.interner, &self.surface_scope);
             let pos = pos.to_string();
@@ -268,7 +275,12 @@ impl<'surface, 'core> Driver<'surface, 'core> {
                     context.space(),
                     context.text("="),
                     context.space(),
-                    context.term(&expr),
+                    context.sequence(
+                        context.text("["),
+                        exprs.iter().map(|expr| context.term(&expr)),
+                        context.text(","),
+                        context.text("]"),
+                    ),
                 ])
                 .into_doc();
 
