@@ -248,11 +248,11 @@ impl<'arena, 'env> Context<'arena, 'env> {
         reader.seek(SeekFrom::Start(initial_pos))?;
 
         // We might have parsed the current reference during the above call to
-        // `read_format` so it's important to check first, in order to avoid
-        // duplicates in the cache.
-        if let Some(parsed_ref) = self.lookup_cached_ref(pos, &format) {
-            // Assumes that this is the same as the the expression we've just parsed
-            return Ok(parsed_ref.expr.clone());
+        // `read_format`. It's unclear if this could ever happen in practice,
+        // especially without succumbing to non-termination, but we'll panic
+        // here just in case.
+        if let Some(_) = self.lookup_cached_ref(pos, &format) {
+            panic!("recursion found when storing cached reference {}", pos);
         }
 
         // Store the parsed reference in the reference cache
