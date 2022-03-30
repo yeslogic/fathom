@@ -1,0 +1,21 @@
+stdout = ''
+stderr = '''
+error: escaping rigid variable
+  ┌─ tests/fail/elaboration/unification/escaping-rigid-var.fathom:3:10
+  │
+3 │ fun n => n : _ -> _
+  │          ^
+
+error: failed to infer placeholder expression
+  ┌─ tests/fail/elaboration/unification/escaping-rigid-var.fathom:3:14
+  │
+3 │ fun n => n : _ -> _
+  │              ^ unsolved placeholder expression
+
+error: failed to infer placeholder expression
+  ┌─ tests/fail/elaboration/unification/escaping-rigid-var.fathom:3:19
+  │
+3 │ fun n => n : _ -> _
+  │                   ^ unsolved placeholder expression
+
+'''

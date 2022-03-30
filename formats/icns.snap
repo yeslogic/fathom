@@ -1,0 +1,11 @@
+stdout = '''
+let header : _ = { magic <- u32be, file_length <- u32be };
+let icon_data : _ = {
+    icon_type <- u32be,
+    icon_data_length <- u32be,
+    data <- array8 0 u8,
+};
+let main : _ = { header <- header, icons <- array8 0 icon_data };
+main : Format
+'''
+stderr = ''

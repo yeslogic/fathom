@@ -1,0 +1,128 @@
+stdout = '''
+let id : fun (A : Type) -> fun (_ : A) -> A = fun _ => fun a => a;
+let always : fun (A : Type) -> fun (B : Type) -> fun (_ : A) -> fun (_ : B) ->
+A = fun _ => fun _ => fun a => fun _ => a;
+let compose : fun (A : Type) -> fun (B : Type) -> fun (C : Type) -> fun (_ :
+fun (_ : A) -> B) -> fun (_ : fun (_ : B) -> C) -> fun (_ : A) -> C =
+fun _ => fun _ => fun _ => fun ab => fun bc => fun a => bc (ab a);
+let Bool : Type = fun (Bool : _) -> fun (true : Bool) -> fun (false : Bool) ->
+Bool;
+let true : fun (Bool : Type) -> fun (true : Bool) -> fun (false : Bool) ->
+Bool = fun Bool => fun true => fun false => true;
+let false : fun (Bool : Type) -> fun (true : Bool) -> fun (false : Bool) ->
+Bool = fun Bool => fun true => fun false => false;
+let not : fun (_ : fun (Bool : Type) -> fun (true : Bool) -> fun (false :
+Bool) -> Bool) -> fun (Bool : Type) -> fun (true : Bool) -> fun (false :
+Bool) -> Bool =
+fun bool => fun Bool => fun true => fun false => bool Bool false true;
+let Nat : Type = fun (Nat : _) -> fun (succ : fun (_ : Nat) -> Nat) ->
+fun (zero : Nat) -> Nat;
+let zero : fun (Nat : Type) -> fun (succ : fun (_ : Nat) -> Nat) -> fun (zero :
+Nat) -> Nat = fun Nat => fun succ => fun zero => zero;
+let succ : fun (_ : fun (Nat : Type) -> fun (succ : fun (_ : Nat) -> Nat) ->
+fun (zero : Nat) -> Nat) -> fun (Nat : Type) -> fun (succ : fun (_ : Nat) ->
+Nat) -> fun (zero : Nat) -> Nat =
+fun prev => fun Nat => fun succ => fun zero => succ (prev (_ prev Nat succ zero) succ zero);
+let add : fun (_ : fun (Nat : Type) -> fun (succ : fun (_ : Nat) -> Nat) ->
+fun (zero : Nat) -> Nat) -> fun (_ : fun (Nat : Type) -> fun (succ : fun (_ :
+Nat) -> Nat) -> fun (zero : Nat) -> Nat) -> fun (Nat : Type) -> fun (succ :
+fun (_ : Nat) -> Nat) -> fun (zero : Nat) -> Nat =
+fun n0 => fun n1 => fun Nat => fun succ => fun zero => n0 Nat succ (n1 Nat succ zero);
+let mul : fun (_ : fun (Nat : Type) -> fun (succ : fun (_ : Nat) -> Nat) ->
+fun (zero : Nat) -> Nat) -> fun (_ : fun (Nat : Type) -> fun (succ : fun (_ :
+Nat) -> Nat) -> fun (zero : Nat) -> Nat) -> fun (Nat : Type) -> fun (succ :
+fun (_ : Nat) -> Nat) -> fun (zero : Nat) -> Nat =
+fun n0 => fun n1 => fun Nat => fun succ => fun zero => n0 Nat (n1 Nat succ) zero;
+let List : fun (_ : Type) -> Type = fun Elem => fun (List : _ Elem) ->
+fun (nil : List) -> fun (cons : fun (_ : Elem) -> fun (_ : List) -> List) ->
+List;
+let nil : fun (Elem : Type) -> fun (List : Type) -> fun (nil : List) ->
+fun (cons : fun (_ : Elem) -> fun (_ : List) -> List) -> List =
+fun Elem => fun List => fun nil => fun cons => nil;
+let cons : fun (Elem : Type) -> fun (_ : Elem) -> fun (_ : fun (List : Type) ->
+fun (nil : List) -> fun (cons : fun (_ : Elem) -> fun (_ : List) -> List) ->
+List) -> fun (List : Type) -> fun (nil : List) -> fun (cons : fun (_ : Elem) ->
+fun (_ : List) -> List) -> List =
+fun Elem => fun head => fun tail => fun List => fun nil => fun cons => cons head (tail (_ Elem head tail List nil cons) nil cons);
+let Vec : fun (_ : Type) -> fun (_ : fun (Nat : Type) -> fun (succ : fun (_ :
+Nat) -> Nat) -> fun (zero : Nat) -> Nat) -> Type =
+fun Elem => fun len => fun (Vec : fun (_ : fun (Nat : Type) -> fun (succ :
+fun (_ : Nat) -> Nat) -> fun (zero : Nat) -> Nat) -> Type) -> fun (nil :
+Vec (fun Nat => fun succ => fun zero => zero)) -> fun (cons : fun (len :
+fun (Nat : Type) -> fun (succ : fun (_ : Nat) -> Nat) -> fun (zero : Nat) ->
+Nat) -> fun (_ : Elem) -> fun (_ : Vec len) ->
+Vec (fun Nat => fun succ => fun zero => succ (len Nat succ zero))) -> Vec len;
+let vnil : fun (Elem : Type) -> fun (Vec : fun (_ : fun (Nat : Type) ->
+fun (succ : fun (_ : Nat) -> Nat) -> fun (zero : Nat) -> Nat) -> Type) ->
+fun (nil : Vec (fun Nat => fun succ => fun zero => zero)) -> fun (cons :
+fun (len : fun (Nat : Type) -> fun (succ : fun (_ : Nat) -> Nat) -> fun (zero :
+Nat) -> Nat) -> fun (_ : Elem) -> fun (_ : Vec len) ->
+Vec (fun Nat => fun succ => fun zero => succ (len Nat succ zero))) ->
+Vec (fun Nat => fun succ => fun zero => zero) =
+fun Elem => fun Vec => fun nil => fun cons => nil;
+let vcons : fun (Elem : Type) -> fun (len : fun (Nat : Type) -> fun (succ :
+fun (_ : Nat) -> Nat) -> fun (zero : Nat) -> Nat) -> fun (_ : Elem) -> fun (_ :
+fun (Vec : fun (_ : fun (Nat : Type) -> fun (succ : fun (_ : Nat) -> Nat) ->
+fun (zero : Nat) -> Nat) -> Type) -> fun (nil :
+Vec (fun Nat => fun succ => fun zero => zero)) -> fun (cons : fun (len :
+fun (Nat : Type) -> fun (succ : fun (_ : Nat) -> Nat) -> fun (zero : Nat) ->
+Nat) -> fun (_ : Elem) -> fun (_ : Vec len) ->
+Vec (fun Nat => fun succ => fun zero => succ (len Nat succ zero))) ->
+Vec len) -> fun (Vec : fun (_ : fun (Nat : Type) -> fun (succ : fun (_ : Nat) ->
+Nat) -> fun (zero : Nat) -> Nat) -> Type) -> fun (nil :
+Vec (fun Nat => fun succ => fun zero => zero)) -> fun (cons : fun (len :
+fun (Nat : Type) -> fun (succ : fun (_ : Nat) -> Nat) -> fun (zero : Nat) ->
+Nat) -> fun (_ : Elem) -> fun (_ : Vec len) ->
+Vec (fun Nat => fun succ => fun zero => succ (len Nat succ zero))) ->
+Vec (fun Nat => fun succ => fun zero => succ (len Nat succ zero)) =
+fun Elem => fun len => fun head => fun tail => fun Vec => fun nil => fun cons => cons (_ Elem len head tail Vec nil cons) head (tail Vec nil cons);
+let Void : Type = fun (Void : Type) -> Void;
+let absurd : fun (A : Type) -> fun (_ : fun (Void : Type) -> Void) -> A =
+fun A => fun void => void A;
+let Unit : Type = fun (Unit : Type) -> fun (unit : Unit) -> Unit;
+let unit : fun (Unit : Type) -> fun (unit : Unit) -> Unit =
+fun Unit => fun unit => unit;
+let Eq : fun (A : Type) -> fun (_ : A) -> fun (_ : A) -> Type =
+fun A => fun a0 => fun a1 => fun (P : fun (_ : A) -> Type) -> fun (_ : P a0) ->
+P a1;
+let refl : fun (A : Type) -> fun (a : A) -> fun (P : fun (_ : A) -> Type) ->
+fun (_ : P a) -> P a = fun A => fun a => fun P => id (P a);
+let trans : fun (A : Type) -> fun (a0 : A) -> fun (a1 : A) -> fun (a2 : A) ->
+fun (_ : fun (P : fun (_ : A) -> Type) -> fun (_ : P a0) -> P a1) -> fun (_ :
+fun (P : fun (_ : A) -> Type) -> fun (_ : P a1) -> P a2) -> fun (P : fun (_ :
+A) -> Type) -> fun (_ : P a0) -> P a2 =
+fun _ => fun a0 => fun a1 => fun a2 => fun p0 => fun p1 => fun P => compose (_ _ a0 a1 a2 p0 p1 P) (_ _ a0 a1 a2 p0 p1 P) (_ _ a0 a1 a2 p0 p1 P) (p0 P) (p1 P);
+let sym : fun (A : Type) -> fun (a0 : A) -> fun (a1 : A) -> fun (_ : fun (P :
+fun (_ : A) -> Type) -> fun (_ : P a0) -> P a1) -> fun (P : fun (_ : A) ->
+Type) -> fun (_ : P a1) -> P a0 =
+fun _ => fun a0 => fun a1 => fun p => p (fun a1 => Eq (_ _ a0 a1 p a1) a1 a0) (refl (_ _ a0 a1 p) (_ _ a0 a1 p));
+let id_elim_type : _ = (fun a => a) Type;
+let list1 : fun (List : Type) -> fun (nil : List) -> fun (cons : fun (_ :
+fun (Bool : Type) -> fun (true : Bool) -> fun (false : Bool) -> Bool) ->
+fun (_ : List) -> List) -> List = cons _ (id _ true) (nil _);
+let five : fun (Nat : Type) -> fun (succ : fun (_ : Nat) -> Nat) -> fun (zero :
+Nat) -> Nat = succ (succ (succ (succ (succ zero))));
+let ten : fun (Nat : Type) -> fun (succ : fun (_ : Nat) -> Nat) -> fun (zero :
+Nat) -> Nat = add five five;
+let hundred : fun (Nat : Type) -> fun (succ : fun (_ : Nat) -> Nat) ->
+fun (zero : Nat) -> Nat = mul ten ten;
+let thousand : fun (Nat : Type) -> fun (succ : fun (_ : Nat) -> Nat) ->
+fun (zero : Nat) -> Nat = mul ten hundred;
+let eq_test : fun (P : fun (_ : fun (Nat : Type) -> fun (succ : fun (_ : Nat) ->
+Nat) -> fun (zero : Nat) -> Nat) -> Type) -> fun (_ :
+P (fun Nat => fun succ => fun zero => succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ zero))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))) ->
+P (fun Nat => fun succ => fun zero => succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ zero)))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))) =
+refl _ _;
+let eq_id_elim_type : fun (P : fun (_ : Type) -> Type) -> fun (_ : P Type) ->
+P Type = refl _ _;
+let eq_id_elim_true : fun (P : fun (_ : fun (Bool : Type) -> fun (true :
+Bool) -> fun (false : Bool) -> Bool) -> Type) -> fun (_ :
+P (fun Bool => fun true => fun false => true)) ->
+P (fun Bool => fun true => fun false => true) = refl _ _;
+let eq_id_elim_false : fun (P : fun (_ : fun (Bool : Type) -> fun (true :
+Bool) -> fun (false : Bool) -> Bool) -> Type) -> fun (_ :
+P (fun Bool => fun true => fun false => false)) ->
+P (fun Bool => fun true => fun false => false) = refl _ _;
+Type : Type
+'''
+stderr = ''

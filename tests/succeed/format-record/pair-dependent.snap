@@ -1,0 +1,7 @@
+stdout = '''
+let array32 : fun (_ : U32) -> fun (_ : Format) -> Format =
+fun len => fun Elem => Elem;
+let pair : _ = { len <- u32be, data <- array32 len u32be };
+pair : Format
+'''
+stderr = ''

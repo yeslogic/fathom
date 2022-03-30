@@ -1,0 +1,15 @@
+stdout = ''
+stderr = '''
+error: type mismatch
+  ┌─ tests/fail/elaboration/unification/mismatch/fun-literal-input-ann.fathom:3:15
+  │
+3 │ fun A => fun (a : Type) => a : fun (A : Type) -> A -> A
+  │               ^^^^^^^^
+
+error: cannot find `a` in scope
+  ┌─ tests/fail/elaboration/unification/mismatch/fun-literal-input-ann.fathom:3:28
+  │
+3 │ fun A => fun (a : Type) => a : fun (A : Type) -> A -> A
+  │                            ^ unbound name
+
+'''

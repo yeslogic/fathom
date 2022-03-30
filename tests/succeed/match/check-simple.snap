@@ -1,0 +1,4 @@
+stdout = '''
+let x : U8 = 3; 3 : U32
+'''
+stderr = ''

@@ -1,0 +1,9 @@
+stdout = '''
+let Point : fun (_ : Type) -> Type = fun A => { x : A, y : A };
+let test_point : fun (A : Type) -> fun (_ : { x : A, y : A }) -> {
+    x : A,
+    y : A,
+} = fun A => fun p => p;
+Type : Type
+'''
+stderr = ''

@@ -1,0 +1,9 @@
+stdout = ''
+stderr = '''
+error: non-ASCII character found in string literal
+  ┌─ tests/fail/elaboration/string-literal/non-ascii.fathom:3:3
+  │
+3 │ " ×" : U16
+  │   ^ non-ASCII character
+
+'''

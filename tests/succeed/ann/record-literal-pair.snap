@@ -1,0 +1,7 @@
+stdout = '''
+{ first = {}, second = Type } : {
+    first : Type,
+    second : Type,
+}
+'''
+stderr = ''

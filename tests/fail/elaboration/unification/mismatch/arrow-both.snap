@@ -1,0 +1,15 @@
+stdout = ''
+stderr = '''
+error: type mismatch
+  ┌─ tests/fail/elaboration/unification/mismatch/arrow-both.fathom:3:34
+  │
+3 │ fun (A : Type) -> fun (a : A) -> a -> a
+  │                                  ^
+
+error: type mismatch
+  ┌─ tests/fail/elaboration/unification/mismatch/arrow-both.fathom:3:39
+  │
+3 │ fun (A : Type) -> fun (a : A) -> a -> a
+  │                                       ^
+
+'''

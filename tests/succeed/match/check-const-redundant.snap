@@ -1,0 +1,11 @@
+stdout = '''
+let x : U8 = 3; match x { 1 => 0, 3 => 7, _ => let x : U8 = _; x } : U8
+'''
+stderr = '''
+warning: unreachable pattern
+  ┌─ tests/succeed/match/check-const-redundant.fathom:7:5
+  │
+7 │     5 => 73,
+  │     ^
+
+'''

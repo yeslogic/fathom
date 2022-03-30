@@ -1,0 +1,27 @@
+stdout = '''
+let record0 : _ = { length <- u8 };
+let record1 : _ = fun length => { _length <- u8, data <- array8 length u8 };
+let silly : _ = overlap {
+    record0 <- record0,
+    record1 <- record1 record0.length,
+};
+let _ : fun (_ : {
+    record0 : {
+        length : U8,
+    },
+    record1 : {
+        _length : U8,
+        data : Array8 record0.length U8,
+    },
+}) -> {
+    record0 : {
+        length : U8,
+    },
+    record1 : {
+        _length : U8,
+        data : Array8 record0.length U8,
+    },
+} = fun silly => silly;
+{} : {}
+'''
+stderr = ''

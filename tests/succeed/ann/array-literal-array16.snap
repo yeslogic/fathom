@@ -1,0 +1,4 @@
+stdout = '''
+[] : Array16 0 U32
+'''
+stderr = ''

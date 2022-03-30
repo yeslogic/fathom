@@ -1,0 +1,305 @@
+stdout = '''
+let reserved : _ = fun format => fun default => format;
+let deprecated : _ = fun format => fun default => format;
+let fixed : Format = u32be;
+let fword : Format = s16be;
+let ufword : Format = u16be;
+let f2dot14 : Format = s16be;
+let u24be : Format = array8 3 u8;
+let long_date_time : Format = s64be;
+let tag : Format = u32be;
+let unknown_table : Format = {};
+let empty : Format = {};
+let offset16 : _ = fun base => fun format => {
+    offset <- u16be,
+    link <- match offset {
+        0 => empty,
+        _ => link16 base offset format,
+    },
+};
+let offset32 : _ = fun base => fun format => {
+    offset <- u32be,
+    link <- match offset {
+        0 => empty,
+        _ => link32 base offset format,
+    },
+};
+let version16dot16 : _ = u32be;
+let platform_id : _ = u16be;
+let encoding_id : _ = fun platform => u16be;
+let language_id : _ = u16be;
+let language_id32 : _ = u32be;
+let cmap_language_id : _ = fun platform => language_id;
+let cmap_language_id32 : _ = fun platform => language_id32;
+let small_glyph_id : _ = u8;
+let sequential_map_group : _ = {
+    start_char_code <- u32be,
+    end_char_code <- u32be,
+    start_glyph_id <- u32be,
+};
+let constant_map_group : _ = sequential_map_group;
+let unicode_range : _ = {
+    start_unicode_value <- u24be,
+    additional_count <- u8,
+};
+let default_uvs_table : _ = {
+    num_unicode_value_ranges <- u32be,
+    ranges <- array32 num_unicode_value_ranges unicode_range,
+};
+let uvs_mapping : _ = { unicode_value <- u24be, glyph_id <- u16be };
+let non_default_uvs_table : _ = {
+    num_uvs_mappings <- u32be,
+    uvs_mappings <- array32 num_uvs_mappings uvs_mapping,
+};
+let variation_selector : _ = fun table_start => {
+    var_selector <- u24be,
+    default_uvs_offset <- offset32 table_start default_uvs_table,
+    non_default_uvs_offset <- offset32 table_start non_default_uvs_table,
+};
+let cmap_subtable_format0 : _ = fun platform => {
+    length <- u16be,
+    language <- cmap_language_id platform,
+    glyph_id_array <- array16 256 small_glyph_id,
+};
+let cmap_subtable_format2 : _ = fun platform => {
+    length <- u16be,
+    language <- cmap_language_id platform,
+    sub_header_keys <- array16 256 u16be,
+};
+let cmap_subtable_format4 : _ = fun platform => {
+    length <- u16be,
+    language <- cmap_language_id platform,
+    seg_count_x2 <- u16be,
+    seg_count <- succeed (_ platform length language seg_count_x2) (u16_div seg_count_x2 2),
+    search_range <- u16be,
+    entry_selector <- u16be,
+    range_shift <- u16be,
+    end_code <- array16 seg_count u16be,
+    _reserved_pad <- reserved s16be 0,
+    start_code <- array16 seg_count u16be,
+    id_delta <- array16 seg_count s16be,
+    id_range_offsets <- array16 seg_count u16be,
+};
+let cmap_subtable_format6 : _ = fun platform => {
+    length <- u16be,
+    language <- cmap_language_id platform,
+    first_code <- u16be,
+    entry_count <- u16be,
+    glyph_id_array <- array16 entry_count u16be,
+};
+let cmap_subtable_format8 : _ = fun platform => {
+    _reserved <- reserved u16be 0,
+    length <- u32be,
+    language <- cmap_language_id32 platform,
+    is32 <- array16 8192 u8,
+    num_groups <- u32be,
+    groups <- array32 num_groups sequential_map_group,
+};
+let cmap_subtable_format10 : _ = fun platform => {
+    _reserved <- reserved u16be 0,
+    length <- u32be,
+    language <- cmap_language_id32 platform,
+    start_char_code <- u32be,
+    num_chars <- u32be,
+    glyph_id_array <- array32 num_chars u16be,
+};
+let cmap_subtable_format12 : _ = fun platform => {
+    _reserved <- reserved u16be 0,
+    length <- u32be,
+    language <- cmap_language_id32 platform,
+    num_groups <- u32be,
+    groups <- array32 num_groups sequential_map_group,
+};
+let cmap_subtable_format13 : _ = fun platform => {
+    _reserved <- reserved u16be 0,
+    length <- u32be,
+    language <- cmap_language_id32 platform,
+    num_groups <- u32be,
+    groups <- array32 num_groups constant_map_group,
+};
+let cmap_subtable_format14 : _ = fun platform => fun table_start => {
+    length <- u32be,
+    num_var_selector_records <- u32be,
+    var_selector <- array32 num_var_selector_records (variation_selector table_start),
+};
+let character_map_subtable : _ = fun platform => {
+    table_start <- stream_pos,
+    format <- u16be,
+    data <- match format {
+        0 => cmap_subtable_format0 platform,
+        2 => cmap_subtable_format2 platform,
+        4 => cmap_subtable_format4 platform,
+        6 => cmap_subtable_format6 platform,
+        8 => cmap_subtable_format8 platform,
+        10 => cmap_subtable_format10 platform,
+        12 => cmap_subtable_format12 platform,
+        13 => cmap_subtable_format13 platform,
+        14 => cmap_subtable_format14 platform table_start,
+        _ => unknown_table,
+    },
+};
+let encoding_record : _ = fun table_start => {
+    platform <- platform_id,
+    encoding <- encoding_id platform,
+    subtable_offset <- offset32 table_start (character_map_subtable platform),
+};
+let character_map : _ = {
+    table_start <- stream_pos,
+    version <- u16be,
+    num_tables <- u16be,
+    encoding_records <- array16 num_tables (encoding_record table_start),
+};
+let font_header : _ = {
+    major_version <- u16be,
+    minor_version <- u16be,
+    font_revision <- fixed,
+    checksum_adjustment <- u32be,
+    magic_number <- u32be,
+    flags <- u16be,
+    units_per_em <- u16be,
+    created <- long_date_time,
+    modified <- long_date_time,
+    glyph_extents <- {
+        x_min <- s16be,
+        y_min <- s16be,
+        x_max <- s16be,
+        y_max <- s16be,
+    },
+    mac_style <- u16be,
+    lowest_rec_ppem <- u16be,
+    font_direction_hint <- deprecated s16be 2,
+    index_to_loc_format <- s16be,
+    glyph_data_format <- s16be,
+};
+let horizontal_header : _ = {
+    major_version <- u16be,
+    minor_version <- u16be,
+    ascent <- fword,
+    descent <- fword,
+    line_gap <- fword,
+    advance_width_max <- ufword,
+    min_left_side_bearing <- fword,
+    min_right_side_bearing <- fword,
+    x_max_extent <- fword,
+    caret_slope <- {
+        rise <- s16be,
+        run <- s16be,
+    },
+    caret_offset <- s16be,
+    _reserved0 <- reserved s16be 0,
+    _reserved1 <- reserved s16be 0,
+    _reserved2 <- reserved s16be 0,
+    _reserved3 <- reserved s16be 0,
+    metric_data_format <- s16be,
+    number_of_long_horizontal_metrics <- u16be,
+};
+let long_horizontal_metric : _ = {
+    advance_width <- u16be,
+    left_side_bearing <- s16be,
+};
+let horizontal_metrics : _ =
+fun number_of_long_horizontal_metrics => fun num_glyphs => {
+    h_metrics <- array16 number_of_long_horizontal_metrics long_horizontal_metric,
+};
+let maximum_profile : _ = { version <- version16dot16, num_glyphs <- u16be };
+let name_record : _ = fun storage_start => {
+    platform <- platform_id,
+    encoding <- encoding_id platform,
+    language <- language_id,
+    name_id <- u16be,
+    length <- u16be,
+    offset <- offset16 storage_start (array16 length u8),
+};
+let lang_tag_record : _ = fun storage_start => {
+    length <- u16be,
+    offset <- offset16 storage_start (array16 length u8),
+};
+let naming : _ = {
+    table_start <- stream_pos,
+    version <- u16be,
+    name_count <- u16be,
+    storage_offset <- u16be,
+};
+let baseline_data : _ = unknown_table;
+let glyph_definition_data : _ = unknown_table;
+let glyph_positioning_data : _ = unknown_table;
+let glyph_substitution_data : _ = unknown_table;
+let justification_data : _ = unknown_table;
+let math_layout_data : _ = unknown_table;
+let font_table : _ = fun table_id => match table_id {
+    1668112752 => character_map,
+    1751474532 => font_header,
+    1751672161 => horizontal_header,
+    1752003704 => horizontal_metrics 0 0,
+    1835104368 => maximum_profile,
+    1851878757 => naming,
+    1330851634 => unknown_table,
+    1886352244 => unknown_table,
+    1668707360 => unknown_table,
+    1718642541 => unknown_table,
+    1735162214 => unknown_table,
+    1819239265 => unknown_table,
+    1886545264 => unknown_table,
+    1734439792 => unknown_table,
+    1128678944 => unknown_table,
+    1128678962 => unknown_table,
+    1448038983 => unknown_table,
+    1398163232 => unknown_table,
+    1161970772 => unknown_table,
+    1161972803 => unknown_table,
+    1161974595 => unknown_table,
+    1128416340 => unknown_table,
+    1128418371 => unknown_table,
+    1935829368 => unknown_table,
+    1111577413 => baseline_data,
+    1195656518 => glyph_definition_data,
+    1196445523 => glyph_positioning_data,
+    1196643650 => glyph_substitution_data,
+    1246975046 => justification_data,
+    1296127048 => math_layout_data,
+    1635148146 => unknown_table,
+    1668702578 => unknown_table,
+    1719034226 => unknown_table,
+    1735811442 => unknown_table,
+    1213612370 => unknown_table,
+    1297498450 => unknown_table,
+    1398030676 => unknown_table,
+    1448493394 => unknown_table,
+    1129270354 => unknown_table,
+    1129333068 => unknown_table,
+    1128416340 => unknown_table,
+    1128418371 => unknown_table,
+    1935829368 => unknown_table,
+    1398163232 => unknown_table,
+    1146308935 => unknown_table,
+    1751412088 => unknown_table,
+    1801810542 => unknown_table,
+    1280594760 => unknown_table,
+    1296388679 => unknown_table,
+    1835365473 => unknown_table,
+    1398030676 => unknown_table,
+    1346587732 => unknown_table,
+    1447316824 => unknown_table,
+    1986553185 => unknown_table,
+    1986884728 => unknown_table,
+    _ => unknown_table,
+};
+let table_record : _ = fun file_start => {
+    table_id <- tag,
+    checksum <- u32be,
+    offset <- u32be,
+    length <- u32be,
+    link <- link32 file_start offset (font_table table_id),
+};
+let table_directory : _ = fun file_start => {
+    sfnt_version <- u32be,
+    num_tables <- u16be,
+    search_range <- u16be,
+    entry_selector <- u16be,
+    range_shift <- u16be,
+    table_records <- array16 num_tables (table_record file_start),
+};
+let main : _ = { start <- stream_pos, directory <- table_directory start };
+main : Format
+'''
+stderr = ''

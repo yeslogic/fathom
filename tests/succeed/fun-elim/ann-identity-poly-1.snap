@@ -1,0 +1,5 @@
+stdout = '''
+(fun A => fun a => a : fun (A : Type) -> fun (_ : A) -> A) (fun (_ : Type) ->
+Type) (fun a => a) : fun (_ : Type) -> Type
+'''
+stderr = ''

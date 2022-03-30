@@ -1,0 +1,9 @@
+stdout = ''
+stderr = '''
+error: mismatched array length
+  ┌─ tests/fail/elaboration/mismatched-array-length/array8.fathom:3:1
+  │
+3 │ [] : Array8 2 U32
+  │ ^^ found length: 0
+
+'''

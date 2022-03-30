@@ -1,0 +1,11 @@
+stdout = '''
+fun (A : ?universe) -> A : Type
+'''
+stderr = '''
+note: solution found for `?universe`
+  ┌─ tests/succeed/hole/hole-0.fathom:1:10
+  │
+1 │ fun (A : ?universe) -> A
+  │          ^^^^^^^^^
+
+'''

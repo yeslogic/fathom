@@ -1,0 +1,21 @@
+stdout = ''
+stderr = '''
+error: non-variable function application in problem spine
+  ┌─ tests/fail/elaboration/unification/non-linear-spine.fathom:4:24
+  │
+4 │   = fun A => fun a => (a _);
+  │                        ^^^
+
+error: failed to infer placeholder expression
+  ┌─ tests/fail/elaboration/unification/non-linear-spine.fathom:3:33
+  │
+3 │ let test : fun (A : _) -> (A -> _) -> A
+  │                                 ^ unsolved placeholder expression
+
+error: failed to infer placeholder expression
+  ┌─ tests/fail/elaboration/unification/non-linear-spine.fathom:4:26
+  │
+4 │   = fun A => fun a => (a _);
+  │                          ^ unsolved placeholder expression
+
+'''

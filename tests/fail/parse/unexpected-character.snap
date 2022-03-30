@@ -1,0 +1,9 @@
+stdout = ''
+stderr = '''
+error: unexpected character
+  ┌─ tests/fail/parse/unexpected-character.fathom:3:1
+  │
+3 │ 🥸
+  │ ^^
+
+'''

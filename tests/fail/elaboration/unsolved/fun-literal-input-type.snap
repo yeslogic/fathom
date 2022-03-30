@@ -1,0 +1,9 @@
+stdout = ''
+stderr = '''
+error: failed to infer named pattern type
+  ┌─ tests/fail/elaboration/unsolved/fun-literal-input-type.fathom:3:5
+  │
+3 │ fun a => a
+  │     ^ unsolved named pattern type
+
+'''

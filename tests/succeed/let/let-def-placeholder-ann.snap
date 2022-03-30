@@ -1,0 +1,4 @@
+stdout = '''
+let _ : Type = Type; Type : Type
+'''
+stderr = ''

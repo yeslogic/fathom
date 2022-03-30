@@ -1,0 +1,11 @@
+stdout = '''
+let array32 : fun (_ : U32) -> fun (_ : Format) -> Format =
+fun len => fun Elem => Elem;
+let pair : _ = { len <- u32be, data <- array32 len u32be };
+let test_pair : fun (_ : { len : U32, data : U32 }) -> {
+    len : U32,
+    data : U32,
+} = fun p => p;
+pair : Format
+'''
+stderr = ''

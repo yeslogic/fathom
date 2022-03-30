@@ -1,0 +1,4 @@
+stdout = '''
+{ test = {} }.test : {}
+'''
+stderr = ''
