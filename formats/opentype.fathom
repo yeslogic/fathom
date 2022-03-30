@@ -103,7 +103,7 @@ let offset16 = fun (base : Pos) => fun (format : Format) => {
     offset <- u16be,
     link <- match offset {
         0 => empty,
-        _ => link16 base offset format, // TODO: Use an option type?
+        _ => link (pos_add_u16 base offset) format, // TODO: Use an option type?
     },
 };
 
@@ -116,7 +116,7 @@ let offset32 = fun (base : Pos) => fun (format : Format) => {
     offset <- u32be,
     link <- match offset {
         0 => empty,
-        _ => link32 base offset format, // TODO: Use an option type?
+        _ => link (pos_add_u32 base offset) format, // TODO: Use an option type?
     },
 };
 
@@ -1197,7 +1197,7 @@ let table_record = fun (file_start : Pos) => {
     /// Length of this table.
     length <- u32be,
     /// The computed position of this table.
-    link <- link32 file_start offset (font_table table_id)
+    link <- link (pos_add_u32 file_start offset) (font_table table_id)
 };
 
 /// # Table Directory

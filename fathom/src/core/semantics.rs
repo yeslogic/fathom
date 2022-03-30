@@ -428,6 +428,11 @@ fn prim_step(prim: Prim) -> Option<PrimStep> {
         Prim::S64Mul => const_step!([x: S64, y: S64] => Const::S64(i64::checked_mul(*x, *y)?)),
         Prim::S64Div => const_step!([x: S64, y: S64] => Const::S64(i64::checked_div(*x, *y)?)),
 
+        Prim::PosAddU8 => const_step!([x: Pos, y: U8] => Const::Pos(u64::checked_add(*x, u64::from(*y))?)),
+        Prim::PosAddU16 => const_step!([x: Pos, y: U16] => Const::Pos(u64::checked_add(*x, u64::from(*y))?)),
+        Prim::PosAddU32 => const_step!([x: Pos, y: U32] => Const::Pos(u64::checked_add(*x, u64::from(*y))?)),
+        Prim::PosAddU64 => const_step!([x: Pos, y: U64] => Const::Pos(u64::checked_add(*x, *y)?)),
+
         _ => None,
     }
 }
@@ -650,16 +655,7 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
                     (Prim::FormatArray64, [Elim::Fun(len), Elim::Fun(elem)]) => Arc::new(
                         Value::prim(Prim::Array64Type, [len.clone(), self.apply_repr(elem)]),
                     ),
-                    (Prim::FormatLink8, [Elim::Fun(_), Elim::Fun(_), Elim::Fun(elem)]) => {
-                        Arc::new(Value::prim(Prim::RefType, [self.apply_repr(elem)]))
-                    }
-                    (Prim::FormatLink16, [Elim::Fun(_), Elim::Fun(_), Elim::Fun(elem)]) => {
-                        Arc::new(Value::prim(Prim::RefType, [self.apply_repr(elem)]))
-                    }
-                    (Prim::FormatLink32, [Elim::Fun(_), Elim::Fun(_), Elim::Fun(elem)]) => {
-                        Arc::new(Value::prim(Prim::RefType, [self.apply_repr(elem)]))
-                    }
-                    (Prim::FormatLink64, [Elim::Fun(_), Elim::Fun(_), Elim::Fun(elem)]) => {
+                    (Prim::FormatLink, [Elim::Fun(_), Elim::Fun(elem)]) => {
                         Arc::new(Value::prim(Prim::RefType, [self.apply_repr(elem)]))
                     }
                     (Prim::FormatStreamPos, []) => Arc::new(Value::prim(Prim::PosType, [])),

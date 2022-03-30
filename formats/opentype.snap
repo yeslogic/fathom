@@ -14,14 +14,14 @@ let offset16 : _ = fun base => fun format => {
     offset <- u16be,
     link <- match offset {
         0 => empty,
-        _ => link16 base offset format,
+        _ => link (pos_add_u16 base offset) format,
     },
 };
 let offset32 : _ = fun base => fun format => {
     offset <- u32be,
     link <- match offset {
         0 => empty,
-        _ => link32 base offset format,
+        _ => link (pos_add_u32 base offset) format,
     },
 };
 let version16dot16 : _ = u32be;
@@ -289,7 +289,7 @@ let table_record : _ = fun file_start => {
     checksum <- u32be,
     offset <- u32be,
     length <- u32be,
-    link <- link32 file_start offset (font_table table_id),
+    link <- link (pos_add_u32 file_start offset) (font_table table_id),
 };
 let table_directory : _ = fun file_start => {
     sfnt_version <- u32be,

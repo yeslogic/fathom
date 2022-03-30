@@ -265,17 +265,8 @@ def_prims! {
     /// A format which returns the current position in the input stream.
     FormatStreamPos => "stream_pos",
     /// A format that links to another location in the binary data stream,
-    /// relative to a base position and a unsigned 8-bit offset.
-    FormatLink8 => "link8",
-    /// A format that links to another location in the binary data stream,
-    /// relative to a base position and a unsigned 16-bit offset.
-    FormatLink16 => "link16",
-    /// A format that links to another location in the binary data stream,
-    /// relative to a base position and a unsigned 32-bit offset.
-    FormatLink32 => "link32",
-    /// A format that links to another location in the binary data stream,
-    /// relative to a base position and a unsigned 64-bit offset.
-    FormatLink64 => "link64",
+    /// relative to a base position.
+    FormatLink => "link",
     /// Format representations.
     FormatRepr => "Repr",
 
@@ -349,6 +340,11 @@ def_prims! {
     S64Sub => "s64_sub",
     S64Mul => "s64_mul",
     S64Div => "s64_div",
+
+    PosAddU8 => "pos_add_u8",
+    PosAddU16 => "pos_add_u16",
+    PosAddU32 => "pos_add_u32",
+    PosAddU64 => "pos_add_u64",
 }
 
 /// Constants

@@ -74,13 +74,6 @@ impl<'arena> RigidEnv<'arena> {
 
             Arc::new(Value::FunType(None, index_type, close(&FORMAT_FUN)))
         };
-        let format_link = |offset_type: Prim| {
-            let pos_type = Arc::new(Value::prim(PosType, []));
-            let offset_type = scope.to_scope(Term::Prim(offset_type));
-            let output_type = close(scope.to_scope(Term::FunType(None, offset_type, &FORMAT_FUN)));
-
-            Arc::new(Value::FunType(None, pos_type, output_type))
-        };
 
         let unary_op = |input: Prim, output: Prim| {
             Arc::new(Value::FunType(
@@ -159,10 +152,7 @@ impl<'arena> RigidEnv<'arena> {
         define_prim(FormatArray16, format_array(U16Type));
         define_prim(FormatArray32, format_array(U32Type));
         define_prim(FormatArray64, format_array(U64Type));
-        define_prim(FormatLink8, format_link(U8Type));
-        define_prim(FormatLink16, format_link(U16Type));
-        define_prim(FormatLink32, format_link(U32Type));
-        define_prim(FormatLink64, format_link(U64Type));
+        define_prim(FormatLink, binary_op(PosType, FormatType, FormatType));
         define_prim(FormatStreamPos, format_type());
         define_prim(
             FormatRepr,
@@ -236,6 +226,11 @@ impl<'arena> RigidEnv<'arena> {
         define_prim(S64Sub, binary_op(S64Type, S64Type, S64Type));
         define_prim(S64Mul, binary_op(S64Type, S64Type, S64Type));
         define_prim(S64Div, binary_op(S64Type, S64Type, S64Type));
+
+        define_prim(PosAddU8, binary_op(PosType, U8Type, PosType));
+        define_prim(PosAddU16, binary_op(PosType, U16Type, PosType));
+        define_prim(PosAddU32, binary_op(PosType, U32Type, PosType));
+        define_prim(PosAddU64, binary_op(PosType, U64Type, PosType));
 
         env
     }
