@@ -11,6 +11,7 @@ use crate::env::{EnvLen, SliceEnv};
 pub struct Context<'arena, 'env> {
     flexible_exprs: &'env SliceEnv<Option<ArcValue<'arena>>>,
     pending_formats: Vec<(u64, ArcValue<'arena>)>,
+    cached_refs: HashMap<u64, Vec<ParsedRef<'arena>>>,
 }
 
 pub struct ParsedRef<'arena> {
@@ -27,6 +28,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
         Context {
             flexible_exprs,
             pending_formats: Vec::new(),
+            cached_refs: HashMap::new(),
         }
     }
 
@@ -40,36 +42,18 @@ impl<'arena, 'env> Context<'arena, 'env> {
 
     // TODO: allow refs to be streamed
     pub fn read_entrypoint(
-        &mut self,
+        mut self,
         reader: &mut dyn SeekRead,
         format: ArcValue<'arena>,
     ) -> io::Result<HashMap<u64, Vec<ParsedRef<'arena>>>> {
-        let initial_pos = reader.stream_position()?;
-        let mut refs = HashMap::<_, Vec<ParsedRef<'_>>>::new();
-
         // Parse the entrypoint from the beginning start of the binary data
         self.pending_formats.push((0, format));
 
         while let Some((pos, format)) = self.pending_formats.pop() {
-            let parsed_refs = refs.entry(pos).or_insert(Vec::with_capacity(1));
-
-            if (parsed_refs.iter())
-                .find(|r| self.conversion_context().is_equal(&r.format, &format))
-                .is_none()
-            {
-                // Seek to current current ref location
-                reader.seek(SeekFrom::Start(pos))?;
-                // Parse the data at that location
-                let expr = self.read_format(reader, &format)?;
-                // Record the data in the refs at this position
-                parsed_refs.push(ParsedRef { format, expr });
-            }
+            self.read_cached_ref(reader, pos, &format)?;
         }
 
-        // Reset reader back to the start
-        reader.seek(SeekFrom::Start(initial_pos))?;
-
-        Ok(refs)
+        Ok(self.cached_refs)
     }
 
     fn read_format(
@@ -166,6 +150,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
             (Prim::FormatArray32, [Fun(len), Fun(elem_format)]) => self.read_array(reader, len, elem_format),
             (Prim::FormatArray64, [Fun(len), Fun(elem_format)]) => self.read_array(reader, len, elem_format),
             (Prim::FormatLink, [Fun(pos), Fun(elem_format)]) => self.read_link(pos, elem_format),
+            (Prim::FormatDeref, [Fun(elem_format), Fun(r#ref)]) => self.read_deref(reader, elem_format, r#ref),
             (Prim::FormatStreamPos, []) => read_stream_pos(reader),
             (Prim::FormatFail, []) => Err(io::Error::new(io::ErrorKind::Other, "parse failure")),
             _ => Err(io::Error::new(io::ErrorKind::Other, "invalid format")),
@@ -207,6 +192,79 @@ impl<'arena, 'env> Context<'arena, 'env> {
         self.pending_formats.push((pos, elem_format.clone()));
 
         Ok(Arc::new(Value::Const(Const::Ref(pos))))
+    }
+
+    fn read_deref(
+        &mut self,
+        reader: &mut dyn SeekRead,
+        format: &ArcValue<'arena>,
+        r#ref: &ArcValue<'arena>,
+    ) -> io::Result<ArcValue<'arena>> {
+        let pos = match self.elim_context().force(r#ref).as_ref() {
+            Value::Const(Const::Ref(pos)) => *pos,
+            _ => {
+                return Err(io::Error::new(
+                    io::ErrorKind::Other,
+                    "invalid format reference",
+                ))
+            }
+        };
+
+        self.read_cached_ref(reader, pos, format)
+    }
+
+    fn lookup_cached_ref<'context>(
+        &'context self,
+        pos: u64,
+        format: &ArcValue<'_>,
+    ) -> Option<&'context ParsedRef<'arena>> {
+        // NOTE: The number of calls to `semantics::ConversionContext::is_equal`
+        // when looking up cached references is a bit of a pain. If this ever
+        // becomes a problem we could improve performance by pre-allocating a
+        // `ParsedRef` in the cache during `read_link`, and storing the index of
+        // that parsed reference alongside the position in `Const::Ref`.
+
+        (self.cached_refs.get(&pos)?.iter())
+            .find(|r| self.conversion_context().is_equal(&r.format, &format))
+    }
+
+    fn read_cached_ref(
+        &mut self,
+        reader: &mut dyn SeekRead,
+        pos: u64,
+        format: &ArcValue<'arena>,
+    ) -> io::Result<ArcValue<'arena>> {
+        if let Some(parsed_ref) = self.lookup_cached_ref(pos, &format) {
+            return Ok(parsed_ref.expr.clone());
+        }
+
+        let initial_pos = reader.stream_position()?;
+
+        // Seek to current current ref location
+        reader.seek(SeekFrom::Start(pos))?;
+        // Parse the data at that location
+        let expr = self.read_format(reader, &format)?;
+        // Reset reader back to the original position
+        reader.seek(SeekFrom::Start(initial_pos))?;
+
+        // We might have parsed the current reference during the above call to
+        // `read_format`. It's unclear if this could ever happen in practice,
+        // especially without succumbing to non-termination, but we'll panic
+        // here just in case.
+        if let Some(_) = self.lookup_cached_ref(pos, &format) {
+            panic!("recursion found when storing cached reference {}", pos);
+        }
+
+        // Store the parsed reference in the reference cache
+        self.cached_refs
+            .entry(pos)
+            .or_insert(Vec::with_capacity(1))
+            .push(ParsedRef {
+                format: format.clone(),
+                expr: expr.clone(),
+            });
+
+        Ok(expr)
     }
 }
 

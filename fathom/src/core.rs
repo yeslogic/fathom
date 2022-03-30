@@ -267,6 +267,8 @@ def_prims! {
     /// A format that links to another location in the binary data stream,
     /// relative to a base position.
     FormatLink => "link",
+    /// A format that forces a reference to be read eagerly.
+    FormatDeref => "deref",
     /// Format representations.
     FormatRepr => "Repr",
 
