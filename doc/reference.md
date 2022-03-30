@@ -382,7 +382,7 @@ Links formats are [represented](#format-representations) as typed
 ### Deref formats
 
 Deref formats allow [references](#references) to other parts of the stream to be
-parsed eagerly:
+included in resulting parsed output.
 
 - `deref : fun (f : Format) -> Ref f -> Format`
 
