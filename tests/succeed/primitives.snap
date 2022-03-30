@@ -52,6 +52,7 @@ let _ : _ = array16;
 let _ : _ = array32;
 let _ : _ = array64;
 let _ : _ = link;
+let _ : _ = deref;
 let _ : _ = stream_pos;
 let _ : _ = Repr;
 let _ : _ = u8_add;

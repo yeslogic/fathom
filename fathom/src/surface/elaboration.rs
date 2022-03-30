@@ -117,7 +117,7 @@ impl<'arena> RigidEnv<'arena> {
         define_prim(PosType, universe());
         define_prim(
             RefType,
-            Arc::new(Value::FunType(None, universe(), close(&UNIVERSE))),
+            Arc::new(Value::FunType(None, format_type(), close(&UNIVERSE))),
         );
 
         define_prim(FormatType, universe());
@@ -153,6 +153,18 @@ impl<'arena> RigidEnv<'arena> {
         define_prim(FormatArray32, format_array(U32Type));
         define_prim(FormatArray64, format_array(U64Type));
         define_prim(FormatLink, binary_op(PosType, FormatType, FormatType));
+        define_prim(
+            FormatDeref,
+            Arc::new(Value::FunType(
+                name("Elem"),
+                format_type(),
+                close(&Term::FunType(
+                    None,
+                    &Term::FunElim(&Term::Prim(RefType), &VAR0),
+                    &FORMAT_TYPE,
+                )),
+            )),
+        );
         define_prim(FormatStreamPos, format_type());
         define_prim(
             FormatRepr,

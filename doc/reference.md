@@ -24,8 +24,9 @@ elaboration, and core language is forthcoming.
   - [Overlap formats](#overlap-formats)
   - [Number formats](#number-formats)
   - [Array formats](#array-formats)
-  - [Link formats](#link-formats)
   - [Stream position formats](#stream-position-formats)
+  - [Link formats](#link-formats)
+  - [Deref formats](#deref-formats)
   - [Succeed format](#succeed-format)
   - [Fail format](#fail-format)
 - [Functions](#functions)
@@ -348,6 +349,19 @@ of the host array types.
 | `array32 len format`   | `Array32 len (Repr format)`         |
 | `array64 len format`   | `Array64 len (Repr format)`         |
 
+### Stream position formats
+
+The stream position format is interpreted as the current stream position during
+parsing:
+
+- `stream_pos : Format`
+
+#### Representation of stream position formats
+
+| format       | `Repr` format |
+| ------------ | ------------- |
+| `stream_pos` | `Pos`         |
+
 ### Link formats
 
 Link formats allow for references to other parts of a binary stream to be
@@ -361,22 +375,25 @@ to expect at that position:
 Links formats are [represented](#format-representations) as typed
 [references](#references) to other parts of the binary stream.
 
-| format               | `Repr` format               |
-| -------------------- | --------------------------- |
-| `link pos format`    | `Ref (Repr format)`         |
+| format            | `Repr` format |
+| ----------------- | ------------- |
+| `link pos format` | `Ref format`  |
 
-### Stream position formats
+### Deref formats
 
-The stream position format is interpreted as the current stream position during
-parsing:
+Deref formats allow [references](#references) to other parts of the stream to be
+parsed eagerly:
 
-- `stream_pos : Format`
+- `deref : fun (f : Format) -> Ref f -> Format`
 
-#### Representation of stream position formats
+#### Representation of deref formats
 
-| format       | `Repr` format |
-| ------------ | ------------- |
-| `stream_pos` | `Pos`         |
+Dereferences are [represented](#format-representations) after parsing using the
+representation of the referenced format.
+
+| format             | `Repr` format |
+| ------------------ | ------------- |
+| `deref format ref` | `Repr format` |
 
 ### Succeed format
 
@@ -687,13 +704,12 @@ A number of operations are defined for positions:
 
 ## References
 
-References are like [stream positions](#positions), only they also have an
-expected type given as well:
+References to other parts of the binary file are described with:
 
-- `Ref : Type -> Type`
+- `Ref : Format -> Type`
 
-References are usually encountered as a result of parsing a [link
-format](#link-formats).
+References are usually encountered as a result of parsing a [link format](#link-formats),
+and can be dereferenced later on with a [deref format](#deref-formats).
 
 ## Void
 

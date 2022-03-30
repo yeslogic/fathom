@@ -27,8 +27,10 @@ let test_array32 : fun (n : U32) -> fun (f : Format) -> fun (_ :
 Array32 n (Repr f)) -> Array32 n (Repr f) = fun _ => fun _ => fun x => x;
 let test_array64 : fun (n : U64) -> fun (f : Format) -> fun (_ :
 Array64 n (Repr f)) -> Array64 n (Repr f) = fun _ => fun _ => fun x => x;
-let test_link : fun (pos : Pos) -> fun (f : Format) -> fun (_ : Ref (Repr f)) ->
-Ref (Repr f) = fun _ => fun _ => fun x => x;
+let test_link : fun (pos : Pos) -> fun (f : Format) -> fun (_ : Ref f) ->
+Ref f = fun _ => fun _ => fun x => x;
+let test_deref : fun (f : Format) -> fun (ref : Ref f) -> fun (_ : Repr f) ->
+Repr f = fun _ => fun _ => fun x => x;
 let test_stream_pos : fun (_ : Pos) -> Pos = fun x => x;
 Type : Type
 '''
