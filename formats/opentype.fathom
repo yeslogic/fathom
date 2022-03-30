@@ -1,5 +1,8 @@
-// # OpenType Font File Format
+//! # OpenType Font File Format
 
+//~ example-data = [
+//~   "data/opentype/aots/*.otf",
+//~ ]
 
 // -----------------------------------------------------------------------------
 
