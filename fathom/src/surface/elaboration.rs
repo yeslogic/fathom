@@ -52,6 +52,11 @@ impl<'arena> RigidEnv<'arena> {
         let mut def = RigidEnvBuilder::new(interner, scope);
 
         def.universe(VoidType);
+
+        def.universe(BoolType);
+        def.boolean(BoolTrue, true);
+        def.boolean(BoolFalse, false);
+
         def.universe(U8Type);
         def.universe(U16Type);
         def.universe(U32Type);
@@ -62,10 +67,12 @@ impl<'arena> RigidEnv<'arena> {
         def.universe(S64Type);
         def.universe(F32Type);
         def.universe(F64Type);
+
         def.array_type(Array8Type, U8Type);
         def.array_type(Array16Type, U16Type);
         def.array_type(Array32Type, U32Type);
         def.array_type(Array64Type, U64Type);
+
         def.universe(PosType);
         def.fun(RefType, None, def.format_type(), &RigidEnvBuilder::UNIVERSE);
 
@@ -286,6 +293,13 @@ impl<'i, 'arena> RigidEnvBuilder<'i, 'arena> {
 
     fn universe(&mut self, prim: Prim) {
         self.define_prim(prim, self.universe_value())
+    }
+
+    fn boolean(&mut self, prim: Prim, val: bool) {
+        let name = self.name(prim.name());
+        let r#type = Arc::new(Value::prim(Prim::BoolType, []));
+        self.env
+            .push_def(name, Arc::new(Value::Const(Const::Bool(val))), r#type);
     }
 
     fn format(&mut self, prim: Prim) {

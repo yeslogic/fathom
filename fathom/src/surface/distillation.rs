@@ -81,6 +81,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
 
     fn check_constant_pattern(&mut self, r#const: &core::Const) -> Pattern<()> {
         match r#const {
+            core::Const::Bool(_boolean) => unimplemented!("boolean patterns"),
             core::Const::U8(number) => self.check_number_pattern(number),
             core::Const::U16(number) => self.check_number_pattern(number),
             core::Const::U32(number) => self.check_number_pattern(number),
@@ -165,6 +166,10 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
             }
             core::Term::FormatRecord(labels, _) if labels.is_empty() => Term::UnitLiteral(()),
             core::Term::Const(r#const) => match r#const {
+                core::Const::Bool(boolean) => match *boolean {
+                    true => self.synth_prim(core::Prim::BoolTrue),
+                    false => self.synth_prim(core::Prim::BoolFalse),
+                },
                 core::Const::U8(number) => self.check_number_literal(number),
                 core::Const::U16(number) => self.check_number_literal(number),
                 core::Const::U32(number) => self.check_number_literal(number),
@@ -348,6 +353,10 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
             }
             core::Term::Prim(prim) => self.synth_prim(*prim),
             core::Term::Const(r#const) => match r#const {
+                core::Const::Bool(boolean) => match *boolean {
+                    true => self.synth_prim(core::Prim::BoolTrue),
+                    false => self.synth_prim(core::Prim::BoolFalse),
+                },
                 core::Const::U8(number) => self.synth_number_literal(number, core::Prim::U8Type),
                 core::Const::U16(number) => self.synth_number_literal(number, core::Prim::U16Type),
                 core::Const::U32(number) => self.synth_number_literal(number, core::Prim::U32Type),
