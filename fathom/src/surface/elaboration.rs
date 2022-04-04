@@ -48,203 +48,150 @@ impl<'arena> RigidEnv<'arena> {
     ) -> RigidEnv<'arena> {
         use crate::core::Prim::*;
         use crate::core::Term;
-        use crate::env::LocalVar;
 
-        const UNIVERSE: Term<'_> = Term::Universe;
-        const VAR0: Term<'_> = Term::RigidVar(LocalVar::last());
-        const FORMAT_TYPE: Term<'_> = Term::Prim(FormatType);
-        const FORMAT_FUN: Term<'_> = Term::FunType(None, &FORMAT_TYPE, &FORMAT_TYPE);
+        let mut def = RigidEnvBuilder::new(interner, scope);
 
-        let mut env = RigidEnv::new();
+        def.universe(VoidType);
+        def.universe(U8Type);
+        def.universe(U16Type);
+        def.universe(U32Type);
+        def.universe(U64Type);
+        def.universe(S8Type);
+        def.universe(S16Type);
+        def.universe(S32Type);
+        def.universe(S64Type);
+        def.universe(F32Type);
+        def.universe(F64Type);
+        def.array_type(Array8Type, U8Type);
+        def.array_type(Array16Type, U16Type);
+        def.array_type(Array32Type, U32Type);
+        def.array_type(Array64Type, U64Type);
+        def.universe(PosType);
+        def.fun(RefType, None, def.format_type(), &RigidEnvBuilder::UNIVERSE);
 
-        let name = |name| Some(interner.borrow_mut().get_or_intern_static(name));
-        let close = |term| Closure::new(SharedEnv::new(), term);
-        let shared = |value: ArcValue<'static>| move || value.clone();
-        let universe = shared(Arc::new(Value::Universe));
-        let format_type = shared(Arc::new(Value::prim(FormatType, [])));
-
-        let array_type = |index_type: Prim| {
-            let index_type = Arc::new(Value::prim(index_type, []));
-            let output_type = close(&Term::FunType(None, &UNIVERSE, &UNIVERSE));
-
-            Arc::new(Value::FunType(None, index_type, output_type))
-        };
-        let format_array = |index_type: Prim| {
-            let index_type = Arc::new(Value::prim(index_type, []));
-
-            Arc::new(Value::FunType(None, index_type, close(&FORMAT_FUN)))
-        };
-
-        let unary_op = |input: Prim, output: Prim| {
-            Arc::new(Value::FunType(
-                None,
-                Arc::new(Value::prim(input, [])),
-                close(scope.to_scope(Term::Prim(output))),
-            ))
-        };
-        let binary_op = |lhs: Prim, rhs: Prim, output: Prim| {
-            Arc::new(Value::FunType(
-                None,
-                Arc::new(Value::prim(lhs, [])),
-                close(scope.to_scope(Term::FunType(
-                    None,
-                    scope.to_scope(Term::Prim(rhs)),
-                    scope.to_scope(Term::Prim(output)),
-                ))),
-            ))
-        };
-
-        let mut define_prim = |prim: Prim, r#type| {
-            env.push_def(name(prim.name()), Arc::new(Value::prim(prim, [])), r#type);
-        };
-
-        define_prim(VoidType, universe());
-
-        define_prim(U8Type, universe());
-        define_prim(U16Type, universe());
-        define_prim(U32Type, universe());
-        define_prim(U64Type, universe());
-        define_prim(S8Type, universe());
-        define_prim(S16Type, universe());
-        define_prim(S32Type, universe());
-        define_prim(S64Type, universe());
-        define_prim(F32Type, universe());
-        define_prim(F64Type, universe());
-        define_prim(Array8Type, array_type(U8Type));
-        define_prim(Array16Type, array_type(U16Type));
-        define_prim(Array32Type, array_type(U32Type));
-        define_prim(Array64Type, array_type(U64Type));
-        define_prim(PosType, universe());
-        define_prim(
-            RefType,
-            Arc::new(Value::FunType(None, format_type(), close(&UNIVERSE))),
-        );
-
-        define_prim(FormatType, universe());
-        define_prim(
+        def.universe(FormatType);
+        def.fun(
             FormatSucceed,
-            Arc::new(Value::FunType(
-                name("Elem"),
-                universe(),
-                close(&Term::FunType(None, &VAR0, &FORMAT_TYPE)),
-            )),
+            Some("Elem"),
+            def.universe_value(),
+            &Term::FunType(None, &RigidEnvBuilder::VAR0, &RigidEnvBuilder::FORMAT_TYPE),
         );
-        define_prim(FormatFail, format_type());
-        define_prim(FormatU8, format_type());
-        define_prim(FormatU16Be, format_type());
-        define_prim(FormatU16Le, format_type());
-        define_prim(FormatU32Be, format_type());
-        define_prim(FormatU32Le, format_type());
-        define_prim(FormatU64Be, format_type());
-        define_prim(FormatU64Le, format_type());
-        define_prim(FormatS8, format_type());
-        define_prim(FormatS16Be, format_type());
-        define_prim(FormatS16Le, format_type());
-        define_prim(FormatS32Be, format_type());
-        define_prim(FormatS32Le, format_type());
-        define_prim(FormatS64Be, format_type());
-        define_prim(FormatS64Le, format_type());
-        define_prim(FormatF32Be, format_type());
-        define_prim(FormatF32Le, format_type());
-        define_prim(FormatF64Be, format_type());
-        define_prim(FormatF64Le, format_type());
-        define_prim(FormatArray8, format_array(U8Type));
-        define_prim(FormatArray16, format_array(U16Type));
-        define_prim(FormatArray32, format_array(U32Type));
-        define_prim(FormatArray64, format_array(U64Type));
-        define_prim(FormatLink, binary_op(PosType, FormatType, FormatType));
-        define_prim(
+        def.format(FormatFail);
+        def.format(FormatU8);
+        def.format(FormatU16Be);
+        def.format(FormatU16Le);
+        def.format(FormatU32Be);
+        def.format(FormatU32Le);
+        def.format(FormatU64Be);
+        def.format(FormatU64Le);
+        def.format(FormatS8);
+        def.format(FormatS16Be);
+        def.format(FormatS16Le);
+        def.format(FormatS32Be);
+        def.format(FormatS32Le);
+        def.format(FormatS64Be);
+        def.format(FormatS64Le);
+        def.format(FormatF32Be);
+        def.format(FormatF32Le);
+        def.format(FormatF64Be);
+        def.format(FormatF64Le);
+        def.array_format(FormatArray8, U8Type);
+        def.array_format(FormatArray16, U16Type);
+        def.array_format(FormatArray32, U32Type);
+        def.array_format(FormatArray64, U64Type);
+        def.binary_op(FormatLink, PosType, FormatType, FormatType);
+        def.fun(
             FormatDeref,
-            Arc::new(Value::FunType(
-                name("Elem"),
-                format_type(),
-                close(&Term::FunType(
-                    None,
-                    &Term::FunElim(&Term::Prim(RefType), &VAR0),
-                    &FORMAT_TYPE,
-                )),
-            )),
+            Some("Elem"),
+            def.format_type(),
+            &Term::FunType(
+                None,
+                &Term::FunElim(&Term::Prim(RefType), &RigidEnvBuilder::VAR0),
+                &RigidEnvBuilder::FORMAT_TYPE,
+            ),
         );
-        define_prim(FormatStreamPos, format_type());
-        define_prim(
+        def.format(FormatStreamPos);
+        def.fun(
             FormatRepr,
-            Arc::new(Value::FunType(None, format_type(), close(&UNIVERSE))),
+            None,
+            def.format_type(),
+            &RigidEnvBuilder::UNIVERSE,
         );
 
-        define_prim(U8Add, binary_op(U8Type, U8Type, U8Type));
-        define_prim(U8Sub, binary_op(U8Type, U8Type, U8Type));
-        define_prim(U8Mul, binary_op(U8Type, U8Type, U8Type));
-        define_prim(U8Div, binary_op(U8Type, U8Type, U8Type));
-        define_prim(U8Not, unary_op(U8Type, U8Type));
-        define_prim(U8Shl, binary_op(U8Type, U8Type, U8Type));
-        define_prim(U8Shr, binary_op(U8Type, U8Type, U8Type));
-        define_prim(U8And, binary_op(U8Type, U8Type, U8Type));
-        define_prim(U8Or, binary_op(U8Type, U8Type, U8Type));
-        define_prim(U8Xor, binary_op(U8Type, U8Type, U8Type));
+        def.binary_op(U8Add, U8Type, U8Type, U8Type);
+        def.binary_op(U8Sub, U8Type, U8Type, U8Type);
+        def.binary_op(U8Mul, U8Type, U8Type, U8Type);
+        def.binary_op(U8Div, U8Type, U8Type, U8Type);
+        def.unary_op(U8Not, U8Type, U8Type);
+        def.binary_op(U8Shl, U8Type, U8Type, U8Type);
+        def.binary_op(U8Shr, U8Type, U8Type, U8Type);
+        def.binary_op(U8And, U8Type, U8Type, U8Type);
+        def.binary_op(U8Or, U8Type, U8Type, U8Type);
+        def.binary_op(U8Xor, U8Type, U8Type, U8Type);
 
-        define_prim(U16Add, binary_op(U16Type, U16Type, U16Type));
-        define_prim(U16Sub, binary_op(U16Type, U16Type, U16Type));
-        define_prim(U16Mul, binary_op(U16Type, U16Type, U16Type));
-        define_prim(U16Div, binary_op(U16Type, U16Type, U16Type));
-        define_prim(U16Not, unary_op(U16Type, U16Type));
-        define_prim(U16Shl, binary_op(U16Type, U8Type, U16Type));
-        define_prim(U16Shr, binary_op(U16Type, U8Type, U16Type));
-        define_prim(U16And, binary_op(U16Type, U16Type, U16Type));
-        define_prim(U16Or, binary_op(U16Type, U16Type, U16Type));
-        define_prim(U16Xor, binary_op(U16Type, U16Type, U16Type));
+        def.binary_op(U16Add, U16Type, U16Type, U16Type);
+        def.binary_op(U16Sub, U16Type, U16Type, U16Type);
+        def.binary_op(U16Mul, U16Type, U16Type, U16Type);
+        def.binary_op(U16Div, U16Type, U16Type, U16Type);
+        def.unary_op(U16Not, U16Type, U16Type);
+        def.binary_op(U16Shl, U16Type, U8Type, U16Type);
+        def.binary_op(U16Shr, U16Type, U8Type, U16Type);
+        def.binary_op(U16And, U16Type, U16Type, U16Type);
+        def.binary_op(U16Or, U16Type, U16Type, U16Type);
+        def.binary_op(U16Xor, U16Type, U16Type, U16Type);
 
-        define_prim(U32Add, binary_op(U32Type, U32Type, U32Type));
-        define_prim(U32Sub, binary_op(U32Type, U32Type, U32Type));
-        define_prim(U32Mul, binary_op(U32Type, U32Type, U32Type));
-        define_prim(U32Div, binary_op(U32Type, U32Type, U32Type));
-        define_prim(U32Not, unary_op(U32Type, U32Type));
-        define_prim(U32Shl, binary_op(U32Type, U8Type, U32Type));
-        define_prim(U32Shr, binary_op(U32Type, U8Type, U32Type));
-        define_prim(U32And, binary_op(U32Type, U32Type, U32Type));
-        define_prim(U32Or, binary_op(U32Type, U32Type, U32Type));
-        define_prim(U32Xor, binary_op(U32Type, U32Type, U32Type));
+        def.binary_op(U32Add, U32Type, U32Type, U32Type);
+        def.binary_op(U32Sub, U32Type, U32Type, U32Type);
+        def.binary_op(U32Mul, U32Type, U32Type, U32Type);
+        def.binary_op(U32Div, U32Type, U32Type, U32Type);
+        def.unary_op(U32Not, U32Type, U32Type);
+        def.binary_op(U32Shl, U32Type, U8Type, U32Type);
+        def.binary_op(U32Shr, U32Type, U8Type, U32Type);
+        def.binary_op(U32And, U32Type, U32Type, U32Type);
+        def.binary_op(U32Or, U32Type, U32Type, U32Type);
+        def.binary_op(U32Xor, U32Type, U32Type, U32Type);
 
-        define_prim(U64Add, binary_op(U64Type, U64Type, U64Type));
-        define_prim(U64Sub, binary_op(U64Type, U64Type, U64Type));
-        define_prim(U64Mul, binary_op(U64Type, U64Type, U64Type));
-        define_prim(U64Div, binary_op(U64Type, U64Type, U64Type));
-        define_prim(U64Not, unary_op(U64Type, U64Type));
-        define_prim(U64Shl, binary_op(U64Type, U8Type, U64Type));
-        define_prim(U64Shr, binary_op(U64Type, U8Type, U64Type));
-        define_prim(U64And, binary_op(U64Type, U64Type, U64Type));
-        define_prim(U64Or, binary_op(U64Type, U64Type, U64Type));
-        define_prim(U64Xor, binary_op(U64Type, U64Type, U64Type));
+        def.binary_op(U64Add, U64Type, U64Type, U64Type);
+        def.binary_op(U64Sub, U64Type, U64Type, U64Type);
+        def.binary_op(U64Mul, U64Type, U64Type, U64Type);
+        def.binary_op(U64Div, U64Type, U64Type, U64Type);
+        def.unary_op(U64Not, U64Type, U64Type);
+        def.binary_op(U64Shl, U64Type, U8Type, U64Type);
+        def.binary_op(U64Shr, U64Type, U8Type, U64Type);
+        def.binary_op(U64And, U64Type, U64Type, U64Type);
+        def.binary_op(U64Or, U64Type, U64Type, U64Type);
+        def.binary_op(U64Xor, U64Type, U64Type, U64Type);
 
-        define_prim(S8Neg, unary_op(S8Type, S8Type));
-        define_prim(S8Add, binary_op(S8Type, S8Type, S8Type));
-        define_prim(S8Sub, binary_op(S8Type, S8Type, S8Type));
-        define_prim(S8Mul, binary_op(S8Type, S8Type, S8Type));
-        define_prim(S8Div, binary_op(S8Type, S8Type, S8Type));
+        def.unary_op(S8Neg, S8Type, S8Type);
+        def.binary_op(S8Add, S8Type, S8Type, S8Type);
+        def.binary_op(S8Sub, S8Type, S8Type, S8Type);
+        def.binary_op(S8Mul, S8Type, S8Type, S8Type);
+        def.binary_op(S8Div, S8Type, S8Type, S8Type);
 
-        define_prim(S16Neg, unary_op(S16Type, S16Type));
-        define_prim(S16Add, binary_op(S16Type, S16Type, S16Type));
-        define_prim(S16Sub, binary_op(S16Type, S16Type, S16Type));
-        define_prim(S16Mul, binary_op(S16Type, S16Type, S16Type));
-        define_prim(S16Div, binary_op(S16Type, S16Type, S16Type));
+        def.unary_op(S16Neg, S16Type, S16Type);
+        def.binary_op(S16Add, S16Type, S16Type, S16Type);
+        def.binary_op(S16Sub, S16Type, S16Type, S16Type);
+        def.binary_op(S16Mul, S16Type, S16Type, S16Type);
+        def.binary_op(S16Div, S16Type, S16Type, S16Type);
 
-        define_prim(S32Neg, unary_op(S32Type, S32Type));
-        define_prim(S32Add, binary_op(S32Type, S32Type, S32Type));
-        define_prim(S32Sub, binary_op(S32Type, S32Type, S32Type));
-        define_prim(S32Mul, binary_op(S32Type, S32Type, S32Type));
-        define_prim(S32Div, binary_op(S32Type, S32Type, S32Type));
+        def.unary_op(S32Neg, S32Type, S32Type);
+        def.binary_op(S32Add, S32Type, S32Type, S32Type);
+        def.binary_op(S32Sub, S32Type, S32Type, S32Type);
+        def.binary_op(S32Mul, S32Type, S32Type, S32Type);
+        def.binary_op(S32Div, S32Type, S32Type, S32Type);
 
-        define_prim(S64Neg, unary_op(S64Type, S64Type));
-        define_prim(S64Add, binary_op(S64Type, S64Type, S64Type));
-        define_prim(S64Sub, binary_op(S64Type, S64Type, S64Type));
-        define_prim(S64Mul, binary_op(S64Type, S64Type, S64Type));
-        define_prim(S64Div, binary_op(S64Type, S64Type, S64Type));
+        def.unary_op(S64Neg, S64Type, S64Type);
+        def.binary_op(S64Add, S64Type, S64Type, S64Type);
+        def.binary_op(S64Sub, S64Type, S64Type, S64Type);
+        def.binary_op(S64Mul, S64Type, S64Type, S64Type);
+        def.binary_op(S64Div, S64Type, S64Type, S64Type);
 
-        define_prim(PosAddU8, binary_op(PosType, U8Type, PosType));
-        define_prim(PosAddU16, binary_op(PosType, U16Type, PosType));
-        define_prim(PosAddU32, binary_op(PosType, U32Type, PosType));
-        define_prim(PosAddU64, binary_op(PosType, U64Type, PosType));
+        def.binary_op(PosAddU8, PosType, U8Type, PosType);
+        def.binary_op(PosAddU16, PosType, U16Type, PosType);
+        def.binary_op(PosAddU32, PosType, U32Type, PosType);
+        def.binary_op(PosAddU64, PosType, U64Type, PosType);
 
-        env
+        def.build()
     }
 
     /// Get the length of the rigid environment.
@@ -296,6 +243,131 @@ impl<'arena> RigidEnv<'arena> {
     }
 }
 
+pub struct RigidEnvBuilder<'i, 'arena> {
+    env: RigidEnv<'arena>,
+    interner: &'i RefCell<StringInterner>,
+    scope: &'arena Scope<'arena>,
+    universe: ArcValue<'static>,
+    format_type: ArcValue<'static>,
+}
+
+impl<'i, 'arena> RigidEnvBuilder<'i, 'arena> {
+    const FORMAT_TYPE: core::Term<'arena> = core::Term::Prim(Prim::FormatType);
+    const FORMAT_FUN: core::Term<'arena> =
+        core::Term::FunType(None, &Self::FORMAT_TYPE, &Self::FORMAT_TYPE);
+    const UNIVERSE: core::Term<'arena> = core::Term::Universe;
+    const VAR0: core::Term<'arena> = core::Term::RigidVar(env::LocalVar::last());
+
+    fn new(
+        interner: &'i RefCell<StringInterner>,
+        scope: &'arena Scope<'arena>,
+    ) -> RigidEnvBuilder<'i, 'arena> {
+        let env = RigidEnv::new();
+        let universe = Arc::new(Value::Universe);
+        let format_type = Arc::new(Value::prim(Prim::FormatType, []));
+        RigidEnvBuilder {
+            env,
+            interner,
+            scope,
+            universe,
+            format_type,
+        }
+    }
+
+    fn name(&mut self, name: &'static str) -> Option<StringId> {
+        Some(self.interner.borrow_mut().get_or_intern_static(name))
+    }
+
+    fn define_prim(&mut self, prim: Prim, r#type: ArcValue<'arena>) {
+        let name = self.name(prim.name());
+        self.env
+            .push_def(name, Arc::new(Value::prim(prim, [])), r#type);
+    }
+
+    fn universe(&mut self, prim: Prim) {
+        self.define_prim(prim, self.universe_value())
+    }
+
+    fn format(&mut self, prim: Prim) {
+        self.define_prim(prim, self.format_type())
+    }
+
+    fn array_format(&mut self, prim: Prim, index_type: Prim) {
+        let index_type = Arc::new(Value::prim(index_type, []));
+        let r#type = Arc::new(Value::FunType(
+            None,
+            index_type,
+            Closure::new(SharedEnv::new(), &Self::FORMAT_FUN),
+        ));
+
+        self.define_prim(prim, r#type);
+    }
+
+    fn array_type(&mut self, prim: Prim, index_type: Prim) {
+        let index_type = Arc::new(Value::prim(index_type, []));
+        let output_type = Self::close(&core::Term::FunType(None, &Self::UNIVERSE, &Self::UNIVERSE));
+        let r#type = Arc::new(Value::FunType(None, index_type, output_type));
+
+        self.define_prim(prim, r#type);
+    }
+
+    fn close(term: &'arena core::Term<'arena>) -> Closure<'arena> {
+        Closure::new(SharedEnv::new(), term)
+    }
+
+    fn binary_op(&mut self, prim: Prim, lhs: Prim, rhs: Prim, output: Prim) {
+        use crate::core::Term;
+
+        let r#type = Arc::new(Value::FunType(
+            None,
+            Arc::new(Value::prim(lhs, [])),
+            Self::close(self.scope.to_scope(Term::FunType(
+                None,
+                self.scope.to_scope(Term::Prim(rhs)),
+                self.scope.to_scope(Term::Prim(output)),
+            ))),
+        ));
+        self.define_prim(prim, r#type);
+    }
+
+    fn unary_op(&mut self, prim: Prim, input: Prim, output: Prim) {
+        use crate::core::Term;
+
+        let r#type = Arc::new(Value::FunType(
+            None,
+            Arc::new(Value::prim(input, [])),
+            Self::close(self.scope.to_scope(Term::Prim(output))),
+        ));
+        self.define_prim(prim, r#type);
+    }
+
+    fn fun(
+        &mut self,
+        prim: Prim,
+        input_name: Option<&'static str>,
+        input_type: ArcValue<'arena>,
+        output_type: &'arena core::Term<'arena>,
+    ) {
+        let name = input_name.and_then(|name| self.name(name));
+        self.define_prim(
+            prim,
+            Arc::new(Value::FunType(name, input_type, Self::close(output_type))),
+        );
+    }
+
+    fn format_type(&self) -> ArcValue<'static> {
+        Arc::clone(&self.format_type)
+    }
+
+    fn universe_value(&self) -> ArcValue<'static> {
+        Arc::clone(&self.universe)
+    }
+
+    fn build(self) -> RigidEnv<'arena> {
+        self.env
+    }
+}
+
 /// The reason why a flexible variable was inserted.
 #[derive(Debug, Copy, Clone)]
 pub enum FlexSource {
@@ -307,7 +379,7 @@ pub enum FlexSource {
     PlaceholderType(ByteRange),
     /// The expression of a placeholder
     PlaceholderExpr(ByteRange),
-    /// The type of a placholder pattern.
+    /// The type of a placeholder pattern.
     PlaceholderPatternType(ByteRange),
     /// The type of a named pattern.
     NamedPatternType(ByteRange, StringId),
