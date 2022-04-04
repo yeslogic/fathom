@@ -1,5 +1,0 @@
-match (3 : U8) {
-    x : U8 : Type => x,
-    y : U8 : Type => 4,
-    y : U8 : Type => y,
-}

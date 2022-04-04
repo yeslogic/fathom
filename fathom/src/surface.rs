@@ -19,17 +19,11 @@ pub mod elaboration;
 
 /// Surface patterns.
 #[derive(Debug, Clone)]
-pub enum Pattern<'arena, Range> {
+pub enum Pattern<Range> {
     /// Named patterns.
     Name(Range, StringId),
     /// Placeholder patterns.
     Placeholder(Range),
-    /// Annotated patterns.
-    Ann(
-        Range,
-        &'arena Pattern<'arena, Range>,
-        &'arena Term<'arena, Range>,
-    ),
     /// String literal patterns
     StringLiteral(Range, StringId),
     /// Number literal patterns
@@ -38,12 +32,11 @@ pub enum Pattern<'arena, Range> {
     // RecordLiteral(Range, &'arena [((ByteRange, StringId), Pattern<'arena, Range>)]),
 }
 
-impl<'arena, Range: Clone> Pattern<'arena, Range> {
+impl<Range: Clone> Pattern<Range> {
     fn range(&self) -> Range {
         match self {
             Pattern::Name(range, _)
             | Pattern::Placeholder(range)
-            | Pattern::Ann(range, _, _)
             | Pattern::StringLiteral(range, _)
             | Pattern::NumberLiteral(range, _) => range.clone(),
         }
@@ -68,7 +61,8 @@ pub enum Term<'arena, Range> {
     /// Let expressions.
     Let(
         Range,
-        &'arena Pattern<'arena, Range>,
+        Pattern<Range>,
+        Option<&'arena Term<'arena, Range>>,
         &'arena Term<'arena, Range>,
         &'arena Term<'arena, Range>,
     ),
@@ -76,7 +70,7 @@ pub enum Term<'arena, Range> {
     Match(
         Range,
         &'arena Term<'arena, Range>,
-        &'arena [(Pattern<'arena, Range>, Term<'arena, Range>)],
+        &'arena [(Pattern<Range>, Term<'arena, Range>)],
     ),
     /// The type of types.
     Universe(Range),
@@ -89,13 +83,15 @@ pub enum Term<'arena, Range> {
     /// Dependent function types.
     FunType(
         Range,
-        &'arena Pattern<'arena, Range>,
+        Pattern<Range>,
+        Option<&'arena Term<'arena, Range>>,
         &'arena Term<'arena, Range>,
     ),
     /// Function literals.
     FunLiteral(
         Range,
-        &'arena Pattern<'arena, Range>,
+        Pattern<Range>,
+        Option<&'arena Term<'arena, Range>>,
         &'arena Term<'arena, Range>,
     ),
     /// Function eliminations.
@@ -134,12 +130,12 @@ impl<'arena, Range: Clone> Term<'arena, Range> {
             | Term::Hole(range, _)
             | Term::Placeholder(range)
             | Term::Ann(range, _, _)
-            | Term::Let(range, _, _, _)
+            | Term::Let(range, _, _, _, _)
             | Term::Match(range, _, _)
             | Term::Universe(range)
             | Term::Arrow(range, _, _)
-            | Term::FunType(range, _, _)
-            | Term::FunLiteral(range, _, _)
+            | Term::FunType(range, _, _, _)
+            | Term::FunLiteral(range, _, _, _)
             | Term::FunElim(range, _, _)
             | Term::RecordType(range, _)
             | Term::RecordLiteral(range, _)
