@@ -74,12 +74,12 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
         Term::NumberLiteral((), number)
     }
 
-    fn check_number_pattern<T: std::fmt::Display>(&mut self, number: T) -> Pattern<'arena, ()> {
+    fn check_number_pattern<T: std::fmt::Display>(&mut self, number: T) -> Pattern<()> {
         let number = self.interner.borrow_mut().get_or_intern(number.to_string());
         Pattern::NumberLiteral((), number)
     }
 
-    fn check_constant_pattern(&mut self, r#const: &core::Const) -> Pattern<'arena, ()> {
+    fn check_constant_pattern(&mut self, r#const: &core::Const) -> Pattern<()> {
         match r#const {
             core::Const::U8(number) => self.check_number_pattern(number),
             core::Const::U16(number) => self.check_number_pattern(number),
@@ -130,11 +130,8 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
 
                 Term::Let(
                     (),
-                    self.scope.to_scope(Pattern::Ann(
-                        (),
-                        self.scope.to_scope(Pattern::Name((), def_name)),
-                        self.scope.to_scope(def_type),
-                    )),
+                    Pattern::Name((), def_name),
+                    Some(self.scope.to_scope(def_type)),
                     self.scope.to_scope(def_expr),
                     self.scope.to_scope(output_expr),
                 )
@@ -146,7 +143,8 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
 
                 Term::FunLiteral(
                     (),
-                    self.scope.to_scope(Pattern::Name((), input_name)),
+                    Pattern::Name((), input_name),
+                    None,
                     self.scope.to_scope(output_expr),
                 )
             }
@@ -257,11 +255,8 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
 
                 Term::Let(
                     (),
-                    self.scope.to_scope(Pattern::Ann(
-                        (),
-                        self.scope.to_scope(Pattern::Name((), def_name)),
-                        self.scope.to_scope(def_type),
-                    )),
+                    Pattern::Name((), def_name),
+                    Some(self.scope.to_scope(def_type)),
                     self.scope.to_scope(def_expr),
                     self.scope.to_scope(output_expr),
                 )
@@ -277,11 +272,8 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 // TODO: distill to arrow if `input_name` is not bound in `output_type`
                 Term::FunType(
                     (),
-                    self.scope.to_scope(Pattern::Ann(
-                        (),
-                        self.scope.to_scope(Pattern::Name((), input_name)),
-                        self.scope.to_scope(input_type),
-                    )),
+                    Pattern::Name((), input_name),
+                    Some(self.scope.to_scope(input_type)),
                     self.scope.to_scope(output_type),
                 )
             }
@@ -292,7 +284,8 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
 
                 Term::FunLiteral(
                     (),
-                    self.scope.to_scope(Pattern::Name((), input_name)),
+                    Pattern::Name((), input_name),
+                    None,
                     self.scope.to_scope(output_expr),
                 )
             }

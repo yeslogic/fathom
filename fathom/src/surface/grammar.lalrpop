@@ -43,24 +43,16 @@ extern {
     }
 }
 
-Pattern : Pattern<'arena, ByteRange> = {
-    AtomicPattern,
-    <start: @L> <pattern: Pattern> ":" <type_: LetTerm> <end: @R> => {
-        Pattern::Ann(
-            ByteRange::new(start, end),
-            scope.to_scope(pattern),
-            scope.to_scope(type_),
-        )
-    },
-};
-
-AtomicPattern : Pattern<'arena, ByteRange> = {
-    "(" <pattern: Pattern> ")" => pattern,
-
+Pattern: Pattern<ByteRange> = {
     <start: @L> <name: Name> <end: @R> => Pattern::Name(ByteRange::new(start, end), name),
     <start: @L> "_" <end: @R> => Pattern::Placeholder(ByteRange::new(start, end)),
     <start: @L> <string: StringLiteral> <end: @R> => Pattern::StringLiteral(ByteRange::new(start, end), string),
     <start: @L> <number: NumberLiteral> <end: @R> => Pattern::NumberLiteral(ByteRange::new(start, end), number),
+};
+
+AnnPattern: (Pattern<ByteRange>, Option<&'arena Term<'arena, ByteRange>>) = {
+    <pattern: Pattern> => (pattern, None),
+    "(" <pattern: Pattern> ":" <type_: LetTerm> ")" => (pattern, Some(scope.to_scope(type_))),
 };
 
 pub Term: Term<'arena, ByteRange> = {
@@ -77,10 +69,11 @@ pub Term: Term<'arena, ByteRange> = {
 
 LetTerm: Term<'arena, ByteRange> = {
     FunTerm,
-    <start: @L> "let" <def_pattern: Pattern> "=" <def_expr: Term> ";" <body_expr: LetTerm> <end: @R> => {
+    <start: @L> "let" <def_pattern: Pattern> <def_type: (":" <LetTerm>)?> "=" <def_expr: Term> ";" <body_expr: LetTerm> <end: @R> => {
         Term::Let(
             ByteRange::new(start, end),
-            scope.to_scope(def_pattern),
+            def_pattern,
+            def_type.map(|def_type| scope.to_scope(def_type) as &_),
             scope.to_scope(def_expr),
             scope.to_scope(body_expr),
         )
@@ -96,17 +89,21 @@ FunTerm: Term<'arena, ByteRange> = {
             scope.to_scope(output_type),
         )
     },
-    <start: @L> "fun" <input_pattern: AtomicPattern> "->"  <output_type: FunTerm> <end: @R> => {
+    <start: @L> "fun" <input_param: AnnPattern> "->"  <output_type: FunTerm> <end: @R> => {
+        let (input_param, input_type) = input_param;
         Term::FunType(
             ByteRange::new(start, end),
-            scope.to_scope(input_pattern),
+            input_param,
+            input_type,
             scope.to_scope(output_type),
         )
     },
-    <start: @L> "fun" <input_pattern: AtomicPattern> "=>" <output_type: FunTerm> <end: @R> => {
+    <start: @L> "fun" <input_param: AnnPattern> "=>" <output_type: FunTerm> <end: @R> => {
+        let (input_param, input_type) = input_param;
         Term::FunLiteral(
             ByteRange::new(start, end),
-            scope.to_scope(input_pattern),
+            input_param,
+            input_type,
             scope.to_scope(output_type),
         )
     },

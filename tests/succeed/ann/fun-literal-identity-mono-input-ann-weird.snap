@@ -1,4 +1,0 @@
-stdout = '''
-fun a => a : fun (_ : U32) -> U32
-'''
-stderr = ''

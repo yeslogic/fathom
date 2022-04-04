@@ -718,14 +718,9 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
     }
 
     /// Check that a pattern matches an expected type.
-    ///
-    /// Returns a tuple containing:
-    ///
-    /// - the name of the bound variable
-    /// - the type of the bound variable
     fn check_pattern(
         &mut self,
-        pattern: &Pattern<'_, ByteRange>,
+        pattern: &Pattern<ByteRange>,
         expected_type: &ArcValue<'arena>,
     ) -> (CheckedPattern, ArcValue<'arena>) {
         match pattern {
@@ -734,27 +729,6 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
             }
             Pattern::Placeholder(range) => {
                 (CheckedPattern::Placeholder(*range), expected_type.clone())
-            }
-            Pattern::Ann(range, pattern, r#type) => {
-                let r#type = self.check(r#type, &Arc::new(Value::Universe)); // FIXME: avoid temporary Arc
-                let r#type = self.eval_context().eval(&r#type);
-
-                let (pattern_name, pattern_type) = self.synth_ann_pattern(pattern, r#type);
-
-                match (self.unification_context()).unify(&pattern_type, &expected_type) {
-                    Ok(()) => (pattern_name, pattern_type),
-                    Err(error) => {
-                        self.push_message(Message::FailedToUnify {
-                            range: *range,
-                            error,
-                        });
-
-                        let source = FlexSource::ReportedErrorType(*range);
-                        let r#type = self.push_flexible_value(source, Arc::new(Value::Universe));
-
-                        (CheckedPattern::ReportedError(*range), r#type)
-                    }
-                }
             }
             Pattern::StringLiteral(range, string) => {
                 let constant = match expected_type.match_prim_spine() {
@@ -829,36 +803,10 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         }
     }
 
-    /// Synthesize the type of an annotated pattern.
-    ///
-    /// Returns a tuple containing:
-    ///
-    /// - the name of the bound variable
-    /// - the type of the bound variable
-    fn synth_ann_pattern(
-        &mut self,
-        pattern: &Pattern<'_, ByteRange>,
-        pattern_type: ArcValue<'arena>,
-    ) -> (CheckedPattern, ArcValue<'arena>) {
-        match pattern {
-            Pattern::Ann(_, pattern, r#type) => {
-                let r#type = self.check(r#type, &pattern_type);
-                let r#type = self.eval_context().eval(&r#type);
-                self.synth_ann_pattern(pattern, r#type)
-            }
-            _ => self.check_pattern(pattern, &pattern_type),
-        }
-    }
-
     /// Synthesize the type of a pattern.
-    ///
-    /// Returns a tuple containing:
-    ///
-    /// - the name of the bound variable
-    /// - the type of the bound variable
     fn synth_pattern(
         &mut self,
-        pattern: &Pattern<'_, ByteRange>,
+        pattern: &Pattern<ByteRange>,
     ) -> (CheckedPattern, ArcValue<'arena>) {
         match pattern {
             Pattern::Name(range, name) => {
@@ -871,11 +819,6 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 let r#type = self.push_flexible_value(source, Arc::new(Value::Universe));
                 (CheckedPattern::Placeholder(*range), r#type)
             }
-            Pattern::Ann(_, pattern, r#type) => {
-                let r#type = self.check(r#type, &Arc::new(Value::Universe)); // FIXME: avoid temporary Arc
-                let r#type = self.eval_context().eval(&r#type);
-                self.synth_ann_pattern(pattern, r#type)
-            }
             Pattern::StringLiteral(range, _) => {
                 self.push_message(Message::AmbiguousStringLiteral { range: *range });
                 let source = FlexSource::ReportedErrorType(*range);
@@ -887,6 +830,52 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 let source = FlexSource::ReportedErrorType(*range);
                 let r#type = self.push_flexible_value(source, Arc::new(Value::Universe));
                 (CheckedPattern::ReportedError(*range), r#type)
+            }
+        }
+    }
+
+    /// Check that the type of an annotated pattern matches an expected type.
+    fn check_ann_pattern(
+        &mut self,
+        pattern: &Pattern<ByteRange>,
+        r#type: Option<&Term<'_, ByteRange>>,
+        expected_type: &ArcValue<'arena>,
+    ) -> (CheckedPattern, ArcValue<'arena>) {
+        match r#type {
+            None => self.check_pattern(pattern, &expected_type),
+            Some(r#type) => {
+                let universe = Arc::new(Value::Universe);
+                let range = r#type.range();
+                let r#type = self.check(r#type, &universe);
+                let r#type = self.eval_context().eval(&r#type);
+
+                match self.unification_context().unify(&r#type, expected_type) {
+                    Ok(()) => self.check_pattern(pattern, &r#type),
+                    Err(error) => {
+                        self.push_message(Message::FailedToUnify { range, error });
+
+                        let source = FlexSource::ReportedErrorType(range);
+                        let input_type = self.push_flexible_value(source, universe);
+
+                        (CheckedPattern::ReportedError(range), input_type)
+                    }
+                }
+            }
+        }
+    }
+
+    /// Synthesize the type of an annotated pattern.
+    fn synth_ann_pattern(
+        &mut self,
+        pattern: &Pattern<ByteRange>,
+        r#type: Option<&Term<'_, ByteRange>>,
+    ) -> (CheckedPattern, ArcValue<'arena>) {
+        match r#type {
+            None => self.synth_pattern(pattern),
+            Some(r#type) => {
+                let r#type = self.check(r#type, &Arc::new(Value::Universe));
+                let type_value = self.eval_context().eval(&r#type);
+                self.check_pattern(pattern, &type_value)
             }
         }
     }
@@ -953,8 +942,8 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         let expected_type = self.elim_context().force(expected_type);
 
         match (surface_term, expected_type.as_ref()) {
-            (Term::Let(_, def_pattern, def_expr, output_expr), _) => {
-                let (def_pattern, def_type_value) = self.synth_pattern(def_pattern);
+            (Term::Let(_, def_pattern, def_type, def_expr, output_expr), _) => {
+                let (def_pattern, def_type_value) = self.synth_ann_pattern(def_pattern, *def_type);
                 let def_type = self.quote_context(self.scope).quote(&def_type_value); // FIXME: avoid requote if possible?
                 let def_expr = self.check(def_expr, &def_type_value);
                 let def_expr_value = self.eval_context().eval(&def_expr);
@@ -985,11 +974,11 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 )
             }
             (
-                Term::FunLiteral(_, input_pattern, output_expr),
-                Value::FunType(_, input_type, output_type),
+                Term::FunLiteral(_, input_pattern, input_type, output_expr),
+                Value::FunType(_, expected_input_type, output_type),
             ) => {
-                let (input_name, input_type) = self.check_pattern(input_pattern, input_type);
-
+                let (input_name, input_type) =
+                    self.check_ann_pattern(input_pattern, *input_type, expected_input_type);
                 let (input_name, input_expr) = self.push_rigid_param(input_name, input_type);
                 let output_type = self.elim_context().apply_closure(output_type, input_expr);
                 let output_expr = self.check(output_expr, &output_type);
@@ -1191,8 +1180,8 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
 
                 (ann_expr, type_value)
             }
-            Term::Let(_, def_pattern, def_expr, output_expr) => {
-                let (def_pattern, def_type_value) = self.synth_pattern(def_pattern);
+            Term::Let(_, def_pattern, def_type, def_expr, output_expr) => {
+                let (def_pattern, def_type_value) = self.synth_ann_pattern(def_pattern, *def_type);
                 let def_type = self.quote_context(self.scope).quote(&def_type_value); // FIXME: avoid requote if possible?
                 let def_expr = self.check(def_expr, &def_type_value);
                 let def_expr_value = self.eval_context().eval(&def_expr);
@@ -1251,9 +1240,10 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
 
                 (fun_type, universe)
             }
-            Term::FunType(_, input_pattern, output_type) => {
+            Term::FunType(_, input_pattern, input_type, output_type) => {
                 let universe = Arc::new(Value::Universe); // FIXME: avoid temporary Arc
-                let (input_pattern, input_type_value) = self.synth_pattern(input_pattern);
+                let (input_pattern, input_type_value) =
+                    self.synth_ann_pattern(input_pattern, *input_type);
                 let input_type = self.quote_context(self.scope).quote(&input_type_value); // FIXME: avoid requote if possible?
 
                 let (input_name, _) = self.push_rigid_param(input_pattern, input_type_value);
@@ -1268,8 +1258,9 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
 
                 (fun_type, universe)
             }
-            Term::FunLiteral(_, input_pattern, output_expr) => {
-                let (input_pattern, input_type) = self.synth_pattern(input_pattern);
+            Term::FunLiteral(_, input_pattern, input_type, output_expr) => {
+                let (input_pattern, input_type) =
+                    self.synth_ann_pattern(input_pattern, *input_type);
 
                 let (input_name, _) = self.push_rigid_param(input_pattern, input_type.clone());
                 let (output_expr, output_type) = self.synth(output_expr);
@@ -1500,7 +1491,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         scrutinee_range: ByteRange,
         scrutinee_expr: &'arena core::Term<'arena>,
         scrutinee_type: &ArcValue<'arena>,
-        mut equations: &[(Pattern<'_, ByteRange>, Term<'_, ByteRange>)],
+        mut equations: &[(Pattern<ByteRange>, Term<'_, ByteRange>)],
         expected_type: &ArcValue<'arena>,
     ) -> core::Term<'arena> {
         match equations.split_first() {

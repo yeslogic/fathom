@@ -1,4 +1,0 @@
-stdout = '''
-let x : U32 = 2; x : U32
-'''
-stderr = ''
