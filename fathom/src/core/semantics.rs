@@ -260,8 +260,8 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
                 let mut head_expr = self.eval(&Term::FlexibleVar(*var));
                 for (info, expr) in Iterator::zip(rigid_infos.iter(), self.rigid_exprs.iter()) {
                     head_expr = match info {
-                        EntryInfo::Concrete => head_expr,
-                        EntryInfo::Abstract => {
+                        EntryInfo::Definition => head_expr,
+                        EntryInfo::Parameter => {
                             self.elim_context().apply_fun(head_expr, expr.clone())
                         }
                     };

@@ -1,4 +1,24 @@
-//! Bidirectional elaboration of the surface language into the core language.
+//! Elaboration of the surface language into the core language.
+//!
+//! This module is where user-facing type checking happens, along with
+//! translating the convenient surface language into a simpler, more explicit
+//! core language.
+//!
+//! The algorithm is structured _bidirectionally_, ie. divided into _checking_
+//! and _synthesis_ modes. By supplying type annotations as early as possible
+//! using the checking mode, we can improve the locality of type errors, and
+//! provide enough _control_ to the algorithm to allow for elaboration even in
+//! the presence of ‘fancy’ types.
+//!
+//! For places where bidirectional typing is not enough, _unification_ is used
+//! in an attempt to infer unknown terms and types based on how they are used.
+//!
+//! ## Resources
+//!
+//! - [Bidirectional Typing Rules: A Tutorial](https://davidchristiansen.dk/tutorials/bidirectional.pdf)
+//! - [Bidirectional Types Checking – Compose NYC 2019](https://www.youtube.com/watch?v=utyBNDj7s2w)
+//! - [Lecture Notes on Bidirectional Type Checking](https://www.cs.cmu.edu/~fp/courses/15312-f04/handouts/15-bidirectional.pdf)
+//! - [elaboration-zoo](https://github.com/AndrasKovacs/elaboration-zoo/)
 
 use scoped_arena::Scope;
 use std::cell::RefCell;
@@ -18,6 +38,17 @@ mod reporting;
 mod unification;
 
 /// Rigid environment.
+///
+/// This is used for keeping track of [rigid variables] that are bound by the
+/// program, for example by function parameters, let bindings, or pattern
+/// matching.
+///
+/// This environment behaves as a stack. As scopes are entered, it is important
+/// to remember to call either [`RigidEnv::push_def`] or [`RigidEnv::push_param`].
+/// On scope exit, it is important to remember to call [`RigidEnv::pop`].
+/// Multiple bindings can be removed at once with [`RigidEnv::truncate`].
+///
+/// [rigid variables]: core::Term::RigidVar
 pub struct RigidEnv<'arena> {
     /// Names of rigid variables.
     names: UniqueEnv<Option<StringId>>,
@@ -208,7 +239,7 @@ impl<'arena> RigidEnv<'arena> {
     ) {
         self.names.push(name);
         self.types.push(r#type);
-        self.infos.push(core::EntryInfo::Concrete);
+        self.infos.push(core::EntryInfo::Definition);
         self.exprs.push(expr);
     }
 
@@ -220,7 +251,7 @@ impl<'arena> RigidEnv<'arena> {
 
         self.names.push(name);
         self.types.push(r#type);
-        self.infos.push(core::EntryInfo::Abstract);
+        self.infos.push(core::EntryInfo::Parameter);
         self.exprs.push(expr.clone());
 
         expr
@@ -394,6 +425,11 @@ pub enum FlexSource {
 }
 
 /// Flexible environment.
+///
+/// This is used for keeping track of the state of [flexible variables] whose
+/// definitions are intended to be found through the use of [unification].
+///
+/// [flexible variables]: core::Term::FlexibleVar
 pub struct FlexibleEnv<'arena> {
     /// The source of inserted flexible variables, used when reporting [unsolved
     /// flexible variables][Message::UnsolvedFlexibleVar].
@@ -1483,7 +1519,12 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         (labels, formats.into())
     }
 
-    /// Elaborate a pattern match.
+    /// Elaborate a pattern match into a case tree in the core language.
+    ///
+    /// The implementation is based on the algorithm described in Section 5 of
+    /// [“The Implementation of Functional Programming Languages”].
+    ///
+    /// [“The Implementation of Functional Programming Languages”]: https://www.microsoft.com/en-us/research/publication/the-implementation-of-functional-programming-languages/
     fn check_match(
         &mut self,
         is_reachable: bool,
