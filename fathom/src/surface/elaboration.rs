@@ -18,6 +18,17 @@ mod reporting;
 mod unification;
 
 /// Rigid environment.
+///
+/// This is used for keeping track of [rigid variables] that are bound by the
+/// program, for example by function parameters, let bindings, or pattern
+/// matching.
+///
+/// This environment behaves as a stack. As scopes are entered, it is important
+/// to remember to call either [`RigidEnv::push_def`] or [`RigidEnv::push_param`].
+/// On scope exit, it is important to remember to call [`RigidEnv::pop`].
+/// Multiple bindings can be removed at once with [`RigidEnv::truncate`].
+///
+/// [rigid variables]: core::Term::RigidVar
 pub struct RigidEnv<'arena> {
     /// Names of rigid variables.
     names: UniqueEnv<Option<StringId>>,
@@ -394,6 +405,11 @@ pub enum FlexSource {
 }
 
 /// Flexible environment.
+///
+/// This is used for keeping track of the state of [flexible variables] whose
+/// definitions are intended to be found through the use of [unification].
+///
+/// [flexible variables]: core::Term::FlexibleVar
 pub struct FlexibleEnv<'arena> {
     /// The source of inserted flexible variables, used when reporting [unsolved
     /// flexible variables][Message::UnsolvedFlexibleVar].
