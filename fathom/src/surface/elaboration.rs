@@ -1519,7 +1519,12 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         (labels, formats.into())
     }
 
-    /// Elaborate a pattern match.
+    /// Elaborate a pattern match into a case tree in the core language.
+    ///
+    /// The implementation is based on the algorithm described in Section 5 of
+    /// [“The Implementation of Functional Programming Languages”].
+    ///
+    /// [“The Implementation of Functional Programming Languages”]: https://www.microsoft.com/en-us/research/publication/the-implementation-of-functional-programming-languages/
     fn check_match(
         &mut self,
         is_reachable: bool,
