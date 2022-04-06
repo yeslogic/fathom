@@ -20,13 +20,13 @@ pub mod elaboration;
 /// Surface patterns.
 #[derive(Debug, Clone)]
 pub enum Pattern<Range> {
-    /// Named patterns.
+    /// Named patterns, eg. `x`, `true`, `false`
     Name(Range, StringId),
-    /// Placeholder patterns.
+    /// Placeholder patterns, eg. `_`
     Placeholder(Range),
-    /// String literal patterns
+    /// String literal patterns, eg. `"htmx"`
     StringLiteral(Range, StringId),
-    /// Number literal patterns
+    /// Number literal patterns, eg. `1`, `0x00FF`
     NumberLiteral(Range, StringId),
     // TODO: Record literal patterns
     // RecordLiteral(Range, &'arena [((ByteRange, StringId), Pattern<'arena, Range>)]),
