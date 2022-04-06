@@ -25,8 +25,14 @@ pub enum Pattern<Range> {
     /// Placeholder patterns, eg. `_`
     Placeholder(Range),
     /// String literal patterns, eg. `"htmx"`
+    ///
+    /// As with [term literals][Term::StringLiteral], these will be parsed fully
+    /// during [elaboration].
     StringLiteral(Range, StringId),
     /// Number literal patterns, eg. `1`, `0x00FF`
+    ///
+    /// As with [term literals][Term::NumberLiteral], these will be parsed fully
+    /// during [elaboration].
     NumberLiteral(Range, StringId),
     // TODO: Record literal patterns
     // RecordLiteral(Range, &'arena [((ByteRange, StringId), Pattern<'arena, Range>)]),
@@ -111,8 +117,14 @@ pub enum Term<'arena, Range> {
     /// Array literals.
     ArrayLiteral(Range, &'arena [Term<'arena, Range>]),
     /// String literal.
+    ///
+    /// These are stored as strings, and will be parsed during [elaboration]
+    /// once the target type is known.
     StringLiteral(Range, StringId),
     /// Number literals.
+    ///
+    /// These are stored as strings, and will be parsed during [elaboration]
+    /// once the target type is known.
     NumberLiteral(Range, StringId),
     /// Record format.
     FormatRecord(Range, &'arena [((Range, StringId), Term<'arena, Range>)]),
