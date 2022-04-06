@@ -208,7 +208,7 @@ impl<'arena> RigidEnv<'arena> {
     ) {
         self.names.push(name);
         self.types.push(r#type);
-        self.infos.push(core::EntryInfo::Concrete);
+        self.infos.push(core::EntryInfo::Def);
         self.exprs.push(expr);
     }
 
@@ -220,7 +220,7 @@ impl<'arena> RigidEnv<'arena> {
 
         self.names.push(name);
         self.types.push(r#type);
-        self.infos.push(core::EntryInfo::Abstract);
+        self.infos.push(core::EntryInfo::Param);
         self.exprs.push(expr.clone());
 
         expr

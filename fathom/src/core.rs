@@ -6,24 +6,17 @@ use crate::StringId;
 pub mod binary;
 pub mod semantics;
 
-/// Information about rigid entries. This is used for [flexible variable
-/// insertion][Term::FlexibleInsertion].
-//
-// NOTE: Bikeshed of alternative names:
-//
-// - observability ::= ?
-// - perceptibility ::= ?
-// - denotion ::= ?
-// - binder-info ::= ?
-// - ? ::= transparent | opaque
-// - ? ::= concrete | abstract
-// - ? ::= definition | parameter
+/// Information about how entries were bound in the rigid environment. This is
+/// used when inserting [flexible variables][Term::FlexibleInsertion] during
+/// elaboration.
 //
 // See also: https://en.wikipedia.org/wiki/Abstract_and_concrete
 #[derive(Debug, Copy, Clone)]
 pub enum EntryInfo {
-    Concrete,
-    Abstract,
+    /// The entry was bound as a definition in the environment.
+    Def,
+    /// The entry was bound as a parameter in the environment
+    Param,
 }
 
 /// Core language terms.
