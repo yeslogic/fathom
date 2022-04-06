@@ -1,4 +1,24 @@
-//! Bidirectional elaboration of the surface language into the core language.
+//! Elaboration of the surface language into the core language.
+//!
+//! This module is where user-facing type checking happens, along with
+//! translating the convenient surface language into a simpler, more explicit
+//! core language.
+//!
+//! The algorithm is structured _bidirectionally_, ie. divided into _checking_
+//! and _synthesis_ modes. By supplying type annotations as early as possible
+//! using the checking mode, we can improve the locality of type errors, and
+//! provide enough _control_ to the algorithm to allow for elaboration even in
+//! the presence of ‘fancy’ types.
+//!
+//! For places where bidirectional typing is not enough, _unification_ is used
+//! in an attempt to infer unknown terms and types based on how they are used.
+//!
+//! ## Resources
+//!
+//! - [Bidirectional Typing Rules: A Tutorial](https://davidchristiansen.dk/tutorials/bidirectional.pdf)
+//! - [Bidirectional Types Checking – Compose NYC 2019](https://www.youtube.com/watch?v=utyBNDj7s2w)
+//! - [Lecture Notes on Bidirectional Type Checking](https://www.cs.cmu.edu/~fp/courses/15312-f04/handouts/15-bidirectional.pdf)
+//! - [elaboration-zoo](https://github.com/AndrasKovacs/elaboration-zoo/)
 
 use scoped_arena::Scope;
 use std::cell::RefCell;
