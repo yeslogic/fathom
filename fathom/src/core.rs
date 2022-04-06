@@ -14,9 +14,9 @@ pub mod semantics;
 #[derive(Debug, Copy, Clone)]
 pub enum EntryInfo {
     /// The entry was bound as a definition in the environment.
-    Def,
+    Definition,
     /// The entry was bound as a parameter in the environment
-    Param,
+    Parameter,
 }
 
 /// Core language terms.

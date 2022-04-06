@@ -224,8 +224,8 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
 
                 for (var, info) in Iterator::zip(env::global_vars(), rigid_infos.iter()) {
                     match info {
-                        core::EntryInfo::Def => {}
-                        core::EntryInfo::Param => {
+                        core::EntryInfo::Definition => {}
+                        core::EntryInfo::Parameter => {
                             let var = self.rigid_len().global_to_local(var).unwrap();
                             let input_expr = self.check(&core::Term::RigidVar(var));
                             head_expr = Term::FunElim(
