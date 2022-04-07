@@ -9,9 +9,7 @@ use crate::source::{ByteRange, FileId};
 use crate::{StringId, StringInterner};
 
 lalrpop_mod!(grammar, "/surface/grammar.rs");
-// FIXME: This lexer module should be private! LALRPOP's exports are somewhat broken, however.
-//        See: https://github.com/lalrpop/lalrpop/pull/584#issuecomment-856731852
-pub(crate) mod lexer;
+mod lexer;
 pub mod pretty;
 
 pub mod distillation;
