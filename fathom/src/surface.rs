@@ -171,36 +171,9 @@ impl<'arena> Term<'arena, ByteRange> {
         scope: &'arena Scope<'arena>,
         source: &'source str,
     ) -> Result<Term<'arena, ByteRange>, ParseMessage> {
-        use lalrpop_util::ParseError;
-
         grammar::TermParser::new()
             .parse(interner, scope, lexer::tokens(source))
-            .map_err(|err| match err {
-                ParseError::InvalidToken { location } => ParseMessage::InvalidToken {
-                    range: ByteRange::new(location, location),
-                },
-                ParseError::UnrecognizedEOF { location, expected } => {
-                    ParseMessage::UnrecognizedEof {
-                        range: ByteRange::new(location, location),
-                        expected, // TODO: convert to descriptions?
-                    }
-                }
-                ParseError::UnrecognizedToken {
-                    token: (start, token, end),
-                    expected,
-                } => ParseMessage::UnrecognizedToken {
-                    range: ByteRange::new(start, end),
-                    token: token.description(),
-                    expected,
-                },
-                ParseError::ExtraToken {
-                    token: (start, token, end),
-                } => ParseMessage::ExtraToken {
-                    range: ByteRange::new(start, end),
-                    token: token.description(),
-                },
-                ParseError::User { error } => ParseMessage::Lexer(error),
-            })
+            .map_err(ParseMessage::from)
     }
 }
 
@@ -254,6 +227,40 @@ impl ParseMessage {
                 .with_labels(vec![
                     Label::primary(file_id, *range).with_message("extra token")
                 ]),
+        }
+    }
+}
+
+type LalrpopParseError<'source> =
+    lalrpop_util::ParseError<usize, lexer::Token<'source>, lexer::Error>;
+
+impl From<LalrpopParseError<'_>> for ParseMessage {
+    fn from(error: LalrpopParseError<'_>) -> ParseMessage {
+        match error {
+            LalrpopParseError::InvalidToken { location } => ParseMessage::InvalidToken {
+                range: ByteRange::new(location, location),
+            },
+            LalrpopParseError::UnrecognizedEOF { location, expected } => {
+                ParseMessage::UnrecognizedEof {
+                    range: ByteRange::new(location, location),
+                    expected, // TODO: convert to descriptions?
+                }
+            }
+            LalrpopParseError::UnrecognizedToken {
+                token: (start, token, end),
+                expected,
+            } => ParseMessage::UnrecognizedToken {
+                range: ByteRange::new(start, end),
+                token: token.description(),
+                expected,
+            },
+            LalrpopParseError::ExtraToken {
+                token: (start, token, end),
+            } => ParseMessage::ExtraToken {
+                range: ByteRange::new(start, end),
+                token: token.description(),
+            },
+            LalrpopParseError::User { error } => ParseMessage::Lexer(error),
         }
     }
 }
