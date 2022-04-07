@@ -83,6 +83,11 @@ impl<'arena> RigidEnv<'arena> {
         let mut def = RigidEnvBuilder::new(interner, scope);
 
         def.universe(VoidType);
+
+        def.universe(BoolType);
+        def.boolean(BoolTrue, true);
+        def.boolean(BoolFalse, false);
+
         def.universe(U8Type);
         def.universe(U16Type);
         def.universe(U32Type);
@@ -93,10 +98,12 @@ impl<'arena> RigidEnv<'arena> {
         def.universe(S64Type);
         def.universe(F32Type);
         def.universe(F64Type);
+
         def.array_type(Array8Type, U8Type);
         def.array_type(Array16Type, U16Type);
         def.array_type(Array32Type, U32Type);
         def.array_type(Array64Type, U64Type);
+
         def.universe(PosType);
         def.fun(RefType, None, def.format_type(), &RigidEnvBuilder::UNIVERSE);
 
@@ -149,6 +156,19 @@ impl<'arena> RigidEnv<'arena> {
             &RigidEnvBuilder::UNIVERSE,
         );
 
+        def.binary_op(BoolEq, BoolType, BoolType, BoolType);
+        def.binary_op(BoolNeq, BoolType, BoolType, BoolType);
+        def.unary_op(BoolNot, BoolType, BoolType);
+        def.binary_op(BoolAnd, BoolType, BoolType, BoolType);
+        def.binary_op(BoolOr, BoolType, BoolType, BoolType);
+        def.binary_op(BoolXor, BoolType, BoolType, BoolType);
+
+        def.binary_op(U8Eq, U8Type, U8Type, BoolType);
+        def.binary_op(U8Neq, U8Type, U8Type, BoolType);
+        def.binary_op(U8Lt, U8Type, U8Type, BoolType);
+        def.binary_op(U8Gt, U8Type, U8Type, BoolType);
+        def.binary_op(U8Lte, U8Type, U8Type, BoolType);
+        def.binary_op(U8Gte, U8Type, U8Type, BoolType);
         def.binary_op(U8Add, U8Type, U8Type, U8Type);
         def.binary_op(U8Sub, U8Type, U8Type, U8Type);
         def.binary_op(U8Mul, U8Type, U8Type, U8Type);
@@ -160,6 +180,12 @@ impl<'arena> RigidEnv<'arena> {
         def.binary_op(U8Or, U8Type, U8Type, U8Type);
         def.binary_op(U8Xor, U8Type, U8Type, U8Type);
 
+        def.binary_op(U16Eq, U16Type, U16Type, BoolType);
+        def.binary_op(U16Neq, U16Type, U16Type, BoolType);
+        def.binary_op(U16Lt, U16Type, U16Type, BoolType);
+        def.binary_op(U16Gt, U16Type, U16Type, BoolType);
+        def.binary_op(U16Lte, U16Type, U16Type, BoolType);
+        def.binary_op(U16Gte, U16Type, U16Type, BoolType);
         def.binary_op(U16Add, U16Type, U16Type, U16Type);
         def.binary_op(U16Sub, U16Type, U16Type, U16Type);
         def.binary_op(U16Mul, U16Type, U16Type, U16Type);
@@ -171,6 +197,12 @@ impl<'arena> RigidEnv<'arena> {
         def.binary_op(U16Or, U16Type, U16Type, U16Type);
         def.binary_op(U16Xor, U16Type, U16Type, U16Type);
 
+        def.binary_op(U32Eq, U32Type, U32Type, BoolType);
+        def.binary_op(U32Neq, U32Type, U32Type, BoolType);
+        def.binary_op(U32Lt, U32Type, U32Type, BoolType);
+        def.binary_op(U32Gt, U32Type, U32Type, BoolType);
+        def.binary_op(U32Lte, U32Type, U32Type, BoolType);
+        def.binary_op(U32Gte, U32Type, U32Type, BoolType);
         def.binary_op(U32Add, U32Type, U32Type, U32Type);
         def.binary_op(U32Sub, U32Type, U32Type, U32Type);
         def.binary_op(U32Mul, U32Type, U32Type, U32Type);
@@ -182,6 +214,12 @@ impl<'arena> RigidEnv<'arena> {
         def.binary_op(U32Or, U32Type, U32Type, U32Type);
         def.binary_op(U32Xor, U32Type, U32Type, U32Type);
 
+        def.binary_op(U64Eq, U64Type, U64Type, BoolType);
+        def.binary_op(U64Neq, U64Type, U64Type, BoolType);
+        def.binary_op(U64Lt, U64Type, U64Type, BoolType);
+        def.binary_op(U64Gt, U64Type, U64Type, BoolType);
+        def.binary_op(U64Lte, U64Type, U64Type, BoolType);
+        def.binary_op(U64Gte, U64Type, U64Type, BoolType);
         def.binary_op(U64Add, U64Type, U64Type, U64Type);
         def.binary_op(U64Sub, U64Type, U64Type, U64Type);
         def.binary_op(U64Mul, U64Type, U64Type, U64Type);
@@ -193,24 +231,48 @@ impl<'arena> RigidEnv<'arena> {
         def.binary_op(U64Or, U64Type, U64Type, U64Type);
         def.binary_op(U64Xor, U64Type, U64Type, U64Type);
 
+        def.binary_op(S8Eq, S8Type, S8Type, BoolType);
+        def.binary_op(S8Neq, S8Type, S8Type, BoolType);
+        def.binary_op(S8Lt, S8Type, S8Type, BoolType);
+        def.binary_op(S8Gt, S8Type, S8Type, BoolType);
+        def.binary_op(S8Lte, S8Type, S8Type, BoolType);
+        def.binary_op(S8Gte, S8Type, S8Type, BoolType);
         def.unary_op(S8Neg, S8Type, S8Type);
         def.binary_op(S8Add, S8Type, S8Type, S8Type);
         def.binary_op(S8Sub, S8Type, S8Type, S8Type);
         def.binary_op(S8Mul, S8Type, S8Type, S8Type);
         def.binary_op(S8Div, S8Type, S8Type, S8Type);
 
+        def.binary_op(S16Eq, S16Type, S16Type, BoolType);
+        def.binary_op(S16Neq, S16Type, S16Type, BoolType);
+        def.binary_op(S16Lt, S16Type, S16Type, BoolType);
+        def.binary_op(S16Gt, S16Type, S16Type, BoolType);
+        def.binary_op(S16Lte, S16Type, S16Type, BoolType);
+        def.binary_op(S16Gte, S16Type, S16Type, BoolType);
         def.unary_op(S16Neg, S16Type, S16Type);
         def.binary_op(S16Add, S16Type, S16Type, S16Type);
         def.binary_op(S16Sub, S16Type, S16Type, S16Type);
         def.binary_op(S16Mul, S16Type, S16Type, S16Type);
         def.binary_op(S16Div, S16Type, S16Type, S16Type);
 
+        def.binary_op(S32Eq, S32Type, S32Type, BoolType);
+        def.binary_op(S32Neq, S32Type, S32Type, BoolType);
+        def.binary_op(S32Lt, S32Type, S32Type, BoolType);
+        def.binary_op(S32Gt, S32Type, S32Type, BoolType);
+        def.binary_op(S32Lte, S32Type, S32Type, BoolType);
+        def.binary_op(S32Gte, S32Type, S32Type, BoolType);
         def.unary_op(S32Neg, S32Type, S32Type);
         def.binary_op(S32Add, S32Type, S32Type, S32Type);
         def.binary_op(S32Sub, S32Type, S32Type, S32Type);
         def.binary_op(S32Mul, S32Type, S32Type, S32Type);
         def.binary_op(S32Div, S32Type, S32Type, S32Type);
 
+        def.binary_op(S64Eq, S64Type, S64Type, BoolType);
+        def.binary_op(S64Neq, S64Type, S64Type, BoolType);
+        def.binary_op(S64Lt, S64Type, S64Type, BoolType);
+        def.binary_op(S64Gt, S64Type, S64Type, BoolType);
+        def.binary_op(S64Lte, S64Type, S64Type, BoolType);
+        def.binary_op(S64Gte, S64Type, S64Type, BoolType);
         def.unary_op(S64Neg, S64Type, S64Type);
         def.binary_op(S64Add, S64Type, S64Type, S64Type);
         def.binary_op(S64Sub, S64Type, S64Type, S64Type);
@@ -317,6 +379,13 @@ impl<'i, 'arena> RigidEnvBuilder<'i, 'arena> {
 
     fn universe(&mut self, prim: Prim) {
         self.define_prim(prim, self.universe_value())
+    }
+
+    fn boolean(&mut self, prim: Prim, val: bool) {
+        let name = self.name(prim.name());
+        let r#type = Arc::new(Value::prim(Prim::BoolType, []));
+        self.env
+            .push_def(name, Arc::new(Value::Const(Const::Bool(val))), r#type);
     }
 
     fn format(&mut self, prim: Prim) {

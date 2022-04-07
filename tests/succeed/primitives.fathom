@@ -1,5 +1,7 @@
 let _ = Void : Type;
 
+let _ = Bool : Type;
+
 let _ = U8 : Type;
 let _ = U16 : Type;
 let _ = U32 : Type;
@@ -58,6 +60,19 @@ let _ = deref : fun (f : Format) -> Ref f -> Format;
 let _ = stream_pos : Format;
 let _ = Repr : Format -> Type;
 
+let _ = bool_eq : Bool -> Bool -> Bool;
+let _ = bool_neq : Bool -> Bool -> Bool;
+let _ = bool_not : Bool -> Bool;
+let _ = bool_and : Bool -> Bool -> Bool;
+let _ = bool_or : Bool -> Bool -> Bool;
+let _ = bool_xor : Bool -> Bool -> Bool;
+
+let _ = u8_eq : U8 -> U8 -> Bool;
+let _ = u8_neq : U8 -> U8 -> Bool;
+let _ = u8_gt : U8 -> U8 -> Bool;
+let _ = u8_lt : U8 -> U8 -> Bool;
+let _ = u8_gte : U8 -> U8 -> Bool;
+let _ = u8_lte : U8 -> U8 -> Bool;
 let _ = u8_add : U8 -> U8 -> U8;
 let _ = u8_sub : U8 -> U8 -> U8;
 let _ = u8_mul : U8 -> U8 -> U8;
@@ -69,6 +84,12 @@ let _ = u8_and : U8 -> U8 -> U8;
 let _ = u8_or : U8 -> U8 -> U8;
 let _ = u8_xor : U8 -> U8 -> U8;
 
+let _ = u16_eq : U16 -> U16 -> Bool;
+let _ = u16_neq : U16 -> U16 -> Bool;
+let _ = u16_gt : U16 -> U16 -> Bool;
+let _ = u16_lt : U16 -> U16 -> Bool;
+let _ = u16_gte : U16 -> U16 -> Bool;
+let _ = u16_lte : U16 -> U16 -> Bool;
 let _ = u16_add : U16 -> U16 -> U16;
 let _ = u16_sub : U16 -> U16 -> U16;
 let _ = u16_mul : U16 -> U16 -> U16;
@@ -80,6 +101,12 @@ let _ = u16_and : U16 -> U16 -> U16;
 let _ = u16_or : U16 -> U16 -> U16;
 let _ = u16_xor : U16 -> U16 -> U16;
 
+let _ = u32_eq : U32 -> U32 -> Bool;
+let _ = u32_neq : U32 -> U32 -> Bool;
+let _ = u32_gt : U32 -> U32 -> Bool;
+let _ = u32_lt : U32 -> U32 -> Bool;
+let _ = u32_gte : U32 -> U32 -> Bool;
+let _ = u32_lte : U32 -> U32 -> Bool;
 let _ = u32_add : U32 -> U32 -> U32;
 let _ = u32_sub : U32 -> U32 -> U32;
 let _ = u32_mul : U32 -> U32 -> U32;
@@ -91,6 +118,12 @@ let _ = u32_and : U32 -> U32 -> U32;
 let _ = u32_or : U32 -> U32 -> U32;
 let _ = u32_xor : U32 -> U32 -> U32;
 
+let _ = u64_eq : U64 -> U64 -> Bool;
+let _ = u64_neq : U64 -> U64 -> Bool;
+let _ = u64_gt : U64 -> U64 -> Bool;
+let _ = u64_lt : U64 -> U64 -> Bool;
+let _ = u64_gte : U64 -> U64 -> Bool;
+let _ = u64_lte : U64 -> U64 -> Bool;
 let _ = u64_add : U64 -> U64 -> U64;
 let _ = u64_sub : U64 -> U64 -> U64;
 let _ = u64_mul : U64 -> U64 -> U64;
@@ -102,24 +135,48 @@ let _ = u64_and : U64 -> U64 -> U64;
 let _ = u64_or : U64 -> U64 -> U64;
 let _ = u64_xor : U64 -> U64 -> U64;
 
+let _ = s8_eq : S8 -> S8 -> Bool;
+let _ = s8_neq : S8 -> S8 -> Bool;
+let _ = s8_gt : S8 -> S8 -> Bool;
+let _ = s8_lt : S8 -> S8 -> Bool;
+let _ = s8_gte : S8 -> S8 -> Bool;
+let _ = s8_lte : S8 -> S8 -> Bool;
 let _ = s8_neg : S8 -> S8;
 let _ = s8_add : S8 -> S8 -> S8;
 let _ = s8_sub : S8 -> S8 -> S8;
 let _ = s8_mul : S8 -> S8 -> S8;
 let _ = s8_div : S8 -> S8 -> S8;
 
+let _ = s16_eq : S16 -> S16 -> Bool;
+let _ = s16_neq : S16 -> S16 -> Bool;
+let _ = s16_gt : S16 -> S16 -> Bool;
+let _ = s16_lt : S16 -> S16 -> Bool;
+let _ = s16_gte : S16 -> S16 -> Bool;
+let _ = s16_lte : S16 -> S16 -> Bool;
 let _ = s16_neg : S16 -> S16;
 let _ = s16_add : S16 -> S16 -> S16;
 let _ = s16_sub : S16 -> S16 -> S16;
 let _ = s16_mul : S16 -> S16 -> S16;
 let _ = s16_div : S16 -> S16 -> S16;
 
+let _ = s32_eq : S32 -> S32 -> Bool;
+let _ = s32_neq : S32 -> S32 -> Bool;
+let _ = s32_gt : S32 -> S32 -> Bool;
+let _ = s32_lt : S32 -> S32 -> Bool;
+let _ = s32_gte : S32 -> S32 -> Bool;
+let _ = s32_lte : S32 -> S32 -> Bool;
 let _ = s32_neg : S32 -> S32;
 let _ = s32_add : S32 -> S32 -> S32;
 let _ = s32_sub : S32 -> S32 -> S32;
 let _ = s32_mul : S32 -> S32 -> S32;
 let _ = s32_div : S32 -> S32 -> S32;
 
+let _ = s64_eq : S64 -> S64 -> Bool;
+let _ = s64_neq : S64 -> S64 -> Bool;
+let _ = s64_gt : S64 -> S64 -> Bool;
+let _ = s64_lt : S64 -> S64 -> Bool;
+let _ = s64_gte : S64 -> S64 -> Bool;
+let _ = s64_lte : S64 -> S64 -> Bool;
 let _ = s64_neg : S64 -> S64;
 let _ = s64_add : S64 -> S64 -> S64;
 let _ = s64_sub : S64 -> S64 -> S64;
