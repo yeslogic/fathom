@@ -37,11 +37,13 @@ elaboration, and core language is forthcoming.
   - [Record types](#record-types)
   - [Record literals](#record-literals)
   - [Record projections](#record-projections)
+- [Booleans](#booleans)
+  - [Boolean operations](#boolean-operations)
 - [Numbers](#numbers)
   - [Number types](#number-types)
   - [Number literals](#array-literals)
   - [String literals](#string-literals)
-  - [Number Operations](#number-operations)
+  - [Number operations](#number-operations)
 - [Arrays](#arrays)
   - [Array types](#array-types)
   - [Array literals](#array-literals)
@@ -84,7 +86,7 @@ If no binding is found, names can refer to one of the built-in primitives:
 - `link8`, `link16`, `link32`, `link64`
 - `stream_pos`
 - `succeed`, `fail`
-- `U8`, `U16`, `U32`, `U64`, `S8`, `S16`, `S32`, `S64`, `F32`, `F64`
+- `Bool`, `U8`, `U16`, `U32`, `U64`, `S8`, `S16`, `S32`, `S64`, `F32`, `F64`
 - `Array8`, `Array16`, `Array32`, `Array64`
 - `Pos`, `Ref`
 - `Void`
@@ -111,9 +113,9 @@ origin.x
 Branching can be achieved though the use of match expressions.
 
 Match expressions begin with a `match` keyword, followed by a head expression,
-and a sequence of zero-or-more equations. The equations consist of a pattern and
-a body expression. Any bindings introduced by the pattern are then bound as
-parameters in the body expression.
+and a sequence of zero-or-more equations. The equations consist of a pattern
+and a body expression separated by `=>`. Any bindings introduced by the pattern
+are then bound as parameters in the body expression.
 
 An error is reported if there are any cases missing in the pattern match.
 
@@ -567,6 +569,21 @@ some-data.data : Array3 some-data.len S32
 //                                      in type of the projected term
 ```
 
+## Booleans
+
+The boolean type is: `Bool` with values `true` and `false`.
+
+### Boolean operations
+
+The following operations are defined for booleans:
+
+- `bool_eq : Bool -> Bool -> Bool`
+- `bool_neq : Bool -> Bool -> Bool`
+- `bool_not : Bool -> Bool`
+- `bool_and : Bool -> Bool -> Bool`
+- `bool_or : Bool -> Bool -> Bool`
+- `bool_xor : Bool -> Bool -> Bool`
+
 ## Numbers
 
 ### Number types
@@ -589,6 +606,12 @@ some-data.data : Array3 some-data.len S32
 
 A number of operations are defined for the numeric types:
 
+- `u8_eq : U8 -> U8 -> Bool`
+- `u8_neq : U8 -> U8 -> Bool`
+- `u8_gt : U8 -> U8 -> Bool`
+- `u8_lt : U8 -> U8 -> Bool`
+- `u8_gte : U8 -> U8 -> Bool`
+- `u8_lte : U8 -> U8 -> Bool`
 - `u8_add : U8 -> U8 -> U8`
 - `u8_sub : U8 -> U8 -> U8`
 - `u8_mul : U8 -> U8 -> U8`
@@ -599,6 +622,13 @@ A number of operations are defined for the numeric types:
 - `u8_and : U8 -> U8 -> U8`
 - `u8_or : U8 -> U8 -> U8`
 - `u8_xor : U8 -> U8 -> U8`
+
+- `u16_eq : U16 -> U16 -> Bool`
+- `u16_neq : U16 -> U16 -> Bool`
+- `u16_gt : U16 -> U16 -> Bool`
+- `u16_lt : U16 -> U16 -> Bool`
+- `u16_gte : U16 -> U16 -> Bool`
+- `u16_lte : U16 -> U16 -> Bool`
 - `u16_add : U16 -> U16 -> U16`
 - `u16_sub : U16 -> U16 -> U16`
 - `u16_mul : U16 -> U16 -> U16`
@@ -609,6 +639,13 @@ A number of operations are defined for the numeric types:
 - `u16_and : U16 -> U16 -> U16`
 - `u16_or : U16 -> U16 -> U16`
 - `u16_xor : U16 -> U16 -> U16`
+
+- `u32_eq : U32 -> U32 -> Bool`
+- `u32_neq : U32 -> U32 -> Bool`
+- `u32_gt : U32 -> U32 -> Bool`
+- `u32_lt : U32 -> U32 -> Bool`
+- `u32_gte : U32 -> U32 -> Bool`
+- `u32_lte : U32 -> U32 -> Bool`
 - `u32_add : U32 -> U32 -> U32`
 - `u32_sub : U32 -> U32 -> U32`
 - `u32_mul : U32 -> U32 -> U32`
@@ -619,6 +656,13 @@ A number of operations are defined for the numeric types:
 - `u32_and : U32 -> U32 -> U32`
 - `u32_or : U32 -> U32 -> U32`
 - `u32_xor : U32 -> U32 -> U32`
+
+- `u64_eq : U64 -> U64 -> Bool`
+- `u64_neq : U64 -> U64 -> Bool`
+- `u64_gt : U64 -> U64 -> Bool`
+- `u64_lt : U64 -> U64 -> Bool`
+- `u64_gte : U64 -> U64 -> Bool`
+- `u64_lte : U64 -> U64 -> Bool`
 - `u64_add : U64 -> U64 -> U64`
 - `u64_sub : U64 -> U64 -> U64`
 - `u64_mul : U64 -> U64 -> U64`
@@ -629,21 +673,49 @@ A number of operations are defined for the numeric types:
 - `u64_and : U64 -> U64 -> U64`
 - `u64_or : U64 -> U64 -> U64`
 - `u64_xor : U64 -> U64 -> U64`
+
+- `s8_eq : S8 -> S8 -> Bool`
+- `s8_neq : S8 -> S8 -> Bool`
+- `s8_gt : S8 -> S8 -> Bool`
+- `s8_lt : S8 -> S8 -> Bool`
+- `s8_gte : S8 -> S8 -> Bool`
+- `s8_lte : S8 -> S8 -> Bool`
 - `s8_neg : S8 -> S8`
 - `s8_add : S8 -> S8 -> S8`
 - `s8_sub : S8 -> S8 -> S8`
 - `s8_mul : S8 -> S8 -> S8`
 - `s8_div : S8 -> S8 -> S8`
+
+- `s16_eq : S16 -> S16 -> Bool`
+- `s16_neq : S16 -> S16 -> Bool`
+- `s16_gt : S16 -> S16 -> Bool`
+- `s16_lt : S16 -> S16 -> Bool`
+- `s16_gte : S16 -> S16 -> Bool`
+- `s16_lte : S16 -> S16 -> Bool`
 - `s16_neg : S16 -> S16`
 - `s16_add : S16 -> S16 -> S16`
 - `s16_sub : S16 -> S16 -> S16`
 - `s16_mul : S16 -> S16 -> S16`
 - `s16_div : S16 -> S16 -> S16`
+
+- `s32_eq : S32 -> S32 -> Bool`
+- `s32_neq : S32 -> S32 -> Bool`
+- `s32_gt : S32 -> S32 -> Bool`
+- `s32_lt : S32 -> S32 -> Bool`
+- `s32_gte : S32 -> S32 -> Bool`
+- `s32_lte : S32 -> S32 -> Bool`
 - `s32_neg : S32 -> S32`
 - `s32_add : S32 -> S32 -> S32`
 - `s32_sub : S32 -> S32 -> S32`
 - `s32_mul : S32 -> S32 -> S32`
 - `s32_div : S32 -> S32 -> S32`
+
+- `s64_eq : S64 -> S64 -> Bool`
+- `s64_neq : S64 -> S64 -> Bool`
+- `s64_gt : S64 -> S64 -> Bool`
+- `s64_lt : S64 -> S64 -> Bool`
+- `s64_gte : S64 -> S64 -> Bool`
+- `s64_lte : S64 -> S64 -> Bool`
 - `s64_neg : S64 -> S64`
 - `s64_add : S64 -> S64 -> S64`
 - `s64_sub : S64 -> S64 -> S64`
