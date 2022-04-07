@@ -3,10 +3,14 @@ use std::cell::RefCell;
 
 use crate::{StringId, StringInterner};
 use crate::source::ByteRange;
-use crate::surface::{Pattern, Term};
+use crate::surface::{Term, ParseMessage, Pattern};
 use crate::surface::lexer::{Error as LexerError, Token};
 
-grammar<'arena, 'source>(interner: &RefCell<StringInterner>, scope: &'arena Scope<'arena>);
+grammar<'arena, 'source>(
+    interner: &RefCell<StringInterner>,
+    scope: &'arena Scope<'arena>,
+    messages: &mut Vec<ParseMessage>,
+);
 
 extern {
     type Location = usize;
@@ -154,6 +158,10 @@ AtomicTerm: Term<'arena, ByteRange> = {
     },
     <start: @L> "[" <exprs: Seq<Term, ",">> "]" <end: @R> => {
         Term::ArrayLiteral(ByteRange::new(start, end), exprs)
+    },
+    <start: @L> <error: !> <end: @R> => {
+        messages.push(ParseMessage::from(error));
+        Term::ReportedError(ByteRange::new(start, end))
     },
 };
 

@@ -1,0 +1,17 @@
+stdout = ''
+stderr = '''
+error: unexpected token ;
+  ┌─ tests/fail/parse/error-recovery.fathom:3:17
+  │
+3 │ let x : Type = {;
+  │                 ^ unexpected token
+  │
+  = expected "name" or "}"
+
+error: type mismatch
+  ┌─ tests/fail/parse/error-recovery.fathom:5:1
+  │
+5 │ x : Type -> Type
+  │ ^
+
+'''

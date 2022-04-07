@@ -71,6 +71,12 @@ pub enum Error {
 }
 
 impl Error {
+    pub fn range(&self) -> ByteRange {
+        match self {
+            Error::UnexpectedCharacter { range } => *range,
+        }
+    }
+
     pub fn to_diagnostic(&self, file_id: FileId) -> Diagnostic<FileId> {
         match self {
             Error::UnexpectedCharacter { range } => Diagnostic::error()

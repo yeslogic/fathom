@@ -153,18 +153,15 @@ impl<'surface, 'core> Driver<'surface, 'core> {
     }
 
     pub fn elaborate(&mut self, file_id: FileId) -> Status {
-        let surface_term = match self.parse_term(file_id) {
-            Some(term) => term,
-            None => return Status::Error,
-        };
-
+        let (surface_term, parse_diagnostics) = self.parse_term(file_id);
         let mut context = elaboration::Context::new(&self.interner, &self.core_scope);
         let (term, r#type) = context.synth(&surface_term);
         let r#type = context.quote_context(&self.core_scope).quote(&r#type);
 
-        let diagnostics = context
-            .drain_messages()
-            .map(|message| message.to_diagnostic(&self.interner, file_id));
+        let diagnostics = {
+            let elab_messages = context.drain_messages();
+            parse_diagnostics.chain(elab_messages.map(|m| m.to_diagnostic(&self.interner, file_id)))
+        };
 
         if !(self.emit_diagnostics(diagnostics) || self.allow_errors) {
             return Status::Error;
@@ -181,19 +178,16 @@ impl<'surface, 'core> Driver<'surface, 'core> {
     }
 
     pub fn normalise(&mut self, file_id: FileId) -> Status {
-        let surface_term = match self.parse_term(file_id) {
-            Some(term) => term,
-            None => return Status::Error,
-        };
-
+        let (surface_term, parse_diagnostics) = self.parse_term(file_id);
         let mut context = elaboration::Context::new(&self.interner, &self.core_scope);
         let (term, r#type) = context.synth(&surface_term);
         let term = context.eval_context().normalise(&self.core_scope, &term);
         let r#type = context.quote_context(&self.core_scope).quote(&r#type);
 
-        let diagnostics = context
-            .drain_messages()
-            .map(|message| message.to_diagnostic(&self.interner, file_id));
+        let diagnostics = {
+            let elab_messages = context.drain_messages();
+            parse_diagnostics.chain(elab_messages.map(|m| m.to_diagnostic(&self.interner, file_id)))
+        };
 
         if !(self.emit_diagnostics(diagnostics) || self.allow_errors) {
             return Status::Error;
@@ -210,18 +204,15 @@ impl<'surface, 'core> Driver<'surface, 'core> {
     }
 
     pub fn r#type(&mut self, file_id: FileId) -> Status {
-        let surface_term = match self.parse_term(file_id) {
-            Some(term) => term,
-            None => return Status::Error,
-        };
-
+        let (surface_term, parse_diagnostics) = self.parse_term(file_id);
         let mut context = elaboration::Context::new(&self.interner, &self.core_scope);
         let (_, r#type) = context.synth(&surface_term);
         let r#type = context.quote_context(&self.core_scope).quote(&r#type);
 
-        let diagnostics = context
-            .drain_messages()
-            .map(|message| message.to_diagnostic(&self.interner, file_id));
+        let diagnostics = {
+            let elab_messages = context.drain_messages();
+            parse_diagnostics.chain(elab_messages.map(|m| m.to_diagnostic(&self.interner, file_id)))
+        };
 
         if !(self.emit_diagnostics(diagnostics) || self.allow_errors) {
             return Status::Error;
@@ -244,17 +235,14 @@ impl<'surface, 'core> Driver<'surface, 'core> {
         use crate::core::semantics::Value;
         use crate::core::Prim;
 
-        let surface_term = match self.parse_term(file_id) {
-            Some(term) => term,
-            None => return Status::Error,
-        };
-
+        let (surface_term, parse_diagnostics) = self.parse_term(file_id);
         let mut context = elaboration::Context::new(&self.interner, &self.core_scope);
         let format = context.check(&surface_term, &Arc::new(Value::prim(Prim::FormatType, [])));
 
-        let diagnostics = context
-            .drain_messages()
-            .map(|message| message.to_diagnostic(&self.interner, file_id));
+        let diagnostics = {
+            let elab_messages = context.drain_messages();
+            parse_diagnostics.chain(elab_messages.map(|m| m.to_diagnostic(&self.interner, file_id)))
+        };
 
         if !(self.emit_diagnostics(diagnostics) || self.allow_errors) {
             return Status::Error;
@@ -304,15 +292,18 @@ impl<'surface, 'core> Driver<'surface, 'core> {
         Status::Ok
     }
 
-    fn parse_term(&'surface self, file_id: FileId) -> Option<surface::Term<'surface, ByteRange>> {
-        let term_source = self.files.get(file_id).unwrap().source();
-        match surface::Term::parse(&self.interner, &self.surface_scope, term_source) {
-            Ok(term) => Some(term),
-            Err(err) => {
-                self.emit_diagnostics(std::iter::once(err.to_diagnostic(file_id)));
-                None
-            }
-        }
+    fn parse_term(
+        &'surface self,
+        file_id: FileId,
+    ) -> (
+        surface::Term<'surface, ByteRange>,
+        impl Iterator<Item = Diagnostic<FileId>>,
+    ) {
+        let source = self.files.get(file_id).unwrap().source();
+        let (term, messages) = surface::Term::parse(&self.interner, &self.surface_scope, source);
+        let diagnostics = messages.into_iter().map(move |m| m.to_diagnostic(file_id));
+
+        (term, diagnostics)
     }
 
     fn emit_term(&self, term: &surface::Term<'_, ()>) {
