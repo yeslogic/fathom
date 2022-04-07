@@ -9,9 +9,7 @@ use crate::source::{ByteRange, FileId};
 use crate::{StringId, StringInterner};
 
 lalrpop_mod!(grammar, "/surface/grammar.rs");
-// FIXME: This lexer module should be private! LALRPOP's exports are somewhat broken, however.
-//        See: https://github.com/lalrpop/lalrpop/pull/584#issuecomment-856731852
-pub(crate) mod lexer;
+mod lexer;
 pub mod pretty;
 
 pub mod distillation;
@@ -170,37 +168,19 @@ impl<'arena> Term<'arena, ByteRange> {
         interner: &RefCell<StringInterner>,
         scope: &'arena Scope<'arena>,
         source: &'source str,
-    ) -> Result<Term<'arena, ByteRange>, ParseMessage> {
-        use lalrpop_util::ParseError;
+    ) -> (Term<'arena, ByteRange>, Vec<ParseMessage>) {
+        let mut messages = Vec::new();
 
-        grammar::TermParser::new()
-            .parse(interner, scope, lexer::tokens(source))
-            .map_err(|err| match err {
-                ParseError::InvalidToken { location } => ParseMessage::InvalidToken {
-                    range: ByteRange::new(location, location),
-                },
-                ParseError::UnrecognizedEOF { location, expected } => {
-                    ParseMessage::UnrecognizedEof {
-                        range: ByteRange::new(location, location),
-                        expected, // TODO: convert to descriptions?
-                    }
-                }
-                ParseError::UnrecognizedToken {
-                    token: (start, token, end),
-                    expected,
-                } => ParseMessage::UnrecognizedToken {
-                    range: ByteRange::new(start, end),
-                    token: token.description(),
-                    expected,
-                },
-                ParseError::ExtraToken {
-                    token: (start, token, end),
-                } => ParseMessage::ExtraToken {
-                    range: ByteRange::new(start, end),
-                    token: token.description(),
-                },
-                ParseError::User { error } => ParseMessage::Lexer(error),
-            })
+        let term = grammar::TermParser::new()
+            .parse(interner, scope, &mut messages, lexer::tokens(source))
+            .unwrap_or_else(|error| {
+                let message = ParseMessage::from(error);
+                let range = message.range();
+                messages.push(message);
+                Term::ReportedError(range)
+            });
+
+        (term, messages)
     }
 }
 
@@ -227,6 +207,16 @@ pub enum ParseMessage {
 }
 
 impl ParseMessage {
+    pub fn range(&self) -> ByteRange {
+        match self {
+            ParseMessage::Lexer(error) => error.range(),
+            ParseMessage::InvalidToken { range }
+            | ParseMessage::UnrecognizedEof { range, .. }
+            | ParseMessage::UnrecognizedToken { range, .. }
+            | ParseMessage::ExtraToken { range, .. } => *range,
+        }
+    }
+
     pub fn to_diagnostic(&self, file_id: FileId) -> Diagnostic<FileId> {
         match self {
             ParseMessage::Lexer(error) => error.to_diagnostic(file_id),
@@ -255,6 +245,49 @@ impl ParseMessage {
                     Label::primary(file_id, *range).with_message("extra token")
                 ]),
         }
+    }
+}
+
+type LalrpopParseError<'source> =
+    lalrpop_util::ParseError<usize, lexer::Token<'source>, lexer::Error>;
+
+impl From<LalrpopParseError<'_>> for ParseMessage {
+    fn from(error: LalrpopParseError<'_>) -> ParseMessage {
+        match error {
+            LalrpopParseError::InvalidToken { location } => ParseMessage::InvalidToken {
+                range: ByteRange::new(location, location),
+            },
+            LalrpopParseError::UnrecognizedEOF { location, expected } => {
+                ParseMessage::UnrecognizedEof {
+                    range: ByteRange::new(location, location),
+                    expected, // TODO: convert to descriptions?
+                }
+            }
+            LalrpopParseError::UnrecognizedToken {
+                token: (start, token, end),
+                expected,
+            } => ParseMessage::UnrecognizedToken {
+                range: ByteRange::new(start, end),
+                token: token.description(),
+                expected,
+            },
+            LalrpopParseError::ExtraToken {
+                token: (start, token, end),
+            } => ParseMessage::ExtraToken {
+                range: ByteRange::new(start, end),
+                token: token.description(),
+            },
+            LalrpopParseError::User { error } => ParseMessage::Lexer(error),
+        }
+    }
+}
+
+type LalrpopErrorRecovery<'source> =
+    lalrpop_util::ErrorRecovery<usize, lexer::Token<'source>, lexer::Error>;
+
+impl From<LalrpopErrorRecovery<'_>> for ParseMessage {
+    fn from(error: LalrpopErrorRecovery<'_>) -> ParseMessage {
+        ParseMessage::from(error.error) // TODO: Use dropped tokens?
     }
 }
 
