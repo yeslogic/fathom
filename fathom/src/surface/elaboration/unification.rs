@@ -13,7 +13,7 @@
 //! [Unification]: https://en.wikipedia.org/wiki/Unification_(computer_science)
 //! [dale-miller-1991]: https://doi.org/10.1093/logcom/1.4.497
 //! [elaboration-zoo]: https://github.com/AndrasKovacs/elaboration-zoo/
-//! [elaboration-zoo/03-holes]: https://github.com/AndrasKovacs/elaboration-zoo/
+//! [elaboration-zoo/03-holes]: https://github.com/AndrasKovacs/elaboration-zoo/tree/master/03-holes
 
 use scoped_arena::Scope;
 use std::sync::Arc;

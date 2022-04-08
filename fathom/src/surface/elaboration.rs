@@ -1685,7 +1685,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                                     self.push_rigid_param(def_pattern, scrutinee_type.clone());
 
                                     // Check the default expression and any other
-                                    // unreachable equaltions following that.
+                                    // unreachable equations following that.
                                     let default_expr = self.check_match(
                                         true,
                                         match_range,

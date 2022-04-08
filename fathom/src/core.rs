@@ -55,7 +55,7 @@ pub enum Term<'arena> {
     /// The entry information will let us know what rigidly bound parameters to
     /// apply to the flexible variable during [evaluation]. The applied
     /// parameters will correspond to the [function introductions] that will be
-    /// addded to the flexible solution during unification.
+    /// added to the flexible solution during unification.
     ///
     /// We clone the entry information and perform the function eliminations
     /// during evaluation because elaborating to a series of [function
