@@ -11,27 +11,6 @@ let compose : fun (A : _) -> fun (B : _) -> fun (C : _) -> (A -> B) -> (B -> C) 
       fun a => bc (ab a);
 
 
-// Booleans
-
-let Bool : Type
-  = fun (Bool : _) ->
-      fun (true : Bool) ->
-      fun (false : Bool) ->
-        Bool;
-
-let true : Bool
-  = fun Bool => fun true => fun false => true;
-
-let false : Bool
-  = fun Bool => fun true => fun false => false;
-
-
-let not : Bool -> Bool
-  = fun bool =>
-      fun Bool => fun true => fun false =>
-        bool Bool false true;
-
-
 // Natural numbers
 
 let Nat : Type

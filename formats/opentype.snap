@@ -151,12 +151,24 @@ let character_map : _ = {
 };
 let font_header : _ = {
     major_version <- u16be,
+    _major_version <- match (u16_eq major_version 1) {
+        true => {},
+        false => fail,
+    },
     minor_version <- u16be,
     font_revision <- fixed,
     checksum_adjustment <- u32be,
     magic_number <- u32be,
+    _magic_number <- match (u32_eq magic_number 1594834165) {
+        true => {},
+        false => fail,
+    },
     flags <- u16be,
     units_per_em <- u16be,
+    _units_per_em <- match (bool_and (u16_gte units_per_em 16) (u16_lte units_per_em 16384)) {
+        true => {},
+        false => fail,
+    },
     created <- long_date_time,
     modified <- long_date_time,
     glyph_extents <- {
@@ -173,6 +185,10 @@ let font_header : _ = {
 };
 let horizontal_header : _ = {
     major_version <- u16be,
+    _major_version <- match (u16_eq major_version 1) {
+        true => {},
+        false => fail,
+    },
     minor_version <- u16be,
     ascent <- fword,
     descent <- fword,
@@ -293,6 +309,10 @@ let table_record : _ = fun file_start => {
 };
 let table_directory : _ = fun file_start => {
     sfnt_version <- u32be,
+    _sfnt_version <- match (bool_or (u32_eq sfnt_version 65536) (u32_eq sfnt_version 1330926671)) {
+        true => {},
+        false => fail,
+    },
     num_tables <- u16be,
     search_range <- u16be,
     entry_selector <- u16be,

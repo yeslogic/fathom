@@ -5,16 +5,6 @@ A = fun _ => fun _ => fun a => fun _ => a;
 let compose : fun (A : Type) -> fun (B : Type) -> fun (C : Type) -> fun (_ :
 fun (_ : A) -> B) -> fun (_ : fun (_ : B) -> C) -> fun (_ : A) -> C =
 fun _ => fun _ => fun _ => fun ab => fun bc => fun a => bc (ab a);
-let Bool : Type = fun (Bool : _) -> fun (true : Bool) -> fun (false : Bool) ->
-Bool;
-let true : fun (Bool : Type) -> fun (true : Bool) -> fun (false : Bool) ->
-Bool = fun Bool => fun true => fun false => true;
-let false : fun (Bool : Type) -> fun (true : Bool) -> fun (false : Bool) ->
-Bool = fun Bool => fun true => fun false => false;
-let not : fun (_ : fun (Bool : Type) -> fun (true : Bool) -> fun (false :
-Bool) -> Bool) -> fun (Bool : Type) -> fun (true : Bool) -> fun (false :
-Bool) -> Bool =
-fun bool => fun Bool => fun true => fun false => bool Bool false true;
 let Nat : Type = fun (Nat : _) -> fun (succ : fun (_ : Nat) -> Nat) ->
 fun (zero : Nat) -> Nat;
 let zero : fun (Nat : Type) -> fun (succ : fun (_ : Nat) -> Nat) -> fun (zero :
@@ -98,8 +88,7 @@ Type) -> fun (_ : P a1) -> P a0 =
 fun _ => fun a0 => fun a1 => fun p => p (fun a1 => Eq (_ _ a0 a1 p a1) a1 a0) (refl (_ _ a0 a1 p) (_ _ a0 a1 p));
 let id_elim_type : _ = (fun a => a) Type;
 let list1 : fun (List : Type) -> fun (nil : List) -> fun (cons : fun (_ :
-fun (Bool : Type) -> fun (true : Bool) -> fun (false : Bool) -> Bool) ->
-fun (_ : List) -> List) -> List = cons _ (id _ true) (nil _);
+Bool) -> fun (_ : List) -> List) -> List = cons _ (id _ true) (nil _);
 let five : fun (Nat : Type) -> fun (succ : fun (_ : Nat) -> Nat) -> fun (zero :
 Nat) -> Nat = succ (succ (succ (succ (succ zero))));
 let ten : fun (Nat : Type) -> fun (succ : fun (_ : Nat) -> Nat) -> fun (zero :
@@ -115,14 +104,10 @@ P (fun Nat => fun succ => fun zero => succ (succ (succ (succ (succ (succ (succ (
 refl _ _;
 let eq_id_elim_type : fun (P : fun (_ : Type) -> Type) -> fun (_ : P Type) ->
 P Type = refl _ _;
-let eq_id_elim_true : fun (P : fun (_ : fun (Bool : Type) -> fun (true :
-Bool) -> fun (false : Bool) -> Bool) -> Type) -> fun (_ :
-P (fun Bool => fun true => fun false => true)) ->
-P (fun Bool => fun true => fun false => true) = refl _ _;
-let eq_id_elim_false : fun (P : fun (_ : fun (Bool : Type) -> fun (true :
-Bool) -> fun (false : Bool) -> Bool) -> Type) -> fun (_ :
-P (fun Bool => fun true => fun false => false)) ->
-P (fun Bool => fun true => fun false => false) = refl _ _;
+let eq_id_elim_true : fun (P : fun (_ : Bool) -> Type) -> fun (_ : P true) ->
+P true = refl _ _;
+let eq_id_elim_false : fun (P : fun (_ : Bool) -> Type) -> fun (_ : P false) ->
+P false = refl _ _;
 Type : Type
 '''
 stderr = ''

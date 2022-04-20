@@ -143,10 +143,12 @@ pub enum Term<'arena> {
     /// Constants.
     Const(Const),
     /// Constant eliminations.
+    ///
+    /// (head_expr, branches, default_expr)
     ConstElim(
         &'arena Term<'arena>,
         &'arena [(Const, Term<'arena>)],
-        &'arena Term<'arena>,
+        Option<&'arena Term<'arena>>,
     ),
 }
 
