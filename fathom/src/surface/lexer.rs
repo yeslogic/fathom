@@ -24,6 +24,10 @@ pub enum Token<'source> {
     KeywordOverlap,
     #[token("Type")]
     KeywordType,
+    #[token("true")]
+    KeywordTrue,
+    #[token("false")]
+    KeywordFalse,
 
     #[token(":")]
     Colon,
@@ -106,6 +110,8 @@ impl<'source> Token<'source> {
             Token::Hole(_) => "hole",
             Token::StringLiteral(_) => "string literal",
             Token::NumberLiteral(_) => "number literal",
+            Token::KeywordTrue => "true",
+            Token::KeywordFalse => "false",
             Token::KeywordFun => "fun",
             Token::KeywordLet => "let",
             Token::KeywordMatch => "match",

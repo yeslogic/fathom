@@ -27,6 +27,8 @@ extern {
         "match" => Token::KeywordMatch,
         "overlap" => Token::KeywordOverlap,
         "Type" => Token::KeywordType,
+        "true" => Token::KeywordTrue,
+        "false" => Token::KeywordFalse,
 
         ":" => Token::Colon,
         "," => Token::Comma,
@@ -52,6 +54,8 @@ Pattern: Pattern<ByteRange> = {
     <start: @L> "_" <end: @R> => Pattern::Placeholder(ByteRange::new(start, end)),
     <start: @L> <string: StringLiteral> <end: @R> => Pattern::StringLiteral(ByteRange::new(start, end), string),
     <start: @L> <number: NumberLiteral> <end: @R> => Pattern::NumberLiteral(ByteRange::new(start, end), number),
+    <start: @L> "true" <end: @R> => Pattern::BooleanLiteral(ByteRange::new(start, end), true),
+    <start: @L> "false" <end: @R> => Pattern::BooleanLiteral(ByteRange::new(start, end), false),
 };
 
 AnnPattern: (Pattern<ByteRange>, Option<&'arena Term<'arena, ByteRange>>) = {
@@ -136,6 +140,8 @@ AtomicTerm: Term<'arena, ByteRange> = {
     <start: @L> "Type" <end: @R> => Term::Universe(ByteRange::new(start, end)),
     <start: @L> <string: StringLiteral> <end: @R> => Term::StringLiteral(ByteRange::new(start, end), string),
     <start: @L> <number: NumberLiteral> <end: @R> => Term::NumberLiteral(ByteRange::new(start, end), number),
+    <start: @L> "true" <end: @R> => Term::BooleanLiteral(ByteRange::new(start, end), true),
+    <start: @L> "false" <end: @R> => Term::BooleanLiteral(ByteRange::new(start, end), false),
     <start: @L> "{" "}" <end: @R> => Term::UnitLiteral(ByteRange::new(start, end)),
     <start: @L> "{" <fields: NonEmptySeq<(<RangedName> ":" <Term>), ",">> "}" <end: @R> => {
         Term::RecordType(ByteRange::new(start, end), fields)

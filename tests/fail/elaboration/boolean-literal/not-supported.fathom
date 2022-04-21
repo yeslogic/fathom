@@ -1,0 +1,8 @@
+//~ exit-code = 1
+
+let x: U16 = 123;
+
+match x {
+    false => 0,
+    true => 1,
+} : U32

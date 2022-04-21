@@ -85,8 +85,6 @@ impl<'arena> RigidEnv<'arena> {
         def.universe(VoidType);
 
         def.universe(BoolType);
-        def.boolean(BoolTrue, true);
-        def.boolean(BoolFalse, false);
 
         def.universe(U8Type);
         def.universe(U16Type);
@@ -379,13 +377,6 @@ impl<'i, 'arena> RigidEnvBuilder<'i, 'arena> {
 
     fn universe(&mut self, prim: Prim) {
         self.define_prim(prim, self.universe_value())
-    }
-
-    fn boolean(&mut self, prim: Prim, val: bool) {
-        let name = self.name(prim.name());
-        let r#type = Arc::new(Value::prim(Prim::BoolType, []));
-        self.env
-            .push_def(name, Arc::new(Value::Const(Const::Bool(val))), r#type);
     }
 
     fn format(&mut self, prim: Prim) {
@@ -830,13 +821,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
     ) -> (CheckedPattern, ArcValue<'arena>) {
         match pattern {
             Pattern::Name(range, name) => {
-                let checked_pattern = match self.interner.borrow().resolve(*name) {
-                    Some("true") => CheckedPattern::Const(*range, Const::Bool(true)),
-                    Some("false") => CheckedPattern::Const(*range, Const::Bool(false)),
-                    Some(_) | None => CheckedPattern::Name(*range, *name),
-                };
-
-                (checked_pattern, expected_type.clone())
+                (CheckedPattern::Name(*range, *name), expected_type.clone())
             }
             Pattern::Placeholder(range) => {
                 (CheckedPattern::Placeholder(*range), expected_type.clone())
@@ -911,6 +896,31 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                     }
                 }
             }
+            Pattern::BooleanLiteral(range, boolean) => {
+                let constant = match expected_type.match_prim_spine() {
+                    Some((Prim::BoolType, [])) => match *boolean {
+                        true => Some(Const::Bool(true)),
+                        false => Some(Const::Bool(false)),
+                    },
+                    _ => {
+                        self.push_message(Message::BooleanLiteralNotSupported { range: *range });
+                        None
+                    }
+                };
+
+                match constant {
+                    Some(constant) => (
+                        CheckedPattern::Const(*range, constant),
+                        expected_type.clone(),
+                    ),
+                    None => {
+                        let source = FlexSource::ReportedErrorType(*range);
+                        let r#type = self.push_flexible_value(source, Arc::new(Value::Universe));
+
+                        (CheckedPattern::ReportedError(*range), r#type)
+                    }
+                }
+            }
         }
     }
 
@@ -941,6 +951,11 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 let source = FlexSource::ReportedErrorType(*range);
                 let r#type = self.push_flexible_value(source, Arc::new(Value::Universe));
                 (CheckedPattern::ReportedError(*range), r#type)
+            }
+            Pattern::BooleanLiteral(range, val) => {
+                let r#const = Const::Bool(*val);
+                let r#type = Arc::new(Value::prim(Prim::BoolType, []));
+                (CheckedPattern::Const(*range, r#const), r#type)
             }
         }
     }
@@ -1547,6 +1562,10 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
             Term::NumberLiteral(range, _) => {
                 self.push_message(Message::AmbiguousNumericLiteral { range: *range });
                 self.synth_reported_error(*range)
+            }
+            Term::BooleanLiteral(_range, val) => {
+                let bool_type = Arc::new(Value::prim(Prim::BoolType, []));
+                (core::Term::Const(Const::Bool(*val)), bool_type)
             }
             Term::FormatRecord(range, format_fields) => {
                 let format_type = Arc::new(Value::prim(Prim::FormatType, []));
