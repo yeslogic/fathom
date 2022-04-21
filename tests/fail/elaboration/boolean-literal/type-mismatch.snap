@@ -1,0 +1,9 @@
+stdout = ''
+stderr = '''
+error: type mismatch
+  ┌─ tests/fail/elaboration/boolean-literal/type-mismatch.fathom:3:1
+  │
+3 │ true : Void
+  │ ^^^^
+
+'''

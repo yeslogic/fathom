@@ -81,6 +81,9 @@ pub enum Message {
     AmbiguousNumericLiteral {
         range: ByteRange,
     },
+    BooleanLiteralNotSupported {
+        range: ByteRange,
+    },
     /// Unification errors.
     FailedToUnify {
         range: ByteRange,
@@ -301,6 +304,9 @@ impl Message {
                 .with_labels(vec![
                     Label::primary(file_id, *range).with_message("type annotations needed")
                 ]),
+            Message::BooleanLiteralNotSupported { range } => Diagnostic::error()
+                .with_message("boolean literal not supported for expected type")
+                .with_labels(vec![Label::primary(file_id, *range)]),
             Message::FailedToUnify { range, error } => {
                 use unification::{Error, RenameError, SpineError};
 

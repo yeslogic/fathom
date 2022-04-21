@@ -43,6 +43,10 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
             Pattern::Name(_, name) => self.string_id(*name),
             Pattern::StringLiteral(_, number) => self.string_id(*number),
             Pattern::NumberLiteral(_, number) => self.string_id(*number),
+            Pattern::BooleanLiteral(_, boolean) => match *boolean {
+                true => self.text("true"),
+                false => self.text("false"),
+            },
         }
     }
 
@@ -225,6 +229,10 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 self.concat([self.text("\""), self.string_id(*number), self.text("\"")])
             }
             Term::NumberLiteral(_, number) => self.string_id(*number),
+            Term::BooleanLiteral(_, boolean) => match *boolean {
+                true => self.text("true"),
+                false => self.text("false"),
+            },
             Term::FormatRecord(_, format_fields) => self.sequence(
                 self.text("{"),
                 format_fields.iter().map(|((_, label), format)| {

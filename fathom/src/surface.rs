@@ -32,6 +32,8 @@ pub enum Pattern<Range> {
     /// As with [term literals][Term::NumberLiteral], these will be parsed fully
     /// during [elaboration].
     NumberLiteral(Range, StringId),
+    /// Boolean literal patterns
+    BooleanLiteral(Range, bool),
     // TODO: Record literal patterns
     // RecordLiteral(Range, &'arena [((ByteRange, StringId), Pattern<'arena, Range>)]),
 }
@@ -42,7 +44,8 @@ impl<Range: Clone> Pattern<Range> {
             Pattern::Name(range, _)
             | Pattern::Placeholder(range)
             | Pattern::StringLiteral(range, _)
-            | Pattern::NumberLiteral(range, _) => range.clone(),
+            | Pattern::NumberLiteral(range, _)
+            | Pattern::BooleanLiteral(range, _) => range.clone(),
         }
     }
 }
@@ -124,6 +127,8 @@ pub enum Term<'arena, Range> {
     /// These are stored as strings, and will be parsed during [elaboration]
     /// once the target type is known.
     NumberLiteral(Range, StringId),
+    /// Boolean literals.
+    BooleanLiteral(Range, bool),
     /// Record format.
     FormatRecord(Range, &'arena [((Range, StringId), Term<'arena, Range>)]),
     /// Overlap format.
@@ -154,6 +159,7 @@ impl<'arena, Range: Clone> Term<'arena, Range> {
             | Term::ArrayLiteral(range, _)
             | Term::StringLiteral(range, _)
             | Term::NumberLiteral(range, _)
+            | Term::BooleanLiteral(range, _)
             | Term::FormatRecord(range, _)
             | Term::FormatOverlap(range, _)
             | Term::ReportedError(range) => range.clone(),
