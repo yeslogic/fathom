@@ -181,9 +181,11 @@ impl<'arena> Split<'arena> {
     }
 }
 
+pub type Branch<'arena> = (Const, ArcValue<'arena>);
+
 #[derive(Clone, Debug)]
 pub enum SplitConstBranches<'arena> {
-    Const(Const, ArcValue<'arena>, Split<'arena>),
+    Branch(Branch<'arena>, Split<'arena>),
     Default(Closure<'arena>),
     None,
 }
@@ -578,7 +580,7 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
                 const_branches.branches = branches;
                 let mut context =
                     EvalContext::new(&mut const_branches.rigid_exprs, self.flexible_exprs);
-                SplitConstBranches::Const(*r#const, context.eval(output_expr), const_branches)
+                SplitConstBranches::Branch((*r#const, context.eval(output_expr)), const_branches)
             }
             None => match const_branches.default_expr {
                 Some(default_expr) => SplitConstBranches::Default(Closure::new(
@@ -805,7 +807,7 @@ impl<'in_arena, 'out_arena, 'env> QuoteContext<'in_arena, 'out_arena, 'env> {
 
                         let default_expr = loop {
                             match self.elim_context().split_const_branches(split) {
-                                SplitConstBranches::Const(r#const, output_expr, next_split) => {
+                                SplitConstBranches::Branch((r#const, output_expr), next_split) => {
                                     branches.push((r#const, self.quote(&output_expr)));
                                     split = next_split;
                                 }
@@ -1084,8 +1086,8 @@ impl<'arena, 'env> ConversionContext<'arena, 'env> {
                 self.elim_context().split_const_branches(split1),
             ) {
                 (
-                    SplitConstBranches::Const(const0, output_expr0, next_split0),
-                    SplitConstBranches::Const(const1, output_expr1, next_split1),
+                    SplitConstBranches::Branch((const0, output_expr0), next_split0),
+                    SplitConstBranches::Branch((const1, output_expr1), next_split1),
                 ) if const0 == const1 && self.is_equal(&output_expr0, &output_expr1) => {
                     split0 = next_split0;
                     split1 = next_split1;

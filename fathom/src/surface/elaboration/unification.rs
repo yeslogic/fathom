@@ -504,7 +504,10 @@ impl<'arena, 'env> Context<'arena, 'env> {
 
                             let default_expr = loop {
                                 match self.elim_context().split_const_branches(split) {
-                                    SplitConstBranches::Const(r#const, output_expr, next_split) => {
+                                    SplitConstBranches::Branch(
+                                        (r#const, output_expr),
+                                        next_split,
+                                    ) => {
                                         branches.push((
                                             r#const,
                                             self.rename(flexible_var, &output_expr)?,
