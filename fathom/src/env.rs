@@ -7,12 +7,12 @@
 //! combination of [de Bruijn indices][LocalVar] in terms and [de Bruijn
 //! levels][GlobalVar] in values in order to avoid the expensive and error-prone
 //! shifting operations that are often associated with nameless approaches to
-//! environments. For mor information on this approach, see section 3.1 of
+//! environments. For more information on this approach, see section 3.1 of
 //! [Abel's habilitation thesis](https://www.cse.chalmers.se/~abela/habil.pdf).
 //!
 //! # Environments
 //!
-//! A number of different environment representations are used - where possible
+//! A number of different environment representations are used. Where possible
 //! we try to stick to flat, low-indirection environments like [`UniqueEnv`]
 //! and [`SliceEnv`], but when we need to copy environments often, we use a
 //! [`SharedEnv`] to increase the amount of sharing at the expense of locality.
@@ -24,7 +24,9 @@ type RawVar = u16;
 
 /// A [de Bruijn index], which represents a variable counting the number of
 /// binders between a variable occurrence and the binder that introduced the
-/// variable. For example:
+/// variable.
+///
+/// For example:
 ///
 /// | Representation    | Example (S combinator)  |
 /// | ----------------- | ----------------------- |

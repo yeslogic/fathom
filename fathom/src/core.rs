@@ -55,7 +55,7 @@ pub enum Term<'arena> {
     /// The entry information will let us know what rigidly bound parameters to
     /// apply to the flexible variable during [evaluation]. The applied
     /// parameters will correspond to the [function introductions] that will be
-    /// addded to the flexible solution during unification.
+    /// added to the flexible solution during unification.
     ///
     /// We clone the entry information and perform the function eliminations
     /// during evaluation because elaborating to a series of [function
@@ -143,10 +143,12 @@ pub enum Term<'arena> {
     /// Constants.
     Const(Const),
     /// Constant eliminations.
+    ///
+    /// (head_expr, branches, default_expr)
     ConstElim(
         &'arena Term<'arena>,
         &'arena [(Const, Term<'arena>)],
-        &'arena Term<'arena>,
+        Option<&'arena Term<'arena>>,
     ),
 }
 
@@ -402,7 +404,7 @@ def_prims! {
 }
 
 /// Constants
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, PartialOrd)]
 pub enum Const {
     Bool(bool),
     U8(u8),

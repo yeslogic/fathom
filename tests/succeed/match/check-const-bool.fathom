@@ -1,0 +1,6 @@
+let x : Bool = false;
+
+match x {
+    false => 0,
+    x => 1,
+} : U8

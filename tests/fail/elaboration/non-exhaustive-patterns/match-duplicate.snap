@@ -1,0 +1,19 @@
+stdout = ''
+stderr = '''
+warning: unreachable pattern
+  ┌─ tests/fail/elaboration/non-exhaustive-patterns/match-duplicate.fathom:5:3
+  │
+5 │   true => 2
+  │   ^^^^
+
+error: non-exhaustive patterns in match expression
+  ┌─ tests/fail/elaboration/non-exhaustive-patterns/match-duplicate.fathom:3:7
+  │  
+3 │ ╭ match true {
+  │         ^^^^ patterns not covered
+4 │ │   true => 1,
+5 │ │   true => 2
+6 │ │ } : U32
+  │ ╰─' in match expression
+
+'''

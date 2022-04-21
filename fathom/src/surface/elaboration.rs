@@ -557,6 +557,7 @@ impl<'arena> FlexibleEnv<'arena> {
     }
 }
 
+#[derive(Debug)]
 enum CheckedPattern {
     Name(ByteRange, StringId),
     Placeholder(ByteRange),
@@ -601,12 +602,11 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
     }
 
     /// Lookup a name in the context.
-    fn get_name(&self, name: StringId) -> Option<(core::Term<'arena>, &ArcValue<'arena>)> {
+    fn get_name(&self, name: StringId) -> Option<(env::LocalVar, &ArcValue<'arena>)> {
         let rigid_types = Iterator::zip(env::local_vars(), self.rigid_env.types.iter().rev());
 
-        Iterator::zip(self.rigid_env.names.iter().copied().rev(), rigid_types).find_map(
-            |(n, (var, r#type))| (Some(name) == n).then(|| (core::Term::RigidVar(var), r#type)),
-        )
+        Iterator::zip(self.rigid_env.names.iter().copied().rev(), rigid_types)
+            .find_map(|(n, (var, r#type))| (Some(name) == n).then(|| (var, r#type)))
     }
 
     /// Push an unsolved flexible binder onto the context.
@@ -830,7 +830,13 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
     ) -> (CheckedPattern, ArcValue<'arena>) {
         match pattern {
             Pattern::Name(range, name) => {
-                (CheckedPattern::Name(*range, *name), expected_type.clone())
+                let checked_pattern = match self.interner.borrow().resolve(*name) {
+                    Some("true") => CheckedPattern::Const(*range, Const::Bool(true)),
+                    Some("false") => CheckedPattern::Const(*range, Const::Bool(false)),
+                    Some(_) | None => CheckedPattern::Name(*range, *name),
+                };
+
+                (checked_pattern, expected_type.clone())
             }
             Pattern::Placeholder(range) => {
                 (CheckedPattern::Placeholder(*range), expected_type.clone())
@@ -1248,7 +1254,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
     ) -> (core::Term<'arena>, ArcValue<'arena>) {
         match surface_term {
             Term::Name(range, name) => match self.get_name(*name) {
-                Some((term, r#type)) => (term, r#type.clone()),
+                Some((term, r#type)) => (core::Term::RigidVar(term), r#type.clone()),
                 None => {
                     self.push_message(Message::UnboundName {
                         range: *range,
@@ -1661,6 +1667,10 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                     CheckedPattern::Const(_, _) => {
                         // Temporary vector for accumulating branches
                         let mut branches = Vec::new();
+                        let num_constructors = match scrutinee_type.match_prim_spine() {
+                            Some((Prim::BoolType, [])) => Some(2),
+                            _ => None,
+                        };
 
                         // Collect a run of constant patterns
                         while let Some(((pattern, output_expr), next_equations)) =
@@ -1671,9 +1681,26 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                                 // Accumulate constant pattern
                                 CheckedPattern::Const(_, r#const) => {
                                     let output_term = self.check(output_expr, expected_type);
-                                    // TODO: push in order
-                                    // TODO: check for/avoid duplicates
-                                    branches.push((r#const, output_term));
+                                    // Find insertion index
+                                    let res = branches.binary_search_by(
+                                        |(probe_const, _term): &(Const, _)| {
+                                            probe_const
+                                                .partial_cmp(&r#const)
+                                                .expect("attempt to compare non-ordered value")
+                                        },
+                                    );
+                                    match res {
+                                        Ok(_index) => {
+                                            // this is a duplicate branch
+                                            self.push_message(Message::UnreachablePattern {
+                                                range: pattern.range(),
+                                            });
+                                        }
+                                        Err(index) => {
+                                            branches.insert(index, (r#const, output_term))
+                                        }
+                                    }
+
                                     equations = next_equations;
                                 }
 
@@ -1685,7 +1712,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                                     self.push_rigid_param(def_pattern, scrutinee_type.clone());
 
                                     // Check the default expression and any other
-                                    // unreachable equaltions following that.
+                                    // unreachable equations following that.
                                     let default_expr = self.check_match(
                                         true,
                                         match_range,
@@ -1701,10 +1728,19 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                                     return core::Term::ConstElim(
                                         scrutinee_expr,
                                         self.scope.to_scope_from_iter(branches.into_iter()),
-                                        self.scope.to_scope(default_expr),
+                                        Some(self.scope.to_scope(default_expr)),
                                     );
                                 }
                             }
+                        }
+
+                        if num_constructors == Some(branches.len()) {
+                            // The absence of a default constructor is ok as the match was exhaustive.
+                            return core::Term::ConstElim(
+                                scrutinee_expr,
+                                self.scope.to_scope_from_iter(branches.into_iter()),
+                                None,
+                            );
                         }
 
                         if is_reachable {

@@ -1,0 +1,4 @@
+stdout = '''
+let x : Bool = false; match x { false => 0, _ => let x : Bool = _; 1 } : U8
+'''
+stderr = ''

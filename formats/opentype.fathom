@@ -635,6 +635,7 @@ let character_map = {
 let font_header = {
     /// Major version number of the font header table.
     major_version <- u16be, // TODO: where major_version == 1
+    _major_version <- match (u16_eq major_version 1) { true => {}, false => fail },
     /// Minor version number of the font header table.
     minor_version <- u16be, // TODO: where minor_version == 0
     /// Set by the font manufacturer.
@@ -646,12 +647,17 @@ let font_header = {
     checksum_adjustment <- u32be,
     // TODO: document the purpose of this magic number
     magic_number <- u32be, // TODO: where magic_number == 0x5F0F3CF5
+    _magic_number <- match (u32_eq magic_number 0x5F0F3CF5) { true => {}, false => fail },
     /// General font flags.
     ///
     // TODO: Document flags
     flags <- u16be,  // TODO: bit patterns?
     /// The granularity of the font's coordinate grid.
     units_per_em <- u16be, // TODO: where units_per_em in 16 to 16384
+    _units_per_em <- match (bool_and (u16_gte units_per_em 16) (u16_lte units_per_em 16384)) {
+      true => {},
+      false => fail
+    },
     /// The date when the font was created.
     created <- long_date_time,
     /// The date when the font was modified.
@@ -736,6 +742,7 @@ let font_header = {
 let horizontal_header = {
     /// Major version number of the horizontal header table.
     major_version <- u16be, // TODO: where major_version == 1
+    _major_version <- match (u16_eq major_version 1) { true => {}, false => fail },
     /// Minor version number of the horizontal header table.
     minor_version <- u16be, // TODO: where minor_version == 0
     /// Distance from the baseline to the highest ascender.
@@ -1154,10 +1161,6 @@ let font_table = fun (table_id : Repr tag) => match table_id {
     // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#tables-related-to-color-fonts
     "COLR" => unknown_table,
     "CPAL" => unknown_table,
-    "CBDT" => unknown_table,
-    "CBLC" => unknown_table,
-    "sbix" => unknown_table,
-    "SVG " => unknown_table,
 
     // Other OpenType Tables
     //
@@ -1168,7 +1171,6 @@ let font_table = fun (table_id : Repr tag) => match table_id {
     "LTSH" => unknown_table,
     "MERG" => unknown_table,
     "meta" => unknown_table,
-    "STAT" => unknown_table,
     "PCLT" => unknown_table,
     "VDMX" => unknown_table,
     "vhea" => unknown_table,
@@ -1221,6 +1223,10 @@ let table_directory = fun (file_start : Pos) => {
     ///
     /// Apple allows 'true' and 'typ1', but this should not be found in OpenType files.
     sfnt_version <- u32be,       // TODO: where sfnt_version == 0x00010000 || sfnt_version == 'OTTO',
+    _sfnt_version <- match (bool_or (u32_eq sfnt_version 0x00010000) (u32_eq sfnt_version "OTTO")) {
+      true => {},
+      false => fail
+    },
     /// Number of tables in the directory.
     num_tables <- u16be,
     /// For enabling quick binary searches.

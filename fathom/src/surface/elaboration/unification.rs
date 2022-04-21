@@ -13,13 +13,15 @@
 //! [Unification]: https://en.wikipedia.org/wiki/Unification_(computer_science)
 //! [dale-miller-1991]: https://doi.org/10.1093/logcom/1.4.497
 //! [elaboration-zoo]: https://github.com/AndrasKovacs/elaboration-zoo/
-//! [elaboration-zoo/03-holes]: https://github.com/AndrasKovacs/elaboration-zoo/
+//! [elaboration-zoo/03-holes]: https://github.com/AndrasKovacs/elaboration-zoo/tree/master/03-holes
 
 use scoped_arena::Scope;
 use std::sync::Arc;
 
 use crate::alloc::SliceVec;
-use crate::core::semantics::{self, ArcValue, Closure, Elim, Head, Telescope, Value};
+use crate::core::semantics::{
+    self, ArcValue, Closure, Elim, Head, SplitConstBranches, Telescope, Value,
+};
 use crate::core::{Prim, Term};
 use crate::env::{EnvLen, GlobalVar, LocalVar, SharedEnv, SliceEnv, UniqueEnv};
 use crate::StringId;
@@ -502,15 +504,23 @@ impl<'arena, 'env> Context<'arena, 'env> {
 
                             let default_expr = loop {
                                 match self.elim_context().split_const_branches(split) {
-                                    Ok(((r#const, output_expr), next_split)) => {
+                                    SplitConstBranches::Branch(
+                                        (r#const, output_expr),
+                                        next_split,
+                                    ) => {
                                         branches.push((
                                             r#const,
                                             self.rename(flexible_var, &output_expr)?,
                                         ));
                                         split = next_split;
                                     }
-                                    Err(default_expr) => {
-                                        break self.rename_closure(flexible_var, &default_expr)?;
+                                    SplitConstBranches::Default(default_expr) => {
+                                        break Some(
+                                            self.rename_closure(flexible_var, &default_expr)?,
+                                        );
+                                    }
+                                    SplitConstBranches::None => {
+                                        break None;
                                     }
                                 }
                             };
@@ -518,7 +528,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
                             Term::ConstElim(
                                 self.scope.to_scope(head_expr?),
                                 branches.into(),
-                                self.scope.to_scope(default_expr),
+                                default_expr.map(|expr| self.scope.to_scope(expr) as &_),
                             )
                         }
                     })
