@@ -668,7 +668,6 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
                     Some(default_expr) => {
                         EvalContext::new(&mut rigid_exprs, self.flexible_exprs).eval(default_expr)
                     }
-                    // FIXME: https://github.com/yeslogic/fathom/issues/340
                     None => panic_any(Error::MissingConstDefault),
                 }
             }

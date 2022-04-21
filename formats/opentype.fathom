@@ -1161,10 +1161,6 @@ let font_table = fun (table_id : Repr tag) => match table_id {
     // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#tables-related-to-color-fonts
     "COLR" => unknown_table,
     "CPAL" => unknown_table,
-    "CBDT" => unknown_table,
-    "CBLC" => unknown_table,
-    "sbix" => unknown_table,
-    "SVG " => unknown_table,
 
     // Other OpenType Tables
     //
@@ -1175,7 +1171,6 @@ let font_table = fun (table_id : Repr tag) => match table_id {
     "LTSH" => unknown_table,
     "MERG" => unknown_table,
     "meta" => unknown_table,
-    "STAT" => unknown_table,
     "PCLT" => unknown_table,
     "VDMX" => unknown_table,
     "vhea" => unknown_table,

@@ -1681,9 +1681,26 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                                 // Accumulate constant pattern
                                 CheckedPattern::Const(_, r#const) => {
                                     let output_term = self.check(output_expr, expected_type);
-                                    // TODO: push in order
-                                    // TODO: check for/avoid duplicates
-                                    branches.push((r#const, output_term));
+                                    // Find insertion index
+                                    let res = branches.binary_search_by(
+                                        |(probe_const, _term): &(Const, _)| {
+                                            probe_const
+                                                .partial_cmp(&r#const)
+                                                .expect("attempt to compare non-ordered value")
+                                        },
+                                    );
+                                    match res {
+                                        Ok(_index) => {
+                                            // this is a duplicate branch
+                                            self.push_message(Message::UnreachablePattern {
+                                                range: pattern.range(),
+                                            });
+                                        }
+                                        Err(index) => {
+                                            branches.insert(index, (r#const, output_term))
+                                        }
+                                    }
+
                                     equations = next_equations;
                                 }
 
@@ -1717,9 +1734,6 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                             }
                         }
 
-                        // TODO: Make this smarter
-                        // Currently any matching number of branches is enough to satisfy this, even
-                        // if they all match the same value.
                         if num_constructors == Some(branches.len()) {
                             // The absence of a default constructor is ok as the match was exhaustive.
                             return core::Term::ConstElim(

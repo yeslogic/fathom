@@ -1,0 +1,6 @@
+//~ exit-code = 1
+
+match true {
+  true => 1,
+  true => 2
+} : U32

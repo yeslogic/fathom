@@ -404,7 +404,7 @@ def_prims! {
 }
 
 /// Constants
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, PartialOrd)]
 pub enum Const {
     Bool(bool),
     U8(u8),
