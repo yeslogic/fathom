@@ -403,14 +403,23 @@ def_prims! {
     PosAddU64 => "pos_add_u64",
 }
 
+/// Formatting style for integers
+#[derive(Debug, Copy, Clone, PartialEq, PartialOrd)]
+pub enum IntStyle {
+    Binary,
+    Decimal,
+    Hexadecimal,
+    Ascii,
+}
+
 /// Constants
 #[derive(Debug, Copy, Clone, PartialEq, PartialOrd)]
 pub enum Const {
     Bool(bool),
-    U8(u8),
-    U16(u16),
-    U32(u32),
-    U64(u64),
+    U8(u8, IntStyle),
+    U16(u16, IntStyle),
+    U32(u32, IntStyle),
+    U64(u64, IntStyle),
     S8(i8),
     S16(i16),
     S32(i32),
@@ -420,6 +429,50 @@ pub enum Const {
     F64(f64),
     Pos(u64),
     Ref(u64),
+}
+
+pub trait ToBeBytes<const N: usize> {
+    fn to_be_bytes(self) -> [u8; N];
+}
+
+macro_rules! impl_styled_int {
+    ($($ty:ty),*) => {
+        $(
+        impl ToBeBytes<{std::mem::size_of::<$ty>()}> for &$ty {
+            fn to_be_bytes(self) -> [u8; std::mem::size_of::<$ty>()] {
+                <$ty>::to_be_bytes(*self)
+            }
+        }
+
+        impl Styled<{std::mem::size_of::<$ty>()}> for &$ty {}
+        )*
+    };
+}
+
+impl_styled_int!(u8, u16, u32, u64);
+
+pub trait Styled<const N: usize>:
+    std::fmt::Display + Copy + std::fmt::LowerHex + std::fmt::Binary + ToBeBytes<N>
+{
+}
+
+impl IntStyle {
+    pub fn format<T: Styled<N>, const N: usize>(&self, number: T) -> String {
+        match self {
+            IntStyle::Binary => format! {"0b{:b}", number},
+            IntStyle::Decimal => number.to_string(),
+            IntStyle::Hexadecimal => format! {"0x{:x}", number},
+            IntStyle::Ascii => {
+                let bytes = number.to_be_bytes();
+                if bytes.iter().all(|c| c.is_ascii() && !c.is_ascii_control()) {
+                    let s = std::str::from_utf8(&bytes).unwrap(); // unwrap safe due to above check
+                    format!("\"{}\"", s)
+                } else {
+                    format! {"0x{:x}", number}
+                }
+            }
+        }
+    }
 }
 
 #[cfg(test)]

@@ -6,7 +6,7 @@ use std::panic::panic_any;
 use std::sync::Arc;
 
 use crate::alloc::SliceVec;
-use crate::core::{Const, EntryInfo, Prim, Term};
+use crate::core::{Const, EntryInfo, IntStyle, Prim, Term};
 use crate::env::{EnvLen, GlobalVar, SharedEnv, SliceEnv};
 use crate::StringId;
 
@@ -357,7 +357,7 @@ macro_rules! step {
 macro_rules! const_step {
     ([$($input:ident : $Input:ident),*] => $output:expr) => {
         step!(_, [$($input),*] => match ($($input.as_ref(),)*) {
-            ($(Value::Const(Const::$Input($input)),)*) => Arc::new(Value::Const($output)),
+            ($(Value::Const(Const::$Input($input, ..)),)*) => Arc::new(Value::Const($output)),
             _ => return None,
         })
     };
@@ -384,16 +384,16 @@ fn prim_step(prim: Prim) -> Option<PrimStep> {
         Prim::U8Lt => const_step!([x: U8, y: U8] => Const::Bool(x < y)),
         Prim::U8Gte => const_step!([x: U8, y: U8] => Const::Bool(x >= y)),
         Prim::U8Lte => const_step!([x: U8, y: U8] => Const::Bool(x <= y)),
-        Prim::U8Add => const_step!([x: U8, y: U8] => Const::U8(u8::checked_add(*x, *y)?)),
-        Prim::U8Sub => const_step!([x: U8, y: U8] => Const::U8(u8::checked_sub(*x, *y)?)),
-        Prim::U8Mul => const_step!([x: U8, y: U8] => Const::U8(u8::checked_mul(*x, *y)?)),
-        Prim::U8Div => const_step!([x: U8, y: U8] => Const::U8(u8::checked_div(*x, *y)?)),
-        Prim::U8Not => const_step!([x: U8] => Const::U8(u8::not(*x))),
-        Prim::U8Shl => const_step!([x: U8, y: U8] => Const::U8(u8::checked_shl(*x, u32::from(*y))?)),
-        Prim::U8Shr => const_step!([x: U8, y: U8] => Const::U8(u8::checked_shr(*x, u32::from(*y))?)),
-        Prim::U8And => const_step!([x: U8, y: U8] => Const::U8(u8::bitand(*x, *y))),
-        Prim::U8Or => const_step!([x: U8, y: U8] => Const::U8(u8::bitor(*x, *y))),
-        Prim::U8Xor => const_step!([x: U8, y: U8] => Const::U8(u8::bitxor(*x, *y))),
+        Prim::U8Add => const_step!([x: U8, y: U8] => Const::U8(u8::checked_add(*x, *y)?, IntStyle::Decimal)), // TODO: Carry format across op?
+        Prim::U8Sub => const_step!([x: U8, y: U8] => Const::U8(u8::checked_sub(*x, *y)?, IntStyle::Decimal)), // TODO: Carry format across op?
+        Prim::U8Mul => const_step!([x: U8, y: U8] => Const::U8(u8::checked_mul(*x, *y)?, IntStyle::Decimal)), // TODO: Carry format across op?
+        Prim::U8Div => const_step!([x: U8, y: U8] => Const::U8(u8::checked_div(*x, *y)?, IntStyle::Decimal)), // TODO: Carry format across op?
+        Prim::U8Not => const_step!([x: U8] => Const::U8(u8::not(*x), IntStyle::Decimal)),
+        Prim::U8Shl => const_step!([x: U8, y: U8] => Const::U8(u8::checked_shl(*x, u32::from(*y))?, IntStyle::Decimal)),
+        Prim::U8Shr => const_step!([x: U8, y: U8] => Const::U8(u8::checked_shr(*x, u32::from(*y))?, IntStyle::Decimal)),
+        Prim::U8And => const_step!([x: U8, y: U8] => Const::U8(u8::bitand(*x, *y), IntStyle::Decimal)),
+        Prim::U8Or => const_step!([x: U8, y: U8] => Const::U8(u8::bitor(*x, *y), IntStyle::Decimal)),
+        Prim::U8Xor => const_step!([x: U8, y: U8] => Const::U8(u8::bitxor(*x, *y), IntStyle::Decimal)),
 
         Prim::U16Eq => const_step!([x: U16, y: U16] => Const::Bool(x == y)),
         Prim::U16Neq => const_step!([x: U16, y: U16] => Const::Bool(x != y)),
@@ -401,16 +401,16 @@ fn prim_step(prim: Prim) -> Option<PrimStep> {
         Prim::U16Lt => const_step!([x: U16, y: U16] => Const::Bool(x < y)),
         Prim::U16Gte => const_step!([x: U16, y: U16] => Const::Bool(x >= y)),
         Prim::U16Lte => const_step!([x: U16, y: U16] => Const::Bool(x <= y)),
-        Prim::U16Add => const_step!([x: U16, y: U16] => Const::U16(u16::checked_add(*x, *y)?)),
-        Prim::U16Sub => const_step!([x: U16, y: U16] => Const::U16(u16::checked_sub(*x, *y)?)),
-        Prim::U16Mul => const_step!([x: U16, y: U16] => Const::U16(u16::checked_mul(*x, *y)?)),
-        Prim::U16Div => const_step!([x: U16, y: U16] => Const::U16(u16::checked_div(*x, *y)?)),
-        Prim::U16Not => const_step!([x: U16] => Const::U16(u16::not(*x))),
-        Prim::U16Shl => const_step!([x: U16, y: U8] => Const::U16(u16::checked_shl(*x, u32::from(*y))?)),
-        Prim::U16Shr => const_step!([x: U16, y: U8] => Const::U16(u16::checked_shr(*x, u32::from(*y))?)),
-        Prim::U16And => const_step!([x: U16, y: U16] => Const::U16(u16::bitand(*x, *y))),
-        Prim::U16Or => const_step!([x: U16, y: U16] => Const::U16(u16::bitor(*x, *y))),
-        Prim::U16Xor => const_step!([x: U16, y: U16] => Const::U16(u16::bitxor(*x, *y))),
+        Prim::U16Add => const_step!([x: U16, y: U16] => Const::U16(u16::checked_add(*x, *y)?, IntStyle::Decimal)),
+        Prim::U16Sub => const_step!([x: U16, y: U16] => Const::U16(u16::checked_sub(*x, *y)?, IntStyle::Decimal)),
+        Prim::U16Mul => const_step!([x: U16, y: U16] => Const::U16(u16::checked_mul(*x, *y)?, IntStyle::Decimal)),
+        Prim::U16Div => const_step!([x: U16, y: U16] => Const::U16(u16::checked_div(*x, *y)?, IntStyle::Decimal)),
+        Prim::U16Not => const_step!([x: U16] => Const::U16(u16::not(*x), IntStyle::Decimal)),
+        Prim::U16Shl => const_step!([x: U16, y: U8] => Const::U16(u16::checked_shl(*x, u32::from(*y))?, IntStyle::Decimal)),
+        Prim::U16Shr => const_step!([x: U16, y: U8] => Const::U16(u16::checked_shr(*x, u32::from(*y))?, IntStyle::Decimal)),
+        Prim::U16And => const_step!([x: U16, y: U16] => Const::U16(u16::bitand(*x, *y), IntStyle::Decimal)),
+        Prim::U16Or => const_step!([x: U16, y: U16] => Const::U16(u16::bitor(*x, *y), IntStyle::Decimal)),
+        Prim::U16Xor => const_step!([x: U16, y: U16] => Const::U16(u16::bitxor(*x, *y), IntStyle::Decimal)),
 
         Prim::U32Eq => const_step!([x: U32, y: U32] => Const::Bool(x == y)),
         Prim::U32Neq => const_step!([x: U32, y: U32] => Const::Bool(x != y)),
@@ -418,16 +418,16 @@ fn prim_step(prim: Prim) -> Option<PrimStep> {
         Prim::U32Lt => const_step!([x: U32, y: U32] => Const::Bool(x < y)),
         Prim::U32Gte => const_step!([x: U32, y: U32] => Const::Bool(x >= y)),
         Prim::U32Lte => const_step!([x: U32, y: U32] => Const::Bool(x <= y)),
-        Prim::U32Add => const_step!([x: U32, y: U32] => Const::U32(u32::checked_add(*x, *y)?)),
-        Prim::U32Sub => const_step!([x: U32, y: U32] => Const::U32(u32::checked_sub(*x, *y)?)),
-        Prim::U32Mul => const_step!([x: U32, y: U32] => Const::U32(u32::checked_mul(*x, *y)?)),
-        Prim::U32Div => const_step!([x: U32, y: U32] => Const::U32(u32::checked_div(*x, *y)?)),
-        Prim::U32Not => const_step!([x: U32] => Const::U32(u32::not(*x))),
-        Prim::U32Shl => const_step!([x: U32, y: U8] => Const::U32(u32::checked_shl(*x, u32::from(*y))?)),
-        Prim::U32Shr => const_step!([x: U32, y: U8] => Const::U32(u32::checked_shr(*x, u32::from(*y))?)),
-        Prim::U32And => const_step!([x: U32, y: U32] => Const::U32(u32::bitand(*x, *y))),
-        Prim::U32Or => const_step!([x: U32, y: U32] => Const::U32(u32::bitor(*x, *y))),
-        Prim::U32Xor => const_step!([x: U32, y: U32] => Const::U32(u32::bitxor(*x, *y))),
+        Prim::U32Add => const_step!([x: U32, y: U32] => Const::U32(u32::checked_add(*x, *y)?, IntStyle::Decimal)),
+        Prim::U32Sub => const_step!([x: U32, y: U32] => Const::U32(u32::checked_sub(*x, *y)?, IntStyle::Decimal)),
+        Prim::U32Mul => const_step!([x: U32, y: U32] => Const::U32(u32::checked_mul(*x, *y)?, IntStyle::Decimal)),
+        Prim::U32Div => const_step!([x: U32, y: U32] => Const::U32(u32::checked_div(*x, *y)?, IntStyle::Decimal)),
+        Prim::U32Not => const_step!([x: U32] => Const::U32(u32::not(*x), IntStyle::Decimal)),
+        Prim::U32Shl => const_step!([x: U32, y: U8] => Const::U32(u32::checked_shl(*x, u32::from(*y))?, IntStyle::Decimal)),
+        Prim::U32Shr => const_step!([x: U32, y: U8] => Const::U32(u32::checked_shr(*x, u32::from(*y))?, IntStyle::Decimal)),
+        Prim::U32And => const_step!([x: U32, y: U32] => Const::U32(u32::bitand(*x, *y), IntStyle::Decimal)),
+        Prim::U32Or => const_step!([x: U32, y: U32] => Const::U32(u32::bitor(*x, *y), IntStyle::Decimal)),
+        Prim::U32Xor => const_step!([x: U32, y: U32] => Const::U32(u32::bitxor(*x, *y), IntStyle::Decimal)),
 
         Prim::U64Eq => const_step!([x: U64, y: U64] => Const::Bool(x == y)),
         Prim::U64Neq => const_step!([x: U64, y: U64] => Const::Bool(x != y)),
@@ -435,16 +435,16 @@ fn prim_step(prim: Prim) -> Option<PrimStep> {
         Prim::U64Lt => const_step!([x: U64, y: U64] => Const::Bool(x < y)),
         Prim::U64Gte => const_step!([x: U64, y: U64] => Const::Bool(x >= y)),
         Prim::U64Lte => const_step!([x: U64, y: U64] => Const::Bool(x <= y)),
-        Prim::U64Add => const_step!([x: U64, y: U64] => Const::U64(u64::checked_add(*x, *y)?)),
-        Prim::U64Sub => const_step!([x: U64, y: U64] => Const::U64(u64::checked_sub(*x, *y)?)),
-        Prim::U64Mul => const_step!([x: U64, y: U64] => Const::U64(u64::checked_mul(*x, *y)?)),
-        Prim::U64Div => const_step!([x: U64, y: U64] => Const::U64(u64::checked_div(*x, *y)?)),
-        Prim::U64Not => const_step!([x: U64] => Const::U64(u64::not(*x))),
-        Prim::U64Shl => const_step!([x: U64, y: U8] => Const::U64(u64::checked_shl(*x, u32::from(*y))?)),
-        Prim::U64Shr => const_step!([x: U64, y: U8] => Const::U64(u64::checked_shr(*x, u32::from(*y))?)),
-        Prim::U64And => const_step!([x: U64, y: U64] => Const::U64(u64::bitand(*x, *y))),
-        Prim::U64Or => const_step!([x: U64, y: U64] => Const::U64(u64::bitor(*x, *y))),
-        Prim::U64Xor => const_step!([x: U64, y: U64] => Const::U64(u64::bitxor(*x, *y))),
+        Prim::U64Add => const_step!([x: U64, y: U64] => Const::U64(u64::checked_add(*x, *y)?, IntStyle::Decimal)),
+        Prim::U64Sub => const_step!([x: U64, y: U64] => Const::U64(u64::checked_sub(*x, *y)?, IntStyle::Decimal)),
+        Prim::U64Mul => const_step!([x: U64, y: U64] => Const::U64(u64::checked_mul(*x, *y)?, IntStyle::Decimal)),
+        Prim::U64Div => const_step!([x: U64, y: U64] => Const::U64(u64::checked_div(*x, *y)?, IntStyle::Decimal)),
+        Prim::U64Not => const_step!([x: U64] => Const::U64(u64::not(*x), IntStyle::Decimal)),
+        Prim::U64Shl => const_step!([x: U64, y: U8] => Const::U64(u64::checked_shl(*x, u32::from(*y))?, IntStyle::Decimal)),
+        Prim::U64Shr => const_step!([x: U64, y: U8] => Const::U64(u64::checked_shr(*x, u32::from(*y))?, IntStyle::Decimal)),
+        Prim::U64And => const_step!([x: U64, y: U64] => Const::U64(u64::bitand(*x, *y), IntStyle::Decimal)),
+        Prim::U64Or => const_step!([x: U64, y: U64] => Const::U64(u64::bitor(*x, *y), IntStyle::Decimal)),
+        Prim::U64Xor => const_step!([x: U64, y: U64] => Const::U64(u64::bitxor(*x, *y), IntStyle::Decimal)),
 
         Prim::S8Eq => const_step!([x: S8, y: S8] => Const::Bool(x == y)),
         Prim::S8Neq => const_step!([x: S8, y: S8] => Const::Bool(x != y)),
