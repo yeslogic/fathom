@@ -494,6 +494,23 @@ impl IntStyle {
             }
         }
     }
+
+    pub fn merge(self, other: IntStyle) -> IntStyle {
+        use IntStyle::*;
+
+        // If they're the same then there's nothing to do
+        if self == other {
+            return self;
+        }
+
+        match (self, other) {
+            // If one is decimal then return the other
+            (Decimal, _) => other,
+            (_, Decimal) => self,
+            // otherwise favour ourself
+            (Hexadecimal, _) | (Binary, _) | (Ascii, _) => self,
+        }
+    }
 }
 
 #[cfg(test)]
