@@ -27,7 +27,7 @@ use std::sync::Arc;
 
 use crate::alloc::SliceVec;
 use crate::core::semantics::{self, ArcValue, Closure, Head, Telescope, Value};
-use crate::core::{self, binary, Const, Prim};
+use crate::core::{self, binary, Const, IntStyle, Prim};
 use crate::env::{self, EnvLen, GlobalVar, SharedEnv, UniqueEnv};
 use crate::source::ByteRange;
 use crate::surface::elaboration::reporting::Message;
@@ -771,19 +771,19 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         &mut self,
         range: ByteRange,
         string_id: StringId,
-    ) -> Option<T> {
+    ) -> Option<(T, IntStyle)> {
         // TODO: Custom parsing and improved errors
         let s = self.interner.borrow();
         let s = s.resolve(string_id).unwrap();
-        let (s, radix) = if s.starts_with("0x") {
-            (&s[2..], 16)
+        let (s, radix, style) = if s.starts_with("0x") {
+            (&s[2..], 16, IntStyle::Hexadecimal)
         } else if s.starts_with("0b") {
-            (&s[2..], 2)
+            (&s[2..], 2, IntStyle::Binary)
         } else {
-            (s, 10)
+            (s, 10, IntStyle::Decimal)
         };
         match T::from_str_radix(s, radix) {
-            Ok(data) => Some(data),
+            Ok(data) => Some((data, style)),
             Err(error) => {
                 let message = error.to_string();
                 self.push_message(Message::InvalidNumericLiteral { range, message });
@@ -828,10 +828,18 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
             }
             Pattern::StringLiteral(range, string) => {
                 let constant = match expected_type.match_prim_spine() {
-                    Some((Prim::U8Type, [])) => self.parse_ascii(*range, *string).map(Const::U8),
-                    Some((Prim::U16Type, [])) => self.parse_ascii(*range, *string).map(Const::U16),
-                    Some((Prim::U32Type, [])) => self.parse_ascii(*range, *string).map(Const::U32),
-                    Some((Prim::U64Type, [])) => self.parse_ascii(*range, *string).map(Const::U64),
+                    Some((Prim::U8Type, [])) => self
+                        .parse_ascii(*range, *string)
+                        .map(|num| Const::U8(num, IntStyle::Ascii)),
+                    Some((Prim::U16Type, [])) => self
+                        .parse_ascii(*range, *string)
+                        .map(|num| Const::U16(num, IntStyle::Ascii)),
+                    Some((Prim::U32Type, [])) => self
+                        .parse_ascii(*range, *string)
+                        .map(|num| Const::U32(num, IntStyle::Ascii)),
+                    Some((Prim::U64Type, [])) => self
+                        .parse_ascii(*range, *string)
+                        .map(|num| Const::U64(num, IntStyle::Ascii)),
                     // Some((Prim::Array8Type, [len, _])) => todo!(),
                     // Some((Prim::Array16Type, [len, _])) => todo!(),
                     // Some((Prim::Array32Type, [len, _])) => todo!(),
@@ -858,18 +866,18 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
             }
             Pattern::NumberLiteral(range, number) => {
                 let constant = match expected_type.match_prim_spine() {
-                    Some((Prim::U8Type, [])) => {
-                        self.parse_number_radix(*range, *number).map(Const::U8)
-                    }
-                    Some((Prim::U16Type, [])) => {
-                        self.parse_number_radix(*range, *number).map(Const::U16)
-                    }
-                    Some((Prim::U32Type, [])) => {
-                        self.parse_number_radix(*range, *number).map(Const::U32)
-                    }
-                    Some((Prim::U64Type, [])) => {
-                        self.parse_number_radix(*range, *number).map(Const::U64)
-                    }
+                    Some((Prim::U8Type, [])) => self
+                        .parse_number_radix(*range, *number)
+                        .map(|(num, style)| Const::U8(num, style)),
+                    Some((Prim::U16Type, [])) => self
+                        .parse_number_radix(*range, *number)
+                        .map(|(num, style)| Const::U16(num, style)),
+                    Some((Prim::U32Type, [])) => self
+                        .parse_number_radix(*range, *number)
+                        .map(|(num, style)| Const::U32(num, style)),
+                    Some((Prim::U64Type, [])) => self
+                        .parse_number_radix(*range, *number)
+                        .map(|(num, style)| Const::U64(num, style)),
                     Some((Prim::S8Type, [])) => self.parse_number(*range, *number).map(Const::S8),
                     Some((Prim::S16Type, [])) => self.parse_number(*range, *number).map(Const::S16),
                     Some((Prim::S32Type, [])) => self.parse_number(*range, *number).map(Const::S32),
@@ -1169,10 +1177,10 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 };
 
                 match len.as_ref() {
-                    Value::Const(Const::U8(len)) if elem_exprs.len() as u64 == *len as u64 => {}
-                    Value::Const(Const::U16(len)) if elem_exprs.len() as u64 == *len as u64 => {}
-                    Value::Const(Const::U32(len)) if elem_exprs.len() as u64 == *len as u64 => {}
-                    Value::Const(Const::U64(len)) if elem_exprs.len() as u64 == *len as u64 => {}
+                    Value::Const(Const::U8(len, _)) if elem_exprs.len() as u64 == *len as u64 => {}
+                    Value::Const(Const::U16(len, _)) if elem_exprs.len() as u64 == *len as u64 => {}
+                    Value::Const(Const::U32(len, _)) if elem_exprs.len() as u64 == *len as u64 => {}
+                    Value::Const(Const::U64(len, _)) if elem_exprs.len() as u64 == *len as u64 => {}
                     Value::Stuck(Head::Prim(Prim::ReportedError), _) => {
                         return core::Term::Prim(Prim::ReportedError);
                     }
@@ -1200,10 +1208,18 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
             }
             (Term::StringLiteral(range, string), _) => {
                 let constant = match expected_type.match_prim_spine() {
-                    Some((Prim::U8Type, [])) => self.parse_ascii(*range, *string).map(Const::U8),
-                    Some((Prim::U16Type, [])) => self.parse_ascii(*range, *string).map(Const::U16),
-                    Some((Prim::U32Type, [])) => self.parse_ascii(*range, *string).map(Const::U32),
-                    Some((Prim::U64Type, [])) => self.parse_ascii(*range, *string).map(Const::U64),
+                    Some((Prim::U8Type, [])) => self
+                        .parse_ascii(*range, *string)
+                        .map(|num| Const::U8(num, IntStyle::Ascii)),
+                    Some((Prim::U16Type, [])) => self
+                        .parse_ascii(*range, *string)
+                        .map(|num| Const::U16(num, IntStyle::Ascii)),
+                    Some((Prim::U32Type, [])) => self
+                        .parse_ascii(*range, *string)
+                        .map(|num| Const::U32(num, IntStyle::Ascii)),
+                    Some((Prim::U64Type, [])) => self
+                        .parse_ascii(*range, *string)
+                        .map(|num| Const::U64(num, IntStyle::Ascii)),
                     // Some((Prim::Array8Type, [len, _])) => todo!(),
                     // Some((Prim::Array16Type, [len, _])) => todo!(),
                     // Some((Prim::Array32Type, [len, _])) => todo!(),
@@ -1222,18 +1238,18 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
             }
             (Term::NumberLiteral(range, number), _) => {
                 let constant = match expected_type.match_prim_spine() {
-                    Some((Prim::U8Type, [])) => {
-                        self.parse_number_radix(*range, *number).map(Const::U8)
-                    }
-                    Some((Prim::U16Type, [])) => {
-                        self.parse_number_radix(*range, *number).map(Const::U16)
-                    }
-                    Some((Prim::U32Type, [])) => {
-                        self.parse_number_radix(*range, *number).map(Const::U32)
-                    }
-                    Some((Prim::U64Type, [])) => {
-                        self.parse_number_radix(*range, *number).map(Const::U64)
-                    }
+                    Some((Prim::U8Type, [])) => self
+                        .parse_number_radix(*range, *number)
+                        .map(|(num, style)| Const::U8(num, style)),
+                    Some((Prim::U16Type, [])) => self
+                        .parse_number_radix(*range, *number)
+                        .map(|(num, style)| Const::U16(num, style)),
+                    Some((Prim::U32Type, [])) => self
+                        .parse_number_radix(*range, *number)
+                        .map(|(num, style)| Const::U32(num, style)),
+                    Some((Prim::U64Type, [])) => self
+                        .parse_number_radix(*range, *number)
+                        .map(|(num, style)| Const::U64(num, style)),
                     Some((Prim::S8Type, [])) => self.parse_number(*range, *number).map(Const::S8),
                     Some((Prim::S16Type, [])) => self.parse_number(*range, *number).map(Const::S16),
                     Some((Prim::S32Type, [])) => self.parse_number(*range, *number).map(Const::S32),
