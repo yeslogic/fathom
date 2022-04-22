@@ -1,13 +1,13 @@
 stdout = ''
 stderr = '''
 error: boolean literal not supported for expected type
-  ┌─ tests/fail/elaboration/boolean-literal/match.fathom:6:5
+  ┌─ tests/fail/elaboration/boolean-literal/not-supported.fathom:6:5
   │
 6 │     false => 0,
   │     ^^^^^
 
 error: boolean literal not supported for expected type
-  ┌─ tests/fail/elaboration/boolean-literal/match.fathom:7:5
+  ┌─ tests/fail/elaboration/boolean-literal/not-supported.fathom:7:5
   │
 7 │     true => 1,
   │     ^^^^
