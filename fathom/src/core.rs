@@ -413,7 +413,7 @@ pub enum IntStyle {
 }
 
 /// Constants
-#[derive(Debug, Copy, Clone, PartialEq, PartialOrd)]
+#[derive(Debug, Copy, Clone, PartialOrd)]
 pub enum Const {
     Bool(bool),
     U8(u8, IntStyle),
@@ -429,6 +429,27 @@ pub enum Const {
     F64(f64),
     Pos(u64),
     Ref(u64),
+}
+
+impl PartialEq for Const {
+    fn eq(&self, other: &Self) -> bool {
+        match (*self, *other) {
+            (Const::Bool(a), Const::Bool(b)) => a == b,
+            (Const::U8(a, _), Const::U8(b, _)) => a == b,
+            (Const::U16(a, _), Const::U16(b, _)) => a == b,
+            (Const::U32(a, _), Const::U32(b, _)) => a == b,
+            (Const::U64(a, _), Const::U64(b, _)) => a == b,
+            (Const::S8(a), Const::S8(b)) => a == b,
+            (Const::S16(a), Const::S16(b)) => a == b,
+            (Const::S32(a), Const::S32(b)) => a == b,
+            (Const::S64(a), Const::S64(b)) => a == b,
+            (Const::F32(a), Const::F32(b)) => a == b,
+            (Const::F64(a), Const::F64(b)) => a == b,
+            (Const::Pos(a), Const::Pos(b)) => a == b,
+            (Const::Ref(a), Const::Ref(b)) => a == b,
+            _ => false,
+        }
+    }
 }
 
 pub trait ToBeBytes<const N: usize> {
