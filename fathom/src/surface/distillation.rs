@@ -70,7 +70,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
         }
     }
 
-    fn check_number_literal_styled<const N: usize, T: core::Styled<N>>(
+    fn check_number_literal_styled<T: core::Styled<N>, const N: usize>(
         &mut self,
         number: T,
         style: IntStyle,
@@ -98,7 +98,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
         Pattern::NumberLiteral((), number)
     }
 
-    fn check_number_pattern_styled<const N: usize, T: core::Styled<N>>(
+    fn check_number_pattern_styled<T: core::Styled<N>, const N: usize>(
         &mut self,
         number: T,
         style: IntStyle,
@@ -144,7 +144,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
         Term::Ann((), self.scope.to_scope(expr), self.scope.to_scope(r#type))
     }
 
-    fn synth_number_literal_styled<const N: usize, T: core::Styled<N>>(
+    fn synth_number_literal_styled<T: core::Styled<N>, const N: usize>(
         &mut self,
         number: T,
         style: IntStyle,

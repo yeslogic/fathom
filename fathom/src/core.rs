@@ -478,7 +478,7 @@ pub trait Styled<const N: usize>:
 }
 
 impl IntStyle {
-    pub fn format<const N: usize, T: Styled<N>>(&self, number: T) -> String {
+    pub fn format<T: Styled<N>, const N: usize>(&self, number: T) -> String {
         match self {
             IntStyle::Binary => format! {"0b{:b}", number},
             IntStyle::Decimal => number.to_string(),
