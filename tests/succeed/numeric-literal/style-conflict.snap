@@ -1,0 +1,4 @@
+stdout = '''
+u32_add "nope" 0xcafe : U32
+'''
+stderr = ''

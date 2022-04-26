@@ -1,0 +1,3 @@
+//~ test-normalisation = true
+
+u8_shl 0b00000001 4
