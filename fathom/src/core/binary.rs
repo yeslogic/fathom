@@ -5,7 +5,7 @@ use std::io::{self, Read, Seek, SeekFrom};
 use std::sync::Arc;
 
 use crate::core::semantics::{self, ArcValue, Elim, Head, Value};
-use crate::core::{Const, IntStyle, Prim};
+use crate::core::{Const, Prim, UIntStyle};
 use crate::env::{EnvLen, SliceEnv};
 
 pub struct Context<'arena, 'env> {
@@ -127,13 +127,13 @@ impl<'arena, 'env> Context<'arena, 'env> {
 
         match (prim, &slice[..]) {
             (Prim::FormatSucceed, [_, Fun(r#elem)]) => Ok(r#elem.clone()),
-            (Prim::FormatU8, []) => read_const(reader, |num| Const::U8(num, IntStyle::Decimal), read_u8),
-            (Prim::FormatU16Be, []) => read_const(reader, |num| Const::U16(num, IntStyle::Decimal), read_u16be),
-            (Prim::FormatU16Le, []) => read_const(reader, |num| Const::U16(num, IntStyle::Decimal), read_u16le),
-            (Prim::FormatU32Be, []) => read_const(reader, |num| Const::U32(num, IntStyle::Decimal), read_u32be),
-            (Prim::FormatU32Le, []) => read_const(reader, |num| Const::U32(num, IntStyle::Decimal), read_u32le),
-            (Prim::FormatU64Be, []) => read_const(reader, |num| Const::U64(num, IntStyle::Decimal), read_u64be),
-            (Prim::FormatU64Le, []) => read_const(reader, |num| Const::U64(num, IntStyle::Decimal), read_u64le),
+            (Prim::FormatU8, []) => read_const(reader, |num| Const::U8(num, UIntStyle::Decimal), read_u8),
+            (Prim::FormatU16Be, []) => read_const(reader, |num| Const::U16(num, UIntStyle::Decimal), read_u16be),
+            (Prim::FormatU16Le, []) => read_const(reader, |num| Const::U16(num, UIntStyle::Decimal), read_u16le),
+            (Prim::FormatU32Be, []) => read_const(reader, |num| Const::U32(num, UIntStyle::Decimal), read_u32be),
+            (Prim::FormatU32Le, []) => read_const(reader, |num| Const::U32(num, UIntStyle::Decimal), read_u32le),
+            (Prim::FormatU64Be, []) => read_const(reader, |num| Const::U64(num, UIntStyle::Decimal), read_u64be),
+            (Prim::FormatU64Le, []) => read_const(reader, |num| Const::U64(num, UIntStyle::Decimal), read_u64le),
             (Prim::FormatS8, []) => read_const(reader, Const::S8, read_s8),
             (Prim::FormatS16Be, []) => read_const(reader, Const::S16, read_s16be),
             (Prim::FormatS16Le, []) => read_const(reader, Const::S16, read_s16le),
