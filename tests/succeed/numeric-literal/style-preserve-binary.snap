@@ -1,0 +1,4 @@
+stdout = '''
+u8_shl 0b1 4 : U8
+'''
+stderr = ''
