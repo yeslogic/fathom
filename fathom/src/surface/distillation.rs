@@ -3,7 +3,7 @@
 use scoped_arena::Scope;
 use std::cell::RefCell;
 
-use crate::core::IntStyle;
+use crate::core::UIntStyle;
 use crate::env::{self, EnvLen, GlobalVar, LocalVar, UniqueEnv};
 use crate::surface::elaboration::FlexSource;
 use crate::surface::{Pattern, Term};
@@ -70,10 +70,10 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
         }
     }
 
-    fn check_number_literal_styled<T: core::Styled<N>, const N: usize>(
+    fn check_number_literal_styled<T: core::UIntStyled<N>, const N: usize>(
         &mut self,
         number: T,
-        style: IntStyle,
+        style: UIntStyle,
     ) -> Term<'arena, ()> {
         let string = style.format(number);
         let number = self.interner.borrow_mut().get_or_intern(string);
@@ -98,10 +98,10 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
         Pattern::NumberLiteral((), number)
     }
 
-    fn check_number_pattern_styled<T: core::Styled<N>, const N: usize>(
+    fn check_number_pattern_styled<T: core::UIntStyled<N>, const N: usize>(
         &mut self,
         number: T,
-        style: IntStyle,
+        style: UIntStyle,
     ) -> Pattern<()> {
         // TODO: Share with check_number_literal_styled
         let string = style.format(number);
@@ -144,10 +144,10 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
         Term::Ann((), self.scope.to_scope(expr), self.scope.to_scope(r#type))
     }
 
-    fn synth_number_literal_styled<T: core::Styled<N>, const N: usize>(
+    fn synth_number_literal_styled<T: core::UIntStyled<N>, const N: usize>(
         &mut self,
         number: T,
-        style: IntStyle,
+        style: UIntStyle,
         prim_type: core::Prim,
     ) -> Term<'arena, ()> {
         let expr = self.check_number_literal_styled(number, style);

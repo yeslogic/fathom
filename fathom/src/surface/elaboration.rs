@@ -27,7 +27,7 @@ use std::sync::Arc;
 
 use crate::alloc::SliceVec;
 use crate::core::semantics::{self, ArcValue, Closure, Head, Telescope, Value};
-use crate::core::{self, binary, Const, IntStyle, Prim};
+use crate::core::{self, binary, Const, Prim, UIntStyle};
 use crate::env::{self, EnvLen, GlobalVar, SharedEnv, UniqueEnv};
 use crate::source::ByteRange;
 use crate::surface::elaboration::reporting::Message;
@@ -771,16 +771,16 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         &mut self,
         range: ByteRange,
         string_id: StringId,
-    ) -> Option<(T, IntStyle)> {
+    ) -> Option<(T, UIntStyle)> {
         // TODO: Custom parsing and improved errors
         let s = self.interner.borrow();
         let s = s.resolve(string_id).unwrap();
         let (s, radix, style) = if s.starts_with("0x") {
-            (&s[2..], 16, IntStyle::Hexadecimal)
+            (&s[2..], 16, UIntStyle::Hexadecimal)
         } else if s.starts_with("0b") {
-            (&s[2..], 2, IntStyle::Binary)
+            (&s[2..], 2, UIntStyle::Binary)
         } else {
-            (s, 10, IntStyle::Decimal)
+            (s, 10, UIntStyle::Decimal)
         };
         match T::from_str_radix(s, radix) {
             Ok(data) => Some((data, style)),
@@ -830,16 +830,16 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 let constant = match expected_type.match_prim_spine() {
                     Some((Prim::U8Type, [])) => self
                         .parse_ascii(*range, *string)
-                        .map(|num| Const::U8(num, IntStyle::Ascii)),
+                        .map(|num| Const::U8(num, UIntStyle::Ascii)),
                     Some((Prim::U16Type, [])) => self
                         .parse_ascii(*range, *string)
-                        .map(|num| Const::U16(num, IntStyle::Ascii)),
+                        .map(|num| Const::U16(num, UIntStyle::Ascii)),
                     Some((Prim::U32Type, [])) => self
                         .parse_ascii(*range, *string)
-                        .map(|num| Const::U32(num, IntStyle::Ascii)),
+                        .map(|num| Const::U32(num, UIntStyle::Ascii)),
                     Some((Prim::U64Type, [])) => self
                         .parse_ascii(*range, *string)
-                        .map(|num| Const::U64(num, IntStyle::Ascii)),
+                        .map(|num| Const::U64(num, UIntStyle::Ascii)),
                     // Some((Prim::Array8Type, [len, _])) => todo!(),
                     // Some((Prim::Array16Type, [len, _])) => todo!(),
                     // Some((Prim::Array32Type, [len, _])) => todo!(),
@@ -1210,16 +1210,16 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 let constant = match expected_type.match_prim_spine() {
                     Some((Prim::U8Type, [])) => self
                         .parse_ascii(*range, *string)
-                        .map(|num| Const::U8(num, IntStyle::Ascii)),
+                        .map(|num| Const::U8(num, UIntStyle::Ascii)),
                     Some((Prim::U16Type, [])) => self
                         .parse_ascii(*range, *string)
-                        .map(|num| Const::U16(num, IntStyle::Ascii)),
+                        .map(|num| Const::U16(num, UIntStyle::Ascii)),
                     Some((Prim::U32Type, [])) => self
                         .parse_ascii(*range, *string)
-                        .map(|num| Const::U32(num, IntStyle::Ascii)),
+                        .map(|num| Const::U32(num, UIntStyle::Ascii)),
                     Some((Prim::U64Type, [])) => self
                         .parse_ascii(*range, *string)
-                        .map(|num| Const::U64(num, IntStyle::Ascii)),
+                        .map(|num| Const::U64(num, UIntStyle::Ascii)),
                     // Some((Prim::Array8Type, [len, _])) => todo!(),
                     // Some((Prim::Array16Type, [len, _])) => todo!(),
                     // Some((Prim::Array32Type, [len, _])) => todo!(),
