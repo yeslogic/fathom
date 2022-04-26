@@ -34,11 +34,14 @@ struct Config {
     example_data: Vec<String>,
     #[serde(skip)]
     update_snapshots: bool,
+    #[serde(default = "DEFAULT_TEST_NORMALISATION")]
+    test_normalisation: bool,
 }
 
 const DEFAULT_IGNORE: fn() -> bool = || false;
 const DEFAULT_EXIT_CODE: fn() -> i32 = || 0;
 const DEFAULT_EXAMPLE_DATA: fn() -> Vec<String> = || Vec::new();
+const DEFAULT_TEST_NORMALISATION: fn() -> bool = || false;
 
 struct TestFailure {
     name: &'static str,
@@ -76,12 +79,14 @@ struct TestCommand<'a> {
 #[derive(Copy, Clone)]
 enum Command<'a> {
     Elaborate,
+    Normalise,
     ParseData(&'a Path),
 }
 
 impl<'a> Command<'a> {
     pub(crate) fn snap_name(&self) -> &'static str {
         match self {
+            Command::Normalise => "norm",
             Command::Elaborate | Command::ParseData(_) => "",
         }
     }
@@ -151,6 +156,19 @@ fn run_test(test: &libtest_mimic::Test<TestData>) -> libtest_mimic::Outcome {
                 name: "unexpected test command error",
                 details: vec![("std::io::Error", error.to_string())],
             });
+        }
+    }
+
+    if config.test_normalisation {
+        let test_command = TestCommand::new(Command::Normalise, &config, &test.data.input_file);
+        match test_command.run() {
+            Ok(mut test_failures) => failures.append(&mut test_failures),
+            Err(error) => {
+                failures.push(TestFailure {
+                    name: "unexpected test command error",
+                    details: vec![("std::io::Error", error.to_string())],
+                });
+            }
         }
     }
 
@@ -298,6 +316,9 @@ impl<'a> From<Command<'a>> for process::Command {
         match command {
             Command::Elaborate => {
                 exe.args(["elab", "--term"]);
+            }
+            Command::Normalise => {
+                exe.args(["norm", "--term"]);
             }
             Command::ParseData(format) => {
                 exe.args(["data", "--format"]);
