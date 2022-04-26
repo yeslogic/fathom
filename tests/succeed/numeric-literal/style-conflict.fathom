@@ -1,0 +1,3 @@
+//~ test-normalisation = true
+
+u32_add "nope" 0xcafe

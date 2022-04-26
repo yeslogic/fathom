@@ -403,14 +403,24 @@ def_prims! {
     PosAddU64 => "pos_add_u64",
 }
 
-/// Constants
+/// Formatting style for integers
 #[derive(Debug, Copy, Clone, PartialEq, PartialOrd)]
+pub enum UIntStyle {
+    Binary,
+    Decimal,
+    Hexadecimal,
+    /// A [four-character code](https://en.wikipedia.org/wiki/FourCC) (big-endian)
+    Ascii,
+}
+
+/// Constants
+#[derive(Debug, Copy, Clone, PartialOrd)]
 pub enum Const {
     Bool(bool),
-    U8(u8),
-    U16(u16),
-    U32(u32),
-    U64(u64),
+    U8(u8, UIntStyle),
+    U16(u16, UIntStyle),
+    U32(u32, UIntStyle),
+    U64(u64, UIntStyle),
     S8(i8),
     S16(i16),
     S32(i32),
@@ -420,6 +430,86 @@ pub enum Const {
     F64(f64),
     Pos(u64),
     Ref(u64),
+}
+
+impl PartialEq for Const {
+    fn eq(&self, other: &Self) -> bool {
+        match (*self, *other) {
+            (Const::Bool(a), Const::Bool(b)) => a == b,
+            (Const::U8(a, _), Const::U8(b, _)) => a == b,
+            (Const::U16(a, _), Const::U16(b, _)) => a == b,
+            (Const::U32(a, _), Const::U32(b, _)) => a == b,
+            (Const::U64(a, _), Const::U64(b, _)) => a == b,
+            (Const::S8(a), Const::S8(b)) => a == b,
+            (Const::S16(a), Const::S16(b)) => a == b,
+            (Const::S32(a), Const::S32(b)) => a == b,
+            (Const::S64(a), Const::S64(b)) => a == b,
+            (Const::F32(a), Const::F32(b)) => a == b,
+            (Const::F64(a), Const::F64(b)) => a == b,
+            (Const::Pos(a), Const::Pos(b)) => a == b,
+            (Const::Ref(a), Const::Ref(b)) => a == b,
+            _ => false,
+        }
+    }
+}
+
+pub trait ToBeBytes<const N: usize> {
+    fn to_be_bytes(self) -> [u8; N];
+}
+
+macro_rules! impl_styled_uint {
+    ($($ty:ty),*) => {
+        $(
+        impl ToBeBytes<{std::mem::size_of::<$ty>()}> for &$ty {
+            fn to_be_bytes(self) -> [u8; std::mem::size_of::<$ty>()] {
+                <$ty>::to_be_bytes(*self)
+            }
+        }
+
+        impl UIntStyled<{std::mem::size_of::<$ty>()}> for &$ty {}
+        )*
+    };
+}
+
+impl_styled_uint!(u8, u16, u32, u64);
+
+pub trait UIntStyled<const N: usize>:
+    std::fmt::Display + Copy + std::fmt::LowerHex + std::fmt::Binary + ToBeBytes<N>
+{
+}
+
+impl UIntStyle {
+    pub fn format<T: UIntStyled<N>, const N: usize>(&self, number: T) -> String {
+        match self {
+            UIntStyle::Binary => format!("0b{:b}", number),
+            UIntStyle::Decimal => number.to_string(),
+            UIntStyle::Hexadecimal => format!("0x{:x}", number),
+            UIntStyle::Ascii => {
+                let bytes = number.to_be_bytes();
+                if bytes.iter().all(|c| c.is_ascii() && !c.is_ascii_control()) {
+                    let s = std::str::from_utf8(&bytes).unwrap(); // unwrap safe due to above check
+                    format!("\"{}\"", s)
+                } else {
+                    format!("0x{:x}", number)
+                }
+            }
+        }
+    }
+
+    pub fn merge(left: UIntStyle, right: UIntStyle) -> UIntStyle {
+        use UIntStyle::*;
+
+        match (left, right) {
+            // If one is the default style, then return the other
+            (Decimal, style) | (style, Decimal) => style,
+            // When both styles are the same. Note: (Decimal, Decimal) is handled above
+            (Binary, Binary) => Binary,
+            (Hexadecimal, Hexadecimal) => Hexadecimal,
+            (Ascii, Ascii) => Ascii,
+            // Otherwise use the default style
+            (_, _) => Decimal,
+        }
+    }
 }
 
 #[cfg(test)]

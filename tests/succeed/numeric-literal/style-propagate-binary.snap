@@ -1,4 +1,4 @@
 stdout = '''
-0b11110000 : U8
+u8_add 0b1 2 : U8
 '''
 stderr = ''

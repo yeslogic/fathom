@@ -3,6 +3,7 @@
 use scoped_arena::Scope;
 use std::cell::RefCell;
 
+use crate::core::UIntStyle;
 use crate::env::{self, EnvLen, GlobalVar, LocalVar, UniqueEnv};
 use crate::surface::elaboration::FlexSource;
 use crate::surface::{Pattern, Term};
@@ -69,6 +70,16 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
         }
     }
 
+    fn check_number_literal_styled<T: core::UIntStyled<N>, const N: usize>(
+        &mut self,
+        number: T,
+        style: UIntStyle,
+    ) -> Term<'arena, ()> {
+        let string = style.format(number);
+        let number = self.interner.borrow_mut().get_or_intern(string);
+        Term::NumberLiteral((), number)
+    }
+
     fn check_number_literal<T: std::fmt::Display>(&mut self, number: T) -> Term<'arena, ()> {
         let number = self.interner.borrow_mut().get_or_intern(number.to_string());
         Term::NumberLiteral((), number)
@@ -87,13 +98,24 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
         Pattern::NumberLiteral((), number)
     }
 
+    fn check_number_pattern_styled<T: core::UIntStyled<N>, const N: usize>(
+        &mut self,
+        number: T,
+        style: UIntStyle,
+    ) -> Pattern<()> {
+        // TODO: Share with check_number_literal_styled
+        let string = style.format(number);
+        let number = self.interner.borrow_mut().get_or_intern(string);
+        Pattern::NumberLiteral((), number)
+    }
+
     fn check_constant_pattern(&mut self, r#const: &core::Const) -> Pattern<()> {
         match r#const {
             core::Const::Bool(boolean) => self.check_boolean_pattern(*boolean),
-            core::Const::U8(number) => self.check_number_pattern(number),
-            core::Const::U16(number) => self.check_number_pattern(number),
-            core::Const::U32(number) => self.check_number_pattern(number),
-            core::Const::U64(number) => self.check_number_pattern(number),
+            core::Const::U8(number, style) => self.check_number_pattern_styled(number, *style),
+            core::Const::U16(number, style) => self.check_number_pattern_styled(number, *style),
+            core::Const::U32(number, style) => self.check_number_pattern_styled(number, *style),
+            core::Const::U64(number, style) => self.check_number_pattern_styled(number, *style),
             core::Const::S8(number) => self.check_number_pattern(number),
             core::Const::S16(number) => self.check_number_pattern(number),
             core::Const::S32(number) => self.check_number_pattern(number),
@@ -117,6 +139,18 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
         prim_type: core::Prim,
     ) -> Term<'arena, ()> {
         let expr = self.check_number_literal(number);
+        let r#type = self.synth_prim(prim_type);
+
+        Term::Ann((), self.scope.to_scope(expr), self.scope.to_scope(r#type))
+    }
+
+    fn synth_number_literal_styled<T: core::UIntStyled<N>, const N: usize>(
+        &mut self,
+        number: T,
+        style: UIntStyle,
+        prim_type: core::Prim,
+    ) -> Term<'arena, ()> {
+        let expr = self.check_number_literal_styled(number, style);
         let r#type = self.synth_prim(prim_type);
 
         Term::Ann((), self.scope.to_scope(expr), self.scope.to_scope(r#type))
@@ -178,10 +212,10 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                     true => self.synth_prim(core::Prim::BoolTrue),
                     false => self.synth_prim(core::Prim::BoolFalse),
                 },
-                core::Const::U8(number) => self.check_number_literal(number),
-                core::Const::U16(number) => self.check_number_literal(number),
-                core::Const::U32(number) => self.check_number_literal(number),
-                core::Const::U64(number) => self.check_number_literal(number),
+                core::Const::U8(number, style) => self.check_number_literal_styled(number, *style),
+                core::Const::U16(number, style) => self.check_number_literal_styled(number, *style),
+                core::Const::U32(number, style) => self.check_number_literal_styled(number, *style),
+                core::Const::U64(number, style) => self.check_number_literal_styled(number, *style),
                 core::Const::S8(number) => self.check_number_literal(number),
                 core::Const::S16(number) => self.check_number_literal(number),
                 core::Const::S32(number) => self.check_number_literal(number),
@@ -380,10 +414,18 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                     true => self.synth_prim(core::Prim::BoolTrue),
                     false => self.synth_prim(core::Prim::BoolFalse),
                 },
-                core::Const::U8(number) => self.synth_number_literal(number, core::Prim::U8Type),
-                core::Const::U16(number) => self.synth_number_literal(number, core::Prim::U16Type),
-                core::Const::U32(number) => self.synth_number_literal(number, core::Prim::U32Type),
-                core::Const::U64(number) => self.synth_number_literal(number, core::Prim::U64Type),
+                core::Const::U8(number, style) => {
+                    self.synth_number_literal_styled(number, *style, core::Prim::U8Type)
+                }
+                core::Const::U16(number, style) => {
+                    self.synth_number_literal_styled(number, *style, core::Prim::U16Type)
+                }
+                core::Const::U32(number, style) => {
+                    self.synth_number_literal_styled(number, *style, core::Prim::U32Type)
+                }
+                core::Const::U64(number, style) => {
+                    self.synth_number_literal_styled(number, *style, core::Prim::U64Type)
+                }
                 core::Const::S8(number) => self.synth_number_literal(number, core::Prim::S8Type),
                 core::Const::S16(number) => self.synth_number_literal(number, core::Prim::S16Type),
                 core::Const::S32(number) => self.synth_number_literal(number, core::Prim::S32Type),

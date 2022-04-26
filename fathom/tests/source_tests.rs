@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::fmt::Write;
 use std::path::{Path, PathBuf};
-use std::process::{self, Command};
+use std::process::{self};
 use std::{env, fs, io};
 use walkdir::WalkDir;
 
@@ -34,11 +34,14 @@ struct Config {
     example_data: Vec<String>,
     #[serde(skip)]
     update_snapshots: bool,
+    #[serde(default = "DEFAULT_TEST_NORMALISATION")]
+    test_normalisation: bool,
 }
 
 const DEFAULT_IGNORE: fn() -> bool = || false;
 const DEFAULT_EXIT_CODE: fn() -> i32 = || 0;
 const DEFAULT_EXAMPLE_DATA: fn() -> Vec<String> = || Vec::new();
+const DEFAULT_TEST_NORMALISATION: fn() -> bool = || false;
 
 struct TestFailure {
     name: &'static str,
@@ -68,9 +71,25 @@ enum SnapshotOutcome {
 }
 
 struct TestCommand<'a> {
-    command: Command,
+    command: Command<'a>,
     config: &'a Config,
     input_file: &'a Path,
+}
+
+#[derive(Copy, Clone)]
+enum Command<'a> {
+    Elaborate,
+    Normalise,
+    ParseData(&'a Path),
+}
+
+impl<'a> Command<'a> {
+    pub(crate) fn snap_name(&self) -> &'static str {
+        match self {
+            Command::Normalise => "norm",
+            Command::Elaborate | Command::ParseData(_) => "",
+        }
+    }
 }
 
 /// Recursively walk over test files under a file path.
@@ -129,9 +148,7 @@ fn run_test(test: &libtest_mimic::Test<TestData>) -> libtest_mimic::Outcome {
         return libtest_mimic::Outcome::Ignored;
     }
 
-    let mut command = Command::new(env!("CARGO_BIN_EXE_fathom"));
-    command.args(["elab", "--term"]);
-    let mut test_command = TestCommand::new(command, &config, &test.data.input_file);
+    let test_command = TestCommand::new(Command::Elaborate, &config, &test.data.input_file);
     match test_command.run() {
         Ok(mut test_failures) => failures.append(&mut test_failures),
         Err(error) => {
@@ -142,16 +159,27 @@ fn run_test(test: &libtest_mimic::Test<TestData>) -> libtest_mimic::Outcome {
         }
     }
 
+    if config.test_normalisation {
+        let test_command = TestCommand::new(Command::Normalise, &config, &test.data.input_file);
+        match test_command.run() {
+            Ok(mut test_failures) => failures.append(&mut test_failures),
+            Err(error) => {
+                failures.push(TestFailure {
+                    name: "unexpected test command error",
+                    details: vec![("std::io::Error", error.to_string())],
+                });
+            }
+        }
+    }
+
     let base_dir = test.data.input_file.with_file_name("");
     let example_data = globwalk::GlobWalkerBuilder::from_patterns(&base_dir, &config.example_data)
         .build()
         .unwrap();
 
     for example_file in example_data.filter_map(Result::ok) {
-        let mut command = Command::new(env!("CARGO_BIN_EXE_fathom"));
-        command.args(["data", "--format"]);
-        command.arg(&test.data.input_file);
-        let mut test_command = TestCommand::new(command, &config, example_file.path());
+        let command = Command::ParseData(&test.data.input_file);
+        let test_command = TestCommand::new(command, &config, example_file.path());
         match test_command.run() {
             Ok(mut test_failures) => failures.append(&mut test_failures),
             Err(error) => {
@@ -194,8 +222,7 @@ fn failures_to_outcome(failures: &[TestFailure]) -> libtest_mimic::Outcome {
 }
 
 impl<'a> TestCommand<'a> {
-    fn new(mut command: Command, config: &'a Config, input_file: &'a Path) -> Self {
-        command.arg(input_file);
+    fn new(command: Command<'a>, config: &'a Config, input_file: &'a Path) -> Self {
         TestCommand {
             command,
             config,
@@ -203,12 +230,14 @@ impl<'a> TestCommand<'a> {
         }
     }
 
-    fn run(&mut self) -> Result<Vec<TestFailure>, io::Error> {
+    fn run(&self) -> Result<Vec<TestFailure>, io::Error> {
         let mut failures = Vec::new();
+        let mut exe = process::Command::from(self.command);
+        exe.arg(self.input_file);
 
-        match self.command.output() {
+        match exe.output() {
             Ok(output) => {
-                let mut snapshot = Snapshot::new(self.input_file, &output)?;
+                let mut snapshot = Snapshot::new(self.command, self.input_file, &output)?;
 
                 // Update if requested
                 if self.config.update_snapshots && snapshot.outcome() != SnapshotOutcome::Equal {
@@ -253,7 +282,7 @@ impl<'a> TestCommand<'a> {
                     let mut details = Vec::new();
 
                     // TODO: Improve output
-                    details.push(("command", format!("{:?}", self.command)));
+                    details.push(("command", format!("{:?}", exe)));
 
                     if output.status.code() != Some(self.config.exit_code) {
                         details.push(("status", output.status.to_string()));
@@ -281,9 +310,40 @@ impl<'a> TestCommand<'a> {
     }
 }
 
+impl<'a> From<Command<'a>> for process::Command {
+    fn from(command: Command) -> Self {
+        let mut exe = process::Command::new(env!("CARGO_BIN_EXE_fathom"));
+        match command {
+            Command::Elaborate => {
+                exe.args(["elab", "--term"]);
+            }
+            Command::Normalise => {
+                exe.args(["norm", "--term"]);
+            }
+            Command::ParseData(format) => {
+                exe.args(["data", "--format"]);
+                exe.arg(format);
+            }
+        }
+        exe
+    }
+}
+
 impl Snapshot {
-    fn new(test_path: &Path, output: &process::Output) -> Result<Snapshot, io::Error> {
-        let path = test_path.with_extension("snap");
+    fn new(
+        command: Command,
+        test_path: &Path,
+        output: &process::Output,
+    ) -> Result<Snapshot, io::Error> {
+        let mut file_name = test_path.file_stem().unwrap().to_os_string();
+        let snap_suffix = command.snap_name();
+        if !snap_suffix.is_empty() {
+            file_name.push(".");
+            file_name.push(command.snap_name());
+        }
+        file_name.push(".snap");
+
+        let path = test_path.with_file_name(file_name);
         let actual = SnapshotData {
             stdout: String::from_utf8_lossy(&output.stdout).into(),
             stderr: String::from_utf8_lossy(&output.stderr).into(),

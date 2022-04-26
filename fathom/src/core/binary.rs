@@ -5,7 +5,7 @@ use std::io::{self, Read, Seek, SeekFrom};
 use std::sync::Arc;
 
 use crate::core::semantics::{self, ArcValue, Elim, Head, Value};
-use crate::core::{Const, Prim};
+use crate::core::{Const, Prim, UIntStyle};
 use crate::env::{EnvLen, SliceEnv};
 
 pub struct Context<'arena, 'env> {
@@ -127,13 +127,13 @@ impl<'arena, 'env> Context<'arena, 'env> {
 
         match (prim, &slice[..]) {
             (Prim::FormatSucceed, [_, Fun(r#elem)]) => Ok(r#elem.clone()),
-            (Prim::FormatU8, []) => read_const(reader, Const::U8, read_u8),
-            (Prim::FormatU16Be, []) => read_const(reader, Const::U16, read_u16be),
-            (Prim::FormatU16Le, []) => read_const(reader, Const::U16, read_u16le),
-            (Prim::FormatU32Be, []) => read_const(reader, Const::U32, read_u32be),
-            (Prim::FormatU32Le, []) => read_const(reader, Const::U32, read_u32le),
-            (Prim::FormatU64Be, []) => read_const(reader, Const::U64, read_u64be),
-            (Prim::FormatU64Le, []) => read_const(reader, Const::U64, read_u64le),
+            (Prim::FormatU8, []) => read_const(reader, |num| Const::U8(num, UIntStyle::Decimal), read_u8),
+            (Prim::FormatU16Be, []) => read_const(reader, |num| Const::U16(num, UIntStyle::Decimal), read_u16be),
+            (Prim::FormatU16Le, []) => read_const(reader, |num| Const::U16(num, UIntStyle::Decimal), read_u16le),
+            (Prim::FormatU32Be, []) => read_const(reader, |num| Const::U32(num, UIntStyle::Decimal), read_u32be),
+            (Prim::FormatU32Le, []) => read_const(reader, |num| Const::U32(num, UIntStyle::Decimal), read_u32le),
+            (Prim::FormatU64Be, []) => read_const(reader, |num| Const::U64(num, UIntStyle::Decimal), read_u64be),
+            (Prim::FormatU64Le, []) => read_const(reader, |num| Const::U64(num, UIntStyle::Decimal), read_u64le),
             (Prim::FormatS8, []) => read_const(reader, Const::S8, read_s8),
             (Prim::FormatS16Be, []) => read_const(reader, Const::S16, read_s16be),
             (Prim::FormatS16Le, []) => read_const(reader, Const::S16, read_s16le),
@@ -164,10 +164,10 @@ impl<'arena, 'env> Context<'arena, 'env> {
         elem_format: &ArcValue<'arena>,
     ) -> io::Result<ArcValue<'arena>> {
         let (len, mut elem_exprs) = match self.elim_context().force(len).as_ref() {
-            Value::Const(Const::U8(len)) => (*len as u64, Vec::with_capacity(*len as usize)),
-            Value::Const(Const::U16(len)) => (*len as u64, Vec::with_capacity(*len as usize)),
-            Value::Const(Const::U32(len)) => (*len as u64, Vec::with_capacity(*len as usize)),
-            Value::Const(Const::U64(len)) => (*len as u64, Vec::with_capacity(*len as usize)),
+            Value::Const(Const::U8(len, _)) => (*len as u64, Vec::with_capacity(*len as usize)),
+            Value::Const(Const::U16(len, _)) => (*len as u64, Vec::with_capacity(*len as usize)),
+            Value::Const(Const::U32(len, _)) => (*len as u64, Vec::with_capacity(*len as usize)),
+            Value::Const(Const::U64(len, _)) => (*len as u64, Vec::with_capacity(*len as usize)),
             _ => return Err(io::Error::new(io::ErrorKind::Other, "invalid array length")),
         };
 

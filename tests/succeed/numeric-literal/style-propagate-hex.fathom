@@ -1,0 +1,3 @@
+//~ test-normalisation = true
+
+u8_add 0x2 1
