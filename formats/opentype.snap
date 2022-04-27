@@ -255,7 +255,23 @@ let simple_glyph : _ = fun number_of_contours => {
     instruction_length <- u16be,
     instructions <- array16 instruction_length u8,
 };
-let composite_glyph : _ = unknown_table;
+let args_are_signed : _ = fun flags => u16_neq (u16_and flags 0x2) 0;
+let arg_format : _ = fun flags => match (u16_neq (u16_and flags 0x1) 0) {
+    false => match (args_are_signed flags) {
+        false => u8,
+        true => s8,
+    },
+    true => match (args_are_signed flags) {
+        false => u16be,
+        true => s16be,
+    },
+};
+let composite_glyph : _ = {
+    flags <- u16be,
+    glyphIndex <- u16be,
+    argument1 <- arg_format flags,
+    argument2 <- arg_format flags,
+};
 let glyph : _ = {
     header <- glyph_header,
     data <- match (s16_lt header.number_of_contours 0) {

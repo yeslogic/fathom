@@ -520,7 +520,12 @@ stdout = '''
                     x_max = 4514,
                     y_max = 1434,
                 },
-                data = {},
+                data = {
+                    flags = 4135,
+                    glyphIndex = 7,
+                    argument1 = 3453,
+                    argument2 = 0,
+                },
             },
         ],
     },

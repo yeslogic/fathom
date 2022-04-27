@@ -1066,13 +1066,39 @@ let simple_glyph = fun (number_of_contours : U16) => {
     // or int16 <- uint8,
 };
 
+let args_are_signed = fun (flags : U16) =>
+    (u16_neq (u16_and flags 0x0002) 0);
+
+let arg_format = fun (flags : U16) =>
+    match (u16_neq (u16_and flags 0x0001) 0) {
+        // If the bit is set the arguments are 16-bit
+        true => match (args_are_signed flags) {
+            true => s16be,
+            false => u16be,
+        },
+        // Otherwise they are 8-bit
+        false => match (args_are_signed flags) {
+            true => s8,
+            false => u8,
+        },
+    };
+
 /// # Composite glyph description
 ///
 /// ## References
 ///
 /// - [Microsoft's OpenType Spec: Glyph Headers](https://docs.microsoft.com/en-us/typography/opentype/spec/glyf#composite-glyph-description)
 /// - [Apple's TrueType Reference Manual: The `'loca'` table](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6glyf.html)
-let composite_glyph = unknown_table; // TODO
+let composite_glyph = {
+    /// component flag
+    flags <- u16be,
+    /// glyph index of component
+    glyphIndex <- u16be,
+    /// x-offset for component or point number; type depends on bits 0 and 1 in component flags
+    argument1 <- arg_format flags,
+    /// y-offset for component or point number; type depends on bits 0 and 1 in component flags
+    argument2 <- arg_format flags,
+};
 
 /// # TrueType glyph
 let glyph = {
