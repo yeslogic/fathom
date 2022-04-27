@@ -235,6 +235,7 @@ let name_table : _ = {
     version <- u16be,
     name_count <- u16be,
     storage_offset <- u16be,
+    name_records <- array16 name_count (name_record (pos_add_u16 table_start storage_offset)),
 };
 let loca_table : _ = fun num_glyphs => fun index_to_loc_format => {
     offsets <- match index_to_loc_format {

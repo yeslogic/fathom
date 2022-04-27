@@ -988,9 +988,8 @@ let name_table = {
     name_count <- u16be,
     /// The offset to the string storage area, relative to the start of the naming table.
     storage_offset <- u16be,
-    // /// The array of name records
-    // TODO: position operations
-    // name_records <- array16 count (name_record (table_start + storage_offset)),
+    /// The array of name records
+    name_records <- array16 name_count (name_record (pos_add_u16 table_start storage_offset)),
 
     // TODO: Conditional fields
 
