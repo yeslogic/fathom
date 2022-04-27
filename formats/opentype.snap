@@ -236,6 +236,34 @@ let naming : _ = {
     name_count <- u16be,
     storage_offset <- u16be,
 };
+let index_to_location : _ = fun num_glyphs => fun index_to_loc_format => {
+    offsets <- match index_to_loc_format {
+        0 => array16 (u16_add num_glyphs 1) u16be,
+        1 => array16 (u16_add num_glyphs 1) u32be,
+        _ => fail,
+    },
+};
+let glyph_header : _ = {
+    number_of_contours <- s16be,
+    x_min <- s16be,
+    y_min <- s16be,
+    x_max <- s16be,
+    y_max <- s16be,
+};
+let simple_glyph : _ = fun number_of_contours => {
+    end_pts_of_contours <- array16 number_of_contours u16be,
+    instruction_length <- u16be,
+    instructions <- array16 instruction_length u8,
+};
+let composite_glyph : _ = unknown_table;
+let glyph : _ = {
+    header <- glyph_header,
+    data <- match (s16_lt header.number_of_contours 0) {
+        false => simple_glyph (s16_unsigned_abs header.number_of_contours),
+        true => composite_glyph,
+    },
+};
+let glyph_data : _ = fun num_glyphs => { glyphs <- array16 num_glyphs glyph };
 let baseline_data : _ = unknown_table;
 let glyph_definition_data : _ = unknown_table;
 let glyph_positioning_data : _ = unknown_table;
@@ -277,14 +305,14 @@ let font_table : _ = fun table_id => match table_id {
     "fpgm" => unknown_table,
     "fvar" => unknown_table,
     "gasp" => unknown_table,
-    "glyf" => unknown_table,
+    "glyf" => glyph_data 1,
     "gvar" => unknown_table,
     "hdmx" => unknown_table,
     "head" => font_header,
     "hhea" => horizontal_header,
     "hmtx" => horizontal_metrics 0 0,
     "kern" => unknown_table,
-    "loca" => unknown_table,
+    "loca" => index_to_location 1 0,
     "maxp" => maximum_profile,
     "meta" => unknown_table,
     "name" => naming,
