@@ -175,8 +175,6 @@ def_prims! {
     VoidType => "Void",
 
     BoolType => "Bool",
-    BoolTrue => "true",
-    BoolFalse => "false",
 
     /// Type of unsigned, 8-bit integers.
     U8Type => "U8",

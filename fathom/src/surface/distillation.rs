@@ -208,10 +208,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
             }
             core::Term::FormatRecord(labels, _) if labels.is_empty() => Term::UnitLiteral(()),
             core::Term::Const(r#const) => match r#const {
-                core::Const::Bool(boolean) => match *boolean {
-                    true => self.synth_prim(core::Prim::BoolTrue),
-                    false => self.synth_prim(core::Prim::BoolFalse),
-                },
+                core::Const::Bool(boolean) => Term::BooleanLiteral((), *boolean),
                 core::Const::U8(number, style) => self.check_number_literal_styled(number, *style),
                 core::Const::U16(number, style) => self.check_number_literal_styled(number, *style),
                 core::Const::U32(number, style) => self.check_number_literal_styled(number, *style),
@@ -410,10 +407,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
             }
             core::Term::Prim(prim) => self.synth_prim(*prim),
             core::Term::Const(r#const) => match r#const {
-                core::Const::Bool(boolean) => match *boolean {
-                    true => self.synth_prim(core::Prim::BoolTrue),
-                    false => self.synth_prim(core::Prim::BoolFalse),
-                },
+                core::Const::Bool(boolean) => Term::BooleanLiteral((), *boolean),
                 core::Const::U8(number, style) => {
                     self.synth_number_literal_styled(number, *style, core::Prim::U8Type)
                 }
