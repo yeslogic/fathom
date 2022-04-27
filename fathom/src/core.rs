@@ -358,6 +358,8 @@ def_prims! {
     S8Sub => "s8_sub",
     S8Mul => "s8_mul",
     S8Div => "s8_div",
+    S8Abs => "s8_abs",
+    S8UAbs => "s8_unsigned_abs",
 
     S16Eq  => "s16_eq",
     S16Neq => "s16_neq",
@@ -370,6 +372,8 @@ def_prims! {
     S16Sub => "s16_sub",
     S16Mul => "s16_mul",
     S16Div => "s16_div",
+    S16Abs => "s16_abs",
+    S16UAbs => "s16_unsigned_abs",
 
     S32Eq  => "s32_eq",
     S32Neq => "s32_neq",
@@ -382,6 +386,8 @@ def_prims! {
     S32Sub => "s32_sub",
     S32Mul => "s32_mul",
     S32Div => "s32_div",
+    S32Abs => "s32_abs",
+    S32UAbs => "s32_unsigned_abs",
 
     S64Eq  => "s64_eq",
     S64Neq => "s64_neq",
@@ -394,6 +400,8 @@ def_prims! {
     S64Sub => "s64_sub",
     S64Mul => "s64_mul",
     S64Div => "s64_div",
+    S64Abs => "s64_abs",
+    S64UAbs => "s64_unsigned_abs",
 
     PosAddU8  => "pos_add_u8",
     PosAddU16 => "pos_add_u16",
