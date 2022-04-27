@@ -463,6 +463,8 @@ fn prim_step(prim: Prim) -> Option<PrimStep> {
         Prim::S8Sub => const_step!([x: S8, y: S8] => Const::S8(i8::checked_sub(*x, *y)?)),
         Prim::S8Mul => const_step!([x: S8, y: S8] => Const::S8(i8::checked_mul(*x, *y)?)),
         Prim::S8Div => const_step!([x: S8, y: S8] => Const::S8(i8::checked_div(*x, *y)?)),
+        Prim::S8Abs => const_step!([x: S8] => Const::S8(i8::abs(*x))),
+        Prim::S8UAbs => const_step!([x: S8] => Const::U8(i8::unsigned_abs(*x), UIntStyle::Decimal)),
 
         Prim::S16Eq => const_step!([x: S16, y: S16] => Const::Bool(x == y)),
         Prim::S16Neq => const_step!([x: S16, y: S16] => Const::Bool(x != y)),
@@ -475,6 +477,8 @@ fn prim_step(prim: Prim) -> Option<PrimStep> {
         Prim::S16Sub => const_step!([x: S16, y: S16] => Const::S16(i16::checked_sub(*x, *y)?)),
         Prim::S16Mul => const_step!([x: S16, y: S16] => Const::S16(i16::checked_mul(*x, *y)?)),
         Prim::S16Div => const_step!([x: S16, y: S16] => Const::S16(i16::checked_div(*x, *y)?)),
+        Prim::S16Abs => const_step!([x: S16] => Const::S16(i16::abs(*x))),
+        Prim::S16UAbs => const_step!([x: S16] => Const::U16(i16::unsigned_abs(*x), UIntStyle::Decimal)),
 
         Prim::S32Eq => const_step!([x: S32, y: S32] => Const::Bool(x == y)),
         Prim::S32Neq => const_step!([x: S32, y: S32] => Const::Bool(x != y)),
@@ -487,6 +491,8 @@ fn prim_step(prim: Prim) -> Option<PrimStep> {
         Prim::S32Sub => const_step!([x: S32, y: S32] => Const::S32(i32::checked_sub(*x, *y)?)),
         Prim::S32Mul => const_step!([x: S32, y: S32] => Const::S32(i32::checked_mul(*x, *y)?)),
         Prim::S32Div => const_step!([x: S32, y: S32] => Const::S32(i32::checked_div(*x, *y)?)),
+        Prim::S32Abs => const_step!([x: S32] => Const::S32(i32::abs(*x))),
+        Prim::S32UAbs => const_step!([x: S32] => Const::U32(i32::unsigned_abs(*x), UIntStyle::Decimal)),
 
         Prim::S64Eq => const_step!([x: S64, y: S64] => Const::Bool(x == y)),
         Prim::S64Neq => const_step!([x: S64, y: S64] => Const::Bool(x != y)),
@@ -499,6 +505,8 @@ fn prim_step(prim: Prim) -> Option<PrimStep> {
         Prim::S64Sub => const_step!([x: S64, y: S64] => Const::S64(i64::checked_sub(*x, *y)?)),
         Prim::S64Mul => const_step!([x: S64, y: S64] => Const::S64(i64::checked_mul(*x, *y)?)),
         Prim::S64Div => const_step!([x: S64, y: S64] => Const::S64(i64::checked_div(*x, *y)?)),
+        Prim::S64Abs => const_step!([x: S64] => Const::S64(i64::abs(*x))),
+        Prim::S64UAbs => const_step!([x: S64] => Const::U64(i64::unsigned_abs(*x), UIntStyle::Decimal)),
 
         Prim::PosAddU8 => const_step!([x: Pos, y: U8] => Const::Pos(u64::checked_add(*x, u64::from(*y))?)),
         Prim::PosAddU16 => const_step!([x: Pos, y: U16] => Const::Pos(u64::checked_add(*x, u64::from(*y))?)),
