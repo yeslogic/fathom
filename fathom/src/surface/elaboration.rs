@@ -80,209 +80,226 @@ impl<'arena> RigidEnv<'arena> {
         use crate::core::Prim::*;
         use crate::core::Term;
 
-        let mut def = RigidEnvBuilder::new(interner, scope);
+        const VAR0: core::Term<'_> = core::Term::RigidVar(env::LocalVar::last());
+        const UNIVERSE: core::Term<'_> = core::Term::Universe;
+        const FORMAT_TYPE: core::Term<'_> = core::Term::Prim(Prim::FormatType);
+        const BOOL_TYPE: core::Term<'_> = core::Term::Prim(Prim::BoolType);
+        const U8_TYPE: core::Term<'_> = core::Term::Prim(Prim::U8Type);
+        const U16_TYPE: core::Term<'_> = core::Term::Prim(Prim::U16Type);
+        const U32_TYPE: core::Term<'_> = core::Term::Prim(Prim::U32Type);
+        const U64_TYPE: core::Term<'_> = core::Term::Prim(Prim::U64Type);
+        const S8_TYPE: core::Term<'_> = core::Term::Prim(Prim::S8Type);
+        const S16_TYPE: core::Term<'_> = core::Term::Prim(Prim::S16Type);
+        const S32_TYPE: core::Term<'_> = core::Term::Prim(Prim::S32Type);
+        const S64_TYPE: core::Term<'_> = core::Term::Prim(Prim::S64Type);
+        const POS_TYPE: core::Term<'_> = core::Term::Prim(Prim::PosType);
 
-        def.universe(VoidType);
+        let mut env = RigidEnvBuilder::new(interner, scope);
 
-        def.universe(BoolType);
+        env.define_prim(VoidType, &UNIVERSE);
 
-        def.universe(U8Type);
-        def.universe(U16Type);
-        def.universe(U32Type);
-        def.universe(U64Type);
-        def.universe(S8Type);
-        def.universe(S16Type);
-        def.universe(S32Type);
-        def.universe(S64Type);
-        def.universe(F32Type);
-        def.universe(F64Type);
+        env.define_prim(BoolType, &UNIVERSE);
 
-        def.array_type(Array8Type, U8Type);
-        def.array_type(Array16Type, U16Type);
-        def.array_type(Array32Type, U32Type);
-        def.array_type(Array64Type, U64Type);
+        env.define_prim(U8Type, &UNIVERSE);
+        env.define_prim(U16Type, &UNIVERSE);
+        env.define_prim(U32Type, &UNIVERSE);
+        env.define_prim(U64Type, &UNIVERSE);
+        env.define_prim(S8Type, &UNIVERSE);
+        env.define_prim(S16Type, &UNIVERSE);
+        env.define_prim(S32Type, &UNIVERSE);
+        env.define_prim(S64Type, &UNIVERSE);
+        env.define_prim(F32Type, &UNIVERSE);
+        env.define_prim(F64Type, &UNIVERSE);
 
-        def.universe(PosType);
-        def.fun(RefType, None, def.format_type(), &RigidEnvBuilder::UNIVERSE);
+        env.define_prim_fun(Array8Type, [&U8_TYPE, &UNIVERSE], &UNIVERSE);
+        env.define_prim_fun(Array16Type, [&U16_TYPE, &UNIVERSE], &UNIVERSE);
+        env.define_prim_fun(Array32Type, [&U32_TYPE, &UNIVERSE], &UNIVERSE);
+        env.define_prim_fun(Array64Type, [&U64_TYPE, &UNIVERSE], &UNIVERSE);
 
-        def.universe(FormatType);
-        def.fun(
+        env.define_prim(PosType, &UNIVERSE);
+        env.define_prim(RefType, &core::Term::FunType(None, &FORMAT_TYPE, &UNIVERSE));
+
+        env.define_prim(FormatType, &UNIVERSE);
+        env.define_prim(
             FormatSucceed,
-            Some("Elem"),
-            def.universe_value(),
-            &Term::FunType(None, &RigidEnvBuilder::VAR0, &RigidEnvBuilder::FORMAT_TYPE),
-        );
-        def.format(FormatFail);
-        def.format(FormatU8);
-        def.format(FormatU16Be);
-        def.format(FormatU16Le);
-        def.format(FormatU32Be);
-        def.format(FormatU32Le);
-        def.format(FormatU64Be);
-        def.format(FormatU64Le);
-        def.format(FormatS8);
-        def.format(FormatS16Be);
-        def.format(FormatS16Le);
-        def.format(FormatS32Be);
-        def.format(FormatS32Le);
-        def.format(FormatS64Be);
-        def.format(FormatS64Le);
-        def.format(FormatF32Be);
-        def.format(FormatF32Le);
-        def.format(FormatF64Be);
-        def.format(FormatF64Le);
-        def.array_format(FormatArray8, U8Type);
-        def.array_format(FormatArray16, U16Type);
-        def.array_format(FormatArray32, U32Type);
-        def.array_format(FormatArray64, U64Type);
-        def.binary_op(FormatLink, PosType, FormatType, FormatType);
-        def.fun(
-            FormatDeref,
-            Some("Elem"),
-            def.format_type(),
-            &Term::FunType(
-                None,
-                &Term::FunElim(&Term::Prim(RefType), &RigidEnvBuilder::VAR0),
-                &RigidEnvBuilder::FORMAT_TYPE,
+            &core::Term::FunType(
+                env.name("Elem"),
+                &UNIVERSE,
+                &Term::FunType(None, &VAR0, &FORMAT_TYPE),
             ),
         );
-        def.format(FormatStreamPos);
-        def.fun(
+
+        env.define_prim(FormatFail, &FORMAT_TYPE);
+        env.define_prim(FormatU8, &FORMAT_TYPE);
+        env.define_prim(FormatU16Be, &FORMAT_TYPE);
+        env.define_prim(FormatU16Le, &FORMAT_TYPE);
+        env.define_prim(FormatU32Be, &FORMAT_TYPE);
+        env.define_prim(FormatU32Le, &FORMAT_TYPE);
+        env.define_prim(FormatU64Be, &FORMAT_TYPE);
+        env.define_prim(FormatU64Le, &FORMAT_TYPE);
+        env.define_prim(FormatS8, &FORMAT_TYPE);
+        env.define_prim(FormatS16Be, &FORMAT_TYPE);
+        env.define_prim(FormatS16Le, &FORMAT_TYPE);
+        env.define_prim(FormatS32Be, &FORMAT_TYPE);
+        env.define_prim(FormatS32Le, &FORMAT_TYPE);
+        env.define_prim(FormatS64Be, &FORMAT_TYPE);
+        env.define_prim(FormatS64Le, &FORMAT_TYPE);
+        env.define_prim(FormatF32Be, &FORMAT_TYPE);
+        env.define_prim(FormatF32Le, &FORMAT_TYPE);
+        env.define_prim(FormatF64Be, &FORMAT_TYPE);
+        env.define_prim(FormatF64Le, &FORMAT_TYPE);
+        env.define_prim_fun(FormatArray8, [&U8_TYPE, &FORMAT_TYPE], &FORMAT_TYPE);
+        env.define_prim_fun(FormatArray16, [&U16_TYPE, &FORMAT_TYPE], &FORMAT_TYPE);
+        env.define_prim_fun(FormatArray32, [&U32_TYPE, &FORMAT_TYPE], &FORMAT_TYPE);
+        env.define_prim_fun(FormatArray64, [&U64_TYPE, &FORMAT_TYPE], &FORMAT_TYPE);
+        env.define_prim_fun(FormatLink, [&POS_TYPE, &FORMAT_TYPE], &FORMAT_TYPE);
+        env.define_prim(
+            FormatDeref,
+            &core::Term::FunType(
+                env.name("Elem"),
+                &FORMAT_TYPE,
+                &Term::FunType(
+                    None,
+                    &Term::FunElim(&Term::Prim(RefType), &VAR0),
+                    &FORMAT_TYPE,
+                ),
+            ),
+        );
+        env.define_prim(FormatStreamPos, &FORMAT_TYPE);
+        env.define_prim(
             FormatRepr,
-            None,
-            def.format_type(),
-            &RigidEnvBuilder::UNIVERSE,
+            &core::Term::FunType(None, &FORMAT_TYPE, &UNIVERSE),
         );
 
-        def.binary_op(BoolEq, BoolType, BoolType, BoolType);
-        def.binary_op(BoolNeq, BoolType, BoolType, BoolType);
-        def.unary_op(BoolNot, BoolType, BoolType);
-        def.binary_op(BoolAnd, BoolType, BoolType, BoolType);
-        def.binary_op(BoolOr, BoolType, BoolType, BoolType);
-        def.binary_op(BoolXor, BoolType, BoolType, BoolType);
+        env.define_prim_fun(BoolEq, [&BOOL_TYPE, &BOOL_TYPE], &BOOL_TYPE);
+        env.define_prim_fun(BoolNeq, [&BOOL_TYPE, &BOOL_TYPE], &BOOL_TYPE);
+        env.define_prim_fun(BoolNot, [&BOOL_TYPE], &BOOL_TYPE);
+        env.define_prim_fun(BoolAnd, [&BOOL_TYPE, &BOOL_TYPE], &BOOL_TYPE);
+        env.define_prim_fun(BoolOr, [&BOOL_TYPE, &BOOL_TYPE], &BOOL_TYPE);
+        env.define_prim_fun(BoolXor, [&BOOL_TYPE, &BOOL_TYPE], &BOOL_TYPE);
 
-        def.binary_op(U8Eq, U8Type, U8Type, BoolType);
-        def.binary_op(U8Neq, U8Type, U8Type, BoolType);
-        def.binary_op(U8Lt, U8Type, U8Type, BoolType);
-        def.binary_op(U8Gt, U8Type, U8Type, BoolType);
-        def.binary_op(U8Lte, U8Type, U8Type, BoolType);
-        def.binary_op(U8Gte, U8Type, U8Type, BoolType);
-        def.binary_op(U8Add, U8Type, U8Type, U8Type);
-        def.binary_op(U8Sub, U8Type, U8Type, U8Type);
-        def.binary_op(U8Mul, U8Type, U8Type, U8Type);
-        def.binary_op(U8Div, U8Type, U8Type, U8Type);
-        def.unary_op(U8Not, U8Type, U8Type);
-        def.binary_op(U8Shl, U8Type, U8Type, U8Type);
-        def.binary_op(U8Shr, U8Type, U8Type, U8Type);
-        def.binary_op(U8And, U8Type, U8Type, U8Type);
-        def.binary_op(U8Or, U8Type, U8Type, U8Type);
-        def.binary_op(U8Xor, U8Type, U8Type, U8Type);
+        env.define_prim_fun(U8Eq, [&U8_TYPE, &U8_TYPE], &BOOL_TYPE);
+        env.define_prim_fun(U8Neq, [&U8_TYPE, &U8_TYPE], &BOOL_TYPE);
+        env.define_prim_fun(U8Lt, [&U8_TYPE, &U8_TYPE], &BOOL_TYPE);
+        env.define_prim_fun(U8Gt, [&U8_TYPE, &U8_TYPE], &BOOL_TYPE);
+        env.define_prim_fun(U8Lte, [&U8_TYPE, &U8_TYPE], &BOOL_TYPE);
+        env.define_prim_fun(U8Gte, [&U8_TYPE, &U8_TYPE], &BOOL_TYPE);
+        env.define_prim_fun(U8Add, [&U8_TYPE, &U8_TYPE], &U8_TYPE);
+        env.define_prim_fun(U8Sub, [&U8_TYPE, &U8_TYPE], &U8_TYPE);
+        env.define_prim_fun(U8Mul, [&U8_TYPE, &U8_TYPE], &U8_TYPE);
+        env.define_prim_fun(U8Div, [&U8_TYPE, &U8_TYPE], &U8_TYPE);
+        env.define_prim_fun(U8Not, [&U8_TYPE], &U8_TYPE);
+        env.define_prim_fun(U8Shl, [&U8_TYPE, &U8_TYPE], &U8_TYPE);
+        env.define_prim_fun(U8Shr, [&U8_TYPE, &U8_TYPE], &U8_TYPE);
+        env.define_prim_fun(U8And, [&U8_TYPE, &U8_TYPE], &U8_TYPE);
+        env.define_prim_fun(U8Or, [&U8_TYPE, &U8_TYPE], &U8_TYPE);
+        env.define_prim_fun(U8Xor, [&U8_TYPE, &U8_TYPE], &U8_TYPE);
 
-        def.binary_op(U16Eq, U16Type, U16Type, BoolType);
-        def.binary_op(U16Neq, U16Type, U16Type, BoolType);
-        def.binary_op(U16Lt, U16Type, U16Type, BoolType);
-        def.binary_op(U16Gt, U16Type, U16Type, BoolType);
-        def.binary_op(U16Lte, U16Type, U16Type, BoolType);
-        def.binary_op(U16Gte, U16Type, U16Type, BoolType);
-        def.binary_op(U16Add, U16Type, U16Type, U16Type);
-        def.binary_op(U16Sub, U16Type, U16Type, U16Type);
-        def.binary_op(U16Mul, U16Type, U16Type, U16Type);
-        def.binary_op(U16Div, U16Type, U16Type, U16Type);
-        def.unary_op(U16Not, U16Type, U16Type);
-        def.binary_op(U16Shl, U16Type, U8Type, U16Type);
-        def.binary_op(U16Shr, U16Type, U8Type, U16Type);
-        def.binary_op(U16And, U16Type, U16Type, U16Type);
-        def.binary_op(U16Or, U16Type, U16Type, U16Type);
-        def.binary_op(U16Xor, U16Type, U16Type, U16Type);
+        env.define_prim_fun(U16Eq, [&U16_TYPE, &U16_TYPE], &BOOL_TYPE);
+        env.define_prim_fun(U16Neq, [&U16_TYPE, &U16_TYPE], &BOOL_TYPE);
+        env.define_prim_fun(U16Lt, [&U16_TYPE, &U16_TYPE], &BOOL_TYPE);
+        env.define_prim_fun(U16Gt, [&U16_TYPE, &U16_TYPE], &BOOL_TYPE);
+        env.define_prim_fun(U16Lte, [&U16_TYPE, &U16_TYPE], &BOOL_TYPE);
+        env.define_prim_fun(U16Gte, [&U16_TYPE, &U16_TYPE], &BOOL_TYPE);
+        env.define_prim_fun(U16Add, [&U16_TYPE, &U16_TYPE], &U16_TYPE);
+        env.define_prim_fun(U16Sub, [&U16_TYPE, &U16_TYPE], &U16_TYPE);
+        env.define_prim_fun(U16Mul, [&U16_TYPE, &U16_TYPE], &U16_TYPE);
+        env.define_prim_fun(U16Div, [&U16_TYPE, &U16_TYPE], &U16_TYPE);
+        env.define_prim_fun(U16Not, [&U16_TYPE], &U16_TYPE);
+        env.define_prim_fun(U16Shl, [&U16_TYPE, &U8_TYPE], &U16_TYPE);
+        env.define_prim_fun(U16Shr, [&U16_TYPE, &U8_TYPE], &U16_TYPE);
+        env.define_prim_fun(U16And, [&U16_TYPE, &U16_TYPE], &U16_TYPE);
+        env.define_prim_fun(U16Or, [&U16_TYPE, &U16_TYPE], &U16_TYPE);
+        env.define_prim_fun(U16Xor, [&U16_TYPE, &U16_TYPE], &U16_TYPE);
 
-        def.binary_op(U32Eq, U32Type, U32Type, BoolType);
-        def.binary_op(U32Neq, U32Type, U32Type, BoolType);
-        def.binary_op(U32Lt, U32Type, U32Type, BoolType);
-        def.binary_op(U32Gt, U32Type, U32Type, BoolType);
-        def.binary_op(U32Lte, U32Type, U32Type, BoolType);
-        def.binary_op(U32Gte, U32Type, U32Type, BoolType);
-        def.binary_op(U32Add, U32Type, U32Type, U32Type);
-        def.binary_op(U32Sub, U32Type, U32Type, U32Type);
-        def.binary_op(U32Mul, U32Type, U32Type, U32Type);
-        def.binary_op(U32Div, U32Type, U32Type, U32Type);
-        def.unary_op(U32Not, U32Type, U32Type);
-        def.binary_op(U32Shl, U32Type, U8Type, U32Type);
-        def.binary_op(U32Shr, U32Type, U8Type, U32Type);
-        def.binary_op(U32And, U32Type, U32Type, U32Type);
-        def.binary_op(U32Or, U32Type, U32Type, U32Type);
-        def.binary_op(U32Xor, U32Type, U32Type, U32Type);
+        env.define_prim_fun(U32Eq, [&U32_TYPE, &U32_TYPE], &BOOL_TYPE);
+        env.define_prim_fun(U32Neq, [&U32_TYPE, &U32_TYPE], &BOOL_TYPE);
+        env.define_prim_fun(U32Lt, [&U32_TYPE, &U32_TYPE], &BOOL_TYPE);
+        env.define_prim_fun(U32Gt, [&U32_TYPE, &U32_TYPE], &BOOL_TYPE);
+        env.define_prim_fun(U32Lte, [&U32_TYPE, &U32_TYPE], &BOOL_TYPE);
+        env.define_prim_fun(U32Gte, [&U32_TYPE, &U32_TYPE], &BOOL_TYPE);
+        env.define_prim_fun(U32Add, [&U32_TYPE, &U32_TYPE], &U32_TYPE);
+        env.define_prim_fun(U32Sub, [&U32_TYPE, &U32_TYPE], &U32_TYPE);
+        env.define_prim_fun(U32Mul, [&U32_TYPE, &U32_TYPE], &U32_TYPE);
+        env.define_prim_fun(U32Div, [&U32_TYPE, &U32_TYPE], &U32_TYPE);
+        env.define_prim_fun(U32Not, [&U32_TYPE], &U32_TYPE);
+        env.define_prim_fun(U32Shl, [&U32_TYPE, &U8_TYPE], &U32_TYPE);
+        env.define_prim_fun(U32Shr, [&U32_TYPE, &U8_TYPE], &U32_TYPE);
+        env.define_prim_fun(U32And, [&U32_TYPE, &U32_TYPE], &U32_TYPE);
+        env.define_prim_fun(U32Or, [&U32_TYPE, &U32_TYPE], &U32_TYPE);
+        env.define_prim_fun(U32Xor, [&U32_TYPE, &U32_TYPE], &U32_TYPE);
 
-        def.binary_op(U64Eq, U64Type, U64Type, BoolType);
-        def.binary_op(U64Neq, U64Type, U64Type, BoolType);
-        def.binary_op(U64Lt, U64Type, U64Type, BoolType);
-        def.binary_op(U64Gt, U64Type, U64Type, BoolType);
-        def.binary_op(U64Lte, U64Type, U64Type, BoolType);
-        def.binary_op(U64Gte, U64Type, U64Type, BoolType);
-        def.binary_op(U64Add, U64Type, U64Type, U64Type);
-        def.binary_op(U64Sub, U64Type, U64Type, U64Type);
-        def.binary_op(U64Mul, U64Type, U64Type, U64Type);
-        def.binary_op(U64Div, U64Type, U64Type, U64Type);
-        def.unary_op(U64Not, U64Type, U64Type);
-        def.binary_op(U64Shl, U64Type, U8Type, U64Type);
-        def.binary_op(U64Shr, U64Type, U8Type, U64Type);
-        def.binary_op(U64And, U64Type, U64Type, U64Type);
-        def.binary_op(U64Or, U64Type, U64Type, U64Type);
-        def.binary_op(U64Xor, U64Type, U64Type, U64Type);
+        env.define_prim_fun(U64Eq, [&U64_TYPE, &U64_TYPE], &BOOL_TYPE);
+        env.define_prim_fun(U64Neq, [&U64_TYPE, &U64_TYPE], &BOOL_TYPE);
+        env.define_prim_fun(U64Lt, [&U64_TYPE, &U64_TYPE], &BOOL_TYPE);
+        env.define_prim_fun(U64Gt, [&U64_TYPE, &U64_TYPE], &BOOL_TYPE);
+        env.define_prim_fun(U64Lte, [&U64_TYPE, &U64_TYPE], &BOOL_TYPE);
+        env.define_prim_fun(U64Gte, [&U64_TYPE, &U64_TYPE], &BOOL_TYPE);
+        env.define_prim_fun(U64Add, [&U64_TYPE, &U64_TYPE], &U64_TYPE);
+        env.define_prim_fun(U64Sub, [&U64_TYPE, &U64_TYPE], &U64_TYPE);
+        env.define_prim_fun(U64Mul, [&U64_TYPE, &U64_TYPE], &U64_TYPE);
+        env.define_prim_fun(U64Div, [&U64_TYPE, &U64_TYPE], &U64_TYPE);
+        env.define_prim_fun(U64Not, [&U64_TYPE], &U64_TYPE);
+        env.define_prim_fun(U64Shl, [&U64_TYPE, &U8_TYPE], &U64_TYPE);
+        env.define_prim_fun(U64Shr, [&U64_TYPE, &U8_TYPE], &U64_TYPE);
+        env.define_prim_fun(U64And, [&U64_TYPE, &U64_TYPE], &U64_TYPE);
+        env.define_prim_fun(U64Or, [&U64_TYPE, &U64_TYPE], &U64_TYPE);
+        env.define_prim_fun(U64Xor, [&U64_TYPE, &U64_TYPE], &U64_TYPE);
 
-        def.binary_op(S8Eq, S8Type, S8Type, BoolType);
-        def.binary_op(S8Neq, S8Type, S8Type, BoolType);
-        def.binary_op(S8Lt, S8Type, S8Type, BoolType);
-        def.binary_op(S8Gt, S8Type, S8Type, BoolType);
-        def.binary_op(S8Lte, S8Type, S8Type, BoolType);
-        def.binary_op(S8Gte, S8Type, S8Type, BoolType);
-        def.unary_op(S8Neg, S8Type, S8Type);
-        def.binary_op(S8Add, S8Type, S8Type, S8Type);
-        def.binary_op(S8Sub, S8Type, S8Type, S8Type);
-        def.binary_op(S8Mul, S8Type, S8Type, S8Type);
-        def.binary_op(S8Div, S8Type, S8Type, S8Type);
+        env.define_prim_fun(S8Eq, [&S8_TYPE, &S8_TYPE], &BOOL_TYPE);
+        env.define_prim_fun(S8Neq, [&S8_TYPE, &S8_TYPE], &BOOL_TYPE);
+        env.define_prim_fun(S8Lt, [&S8_TYPE, &S8_TYPE], &BOOL_TYPE);
+        env.define_prim_fun(S8Gt, [&S8_TYPE, &S8_TYPE], &BOOL_TYPE);
+        env.define_prim_fun(S8Lte, [&S8_TYPE, &S8_TYPE], &BOOL_TYPE);
+        env.define_prim_fun(S8Gte, [&S8_TYPE, &S8_TYPE], &BOOL_TYPE);
+        env.define_prim_fun(S8Neg, [&S8_TYPE], &S8_TYPE);
+        env.define_prim_fun(S8Add, [&S8_TYPE, &S8_TYPE], &S8_TYPE);
+        env.define_prim_fun(S8Sub, [&S8_TYPE, &S8_TYPE], &S8_TYPE);
+        env.define_prim_fun(S8Mul, [&S8_TYPE, &S8_TYPE], &S8_TYPE);
+        env.define_prim_fun(S8Div, [&S8_TYPE, &S8_TYPE], &S8_TYPE);
 
-        def.binary_op(S16Eq, S16Type, S16Type, BoolType);
-        def.binary_op(S16Neq, S16Type, S16Type, BoolType);
-        def.binary_op(S16Lt, S16Type, S16Type, BoolType);
-        def.binary_op(S16Gt, S16Type, S16Type, BoolType);
-        def.binary_op(S16Lte, S16Type, S16Type, BoolType);
-        def.binary_op(S16Gte, S16Type, S16Type, BoolType);
-        def.unary_op(S16Neg, S16Type, S16Type);
-        def.binary_op(S16Add, S16Type, S16Type, S16Type);
-        def.binary_op(S16Sub, S16Type, S16Type, S16Type);
-        def.binary_op(S16Mul, S16Type, S16Type, S16Type);
-        def.binary_op(S16Div, S16Type, S16Type, S16Type);
+        env.define_prim_fun(S16Eq, [&S16_TYPE, &S16_TYPE], &BOOL_TYPE);
+        env.define_prim_fun(S16Neq, [&S16_TYPE, &S16_TYPE], &BOOL_TYPE);
+        env.define_prim_fun(S16Lt, [&S16_TYPE, &S16_TYPE], &BOOL_TYPE);
+        env.define_prim_fun(S16Gt, [&S16_TYPE, &S16_TYPE], &BOOL_TYPE);
+        env.define_prim_fun(S16Lte, [&S16_TYPE, &S16_TYPE], &BOOL_TYPE);
+        env.define_prim_fun(S16Gte, [&S16_TYPE, &S16_TYPE], &BOOL_TYPE);
+        env.define_prim_fun(S16Neg, [&S16_TYPE], &S16_TYPE);
+        env.define_prim_fun(S16Add, [&S16_TYPE, &S16_TYPE], &S16_TYPE);
+        env.define_prim_fun(S16Sub, [&S16_TYPE, &S16_TYPE], &S16_TYPE);
+        env.define_prim_fun(S16Mul, [&S16_TYPE, &S16_TYPE], &S16_TYPE);
+        env.define_prim_fun(S16Div, [&S16_TYPE, &S16_TYPE], &S16_TYPE);
 
-        def.binary_op(S32Eq, S32Type, S32Type, BoolType);
-        def.binary_op(S32Neq, S32Type, S32Type, BoolType);
-        def.binary_op(S32Lt, S32Type, S32Type, BoolType);
-        def.binary_op(S32Gt, S32Type, S32Type, BoolType);
-        def.binary_op(S32Lte, S32Type, S32Type, BoolType);
-        def.binary_op(S32Gte, S32Type, S32Type, BoolType);
-        def.unary_op(S32Neg, S32Type, S32Type);
-        def.binary_op(S32Add, S32Type, S32Type, S32Type);
-        def.binary_op(S32Sub, S32Type, S32Type, S32Type);
-        def.binary_op(S32Mul, S32Type, S32Type, S32Type);
-        def.binary_op(S32Div, S32Type, S32Type, S32Type);
+        env.define_prim_fun(S32Eq, [&S32_TYPE, &S32_TYPE], &BOOL_TYPE);
+        env.define_prim_fun(S32Neq, [&S32_TYPE, &S32_TYPE], &BOOL_TYPE);
+        env.define_prim_fun(S32Lt, [&S32_TYPE, &S32_TYPE], &BOOL_TYPE);
+        env.define_prim_fun(S32Gt, [&S32_TYPE, &S32_TYPE], &BOOL_TYPE);
+        env.define_prim_fun(S32Lte, [&S32_TYPE, &S32_TYPE], &BOOL_TYPE);
+        env.define_prim_fun(S32Gte, [&S32_TYPE, &S32_TYPE], &BOOL_TYPE);
+        env.define_prim_fun(S32Neg, [&S32_TYPE], &S32_TYPE);
+        env.define_prim_fun(S32Add, [&S32_TYPE, &S32_TYPE], &S32_TYPE);
+        env.define_prim_fun(S32Sub, [&S32_TYPE, &S32_TYPE], &S32_TYPE);
+        env.define_prim_fun(S32Mul, [&S32_TYPE, &S32_TYPE], &S32_TYPE);
+        env.define_prim_fun(S32Div, [&S32_TYPE, &S32_TYPE], &S32_TYPE);
 
-        def.binary_op(S64Eq, S64Type, S64Type, BoolType);
-        def.binary_op(S64Neq, S64Type, S64Type, BoolType);
-        def.binary_op(S64Lt, S64Type, S64Type, BoolType);
-        def.binary_op(S64Gt, S64Type, S64Type, BoolType);
-        def.binary_op(S64Lte, S64Type, S64Type, BoolType);
-        def.binary_op(S64Gte, S64Type, S64Type, BoolType);
-        def.unary_op(S64Neg, S64Type, S64Type);
-        def.binary_op(S64Add, S64Type, S64Type, S64Type);
-        def.binary_op(S64Sub, S64Type, S64Type, S64Type);
-        def.binary_op(S64Mul, S64Type, S64Type, S64Type);
-        def.binary_op(S64Div, S64Type, S64Type, S64Type);
+        env.define_prim_fun(S64Eq, [&S64_TYPE, &S64_TYPE], &BOOL_TYPE);
+        env.define_prim_fun(S64Neq, [&S64_TYPE, &S64_TYPE], &BOOL_TYPE);
+        env.define_prim_fun(S64Lt, [&S64_TYPE, &S64_TYPE], &BOOL_TYPE);
+        env.define_prim_fun(S64Gt, [&S64_TYPE, &S64_TYPE], &BOOL_TYPE);
+        env.define_prim_fun(S64Lte, [&S64_TYPE, &S64_TYPE], &BOOL_TYPE);
+        env.define_prim_fun(S64Gte, [&S64_TYPE, &S64_TYPE], &BOOL_TYPE);
+        env.define_prim_fun(S64Neg, [&S64_TYPE], &S64_TYPE);
+        env.define_prim_fun(S64Add, [&S64_TYPE, &S64_TYPE], &S64_TYPE);
+        env.define_prim_fun(S64Sub, [&S64_TYPE, &S64_TYPE], &S64_TYPE);
+        env.define_prim_fun(S64Mul, [&S64_TYPE, &S64_TYPE], &S64_TYPE);
+        env.define_prim_fun(S64Div, [&S64_TYPE, &S64_TYPE], &S64_TYPE);
 
-        def.binary_op(PosAddU8, PosType, U8Type, PosType);
-        def.binary_op(PosAddU16, PosType, U16Type, PosType);
-        def.binary_op(PosAddU32, PosType, U32Type, PosType);
-        def.binary_op(PosAddU64, PosType, U64Type, PosType);
+        env.define_prim_fun(PosAddU8, [&POS_TYPE, &U8_TYPE], &POS_TYPE);
+        env.define_prim_fun(PosAddU16, [&POS_TYPE, &U16_TYPE], &POS_TYPE);
+        env.define_prim_fun(PosAddU32, [&POS_TYPE, &U32_TYPE], &POS_TYPE);
+        env.define_prim_fun(PosAddU64, [&POS_TYPE, &U64_TYPE], &POS_TYPE);
 
-        def.build()
+        env.build()
     }
 
     /// Get the length of the rigid environment.
@@ -338,120 +355,47 @@ pub struct RigidEnvBuilder<'i, 'arena> {
     env: RigidEnv<'arena>,
     interner: &'i RefCell<StringInterner>,
     scope: &'arena Scope<'arena>,
-    universe: ArcValue<'static>,
-    format_type: ArcValue<'static>,
 }
 
 impl<'i, 'arena> RigidEnvBuilder<'i, 'arena> {
-    const FORMAT_TYPE: core::Term<'arena> = core::Term::Prim(Prim::FormatType);
-    const FORMAT_FUN: core::Term<'arena> =
-        core::Term::FunType(None, &Self::FORMAT_TYPE, &Self::FORMAT_TYPE);
-    const UNIVERSE: core::Term<'arena> = core::Term::Universe;
-    const VAR0: core::Term<'arena> = core::Term::RigidVar(env::LocalVar::last());
-
     fn new(
         interner: &'i RefCell<StringInterner>,
         scope: &'arena Scope<'arena>,
     ) -> RigidEnvBuilder<'i, 'arena> {
         let env = RigidEnv::new();
-        let universe = Arc::new(Value::Universe);
-        let format_type = Arc::new(Value::prim(Prim::FormatType, []));
         RigidEnvBuilder {
             env,
             interner,
             scope,
-            universe,
-            format_type,
         }
     }
 
-    fn name(&mut self, name: &'static str) -> Option<StringId> {
+    fn name(&self, name: &'static str) -> Option<StringId> {
         Some(self.interner.borrow_mut().get_or_intern_static(name))
     }
 
-    fn define_prim(&mut self, prim: Prim, r#type: ArcValue<'arena>) {
+    fn define_prim(&mut self, prim: Prim, r#type: &core::Term<'arena>) {
         let name = self.name(prim.name());
+        let flexible_exprs = UniqueEnv::new();
+        let r#type =
+            semantics::EvalContext::new(&mut SharedEnv::new(), &flexible_exprs).eval(r#type);
         self.env
             .push_def(name, Arc::new(Value::prim(prim, [])), r#type);
     }
 
-    fn universe(&mut self, prim: Prim) {
-        self.define_prim(prim, self.universe_value())
-    }
-
-    fn format(&mut self, prim: Prim) {
-        self.define_prim(prim, self.format_type())
-    }
-
-    fn array_format(&mut self, prim: Prim, index_type: Prim) {
-        let index_type = Arc::new(Value::prim(index_type, []));
-        let r#type = Arc::new(Value::FunType(
-            None,
-            index_type,
-            Closure::new(SharedEnv::new(), &Self::FORMAT_FUN),
-        ));
-
-        self.define_prim(prim, r#type);
-    }
-
-    fn array_type(&mut self, prim: Prim, index_type: Prim) {
-        let index_type = Arc::new(Value::prim(index_type, []));
-        let output_type = Self::close(&core::Term::FunType(None, &Self::UNIVERSE, &Self::UNIVERSE));
-        let r#type = Arc::new(Value::FunType(None, index_type, output_type));
-
-        self.define_prim(prim, r#type);
-    }
-
-    fn close(term: &'arena core::Term<'arena>) -> Closure<'arena> {
-        Closure::new(SharedEnv::new(), term)
-    }
-
-    fn binary_op(&mut self, prim: Prim, lhs: Prim, rhs: Prim, output: Prim) {
-        use crate::core::Term;
-
-        let r#type = Arc::new(Value::FunType(
-            None,
-            Arc::new(Value::prim(lhs, [])),
-            Self::close(self.scope.to_scope(Term::FunType(
-                None,
-                self.scope.to_scope(Term::Prim(rhs)),
-                self.scope.to_scope(Term::Prim(output)),
-            ))),
-        ));
-        self.define_prim(prim, r#type);
-    }
-
-    fn unary_op(&mut self, prim: Prim, input: Prim, output: Prim) {
-        use crate::core::Term;
-
-        let r#type = Arc::new(Value::FunType(
-            None,
-            Arc::new(Value::prim(input, [])),
-            Self::close(self.scope.to_scope(Term::Prim(output))),
-        ));
-        self.define_prim(prim, r#type);
-    }
-
-    fn fun(
+    fn define_prim_fun<const ARITY: usize>(
         &mut self,
         prim: Prim,
-        input_name: Option<&'static str>,
-        input_type: ArcValue<'arena>,
-        output_type: &'arena core::Term<'arena>,
+        input_tys: [&'arena core::Term<'arena>; ARITY],
+        output_ty: &'arena core::Term<'arena>,
     ) {
-        let name = input_name.and_then(|name| self.name(name));
         self.define_prim(
             prim,
-            Arc::new(Value::FunType(name, input_type, Self::close(output_type))),
+            (input_tys.iter().rev()).fold(output_ty, |output_ty, input_ty| {
+                self.scope
+                    .to_scope(core::Term::FunType(None, input_ty, output_ty))
+            }),
         );
-    }
-
-    fn format_type(&self) -> ArcValue<'static> {
-        Arc::clone(&self.format_type)
-    }
-
-    fn universe_value(&self) -> ArcValue<'static> {
-        Arc::clone(&self.universe)
     }
 
     fn build(self) -> RigidEnv<'arena> {
