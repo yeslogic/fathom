@@ -1144,7 +1144,18 @@ stdout = '''
     },
 ]
 1248 = [
-    {},
+    {
+        version = 196608,
+        italic_angle = 0,
+        underline_position = -75,
+        underline_thickness = 50,
+        is_fixed_pitch = 0,
+        min_mem_type42 = 0,
+        max_mem_type42 = 0,
+        min_mem_type1 = 0,
+        max_mem_type1 = 0,
+        names = {},
+    },
 ]
 1280 = [
     {},

@@ -1052,14 +1052,12 @@ let simple_glyph = fun (number_of_contours : U16) => {
     instruction_length <- u16be,
     /// Array of instruction byte code for the glyph.
     instructions <- array16 instruction_length u8,
-    /// Array of flag elements. See below for details regarding the number of flag array elements.
+    /// Array of flag elements.
     // flags[variable] <- uint8,
-    /// xCoordinates[variable] 	Contour point x-coordinates. See below for details regarding the
-    /// number of coordinate array elements. Coordinate for the first point is relative to (0,0);
+    /// xCoordinates[variable] 	Contour point x-coordinates. Coordinate for the first point is relative to (0,0);
     /// others are relative to previous point.
     // or int16 <- uint8,
-    /// yCoordinates[variable] 	Contour point y-coordinates. See below for details regarding the
-    /// number of coordinate array elements. Coordinate for the first point is relative to (0,0);
+    /// yCoordinates[variable] 	Contour point y-coordinates. Coordinate for the first point is relative to (0,0);
     /// others are relative to previous point.
     // or int16 <- uint8,
 };
@@ -1222,6 +1220,70 @@ let os2_table = fun (table_length : U32) => {
         _ => fail,
     }
 };
+
+// -----------------------------------------------------------------------------
+
+
+
+/// # PostScript Table
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: Glyph Data](https://docs.microsoft.com/en-us/typography/opentype/spec/post)
+/// - [Apple's TrueType Reference Manual: The `'post'` table](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6post.html)
+let post_table = {
+    /// 0x00010000 for version 1.0 0x00020000 for version 2.0
+    /// 0x00025000 for version 2.5 (deprecated) 0x00030000 for version 3.0
+    version <- version16dot16,
+    /// Italic angle in counter-clockwise degrees from the vertical. Zero for upright text,
+    /// negative for text that leans to the right (forward).
+    italic_angle <- fixed,
+    /// This is the suggested distance of the top of the underline from the baseline (negative
+    /// values indicate below baseline). The PostScript definition of this FontInfo dictionary key
+    /// (the y coordinate of the center of the stroke) is not used for historical reasons. The
+    /// value of the PostScript key may be calculated by subtracting half the underlineThickness
+    /// from the value of this field.
+    underline_position <- fword,
+    /// Suggested values for the underline thickness. In general, the underline thickness should
+    /// match the thickness of the underscore character (U+005F LOW LINE), and should also match
+    /// the strikeout thickness, which is specified in the OS/2 table.
+    underline_thickness <- fword,
+    /// Set to 0 if the font is proportionally spaced, non-zero if the font is not proportionally
+    /// spaced (i.e. monospaced).
+    is_fixed_pitch <- u32be,
+    /// Minimum memory usage when an OpenType font is downloaded.
+    min_mem_type42 <- u32be,
+    /// Maximum memory usage when an OpenType font is downloaded.
+    max_mem_type42 <- u32be,
+    /// Minimum memory usage when an OpenType font is downloaded as a Type 1 font.
+    min_mem_type1 <- u32be,
+    /// Maximum memory usage when an OpenType font is downloaded as a Type 1 font.
+    max_mem_type1 <- u32be,
+    names <- match version {
+        /// Version 1, standard Macintosh names
+        0x00010000 => {},
+        /// Version 2, non-stanard names stored in table as Pascal strings
+        0x00020000 => {
+            /// Number of glyphs (this should be the same as numGlyphs in 'maxp' table).
+            num_glyphs <- u16be,
+            /// Array of indices into the string data.
+            glyph_name_index <- array16 num_glyphs u16be,
+            /// Storage for the string data.
+            string_data <- stream_pos,
+        },
+        /// Version 2.5 (deprecated), offset from standard Macintosh index
+        0x00025000 => {
+            /// Number of glyphs
+            num_glyphs <- u16be,
+            /// Difference between graphic index and standard order of glyph
+            offset <- array16 num_glyphs s8,
+        },
+        /// Version 3, no glyph names stored in font
+        0x00030000 => {},
+        _ => fail,
+    }
+};
+
 
 // -----------------------------------------------------------------------------
 
@@ -1428,7 +1490,7 @@ let table_directory = fun (file_start : Pos) => {
             },
             name <- required_table "name" name_table,
             os2 <- required_table_with_len "OS/2" os2_table,
-            post <- required_table "post" unknown_table,
+            post <- required_table "post" post_table,
 
             // TrueType Outline Tables
             //

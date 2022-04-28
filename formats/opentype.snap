@@ -345,6 +345,31 @@ let os2_table : _ = fun table_length => {
         _ => fail,
     },
 };
+let post_table : _ = {
+    version <- version16dot16,
+    italic_angle <- fixed,
+    underline_position <- fword,
+    underline_thickness <- fword,
+    is_fixed_pitch <- u32be,
+    min_mem_type42 <- u32be,
+    max_mem_type42 <- u32be,
+    min_mem_type1 <- u32be,
+    max_mem_type1 <- u32be,
+    names <- match version {
+        0x10000 => {},
+        0x20000 => {
+            num_glyphs <- u16be,
+            glyph_name_index <- array16 num_glyphs u16be,
+            string_data <- stream_pos,
+        },
+        0x25000 => {
+            num_glyphs <- u16be,
+            offset <- array16 num_glyphs s8,
+        },
+        0x30000 => {},
+        _ => fail,
+    },
+};
 let base_table : _ = unknown_table;
 let gdef_table : _ = unknown_table;
 let gpos_table : _ = unknown_table;
@@ -399,7 +424,7 @@ let table_directory : _ = fun file_start => {
         },
         name <- required_table "name" name_table,
         os2 <- required_table_with_len "OS/2" os2_table,
-        post <- required_table "post" unknown_table,
+        post <- required_table "post" post_table,
         cvt <- optional_table "cvt " unknown_table,
         fpgm <- optional_table "fpgm" unknown_table,
         glyf <- optional_table "glyf" {
