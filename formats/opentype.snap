@@ -281,6 +281,70 @@ let glyph : _ = {
     },
 };
 let glyf_table : _ = fun num_glyphs => { glyphs <- array16 num_glyphs glyph };
+let os2_version_0 : _ = {
+    s_typo_ascender <- s16be,
+    s_typo_descender <- s16be,
+    s_typo_line_gap <- s16be,
+    us_win_ascent <- u16be,
+    usWinDescent <- u16be,
+};
+let os2_version_1 : _ = {
+    version_0 <- os2_version_0,
+    ul_code_page_range1 <- u32be,
+    ul_code_page_range2 <- u32be,
+};
+let os2_version_2_3_4 : _ = {
+    version_1 <- os2_version_1,
+    sx_height <- s16be,
+    s_cap_height <- s16be,
+    us_default_char <- u16be,
+    us_break_char <- u16be,
+    us_max_context <- u16be,
+};
+let os2_version_5 : _ = {
+    parent <- os2_version_2_3_4,
+    usLowerOpticalPointSize <- u16be,
+    usUpperOpticalPointSize <- u16be,
+};
+let os2_table : _ = fun table_length => {
+    version <- u16be,
+    x_avg_char_width <- s16be,
+    us_weight_class <- u16be,
+    us_width_class <- u16be,
+    fs_type <- u16be,
+    y_subscript_x_size <- s16be,
+    y_subscript_y_size <- s16be,
+    y_subscript_x_offset <- s16be,
+    y_subscript_y_offset <- s16be,
+    y_superscript_x_size <- s16be,
+    y_superscript_y_size <- s16be,
+    y_superscript_x_offset <- s16be,
+    y_superscript_y_offset <- s16be,
+    y_strikeout_size <- s16be,
+    y_strikeout_position <- s16be,
+    s_family_class <- s16be,
+    panose <- array8 10 u8,
+    ul_unicode_range1 <- u32be,
+    ul_unicode_range2 <- u32be,
+    ul_unicode_range3 <- u32be,
+    ul_unicode_range4 <- u32be,
+    ach_vend_id <- tag,
+    fs_selection <- u16be,
+    us_first_char_index <- u16be,
+    us_last_char_index <- u16be,
+    data <- match version {
+        0 => match (u32_gte table_length 78) {
+            false => {},
+            true => os2_version_0,
+        },
+        1 => os2_version_1,
+        2 => os2_version_2_3_4,
+        3 => os2_version_2_3_4,
+        4 => os2_version_2_3_4,
+        5 => os2_version_5,
+        _ => fail,
+    },
+};
 let base_table : _ = unknown_table;
 let gdef_table : _ = unknown_table;
 let gpos_table : _ = unknown_table;
@@ -314,6 +378,12 @@ let table_directory : _ = fun file_start => {
         table_record <- unwrap (Repr table_record) (find_table (_ file_start sfnt_version _sfnt_version num_tables search_range entry_selector range_shift table_records table_id table_format) table_records table_id),
         link <- link_table file_start table_record table_format,
     };
+    let required_table_with_len :
+    _ file_start sfnt_version _sfnt_version num_tables search_range entry_selector range_shift table_records =
+    fun table_id => fun table_format => {
+        table_record <- unwrap (Repr table_record) (find_table (_ file_start sfnt_version _sfnt_version num_tables search_range entry_selector range_shift table_records table_id table_format) table_records table_id),
+        link <- link_table file_start table_record (table_format table_record.length),
+    };
     let optional_table :
     _ file_start sfnt_version _sfnt_version num_tables search_range entry_selector range_shift table_records =
     fun table_id => fun table_format => option_fold (Repr table_record) Format {} (fun record => link_table file_start record table_format) (find_table (_ file_start sfnt_version _sfnt_version num_tables search_range entry_selector range_shift table_records table_id table_format) table_records table_id);
@@ -328,7 +398,7 @@ let table_directory : _ = fun file_start => {
             table <- htmx_table hhea.number_of_long_horizontal_metrics maxp.num_glyphs,
         },
         name <- required_table "name" name_table,
-        os2 <- required_table "OS/2" unknown_table,
+        os2 <- required_table_with_len "OS/2" os2_table,
         post <- required_table "post" unknown_table,
         cvt <- optional_table "cvt " unknown_table,
         fpgm <- optional_table "fpgm" unknown_table,

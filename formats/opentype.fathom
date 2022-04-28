@@ -1119,7 +1119,113 @@ let glyf_table = fun (num_glyphs : U16) => {
 
 // -----------------------------------------------------------------------------
 
-// TODO: "OS/2" .. "sbix" tables
+/// # OS/2 Version 0
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: Glyph Data](https://docs.microsoft.com/en-us/typography/opentype/spec/os2#version-0)
+/// - [Apple's TrueType Reference Manual: The `'OS/2'` table](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6OS2.html)
+let os2_version_0 = {
+    s_typo_ascender <- s16be,
+    s_typo_descender <- s16be,
+    s_typo_line_gap <- s16be,
+    us_win_ascent <- u16be,
+    usWinDescent <- u16be,
+};
+
+/// # OS/2 Version 1
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: Glyph Data](https://docs.microsoft.com/en-us/typography/opentype/spec/os2#version-1)
+/// - [Apple's TrueType Reference Manual: The `'OS/2'` table](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6OS2.html)
+let os2_version_1 = {
+    version_0 <- os2_version_0,
+    ul_code_page_range1 <- u32be,
+    ul_code_page_range2 <- u32be,
+};
+
+/// # OS/2 Version 2, 3, 4
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: Glyph Data](https://docs.microsoft.com/en-us/typography/opentype/spec/os2#version-2)
+/// - [Apple's TrueType Reference Manual: The `'OS/2'` table](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6OS2.html)
+let os2_version_2_3_4 = {
+    version_1 <- os2_version_1,
+    sx_height <- s16be,
+    s_cap_height <- s16be,
+    us_default_char <- u16be,
+    us_break_char <- u16be,
+    us_max_context <- u16be,
+};
+
+/// # OS/2 Version 5
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: Glyph Data](https://docs.microsoft.com/en-us/typography/opentype/spec/os2#version-0)
+/// - [Apple's TrueType Reference Manual: The `'OS/2'` table](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6OS2.html)
+let os2_version_5 = {
+    parent <- os2_version_2_3_4,
+    usLowerOpticalPointSize <- u16be,
+    usUpperOpticalPointSize <- u16be,
+};
+
+/// # OS/2 and Windows Metrics Table
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: Glyph Data](https://docs.microsoft.com/en-us/typography/opentype/spec/os2)
+/// - [Apple's TrueType Reference Manual: The `'OS/2'` table](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6OS2.html)
+let os2_table = fun (table_length : U32) => {
+    version <- u16be,
+    x_avg_char_width <- s16be,
+    us_weight_class <- u16be,
+    us_width_class <- u16be,
+    fs_type <- u16be,
+    y_subscript_x_size <- s16be,
+    y_subscript_y_size <- s16be,
+    y_subscript_x_offset <- s16be,
+    y_subscript_y_offset <- s16be,
+    y_superscript_x_size <- s16be,
+    y_superscript_y_size <- s16be,
+    y_superscript_x_offset <- s16be,
+    y_superscript_y_offset <- s16be,
+    y_strikeout_size <- s16be,
+    y_strikeout_position <- s16be,
+    s_family_class <- s16be,
+    panose <- array8 10 u8,
+    ul_unicode_range1 <- u32be,
+    ul_unicode_range2 <- u32be,
+    ul_unicode_range3 <- u32be,
+    ul_unicode_range4 <- u32be,
+    ach_vend_id <- tag,
+    fs_selection <- u16be,
+    us_first_char_index <- u16be,
+    us_last_char_index <- u16be,
+    data <- match version {
+        // Note: Documentation for OS/2 version 0 in Apple’s TrueType Reference Manual stops at the
+        // usLastCharIndex field and does not include the last five fields of the table as it was
+        // defined by Microsoft. Some legacy TrueType fonts may have been built with a shortened
+        // version 0 OS/2 table. Applications should check the table length for a version 0 OS/2
+        // table before reading these fields.
+        0 => match (u32_gte table_length 78) {
+            true => os2_version_0,
+            false => {},
+        },
+        1 => os2_version_1,
+        2 => os2_version_2_3_4,
+        3 => os2_version_2_3_4,
+        4 => os2_version_2_3_4,
+        5 => os2_version_5,
+        _ => fail,
+    }
+};
+
+// -----------------------------------------------------------------------------
+
+// TODO: "PCLT" .. "sbix" tables
 
 
 // -----------------------------------------------------------------------------
@@ -1289,6 +1395,14 @@ let table_directory = fun (file_start : Pos) => {
                 link <- link_table file_start table_record table_format,
             };
 
+        let required_table_with_len =
+            fun (table_id : Repr tag) =>
+            fun (table_format : (U32 -> Format)) => {
+                // TODO: let formats
+                table_record <- unwrap (Repr table_record) (find_table _ table_records table_id),
+                link <- link_table file_start table_record (table_format table_record.length),
+            };
+
         let optional_table =
             fun (table_id : Repr tag) =>
             fun (table_format : Format) =>
@@ -1313,7 +1427,7 @@ let table_directory = fun (file_start : Pos) => {
                     maxp.num_glyphs,
             },
             name <- required_table "name" name_table,
-            os2 <- required_table "OS/2" unknown_table,
+            os2 <- required_table_with_len "OS/2" os2_table,
             post <- required_table "post" unknown_table,
 
             // TrueType Outline Tables
