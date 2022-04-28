@@ -257,6 +257,8 @@ impl<'arena> RigidEnv<'arena> {
         env.define_prim_fun(S8Sub, [&S8_TYPE, &S8_TYPE], &S8_TYPE);
         env.define_prim_fun(S8Mul, [&S8_TYPE, &S8_TYPE], &S8_TYPE);
         env.define_prim_fun(S8Div, [&S8_TYPE, &S8_TYPE], &S8_TYPE);
+        env.define_prim_fun(S8Abs, [&S8_TYPE], &S8_TYPE);
+        env.define_prim_fun(S8UAbs, [&S8_TYPE], &U8_TYPE);
 
         env.define_prim_fun(S16Eq, [&S16_TYPE, &S16_TYPE], &BOOL_TYPE);
         env.define_prim_fun(S16Neq, [&S16_TYPE, &S16_TYPE], &BOOL_TYPE);
@@ -269,6 +271,8 @@ impl<'arena> RigidEnv<'arena> {
         env.define_prim_fun(S16Sub, [&S16_TYPE, &S16_TYPE], &S16_TYPE);
         env.define_prim_fun(S16Mul, [&S16_TYPE, &S16_TYPE], &S16_TYPE);
         env.define_prim_fun(S16Div, [&S16_TYPE, &S16_TYPE], &S16_TYPE);
+        env.define_prim_fun(S16Abs, [&S16_TYPE], &S16_TYPE);
+        env.define_prim_fun(S16UAbs, [&S16_TYPE], &U16_TYPE);
 
         env.define_prim_fun(S32Eq, [&S32_TYPE, &S32_TYPE], &BOOL_TYPE);
         env.define_prim_fun(S32Neq, [&S32_TYPE, &S32_TYPE], &BOOL_TYPE);
@@ -281,6 +285,8 @@ impl<'arena> RigidEnv<'arena> {
         env.define_prim_fun(S32Sub, [&S32_TYPE, &S32_TYPE], &S32_TYPE);
         env.define_prim_fun(S32Mul, [&S32_TYPE, &S32_TYPE], &S32_TYPE);
         env.define_prim_fun(S32Div, [&S32_TYPE, &S32_TYPE], &S32_TYPE);
+        env.define_prim_fun(S32Abs, [&S32_TYPE], &S32_TYPE);
+        env.define_prim_fun(S32UAbs, [&S32_TYPE], &U32_TYPE);
 
         env.define_prim_fun(S64Eq, [&S64_TYPE, &S64_TYPE], &BOOL_TYPE);
         env.define_prim_fun(S64Neq, [&S64_TYPE, &S64_TYPE], &BOOL_TYPE);
@@ -293,6 +299,8 @@ impl<'arena> RigidEnv<'arena> {
         env.define_prim_fun(S64Sub, [&S64_TYPE, &S64_TYPE], &S64_TYPE);
         env.define_prim_fun(S64Mul, [&S64_TYPE, &S64_TYPE], &S64_TYPE);
         env.define_prim_fun(S64Div, [&S64_TYPE, &S64_TYPE], &S64_TYPE);
+        env.define_prim_fun(S64Abs, [&S64_TYPE], &S64_TYPE);
+        env.define_prim_fun(S64UAbs, [&S64_TYPE], &U64_TYPE);
 
         env.define_prim_fun(PosAddU8, [&POS_TYPE, &U8_TYPE], &POS_TYPE);
         env.define_prim_fun(PosAddU16, [&POS_TYPE, &U16_TYPE], &POS_TYPE);

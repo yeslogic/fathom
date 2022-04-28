@@ -685,6 +685,8 @@ A number of operations are defined for the numeric types:
 - `s8_sub : S8 -> S8 -> S8`
 - `s8_mul : S8 -> S8 -> S8`
 - `s8_div : S8 -> S8 -> S8`
+- `s8_abs : S8 -> S8`
+- `s8_unsigned_abs : S8 -> U8`
 
 - `s16_eq : S16 -> S16 -> Bool`
 - `s16_neq : S16 -> S16 -> Bool`
@@ -697,6 +699,8 @@ A number of operations are defined for the numeric types:
 - `s16_sub : S16 -> S16 -> S16`
 - `s16_mul : S16 -> S16 -> S16`
 - `s16_div : S16 -> S16 -> S16`
+- `s16_abs : S16 -> S16`
+- `s16_unsigned_abs : S16 -> U16`
 
 - `s32_eq : S32 -> S32 -> Bool`
 - `s32_neq : S32 -> S32 -> Bool`
@@ -709,6 +713,8 @@ A number of operations are defined for the numeric types:
 - `s32_sub : S32 -> S32 -> S32`
 - `s32_mul : S32 -> S32 -> S32`
 - `s32_div : S32 -> S32 -> S32`
+- `s32_abs : S32 -> S32`
+- `s32_unsigned_abs : S32 -> U32`
 
 - `s64_eq : S64 -> S64 -> Bool`
 - `s64_neq : S64 -> S64 -> Bool`
@@ -721,6 +727,8 @@ A number of operations are defined for the numeric types:
 - `s64_sub : S64 -> S64 -> S64`
 - `s64_mul : S64 -> S64 -> S64`
 - `s64_div : S64 -> S64 -> S64`
+- `s64_abs : S64 -> S64`
+- `s64_unsigned_abs : S64 -> U64`
 
 ## Arrays
 
