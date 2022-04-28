@@ -1,0 +1,320 @@
+stdout = '''
+0 = [
+    {
+        start = 0,
+        directory = {
+            sfnt_version = 1330926671,
+            _sfnt_version = {},
+            num_tables = 9,
+            search_range = 128,
+            entry_selector = 3,
+            range_shift = 16,
+            table_records = [
+                {
+                    table_id = 1128678944,
+                    checksum = 2312911615,
+                    offset = 1280,
+                    length = 558,
+                    link = 1280,
+                },
+                {
+                    table_id = 1330851634,
+                    checksum = 2107474081,
+                    offset = 256,
+                    length = 96,
+                    link = 256,
+                },
+                {
+                    table_id = 1668112752,
+                    checksum = 11469276,
+                    offset = 1016,
+                    length = 230,
+                    link = 1016,
+                },
+                {
+                    table_id = 1751474532,
+                    checksum = 4199932307,
+                    offset = 156,
+                    length = 54,
+                    link = 156,
+                },
+                {
+                    table_id = 1751672161,
+                    checksum = 200869999,
+                    offset = 212,
+                    length = 36,
+                    link = 212,
+                },
+                {
+                    table_id = 1752003704,
+                    checksum = 399966408,
+                    offset = 1840,
+                    length = 16,
+                    link = 1840,
+                },
+                {
+                    table_id = 1835104368,
+                    checksum = 282624,
+                    offset = 248,
+                    length = 6,
+                    link = 248,
+                },
+                {
+                    table_id = 1851878757,
+                    checksum = 720423648,
+                    offset = 352,
+                    length = 663,
+                    link = 352,
+                },
+                {
+                    table_id = 1886352244,
+                    checksum = 4290248754,
+                    offset = 1248,
+                    length = 32,
+                    link = 1248,
+                },
+            ],
+        },
+    },
+]
+156 = [
+    {
+        major_version = 1,
+        _major_version = {},
+        minor_version = 0,
+        font_revision = 65536,
+        checksum_adjustment = 1155811448,
+        magic_number = 1594834165,
+        _magic_number = {},
+        flags = 3,
+        units_per_em = 1000,
+        _units_per_em = {},
+        created = 3374127268,
+        modified = 3374417235,
+        glyph_extents = {
+            x_min = 100,
+            y_min = -10,
+            x_max = 2204,
+            y_max = 710,
+        },
+        mac_style = 0,
+        lowest_rec_ppem = 3,
+        font_direction_hint = 2,
+        index_to_loc_format = 0,
+        glyph_data_format = 0,
+    },
+]
+212 = [
+    {
+        major_version = 1,
+        _major_version = {},
+        minor_version = 0,
+        ascent = 750,
+        descent = -250,
+        line_gap = 9,
+        advance_width_max = 2304,
+        min_left_side_bearing = 100,
+        min_right_side_bearing = 100,
+        x_max_extent = 2204,
+        caret_slope = {
+            rise = 1,
+            run = 0,
+        },
+        caret_offset = 0,
+        _reserved0 = 0,
+        _reserved1 = 0,
+        _reserved2 = 0,
+        _reserved3 = 0,
+        metric_data_format = 0,
+        number_of_long_horizontal_metrics = 4,
+    },
+]
+248 = [
+    {
+        version = 20480,
+        num_glyphs = 4,
+    },
+]
+256 = [
+    {},
+]
+352 = [
+    {
+        table_start = 352,
+        version = 0,
+        name_count = 14,
+        storage_offset = 174,
+    },
+]
+1016 = [
+    {
+        table_start = 1016,
+        version = 0,
+        num_tables = 3,
+        encoding_records = [
+            {
+                platform = 0,
+                encoding = 3,
+                subtable_offset = {
+                    offset = 28,
+                    link = 1044,
+                },
+            },
+            {
+                platform = 1,
+                encoding = 0,
+                subtable_offset = {
+                    offset = 76,
+                    link = 1092,
+                },
+            },
+            {
+                platform = 3,
+                encoding = 1,
+                subtable_offset = {
+                    offset = 28,
+                    link = 1044,
+                },
+            },
+        ],
+    },
+]
+1044 = [
+    {
+        table_start = 1044,
+        format = 4,
+        data = {
+            length = 48,
+            language = 0,
+            seg_count_x2 = 8,
+            seg_count = 4,
+            search_range = 8,
+            entry_selector = 2,
+            range_shift = 0,
+            end_code = [
+                32,
+                70,
+                80,
+                65535,
+            ],
+            _reserved_pad = 0,
+            start_code = [
+                32,
+                70,
+                80,
+                65535,
+            ],
+            id_delta = [
+                -31,
+                -68,
+                -77,
+                1,
+            ],
+            id_range_offsets = [
+                0,
+                0,
+                0,
+                0,
+            ],
+        },
+    },
+]
+1092 = [
+    {
+        table_start = 1092,
+        format = 6,
+        data = {
+            length = 154,
+            language = 0,
+            first_code = 9,
+            entry_count = 72,
+            glyph_id_array = [
+                1,
+                0,
+                0,
+                0,
+                1,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                1,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                2,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                3,
+            ],
+        },
+    },
+]
+1248 = [
+    {},
+]
+1280 = [
+    {},
+]
+1840 = [
+    {
+        h_metrics = [],
+    },
+]
+'''
+stderr = ''
