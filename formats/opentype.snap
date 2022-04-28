@@ -122,7 +122,7 @@ let cmap_subtable_format14 : _ = fun platform => fun table_start => {
     num_var_selector_records <- u32be,
     var_selector <- array32 num_var_selector_records (variation_selector table_start),
 };
-let character_map_subtable : _ = fun platform => {
+let cmap_subtable : _ = fun platform => {
     table_start <- stream_pos,
     format <- u16be,
     data <- match format {
@@ -141,15 +141,15 @@ let character_map_subtable : _ = fun platform => {
 let encoding_record : _ = fun table_start => {
     platform <- platform_id,
     encoding <- encoding_id platform,
-    subtable_offset <- offset32 table_start (character_map_subtable platform),
+    subtable_offset <- offset32 table_start (cmap_subtable platform),
 };
-let character_map : _ = {
+let cmap_table : _ = {
     table_start <- stream_pos,
     version <- u16be,
     num_tables <- u16be,
     encoding_records <- array16 num_tables (encoding_record table_start),
 };
-let font_header : _ = {
+let head_table : _ = {
     major_version <- u16be,
     _major_version <- match (u16_eq major_version 1) {
         false => fail,
@@ -183,7 +183,7 @@ let font_header : _ = {
     index_to_loc_format <- s16be,
     glyph_data_format <- s16be,
 };
-let horizontal_header : _ = {
+let hhea_table : _ = {
     major_version <- u16be,
     _major_version <- match (u16_eq major_version 1) {
         false => fail,
@@ -213,11 +213,11 @@ let long_horizontal_metric : _ = {
     advance_width <- u16be,
     left_side_bearing <- s16be,
 };
-let horizontal_metrics : _ =
+let htmx_table : _ =
 fun number_of_long_horizontal_metrics => fun num_glyphs => {
     h_metrics <- array16 number_of_long_horizontal_metrics long_horizontal_metric,
 };
-let maximum_profile : _ = { version <- version16dot16, num_glyphs <- u16be };
+let maxp_table : _ = { version <- version16dot16, num_glyphs <- u16be };
 let name_record : _ = fun storage_start => {
     platform <- platform_id,
     encoding <- encoding_id platform,
@@ -230,13 +230,13 @@ let lang_tag_record : _ = fun storage_start => {
     length <- u16be,
     offset <- offset16 storage_start (array16 length u8),
 };
-let naming : _ = {
+let name_table : _ = {
     table_start <- stream_pos,
     version <- u16be,
     name_count <- u16be,
     storage_offset <- u16be,
 };
-let index_to_location : _ = fun num_glyphs => fun index_to_loc_format => {
+let loca_table : _ = fun num_glyphs => fun index_to_loc_format => {
     offsets <- match index_to_loc_format {
         0 => array16 (u16_add num_glyphs 1) u16be,
         1 => array16 (u16_add num_glyphs 1) u32be,
@@ -279,15 +279,15 @@ let glyph : _ = {
         true => composite_glyph,
     },
 };
-let glyph_data : _ = fun num_glyphs => { glyphs <- array16 num_glyphs glyph };
-let baseline_data : _ = unknown_table;
-let glyph_definition_data : _ = unknown_table;
-let glyph_positioning_data : _ = unknown_table;
-let glyph_substitution_data : _ = unknown_table;
-let justification_data : _ = unknown_table;
-let math_layout_data : _ = unknown_table;
+let glyf_table : _ = fun num_glyphs => { glyphs <- array16 num_glyphs glyph };
+let base_table : _ = unknown_table;
+let gdef_table : _ = unknown_table;
+let gpos_table : _ = unknown_table;
+let gsub_table : _ = unknown_table;
+let jstf_table : _ = unknown_table;
+let math_table : _ = unknown_table;
 let font_table : _ = fun table_id => match table_id {
-    "BASE" => baseline_data,
+    "BASE" => base_table,
     "CBDT" => unknown_table,
     "CBLC" => unknown_table,
     "CFF " => unknown_table,
@@ -298,13 +298,13 @@ let font_table : _ = fun table_id => match table_id {
     "EBDT" => unknown_table,
     "EBLC" => unknown_table,
     "EBSC" => unknown_table,
-    "GDEF" => glyph_definition_data,
-    "GPOS" => glyph_positioning_data,
-    "GSUB" => glyph_substitution_data,
+    "GDEF" => gdef_table,
+    "GPOS" => gpos_table,
+    "GSUB" => gsub_table,
     "HVAR" => unknown_table,
-    "JSTF" => justification_data,
+    "JSTF" => jstf_table,
     "LTSH" => unknown_table,
-    "MATH" => math_layout_data,
+    "MATH" => math_table,
     "MERG" => unknown_table,
     "MVAR" => unknown_table,
     "OS/2" => unknown_table,
@@ -315,23 +315,23 @@ let font_table : _ = fun table_id => match table_id {
     "VORG" => unknown_table,
     "VVAR" => unknown_table,
     "avar" => unknown_table,
-    "cmap" => character_map,
+    "cmap" => cmap_table,
     "cvar" => unknown_table,
     "cvt " => unknown_table,
     "fpgm" => unknown_table,
     "fvar" => unknown_table,
     "gasp" => unknown_table,
-    "glyf" => glyph_data 1,
+    "glyf" => glyf_table 1,
     "gvar" => unknown_table,
     "hdmx" => unknown_table,
-    "head" => font_header,
-    "hhea" => horizontal_header,
-    "hmtx" => horizontal_metrics 0 0,
+    "head" => head_table,
+    "hhea" => hhea_table,
+    "hmtx" => htmx_table 0 0,
     "kern" => unknown_table,
-    "loca" => index_to_location 1 0,
-    "maxp" => maximum_profile,
+    "loca" => loca_table 1 0,
+    "maxp" => maxp_table,
     "meta" => unknown_table,
-    "name" => naming,
+    "name" => name_table,
     "post" => unknown_table,
     "prep" => unknown_table,
     "sbix" => unknown_table,

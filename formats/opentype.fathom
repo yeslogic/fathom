@@ -565,7 +565,7 @@ let cmap_subtable_format14 = fun (platform : Repr platform_id) => fun (table_sta
 };
 
 /// # Character Mapping subtable
-let character_map_subtable = fun (platform : Repr platform_id) => {
+let cmap_subtable = fun (platform : Repr platform_id) => {
     /// The start of the character mapping sub-table
     table_start <- stream_pos,
     /// Format number of the subtable
@@ -596,7 +596,7 @@ let encoding_record = fun (table_start : Pos) => {
     /// Platform-specific encoding identifier
     encoding <- encoding_id platform,
     /// Byte offset to the subtable data
-    subtable_offset <- offset32 table_start (character_map_subtable platform),
+    subtable_offset <- offset32 table_start (cmap_subtable platform),
 };
 
 /// # Character Mapping Table (`cmap`)
@@ -605,7 +605,7 @@ let encoding_record = fun (table_start : Pos) => {
 ///
 /// - [Microsoft's OpenType Spec: 'cmap' Header](https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#cmap-header)
 /// - [Apple's TrueType Reference Manual: The `'cmap'` table](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6cmap.html)
-let character_map = {
+let cmap_table = {
     /// The start of the character mapping table
     table_start <- stream_pos,
     /// The version of the character
@@ -634,7 +634,7 @@ let character_map = {
 ///
 /// - [Microsoft's OpenType Spec: head — Font Header Table](https://docs.microsoft.com/en-us/typography/opentype/spec/head)
 /// - [Apple's TrueType Reference Manual: The `'head'` table](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6head.html)
-let font_header = {
+let head_table = {
     /// Major version number of the font header table.
     major_version <- u16be, // TODO: where major_version == 1
     _major_version <- match (u16_eq major_version 1) { true => {}, false => fail },
@@ -707,7 +707,7 @@ let font_header = {
     /// | `-2`  | like `-1` but also contains neutrals  |
     font_direction_hint <- deprecated s16be 2, // TODO: use an enum format?
     /// The type of offsets to use when mapping glyph indices to offsets in the
-    /// file (see the `index_to_location` table).
+    /// file (see the `loca_table` table).
     ///
     /// | Value | Meaning                       |
     /// | ----- | ----------------------------- |
@@ -741,7 +741,7 @@ let font_header = {
 ///
 /// - [Microsoft's OpenType Spec: hhea — Horizontal Header Table](https://docs.microsoft.com/en-us/typography/opentype/spec/hhea)
 /// - [Apple's TrueType Reference Manual: The `'hhea'` table](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6hhea.html)
-let horizontal_header = {
+let hhea_table = {
     /// Major version number of the horizontal header table.
     major_version <- u16be, // TODO: where major_version == 1
     _major_version <- match (u16_eq major_version 1) { true => {}, false => fail },
@@ -778,8 +778,7 @@ let horizontal_header = {
 
     /// Set to `0` for current format.
     metric_data_format <- s16be,
-    /// Number of `long_horizontal_metric` records in the in the
-    /// `horizontal_metrics` table.
+    /// Number of `long_horizontal_metric` records in the in the `htmx_table`.
     number_of_long_horizontal_metrics <- u16be,
 };
 
@@ -810,7 +809,7 @@ let long_horizontal_metric = {
 ///
 /// - [Microsoft's OpenType Spec: hmtx — Horizontal Metrics Table](https://docs.microsoft.com/en-us/typography/opentype/spec/hmtx)
 /// - [Apple's TrueType Reference Manual: The `'hmtx'` table](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6hmtx.html)
-let horizontal_metrics = fun (number_of_long_horizontal_metrics : U16) => fun (num_glyphs : U16) => {
+let htmx_table = fun (number_of_long_horizontal_metrics : U16) => fun (num_glyphs : U16) => {
     /// Long horizontal metrics, indexed by the glyph ID.
     h_metrics <- array16 number_of_long_horizontal_metrics long_horizontal_metric,
     // /// Left side bearings for glyph IDs greater than or equal to the
@@ -836,7 +835,7 @@ let horizontal_metrics = fun (number_of_long_horizontal_metrics : U16) => fun (n
 ///
 /// - [Microsoft's OpenType Spec: maxp — Maximum Profile](https://docs.microsoft.com/en-us/typography/opentype/spec/maxp)
 /// - [Apple's TrueType Reference Manual: The `'maxp'` table](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6maxp.html)
-let maximum_profile = {
+let maxp_table = {
     /// The version of the table
     version <- version16dot16,
 
@@ -979,7 +978,7 @@ let lang_tag_record = fun (storage_start : Pos) => {
 ///
 /// - [Microsoft's OpenType Spec: Naming table header](https://docs.microsoft.com/en-us/typography/opentype/spec/name#naming-table-header)
 /// - [Apple's TrueType Reference Manual: The `'name'` table](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6name.html)
-let naming = {
+let name_table = {
     /// The start of the naming table
     table_start <- stream_pos,
 
@@ -1010,7 +1009,7 @@ let naming = {
 ///
 /// - [Microsoft's OpenType Spec: `loca` table](https://docs.microsoft.com/en-us/typography/opentype/spec/loca)
 /// - [Apple's TrueType Reference Manual: The `'loca'` table](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6loca.html)
-let index_to_location = fun (num_glyphs : U16) => fun (index_to_loc_format : S16) => {
+let loca_table = fun (num_glyphs : U16) => fun (index_to_loc_format : S16) => {
     offsets <- match index_to_loc_format {
         // short offsets
         0 => array16 (u16_add num_glyphs 1) u16be, // TODO Offset16
@@ -1115,7 +1114,7 @@ let glyph = {
 ///
 /// - [Microsoft's OpenType Spec: Glyph Data](https://docs.microsoft.com/en-us/typography/opentype/spec/glyf)
 /// - [Apple's TrueType Reference Manual: The `'glyf'` table](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6glyf.html)
-let glyph_data = fun (num_glyphs : U16) => {
+let glyf_table = fun (num_glyphs : U16) => {
     glyphs <- array16 num_glyphs glyph,
 };
 
@@ -1130,7 +1129,7 @@ let glyph_data = fun (num_glyphs : U16) => {
 //
 // - [Microsoft's OpenType Spec: BASE — Baseline Table](https://docs.microsoft.com/en-us/typography/opentype/spec/base)
 
-let baseline_data = unknown_table;
+let base_table = unknown_table;
 
 
 // -----------------------------------------------------------------------------
@@ -1139,7 +1138,7 @@ let baseline_data = unknown_table;
 //
 // - [Microsoft's OpenType Spec: GDEF — Glyph Definition Table](https://docs.microsoft.com/en-us/typography/opentype/spec/gdef)
 
-let glyph_definition_data = unknown_table;
+let gdef_table = unknown_table;
 
 
 // -----------------------------------------------------------------------------
@@ -1148,7 +1147,7 @@ let glyph_definition_data = unknown_table;
 //
 // - [Microsoft's OpenType Spec: GPOS — Glyph Positioning Table](https://docs.microsoft.com/en-us/typography/opentype/spec/gpos)
 
-let glyph_positioning_data = unknown_table;
+let gpos_table = unknown_table;
 
 
 // -----------------------------------------------------------------------------
@@ -1157,7 +1156,7 @@ let glyph_positioning_data = unknown_table;
 //
 // - [Microsoft's OpenType Spec: GSUB — Glyph Substitution Table](https://docs.microsoft.com/en-us/typography/opentype/spec/gsub)
 
-let glyph_substitution_data = unknown_table;
+let gsub_table = unknown_table;
 
 
 // -----------------------------------------------------------------------------
@@ -1166,7 +1165,7 @@ let glyph_substitution_data = unknown_table;
 //
 // - [Microsoft's OpenType Spec: JSTF — Justification Table](https://docs.microsoft.com/en-us/typography/opentype/spec/jstf)
 
-let justification_data = unknown_table;
+let jstf_table = unknown_table;
 
 
 // -----------------------------------------------------------------------------
@@ -1175,7 +1174,7 @@ let justification_data = unknown_table;
 //
 // - [Microsoft's OpenType Spec: MATH - The Mathematical Typesetting Table](https://docs.microsoft.com/en-us/typography/opentype/spec/math)
 
-let math_layout_data = unknown_table;
+let math_table = unknown_table;
 
 
 // -----------------------------------------------------------------------------
@@ -1207,14 +1206,14 @@ let font_table = fun (table_id : Repr tag) => match table_id {
     // Required Tables
     //
     // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#required-tables
-    "cmap" => character_map,
-    "head" => font_header,
-    "hhea" => horizontal_header,
-    // TODO: Use `number_of_long_horizontal_metrics` from `horizontal_header` table
-    // TODO: Use `num_glyphs` from `maximum_profile` table
-    "hmtx" => horizontal_metrics 0 0,
-    "maxp" => maximum_profile,
-    "name" => naming,
+    "cmap" => cmap_table,
+    "head" => head_table,
+    "hhea" => hhea_table,
+    // TODO: Use `number_of_long_horizontal_metrics` from `hhea_table` table
+    // TODO: Use `num_glyphs` from `maxp_table` table
+    "hmtx" => htmx_table 0 0,
+    "maxp" => maxp_table,
+    "name" => name_table,
     "OS/2" => unknown_table,
     "post" => unknown_table,
 
@@ -1223,8 +1222,8 @@ let font_table = fun (table_id : Repr tag) => match table_id {
     // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#tables-related-to-truetype-outlines
     "cvt " => unknown_table,
     "fpgm" => unknown_table,
-    "glyf" => glyph_data 1, // TODO: Use maximum_profile.num_glyphs,
-    "loca" => index_to_location 1 0, // TODO: Use maximum_profile.num_glyphs font_header.index_to_loc_format,
+    "glyf" => glyf_table 1, // TODO: Use maxp_table.num_glyphs,
+    "loca" => loca_table 1 0, // TODO: Use maxp_table.num_glyphs head_table.index_to_loc_format,
     "prep" => unknown_table,
     "gasp" => unknown_table,
 
@@ -1253,12 +1252,12 @@ let font_table = fun (table_id : Repr tag) => match table_id {
     // Advanced Typographic Tables
     //
     // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#advanced-typographic-tables
-    "BASE" => baseline_data,
-    "GDEF" => glyph_definition_data,
-    "GPOS" => glyph_positioning_data,
-    "GSUB" => glyph_substitution_data,
-    "JSTF" => justification_data,
-    "MATH" => math_layout_data,
+    "BASE" => base_table,
+    "GDEF" => gdef_table,
+    "GPOS" => gpos_table,
+    "GSUB" => gsub_table,
+    "JSTF" => jstf_table,
+    "MATH" => math_table,
 
     // OpenType Font Variation Tables
     //
