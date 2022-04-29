@@ -1,6 +1,4 @@
 stdout = '''
-let test_succeed : fun (_ : S32) -> S32 = fun x => x;
-let test_fail : fun (_ : Void) -> Void = fun x => x;
 let test_u8_repr : fun (_ : U8) -> U8 = fun x => x;
 let test_u16be_repr : fun (_ : U16) -> U16 = fun x => x;
 let test_u16le_repr : fun (_ : U16) -> U16 = fun x => x;
@@ -32,6 +30,8 @@ Ref f = fun _ => fun _ => fun x => x;
 let test_deref : fun (f : Format) -> fun (ref : Ref f) -> fun (_ : Repr f) ->
 Repr f = fun _ => fun _ => fun x => x;
 let test_stream_pos : fun (_ : Pos) -> Pos = fun x => x;
+let test_succeed : fun (_ : S32) -> S32 = fun x => x;
+let test_fail : fun (_ : Void) -> Void = fun x => x;
 Type : Type
 '''
 stderr = ''

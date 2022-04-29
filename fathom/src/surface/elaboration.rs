@@ -120,16 +120,7 @@ impl<'arena> RigidEnv<'arena> {
         env.define_prim(RefType, &core::Term::FunType(None, &FORMAT_TYPE, &UNIVERSE));
 
         env.define_prim(FormatType, &UNIVERSE);
-        env.define_prim(
-            FormatSucceed,
-            &core::Term::FunType(
-                env.name("Elem"),
-                &UNIVERSE,
-                &Term::FunType(None, &VAR0, &FORMAT_TYPE),
-            ),
-        );
 
-        env.define_prim(FormatFail, &FORMAT_TYPE);
         env.define_prim(FormatU8, &FORMAT_TYPE);
         env.define_prim(FormatU16Be, &FORMAT_TYPE);
         env.define_prim(FormatU16Le, &FORMAT_TYPE);
@@ -167,9 +158,15 @@ impl<'arena> RigidEnv<'arena> {
         );
         env.define_prim(FormatStreamPos, &FORMAT_TYPE);
         env.define_prim(
-            FormatRepr,
-            &core::Term::FunType(None, &FORMAT_TYPE, &UNIVERSE),
+            FormatSucceed,
+            &core::Term::FunType(
+                env.name("A"),
+                &UNIVERSE,
+                &Term::FunType(None, &VAR0, &FORMAT_TYPE),
+            ),
         );
+        env.define_prim(FormatFail, &FORMAT_TYPE);
+        env.define_prim_fun(FormatRepr, [&FORMAT_TYPE], &UNIVERSE);
 
         env.define_prim_fun(BoolEq, [&BOOL_TYPE, &BOOL_TYPE], &BOOL_TYPE);
         env.define_prim_fun(BoolNeq, [&BOOL_TYPE, &BOOL_TYPE], &BOOL_TYPE);

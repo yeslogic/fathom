@@ -211,10 +211,6 @@ def_prims! {
 
     /// Type of format descriptions.
     FormatType => "Format",
-    /// A format that always succeeds with some data.
-    FormatSucceed => "succeed",
-    /// A format that always fails to parse.
-    FormatFail => "fail",
     /// Unsigned, 8-bit integer formats.
     FormatU8 => "u8",
     /// Unsigned, 16-bit integer formats (big-endian).
@@ -266,6 +262,10 @@ def_prims! {
     FormatLink => "link",
     /// A format that forces a reference to be read eagerly.
     FormatDeref => "deref",
+    /// A format that always succeeds with some data.
+    FormatSucceed => "succeed",
+    /// A format that always fails to parse.
+    FormatFail => "fail",
     /// Format representations.
     FormatRepr => "Repr",
 

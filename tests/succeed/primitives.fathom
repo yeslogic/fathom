@@ -31,8 +31,6 @@ let _ = 1 : F32;
 let _ = 1 : F64;
 
 let _ = Format : Type;
-let _ = succeed : fun (Elem : Type) -> Elem -> Format;
-let _ = fail : Format;
 let _ = u8 : Format;
 let _ = u16be : Format;
 let _ = u16le : Format;
@@ -58,6 +56,8 @@ let _ = array64 : U64 -> Format -> Format;
 let _ = link : Pos -> Format -> Format;
 let _ = deref : fun (f : Format) -> Ref f -> Format;
 let _ = stream_pos : Format;
+let _ = succeed : fun (Elem : Type) -> Elem -> Format;
+let _ = fail : Format;
 let _ = Repr : Format -> Type;
 
 let _ = bool_eq : Bool -> Bool -> Bool;
