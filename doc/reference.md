@@ -403,7 +403,8 @@ representation of the referenced format.
 
 ### Succeed format
 
-The succeed format allows values to be embedded in the resulting parsed output.
+The succeed format consumes no input during parsing, allowing values to be
+embedded in the resulting parsed output.
 
 - `succeed : fun (A : Type) -> A -> Format`
 
@@ -430,8 +431,9 @@ The fail format should never produce a term, so is represented with [void](#void
 
 ### Unwrap format
 
-An unwrap format succeeds with the data contained in a the `some` case of an
-[option](#options), or fails.
+The unwrap format consumes no input during parsing, succeeding with the data
+contained in a the `some` case of an [option](#options), or otherwise causing a
+parse failure.
 
 - `unwrap : fun (A : Type) -> Option A -> Format`
 
