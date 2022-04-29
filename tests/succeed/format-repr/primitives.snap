@@ -32,6 +32,8 @@ Repr f = fun _ => fun _ => fun x => x;
 let test_stream_pos : fun (_ : Pos) -> Pos = fun x => x;
 let test_succeed : fun (_ : S32) -> S32 = fun x => x;
 let test_fail : fun (_ : Void) -> Void = fun x => x;
+let test_unwrap : fun (A : Type) -> fun (opt_a : Option A) -> fun (_ : A) -> A =
+fun _ => fun _ => fun x => x;
 Type : Type
 '''
 stderr = ''

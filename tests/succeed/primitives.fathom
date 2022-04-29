@@ -16,6 +16,7 @@ let _ = Array8 : U8 -> Type -> Type;
 let _ = Array16 : U16 -> Type -> Type;
 let _ = Array32 : U32 -> Type -> Type;
 let _ = Array64 : U64 -> Type -> Type;
+let _ = Option : Type -> Type;
 let _ = Pos : Type;
 let _ = Ref : Format -> Type;
 
@@ -58,6 +59,7 @@ let _ = deref : fun (f : Format) -> Ref f -> Format;
 let _ = stream_pos : Format;
 let _ = succeed : fun (Elem : Type) -> Elem -> Format;
 let _ = fail : Format;
+let _ = unwrap : fun (A : Type) -> Option A -> Format;
 let _ = Repr : Format -> Type;
 
 let _ = bool_eq : Bool -> Bool -> Bool;
@@ -190,6 +192,15 @@ let _ = s64_mul : S64 -> S64 -> S64;
 let _ = s64_div : S64 -> S64 -> S64;
 let _ = s64_abs : S64 -> S64;
 let _ = s64_unsigned_abs : S64 -> U64;
+
+let _ = some : fun (A : Type) -> A -> Option A;
+let _ = none : fun (A : Type) -> Option A;
+let _ = option_fold : fun (A : Type) -> fun (B : Type) -> B -> (A -> B) -> Option A -> B;
+
+let _ = array8_find : fun (len : U8) -> fun (A : Type) -> (A -> Bool) -> Array8 len A -> Option A;
+let _ = array16_find : fun (len : U16) -> fun (A : Type) -> (A -> Bool) -> Array16 len A -> Option A;
+let _ = array32_find : fun (len : U32) -> fun (A : Type) -> (A -> Bool) -> Array32 len A -> Option A;
+let _ = array64_find : fun (len : U64) -> fun (A : Type) -> (A -> Bool) -> Array64 len A -> Option A;
 
 let _ = pos_add_u8 : Pos -> U8 -> Pos;
 let _ = pos_add_u16 : Pos -> U16 -> Pos;

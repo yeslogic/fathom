@@ -174,8 +174,8 @@ def_prims! {
     /// Void type.
     VoidType => "Void",
 
+    /// Type of booleans.
     BoolType => "Bool",
-
     /// Type of unsigned, 8-bit integers.
     U8Type => "U8",
     /// Type of unsigned, 16-bit integers.
@@ -196,6 +196,8 @@ def_prims! {
     F32Type => "F32",
     /// Type of 64-bit, IEEE-754 floating point numbers.
     F64Type => "F64",
+    /// Type of optional data.
+    OptionType => "Option",
     /// Type of arrays, with 8-bit indices.
     Array8Type => "Array8",
     /// Type of arrays, with 16-bit indices.
@@ -266,6 +268,8 @@ def_prims! {
     FormatSucceed => "succeed",
     /// A format that always fails to parse.
     FormatFail => "fail",
+    /// Unwrap an option, or fail to parse.
+    FormatUnwrap => "unwrap",
     /// Format representations.
     FormatRepr => "Repr",
 
@@ -402,6 +406,15 @@ def_prims! {
     S64Div => "s64_div",
     S64Abs => "s64_abs",
     S64UAbs => "s64_unsigned_abs",
+
+    OptionSome => "some",
+    OptionNone => "none",
+    OptionFold => "option_fold",
+
+    Array8Find => "array8_find",
+    Array16Find => "array16_find",
+    Array32Find => "array32_find",
+    Array64Find => "array64_find",
 
     PosAddU8  => "pos_add_u8",
     PosAddU16 => "pos_add_u16",

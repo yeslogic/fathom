@@ -286,66 +286,18 @@ let gpos_table : _ = unknown_table;
 let gsub_table : _ = unknown_table;
 let jstf_table : _ = unknown_table;
 let math_table : _ = unknown_table;
-let font_table : _ = fun table_id => match table_id {
-    "BASE" => base_table,
-    "CBDT" => unknown_table,
-    "CBLC" => unknown_table,
-    "CFF " => unknown_table,
-    "CFF2" => unknown_table,
-    "COLR" => unknown_table,
-    "CPAL" => unknown_table,
-    "DSIG" => unknown_table,
-    "EBDT" => unknown_table,
-    "EBLC" => unknown_table,
-    "EBSC" => unknown_table,
-    "GDEF" => gdef_table,
-    "GPOS" => gpos_table,
-    "GSUB" => gsub_table,
-    "HVAR" => unknown_table,
-    "JSTF" => jstf_table,
-    "LTSH" => unknown_table,
-    "MATH" => math_table,
-    "MERG" => unknown_table,
-    "MVAR" => unknown_table,
-    "OS/2" => unknown_table,
-    "PCLT" => unknown_table,
-    "STAT" => unknown_table,
-    "SVG " => unknown_table,
-    "VDMX" => unknown_table,
-    "VORG" => unknown_table,
-    "VVAR" => unknown_table,
-    "avar" => unknown_table,
-    "cmap" => cmap_table,
-    "cvar" => unknown_table,
-    "cvt " => unknown_table,
-    "fpgm" => unknown_table,
-    "fvar" => unknown_table,
-    "gasp" => unknown_table,
-    "glyf" => glyf_table 1,
-    "gvar" => unknown_table,
-    "hdmx" => unknown_table,
-    "head" => head_table,
-    "hhea" => hhea_table,
-    "hmtx" => htmx_table 0 0,
-    "kern" => unknown_table,
-    "loca" => loca_table 1 0,
-    "maxp" => maxp_table,
-    "meta" => unknown_table,
-    "name" => name_table,
-    "post" => unknown_table,
-    "prep" => unknown_table,
-    "sbix" => unknown_table,
-    "vhea" => unknown_table,
-    "vmtx" => unknown_table,
-    _ => unknown_table,
-};
-let table_record : _ = fun file_start => {
+let table_record : _ = {
     table_id <- tag,
     checksum <- u32be,
     offset <- u32be,
     length <- u32be,
-    link <- link (pos_add_u32 file_start offset) (font_table table_id),
 };
+let is_table_id : _ =
+fun table_id => fun table_record => u32_eq table_record.table_id table_id;
+let link_table : _ =
+fun file_start => fun table_record => fun table_format => link (pos_add_u32 file_start table_record.offset) table_format;
+let find_table : _ =
+fun num_tables => fun table_id => fun table_records => array16_find (_ num_tables table_id table_records) (Repr table_record) (is_table_id table_id) table_records;
 let table_directory : _ = fun file_start => {
     sfnt_version <- u32be,
     _sfnt_version <- match (bool_or (u32_eq sfnt_version 0x10000) (u32_eq sfnt_version "OTTO")) {
@@ -356,7 +308,79 @@ let table_directory : _ = fun file_start => {
     search_range <- u16be,
     entry_selector <- u16be,
     range_shift <- u16be,
-    table_records <- array16 num_tables (table_record file_start),
+    table_records <- array16 num_tables table_record,
+    table_links <- let required_table :
+    _ file_start sfnt_version _sfnt_version num_tables search_range entry_selector range_shift table_records =
+    fun table_id => fun table_format => {
+        table_record <- unwrap (Repr table_record) (find_table (_ file_start sfnt_version _sfnt_version num_tables search_range entry_selector range_shift table_records table_id table_format) table_id table_records),
+        link <- link_table file_start table_record table_format,
+    };
+    let optional_table :
+    _ file_start sfnt_version _sfnt_version num_tables search_range entry_selector range_shift table_records =
+    fun table_id => fun table_format => option_fold (Repr table_record) Format {} (fun record => link_table file_start record table_format) (find_table (_ file_start sfnt_version _sfnt_version num_tables search_range entry_selector range_shift table_records table_id table_format) table_id table_records);
+    {
+        cmap <- required_table "cmap" cmap_table,
+        head <- required_table "head" head_table,
+        hhea <- required_table "hhea" hhea_table,
+        maxp <- required_table "maxp" maxp_table,
+        htmx <- required_table "hmtx" {
+            hhea <- deref hhea_table hhea.link,
+            maxp <- deref maxp_table maxp.link,
+            table <- htmx_table hhea.number_of_long_horizontal_metrics maxp.num_glyphs,
+        },
+        name <- required_table "name" name_table,
+        os2 <- required_table "OS/2" unknown_table,
+        post <- required_table "post" unknown_table,
+        cvt <- optional_table "cvt " unknown_table,
+        fpgm <- optional_table "fpgm" unknown_table,
+        glyf <- optional_table "glyf" {
+            maxp <- deref maxp_table maxp.link,
+            table <- glyf_table 1,
+        },
+        loca <- optional_table "loca" {
+            maxp <- deref maxp_table maxp.link,
+            head <- deref head_table head.link,
+            table <- loca_table maxp.num_glyphs head.index_to_loc_format,
+        },
+        prep <- optional_table "prep" unknown_table,
+        gasp <- optional_table "gasp" unknown_table,
+        cff <- optional_table "CFF " unknown_table,
+        cff2 <- optional_table "CFF2" unknown_table,
+        vorg <- optional_table "VORG" unknown_table,
+        svg <- optional_table "SVG " unknown_table,
+        ebdt <- optional_table "EBDT" unknown_table,
+        eblc <- optional_table "EBLC" unknown_table,
+        ebsc <- optional_table "EBSC" unknown_table,
+        cbdt <- optional_table "CBDT" unknown_table,
+        cblc <- optional_table "CBLC" unknown_table,
+        sbix <- optional_table "sbix" unknown_table,
+        base <- optional_table "BASE" base_table,
+        gdef <- optional_table "GDEF" gdef_table,
+        gpos <- optional_table "GPOS" gpos_table,
+        gsub <- optional_table "GSUB" gsub_table,
+        jstf <- optional_table "JSTF" jstf_table,
+        math <- optional_table "MATH" math_table,
+        avar <- optional_table "avar" unknown_table,
+        cvar <- optional_table "cvar" unknown_table,
+        fvar <- optional_table "fvar" unknown_table,
+        gvar <- optional_table "gvar" unknown_table,
+        hvar <- optional_table "HVAR" unknown_table,
+        mvar <- optional_table "MVAR" unknown_table,
+        stat <- optional_table "STAT" unknown_table,
+        vvar <- optional_table "VVAR" unknown_table,
+        colr <- optional_table "COLR" unknown_table,
+        cpal <- optional_table "CPAL" unknown_table,
+        dsig <- optional_table "DSIG" unknown_table,
+        hdmx <- optional_table "hdmx" unknown_table,
+        kern <- optional_table "kern" unknown_table,
+        ltsh <- optional_table "LTSH" unknown_table,
+        merg <- optional_table "MERG" unknown_table,
+        meta <- optional_table "meta" unknown_table,
+        pclt <- optional_table "PCLT" unknown_table,
+        vdmx <- optional_table "VDMX" unknown_table,
+        vhea <- optional_table "vhea" unknown_table,
+        vmtx <- optional_table "vmtx" unknown_table,
+    },
 };
 let main : _ = { start <- stream_pos, directory <- table_directory start };
 main : Format

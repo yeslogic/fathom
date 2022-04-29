@@ -153,6 +153,11 @@ impl<'arena, 'env> Context<'arena, 'env> {
             (Prim::FormatStreamPos, []) => read_stream_pos(reader),
             (Prim::FormatSucceed, [_, Fun(elem)]) => Ok(elem.clone()),
             (Prim::FormatFail, []) => Err(io::Error::new(io::ErrorKind::Other, "parse failure")),
+            (Prim::FormatUnwrap, [_, Fun(option)]) => match option.match_prim_spine() {
+                Some((Prim::OptionSome, [Fun(elem)])) => Ok(elem.clone()),
+                Some((Prim::OptionNone, [])) => Err(io::Error::new(io::ErrorKind::Other, "unwrapped none")),
+                _ => Err(io::Error::new(io::ErrorKind::Other, "invalid option")),
+            },
             _ => Err(io::Error::new(io::ErrorKind::Other, "invalid format")),
         }
     }

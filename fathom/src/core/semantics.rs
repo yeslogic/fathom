@@ -508,6 +508,34 @@ fn prim_step(prim: Prim) -> Option<PrimStep> {
         Prim::S64Abs => const_step!([x: S64] => Const::S64(i64::abs(*x))),
         Prim::S64UAbs => const_step!([x: S64] => Const::U64(i64::unsigned_abs(*x), UIntStyle::Decimal)),
 
+        Prim::OptionFold => step!(context, [_, _, on_none, on_some, option] => {
+            match option.match_prim_spine()? {
+                (Prim::OptionSome, [Elim::Fun(value)]) => {
+                    context.apply_fun(on_some.clone(), value.clone())
+                },
+                (Prim::OptionNone, []) => on_none.clone(),
+                _ => return None,
+            }
+        }),
+
+        Prim::Array8Find | Prim::Array16Find | Prim::Array32Find | Prim::Array64Find => {
+            step!(context, [_, _, pred, array] => match array.as_ref() {
+                Value::ArrayIntro(elems) => {
+                    for elem in elems {
+                        match context.apply_fun(pred.clone(), elem.clone()).as_ref() {
+                            Value::Const(Const::Bool(true)) => {
+                                return Some(Arc::new(Value::prim(Prim::OptionSome, [elem.clone()])))
+                            },
+                            Value::Const(Const::Bool(false)) => {}
+                            _ => return None,
+                        }
+                    }
+                    Arc::new(Value::prim(Prim::OptionNone, []))
+                }
+                _ => return None,
+            })
+        }
+
         Prim::PosAddU8 => const_step!([x: Pos, y: U8] => Const::Pos(u64::checked_add(*x, u64::from(*y))?)),
         Prim::PosAddU16 => const_step!([x: Pos, y: U16] => Const::Pos(u64::checked_add(*x, u64::from(*y))?)),
         Prim::PosAddU32 => const_step!([x: Pos, y: U32] => Const::Pos(u64::checked_add(*x, u64::from(*y))?)),
@@ -748,6 +776,7 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
                     (Prim::FormatStreamPos, []) => Arc::new(Value::prim(Prim::PosType, [])),
                     (Prim::FormatSucceed, [Elim::Fun(elem), _]) => elem.clone(),
                     (Prim::FormatFail, []) => Arc::new(Value::prim(Prim::VoidType, [])),
+                    (Prim::FormatUnwrap, [Elim::Fun(elem), _]) => elem.clone(),
                     (Prim::ReportedError, []) => Arc::new(Value::prim(Prim::ReportedError, [])),
                     _ => Arc::new(Value::prim(Prim::FormatRepr, [format.clone()])),
                 }

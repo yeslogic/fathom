@@ -1194,107 +1194,6 @@ let math_table = unknown_table;
 // - [Apple's TrueType Reference Manual: TrueType Font files](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6.html#Overview)
 
 
-/// # Font Table
-///
-/// A mapping between a given `tag` and a corresponding font table.
-///
-/// ## References
-///
-/// - [Microsoft's OpenType Spec: Font Tables](https://docs.microsoft.com/en-us/typography/opentype/spec/otff#font-tables)
-/// - [Apple's TrueType Reference Manual: TrueType Font files](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6.html#Overview)
-let font_table = fun (table_id : Repr tag) => match table_id {
-    // Required Tables
-    //
-    // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#required-tables
-    "cmap" => cmap_table,
-    "head" => head_table,
-    "hhea" => hhea_table,
-    // TODO: Use `number_of_long_horizontal_metrics` from `hhea_table` table
-    // TODO: Use `num_glyphs` from `maxp_table` table
-    "hmtx" => htmx_table 0 0,
-    "maxp" => maxp_table,
-    "name" => name_table,
-    "OS/2" => unknown_table,
-    "post" => unknown_table,
-
-    // TrueType Outline Tables
-    //
-    // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#tables-related-to-truetype-outlines
-    "cvt " => unknown_table,
-    "fpgm" => unknown_table,
-    "glyf" => glyf_table 1, // TODO: Use maxp_table.num_glyphs,
-    "loca" => loca_table 1 0, // TODO: Use maxp_table.num_glyphs head_table.index_to_loc_format,
-    "prep" => unknown_table,
-    "gasp" => unknown_table,
-
-    // CFF Outline Tables
-    //
-    // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#tables-related-to-cff-outlines
-    "CFF " => unknown_table,
-    "CFF2" => unknown_table,
-    "VORG" => unknown_table,
-
-    // SVG Outline Tables
-    //
-    // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#table-related-to-svg-outlines
-    "SVG " => unknown_table,
-
-    // Bitmap Glyph Tables
-    //
-    // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#tables-related-to-bitmap-glyphs
-    "EBDT" => unknown_table,
-    "EBLC" => unknown_table,
-    "EBSC" => unknown_table,
-    "CBDT" => unknown_table,
-    "CBLC" => unknown_table,
-    "sbix" => unknown_table,
-
-    // Advanced Typographic Tables
-    //
-    // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#advanced-typographic-tables
-    "BASE" => base_table,
-    "GDEF" => gdef_table,
-    "GPOS" => gpos_table,
-    "GSUB" => gsub_table,
-    "JSTF" => jstf_table,
-    "MATH" => math_table,
-
-    // OpenType Font Variation Tables
-    //
-    // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#tables-used-for-opentype-font-variations
-    "avar" => unknown_table,
-    "cvar" => unknown_table,
-    "fvar" => unknown_table,
-    "gvar" => unknown_table,
-    "HVAR" => unknown_table,
-    "MVAR" => unknown_table,
-    "STAT" => unknown_table,
-    "VVAR" => unknown_table,
-
-    // Color Font Tables
-    //
-    // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#tables-related-to-color-fonts
-    "COLR" => unknown_table,
-    "CPAL" => unknown_table,
-
-    // Other OpenType Tables
-    //
-    // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#other-opentype-tables
-    "DSIG" => unknown_table,
-    "hdmx" => unknown_table,
-    "kern" => unknown_table,
-    "LTSH" => unknown_table,
-    "MERG" => unknown_table,
-    "meta" => unknown_table,
-    "PCLT" => unknown_table,
-    "VDMX" => unknown_table,
-    "vhea" => unknown_table,
-    "vmtx" => unknown_table,
-
-    // TODO: Error message
-    _ => unknown_table,
-};
-
 /// # Table Record
 ///
 /// A record that stores an offset to another table in the font file.
@@ -1303,7 +1202,7 @@ let font_table = fun (table_id : Repr tag) => match table_id {
 ///
 /// - [Microsoft's OpenType Spec: Table Directory](https://docs.microsoft.com/en-us/typography/opentype/spec/otff#table-directory)
 /// - [Apple's TrueType Reference Manual: The Font Directory](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6.html#Directory)
-let table_record = fun (file_start : Pos) => {
+let table_record = {
     /// Table identifier.
     table_id <- tag,
     /// CheckSum for this table.
@@ -1316,9 +1215,27 @@ let table_record = fun (file_start : Pos) => {
     offset <- u32be,
     /// Length of this table.
     length <- u32be,
-    /// The computed position of this table.
-    link <- link (pos_add_u32 file_start offset) (font_table table_id)
 };
+
+let is_table_id =
+    fun (table_id : Repr tag) =>
+    fun (table_record : Repr table_record) =>
+        u32_eq table_record.table_id table_id;
+
+let link_table =
+    fun (file_start : Pos) =>
+    fun (table_record : Repr table_record) =>
+    fun (table_format : Format) =>
+        // TODO: make use of `table_record.length`
+        // TODO: make use of `table_record.checksum`
+        link (pos_add_u32 file_start table_record.offset) table_format;
+
+let find_table =
+    fun (num_tables : U16) =>
+    fun (table_id : Repr tag) =>
+    fun (table_records : Array16 num_tables (Repr table_record)) =>
+        // TODO: accelerate using binary search
+        array16_find _ (Repr table_record) (is_table_id table_id) table_records;
 
 /// # Table Directory
 ///
@@ -1342,6 +1259,7 @@ let table_directory = fun (file_start : Pos) => {
       true => {},
       false => fail
     },
+
     /// Number of tables in the directory.
     num_tables <- u16be,
     /// For enabling quick binary searches.
@@ -1350,9 +1268,143 @@ let table_directory = fun (file_start : Pos) => {
     entry_selector <- u16be,     // TODO: Log2(maximum power of 2 <= num_tables)
     /// For enabling quick binary searches.
     range_shift <- u16be,        // TODO: NumTables x 16-searchRange
+
     /// An array of table records
     // FIXME: sorted in ascending order by tag
-    table_records <- array16 num_tables (table_record file_start),
+    table_records <- array16 num_tables table_record,
+
+    /// Font table links
+    ///
+    /// ## References
+    ///
+    /// - [Microsoft's OpenType Spec: Font Tables](https://docs.microsoft.com/en-us/typography/opentype/spec/otff#font-tables)
+    /// - [Apple's TrueType Reference Manual: TrueType Font files](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6.html#Overview)
+    table_links <- (
+        let required_table =
+            fun (table_id : Repr tag) =>
+            fun (table_format : Format) => {
+                // TODO: let formats
+                table_record <- unwrap (Repr table_record) (find_table _ table_id table_records),
+                link <- link_table file_start table_record table_format,
+            };
+
+        let optional_table =
+            fun (table_id : Repr tag) =>
+            fun (table_format : Format) =>
+                option_fold (Repr table_record) Format {}
+                    (fun record => link_table file_start record table_format)
+                    (find_table _ table_id table_records);
+
+        {
+            // Required Tables
+            //
+            // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#required-tables
+            cmap <- required_table "cmap" cmap_table,
+            head <- required_table "head" head_table,
+            hhea <- required_table "hhea" hhea_table,
+            maxp <- required_table "maxp" maxp_table,
+            htmx <- required_table "hmtx" {
+                // TODO: let formats
+                hhea <- deref hhea_table hhea.link,
+                maxp <- deref maxp_table maxp.link,
+                table <- htmx_table
+                    hhea.number_of_long_horizontal_metrics
+                    maxp.num_glyphs,
+            },
+            name <- required_table "name" name_table,
+            os2 <- required_table "OS/2" unknown_table,
+            post <- required_table "post" unknown_table,
+
+            // TrueType Outline Tables
+            //
+            // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#tables-related-to-truetype-outlines
+            cvt <- optional_table "cvt " unknown_table,
+            fpgm <- optional_table "fpgm" unknown_table,
+            glyf <- optional_table "glyf" {
+                // TODO: let formats
+                maxp <- deref maxp_table maxp.link,
+                table <- glyf_table 1,
+                // TODO: use `loca` entries when parsing the glyphs
+                // table <- glyf_table maxp.num_glyphs,
+            },
+            loca <- optional_table "loca" {
+                // TODO: let formats
+                maxp <- deref maxp_table maxp.link,
+                head <- deref head_table head.link,
+                table <- loca_table maxp.num_glyphs head.index_to_loc_format,
+            },
+            prep <- optional_table "prep" unknown_table,
+            gasp <- optional_table "gasp" unknown_table,
+
+            // CFF Outline Tables
+            //
+            // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#tables-related-to-cff-outlines
+            cff <- optional_table "CFF " unknown_table,
+            cff2 <- optional_table "CFF2" unknown_table,
+            vorg <- optional_table "VORG" unknown_table,
+
+            // SVG Outline Tables
+            //
+            // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#table-related-to-svg-outlines
+            svg <- optional_table "SVG " unknown_table,
+
+            // Bitmap Glyph Tables
+            //
+            // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#tables-related-to-bitmap-glyphs
+            ebdt <- optional_table "EBDT" unknown_table,
+            eblc <- optional_table "EBLC" unknown_table,
+            ebsc <- optional_table "EBSC" unknown_table,
+
+            // Color Bitmap Glyph Tables
+            //
+            // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#tables-related-to-bitmap-glyphs
+            cbdt <- optional_table "CBDT" unknown_table,
+            cblc <- optional_table "CBLC" unknown_table,
+            sbix <- optional_table "sbix" unknown_table,
+
+            // Advanced Typographic Tables
+            //
+            // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#advanced-typographic-tables
+            base <- optional_table "BASE" base_table,
+            gdef <- optional_table "GDEF" gdef_table,
+            gpos <- optional_table "GPOS" gpos_table,
+            gsub <- optional_table "GSUB" gsub_table,
+            jstf <- optional_table "JSTF" jstf_table,
+            math <- optional_table "MATH" math_table,
+
+            // OpenType Font Variation Tables
+            //
+            // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#tables-used-for-opentype-font-variations
+            avar <- optional_table "avar" unknown_table,
+            cvar <- optional_table "cvar" unknown_table,
+            fvar <- optional_table "fvar" unknown_table,
+            gvar <- optional_table "gvar" unknown_table,
+            hvar <- optional_table "HVAR" unknown_table,
+            mvar <- optional_table "MVAR" unknown_table,
+            stat <- optional_table "STAT" unknown_table,
+            vvar <- optional_table "VVAR" unknown_table,
+
+            // Color Font Tables
+            //
+            // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#tables-related-to-color-fonts
+            colr <- optional_table "COLR" unknown_table,
+            cpal <- optional_table "CPAL" unknown_table,
+
+            // Other OpenType Tables
+            //
+            // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#other-opentype-tables
+            dsig <- optional_table "DSIG" unknown_table,
+            hdmx <- optional_table "hdmx" unknown_table,
+            kern <- optional_table "kern" unknown_table,
+            ltsh <- optional_table "LTSH" unknown_table,
+            merg <- optional_table "MERG" unknown_table,
+            meta <- optional_table "meta" unknown_table,
+            pclt <- optional_table "PCLT" unknown_table,
+            vdmx <- optional_table "VDMX" unknown_table,
+            vhea <- optional_table "vhea" unknown_table,
+            vmtx <- optional_table "vmtx" unknown_table,
+        }
+    ),
 };
 
 /// # OpenType file

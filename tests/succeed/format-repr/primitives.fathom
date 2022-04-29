@@ -27,5 +27,6 @@ let test_deref : fun f -> fun ref -> Repr (deref f ref) -> Repr f = fun _ => fun
 let test_stream_pos : Repr stream_pos -> Pos = fun x => x;
 let test_succeed : Repr (succeed S32 42) -> S32 = fun x => x;
 let test_fail : Repr fail -> Void = fun x => x;
+let test_unwrap : fun A -> fun opt_a -> Repr (unwrap A opt_a) -> A = fun _ => fun _ => fun x => x;
 
 Type

@@ -29,6 +29,7 @@ elaboration, and core language is forthcoming.
   - [Deref formats](#deref-formats)
   - [Succeed format](#succeed-format)
   - [Fail format](#fail-format)
+  - [Unwrap format](#unwrap-format)
 - [Functions](#functions)
   - [Function types](#function-types)
   - [Function literals](#function-literals)
@@ -44,9 +45,12 @@ elaboration, and core language is forthcoming.
   - [Number literals](#array-literals)
   - [String literals](#string-literals)
   - [Number operations](#number-operations)
+- [Options](#options)
+  - [Option operations](#option-operations)
 - [Arrays](#arrays)
   - [Array types](#array-types)
   - [Array literals](#array-literals)
+  - [Array operations](#array-operations)
 - [Positions](#positions)
   - [Position types](#position-types)
   - [Position operations](#position-operations)
@@ -403,7 +407,7 @@ The succeed format allows values to be embedded in the resulting parsed output.
 
 - `succeed : fun (A : Type) -> A -> Format`
 
-#### Representation of succeed format
+#### Representation of succeed formats
 
 | format        | `Repr` format |
 | ------------- | ------------- |
@@ -416,13 +420,26 @@ parsing.
 
 - `fail : Format`
 
-#### Representation of fail format
+#### Representation of fail formats
 
 The fail format should never produce a term, so is represented with [void](#void).
 
 | format | `Repr` format |
 | ------ | ------------- |
 | `fail` | `Void`        |
+
+### Unwrap format
+
+An unwrap format succeeds with the data contained in a the `some` case of an
+[option](#options), or fails.
+
+- `unwrap : fun (A : Type) -> Option A -> Format`
+
+#### Representation of unwrap formats
+
+| format              | `Repr` format |
+| ------------------- | ------------- |
+| `unwrap A option_a` | `A`           |
 
 ## Functions
 
@@ -730,6 +747,23 @@ A number of operations are defined for the numeric types:
 - `s64_abs : S64 -> S64`
 - `s64_unsigned_abs : S64 -> U64`
 
+## Options
+
+Data that may not be present can be formed with the following primitive:
+
+- `Option : Type -> Type`
+
+Optional data can be introduced with the `some` or `none` primitives:
+
+- `some : fun (A : Type) -> A -> Option A`
+- `none : fun (A : Type) -> Option A`
+
+### Option operations
+
+The following operations are defined for option types:
+
+- `option_fold : fun (A : Type) -> fun (B : Type) -> B -> (A -> B) -> Option A -> B`
+
 ## Arrays
 
 Arrays are sequences of elements up to a given length.
@@ -758,6 +792,15 @@ brackets. For example:
 [] : Array32 0 S32
 [3, 32, -6] : Array8 3 S32
 ```
+
+### Array operations
+
+The following operations are defined on arrays:
+
+- `array8_find : fun (len : U8) -> fun (A : Type) -> (A -> Bool) -> Array8 len A -> Option A`
+- `array16_find : fun (len : U16) -> fun (A : Type) -> (A -> Bool) -> Array16 len A -> Option A`
+- `array32_find : fun (len : U32) -> fun (A : Type) -> (A -> Bool) -> Array32 len A -> Option A`
+- `array64_find : fun (len : U64) -> fun (A : Type) -> (A -> Bool) -> Array64 len A -> Option A`
 
 ## Positions
 

@@ -106,7 +106,7 @@ FunTerm: Term<'arena, ByteRange> = {
             scope.to_scope(output_type),
         )
     },
-    <start: @L> "fun" <input_param: AnnPattern> "=>" <output_type: FunTerm> <end: @R> => {
+    <start: @L> "fun" <input_param: AnnPattern> "=>" <output_type: LetTerm> <end: @R> => {
         let (input_param, input_type) = input_param;
         Term::FunLiteral(
             ByteRange::new(start, end),
