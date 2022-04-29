@@ -292,12 +292,10 @@ let table_record : _ = {
     offset <- u32be,
     length <- u32be,
 };
-let is_table_id : _ =
-fun table_id => fun table_record => u32_eq table_record.table_id table_id;
+let find_table : _ =
+fun num_tables => fun table_records => fun table_id => array16_find (_ num_tables table_records table_id) (Repr table_record) (fun table_record => u32_eq table_record.table_id table_id) table_records;
 let link_table : _ =
 fun file_start => fun table_record => fun table_format => link (pos_add_u32 file_start table_record.offset) table_format;
-let find_table : _ =
-fun num_tables => fun table_id => fun table_records => array16_find (_ num_tables table_id table_records) (Repr table_record) (is_table_id table_id) table_records;
 let table_directory : _ = fun file_start => {
     sfnt_version <- u32be,
     _sfnt_version <- match (bool_or (u32_eq sfnt_version 0x10000) (u32_eq sfnt_version "OTTO")) {
@@ -312,12 +310,12 @@ let table_directory : _ = fun file_start => {
     table_links <- let required_table :
     _ file_start sfnt_version _sfnt_version num_tables search_range entry_selector range_shift table_records =
     fun table_id => fun table_format => {
-        table_record <- unwrap (Repr table_record) (find_table (_ file_start sfnt_version _sfnt_version num_tables search_range entry_selector range_shift table_records table_id table_format) table_id table_records),
+        table_record <- unwrap (Repr table_record) (find_table (_ file_start sfnt_version _sfnt_version num_tables search_range entry_selector range_shift table_records table_id table_format) table_records table_id),
         link <- link_table file_start table_record table_format,
     };
     let optional_table :
     _ file_start sfnt_version _sfnt_version num_tables search_range entry_selector range_shift table_records =
-    fun table_id => fun table_format => option_fold (Repr table_record) Format {} (fun record => link_table file_start record table_format) (find_table (_ file_start sfnt_version _sfnt_version num_tables search_range entry_selector range_shift table_records table_id table_format) table_id table_records);
+    fun table_id => fun table_format => option_fold (Repr table_record) Format {} (fun record => link_table file_start record table_format) (find_table (_ file_start sfnt_version _sfnt_version num_tables search_range entry_selector range_shift table_records table_id table_format) table_records table_id);
     {
         cmap <- required_table "cmap" cmap_table,
         head <- required_table "head" head_table,

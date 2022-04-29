@@ -1217,11 +1217,20 @@ let table_record = {
     length <- u32be,
 };
 
-let is_table_id =
+/// Find a table record using the given `table_id`.
+let find_table =
+    fun (num_tables : U16) =>
+    fun (table_records : Array16 num_tables (Repr table_record)) =>
     fun (table_id : Repr tag) =>
-    fun (table_record : Repr table_record) =>
-        u32_eq table_record.table_id table_id;
+        // TODO: accelerate using binary search
+        // TODO: make use of `table_record.search_range`
+        // TODO: make use of `table_record.entry_selector`
+        // TODO: make use of `table_record.range_shift`
+        array16_find _ (Repr table_record)
+            (fun table_record => u32_eq table_record.table_id table_id)
+            table_records;
 
+/// Create a link to the given `table_format`.
 let link_table =
     fun (file_start : Pos) =>
     fun (table_record : Repr table_record) =>
@@ -1229,13 +1238,6 @@ let link_table =
         // TODO: make use of `table_record.length`
         // TODO: make use of `table_record.checksum`
         link (pos_add_u32 file_start table_record.offset) table_format;
-
-let find_table =
-    fun (num_tables : U16) =>
-    fun (table_id : Repr tag) =>
-    fun (table_records : Array16 num_tables (Repr table_record)) =>
-        // TODO: accelerate using binary search
-        array16_find _ (Repr table_record) (is_table_id table_id) table_records;
 
 /// # Table Directory
 ///
@@ -1284,7 +1286,7 @@ let table_directory = fun (file_start : Pos) => {
             fun (table_id : Repr tag) =>
             fun (table_format : Format) => {
                 // TODO: let formats
-                table_record <- unwrap (Repr table_record) (find_table _ table_id table_records),
+                table_record <- unwrap (Repr table_record) (find_table _ table_records table_id),
                 link <- link_table file_start table_record table_format,
             };
 
@@ -1293,7 +1295,7 @@ let table_directory = fun (file_start : Pos) => {
             fun (table_format : Format) =>
                 option_fold (Repr table_record) Format {}
                     (fun record => link_table file_start record table_format)
-                    (find_table _ table_id table_records);
+                    (find_table _ table_records table_id);
 
         {
             // Required Tables
