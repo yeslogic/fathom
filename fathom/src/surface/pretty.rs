@@ -174,7 +174,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                     ])
                     .group(),
                     self.space(),
-                    self.term_prec(Prec::Fun, output_expr),
+                    self.term_prec(Prec::Let, output_expr),
                 ]),
             ),
             Term::FunElim(_, head_expr, input_expr) => self.paren(

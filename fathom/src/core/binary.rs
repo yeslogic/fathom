@@ -126,7 +126,6 @@ impl<'arena, 'env> Context<'arena, 'env> {
         use crate::core::semantics::Elim::Fun;
 
         match (prim, &slice[..]) {
-            (Prim::FormatSucceed, [_, Fun(r#elem)]) => Ok(r#elem.clone()),
             (Prim::FormatU8, []) => read_const(reader, |num| Const::U8(num, UIntStyle::Decimal), read_u8),
             (Prim::FormatU16Be, []) => read_const(reader, |num| Const::U16(num, UIntStyle::Decimal), read_u16be),
             (Prim::FormatU16Le, []) => read_const(reader, |num| Const::U16(num, UIntStyle::Decimal), read_u16le),
@@ -152,7 +151,13 @@ impl<'arena, 'env> Context<'arena, 'env> {
             (Prim::FormatLink, [Fun(pos), Fun(elem_format)]) => self.read_link(pos, elem_format),
             (Prim::FormatDeref, [Fun(elem_format), Fun(r#ref)]) => self.read_deref(reader, elem_format, r#ref),
             (Prim::FormatStreamPos, []) => read_stream_pos(reader),
+            (Prim::FormatSucceed, [_, Fun(elem)]) => Ok(elem.clone()),
             (Prim::FormatFail, []) => Err(io::Error::new(io::ErrorKind::Other, "parse failure")),
+            (Prim::FormatUnwrap, [_, Fun(option)]) => match option.match_prim_spine() {
+                Some((Prim::OptionSome, [Fun(elem)])) => Ok(elem.clone()),
+                Some((Prim::OptionNone, [])) => Err(io::Error::new(io::ErrorKind::Other, "unwrapped none")),
+                _ => Err(io::Error::new(io::ErrorKind::Other, "invalid option")),
+            },
             _ => Err(io::Error::new(io::ErrorKind::Other, "invalid format")),
         }
     }

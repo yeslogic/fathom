@@ -81,6 +81,10 @@ impl<'arena> RigidEnv<'arena> {
         use crate::core::Term;
 
         const VAR0: core::Term<'_> = core::Term::RigidVar(env::LocalVar::last());
+        const VAR1: core::Term<'_> = core::Term::RigidVar(env::LocalVar::last().prev());
+        const VAR2: core::Term<'_> = core::Term::RigidVar(env::LocalVar::last().prev().prev());
+        const VAR3: core::Term<'_> =
+            core::Term::RigidVar(env::LocalVar::last().prev().prev().prev());
         const UNIVERSE: core::Term<'_> = core::Term::Universe;
         const FORMAT_TYPE: core::Term<'_> = core::Term::Prim(Prim::FormatType);
         const BOOL_TYPE: core::Term<'_> = core::Term::Prim(Prim::BoolType);
@@ -92,14 +96,16 @@ impl<'arena> RigidEnv<'arena> {
         const S16_TYPE: core::Term<'_> = core::Term::Prim(Prim::S16Type);
         const S32_TYPE: core::Term<'_> = core::Term::Prim(Prim::S32Type);
         const S64_TYPE: core::Term<'_> = core::Term::Prim(Prim::S64Type);
+        const ARRAY8_TYPE: core::Term<'_> = core::Term::Prim(Array8Type);
+        const ARRAY16_TYPE: core::Term<'_> = core::Term::Prim(Array16Type);
+        const ARRAY32_TYPE: core::Term<'_> = core::Term::Prim(Array32Type);
+        const ARRAY64_TYPE: core::Term<'_> = core::Term::Prim(Array64Type);
         const POS_TYPE: core::Term<'_> = core::Term::Prim(Prim::PosType);
 
         let mut env = RigidEnvBuilder::new(interner, scope);
 
         env.define_prim(VoidType, &UNIVERSE);
-
         env.define_prim(BoolType, &UNIVERSE);
-
         env.define_prim(U8Type, &UNIVERSE);
         env.define_prim(U16Type, &UNIVERSE);
         env.define_prim(U32Type, &UNIVERSE);
@@ -110,26 +116,15 @@ impl<'arena> RigidEnv<'arena> {
         env.define_prim(S64Type, &UNIVERSE);
         env.define_prim(F32Type, &UNIVERSE);
         env.define_prim(F64Type, &UNIVERSE);
-
+        env.define_prim_fun(OptionType, [&UNIVERSE], &UNIVERSE);
         env.define_prim_fun(Array8Type, [&U8_TYPE, &UNIVERSE], &UNIVERSE);
         env.define_prim_fun(Array16Type, [&U16_TYPE, &UNIVERSE], &UNIVERSE);
         env.define_prim_fun(Array32Type, [&U32_TYPE, &UNIVERSE], &UNIVERSE);
         env.define_prim_fun(Array64Type, [&U64_TYPE, &UNIVERSE], &UNIVERSE);
-
         env.define_prim(PosType, &UNIVERSE);
-        env.define_prim(RefType, &core::Term::FunType(None, &FORMAT_TYPE, &UNIVERSE));
-
+        env.define_prim_fun(RefType, [&FORMAT_TYPE], &UNIVERSE);
         env.define_prim(FormatType, &UNIVERSE);
-        env.define_prim(
-            FormatSucceed,
-            &core::Term::FunType(
-                env.name("Elem"),
-                &UNIVERSE,
-                &Term::FunType(None, &VAR0, &FORMAT_TYPE),
-            ),
-        );
 
-        env.define_prim(FormatFail, &FORMAT_TYPE);
         env.define_prim(FormatU8, &FORMAT_TYPE);
         env.define_prim(FormatU16Be, &FORMAT_TYPE);
         env.define_prim(FormatU16Le, &FORMAT_TYPE);
@@ -156,7 +151,7 @@ impl<'arena> RigidEnv<'arena> {
         env.define_prim(
             FormatDeref,
             &core::Term::FunType(
-                env.name("Elem"),
+                env.name("A"),
                 &FORMAT_TYPE,
                 &Term::FunType(
                     None,
@@ -167,9 +162,29 @@ impl<'arena> RigidEnv<'arena> {
         );
         env.define_prim(FormatStreamPos, &FORMAT_TYPE);
         env.define_prim(
-            FormatRepr,
-            &core::Term::FunType(None, &FORMAT_TYPE, &UNIVERSE),
+            FormatSucceed,
+            &core::Term::FunType(
+                env.name("A"),
+                &UNIVERSE,
+                &Term::FunType(None, &VAR0, &FORMAT_TYPE),
+            ),
         );
+        env.define_prim(FormatFail, &FORMAT_TYPE);
+        env.define_prim(
+            FormatUnwrap,
+            // fun (A : Type) -> Option A   -> Format
+            // fun (A : Type) -> Option A@0 -> Format
+            &core::Term::FunType(
+                env.name("A"),
+                &UNIVERSE,
+                &Term::FunType(
+                    None,
+                    &Term::FunElim(&Term::Prim(OptionType), &VAR0),
+                    &FORMAT_TYPE,
+                ),
+            ),
+        );
+        env.define_prim_fun(FormatRepr, [&FORMAT_TYPE], &UNIVERSE);
 
         env.define_prim_fun(BoolEq, [&BOOL_TYPE, &BOOL_TYPE], &BOOL_TYPE);
         env.define_prim_fun(BoolNeq, [&BOOL_TYPE, &BOOL_TYPE], &BOOL_TYPE);
@@ -301,6 +316,87 @@ impl<'arena> RigidEnv<'arena> {
         env.define_prim_fun(S64Div, [&S64_TYPE, &S64_TYPE], &S64_TYPE);
         env.define_prim_fun(S64Abs, [&S64_TYPE], &S64_TYPE);
         env.define_prim_fun(S64UAbs, [&S64_TYPE], &U64_TYPE);
+
+        env.define_prim(
+            OptionSome,
+            // fun (A : Type) -> A   -> Option A
+            // fun (A : Type) -> A@0 -> Option A@1
+            &core::Term::FunType(
+                env.name("A"),
+                &UNIVERSE,
+                &Term::FunType(None, &VAR0, &Term::FunElim(&Term::Prim(OptionType), &VAR1)),
+            ),
+        );
+        env.define_prim(
+            OptionNone,
+            // fun (A : Type) -> Option A
+            // fun (A : Type) -> Option A@0
+            &core::Term::FunType(
+                env.name("A"),
+                &UNIVERSE,
+                &Term::FunElim(&Term::Prim(OptionType), &VAR0),
+            ),
+        );
+        env.define_prim(
+            OptionFold,
+            // fun (A : Type) (B : Type) -> B   -> (A   -> B  ) -> Option A   -> B
+            // fun (A : Type) (B : Type) -> B@0 -> (A@2 -> B@2) -> Option A@3 -> B@3
+            scope.to_scope(core::Term::FunType(
+                env.name("A"),
+                &UNIVERSE,
+                scope.to_scope(core::Term::FunType(
+                    env.name("B"),
+                    &UNIVERSE,
+                    scope.to_scope(core::Term::FunType(
+                        None,
+                        &VAR0, // B@0
+                        scope.to_scope(core::Term::FunType(
+                            None,
+                            &Term::FunType(None, &VAR2, &VAR2), // A@2 -> B@2
+                            scope.to_scope(core::Term::FunType(
+                                None,
+                                &Term::FunElim(&Term::Prim(OptionType), &VAR3), // Option A@3
+                                &VAR3,                                          // B@3
+                            )),
+                        )),
+                    )),
+                )),
+            )),
+        );
+
+        // fun (len : UN) (A : Type) -> (A   -> Bool) -> ArrayN len   A   -> Option A
+        // fun (len : UN) (A : Type) -> (A@0 -> Bool) -> ArrayN len@2 A@1 -> Option A@2
+        let find_type = |index_type, array_type| {
+            scope.to_scope(core::Term::FunType(
+                env.name("len"),
+                index_type,
+                scope.to_scope(core::Term::FunType(
+                    env.name("A"),
+                    &UNIVERSE,
+                    scope.to_scope(core::Term::FunType(
+                        None,
+                        &Term::FunType(None, &VAR0, &BOOL_TYPE), // (A@0 -> Bool)
+                        scope.to_scope(core::Term::FunType(
+                            None,
+                            // ArrayN len@2 A@1
+                            scope.to_scope(Term::FunElim(
+                                scope.to_scope(Term::FunElim(array_type, &VAR2)),
+                                &VAR1,
+                            )),
+                            &Term::FunElim(&Term::Prim(OptionType), &VAR2), // Option A@2
+                        )),
+                    )),
+                )),
+            ))
+        };
+        let array8_find_type = find_type(&U8_TYPE, &ARRAY8_TYPE);
+        let array16_find_type = find_type(&U16_TYPE, &ARRAY16_TYPE);
+        let array32_find_type = find_type(&U32_TYPE, &ARRAY32_TYPE);
+        let array64_find_type = find_type(&U64_TYPE, &ARRAY64_TYPE);
+        env.define_prim(Array8Find, array8_find_type);
+        env.define_prim(Array16Find, array16_find_type);
+        env.define_prim(Array32Find, array32_find_type);
+        env.define_prim(Array64Find, array64_find_type);
 
         env.define_prim_fun(PosAddU8, [&POS_TYPE, &U8_TYPE], &POS_TYPE);
         env.define_prim_fun(PosAddU16, [&POS_TYPE, &U16_TYPE], &POS_TYPE);
