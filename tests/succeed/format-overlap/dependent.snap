@@ -6,21 +6,11 @@ let silly : _ = overlap {
     record1 <- record1 record0.length,
 };
 let _ : fun (_ : {
-    record0 : {
-        length : U8,
-    },
-    record1 : {
-        _length : U8,
-        data : Array8 record0.length U8,
-    },
+    record0 : { length : U8 },
+    record1 : { _length : U8, data : Array8 record0.length U8 },
 }) -> {
-    record0 : {
-        length : U8,
-    },
-    record1 : {
-        _length : U8,
-        data : Array8 record0.length U8,
-    },
+    record0 : { length : U8 },
+    record1 : { _length : U8, data : Array8 record0.length U8 },
 } = fun silly => silly;
 {} : {}
 '''

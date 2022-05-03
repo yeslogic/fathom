@@ -1,12 +1,12 @@
 stdout = ''
 stderr = '''
-error: type mismatch
+error: type mismatch, expected: A, got Type
   ┌─ tests/fail/elaboration/unification/mismatch/fun-type-both.fathom:3:43
   │
 3 │ fun (A : Type) -> fun (a : A) -> fun (b : a) -> a
   │                                           ^
 
-error: type mismatch
+error: type mismatch, expected: A, got Type
   ┌─ tests/fail/elaboration/unification/mismatch/fun-type-both.fathom:3:49
   │
 3 │ fun (A : Type) -> fun (a : A) -> fun (b : a) -> a

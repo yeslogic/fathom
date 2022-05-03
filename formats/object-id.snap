@@ -1,9 +1,5 @@
 stdout = '''
 let u24be : _ = array8 3 u8;
-{
-    timestamp <- u32be,
-    random <- array8 5 u8,
-    counter <- u24be,
-} : Format
+{ timestamp <- u32be, random <- array8 5 u8, counter <- u24be } : Format
 '''
 stderr = ''

@@ -1,6 +1,6 @@
 stdout = ''
 stderr = '''
-error: type mismatch
+error: type mismatch, expected: Type, got A
   ┌─ tests/fail/elaboration/unification/mismatch/fun-literal-output-expr.fathom:3:19
   │
 3 │ fun A => fun a => A : fun (A : Type) -> A -> A

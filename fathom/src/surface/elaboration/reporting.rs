@@ -8,7 +8,7 @@ use crate::{StringId, StringInterner};
 
 /// Elaboration diagnostic messages.
 #[derive(Debug, Clone)]
-pub enum Message {
+pub enum Message<'core> {
     /// The name was not previously bound in the current scope.
     UnboundName {
         range: ByteRange,
@@ -87,10 +87,9 @@ pub enum Message {
     /// Unification errors.
     FailedToUnify {
         range: ByteRange,
-        // TODO: add lhs and rhs values
-        // lhs: Doc<_>,
-        // rhs: Doc<_>,
-        error: unification::Error,
+        lhs: String,
+        rhs: String,
+        error: unification::Error<'core>,
     },
     /// A solution for a flexible variable could not be found.
     UnsolvedFlexibleVar {
@@ -107,7 +106,7 @@ pub enum Message {
     },
 }
 
-impl Message {
+impl<'core> Message<'core> {
     pub fn to_diagnostic(
         &self,
         interner: &RefCell<StringInterner>,
@@ -307,13 +306,18 @@ impl Message {
             Message::BooleanLiteralNotSupported { range } => Diagnostic::error()
                 .with_message("boolean literal not supported for expected type")
                 .with_labels(vec![Label::primary(file_id, *range)]),
-            Message::FailedToUnify { range, error } => {
+            Message::FailedToUnify {
+                range,
+                lhs,
+                rhs,
+                error,
+            } => {
                 use unification::{Error, RenameError, SpineError};
 
                 // TODO: Make these errors more user-friendly
                 match error {
-                    Error::Mismatch => Diagnostic::error()
-                        .with_message("type mismatch")
+                    Error::Mismatch(_, _) => Diagnostic::error()
+                        .with_message(format!("type mismatch, expected: {}, got {}", lhs, rhs))
                         .with_labels(vec![Label::primary(file_id, *range)]),
                     // TODO: reduce confusion around ‘problem spines’
                     Error::Spine(error) => match error {
@@ -330,6 +334,12 @@ impl Message {
                             .with_message("constant elimination found in problem spine")
                             .with_labels(vec![Label::primary(file_id, *range)]),
                     },
+                    Error::SpineMismatch => Diagnostic::error()
+                        .with_message("spine mismatch")
+                        .with_labels(vec![Label::primary(file_id, *range)]),
+                    Error::TelescopeMismatch => Diagnostic::error()
+                        .with_message("telescope mismatch")
+                        .with_labels(vec![Label::primary(file_id, *range)]),
                     Error::Rename(error) => match error {
                         RenameError::EscapingRigidVar(_var) => Diagnostic::error()
                             .with_message("escaping rigid variable")

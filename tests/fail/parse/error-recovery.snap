@@ -8,7 +8,7 @@ error: unexpected token ;
   │
   = expected "name" or "}"
 
-error: type mismatch
+error: type mismatch, expected: Type, got fun (_ : Type) -> Type
   ┌─ tests/fail/parse/error-recovery.fathom:5:1
   │
 5 │ x : Type -> Type

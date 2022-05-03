@@ -235,10 +235,7 @@ stdout = '''
         min_left_side_bearing = 205,
         min_right_side_bearing = 204,
         x_max_extent = 4514,
-        caret_slope = {
-            rise = 1,
-            run = 0,
-        },
+        caret_slope = { rise = 1, run = 0 },
         caret_offset = 0,
         _reserved0 = 0,
         _reserved1 = 0,
@@ -248,12 +245,7 @@ stdout = '''
         number_of_long_horizontal_metrics = 4,
     },
 ]
-280 = [
-    {
-        version = 65536,
-        num_glyphs = 4,
-    },
-]
+280 = [ { version = 65536, num_glyphs = 4 } ]
 312 = [
     {
         version = 3,
@@ -272,18 +264,7 @@ stdout = '''
         y_strikeout_size = 102,
         y_strikeout_position = 512,
         s_family_class = 0,
-        panose = [
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-        ],
+        panose = [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ],
         ul_unicode_range1 = 1,
         ul_unicode_range2 = 0,
         ul_unicode_range3 = 0,
@@ -325,10 +306,7 @@ stdout = '''
             min_left_side_bearing = 205,
             min_right_side_bearing = 204,
             x_max_extent = 4514,
-            caret_slope = {
-                rise = 1,
-                run = 0,
-            },
+            caret_slope = { rise = 1, run = 0 },
             caret_offset = 0,
             _reserved0 = 0,
             _reserved1 = 0,
@@ -337,35 +315,18 @@ stdout = '''
             metric_data_format = 0,
             number_of_long_horizontal_metrics = 4,
         },
-        maxp = {
-            version = 65536,
-            num_glyphs = 4,
-        },
+        maxp = { version = 65536, num_glyphs = 4 },
         table = {
             h_metrics = [
-                {
-                    advance_width = 1536,
-                    left_side_bearing = 0,
-                },
-                {
-                    advance_width = 1536,
-                    left_side_bearing = 0,
-                },
-                {
-                    advance_width = 4719,
-                    left_side_bearing = 205,
-                },
-                {
-                    advance_width = 4708,
-                    left_side_bearing = 205,
-                },
+                { advance_width = 1536, left_side_bearing = 0 },
+                { advance_width = 1536, left_side_bearing = 0 },
+                { advance_width = 4719, left_side_bearing = 205 },
+                { advance_width = 4708, left_side_bearing = 205 },
             ],
         },
     },
 ]
-424 = [
-    {},
-]
+424 = [ {} ]
 1928 = [
     {
         table_start = 1928,
@@ -375,26 +336,17 @@ stdout = '''
             {
                 platform = 0,
                 encoding = 3,
-                subtable_offset = {
-                    offset = 28,
-                    link = 1956,
-                },
+                subtable_offset = { offset = 28, link = 1956 },
             },
             {
                 platform = 1,
                 encoding = 0,
-                subtable_offset = {
-                    offset = 76,
-                    link = 2004,
-                },
+                subtable_offset = { offset = 76, link = 2004 },
             },
             {
                 platform = 3,
                 encoding = 1,
-                subtable_offset = {
-                    offset = 28,
-                    link = 1956,
-                },
+                subtable_offset = { offset = 28, link = 1956 },
             },
         ],
     },
@@ -411,31 +363,11 @@ stdout = '''
             search_range = 8,
             entry_selector = 2,
             range_shift = 0,
-            end_code = [
-                32,
-                70,
-                80,
-                65535,
-            ],
+            end_code = [ 32, 70, 80, 65535 ],
             _reserved_pad = 0,
-            start_code = [
-                32,
-                70,
-                80,
-                65535,
-            ],
-            id_delta = [
-                -31,
-                -68,
-                -77,
-                1,
-            ],
-            id_range_offsets = [
-                0,
-                0,
-                0,
-                0,
-            ],
+            start_code = [ 32, 70, 80, 65535 ],
+            id_delta = [ -31, -68, -77, 1 ],
+            id_range_offsets = [ 0, 0, 0, 0 ],
         },
     },
 ]
@@ -709,10 +641,7 @@ stdout = '''
 ]
 2268 = [
     {
-        maxp = {
-            version = 65536,
-            num_glyphs = 4,
-        },
+        maxp = { version = 65536, num_glyphs = 4 },
         head = {
             major_version = 1,
             _major_version = {},
@@ -738,23 +667,12 @@ stdout = '''
             index_to_loc_format = 0,
             glyph_data_format = 0,
         },
-        table = {
-            offsets = [
-                0,
-                0,
-                0,
-                64,
-                340,
-            ],
-        },
+        table = { offsets = [ 0, 0, 0, 64, 340 ] },
     },
 ]
 2280 = [
     {
-        maxp = {
-            version = 65536,
-            num_glyphs = 4,
-        },
+        maxp = { version = 65536, num_glyphs = 4 },
         table = {
             glyphs = [
                 {
@@ -766,13 +684,7 @@ stdout = '''
                         y_max = 1434,
                     },
                     data = {
-                        end_pts_of_contours = [
-                            7,
-                            17,
-                            23,
-                            27,
-                            30,
-                        ],
+                        end_pts_of_contours = [ 7, 17, 23, 27, 30 ],
                         instruction_length = 0,
                         instructions = [],
                     },
@@ -794,10 +706,7 @@ stdout = '''
                 language = 0,
                 name_id = 1,
                 length = 13,
-                offset = {
-                    offset = 0,
-                    link = {},
-                },
+                offset = { offset = 0, link = {} },
             },
             {
                 platform = 1,
@@ -805,10 +714,7 @@ stdout = '''
                 language = 0,
                 name_id = 2,
                 length = 7,
-                offset = {
-                    offset = 13,
-                    link = 3147,
-                },
+                offset = { offset = 13, link = 3147 },
             },
             {
                 platform = 1,
@@ -816,10 +722,7 @@ stdout = '''
                 language = 0,
                 name_id = 3,
                 length = 47,
-                offset = {
-                    offset = 20,
-                    link = 3154,
-                },
+                offset = { offset = 20, link = 3154 },
             },
             {
                 platform = 1,
@@ -827,10 +730,7 @@ stdout = '''
                 language = 0,
                 name_id = 4,
                 length = 21,
-                offset = {
-                    offset = 67,
-                    link = 3201,
-                },
+                offset = { offset = 67, link = 3201 },
             },
             {
                 platform = 1,
@@ -838,10 +738,7 @@ stdout = '''
                 language = 0,
                 name_id = 5,
                 length = 20,
-                offset = {
-                    offset = 88,
-                    link = 3222,
-                },
+                offset = { offset = 88, link = 3222 },
             },
             {
                 platform = 1,
@@ -849,10 +746,7 @@ stdout = '''
                 language = 0,
                 name_id = 6,
                 length = 19,
-                offset = {
-                    offset = 108,
-                    link = 3242,
-                },
+                offset = { offset = 108, link = 3242 },
             },
             {
                 platform = 1,
@@ -860,10 +754,7 @@ stdout = '''
                 language = 0,
                 name_id = 8,
                 length = 22,
-                offset = {
-                    offset = 127,
-                    link = 3261,
-                },
+                offset = { offset = 127, link = 3261 },
             },
             {
                 platform = 3,
@@ -871,10 +762,7 @@ stdout = '''
                 language = 1033,
                 name_id = 1,
                 length = 26,
-                offset = {
-                    offset = 149,
-                    link = 3283,
-                },
+                offset = { offset = 149, link = 3283 },
             },
             {
                 platform = 3,
@@ -882,10 +770,7 @@ stdout = '''
                 language = 1033,
                 name_id = 2,
                 length = 14,
-                offset = {
-                    offset = 175,
-                    link = 3309,
-                },
+                offset = { offset = 175, link = 3309 },
             },
             {
                 platform = 3,
@@ -893,10 +778,7 @@ stdout = '''
                 language = 1033,
                 name_id = 3,
                 length = 94,
-                offset = {
-                    offset = 189,
-                    link = 3323,
-                },
+                offset = { offset = 189, link = 3323 },
             },
             {
                 platform = 3,
@@ -904,10 +786,7 @@ stdout = '''
                 language = 1033,
                 name_id = 4,
                 length = 42,
-                offset = {
-                    offset = 283,
-                    link = 3417,
-                },
+                offset = { offset = 283, link = 3417 },
             },
             {
                 platform = 3,
@@ -915,10 +794,7 @@ stdout = '''
                 language = 1033,
                 name_id = 5,
                 length = 40,
-                offset = {
-                    offset = 325,
-                    link = 3459,
-                },
+                offset = { offset = 325, link = 3459 },
             },
             {
                 platform = 3,
@@ -926,10 +802,7 @@ stdout = '''
                 language = 1033,
                 name_id = 6,
                 length = 38,
-                offset = {
-                    offset = 365,
-                    link = 3499,
-                },
+                offset = { offset = 365, link = 3499 },
             },
             {
                 platform = 3,
@@ -937,25 +810,12 @@ stdout = '''
                 language = 1033,
                 name_id = 8,
                 length = 44,
-                offset = {
-                    offset = 403,
-                    link = 3537,
-                },
+                offset = { offset = 403, link = 3537 },
             },
         ],
     },
 ]
-3147 = [
-    [
-        82,
-        101,
-        103,
-        117,
-        108,
-        97,
-        114,
-    ],
-]
+3147 = [ [ 82, 101, 103, 117, 108, 97, 114 ] ]
 3154 = [
     [
         87,
@@ -1135,24 +995,7 @@ stdout = '''
         70,
     ],
 ]
-3309 = [
-    [
-        0,
-        82,
-        0,
-        101,
-        0,
-        103,
-        0,
-        117,
-        0,
-        108,
-        0,
-        97,
-        0,
-        114,
-    ],
-]
+3309 = [ [ 0, 82, 0, 101, 0, 103, 0, 117, 0, 108, 0, 97, 0, 114 ] ]
 3323 = [
     [
         0,

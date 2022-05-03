@@ -32,10 +32,7 @@ P (fun x => fun y => f x y)) -> P (fun x => f x) = fun f => refl (_ f) f;
 let record_eta_left : fun (r : { x : Type, y : Type }) -> fun (P : fun (_ : {
     x : Type,
     y : Type,
-}) -> Type) -> fun (_ : P r) -> P {
-    x = r.x,
-    y = r.y,
-} = fun r => refl (_ r) r;
+}) -> Type) -> fun (_ : P r) -> P { x = r.x, y = r.y } = fun r => refl (_ r) r;
 let record_eta_right : fun (r : { x : Type, y : Type }) -> fun (P : fun (_ : {
     x : Type,
     y : Type,

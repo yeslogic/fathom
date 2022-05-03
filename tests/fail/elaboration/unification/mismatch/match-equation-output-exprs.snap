@@ -12,7 +12,7 @@ warning: unreachable pattern
 5 │     _ => 4 : U64,
   │     ^
 
-error: type mismatch
+error: type mismatch, expected: U64, got U32
   ┌─ tests/fail/elaboration/unification/mismatch/match-equation-output-exprs.fathom:5:10
   │
 5 │     _ => 4 : U64,
@@ -24,7 +24,7 @@ warning: unreachable pattern
 6 │     _ => Type,
   │     ^
 
-error: type mismatch
+error: type mismatch, expected: Type, got U32
   ┌─ tests/fail/elaboration/unification/mismatch/match-equation-output-exprs.fathom:6:10
   │
 6 │     _ => Type,
