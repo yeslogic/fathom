@@ -1189,7 +1189,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
 
                 self.rigid_env.pop();
 
-                core::Term::FunIntro(input_name, self.scope.to_scope(output_expr))
+                core::Term::FunLit(input_name, self.scope.to_scope(output_expr))
             }
             (Term::RecordLiteral(range, expr_fields), Value::RecordType(labels, types)) => {
                 // TODO: improve handling of duplicate labels
@@ -1220,7 +1220,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                     exprs.push(expr);
                 }
 
-                core::Term::RecordIntro(labels, exprs.into())
+                core::Term::RecordLit(labels, exprs.into())
             }
             (Term::UnitLiteral(_), Value::Universe) => core::Term::RecordType(&[], &[]),
             (Term::UnitLiteral(_), _)
@@ -1247,10 +1247,14 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 };
 
                 match len.as_ref() {
-                    Value::Const(Const::U8(len, _)) if elem_exprs.len() as u64 == *len as u64 => {}
-                    Value::Const(Const::U16(len, _)) if elem_exprs.len() as u64 == *len as u64 => {}
-                    Value::Const(Const::U32(len, _)) if elem_exprs.len() as u64 == *len as u64 => {}
-                    Value::Const(Const::U64(len, _)) if elem_exprs.len() as u64 == *len as u64 => {}
+                    Value::ConstLit(Const::U8(len, _))
+                        if elem_exprs.len() as u64 == *len as u64 => {}
+                    Value::ConstLit(Const::U16(len, _))
+                        if elem_exprs.len() as u64 == *len as u64 => {}
+                    Value::ConstLit(Const::U32(len, _))
+                        if elem_exprs.len() as u64 == *len as u64 => {}
+                    Value::ConstLit(Const::U64(len, _))
+                        if elem_exprs.len() as u64 == *len as u64 => {}
                     Value::Stuck(Head::Prim(Prim::ReportedError), _) => {
                         return core::Term::Prim(Prim::ReportedError);
                     }
@@ -1302,7 +1306,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 };
 
                 match constant {
-                    Some(constant) => core::Term::Const(constant),
+                    Some(constant) => core::Term::ConstLit(constant),
                     None => core::Term::Prim(Prim::ReportedError),
                 }
             }
@@ -1334,7 +1338,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 };
 
                 match constant {
-                    Some(constant) => core::Term::Const(constant),
+                    Some(constant) => core::Term::ConstLit(constant),
                     None => core::Term::Prim(Prim::ReportedError),
                 }
             }
@@ -1480,7 +1484,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 self.rigid_env.pop();
 
                 (
-                    core::Term::FunIntro(input_name, self.scope.to_scope(output_expr)),
+                    core::Term::FunLit(input_name, self.scope.to_scope(output_expr)),
                     Arc::new(Value::FunType(
                         input_name,
                         input_type,
@@ -1586,12 +1590,12 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 let types = Telescope::new(self.rigid_env.exprs.clone(), types.into());
 
                 (
-                    core::Term::RecordIntro(labels, exprs.into()),
+                    core::Term::RecordLit(labels, exprs.into()),
                     Arc::new(Value::RecordType(labels, types)),
                 )
             }
             Term::UnitLiteral(_) => (
-                core::Term::RecordIntro(&[], &[]),
+                core::Term::RecordLit(&[], &[]),
                 Arc::new(Value::RecordType(
                     &[],
                     Telescope::new(SharedEnv::new(), &[]),
@@ -1653,7 +1657,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
             }
             Term::BooleanLiteral(_range, val) => {
                 let bool_type = Arc::new(Value::prim(Prim::BoolType, []));
-                (core::Term::Const(Const::Bool(*val)), bool_type)
+                (core::Term::ConstLit(Const::Bool(*val)), bool_type)
             }
             Term::FormatRecord(range, format_fields) => {
                 let format_type = Arc::new(Value::prim(Prim::FormatType, []));

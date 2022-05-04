@@ -231,11 +231,11 @@ impl<'arena, 'env> Context<'arena, 'env> {
                 self.unify(input_type0, input_type1)?;
                 self.unify_closures(output_type0, output_type1)
             }
-            (Value::FunIntro(_, output_expr0), Value::FunIntro(_, output_expr1)) => {
+            (Value::FunLit(_, output_expr0), Value::FunLit(_, output_expr1)) => {
                 self.unify_closures(output_expr0, output_expr1)
             }
-            (Value::FunIntro(_, output_expr), _) => self.unify_fun_intro_elim(output_expr, &value1),
-            (_, Value::FunIntro(_, output_expr)) => self.unify_fun_intro_elim(output_expr, &value0),
+            (Value::FunLit(_, output_expr), _) => self.unify_fun_lit(output_expr, &value1),
+            (_, Value::FunLit(_, output_expr)) => self.unify_fun_lit(output_expr, &value0),
 
             (Value::RecordType(labels0, types0), Value::RecordType(labels1, types1)) => {
                 if labels0 != labels1 {
@@ -243,7 +243,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
                 }
                 self.unify_telescopes(types0, types1)
             }
-            (Value::RecordIntro(labels0, exprs0), Value::RecordIntro(labels1, exprs1)) => {
+            (Value::RecordLit(labels0, exprs0), Value::RecordLit(labels1, exprs1)) => {
                 if labels0 != labels1 {
                     return Err(Error::Mismatch);
                 }
@@ -252,14 +252,10 @@ impl<'arena, 'env> Context<'arena, 'env> {
                 }
                 Ok(())
             }
-            (Value::RecordIntro(labels, exprs), _) => {
-                self.unify_record_intro_elim(labels, exprs, &value1)
-            }
-            (_, Value::RecordIntro(labels, exprs)) => {
-                self.unify_record_intro_elim(labels, exprs, &value0)
-            }
+            (Value::RecordLit(labels, exprs), _) => self.unify_record_lit(labels, exprs, &value1),
+            (_, Value::RecordLit(labels, exprs)) => self.unify_record_lit(labels, exprs, &value0),
 
-            (Value::ArrayIntro(elem_exprs0), Value::ArrayIntro(elem_exprs1)) => {
+            (Value::ArrayLit(elem_exprs0), Value::ArrayLit(elem_exprs1)) => {
                 for (elem_expr0, elem_expr1) in
                     Iterator::zip(elem_exprs0.iter(), elem_exprs1.iter())
                 {
@@ -275,7 +271,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
                 self.unify_telescopes(formats0, formats1)
             }
 
-            (Value::Const(const0), Value::Const(const1)) if const0 == const1 => Ok(()),
+            (Value::ConstLit(const0), Value::ConstLit(const1)) if const0 == const1 => Ok(()),
 
             // Flexible-rigid cases
             //
@@ -365,8 +361,8 @@ impl<'arena, 'env> Context<'arena, 'env> {
         Ok(())
     }
 
-    /// Unify a function introduction with a value, using eta-conversion.
-    fn unify_fun_intro_elim(
+    /// Unify a function literal with a value, using eta-conversion.
+    fn unify_fun_lit(
         &mut self,
         output_expr: &Closure<'arena>,
         value: &ArcValue<'arena>,
@@ -384,8 +380,8 @@ impl<'arena, 'env> Context<'arena, 'env> {
         result
     }
 
-    /// Unify a record introduction with a value, using eta-conversion.
-    fn unify_record_intro_elim(
+    /// Unify a record literal with a value, using eta-conversion.
+    fn unify_record_lit(
         &mut self,
         labels: &[StringId],
         exprs: &[ArcValue<'arena>],
@@ -455,7 +451,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
     /// correspond to the given `spine`.
     fn fun_intros(&self, spine: &[Elim<'arena>], term: Term<'arena>) -> Term<'arena> {
         spine.iter().fold(term, |term, elim| match elim {
-            Elim::FunApp(_) => Term::FunIntro(None, self.scope.to_scope(term)),
+            Elim::FunApp(_) => Term::FunLit(None, self.scope.to_scope(term)),
             Elim::RecordProj(_) | Elim::ConstCase(_) => {
                 unreachable!("should have been caught by `init_renaming`")
             }
@@ -544,13 +540,10 @@ impl<'arena, 'env> Context<'arena, 'env> {
                     self.scope.to_scope(output_type),
                 ))
             }
-            Value::FunIntro(input_name, output_expr) => {
+            Value::FunLit(input_name, output_expr) => {
                 let output_expr = self.rename_closure(flexible_var, output_expr)?;
 
-                Ok(Term::FunIntro(
-                    *input_name,
-                    self.scope.to_scope(output_expr),
-                ))
+                Ok(Term::FunLit(*input_name, self.scope.to_scope(output_expr)))
             }
 
             Value::RecordType(labels, types) => {
@@ -559,17 +552,17 @@ impl<'arena, 'env> Context<'arena, 'env> {
 
                 Ok(Term::RecordType(labels, types))
             }
-            Value::RecordIntro(labels, exprs) => {
+            Value::RecordLit(labels, exprs) => {
                 let labels = self.scope.to_scope(labels); // FIXME: avoid copy if this is the same arena?
                 let mut new_exprs = SliceVec::new(self.scope, exprs.len());
                 for expr in exprs {
                     new_exprs.push(self.rename(flexible_var, expr)?);
                 }
 
-                Ok(Term::RecordIntro(labels, new_exprs.into()))
+                Ok(Term::RecordLit(labels, new_exprs.into()))
             }
 
-            Value::ArrayIntro(elem_exprs) => {
+            Value::ArrayLit(elem_exprs) => {
                 let mut new_elem_exprs = SliceVec::new(self.scope, elem_exprs.len());
                 for elem_expr in elem_exprs {
                     new_elem_exprs.push(self.rename(flexible_var, elem_expr)?);
@@ -591,7 +584,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
                 Ok(Term::FormatOverlap(labels, formats))
             }
 
-            Value::Const(constant) => Ok(Term::Const(*constant)),
+            Value::ConstLit(constant) => Ok(Term::ConstLit(*constant)),
         }
     }
 

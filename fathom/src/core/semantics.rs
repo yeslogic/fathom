@@ -27,16 +27,16 @@ pub enum Value<'arena> {
 
     /// Dependent function types.
     FunType(Option<StringId>, ArcValue<'arena>, Closure<'arena>),
-    /// Function introductions.
-    FunIntro(Option<StringId>, Closure<'arena>),
+    /// Function literals.
+    FunLit(Option<StringId>, Closure<'arena>),
 
     /// Record types.
     RecordType(&'arena [StringId], Telescope<'arena>),
-    /// Record introductions.
-    RecordIntro(&'arena [StringId], Vec<ArcValue<'arena>>),
+    /// Record literals.
+    RecordLit(&'arena [StringId], Vec<ArcValue<'arena>>),
 
-    /// Array Introductions.
-    ArrayIntro(Vec<ArcValue<'arena>>),
+    /// Array literals.
+    ArrayLit(Vec<ArcValue<'arena>>),
 
     /// Record formats, consisting of a list of dependent formats.
     FormatRecord(&'arena [StringId], Telescope<'arena>),
@@ -44,8 +44,8 @@ pub enum Value<'arena> {
     /// in memory.
     FormatOverlap(&'arena [StringId], Telescope<'arena>),
 
-    /// Constants.
-    Const(Const),
+    /// Constant literals.
+    ConstLit(Const),
 }
 
 impl<'arena> Value<'arena> {
@@ -299,7 +299,7 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
                 self.eval(input_type),
                 Closure::new(self.rigid_exprs.clone(), output_type),
             )),
-            Term::FunIntro(input_name, output_expr) => Arc::new(Value::FunIntro(
+            Term::FunLit(input_name, output_expr) => Arc::new(Value::FunLit(
                 *input_name,
                 Closure::new(self.rigid_exprs.clone(), output_expr),
             )),
@@ -313,9 +313,9 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
                 let types = Telescope::new(self.rigid_exprs.clone(), types);
                 Arc::new(Value::RecordType(labels, types))
             }
-            Term::RecordIntro(labels, exprs) => {
+            Term::RecordLit(labels, exprs) => {
                 let exprs = exprs.iter().map(|expr| self.eval(expr)).collect();
-                Arc::new(Value::RecordIntro(labels, exprs))
+                Arc::new(Value::RecordLit(labels, exprs))
             }
             Term::RecordProj(head_expr, label) => {
                 let head_expr = self.eval(head_expr);
@@ -326,7 +326,7 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
                 let elem_exprs = (elem_exprs.iter())
                     .map(|elem_expr| self.eval(elem_expr))
                     .collect();
-                Arc::new(Value::ArrayIntro(elem_exprs))
+                Arc::new(Value::ArrayLit(elem_exprs))
             }
 
             Term::FormatRecord(labels, formats) => {
@@ -340,7 +340,7 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
 
             Term::Prim(prim) => Arc::new(Value::prim(*prim, [])),
 
-            Term::Const(r#const) => Arc::new(Value::Const(*r#const)),
+            Term::ConstLit(r#const) => Arc::new(Value::ConstLit(*r#const)),
             Term::ConstCase(head_expr, branches, default_expr) => {
                 let head_expr = self.eval(head_expr);
                 let branches = Branches::new(self.rigid_exprs.clone(), branches, *default_expr);
@@ -366,13 +366,13 @@ macro_rules! step {
 macro_rules! const_step {
     ([$($input:ident : $Input:ident),*] => $output:expr) => {
         step!(_, [$($input),*] => match ($($input.as_ref(),)*) {
-            ($(Value::Const(Const::$Input($input, ..)),)*) => Arc::new(Value::Const($output)),
+            ($(Value::ConstLit(Const::$Input($input, ..)),)*) => Arc::new(Value::ConstLit($output)),
             _ => return None,
         })
     };
     ([$($input:ident , $style:ident : $Input:ident),*] => $output:expr) => {
         step!(_, [$($input),*] => match ($($input.as_ref(),)*) {
-            ($(Value::Const(Const::$Input($input, $style)),)*) => Arc::new(Value::Const($output)),
+            ($(Value::ConstLit(Const::$Input($input, $style)),)*) => Arc::new(Value::ConstLit($output)),
             _ => return None,
         })
     };
@@ -529,13 +529,13 @@ fn prim_step(prim: Prim) -> Option<PrimStep> {
 
         Prim::Array8Find | Prim::Array16Find | Prim::Array32Find | Prim::Array64Find => {
             step!(context, [_, _, pred, array] => match array.as_ref() {
-                Value::ArrayIntro(elems) => {
+                Value::ArrayLit(elems) => {
                     for elem in elems {
                         match context.apply_fun_app(pred.clone(), elem.clone()).as_ref() {
-                            Value::Const(Const::Bool(true)) => {
+                            Value::ConstLit(Const::Bool(true)) => {
                                 return Some(Arc::new(Value::prim(Prim::OptionSome, [elem.clone()])))
                             },
-                            Value::Const(Const::Bool(false)) => {}
+                            Value::ConstLit(Const::Bool(false)) => {}
                             _ => return None,
                         }
                     }
@@ -652,7 +652,7 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
     ) -> ArcValue<'arena> {
         match Arc::make_mut(&mut head_expr) {
             // Beta-reduction
-            Value::FunIntro(_, output_expr) => self.apply_closure(output_expr, input_expr),
+            Value::FunLit(_, output_expr) => self.apply_closure(output_expr, input_expr),
             // The computation is stuck, preventing further reduction
             Value::Stuck(head, spine) => {
                 spine.push(Elim::FunApp(input_expr));
@@ -679,7 +679,7 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
     ) -> ArcValue<'arena> {
         match Arc::make_mut(&mut head_expr) {
             // Beta-reduction
-            Value::RecordIntro(labels, exprs) => (labels.iter())
+            Value::RecordLit(labels, exprs) => (labels.iter())
                 .position(|current_label| *current_label == label)
                 .and_then(|expr_index| exprs.get(expr_index).cloned())
                 .unwrap_or_else(|| panic_any(Error::InvalidRecordProj)),
@@ -702,7 +702,7 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
         mut split: Branches<'arena, Const>,
     ) -> ArcValue<'arena> {
         match Arc::make_mut(&mut head_expr) {
-            Value::Const(r#const) => {
+            Value::ConstLit(r#const) => {
                 // Try each branch
                 for (branch_const, output_expr) in split.pattern_branches {
                     if r#const == branch_const {
@@ -888,10 +888,10 @@ impl<'in_arena, 'out_arena, 'env> QuoteContext<'in_arena, 'out_arena, 'env> {
                     self.scope.to_scope(output_type),
                 )
             }
-            Value::FunIntro(input_name, output_expr) => {
+            Value::FunLit(input_name, output_expr) => {
                 let output_expr = self.quote_closure(output_expr);
 
-                Term::FunIntro(*input_name, self.scope.to_scope(output_expr))
+                Term::FunLit(*input_name, self.scope.to_scope(output_expr))
             }
 
             Value::RecordType(labels, types) => {
@@ -900,14 +900,14 @@ impl<'in_arena, 'out_arena, 'env> QuoteContext<'in_arena, 'out_arena, 'env> {
 
                 Term::RecordType(labels, types)
             }
-            Value::RecordIntro(labels, exprs) => {
+            Value::RecordLit(labels, exprs) => {
                 let labels = self.scope.to_scope_from_iter(labels.iter().copied()); // FIXME: avoid copy if this is the same arena?
                 let exprs =
                     (self.scope).to_scope_from_iter(exprs.iter().map(|expr| self.quote(expr)));
 
-                Term::RecordIntro(labels, exprs)
+                Term::RecordLit(labels, exprs)
             }
-            Value::ArrayIntro(elem_exprs) => {
+            Value::ArrayLit(elem_exprs) => {
                 let elem_exprs = (self.scope)
                     .to_scope_from_iter(elem_exprs.iter().map(|elem_expr| self.quote(elem_expr)));
 
@@ -927,7 +927,7 @@ impl<'in_arena, 'out_arena, 'env> QuoteContext<'in_arena, 'out_arena, 'env> {
                 Term::FormatOverlap(labels, formats)
             }
 
-            Value::Const(r#const) => Term::Const(*r#const),
+            Value::ConstLit(r#const) => Term::ConstLit(*r#const),
         }
     }
 
@@ -1040,33 +1040,28 @@ impl<'arena, 'env> ConversionContext<'arena, 'env> {
                 self.is_equal(input_type0, input_type1)
                     && self.is_equal_closures(output_type0, output_type1)
             }
-            (Value::FunIntro(_, output_expr0), Value::FunIntro(_, output_expr1)) => {
+            (Value::FunLit(_, output_expr0), Value::FunLit(_, output_expr1)) => {
                 self.is_equal_closures(output_expr0, output_expr1)
             }
-            (Value::FunIntro(_, output_expr), _) => {
-                self.is_equal_fun_intro_elim(output_expr, &value1)
-            }
-            (_, Value::FunIntro(_, output_expr)) => {
-                self.is_equal_fun_intro_elim(output_expr, &value0)
-            }
+            (Value::FunLit(_, output_expr), _) => self.is_equal_fun_lit(output_expr, &value1),
+            (_, Value::FunLit(_, output_expr)) => self.is_equal_fun_lit(output_expr, &value0),
 
             (Value::RecordType(labels0, types0), Value::RecordType(labels1, types1)) => {
                 labels0 == labels1 && self.is_equal_telescopes(types0, types1)
             }
-
-            (Value::RecordIntro(labels0, exprs0), Value::RecordIntro(labels1, exprs1)) => {
+            (Value::RecordLit(labels0, exprs0), Value::RecordLit(labels1, exprs1)) => {
                 labels0 == labels1
                     && Iterator::zip(exprs0.iter(), exprs1.iter())
                         .all(|(expr0, expr1)| self.is_equal(&expr0, &expr1))
             }
-            (Value::RecordIntro(labels, exprs), _) => {
-                self.is_equal_record_intro_elim(labels, exprs, &value1)
+            (Value::RecordLit(labels, exprs), _) => {
+                self.is_equal_record_lit(labels, exprs, &value1)
             }
-            (_, Value::RecordIntro(labels, exprs)) => {
-                self.is_equal_record_intro_elim(labels, exprs, &value0)
+            (_, Value::RecordLit(labels, exprs)) => {
+                self.is_equal_record_lit(labels, exprs, &value0)
             }
 
-            (Value::ArrayIntro(elem_exprs0), Value::ArrayIntro(elem_exprs1)) => {
+            (Value::ArrayLit(elem_exprs0), Value::ArrayLit(elem_exprs1)) => {
                 Iterator::zip(elem_exprs0.iter(), elem_exprs1.iter())
                     .all(|(elem_expr0, elem_expr1)| self.is_equal(&elem_expr0, &elem_expr1))
             }
@@ -1076,7 +1071,7 @@ impl<'arena, 'env> ConversionContext<'arena, 'env> {
                 labels0 == labels1 && self.is_equal_telescopes(formats0, formats1)
             }
 
-            (Value::Const(const0), Value::Const(const1)) => const0 == const1,
+            (Value::ConstLit(const0), Value::ConstLit(const1)) => const0 == const1,
 
             (_, _) => false,
         }
@@ -1160,8 +1155,8 @@ impl<'arena, 'env> ConversionContext<'arena, 'env> {
         }
     }
 
-    /// Check that a function is equal to a value, using eta-conversion.
-    fn is_equal_fun_intro_elim(&mut self, output_expr: &Closure<'_>, value: &ArcValue<'_>) -> bool {
+    /// Check that a function literal is equal to a value, using eta-conversion.
+    fn is_equal_fun_lit(&mut self, output_expr: &Closure<'_>, value: &ArcValue<'_>) -> bool {
         let var = Arc::new(Value::rigid_var(self.rigid_exprs.next_global()));
         let value = self
             .elim_context()
@@ -1175,8 +1170,8 @@ impl<'arena, 'env> ConversionContext<'arena, 'env> {
         result
     }
 
-    /// Check that a record is equal to a value, using eta-conversion.
-    fn is_equal_record_intro_elim(
+    /// Check that a record literal is equal to a value, using eta-conversion.
+    fn is_equal_record_lit(
         &mut self,
         labels: &[StringId],
         exprs: &[ArcValue<'_>],

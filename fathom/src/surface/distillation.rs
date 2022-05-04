@@ -179,7 +179,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                     self.scope.to_scope(output_expr),
                 )
             }
-            core::Term::FunIntro(input_name, output_expr) => {
+            core::Term::FunLit(input_name, output_expr) => {
                 let input_name = self.push_rigid(*input_name);
                 let output_expr = self.check(output_expr);
                 self.pop_rigid();
@@ -192,8 +192,8 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 )
             }
             core::Term::RecordType(labels, _) if labels.is_empty() => Term::UnitLiteral(()),
-            core::Term::RecordIntro(labels, _) if labels.is_empty() => Term::UnitLiteral(()),
-            core::Term::RecordIntro(labels, exprs) => {
+            core::Term::RecordLit(labels, _) if labels.is_empty() => Term::UnitLiteral(()),
+            core::Term::RecordLit(labels, exprs) => {
                 let scope = self.scope;
                 let expr_fields = Iterator::zip(labels.iter(), exprs.iter())
                     .map(|(label, expr)| (((), *label), self.check(expr)));
@@ -207,7 +207,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 Term::ArrayLiteral((), scope.to_scope_from_iter(elem_exprs))
             }
             core::Term::FormatRecord(labels, _) if labels.is_empty() => Term::UnitLiteral(()),
-            core::Term::Const(r#const) => match r#const {
+            core::Term::ConstLit(r#const) => match r#const {
                 core::Const::Bool(boolean) => Term::BooleanLiteral((), *boolean),
                 core::Const::U8(number, style) => self.check_number_literal_styled(number, *style),
                 core::Const::U16(number, style) => self.check_number_literal_styled(number, *style),
@@ -336,7 +336,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                     self.scope.to_scope(output_type),
                 )
             }
-            core::Term::FunIntro(input_name, output_expr) => {
+            core::Term::FunLit(input_name, output_expr) => {
                 let input_name = self.push_rigid(*input_name);
                 let output_expr = self.synth(output_expr);
                 self.pop_rigid();
@@ -374,8 +374,8 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
 
                 Term::RecordType((), type_fields)
             }
-            core::Term::RecordIntro(labels, _) if labels.is_empty() => Term::UnitLiteral(()),
-            core::Term::RecordIntro(labels, exprs) => {
+            core::Term::RecordLit(labels, _) if labels.is_empty() => Term::UnitLiteral(()),
+            core::Term::RecordLit(labels, exprs) => {
                 let scope = self.scope;
                 let expr_fields = Iterator::zip(labels.iter(), exprs.iter())
                     .map(|(label, expr)| (((), *label), self.synth(expr)));
@@ -406,7 +406,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 Term::FormatOverlap((), self.synth_format_fields(labels, formats))
             }
             core::Term::Prim(prim) => self.synth_prim(*prim),
-            core::Term::Const(r#const) => match r#const {
+            core::Term::ConstLit(r#const) => match r#const {
                 core::Const::Bool(boolean) => Term::BooleanLiteral((), *boolean),
                 core::Const::U8(number, style) => {
                     self.synth_number_literal_styled(number, *style, core::Prim::U8Type)

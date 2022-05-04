@@ -119,17 +119,17 @@ pub enum Term<'arena> {
     ///
     /// Also known as: pi types, dependent product types.
     FunType(Option<StringId>, &'arena Term<'arena>, &'arena Term<'arena>),
-    /// Function introductions.
+    /// Function literals.
     ///
     /// Also known as: lambda expressions, anonymous functions.
-    FunIntro(Option<StringId>, &'arena Term<'arena>),
+    FunLit(Option<StringId>, &'arena Term<'arena>),
     /// Function applications.
     FunApp(&'arena Term<'arena>, &'arena Term<'arena>),
 
     /// Dependent record types.
     RecordType(&'arena [StringId], &'arena [Term<'arena>]),
-    /// Record introductions.
-    RecordIntro(&'arena [StringId], &'arena [Term<'arena>]),
+    /// Record literals.
+    RecordLit(&'arena [StringId], &'arena [Term<'arena>]),
     /// Record projections.
     RecordProj(&'arena Term<'arena>, StringId),
 
@@ -145,8 +145,8 @@ pub enum Term<'arena> {
     /// Primitives.
     Prim(Prim),
 
-    /// Constants.
-    Const(Const),
+    /// Constant literals.
+    ConstLit(Const),
     /// Constant case split.
     ///
     /// (head_expr, branches, default_expr)
@@ -437,7 +437,7 @@ pub enum UIntStyle {
     Ascii,
 }
 
-/// Constants
+/// Constant literals
 #[derive(Debug, Copy, Clone, PartialOrd)]
 pub enum Const {
     Bool(bool),
