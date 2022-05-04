@@ -1156,6 +1156,10 @@ impl<'arena, 'env> ConversionContext<'arena, 'env> {
     }
 
     /// Check that a function literal is equal to a value, using eta-conversion.
+    ///
+    /// ```fathom
+    /// (fun x => f x) = f
+    /// ```
     fn is_equal_fun_lit(&mut self, output_expr: &Closure<'_>, value: &ArcValue<'_>) -> bool {
         let var = Arc::new(Value::rigid_var(self.rigid_exprs.next_global()));
         let value = self
@@ -1171,6 +1175,10 @@ impl<'arena, 'env> ConversionContext<'arena, 'env> {
     }
 
     /// Check that a record literal is equal to a value, using eta-conversion.
+    ///
+    /// ```fathom
+    /// { x = r.x, y = r.y, .. } = r
+    /// ```
     fn is_equal_record_lit(
         &mut self,
         labels: &[StringId],

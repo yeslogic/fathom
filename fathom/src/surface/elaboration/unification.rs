@@ -362,6 +362,10 @@ impl<'arena, 'env> Context<'arena, 'env> {
     }
 
     /// Unify a function literal with a value, using eta-conversion.
+    ///
+    /// ```fathom
+    /// (fun x => f x) = f
+    /// ```
     fn unify_fun_lit(
         &mut self,
         output_expr: &Closure<'arena>,
@@ -381,6 +385,10 @@ impl<'arena, 'env> Context<'arena, 'env> {
     }
 
     /// Unify a record literal with a value, using eta-conversion.
+    ///
+    /// ```fathom
+    /// { x = r.x, y = r.y, .. } = r
+    /// ```
     fn unify_record_lit(
         &mut self,
         labels: &[StringId],
