@@ -1217,7 +1217,9 @@ let os2_table = fun (table_length : U32) => {
         3 => os2_version_2_3_4,
         4 => os2_version_2_3_4,
         5 => os2_version_5,
-        _ => fail,
+        // The previous OS/2 versions are all additive. So if we encounter a newer version try
+        // reading it as the newest one we know about.
+        _ => os2_version_5,
     }
 };
 
@@ -1279,8 +1281,13 @@ let post_table = {
             offset <- array16 num_glyphs s8,
         },
         /// Version 3, no glyph names stored in font
+        ///
+        /// This version is required for CFF fonts.
         0x00030000 => {},
-        _ => fail,
+        // Apple defines a version 4 but it's not part of OpenType and says it
+        // should be avoided:
+        // https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6post.html
+        _ => {},
     }
 };
 

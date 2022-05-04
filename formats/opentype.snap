@@ -342,7 +342,7 @@ let os2_table : _ = fun table_length => {
         3 => os2_version_2_3_4,
         4 => os2_version_2_3_4,
         5 => os2_version_5,
-        _ => fail,
+        _ => os2_version_5,
     },
 };
 let post_table : _ = {
@@ -367,7 +367,7 @@ let post_table : _ = {
             offset <- array16 num_glyphs s8,
         },
         0x30000 => {},
-        _ => fail,
+        _ => {},
     },
 };
 let base_table : _ = unknown_table;
