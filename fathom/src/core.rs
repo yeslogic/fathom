@@ -146,13 +146,13 @@ pub enum Term<'arena> {
     Prim(Prim),
 
     /// Constant literals.
-    ConstLit(Const),
-    /// Constant case split.
+    ConstLit(ConstLit),
+    /// Case split on a constant.
     ///
     /// (head_expr, branches, default_expr)
     ConstCase(
         &'arena Term<'arena>,
-        &'arena [(Const, Term<'arena>)],
+        &'arena [(ConstLit, Term<'arena>)],
         Option<&'arena Term<'arena>>,
     ),
 }
@@ -439,7 +439,7 @@ pub enum UIntStyle {
 
 /// Constant literals
 #[derive(Debug, Copy, Clone, PartialOrd)]
-pub enum Const {
+pub enum ConstLit {
     Bool(bool),
     U8(u8, UIntStyle),
     U16(u16, UIntStyle),
@@ -456,22 +456,22 @@ pub enum Const {
     Ref(u64),
 }
 
-impl PartialEq for Const {
+impl PartialEq for ConstLit {
     fn eq(&self, other: &Self) -> bool {
         match (*self, *other) {
-            (Const::Bool(a), Const::Bool(b)) => a == b,
-            (Const::U8(a, _), Const::U8(b, _)) => a == b,
-            (Const::U16(a, _), Const::U16(b, _)) => a == b,
-            (Const::U32(a, _), Const::U32(b, _)) => a == b,
-            (Const::U64(a, _), Const::U64(b, _)) => a == b,
-            (Const::S8(a), Const::S8(b)) => a == b,
-            (Const::S16(a), Const::S16(b)) => a == b,
-            (Const::S32(a), Const::S32(b)) => a == b,
-            (Const::S64(a), Const::S64(b)) => a == b,
-            (Const::F32(a), Const::F32(b)) => a == b,
-            (Const::F64(a), Const::F64(b)) => a == b,
-            (Const::Pos(a), Const::Pos(b)) => a == b,
-            (Const::Ref(a), Const::Ref(b)) => a == b,
+            (ConstLit::Bool(a), ConstLit::Bool(b)) => a == b,
+            (ConstLit::U8(a, _), ConstLit::U8(b, _)) => a == b,
+            (ConstLit::U16(a, _), ConstLit::U16(b, _)) => a == b,
+            (ConstLit::U32(a, _), ConstLit::U32(b, _)) => a == b,
+            (ConstLit::U64(a, _), ConstLit::U64(b, _)) => a == b,
+            (ConstLit::S8(a), ConstLit::S8(b)) => a == b,
+            (ConstLit::S16(a), ConstLit::S16(b)) => a == b,
+            (ConstLit::S32(a), ConstLit::S32(b)) => a == b,
+            (ConstLit::S64(a), ConstLit::S64(b)) => a == b,
+            (ConstLit::F32(a), ConstLit::F32(b)) => a == b,
+            (ConstLit::F64(a), ConstLit::F64(b)) => a == b,
+            (ConstLit::Pos(a), ConstLit::Pos(b)) => a == b,
+            (ConstLit::Ref(a), ConstLit::Ref(b)) => a == b,
             _ => false,
         }
     }
