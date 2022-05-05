@@ -109,21 +109,21 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
         Pattern::NumberLiteral((), number)
     }
 
-    fn check_constant_pattern(&mut self, r#const: &core::ConstLit) -> Pattern<()> {
+    fn check_constant_pattern(&mut self, r#const: &core::Const) -> Pattern<()> {
         match r#const {
-            core::ConstLit::Bool(boolean) => self.check_boolean_pattern(*boolean),
-            core::ConstLit::U8(num, style) => self.check_number_pattern_styled(num, *style),
-            core::ConstLit::U16(num, style) => self.check_number_pattern_styled(num, *style),
-            core::ConstLit::U32(num, style) => self.check_number_pattern_styled(num, *style),
-            core::ConstLit::U64(num, style) => self.check_number_pattern_styled(num, *style),
-            core::ConstLit::S8(num) => self.check_number_pattern(num),
-            core::ConstLit::S16(num) => self.check_number_pattern(num),
-            core::ConstLit::S32(num) => self.check_number_pattern(num),
-            core::ConstLit::S64(num) => self.check_number_pattern(num),
-            core::ConstLit::F32(num) => self.check_number_pattern(num),
-            core::ConstLit::F64(num) => self.check_number_pattern(num),
-            core::ConstLit::Pos(num) => self.check_number_pattern(num),
-            core::ConstLit::Ref(num) => self.check_number_pattern(num),
+            core::Const::Bool(boolean) => self.check_boolean_pattern(*boolean),
+            core::Const::U8(number, style) => self.check_number_pattern_styled(number, *style),
+            core::Const::U16(number, style) => self.check_number_pattern_styled(number, *style),
+            core::Const::U32(number, style) => self.check_number_pattern_styled(number, *style),
+            core::Const::U64(number, style) => self.check_number_pattern_styled(number, *style),
+            core::Const::S8(number) => self.check_number_pattern(number),
+            core::Const::S16(number) => self.check_number_pattern(number),
+            core::Const::S32(number) => self.check_number_pattern(number),
+            core::Const::S64(number) => self.check_number_pattern(number),
+            core::Const::F32(number) => self.check_number_pattern(number),
+            core::Const::F64(number) => self.check_number_pattern(number),
+            core::Const::Pos(number) => self.check_number_pattern(number),
+            core::Const::Ref(number) => self.check_number_pattern(number),
         }
     }
 
@@ -208,19 +208,19 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
             }
             core::Term::FormatRecord(labels, _) if labels.is_empty() => Term::UnitLiteral(()),
             core::Term::ConstLit(r#const) => match r#const {
-                core::ConstLit::Bool(boolean) => Term::BooleanLiteral((), *boolean),
-                core::ConstLit::U8(num, style) => self.check_number_literal_styled(num, *style),
-                core::ConstLit::U16(num, style) => self.check_number_literal_styled(num, *style),
-                core::ConstLit::U32(num, style) => self.check_number_literal_styled(num, *style),
-                core::ConstLit::U64(num, style) => self.check_number_literal_styled(num, *style),
-                core::ConstLit::S8(num) => self.check_number_literal(num),
-                core::ConstLit::S16(num) => self.check_number_literal(num),
-                core::ConstLit::S32(num) => self.check_number_literal(num),
-                core::ConstLit::S64(num) => self.check_number_literal(num),
-                core::ConstLit::F32(num) => self.check_number_literal(num),
-                core::ConstLit::F64(num) => self.check_number_literal(num),
-                core::ConstLit::Pos(num) => self.check_number_literal(num),
-                core::ConstLit::Ref(num) => self.check_number_literal(num),
+                core::Const::Bool(boolean) => Term::BooleanLiteral((), *boolean),
+                core::Const::U8(number, style) => self.check_number_literal_styled(number, *style),
+                core::Const::U16(number, style) => self.check_number_literal_styled(number, *style),
+                core::Const::U32(number, style) => self.check_number_literal_styled(number, *style),
+                core::Const::U64(number, style) => self.check_number_literal_styled(number, *style),
+                core::Const::S8(number) => self.check_number_literal(number),
+                core::Const::S16(number) => self.check_number_literal(number),
+                core::Const::S32(number) => self.check_number_literal(number),
+                core::Const::S64(number) => self.check_number_literal(number),
+                core::Const::F32(number) => self.check_number_literal(number),
+                core::Const::F64(number) => self.check_number_literal(number),
+                core::Const::Pos(number) => self.check_number_literal(number),
+                core::Const::Ref(number) => self.check_number_literal(number),
             },
             core::Term::ConstMatch(head_expr, branches, default_expr) => {
                 let head_expr = self.synth(head_expr);
@@ -407,27 +407,27 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
             }
             core::Term::Prim(prim) => self.synth_prim(*prim),
             core::Term::ConstLit(r#const) => match r#const {
-                core::ConstLit::Bool(boolean) => Term::BooleanLiteral((), *boolean),
-                core::ConstLit::U8(num, style) => {
-                    self.synth_number_literal_styled(num, *style, core::Prim::U8Type)
+                core::Const::Bool(boolean) => Term::BooleanLiteral((), *boolean),
+                core::Const::U8(number, style) => {
+                    self.synth_number_literal_styled(number, *style, core::Prim::U8Type)
                 }
-                core::ConstLit::U16(num, style) => {
-                    self.synth_number_literal_styled(num, *style, core::Prim::U16Type)
+                core::Const::U16(number, style) => {
+                    self.synth_number_literal_styled(number, *style, core::Prim::U16Type)
                 }
-                core::ConstLit::U32(num, style) => {
-                    self.synth_number_literal_styled(num, *style, core::Prim::U32Type)
+                core::Const::U32(number, style) => {
+                    self.synth_number_literal_styled(number, *style, core::Prim::U32Type)
                 }
-                core::ConstLit::U64(num, style) => {
-                    self.synth_number_literal_styled(num, *style, core::Prim::U64Type)
+                core::Const::U64(number, style) => {
+                    self.synth_number_literal_styled(number, *style, core::Prim::U64Type)
                 }
-                core::ConstLit::S8(num) => self.synth_number_literal(num, core::Prim::S8Type),
-                core::ConstLit::S16(num) => self.synth_number_literal(num, core::Prim::S16Type),
-                core::ConstLit::S32(num) => self.synth_number_literal(num, core::Prim::S32Type),
-                core::ConstLit::S64(num) => self.synth_number_literal(num, core::Prim::S64Type),
-                core::ConstLit::F32(num) => self.synth_number_literal(num, core::Prim::F32Type),
-                core::ConstLit::F64(num) => self.synth_number_literal(num, core::Prim::F64Type),
-                core::ConstLit::Pos(num) => self.synth_number_literal(num, core::Prim::PosType),
-                core::ConstLit::Ref(num) => self.synth_number_literal(num, core::Prim::RefType),
+                core::Const::S8(number) => self.synth_number_literal(number, core::Prim::S8Type),
+                core::Const::S16(number) => self.synth_number_literal(number, core::Prim::S16Type),
+                core::Const::S32(number) => self.synth_number_literal(number, core::Prim::S32Type),
+                core::Const::S64(number) => self.synth_number_literal(number, core::Prim::S64Type),
+                core::Const::F32(number) => self.synth_number_literal(number, core::Prim::F32Type),
+                core::Const::F64(number) => self.synth_number_literal(number, core::Prim::F64Type),
+                core::Const::Pos(number) => self.synth_number_literal(number, core::Prim::PosType),
+                core::Const::Ref(number) => self.synth_number_literal(number, core::Prim::RefType),
             },
             core::Term::ConstMatch(head_expr, branches, default_expr) => {
                 let head_expr = self.synth(head_expr);

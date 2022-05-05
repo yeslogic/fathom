@@ -5,7 +5,7 @@ use std::io::{self, Read, Seek, SeekFrom};
 use std::sync::Arc;
 
 use crate::core::semantics::{self, ArcValue, Elim, Head, Value};
-use crate::core::{ConstLit, Prim, UIntStyle};
+use crate::core::{Const, Prim, UIntStyle};
 use crate::env::{EnvLen, SliceEnv};
 
 pub struct Context<'arena, 'env> {
@@ -126,24 +126,24 @@ impl<'arena, 'env> Context<'arena, 'env> {
         use crate::core::semantics::Elim::FunApp;
 
         match (prim, &slice[..]) {
-            (Prim::FormatU8, []) => read_const(reader, |num| ConstLit::U8(num, UIntStyle::Decimal), read_u8),
-            (Prim::FormatU16Be, []) => read_const(reader, |num| ConstLit::U16(num, UIntStyle::Decimal), read_u16be),
-            (Prim::FormatU16Le, []) => read_const(reader, |num| ConstLit::U16(num, UIntStyle::Decimal), read_u16le),
-            (Prim::FormatU32Be, []) => read_const(reader, |num| ConstLit::U32(num, UIntStyle::Decimal), read_u32be),
-            (Prim::FormatU32Le, []) => read_const(reader, |num| ConstLit::U32(num, UIntStyle::Decimal), read_u32le),
-            (Prim::FormatU64Be, []) => read_const(reader, |num| ConstLit::U64(num, UIntStyle::Decimal), read_u64be),
-            (Prim::FormatU64Le, []) => read_const(reader, |num| ConstLit::U64(num, UIntStyle::Decimal), read_u64le),
-            (Prim::FormatS8, []) => read_const(reader, ConstLit::S8, read_s8),
-            (Prim::FormatS16Be, []) => read_const(reader, ConstLit::S16, read_s16be),
-            (Prim::FormatS16Le, []) => read_const(reader, ConstLit::S16, read_s16le),
-            (Prim::FormatS32Be, []) => read_const(reader, ConstLit::S32, read_s32be),
-            (Prim::FormatS32Le, []) => read_const(reader, ConstLit::S32, read_s32le),
-            (Prim::FormatS64Be, []) => read_const(reader, ConstLit::S64, read_s64be),
-            (Prim::FormatS64Le, []) => read_const(reader, ConstLit::S64, read_s64le),
-            (Prim::FormatF32Be, []) => read_const(reader, ConstLit::F32, read_f32be),
-            (Prim::FormatF32Le, []) => read_const(reader, ConstLit::F32, read_f32le),
-            (Prim::FormatF64Be, []) => read_const(reader, ConstLit::F64, read_f64be),
-            (Prim::FormatF64Le, []) => read_const(reader, ConstLit::F64, read_f64le),
+            (Prim::FormatU8, []) => read_const(reader, |num| Const::U8(num, UIntStyle::Decimal), read_u8),
+            (Prim::FormatU16Be, []) => read_const(reader, |num| Const::U16(num, UIntStyle::Decimal), read_u16be),
+            (Prim::FormatU16Le, []) => read_const(reader, |num| Const::U16(num, UIntStyle::Decimal), read_u16le),
+            (Prim::FormatU32Be, []) => read_const(reader, |num| Const::U32(num, UIntStyle::Decimal), read_u32be),
+            (Prim::FormatU32Le, []) => read_const(reader, |num| Const::U32(num, UIntStyle::Decimal), read_u32le),
+            (Prim::FormatU64Be, []) => read_const(reader, |num| Const::U64(num, UIntStyle::Decimal), read_u64be),
+            (Prim::FormatU64Le, []) => read_const(reader, |num| Const::U64(num, UIntStyle::Decimal), read_u64le),
+            (Prim::FormatS8, []) => read_const(reader, Const::S8, read_s8),
+            (Prim::FormatS16Be, []) => read_const(reader, Const::S16, read_s16be),
+            (Prim::FormatS16Le, []) => read_const(reader, Const::S16, read_s16le),
+            (Prim::FormatS32Be, []) => read_const(reader, Const::S32, read_s32be),
+            (Prim::FormatS32Le, []) => read_const(reader, Const::S32, read_s32le),
+            (Prim::FormatS64Be, []) => read_const(reader, Const::S64, read_s64be),
+            (Prim::FormatS64Le, []) => read_const(reader, Const::S64, read_s64le),
+            (Prim::FormatF32Be, []) => read_const(reader, Const::F32, read_f32be),
+            (Prim::FormatF32Le, []) => read_const(reader, Const::F32, read_f32le),
+            (Prim::FormatF64Be, []) => read_const(reader, Const::F64, read_f64be),
+            (Prim::FormatF64Le, []) => read_const(reader, Const::F64, read_f64le),
             (Prim::FormatArray8, [FunApp(len), FunApp(elem_format)]) => self.read_array(reader, len, elem_format),
             (Prim::FormatArray16, [FunApp(len), FunApp(elem_format)]) => self.read_array(reader, len, elem_format),
             (Prim::FormatArray32, [FunApp(len), FunApp(elem_format)]) => self.read_array(reader, len, elem_format),
@@ -169,10 +169,10 @@ impl<'arena, 'env> Context<'arena, 'env> {
         elem_format: &ArcValue<'arena>,
     ) -> io::Result<ArcValue<'arena>> {
         let len = match self.elim_context().force(len).as_ref() {
-            Value::ConstLit(ConstLit::U8(len, _)) => *len as u64,
-            Value::ConstLit(ConstLit::U16(len, _)) => *len as u64,
-            Value::ConstLit(ConstLit::U32(len, _)) => *len as u64,
-            Value::ConstLit(ConstLit::U64(len, _)) => *len as u64,
+            Value::ConstLit(Const::U8(len, _)) => *len as u64,
+            Value::ConstLit(Const::U16(len, _)) => *len as u64,
+            Value::ConstLit(Const::U32(len, _)) => *len as u64,
+            Value::ConstLit(Const::U64(len, _)) => *len as u64,
             _ => return Err(io::Error::new(io::ErrorKind::Other, "invalid array length")),
         };
 
@@ -189,13 +189,13 @@ impl<'arena, 'env> Context<'arena, 'env> {
         elem_format: &ArcValue<'arena>,
     ) -> io::Result<ArcValue<'arena>> {
         let pos = match self.elim_context().force(pos).as_ref() {
-            Value::ConstLit(ConstLit::Pos(pos)) => *pos,
+            Value::ConstLit(Const::Pos(pos)) => *pos,
             _ => return Err(io::Error::new(io::ErrorKind::Other, "invalid link pos")),
         };
 
         self.pending_formats.push((pos, elem_format.clone()));
 
-        Ok(Arc::new(Value::ConstLit(ConstLit::Ref(pos))))
+        Ok(Arc::new(Value::ConstLit(Const::Ref(pos))))
     }
 
     fn read_deref(
@@ -205,7 +205,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
         r#ref: &ArcValue<'arena>,
     ) -> io::Result<ArcValue<'arena>> {
         let pos = match self.elim_context().force(r#ref).as_ref() {
-            Value::ConstLit(ConstLit::Ref(pos)) => *pos,
+            Value::ConstLit(Const::Ref(pos)) => *pos,
             _ => {
                 return Err(io::Error::new(
                     io::ErrorKind::Other,
@@ -278,12 +278,12 @@ impl<T: Seek + Read> SeekRead for T {}
 
 fn read_stream_pos<'arena>(reader: &mut dyn SeekRead) -> io::Result<ArcValue<'arena>> {
     let pos = reader.stream_position()?;
-    Ok(Arc::new(Value::ConstLit(ConstLit::Pos(pos))))
+    Ok(Arc::new(Value::ConstLit(Const::Pos(pos))))
 }
 
 fn read_const<'arena, T>(
     reader: &mut dyn SeekRead,
-    wrap_const: fn(T) -> ConstLit,
+    wrap_const: fn(T) -> Const,
     read: fn(&mut dyn SeekRead) -> io::Result<T>,
 ) -> io::Result<ArcValue<'arena>> {
     let data = read(reader)?;

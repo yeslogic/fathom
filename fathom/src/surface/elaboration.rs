@@ -27,7 +27,7 @@ use std::sync::Arc;
 
 use crate::alloc::SliceVec;
 use crate::core::semantics::{self, ArcValue, Closure, Head, Telescope, Value};
-use crate::core::{self, binary, ConstLit, Prim, UIntStyle};
+use crate::core::{self, binary, Const, Prim, UIntStyle};
 use crate::env::{self, EnvLen, GlobalVar, SharedEnv, UniqueEnv};
 use crate::source::ByteRange;
 use crate::surface::elaboration::reporting::Message;
@@ -600,7 +600,7 @@ impl<'arena> FlexibleEnv<'arena> {
 enum CheckedPattern {
     Name(ByteRange, StringId),
     Placeholder(ByteRange),
-    Const(ByteRange, ConstLit),
+    Const(ByteRange, Const),
     ReportedError(ByteRange),
 }
 
@@ -893,16 +893,16 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 let constant = match expected_type.match_prim_spine() {
                     Some((Prim::U8Type, [])) => self
                         .parse_ascii(*range, *string)
-                        .map(|num| ConstLit::U8(num, UIntStyle::Ascii)),
+                        .map(|num| Const::U8(num, UIntStyle::Ascii)),
                     Some((Prim::U16Type, [])) => self
                         .parse_ascii(*range, *string)
-                        .map(|num| ConstLit::U16(num, UIntStyle::Ascii)),
+                        .map(|num| Const::U16(num, UIntStyle::Ascii)),
                     Some((Prim::U32Type, [])) => self
                         .parse_ascii(*range, *string)
-                        .map(|num| ConstLit::U32(num, UIntStyle::Ascii)),
+                        .map(|num| Const::U32(num, UIntStyle::Ascii)),
                     Some((Prim::U64Type, [])) => self
                         .parse_ascii(*range, *string)
-                        .map(|num| ConstLit::U64(num, UIntStyle::Ascii)),
+                        .map(|num| Const::U64(num, UIntStyle::Ascii)),
                     // Some((Prim::Array8Type, [len, _])) => todo!(),
                     // Some((Prim::Array16Type, [len, _])) => todo!(),
                     // Some((Prim::Array32Type, [len, _])) => todo!(),
@@ -927,26 +927,26 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                     }
                 }
             }
-            Pattern::NumberLiteral(range, num) => {
+            Pattern::NumberLiteral(range, number) => {
                 let constant = match expected_type.match_prim_spine() {
                     Some((Prim::U8Type, [])) => self
-                        .parse_number_radix(*range, *num)
-                        .map(|(num, style)| ConstLit::U8(num, style)),
+                        .parse_number_radix(*range, *number)
+                        .map(|(num, style)| Const::U8(num, style)),
                     Some((Prim::U16Type, [])) => self
-                        .parse_number_radix(*range, *num)
-                        .map(|(num, style)| ConstLit::U16(num, style)),
+                        .parse_number_radix(*range, *number)
+                        .map(|(num, style)| Const::U16(num, style)),
                     Some((Prim::U32Type, [])) => self
-                        .parse_number_radix(*range, *num)
-                        .map(|(num, style)| ConstLit::U32(num, style)),
+                        .parse_number_radix(*range, *number)
+                        .map(|(num, style)| Const::U32(num, style)),
                     Some((Prim::U64Type, [])) => self
-                        .parse_number_radix(*range, *num)
-                        .map(|(num, style)| ConstLit::U64(num, style)),
-                    Some((Prim::S8Type, [])) => self.parse_number(*range, *num).map(ConstLit::S8),
-                    Some((Prim::S16Type, [])) => self.parse_number(*range, *num).map(ConstLit::S16),
-                    Some((Prim::S32Type, [])) => self.parse_number(*range, *num).map(ConstLit::S32),
-                    Some((Prim::S64Type, [])) => self.parse_number(*range, *num).map(ConstLit::S64),
-                    Some((Prim::F32Type, [])) => self.parse_number(*range, *num).map(ConstLit::F32),
-                    Some((Prim::F64Type, [])) => self.parse_number(*range, *num).map(ConstLit::F64),
+                        .parse_number_radix(*range, *number)
+                        .map(|(num, style)| Const::U64(num, style)),
+                    Some((Prim::S8Type, [])) => self.parse_number(*range, *number).map(Const::S8),
+                    Some((Prim::S16Type, [])) => self.parse_number(*range, *number).map(Const::S16),
+                    Some((Prim::S32Type, [])) => self.parse_number(*range, *number).map(Const::S32),
+                    Some((Prim::S64Type, [])) => self.parse_number(*range, *number).map(Const::S64),
+                    Some((Prim::F32Type, [])) => self.parse_number(*range, *number).map(Const::F32),
+                    Some((Prim::F64Type, [])) => self.parse_number(*range, *number).map(Const::F64),
                     Some((Prim::ReportedError, _)) => None,
                     _ => {
                         self.push_message(Message::NumericLiteralNotSupported { range: *range });
@@ -970,8 +970,8 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
             Pattern::BooleanLiteral(range, boolean) => {
                 let constant = match expected_type.match_prim_spine() {
                     Some((Prim::BoolType, [])) => match *boolean {
-                        true => Some(ConstLit::Bool(true)),
-                        false => Some(ConstLit::Bool(false)),
+                        true => Some(Const::Bool(true)),
+                        false => Some(Const::Bool(false)),
                     },
                     _ => {
                         self.push_message(Message::BooleanLiteralNotSupported { range: *range });
@@ -1024,7 +1024,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 (CheckedPattern::ReportedError(*range), r#type)
             }
             Pattern::BooleanLiteral(range, val) => {
-                let r#const = ConstLit::Bool(*val);
+                let r#const = Const::Bool(*val);
                 let r#type = Arc::new(Value::prim(Prim::BoolType, []));
                 (CheckedPattern::Const(*range, r#const), r#type)
             }
@@ -1247,10 +1247,10 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 };
 
                 let len = match len.as_ref() {
-                    Value::ConstLit(ConstLit::U8(len, _)) => Some(*len as u64),
-                    Value::ConstLit(ConstLit::U16(len, _)) => Some(*len as u64),
-                    Value::ConstLit(ConstLit::U32(len, _)) => Some(*len as u64),
-                    Value::ConstLit(ConstLit::U64(len, _)) => Some(*len as u64),
+                    Value::ConstLit(Const::U8(len, _)) => Some(*len as u64),
+                    Value::ConstLit(Const::U16(len, _)) => Some(*len as u64),
+                    Value::ConstLit(Const::U32(len, _)) => Some(*len as u64),
+                    Value::ConstLit(Const::U64(len, _)) => Some(*len as u64),
                     Value::Stuck(Head::Prim(Prim::ReportedError), _) => {
                         return core::Term::Prim(Prim::ReportedError);
                     }
@@ -1275,7 +1275,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                             found_len: elem_exprs.len(),
                         });
 
-                        core::Term::Prim(Prim::ReportedError)
+                        return core::Term::Prim(Prim::ReportedError);
                     }
                 }
             }
@@ -1283,16 +1283,16 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 let constant = match expected_type.match_prim_spine() {
                     Some((Prim::U8Type, [])) => self
                         .parse_ascii(*range, *string)
-                        .map(|num| ConstLit::U8(num, UIntStyle::Ascii)),
+                        .map(|num| Const::U8(num, UIntStyle::Ascii)),
                     Some((Prim::U16Type, [])) => self
                         .parse_ascii(*range, *string)
-                        .map(|num| ConstLit::U16(num, UIntStyle::Ascii)),
+                        .map(|num| Const::U16(num, UIntStyle::Ascii)),
                     Some((Prim::U32Type, [])) => self
                         .parse_ascii(*range, *string)
-                        .map(|num| ConstLit::U32(num, UIntStyle::Ascii)),
+                        .map(|num| Const::U32(num, UIntStyle::Ascii)),
                     Some((Prim::U64Type, [])) => self
                         .parse_ascii(*range, *string)
-                        .map(|num| ConstLit::U64(num, UIntStyle::Ascii)),
+                        .map(|num| Const::U64(num, UIntStyle::Ascii)),
                     // Some((Prim::Array8Type, [len, _])) => todo!(),
                     // Some((Prim::Array16Type, [len, _])) => todo!(),
                     // Some((Prim::Array32Type, [len, _])) => todo!(),
@@ -1309,26 +1309,26 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                     None => core::Term::Prim(Prim::ReportedError),
                 }
             }
-            (Term::NumberLiteral(range, num), _) => {
+            (Term::NumberLiteral(range, number), _) => {
                 let constant = match expected_type.match_prim_spine() {
                     Some((Prim::U8Type, [])) => self
-                        .parse_number_radix(*range, *num)
-                        .map(|(num, style)| ConstLit::U8(num, style)),
+                        .parse_number_radix(*range, *number)
+                        .map(|(num, style)| Const::U8(num, style)),
                     Some((Prim::U16Type, [])) => self
-                        .parse_number_radix(*range, *num)
-                        .map(|(num, style)| ConstLit::U16(num, style)),
+                        .parse_number_radix(*range, *number)
+                        .map(|(num, style)| Const::U16(num, style)),
                     Some((Prim::U32Type, [])) => self
-                        .parse_number_radix(*range, *num)
-                        .map(|(num, style)| ConstLit::U32(num, style)),
+                        .parse_number_radix(*range, *number)
+                        .map(|(num, style)| Const::U32(num, style)),
                     Some((Prim::U64Type, [])) => self
-                        .parse_number_radix(*range, *num)
-                        .map(|(num, style)| ConstLit::U64(num, style)),
-                    Some((Prim::S8Type, [])) => self.parse_number(*range, *num).map(ConstLit::S8),
-                    Some((Prim::S16Type, [])) => self.parse_number(*range, *num).map(ConstLit::S16),
-                    Some((Prim::S32Type, [])) => self.parse_number(*range, *num).map(ConstLit::S32),
-                    Some((Prim::S64Type, [])) => self.parse_number(*range, *num).map(ConstLit::S64),
-                    Some((Prim::F32Type, [])) => self.parse_number(*range, *num).map(ConstLit::F32),
-                    Some((Prim::F64Type, [])) => self.parse_number(*range, *num).map(ConstLit::F64),
+                        .parse_number_radix(*range, *number)
+                        .map(|(num, style)| Const::U64(num, style)),
+                    Some((Prim::S8Type, [])) => self.parse_number(*range, *number).map(Const::S8),
+                    Some((Prim::S16Type, [])) => self.parse_number(*range, *number).map(Const::S16),
+                    Some((Prim::S32Type, [])) => self.parse_number(*range, *number).map(Const::S32),
+                    Some((Prim::S64Type, [])) => self.parse_number(*range, *number).map(Const::S64),
+                    Some((Prim::F32Type, [])) => self.parse_number(*range, *number).map(Const::F32),
+                    Some((Prim::F64Type, [])) => self.parse_number(*range, *number).map(Const::F64),
                     Some((Prim::ReportedError, _)) => None,
                     _ => {
                         self.push_message(Message::NumericLiteralNotSupported { range: *range });
@@ -1654,7 +1654,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
             }
             Term::BooleanLiteral(_range, val) => {
                 let bool_type = Arc::new(Value::prim(Prim::BoolType, []));
-                (core::Term::ConstLit(ConstLit::Bool(*val)), bool_type)
+                (core::Term::ConstLit(Const::Bool(*val)), bool_type)
             }
             Term::FormatRecord(range, format_fields) => {
                 let format_type = Arc::new(Value::prim(Prim::FormatType, []));
@@ -1791,7 +1791,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                                     let output_term = self.check(output_expr, expected_type);
                                     // Find insertion index
                                     let res = branches.binary_search_by(
-                                        |(probe_const, _term): &(ConstLit, _)| {
+                                        |(probe_const, _term): &(Const, _)| {
                                             probe_const
                                                 .partial_cmp(&r#const)
                                                 .expect("attempt to compare non-ordered value")
