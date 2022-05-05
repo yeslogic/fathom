@@ -26,11 +26,11 @@ pub enum Term<'arena> {
     ///
     /// These correspond to variables that were most likely bound as a result of
     /// user code, for example from [let expressions]), [function types] and
-    /// [function introductions].
+    /// [function literals].
     ///
     /// [let expressions]: Term::Let
     /// [function types]: Term::FunType
-    /// [function introductions]: Term::FunIntro
+    /// [function literals]: Term::FunLit
     ///
     /// ## References
     ///
@@ -54,7 +54,7 @@ pub enum Term<'arena> {
     ///
     /// The entry information will let us know what rigidly bound parameters to
     /// apply to the flexible variable during [evaluation]. The applied
-    /// parameters will correspond to the [function introductions] that will be
+    /// parameters will correspond to the [function literals] that will be
     /// added to the flexible solution during unification.
     ///
     /// We clone the entry information and perform the function applications
@@ -91,7 +91,7 @@ pub enum Term<'arena> {
     /// applied, because it is bound as a definition.
     ///
     /// [entry information]: EntryInfo
-    /// [function introductions]: Term::FunIntro
+    /// [function literals]: Term::FunLit
     /// [function applications]: Term::FunApp
     /// [evaluation]: semantics::EvalContext::eval
     /// [quoting]: semantics::QuoteContext::quote

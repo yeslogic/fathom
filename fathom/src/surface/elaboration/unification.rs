@@ -453,7 +453,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
         Ok(())
     }
 
-    /// Wrap a `term` in [function introductions][Term::FunIntro] that
+    /// Wrap a `term` in [function literals][Term::FunLit] that
     /// correspond to the given `spine`.
     fn fun_intros(&self, spine: &[Elim<'arena>], term: Term<'arena>) -> Term<'arena> {
         spine.iter().fold(term, |term, elim| match elim {
@@ -471,7 +471,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
     /// check error][Error::InfiniteSolution]).
     ///
     /// This allows us to subsequently wrap the returned term in function
-    /// introductions, using [`Context::function_intros`].
+    /// literals, using [`Context::function_intros`].
     fn rename(
         &mut self,
         flexible_var: GlobalVar,
