@@ -222,7 +222,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 core::ConstLit::Pos(num) => self.check_number_literal(num),
                 core::ConstLit::Ref(num) => self.check_number_literal(num),
             },
-            core::Term::ConstCase(head_expr, branches, default_expr) => {
+            core::Term::ConstMatch(head_expr, branches, default_expr) => {
                 let head_expr = self.synth(head_expr);
                 match default_expr {
                     Some(default_expr) => {
@@ -429,7 +429,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 core::ConstLit::Pos(num) => self.synth_number_literal(num, core::Prim::PosType),
                 core::ConstLit::Ref(num) => self.synth_number_literal(num, core::Prim::RefType),
             },
-            core::Term::ConstCase(head_expr, branches, default_expr) => {
+            core::Term::ConstMatch(head_expr, branches, default_expr) => {
                 let head_expr = self.synth(head_expr);
                 match default_expr {
                     Some(default_expr) => {

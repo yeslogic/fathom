@@ -338,8 +338,8 @@ impl Message {
                         SpineError::RecordProj(_label) => Diagnostic::error()
                             .with_message("record projection found in problem spine")
                             .with_labels(vec![Label::primary(file_id, *range)]),
-                        SpineError::ConstCase => Diagnostic::error()
-                            .with_message("constant case split found in problem spine")
+                        SpineError::ConstMatch => Diagnostic::error()
+                            .with_message("constant match found in problem spine")
                             .with_labels(vec![Label::primary(file_id, *range)]),
                     },
                     Error::Rename(error) => match error {

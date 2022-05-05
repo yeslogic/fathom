@@ -1620,9 +1620,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                                 return (expr, r#type);
                             } else {
                                 let head_expr = head_expr_value.clone();
-                                let expr = self
-                                    .elim_context()
-                                    .apply_record_proj(head_expr, *type_label);
+                                let expr = self.elim_context().record_proj(head_expr, *type_label);
                                 types = next_types(expr);
                             }
                         }
@@ -1694,7 +1692,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
         for ((_, label), format) in format_fields {
             let format = self.check(format, &format_type);
             let format_value = self.eval_context().eval(&format);
-            let r#type = self.elim_context().apply_repr(&format_value);
+            let r#type = self.elim_context().format_repr(&format_value);
             self.rigid_env.push_param(Some(*label), r#type);
             formats.push(format);
         }
@@ -1818,7 +1816,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                                 CheckedPattern::Name(_, _)
                                 | CheckedPattern::Placeholder(_)
                                 | CheckedPattern::ReportedError(_) => {
-                                    // Push the default parameter of the constant case split
+                                    // Push the default parameter of the constant match
                                     self.push_rigid_param(def_pattern, scrutinee_type.clone());
 
                                     // Check the default expression and any other
@@ -1835,7 +1833,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
 
                                     self.rigid_env.pop();
 
-                                    return core::Term::ConstCase(
+                                    return core::Term::ConstMatch(
                                         scrutinee_expr,
                                         self.scope.to_scope_from_iter(branches.into_iter()),
                                         Some(self.scope.to_scope(default_expr)),
@@ -1846,7 +1844,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
 
                         if num_constructors == Some(branches.len()) {
                             // The absence of a default constructor is ok as the match was exhaustive.
-                            return core::Term::ConstCase(
+                            return core::Term::ConstMatch(
                                 scrutinee_expr,
                                 self.scope.to_scope_from_iter(branches.into_iter()),
                                 None,

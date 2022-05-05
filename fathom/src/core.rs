@@ -147,10 +147,10 @@ pub enum Term<'arena> {
 
     /// Constant literals.
     ConstLit(ConstLit),
-    /// Case split on a constant.
+    /// Match on a constant.
     ///
-    /// (head_expr, branches, default_expr)
-    ConstCase(
+    /// (head_expr, pattern_branches, default_expr)
+    ConstMatch(
         &'arena Term<'arena>,
         &'arena [(ConstLit, Term<'arena>)],
         Option<&'arena Term<'arena>>,

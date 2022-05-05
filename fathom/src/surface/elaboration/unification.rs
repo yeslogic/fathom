@@ -107,8 +107,8 @@ pub enum SpineError {
     NonRigidFunApp,
     /// A record projection was found in the problem spine.
     RecordProj(StringId),
-    /// A constant case split was found in the problem spine.
-    ConstCase,
+    /// A constant match was found in the problem spine.
+    ConstMatch,
 }
 
 /// An error that occurred when renaming the solution.
@@ -372,9 +372,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
         value: &ArcValue<'arena>,
     ) -> Result<(), Error> {
         let var = Arc::new(Value::rigid_var(self.rigid_exprs.next_global()));
-        let value = self
-            .elim_context()
-            .apply_fun_app(value.clone(), var.clone());
+        let value = self.elim_context().fun_app(value.clone(), var.clone());
         let output_expr = self.elim_context().apply_closure(output_expr, var);
 
         self.rigid_exprs.push();
@@ -396,7 +394,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
         value: &ArcValue<'arena>,
     ) -> Result<(), Error> {
         for (label, expr) in Iterator::zip(labels.iter(), exprs.iter()) {
-            let field_value = self.elim_context().apply_record_proj(value.clone(), *label);
+            let field_value = self.elim_context().record_proj(value.clone(), *label);
             self.unify(expr, &field_value)?;
         }
         Ok(())
@@ -448,7 +446,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
                     _ => return Err(SpineError::NonRigidFunApp),
                 },
                 Elim::RecordProj(label) => return Err(SpineError::RecordProj(*label)),
-                Elim::ConstCase(_) => return Err(SpineError::ConstCase),
+                Elim::ConstMatch(_) => return Err(SpineError::ConstMatch),
             }
         }
 
@@ -460,7 +458,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
     fn fun_intros(&self, spine: &[Elim<'arena>], term: Term<'arena>) -> Term<'arena> {
         spine.iter().fold(term, |term, elim| match elim {
             Elim::FunApp(_) => Term::FunLit(None, self.scope.to_scope(term)),
-            Elim::RecordProj(_) | Elim::ConstCase(_) => {
+            Elim::RecordProj(_) | Elim::ConstMatch(_) => {
                 unreachable!("should have been caught by `init_renaming`")
             }
         })
@@ -502,18 +500,19 @@ impl<'arena, 'env> Context<'arena, 'env> {
                         Elim::RecordProj(label) => {
                             Term::RecordProj(self.scope.to_scope(head_expr?), *label)
                         }
-                        Elim::ConstCase(split) => {
-                            let mut split = split.clone();
-                            let mut branches = SliceVec::new(self.scope, split.branches_len());
+                        Elim::ConstMatch(branches) => {
+                            let mut branches = branches.clone();
+                            let mut pattern_branches =
+                                SliceVec::new(self.scope, branches.num_patterns());
 
                             let default_expr = loop {
-                                match self.elim_context().split_branches(split) {
-                                    SplitBranches::Branch((r#const, output_expr), next_split) => {
-                                        branches.push((
+                                match self.elim_context().split_branches(branches) {
+                                    SplitBranches::Branch((r#const, output_expr), next_branch) => {
+                                        pattern_branches.push((
                                             r#const,
                                             self.rename(flexible_var, &output_expr)?,
                                         ));
-                                        split = next_split;
+                                        branches = next_branch;
                                     }
                                     SplitBranches::Default(default_expr) => {
                                         break Some(
@@ -526,9 +525,9 @@ impl<'arena, 'env> Context<'arena, 'env> {
                                 }
                             };
 
-                            Term::ConstCase(
+                            Term::ConstMatch(
                                 self.scope.to_scope(head_expr?),
-                                branches.into(),
+                                pattern_branches.into(),
                                 default_expr.map(|expr| self.scope.to_scope(expr) as &_),
                             )
                         }
