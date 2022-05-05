@@ -203,6 +203,8 @@ def_prims! {
     F64Type => "F64",
     /// Type of optional data.
     OptionType => "Option",
+    /// Type of dynamically sized arrays.
+    ArrayType => "Array",
     /// Type of arrays, with 8-bit indices.
     Array8Type => "Array8",
     /// Type of arrays, with 16-bit indices.

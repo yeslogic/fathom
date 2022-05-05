@@ -1,0 +1,4 @@
+stdout = '''
+[ 1, 2, 60, 73 ] : Array S32
+'''
+stderr = ''

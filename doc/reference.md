@@ -346,7 +346,7 @@ There are four array formats, corresponding to the four [array types](#arrays):
 
 The [representation](#format-representations) of the array formats preserve the
 lengths, and use the representation of the element formats as the element types
-of the host array types.
+of the host [array types](#array-types).
 
 | format                 | `Repr` format                       |
 | ---------------------- | ----------------------------------- |
@@ -772,7 +772,11 @@ Arrays are sequences of elements up to a given length.
 
 ### Array types
 
-Array types are formed with the following primitives:
+Arrays with dynamic lengths are formed with the following primitive:
+
+- `Array : Type -> Type`
+
+Fixed-length array types are formed with the following primitives:
 
 - `Array8 : U8 -> Type -> Type`
 - `Array16 : U16 -> Type -> Type`
@@ -791,9 +795,13 @@ Arrays can be constructed as sequences of terms within square
 brackets. For example:
 
 ```fathom
+[1, 2, 3] : Array S16
 [] : Array32 0 S32
 [3, 32, -6] : Array8 3 S32
 ```
+
+The number of terms in an array literal must match the length parameter of a
+fixed-length array type.
 
 ### Array operations
 

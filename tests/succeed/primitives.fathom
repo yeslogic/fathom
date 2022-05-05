@@ -12,11 +12,12 @@ let _ = S32 : Type;
 let _ = S64 : Type;
 let _ = F32 : Type;
 let _ = F64 : Type;
+let _ = Option : Type -> Type;
+let _ = Array : Type -> Type;
 let _ = Array8 : U8 -> Type -> Type;
 let _ = Array16 : U16 -> Type -> Type;
 let _ = Array32 : U32 -> Type -> Type;
 let _ = Array64 : U64 -> Type -> Type;
-let _ = Option : Type -> Type;
 let _ = Pos : Type;
 let _ = Ref : Format -> Type;
 
