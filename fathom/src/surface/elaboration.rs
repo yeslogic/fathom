@@ -1249,7 +1249,11 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                     Some((Prim::Array64Type, [FunApp(len), FunApp(elem_type)])) => (len, elem_type),
                     Some((Prim::ReportedError, _)) => return core::Term::Prim(Prim::ReportedError),
                     _ => {
-                        self.push_message(Message::ArrayLiteralNotSupported { range: *range });
+                        let expected_type = self.pretty_print_value(&expected_type);
+                        self.push_message(Message::ArrayLiteralNotSupported {
+                            range: *range,
+                            expected_type,
+                        });
                         return core::Term::Prim(Prim::ReportedError);
                     }
                 };

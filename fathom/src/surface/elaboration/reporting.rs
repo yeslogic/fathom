@@ -44,7 +44,7 @@ pub enum Message {
     },
     ArrayLiteralNotSupported {
         range: ByteRange,
-        // expected_type: Doc<_>,
+        expected_type: String,
     },
     MismatchedArrayLength {
         range: ByteRange,
@@ -254,9 +254,14 @@ impl Message {
                             .format_with(", ", |label, f| f(&format_args!("`{}`", label)))
                     )])
             }
-            Message::ArrayLiteralNotSupported { range } => Diagnostic::error()
-                .with_message("array literal not supported for expected type")
-                .with_labels(vec![Label::primary(file_id, *range)]),
+            Message::ArrayLiteralNotSupported {
+                range,
+                expected_type,
+            } => Diagnostic::error()
+                .with_message("array literal not supported")
+                .with_labels(vec![Label::primary(file_id, *range)
+                    .with_message(format!("expected `{}`", expected_type))])
+                .with_notes(vec![format!("expected `{}`", expected_type)]),
             Message::MismatchedArrayLength { range, found_len } => Diagnostic::error()
                 .with_message("mismatched array length")
                 .with_labels(vec![Label::primary(file_id, *range)
