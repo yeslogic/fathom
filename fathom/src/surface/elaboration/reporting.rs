@@ -49,7 +49,7 @@ pub enum Message {
     MismatchedArrayLength {
         range: ByteRange,
         found_len: usize,
-        // expected_len: Doc<_>,
+        expected_len: String,
     },
     AmbiguousArrayLiteral {
         range: ByteRange,
@@ -262,10 +262,19 @@ impl Message {
                 .with_labels(vec![Label::primary(file_id, *range)
                     .with_message(format!("expected `{}`", expected_type))])
                 .with_notes(vec![format!("expected `{}`", expected_type)]),
-            Message::MismatchedArrayLength { range, found_len } => Diagnostic::error()
+            Message::MismatchedArrayLength {
+                range,
+                found_len,
+                expected_len,
+            } => Diagnostic::error()
                 .with_message("mismatched array length")
-                .with_labels(vec![Label::primary(file_id, *range)
-                    .with_message(format!("found length: {}", found_len))]),
+                .with_labels(vec![
+                    Label::primary(file_id, *range).with_message("array with invalid length")
+                ])
+                .with_notes(vec![
+                    format!("expected length {}", expected_len),
+                    format!("   found length {}", found_len),
+                ]),
             Message::AmbiguousArrayLiteral { range } => Diagnostic::error()
                 .with_message("ambiguous array literal")
                 .with_labels(vec![

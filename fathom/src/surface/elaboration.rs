@@ -1242,7 +1242,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
             (Term::ArrayLiteral(range, elem_exprs), _) => {
                 use crate::core::semantics::Elim::FunApp;
 
-                let (len, elem_type) = match expected_type.match_prim_spine() {
+                let (len_value, elem_type) = match expected_type.match_prim_spine() {
                     Some((Prim::Array8Type, [FunApp(len), FunApp(elem_type)])) => (len, elem_type),
                     Some((Prim::Array16Type, [FunApp(len), FunApp(elem_type)])) => (len, elem_type),
                     Some((Prim::Array32Type, [FunApp(len), FunApp(elem_type)])) => (len, elem_type),
@@ -1258,7 +1258,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                     }
                 };
 
-                let len = match len.as_ref() {
+                let len = match len_value.as_ref() {
                     Value::ConstLit(Const::U8(len, _)) => Some(*len as u64),
                     Value::ConstLit(Const::U16(len, _)) => Some(*len as u64),
                     Value::ConstLit(Const::U32(len, _)) => Some(*len as u64),
@@ -1282,9 +1282,11 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                             self.check(elem_expr, elem_type);
                         }
 
+                        let expected_len = self.pretty_print_value(len_value);
                         self.push_message(Message::MismatchedArrayLength {
                             range: *range,
                             found_len: elem_exprs.len(),
+                            expected_len,
                         });
 
                         return core::Term::Prim(Prim::ReportedError);
