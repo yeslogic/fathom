@@ -8,7 +8,7 @@ use crate::{StringId, StringInterner};
 
 /// Elaboration diagnostic messages.
 #[derive(Debug, Clone)]
-pub enum Message<'core> {
+pub enum Message {
     /// The name was not previously bound in the current scope.
     UnboundName {
         range: ByteRange,
@@ -89,7 +89,7 @@ pub enum Message<'core> {
         range: ByteRange,
         lhs: String,
         rhs: String,
-        error: unification::Error<'core>,
+        error: unification::Error,
     },
     /// A solution for a flexible variable could not be found.
     UnsolvedFlexibleVar {
@@ -106,7 +106,7 @@ pub enum Message<'core> {
     },
 }
 
-impl<'core> Message<'core> {
+impl Message {
     pub fn to_diagnostic(
         &self,
         interner: &RefCell<StringInterner>,
@@ -316,7 +316,7 @@ impl<'core> Message<'core> {
 
                 // TODO: Make these errors more user-friendly
                 match error {
-                    Error::Mismatch(_, _) => Diagnostic::error()
+                    Error::Mismatch => Diagnostic::error()
                         .with_message(format!("type mismatch, expected: {}, got {}", lhs, rhs))
                         .with_labels(vec![Label::primary(file_id, *range)]),
                     // TODO: reduce confusion around ‘problem spines’
@@ -334,12 +334,6 @@ impl<'core> Message<'core> {
                             .with_message("constant elimination found in problem spine")
                             .with_labels(vec![Label::primary(file_id, *range)]),
                     },
-                    Error::SpineMismatch => Diagnostic::error()
-                        .with_message("spine mismatch")
-                        .with_labels(vec![Label::primary(file_id, *range)]),
-                    Error::TelescopeMismatch => Diagnostic::error()
-                        .with_message("telescope mismatch")
-                        .with_labels(vec![Label::primary(file_id, *range)]),
                     Error::Rename(error) => match error {
                         RenameError::EscapingRigidVar(_var) => Diagnostic::error()
                             .with_message("escaping rigid variable")

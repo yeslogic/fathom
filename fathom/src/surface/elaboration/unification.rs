@@ -35,30 +35,26 @@ use crate::StringId;
 /// [elaboration-zoo]: https://github.com/AndrasKovacs/elaboration-zoo/
 /// [comments about pattern unification]: https://github.com/AndrasKovacs/elaboration-zoo/blob/d38b695d5177352501463fab2ac6d0929ba4472b/03-holes/Main.hs#L118-L169
 #[derive(Debug, Clone)]
-pub enum Error<'arena> {
+pub enum Error {
     /// A known part of one value failed to match with a known part of the other
     /// value that we are comparing against.
     //
     // TODO: Return some sort of type-diff
-    Mismatch(ArcValue<'arena>, ArcValue<'arena>),
-    /// Unification of two elimination spines failed because they were mismatched.
-    SpineMismatch,
-    /// Unification of two telescopes failed because they were of differing lengths.
-    TelescopeMismatch,
+    Mismatch,
     /// An error that was found in the problem spine.
     Spine(SpineError),
     /// An error that occurred when renaming the solution.
     Rename(RenameError),
 }
 
-impl<'arena> From<SpineError> for Error<'arena> {
-    fn from(error: SpineError) -> Error<'arena> {
+impl From<SpineError> for Error {
+    fn from(error: SpineError) -> Error {
         Error::Spine(error)
     }
 }
 
-impl<'arena> From<RenameError> for Error<'arena> {
-    fn from(error: RenameError) -> Error<'arena> {
+impl From<RenameError> for Error {
+    fn from(error: RenameError) -> Error {
         Error::Rename(error)
     }
 }
@@ -193,7 +189,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
         &mut self,
         value0: &ArcValue<'arena>,
         value1: &ArcValue<'arena>,
-    ) -> Result<(), Error<'arena>> {
+    ) -> Result<(), Error> {
         // Check for pointer equality before trying to force the values
         if Arc::ptr_eq(value0, value1) {
             return Ok(());
@@ -216,20 +212,15 @@ impl<'arena, 'env> Context<'arena, 'env> {
                 if prim0 == prim1 =>
             {
                 self.unify_spines(spine0, spine1)
-                    .map_err(map_spine_mismatch(value0, value1))
             }
             (
                 Value::Stuck(Head::RigidVar(var0), spine0),
                 Value::Stuck(Head::RigidVar(var1), spine1),
-            ) if var0 == var1 => self
-                .unify_spines(spine0, spine1)
-                .map_err(map_spine_mismatch(value0, value1)),
+            ) if var0 == var1 => self.unify_spines(spine0, spine1),
             (
                 Value::Stuck(Head::FlexibleVar(var0), spine0),
                 Value::Stuck(Head::FlexibleVar(var1), spine1),
-            ) if var0 == var1 => self
-                .unify_spines(spine0, spine1)
-                .map_err(map_spine_mismatch(value0, value1)),
+            ) if var0 == var1 => self.unify_spines(spine0, spine1),
 
             (Value::Universe, Value::Universe) => Ok(()),
 
@@ -250,15 +241,14 @@ impl<'arena, 'env> Context<'arena, 'env> {
 
             (Value::RecordType(labels0, types0), Value::RecordType(labels1, types1)) => {
                 if labels0 != labels1 {
-                    return Err(Error::Mismatch(value0, value1));
+                    return Err(Error::Mismatch);
                 }
                 self.unify_telescopes(types0, types1)
-                    .map_err(map_telescope_mismatch(value0, value1))
             }
 
             (Value::RecordIntro(labels0, exprs0), Value::RecordIntro(labels1, exprs1)) => {
                 if labels0 != labels1 {
-                    return Err(Error::Mismatch(value0, value1));
+                    return Err(Error::Mismatch);
                 }
                 for (expr0, expr1) in Iterator::zip(exprs0.iter(), exprs1.iter()) {
                     self.unify(&expr0, &expr1)?;
@@ -284,7 +274,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
 
             (Value::FormatRecord(labels0, formats0), Value::FormatRecord(labels1, formats1)) => {
                 if labels0 != labels1 {
-                    return Err(Error::Mismatch(value0, value1));
+                    return Err(Error::Mismatch);
                 }
                 self.unify_telescopes(formats0, formats1)
             }
@@ -302,7 +292,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
                 self.solve(*var1, spine1, &value0)
             }
 
-            (_, _) => Err(Error::Mismatch(value0, value1)),
+            (_, _) => Err(Error::Mismatch),
         }
     }
 
@@ -311,9 +301,9 @@ impl<'arena, 'env> Context<'arena, 'env> {
         &mut self,
         spine0: &[Elim<'arena>],
         spine1: &[Elim<'arena>],
-    ) -> Result<(), Error<'arena>> {
+    ) -> Result<(), Error> {
         if spine0.len() != spine1.len() {
-            return Err(Error::SpineMismatch);
+            return Err(Error::Mismatch);
         }
         for (elim0, elim1) in Iterator::zip(spine0.iter(), spine1.iter()) {
             match (elim0, elim1) {
@@ -322,7 +312,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
                 }
                 (Elim::Record(label0), Elim::Record(label1)) if label0 == label1 => {}
                 (_, _) => {
-                    return Err(Error::SpineMismatch);
+                    return Err(Error::Mismatch);
                 }
             }
         }
@@ -334,7 +324,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
         &mut self,
         closure0: &Closure<'arena>,
         closure1: &Closure<'arena>,
-    ) -> Result<(), Error<'arena>> {
+    ) -> Result<(), Error> {
         let var = Arc::new(Value::rigid_var(self.rigid_exprs.next_global()));
         let value0 = self.elim_context().apply_closure(closure0, var.clone());
         let value1 = self.elim_context().apply_closure(closure1, var);
@@ -351,9 +341,9 @@ impl<'arena, 'env> Context<'arena, 'env> {
         &mut self,
         telescope0: &Telescope<'arena>,
         telescope1: &Telescope<'arena>,
-    ) -> Result<(), Error<'arena>> {
+    ) -> Result<(), Error> {
         if telescope0.len() != telescope1.len() {
-            return Err(Error::TelescopeMismatch);
+            return Err(Error::Mismatch);
         }
 
         let initial_rigid_len = self.rigid_exprs;
@@ -384,7 +374,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
         &mut self,
         output_expr: &Closure<'arena>,
         value: &ArcValue<'arena>,
-    ) -> Result<(), Error<'arena>> {
+    ) -> Result<(), Error> {
         let var = Arc::new(Value::rigid_var(self.rigid_exprs.next_global()));
         let value = self.elim_context().apply_fun(value.clone(), var.clone());
         let output_expr = self.elim_context().apply_closure(output_expr, var);
@@ -402,7 +392,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
         labels: &[StringId],
         exprs: &[ArcValue<'arena>],
         value: &ArcValue<'arena>,
-    ) -> Result<(), Error<'arena>> {
+    ) -> Result<(), Error> {
         for (label, expr) in Iterator::zip(labels.iter(), exprs.iter()) {
             let field_value = self.elim_context().apply_record(value.clone(), *label);
             self.unify(expr, &field_value)?;
@@ -427,7 +417,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
         flexible_var: GlobalVar,
         spine: &[Elim<'arena>],
         value: &ArcValue<'arena>,
-    ) -> Result<(), Error<'arena>> {
+    ) -> Result<(), Error> {
         self.init_renaming(spine)?;
         let term = self.rename(flexible_var, value)?;
         let fun_term = self.fun_intros(spine, term);
@@ -647,26 +637,6 @@ impl<'arena, 'env> Context<'arena, 'env> {
 
         self.rigid_exprs.truncate(initial_rigid_len);
         Ok(terms.into())
-    }
-}
-
-fn map_telescope_mismatch<'arena>(
-    value0: ArcValue<'arena>,
-    value1: ArcValue<'arena>,
-) -> impl FnOnce(Error<'arena>) -> Error<'arena> {
-    |err| match err {
-        Error::TelescopeMismatch => Error::Mismatch(value0, value1),
-        _ => err,
-    }
-}
-
-fn map_spine_mismatch<'arena>(
-    value0: ArcValue<'arena>,
-    value1: ArcValue<'arena>,
-) -> impl FnOnce(Error<'arena>) -> Error<'arena> {
-    |err| match err {
-        Error::SpineMismatch => Error::Mismatch(value0, value1),
-        _ => err,
     }
 }
 

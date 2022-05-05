@@ -576,7 +576,7 @@ impl<'arena> FlexibleEnv<'arena> {
     }
 
     /// Report on any unsolved flexible variables, or solved named holes.
-    fn report<'this>(&'this self) -> impl 'this + Iterator<Item = Message<'_>> {
+    fn report<'this>(&'this self) -> impl 'this + Iterator<Item = Message> {
         Iterator::zip(self.sources.iter(), self.exprs.iter()).filter_map(|(&source, expr)| {
             match (expr, source) {
                 // Avoid producing messages for some unsolved flexible sources:
@@ -625,7 +625,7 @@ pub struct Context<'interner, 'arena, 'error> {
     /// A partial renaming to be used during [`unification`].
     renaming: unification::PartialRenaming,
     /// Diagnostic messages encountered during elaboration.
-    messages: Vec<Message<'arena>>,
+    messages: Vec<Message>,
 }
 
 impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
@@ -676,11 +676,11 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
         self.eval_context().eval(&term)
     }
 
-    fn push_message(&mut self, message: Message<'arena>) {
+    fn push_message(&mut self, message: Message) {
         self.messages.push(message);
     }
 
-    pub fn drain_messages<'this>(&'this mut self) -> impl 'this + Iterator<Item = Message<'_>> {
+    pub fn drain_messages<'this>(&'this mut self) -> impl 'this + Iterator<Item = Message> {
         self.messages.drain(..).chain(self.flexible_env.report())
     }
 
