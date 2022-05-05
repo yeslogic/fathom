@@ -1278,7 +1278,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                     (elem_exprs.iter()).map(|elem_expr| self.check(elem_expr, elem_type)),
                 );
 
-                core::Term::ArrayIntro(elem_exprs)
+                core::Term::ArrayLit(elem_exprs)
             }
             (Term::StringLiteral(range, string), _) => {
                 let constant = match expected_type.match_prim_spine() {

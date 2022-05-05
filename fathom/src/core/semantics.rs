@@ -22,6 +22,7 @@ pub enum Value<'arena> {
     /// of eliminations. Subsequent eliminations applied to this value are
     /// accumulated in the spine.
     Stuck(Head, Vec<Elim<'arena>>),
+
     /// Universes.
     Universe,
 
@@ -292,6 +293,7 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
                 self.rigid_exprs.pop();
                 output_expr
             }
+
             Term::Universe => Arc::new(Value::Universe),
 
             Term::FunType(input_name, input_type, output_type) => Arc::new(Value::FunType(
@@ -322,7 +324,7 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
                 self.elim_context().apply_record_proj(head_expr, *label)
             }
 
-            Term::ArrayIntro(elem_exprs) => {
+            Term::ArrayLit(elem_exprs) => {
                 let elem_exprs = (elem_exprs.iter())
                     .map(|elem_expr| self.eval(elem_expr))
                     .collect();
@@ -911,7 +913,7 @@ impl<'in_arena, 'out_arena, 'env> QuoteContext<'in_arena, 'out_arena, 'env> {
                 let elem_exprs = (self.scope)
                     .to_scope_from_iter(elem_exprs.iter().map(|elem_expr| self.quote(elem_expr)));
 
-                Term::ArrayIntro(elem_exprs)
+                Term::ArrayLit(elem_exprs)
             }
 
             Value::FormatRecord(labels, formats) => {

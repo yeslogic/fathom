@@ -133,8 +133,8 @@ pub enum Term<'arena> {
     /// Record projections.
     RecordProj(&'arena Term<'arena>, StringId),
 
-    /// Array introductions.
-    ArrayIntro(&'arena [Term<'arena>]),
+    /// Array literals.
+    ArrayLit(&'arena [Term<'arena>]),
 
     /// Record formats, consisting of a list of dependent formats.
     FormatRecord(&'arena [StringId], &'arena [Term<'arena>]),

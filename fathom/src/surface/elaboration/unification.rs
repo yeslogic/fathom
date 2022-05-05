@@ -576,7 +576,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
                     new_elem_exprs.push(self.rename(flexible_var, elem_expr)?);
                 }
 
-                Ok(Term::ArrayIntro(new_elem_exprs.into()))
+                Ok(Term::ArrayLit(new_elem_exprs.into()))
             }
 
             Value::FormatRecord(labels, formats) => {

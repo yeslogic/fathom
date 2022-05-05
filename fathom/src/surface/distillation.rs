@@ -200,7 +200,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
 
                 Term::RecordLiteral((), scope.to_scope_from_iter(expr_fields))
             }
-            core::Term::ArrayIntro(elem_exprs) => {
+            core::Term::ArrayLit(elem_exprs) => {
                 let scope = self.scope;
                 let elem_exprs = elem_exprs.iter().map(|elem_exprs| self.check(elem_exprs));
 
@@ -388,7 +388,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
 
                 Term::Proj((), self.scope.to_scope(head_expr), ((), *label))
             }
-            core::Term::ArrayIntro(elem_exprs) => {
+            core::Term::ArrayLit(elem_exprs) => {
                 let scope = self.scope;
                 let elem_exprs = elem_exprs.iter().map(|elem_exprs| self.check(elem_exprs));
 
