@@ -76,7 +76,7 @@ pub enum Message {
     },
     NumericLiteralNotSupported {
         range: ByteRange,
-        // expected_type: Doc<_>,
+        expected_type: String,
     },
     AmbiguousNumericLiteral {
         range: ByteRange,
@@ -295,9 +295,14 @@ impl Message {
             Message::InvalidNumericLiteral { range, message } => Diagnostic::error()
                 .with_message("failed to parse numeric literal")
                 .with_labels(vec![(Label::primary(file_id, *range)).with_message(message)]),
-            Message::NumericLiteralNotSupported { range } => Diagnostic::error()
-                .with_message("numeric literal not supported for expected type")
-                .with_labels(vec![Label::primary(file_id, *range)]),
+            Message::NumericLiteralNotSupported {
+                range,
+                expected_type,
+            } => Diagnostic::error()
+                .with_message("numeric literal not supported")
+                .with_labels(vec![Label::primary(file_id, *range)
+                    .with_message(format!("expected `{}`", expected_type))])
+                .with_notes(vec![format!("expected `{}`", expected_type)]),
             Message::AmbiguousNumericLiteral { range } => Diagnostic::error()
                 .with_message("ambiguous numeric literal")
                 .with_labels(vec![
