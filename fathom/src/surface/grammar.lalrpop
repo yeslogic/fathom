@@ -120,7 +120,7 @@ FunTerm: Term<'arena, ByteRange> = {
 AppTerm: Term<'arena, ByteRange> = {
     AtomicTerm,
     <start: @L> <head_expr: AppTerm> <input_expr: AtomicTerm> <end: @R> => {
-        Term::FunElim(
+        Term::App(
             ByteRange::new(start, end),
             scope.to_scope(head_expr),
             scope.to_scope(input_expr),
@@ -156,11 +156,7 @@ AtomicTerm: Term<'arena, ByteRange> = {
         Term::FormatOverlap(ByteRange::new(start, end), fields)
     },
     <start: @L> <head_expr: AtomicTerm> "." <label: RangedName> <end: @R> => {
-        Term::RecordElim(
-            ByteRange::new(start, end),
-            scope.to_scope(head_expr),
-            label,
-        )
+        Term::Proj(ByteRange::new(start, end), scope.to_scope(head_expr), label)
     },
     <start: @L> "[" <exprs: Seq<Term, ",">> "]" <end: @R> => {
         Term::ArrayLiteral(ByteRange::new(start, end), exprs)

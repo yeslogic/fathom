@@ -101,8 +101,8 @@ pub enum Term<'arena, Range> {
         Option<&'arena Term<'arena, Range>>,
         &'arena Term<'arena, Range>,
     ),
-    /// Function eliminations.
-    FunElim(
+    /// Applications.
+    App(
         Range,
         &'arena Term<'arena, Range>,
         &'arena Term<'arena, Range>,
@@ -113,8 +113,8 @@ pub enum Term<'arena, Range> {
     RecordLiteral(Range, &'arena [((Range, StringId), Term<'arena, Range>)]),
     /// Unit literals.
     UnitLiteral(Range),
-    /// Record eliminations.
-    RecordElim(Range, &'arena Term<'arena, Range>, (Range, StringId)),
+    /// Projections.
+    Proj(Range, &'arena Term<'arena, Range>, (Range, StringId)),
     /// Array literals.
     ArrayLiteral(Range, &'arena [Term<'arena, Range>]),
     /// String literal.
@@ -151,11 +151,11 @@ impl<'arena, Range: Clone> Term<'arena, Range> {
             | Term::Arrow(range, _, _)
             | Term::FunType(range, _, _, _)
             | Term::FunLiteral(range, _, _, _)
-            | Term::FunElim(range, _, _)
+            | Term::App(range, _, _)
             | Term::RecordType(range, _)
             | Term::RecordLiteral(range, _)
             | Term::UnitLiteral(range)
-            | Term::RecordElim(range, _, _)
+            | Term::Proj(range, _, _)
             | Term::ArrayLiteral(range, _)
             | Term::StringLiteral(range, _)
             | Term::NumberLiteral(range, _)

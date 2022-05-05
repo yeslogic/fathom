@@ -75,7 +75,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
                     formats = next_formats(expr);
                 }
 
-                Ok(Arc::new(Value::RecordIntro(labels, exprs)))
+                Ok(Arc::new(Value::RecordLit(labels, exprs)))
             }
             Value::FormatOverlap(labels, formats) => {
                 let initial_pos = reader.stream_position()?;
@@ -101,18 +101,18 @@ impl<'arena, 'env> Context<'arena, 'env> {
                 // Seek to the maximum stream length
                 reader.seek(SeekFrom::Start(max_pos))?;
 
-                Ok(Arc::new(Value::RecordIntro(labels, exprs)))
+                Ok(Arc::new(Value::RecordLit(labels, exprs)))
             }
 
             Value::Stuck(Head::RigidVar(_), _)
             | Value::Stuck(Head::FlexibleVar(_), _)
             | Value::Universe
             | Value::FunType(_, _, _)
-            | Value::FunIntro(_, _)
+            | Value::FunLit(_, _)
             | Value::RecordType(_, _)
-            | Value::RecordIntro(_, _)
-            | Value::ArrayIntro(_)
-            | Value::Const(_) => Err(io::Error::new(io::ErrorKind::Other, "invalid format")),
+            | Value::RecordLit(_, _)
+            | Value::ArrayLit(_)
+            | Value::ConstLit(_) => Err(io::Error::new(io::ErrorKind::Other, "invalid format")),
         }
     }
 
@@ -123,7 +123,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
         prim: Prim,
         slice: &[Elim<'arena>],
     ) -> io::Result<ArcValue<'arena>> {
-        use crate::core::semantics::Elim::Fun;
+        use crate::core::semantics::Elim::FunApp;
 
         match (prim, &slice[..]) {
             (Prim::FormatU8, []) => read_const(reader, |num| Const::U8(num, UIntStyle::Decimal), read_u8),
@@ -144,17 +144,17 @@ impl<'arena, 'env> Context<'arena, 'env> {
             (Prim::FormatF32Le, []) => read_const(reader, Const::F32, read_f32le),
             (Prim::FormatF64Be, []) => read_const(reader, Const::F64, read_f64be),
             (Prim::FormatF64Le, []) => read_const(reader, Const::F64, read_f64le),
-            (Prim::FormatArray8, [Fun(len), Fun(elem_format)]) => self.read_array(reader, len, elem_format),
-            (Prim::FormatArray16, [Fun(len), Fun(elem_format)]) => self.read_array(reader, len, elem_format),
-            (Prim::FormatArray32, [Fun(len), Fun(elem_format)]) => self.read_array(reader, len, elem_format),
-            (Prim::FormatArray64, [Fun(len), Fun(elem_format)]) => self.read_array(reader, len, elem_format),
-            (Prim::FormatLink, [Fun(pos), Fun(elem_format)]) => self.read_link(pos, elem_format),
-            (Prim::FormatDeref, [Fun(elem_format), Fun(r#ref)]) => self.read_deref(reader, elem_format, r#ref),
+            (Prim::FormatArray8, [FunApp(len), FunApp(elem_format)]) => self.read_array(reader, len, elem_format),
+            (Prim::FormatArray16, [FunApp(len), FunApp(elem_format)]) => self.read_array(reader, len, elem_format),
+            (Prim::FormatArray32, [FunApp(len), FunApp(elem_format)]) => self.read_array(reader, len, elem_format),
+            (Prim::FormatArray64, [FunApp(len), FunApp(elem_format)]) => self.read_array(reader, len, elem_format),
+            (Prim::FormatLink, [FunApp(pos), FunApp(elem_format)]) => self.read_link(pos, elem_format),
+            (Prim::FormatDeref, [FunApp(elem_format), FunApp(r#ref)]) => self.read_deref(reader, elem_format, r#ref),
             (Prim::FormatStreamPos, []) => read_stream_pos(reader),
-            (Prim::FormatSucceed, [_, Fun(elem)]) => Ok(elem.clone()),
+            (Prim::FormatSucceed, [_, FunApp(elem)]) => Ok(elem.clone()),
             (Prim::FormatFail, []) => Err(io::Error::new(io::ErrorKind::Other, "parse failure")),
-            (Prim::FormatUnwrap, [_, Fun(option)]) => match option.match_prim_spine() {
-                Some((Prim::OptionSome, [Fun(elem)])) => Ok(elem.clone()),
+            (Prim::FormatUnwrap, [_, FunApp(option)]) => match option.match_prim_spine() {
+                Some((Prim::OptionSome, [FunApp(elem)])) => Ok(elem.clone()),
                 Some((Prim::OptionNone, [])) => Err(io::Error::new(io::ErrorKind::Other, "unwrapped none")),
                 _ => Err(io::Error::new(io::ErrorKind::Other, "invalid option")),
             },
@@ -168,20 +168,19 @@ impl<'arena, 'env> Context<'arena, 'env> {
         len: &ArcValue<'arena>,
         elem_format: &ArcValue<'arena>,
     ) -> io::Result<ArcValue<'arena>> {
-        let (len, mut elem_exprs) = match self.elim_context().force(len).as_ref() {
-            Value::Const(Const::U8(len, _)) => (*len as u64, Vec::with_capacity(*len as usize)),
-            Value::Const(Const::U16(len, _)) => (*len as u64, Vec::with_capacity(*len as usize)),
-            Value::Const(Const::U32(len, _)) => (*len as u64, Vec::with_capacity(*len as usize)),
-            Value::Const(Const::U64(len, _)) => (*len as u64, Vec::with_capacity(*len as usize)),
+        let len = match self.elim_context().force(len).as_ref() {
+            Value::ConstLit(Const::U8(len, _)) => *len as u64,
+            Value::ConstLit(Const::U16(len, _)) => *len as u64,
+            Value::ConstLit(Const::U32(len, _)) => *len as u64,
+            Value::ConstLit(Const::U64(len, _)) => *len as u64,
             _ => return Err(io::Error::new(io::ErrorKind::Other, "invalid array length")),
         };
 
-        for _ in 0..len {
-            let expr = self.read_format(reader, elem_format)?;
-            elem_exprs.push(expr);
-        }
+        let elem_exprs = (0..len)
+            .map(|_| self.read_format(reader, elem_format))
+            .collect::<Result<_, _>>()?;
 
-        Ok(Arc::new(Value::ArrayIntro(elem_exprs)))
+        Ok(Arc::new(Value::ArrayLit(elem_exprs)))
     }
 
     pub fn read_link(
@@ -190,13 +189,13 @@ impl<'arena, 'env> Context<'arena, 'env> {
         elem_format: &ArcValue<'arena>,
     ) -> io::Result<ArcValue<'arena>> {
         let pos = match self.elim_context().force(pos).as_ref() {
-            Value::Const(Const::Pos(pos)) => *pos,
+            Value::ConstLit(Const::Pos(pos)) => *pos,
             _ => return Err(io::Error::new(io::ErrorKind::Other, "invalid link pos")),
         };
 
         self.pending_formats.push((pos, elem_format.clone()));
 
-        Ok(Arc::new(Value::Const(Const::Ref(pos))))
+        Ok(Arc::new(Value::ConstLit(Const::Ref(pos))))
     }
 
     fn read_deref(
@@ -206,7 +205,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
         r#ref: &ArcValue<'arena>,
     ) -> io::Result<ArcValue<'arena>> {
         let pos = match self.elim_context().force(r#ref).as_ref() {
-            Value::Const(Const::Ref(pos)) => *pos,
+            Value::ConstLit(Const::Ref(pos)) => *pos,
             _ => {
                 return Err(io::Error::new(
                     io::ErrorKind::Other,
@@ -279,7 +278,7 @@ impl<T: Seek + Read> SeekRead for T {}
 
 fn read_stream_pos<'arena>(reader: &mut dyn SeekRead) -> io::Result<ArcValue<'arena>> {
     let pos = reader.stream_position()?;
-    Ok(Arc::new(Value::Const(Const::Pos(pos))))
+    Ok(Arc::new(Value::ConstLit(Const::Pos(pos))))
 }
 
 fn read_const<'arena, T>(
@@ -288,7 +287,7 @@ fn read_const<'arena, T>(
     read: fn(&mut dyn SeekRead) -> io::Result<T>,
 ) -> io::Result<ArcValue<'arena>> {
     let data = read(reader)?;
-    Ok(Arc::new(Value::Const(wrap_const(data))))
+    Ok(Arc::new(Value::ConstLit(wrap_const(data))))
 }
 
 fn read_u8(reader: &mut dyn SeekRead) -> io::Result<u8> {

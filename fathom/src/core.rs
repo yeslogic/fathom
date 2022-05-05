@@ -26,11 +26,11 @@ pub enum Term<'arena> {
     ///
     /// These correspond to variables that were most likely bound as a result of
     /// user code, for example from [let expressions]), [function types] and
-    /// [function introductions].
+    /// [function literals].
     ///
     /// [let expressions]: Term::Let
     /// [function types]: Term::FunType
-    /// [function introductions]: Term::FunIntro
+    /// [function literals]: Term::FunLit
     ///
     /// ## References
     ///
@@ -54,12 +54,12 @@ pub enum Term<'arena> {
     ///
     /// The entry information will let us know what rigidly bound parameters to
     /// apply to the flexible variable during [evaluation]. The applied
-    /// parameters will correspond to the [function introductions] that will be
+    /// parameters will correspond to the [function literals] that will be
     /// added to the flexible solution during unification.
     ///
-    /// We clone the entry information and perform the function eliminations
+    /// We clone the entry information and perform the function applications
     /// during evaluation because elaborating to a series of [function
-    /// eliminations] directly would involve expensively [quoting] each
+    /// applications] directly would involve expensively [quoting] each
     /// parameter.
     ///
     /// For example, given the following code:
@@ -91,8 +91,8 @@ pub enum Term<'arena> {
     /// applied, because it is bound as a definition.
     ///
     /// [entry information]: EntryInfo
-    /// [function introductions]: Term::FunIntro
-    /// [function eliminations]: Term::FunElim
+    /// [function literals]: Term::FunLit
+    /// [function applications]: Term::FunApp
     /// [evaluation]: semantics::EvalContext::eval
     /// [quoting]: semantics::QuoteContext::quote
     //
@@ -111,41 +111,46 @@ pub enum Term<'arena> {
         &'arena Term<'arena>,
         &'arena Term<'arena>,
     ),
+
     /// The type of types.
     Universe,
+
     /// Dependent function types.
     ///
     /// Also known as: pi types, dependent product types.
     FunType(Option<StringId>, &'arena Term<'arena>, &'arena Term<'arena>),
-    /// Function introductions.
+    /// Function literals.
     ///
     /// Also known as: lambda expressions, anonymous functions.
-    FunIntro(Option<StringId>, &'arena Term<'arena>),
-    /// Function eliminations.
-    ///
-    /// Also known as: function applications.
-    FunElim(&'arena Term<'arena>, &'arena Term<'arena>),
+    FunLit(Option<StringId>, &'arena Term<'arena>),
+    /// Function applications.
+    FunApp(&'arena Term<'arena>, &'arena Term<'arena>),
+
     /// Dependent record types.
     RecordType(&'arena [StringId], &'arena [Term<'arena>]),
-    /// Record introductions.
-    RecordIntro(&'arena [StringId], &'arena [Term<'arena>]),
-    /// Record eliminations.
-    RecordElim(&'arena Term<'arena>, StringId),
-    /// Array introductions.
-    ArrayIntro(&'arena [Term<'arena>]),
+    /// Record literals.
+    RecordLit(&'arena [StringId], &'arena [Term<'arena>]),
+    /// Record projections.
+    RecordProj(&'arena Term<'arena>, StringId),
+
+    /// Array literals.
+    ArrayLit(&'arena [Term<'arena>]),
+
     /// Record formats, consisting of a list of dependent formats.
     FormatRecord(&'arena [StringId], &'arena [Term<'arena>]),
     /// Overlap formats, consisting of a list of dependent formats, overlapping
     /// in memory.
     FormatOverlap(&'arena [StringId], &'arena [Term<'arena>]),
+
     /// Primitives.
     Prim(Prim),
-    /// Constants.
-    Const(Const),
-    /// Constant eliminations.
+
+    /// Constant literals.
+    ConstLit(Const),
+    /// Match on a constant.
     ///
-    /// (head_expr, branches, default_expr)
-    ConstElim(
+    /// (head_expr, pattern_branches, default_expr)
+    ConstMatch(
         &'arena Term<'arena>,
         &'arena [(Const, Term<'arena>)],
         Option<&'arena Term<'arena>>,

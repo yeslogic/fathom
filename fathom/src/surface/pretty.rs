@@ -177,7 +177,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                     self.term_prec(Prec::Let, output_expr),
                 ]),
             ),
-            Term::FunElim(_, head_expr, input_expr) => self.paren(
+            Term::App(_, head_expr, input_expr) => self.paren(
                 prec > Prec::App,
                 self.concat([
                     self.term_prec(Prec::App, head_expr),
@@ -214,7 +214,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 self.text("}"),
             ),
             Term::UnitLiteral(_) => self.text("{}"),
-            Term::RecordElim(_, head_expr, (_, label)) => self.concat([
+            Term::Proj(_, head_expr, (_, label)) => self.concat([
                 self.term_prec(Prec::Atomic, head_expr),
                 self.text("."),
                 self.string_id(*label),

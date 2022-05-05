@@ -155,7 +155,7 @@ impl<'arena> RigidEnv<'arena> {
                 &FORMAT_TYPE,
                 &Term::FunType(
                     None,
-                    &Term::FunElim(&Term::Prim(RefType), &VAR0),
+                    &Term::FunApp(&Term::Prim(RefType), &VAR0),
                     &FORMAT_TYPE,
                 ),
             ),
@@ -179,7 +179,7 @@ impl<'arena> RigidEnv<'arena> {
                 &UNIVERSE,
                 &Term::FunType(
                     None,
-                    &Term::FunElim(&Term::Prim(OptionType), &VAR0),
+                    &Term::FunApp(&Term::Prim(OptionType), &VAR0),
                     &FORMAT_TYPE,
                 ),
             ),
@@ -324,7 +324,7 @@ impl<'arena> RigidEnv<'arena> {
             &core::Term::FunType(
                 env.name("A"),
                 &UNIVERSE,
-                &Term::FunType(None, &VAR0, &Term::FunElim(&Term::Prim(OptionType), &VAR1)),
+                &Term::FunType(None, &VAR0, &Term::FunApp(&Term::Prim(OptionType), &VAR1)),
             ),
         );
         env.define_prim(
@@ -334,7 +334,7 @@ impl<'arena> RigidEnv<'arena> {
             &core::Term::FunType(
                 env.name("A"),
                 &UNIVERSE,
-                &Term::FunElim(&Term::Prim(OptionType), &VAR0),
+                &Term::FunApp(&Term::Prim(OptionType), &VAR0),
             ),
         );
         env.define_prim(
@@ -355,8 +355,8 @@ impl<'arena> RigidEnv<'arena> {
                             &Term::FunType(None, &VAR2, &VAR2), // A@2 -> B@2
                             scope.to_scope(core::Term::FunType(
                                 None,
-                                &Term::FunElim(&Term::Prim(OptionType), &VAR3), // Option A@3
-                                &VAR3,                                          // B@3
+                                &Term::FunApp(&Term::Prim(OptionType), &VAR3), // Option A@3
+                                &VAR3,                                         // B@3
                             )),
                         )),
                     )),
@@ -379,11 +379,11 @@ impl<'arena> RigidEnv<'arena> {
                         scope.to_scope(core::Term::FunType(
                             None,
                             // ArrayN len@2 A@1
-                            scope.to_scope(Term::FunElim(
-                                scope.to_scope(Term::FunElim(array_type, &VAR2)),
+                            scope.to_scope(Term::FunApp(
+                                scope.to_scope(Term::FunApp(array_type, &VAR2)),
                                 &VAR1,
                             )),
-                            &Term::FunElim(&Term::Prim(OptionType), &VAR2), // Option A@2
+                            &Term::FunApp(&Term::Prim(OptionType), &VAR2), // Option A@2
                         )),
                     )),
                 )),
@@ -1189,7 +1189,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
 
                 self.rigid_env.pop();
 
-                core::Term::FunIntro(input_name, self.scope.to_scope(output_expr))
+                core::Term::FunLit(input_name, self.scope.to_scope(output_expr))
             }
             (Term::RecordLiteral(range, expr_fields), Value::RecordType(labels, types)) => {
                 // TODO: improve handling of duplicate labels
@@ -1220,7 +1220,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                     exprs.push(expr);
                 }
 
-                core::Term::RecordIntro(labels, exprs.into())
+                core::Term::RecordLit(labels, exprs.into())
             }
             (Term::UnitLiteral(_), Value::Universe) => core::Term::RecordType(&[], &[]),
             (Term::UnitLiteral(_), _)
@@ -1232,13 +1232,13 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 core::Term::FormatRecord(&[], &[])
             }
             (Term::ArrayLiteral(range, elem_exprs), _) => {
-                use crate::core::semantics::Elim::Fun;
+                use crate::core::semantics::Elim::FunApp;
 
                 let (len, elem_type) = match expected_type.match_prim_spine() {
-                    Some((Prim::Array8Type, [Fun(len), Fun(elem_type)])) => (len, elem_type),
-                    Some((Prim::Array16Type, [Fun(len), Fun(elem_type)])) => (len, elem_type),
-                    Some((Prim::Array32Type, [Fun(len), Fun(elem_type)])) => (len, elem_type),
-                    Some((Prim::Array64Type, [Fun(len), Fun(elem_type)])) => (len, elem_type),
+                    Some((Prim::Array8Type, [FunApp(len), FunApp(elem_type)])) => (len, elem_type),
+                    Some((Prim::Array16Type, [FunApp(len), FunApp(elem_type)])) => (len, elem_type),
+                    Some((Prim::Array32Type, [FunApp(len), FunApp(elem_type)])) => (len, elem_type),
+                    Some((Prim::Array64Type, [FunApp(len), FunApp(elem_type)])) => (len, elem_type),
                     Some((Prim::ReportedError, _)) => return core::Term::Prim(Prim::ReportedError),
                     _ => {
                         self.push_message(Message::ArrayLiteralNotSupported { range: *range });
@@ -1246,13 +1246,22 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                     }
                 };
 
-                match len.as_ref() {
-                    Value::Const(Const::U8(len, _)) if elem_exprs.len() as u64 == *len as u64 => {}
-                    Value::Const(Const::U16(len, _)) if elem_exprs.len() as u64 == *len as u64 => {}
-                    Value::Const(Const::U32(len, _)) if elem_exprs.len() as u64 == *len as u64 => {}
-                    Value::Const(Const::U64(len, _)) if elem_exprs.len() as u64 == *len as u64 => {}
+                let len = match len.as_ref() {
+                    Value::ConstLit(Const::U8(len, _)) => Some(*len as u64),
+                    Value::ConstLit(Const::U16(len, _)) => Some(*len as u64),
+                    Value::ConstLit(Const::U32(len, _)) => Some(*len as u64),
+                    Value::ConstLit(Const::U64(len, _)) => Some(*len as u64),
                     Value::Stuck(Head::Prim(Prim::ReportedError), _) => {
                         return core::Term::Prim(Prim::ReportedError);
+                    }
+                    _ => None,
+                };
+
+                match len {
+                    Some(len) if elem_exprs.len() as u64 == len => {
+                        core::Term::ArrayLit(self.scope.to_scope_from_iter(
+                            (elem_exprs.iter()).map(|elem_expr| self.check(elem_expr, elem_type)),
+                        ))
                     }
                     _ => {
                         // Check the array elements anyway in order to report
@@ -1269,12 +1278,6 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                         return core::Term::Prim(Prim::ReportedError);
                     }
                 }
-
-                let elem_exprs = self.scope.to_scope_from_iter(
-                    (elem_exprs.iter()).map(|elem_expr| self.check(elem_expr, elem_type)),
-                );
-
-                core::Term::ArrayIntro(elem_exprs)
             }
             (Term::StringLiteral(range, string), _) => {
                 let constant = match expected_type.match_prim_spine() {
@@ -1302,7 +1305,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 };
 
                 match constant {
-                    Some(constant) => core::Term::Const(constant),
+                    Some(constant) => core::Term::ConstLit(constant),
                     None => core::Term::Prim(Prim::ReportedError),
                 }
             }
@@ -1334,7 +1337,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 };
 
                 match constant {
-                    Some(constant) => core::Term::Const(constant),
+                    Some(constant) => core::Term::ConstLit(constant),
                     None => core::Term::Prim(Prim::ReportedError),
                 }
             }
@@ -1480,7 +1483,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 self.rigid_env.pop();
 
                 (
-                    core::Term::FunIntro(input_name, self.scope.to_scope(output_expr)),
+                    core::Term::FunLit(input_name, self.scope.to_scope(output_expr)),
                     Arc::new(Value::FunType(
                         input_name,
                         input_type,
@@ -1491,7 +1494,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                     )),
                 )
             }
-            Term::FunElim(range, head_expr, input_expr) => {
+            Term::App(range, head_expr, input_expr) => {
                 let head_range = head_expr.range();
                 let (head_expr, head_type) = self.synth(head_expr);
 
@@ -1547,13 +1550,13 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                     .elim_context()
                     .apply_closure(&output_type, input_expr_value);
 
-                // Construct the final elimination
-                let fun_elim = core::Term::FunElim(
+                // Construct the final function application
+                let fun_app = core::Term::FunApp(
                     self.scope.to_scope(head_expr),
                     self.scope.to_scope(input_expr),
                 );
 
-                (fun_elim, output_type)
+                (fun_app, output_type)
             }
             Term::RecordType(range, type_fields) => {
                 let universe = Arc::new(Value::Universe);
@@ -1586,18 +1589,18 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 let types = Telescope::new(self.rigid_env.exprs.clone(), types.into());
 
                 (
-                    core::Term::RecordIntro(labels, exprs.into()),
+                    core::Term::RecordLit(labels, exprs.into()),
                     Arc::new(Value::RecordType(labels, types)),
                 )
             }
             Term::UnitLiteral(_) => (
-                core::Term::RecordIntro(&[], &[]),
+                core::Term::RecordLit(&[], &[]),
                 Arc::new(Value::RecordType(
                     &[],
                     Telescope::new(SharedEnv::new(), &[]),
                 )),
             ),
-            Term::RecordElim(range, head_expr, (label_range, label)) => {
+            Term::Proj(range, head_expr, (label_range, label)) => {
                 let head_range = head_expr.range();
                 let (head_expr, head_type) = self.synth(head_expr);
                 let head_expr_value = self.eval_context().eval(&head_expr);
@@ -1613,11 +1616,11 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                         {
                             if label == type_label {
                                 let head_expr = self.scope.to_scope(head_expr);
-                                let expr = core::Term::RecordElim(head_expr, *label);
+                                let expr = core::Term::RecordProj(head_expr, *label);
                                 return (expr, r#type);
                             } else {
                                 let head_expr = head_expr_value.clone();
-                                let expr = self.elim_context().apply_record(head_expr, *type_label);
+                                let expr = self.elim_context().record_proj(head_expr, *type_label);
                                 types = next_types(expr);
                             }
                         }
@@ -1651,7 +1654,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
             }
             Term::BooleanLiteral(_range, val) => {
                 let bool_type = Arc::new(Value::prim(Prim::BoolType, []));
-                (core::Term::Const(Const::Bool(*val)), bool_type)
+                (core::Term::ConstLit(Const::Bool(*val)), bool_type)
             }
             Term::FormatRecord(range, format_fields) => {
                 let format_type = Arc::new(Value::prim(Prim::FormatType, []));
@@ -1689,7 +1692,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
         for ((_, label), format) in format_fields {
             let format = self.check(format, &format_type);
             let format_value = self.eval_context().eval(&format);
-            let r#type = self.elim_context().apply_repr(&format_value);
+            let r#type = self.elim_context().format_repr(&format_value);
             self.rigid_env.push_param(Some(*label), r#type);
             formats.push(format);
         }
@@ -1813,7 +1816,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                                 CheckedPattern::Name(_, _)
                                 | CheckedPattern::Placeholder(_)
                                 | CheckedPattern::ReportedError(_) => {
-                                    // Push the default parameter of the constant elimination
+                                    // Push the default parameter of the constant match
                                     self.push_rigid_param(def_pattern, scrutinee_type.clone());
 
                                     // Check the default expression and any other
@@ -1830,7 +1833,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
 
                                     self.rigid_env.pop();
 
-                                    return core::Term::ConstElim(
+                                    return core::Term::ConstMatch(
                                         scrutinee_expr,
                                         self.scope.to_scope_from_iter(branches.into_iter()),
                                         Some(self.scope.to_scope(default_expr)),
@@ -1841,7 +1844,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
 
                         if num_constructors == Some(branches.len()) {
                             // The absence of a default constructor is ok as the match was exhaustive.
-                            return core::Term::ConstElim(
+                            return core::Term::ConstMatch(
                                 scrutinee_expr,
                                 self.scope.to_scope_from_iter(branches.into_iter()),
                                 None,

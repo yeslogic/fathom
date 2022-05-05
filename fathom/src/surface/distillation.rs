@@ -179,7 +179,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                     self.scope.to_scope(output_expr),
                 )
             }
-            core::Term::FunIntro(input_name, output_expr) => {
+            core::Term::FunLit(input_name, output_expr) => {
                 let input_name = self.push_rigid(*input_name);
                 let output_expr = self.check(output_expr);
                 self.pop_rigid();
@@ -192,22 +192,22 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 )
             }
             core::Term::RecordType(labels, _) if labels.is_empty() => Term::UnitLiteral(()),
-            core::Term::RecordIntro(labels, _) if labels.is_empty() => Term::UnitLiteral(()),
-            core::Term::RecordIntro(labels, exprs) => {
+            core::Term::RecordLit(labels, _) if labels.is_empty() => Term::UnitLiteral(()),
+            core::Term::RecordLit(labels, exprs) => {
                 let scope = self.scope;
                 let expr_fields = Iterator::zip(labels.iter(), exprs.iter())
                     .map(|(label, expr)| (((), *label), self.check(expr)));
 
                 Term::RecordLiteral((), scope.to_scope_from_iter(expr_fields))
             }
-            core::Term::ArrayIntro(elem_exprs) => {
+            core::Term::ArrayLit(elem_exprs) => {
                 let scope = self.scope;
                 let elem_exprs = elem_exprs.iter().map(|elem_exprs| self.check(elem_exprs));
 
                 Term::ArrayLiteral((), scope.to_scope_from_iter(elem_exprs))
             }
             core::Term::FormatRecord(labels, _) if labels.is_empty() => Term::UnitLiteral(()),
-            core::Term::Const(r#const) => match r#const {
+            core::Term::ConstLit(r#const) => match r#const {
                 core::Const::Bool(boolean) => Term::BooleanLiteral((), *boolean),
                 core::Const::U8(number, style) => self.check_number_literal_styled(number, *style),
                 core::Const::U16(number, style) => self.check_number_literal_styled(number, *style),
@@ -222,7 +222,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 core::Const::Pos(number) => self.check_number_literal(number),
                 core::Const::Ref(number) => self.check_number_literal(number),
             },
-            core::Term::ConstElim(head_expr, branches, default_expr) => {
+            core::Term::ConstMatch(head_expr, branches, default_expr) => {
                 let head_expr = self.synth(head_expr);
                 match default_expr {
                     Some(default_expr) => {
@@ -287,7 +287,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                         core::EntryInfo::Parameter => {
                             let var = self.rigid_len().global_to_local(var).unwrap();
                             let input_expr = self.check(&core::Term::RigidVar(var));
-                            head_expr = Term::FunElim(
+                            head_expr = Term::App(
                                 (),
                                 self.scope.to_scope(head_expr),
                                 self.scope.to_scope(input_expr),
@@ -336,7 +336,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                     self.scope.to_scope(output_type),
                 )
             }
-            core::Term::FunIntro(input_name, output_expr) => {
+            core::Term::FunLit(input_name, output_expr) => {
                 let input_name = self.push_rigid(*input_name);
                 let output_expr = self.synth(output_expr);
                 self.pop_rigid();
@@ -348,11 +348,11 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                     self.scope.to_scope(output_expr),
                 )
             }
-            core::Term::FunElim(head_expr, input_expr) => {
+            core::Term::FunApp(head_expr, input_expr) => {
                 let head_expr = self.synth(head_expr);
                 let input_expr = self.check(input_expr);
 
-                Term::FunElim(
+                Term::App(
                     (),
                     self.scope.to_scope(head_expr),
                     self.scope.to_scope(input_expr),
@@ -374,8 +374,8 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
 
                 Term::RecordType((), type_fields)
             }
-            core::Term::RecordIntro(labels, _) if labels.is_empty() => Term::UnitLiteral(()),
-            core::Term::RecordIntro(labels, exprs) => {
+            core::Term::RecordLit(labels, _) if labels.is_empty() => Term::UnitLiteral(()),
+            core::Term::RecordLit(labels, exprs) => {
                 let scope = self.scope;
                 let expr_fields = Iterator::zip(labels.iter(), exprs.iter())
                     .map(|(label, expr)| (((), *label), self.synth(expr)));
@@ -383,12 +383,12 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 // TODO: type annotations?
                 Term::RecordLiteral((), scope.to_scope_from_iter(expr_fields))
             }
-            core::Term::RecordElim(head_expr, label) => {
+            core::Term::RecordProj(head_expr, label) => {
                 let head_expr = self.synth(head_expr);
 
-                Term::RecordElim((), self.scope.to_scope(head_expr), ((), *label))
+                Term::Proj((), self.scope.to_scope(head_expr), ((), *label))
             }
-            core::Term::ArrayIntro(elem_exprs) => {
+            core::Term::ArrayLit(elem_exprs) => {
                 let scope = self.scope;
                 let elem_exprs = elem_exprs.iter().map(|elem_exprs| self.check(elem_exprs));
 
@@ -406,7 +406,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 Term::FormatOverlap((), self.synth_format_fields(labels, formats))
             }
             core::Term::Prim(prim) => self.synth_prim(*prim),
-            core::Term::Const(r#const) => match r#const {
+            core::Term::ConstLit(r#const) => match r#const {
                 core::Const::Bool(boolean) => Term::BooleanLiteral((), *boolean),
                 core::Const::U8(number, style) => {
                     self.synth_number_literal_styled(number, *style, core::Prim::U8Type)
@@ -429,7 +429,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 core::Const::Pos(number) => self.synth_number_literal(number, core::Prim::PosType),
                 core::Const::Ref(number) => self.synth_number_literal(number, core::Prim::RefType),
             },
-            core::Term::ConstElim(head_expr, branches, default_expr) => {
+            core::Term::ConstMatch(head_expr, branches, default_expr) => {
                 let head_expr = self.synth(head_expr);
                 match default_expr {
                     Some(default_expr) => {
