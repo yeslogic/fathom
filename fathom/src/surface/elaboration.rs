@@ -909,7 +909,11 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                     // Some((Prim::Array64Type, [len, _])) => todo!(),
                     Some((Prim::ReportedError, _)) => None,
                     _ => {
-                        self.push_message(Message::StringLiteralNotSupported { range: *range });
+                        let expected_type = self.pretty_print_value(expected_type);
+                        self.push_message(Message::StringLiteralNotSupported {
+                            range: *range,
+                            expected_type,
+                        });
                         None
                     }
                 };
@@ -1303,7 +1307,11 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                     // Some((Prim::Array64Type, [len, _])) => todo!(),
                     Some((Prim::ReportedError, _)) => None,
                     _ => {
-                        self.push_message(Message::StringLiteralNotSupported { range: *range });
+                        let expected_type = self.pretty_print_value(&expected_type);
+                        self.push_message(Message::StringLiteralNotSupported {
+                            range: *range,
+                            expected_type,
+                        });
                         None
                     }
                 };

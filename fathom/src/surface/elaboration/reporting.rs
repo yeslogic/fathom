@@ -67,7 +67,7 @@ pub enum Message {
     },
     StringLiteralNotSupported {
         range: ByteRange,
-        // expected_type: Doc<_>,
+        expected_type: String,
     },
     InvalidNumericLiteral {
         range: ByteRange,
@@ -284,9 +284,14 @@ impl Message {
                 .with_labels(vec![
                     Label::primary(file_id, *invalid_range).with_message("non-ASCII character")
                 ]),
-            Message::StringLiteralNotSupported { range } => Diagnostic::error()
-                .with_message("string literal not supported for expected type")
-                .with_labels(vec![Label::primary(file_id, *range)]),
+            Message::StringLiteralNotSupported {
+                range,
+                expected_type,
+            } => Diagnostic::error()
+                .with_message("string literal not supported")
+                .with_labels(vec![Label::primary(file_id, *range)
+                    .with_message(format!("expected `{}`", expected_type))])
+                .with_notes(vec![format!("expected `{}`", expected_type)]),
             Message::AmbiguousStringLiteral { range } => Diagnostic::error()
                 .with_message("ambiguous string literal")
                 .with_labels(vec![
