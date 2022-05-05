@@ -87,9 +87,8 @@ pub enum Message {
     /// Unification errors.
     FailedToUnify {
         range: ByteRange,
-        // TODO: add lhs and rhs values
-        // lhs: Doc<_>,
-        // rhs: Doc<_>,
+        lhs: String,
+        rhs: String,
         error: unification::Error,
     },
     /// A solution for a flexible variable could not be found.
@@ -307,14 +306,27 @@ impl Message {
             Message::BooleanLiteralNotSupported { range } => Diagnostic::error()
                 .with_message("boolean literal not supported for expected type")
                 .with_labels(vec![Label::primary(file_id, *range)]),
-            Message::FailedToUnify { range, error } => {
+            Message::FailedToUnify {
+                range,
+                lhs,
+                rhs,
+                error,
+            } => {
                 use unification::{Error, RenameError, SpineError};
 
                 // TODO: Make these errors more user-friendly
                 match error {
                     Error::Mismatch => Diagnostic::error()
-                        .with_message("type mismatch")
-                        .with_labels(vec![Label::primary(file_id, *range)]),
+                        .with_message("mismatched types")
+                        .with_labels(vec![Label::primary(file_id, *range).with_message(format!(
+                            "type mismatch, expected `{}`, found `{}`",
+                            lhs, rhs
+                        ))])
+                        .with_notes(vec![[
+                            format!("expected `{}`", lhs),
+                            format!("   found `{}`", rhs),
+                        ]
+                        .join("\n")]),
                     // TODO: reduce confusion around ‘problem spines’
                     Error::Spine(error) => match error {
                         SpineError::NonLinearSpine(_var) => Diagnostic::error()

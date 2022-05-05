@@ -305,6 +305,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                     end_delim,
                 ]),
             )
+            .group()
         }
     }
 }

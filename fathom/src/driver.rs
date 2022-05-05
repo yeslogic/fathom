@@ -154,7 +154,8 @@ impl<'surface, 'core> Driver<'surface, 'core> {
 
     pub fn elaborate(&mut self, file_id: FileId) -> Status {
         let (surface_term, parse_diagnostics) = self.parse_term(file_id);
-        let mut context = elaboration::Context::new(&self.interner, &self.core_scope);
+        let err_scope = scoped_arena::Scope::new();
+        let mut context = elaboration::Context::new(&self.interner, &self.core_scope, &err_scope);
         let (term, r#type) = context.synth(&surface_term);
         let r#type = context.quote_context(&self.core_scope).quote(&r#type);
 
@@ -179,7 +180,8 @@ impl<'surface, 'core> Driver<'surface, 'core> {
 
     pub fn normalise(&mut self, file_id: FileId) -> Status {
         let (surface_term, parse_diagnostics) = self.parse_term(file_id);
-        let mut context = elaboration::Context::new(&self.interner, &self.core_scope);
+        let err_scope = scoped_arena::Scope::new();
+        let mut context = elaboration::Context::new(&self.interner, &self.core_scope, &err_scope);
         let (term, r#type) = context.synth(&surface_term);
         let term = context.eval_context().normalise(&self.core_scope, &term);
         let r#type = context.quote_context(&self.core_scope).quote(&r#type);
@@ -205,7 +207,8 @@ impl<'surface, 'core> Driver<'surface, 'core> {
 
     pub fn r#type(&mut self, file_id: FileId) -> Status {
         let (surface_term, parse_diagnostics) = self.parse_term(file_id);
-        let mut context = elaboration::Context::new(&self.interner, &self.core_scope);
+        let err_scope = scoped_arena::Scope::new();
+        let mut context = elaboration::Context::new(&self.interner, &self.core_scope, &err_scope);
         let (_, r#type) = context.synth(&surface_term);
         let r#type = context.quote_context(&self.core_scope).quote(&r#type);
 
@@ -236,7 +239,8 @@ impl<'surface, 'core> Driver<'surface, 'core> {
         use crate::core::Prim;
 
         let (surface_term, parse_diagnostics) = self.parse_term(file_id);
-        let mut context = elaboration::Context::new(&self.interner, &self.core_scope);
+        let err_scope = scoped_arena::Scope::new();
+        let mut context = elaboration::Context::new(&self.interner, &self.core_scope, &err_scope);
         let format = context.check(&surface_term, &Arc::new(Value::prim(Prim::FormatType, [])));
 
         let diagnostics = {

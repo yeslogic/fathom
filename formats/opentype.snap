@@ -197,10 +197,7 @@ let hhea_table : _ = {
     min_left_side_bearing <- fword,
     min_right_side_bearing <- fword,
     x_max_extent <- fword,
-    caret_slope <- {
-        rise <- s16be,
-        run <- s16be,
-    },
+    caret_slope <- { rise <- s16be, run <- s16be },
     caret_offset <- s16be,
     _reserved0 <- reserved s16be 0,
     _reserved1 <- reserved s16be 0,
@@ -258,14 +255,8 @@ let simple_glyph : _ = fun number_of_contours => {
 };
 let args_are_signed : _ = fun flags => u16_neq (u16_and flags 0x2) 0;
 let arg_format : _ = fun flags => match (u16_neq (u16_and flags 0x1) 0) {
-    false => match (args_are_signed flags) {
-        false => u8,
-        true => s8,
-    },
-    true => match (args_are_signed flags) {
-        false => u16be,
-        true => s16be,
-    },
+    false => match (args_are_signed flags) { false => u8, true => s8 },
+    true => match (args_are_signed flags) { false => u16be, true => s16be },
 };
 let composite_glyph : _ = {
     flags <- u16be,
@@ -362,10 +353,7 @@ let post_table : _ = {
             glyph_name_index <- array16 num_glyphs u16be,
             string_data <- stream_pos,
         },
-        0x25000 => {
-            num_glyphs <- u16be,
-            offset <- array16 num_glyphs s8,
-        },
+        0x25000 => { num_glyphs <- u16be, offset <- array16 num_glyphs s8 },
         0x30000 => {},
         _ => {},
     },

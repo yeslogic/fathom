@@ -311,7 +311,9 @@ impl<'arena, 'env> Context<'arena, 'env> {
                     self.unify(input_expr0, input_expr1)?;
                 }
                 (Elim::Record(label0), Elim::Record(label1)) if label0 == label1 => {}
-                (_, _) => return Err(Error::Mismatch),
+                (_, _) => {
+                    return Err(Error::Mismatch);
+                }
             }
         }
         Ok(())

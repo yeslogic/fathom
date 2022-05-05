@@ -31,7 +31,7 @@ use crate::core::{self, binary, Const, Prim, UIntStyle};
 use crate::env::{self, EnvLen, GlobalVar, SharedEnv, UniqueEnv};
 use crate::source::ByteRange;
 use crate::surface::elaboration::reporting::Message;
-use crate::surface::{distillation, Pattern, Term};
+use crate::surface::{distillation, pretty, Pattern, Term};
 use crate::{StringId, StringInterner};
 
 mod reporting;
@@ -605,7 +605,7 @@ enum CheckedPattern {
 }
 
 /// Elaboration context.
-pub struct Context<'interner, 'arena> {
+pub struct Context<'interner, 'arena, 'error> {
     /// Global string interner.
     interner: &'interner RefCell<StringInterner>,
     /// Scoped arena for storing elaborated terms.
@@ -614,6 +614,10 @@ pub struct Context<'interner, 'arena> {
     //       elaborated terms to an external `Scope` during zonking, resetting
     //       this scope on completion.
     scope: &'arena Scope<'arena>,
+    /// Scoped arena for storing surface terms generated during error reporting.
+    error_scope: &'error Scope<'error>,
+    /// Pretty printing context for error reporting.
+    pretty_context: pretty::Context<'interner, 'error>,
     /// Rigid environment.
     rigid_env: RigidEnv<'arena>,
     /// Flexible environment.
@@ -624,15 +628,19 @@ pub struct Context<'interner, 'arena> {
     messages: Vec<Message>,
 }
 
-impl<'interner, 'arena> Context<'interner, 'arena> {
+impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
     /// Construct a new elaboration context, backed by the supplied arena.
     pub fn new(
         interner: &'interner RefCell<StringInterner>,
         scope: &'arena Scope<'arena>,
-    ) -> Context<'interner, 'arena> {
+        error_scope: &'error Scope<'error>,
+    ) -> Context<'interner, 'arena, 'error> {
+        let pretty_context = pretty::Context::new(interner, error_scope);
         Context {
             interner,
             scope,
+            error_scope,
+            pretty_context,
             rigid_env: RigidEnv::default(interner, scope),
             flexible_env: FlexibleEnv::new(),
             renaming: unification::PartialRenaming::new(),
@@ -668,8 +676,8 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         self.eval_context().eval(&term)
     }
 
-    fn push_message(&mut self, message: impl Into<Message>) {
-        self.messages.push(message.into());
+    fn push_message(&mut self, message: Message) {
+        self.messages.push(message);
     }
 
     pub fn drain_messages<'this>(&'this mut self) -> impl 'this + Iterator<Item = Message> {
@@ -855,7 +863,14 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         match self.unification_context().unify(type0, type1) {
             Ok(()) => expr,
             Err(error) => {
-                self.push_message(Message::FailedToUnify { range, error });
+                let lhs = self.pretty_print_value(type0);
+                let rhs = self.pretty_print_value(type1);
+                self.push_message(Message::FailedToUnify {
+                    range,
+                    lhs,
+                    rhs,
+                    error,
+                });
                 core::Term::Prim(Prim::ReportedError)
             }
         }
@@ -1034,7 +1049,14 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 match self.unification_context().unify(&r#type, expected_type) {
                     Ok(()) => self.check_pattern(pattern, &r#type),
                     Err(error) => {
-                        self.push_message(Message::FailedToUnify { range, error });
+                        let lhs = self.pretty_print_value(&r#type);
+                        let rhs = self.pretty_print_value(expected_type);
+                        self.push_message(Message::FailedToUnify {
+                            range,
+                            lhs,
+                            rhs,
+                            error,
+                        });
 
                         let source = FlexSource::ReportedErrorType(range);
                         let input_type = self.push_flexible_value(source, universe);
@@ -1863,6 +1885,13 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 core::Term::Prim(Prim::ReportedError)
             }
         }
+    }
+
+    fn pretty_print_value(&mut self, value: &ArcValue) -> String {
+        let term = self.quote_context(&self.error_scope).quote(&value);
+        let surface_term = self.distillation_context(&self.error_scope).check(&term);
+        let doc = self.pretty_context.term(&surface_term).into_doc();
+        doc.pretty(usize::MAX).to_string()
     }
 }
 
