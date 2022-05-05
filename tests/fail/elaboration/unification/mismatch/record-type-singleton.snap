@@ -1,9 +1,12 @@
 stdout = ''
 stderr = '''
-error: type mismatch, expected: {}, got Type
+error: mismatched types
   ┌─ tests/fail/elaboration/unification/mismatch/record-type-singleton.fathom:6:11
   │
 6 │ { thing : unit }
-  │           ^^^^
+  │           ^^^^ type mismatch, expected `{}`, found `Type`
+  │
+  = expected `{}`
+       found `Type`
 
 '''

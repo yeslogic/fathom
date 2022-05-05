@@ -317,8 +317,16 @@ impl Message {
                 // TODO: Make these errors more user-friendly
                 match error {
                     Error::Mismatch => Diagnostic::error()
-                        .with_message(format!("type mismatch, expected: {}, got {}", lhs, rhs))
-                        .with_labels(vec![Label::primary(file_id, *range)]),
+                        .with_message("mismatched types")
+                        .with_labels(vec![Label::primary(file_id, *range).with_message(format!(
+                            "type mismatch, expected `{}`, found `{}`",
+                            lhs, rhs
+                        ))])
+                        .with_notes(vec![[
+                            format!("expected `{}`", lhs),
+                            format!("   found `{}`", rhs),
+                        ]
+                        .join("\n")]),
                     // TODO: reduce confusion around ‘problem spines’
                     Error::Spine(error) => match error {
                         SpineError::NonLinearSpine(_var) => Diagnostic::error()
