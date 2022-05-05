@@ -72,7 +72,6 @@ pub enum Message {
     InvalidNumericLiteral {
         range: ByteRange,
         message: String,
-        // expected_type: Doc<_>,
     },
     NumericLiteralNotSupported {
         range: ByteRange,
