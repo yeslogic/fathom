@@ -332,14 +332,14 @@ impl Message {
                         SpineError::NonLinearSpine(_var) => Diagnostic::error()
                             .with_message("variable appeared more than once in problem spine")
                             .with_labels(vec![Label::primary(file_id, *range)]),
-                        SpineError::NonRigidFunElim => Diagnostic::error()
+                        SpineError::NonRigidFunApp => Diagnostic::error()
                             .with_message("non-variable function application in problem spine")
                             .with_labels(vec![Label::primary(file_id, *range)]),
-                        SpineError::RecordElim(_label) => Diagnostic::error()
+                        SpineError::RecordProj(_label) => Diagnostic::error()
                             .with_message("record projection found in problem spine")
                             .with_labels(vec![Label::primary(file_id, *range)]),
-                        SpineError::ConstElim => Diagnostic::error()
-                            .with_message("constant elimination found in problem spine")
+                        SpineError::ConstCase => Diagnostic::error()
+                            .with_message("constant case split found in problem spine")
                             .with_labels(vec![Label::primary(file_id, *range)]),
                     },
                     Error::Rename(error) => match error {

@@ -222,7 +222,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 core::Const::Pos(number) => self.check_number_literal(number),
                 core::Const::Ref(number) => self.check_number_literal(number),
             },
-            core::Term::ConstElim(head_expr, branches, default_expr) => {
+            core::Term::ConstCase(head_expr, branches, default_expr) => {
                 let head_expr = self.synth(head_expr);
                 match default_expr {
                     Some(default_expr) => {
@@ -287,7 +287,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                         core::EntryInfo::Parameter => {
                             let var = self.rigid_len().global_to_local(var).unwrap();
                             let input_expr = self.check(&core::Term::RigidVar(var));
-                            head_expr = Term::FunElim(
+                            head_expr = Term::App(
                                 (),
                                 self.scope.to_scope(head_expr),
                                 self.scope.to_scope(input_expr),
@@ -348,11 +348,11 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                     self.scope.to_scope(output_expr),
                 )
             }
-            core::Term::FunElim(head_expr, input_expr) => {
+            core::Term::FunApp(head_expr, input_expr) => {
                 let head_expr = self.synth(head_expr);
                 let input_expr = self.check(input_expr);
 
-                Term::FunElim(
+                Term::App(
                     (),
                     self.scope.to_scope(head_expr),
                     self.scope.to_scope(input_expr),
@@ -383,10 +383,10 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 // TODO: type annotations?
                 Term::RecordLiteral((), scope.to_scope_from_iter(expr_fields))
             }
-            core::Term::RecordElim(head_expr, label) => {
+            core::Term::RecordProj(head_expr, label) => {
                 let head_expr = self.synth(head_expr);
 
-                Term::RecordElim((), self.scope.to_scope(head_expr), ((), *label))
+                Term::Proj((), self.scope.to_scope(head_expr), ((), *label))
             }
             core::Term::ArrayIntro(elem_exprs) => {
                 let scope = self.scope;
@@ -429,7 +429,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 core::Const::Pos(number) => self.synth_number_literal(number, core::Prim::PosType),
                 core::Const::Ref(number) => self.synth_number_literal(number, core::Prim::RefType),
             },
-            core::Term::ConstElim(head_expr, branches, default_expr) => {
+            core::Term::ConstCase(head_expr, branches, default_expr) => {
                 let head_expr = self.synth(head_expr);
                 match default_expr {
                     Some(default_expr) => {

@@ -119,7 +119,7 @@ let sym : fun (A : _) -> fun (a0 : A) -> fun (a1 : A) -> Eq _ a0 a1 -> Eq _ a1 a
 
 // Examples
 
-let id_elim_type = (fun a => a) Type;
+let id_apply_type = (fun a => a) Type;
 
 let list1 : List Bool
   = cons _ (id _ true) (nil _);
@@ -131,9 +131,9 @@ let thousand : Nat = mul ten hundred;
 
 let eq_test : Eq _ hundred hundred = refl _ _;
 
-let eq_id_elim_type : Eq _ ((fun a => a) Type) Type = refl _ _;
-let eq_id_elim_true : Eq _ ((fun a => a) true) true = refl _ _;
-let eq_id_elim_false : Eq _ ((fun a => a) false) false = refl _ _;
+let eq_id_apply_type : Eq _ ((fun a => a) Type) Type = refl _ _;
+let eq_id_apply_true : Eq _ ((fun a => a) true) true = refl _ _;
+let eq_id_apply_false : Eq _ ((fun a => a) false) false = refl _ _;
 
 
 Type

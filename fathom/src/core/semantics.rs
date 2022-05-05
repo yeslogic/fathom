@@ -24,28 +24,33 @@ pub enum Value<'arena> {
     Stuck(Head, Vec<Elim<'arena>>),
     /// Universes.
     Universe,
+
     /// Dependent function types.
     FunType(Option<StringId>, ArcValue<'arena>, Closure<'arena>),
     /// Function introductions.
     FunIntro(Option<StringId>, Closure<'arena>),
+
     /// Record types.
     RecordType(&'arena [StringId], Telescope<'arena>),
     /// Record introductions.
     RecordIntro(&'arena [StringId], Vec<ArcValue<'arena>>),
+
     /// Array Introductions.
     ArrayIntro(Vec<ArcValue<'arena>>),
+
     /// Record formats, consisting of a list of dependent formats.
     FormatRecord(&'arena [StringId], Telescope<'arena>),
     /// Overlap formats, consisting of a list of dependent formats, overlapping
     /// in memory.
     FormatOverlap(&'arena [StringId], Telescope<'arena>),
+
     /// Constants.
     Const(Const),
 }
 
 impl<'arena> Value<'arena> {
     pub fn prim(prim: Prim, inputs: impl IntoIterator<Item = ArcValue<'arena>>) -> Value<'arena> {
-        let inputs = inputs.into_iter().map(Elim::Fun).collect();
+        let inputs = inputs.into_iter().map(Elim::FunApp).collect();
         Value::Stuck(Head::Prim(prim), inputs)
     }
 
@@ -68,7 +73,7 @@ impl<'arena> Value<'arena> {
 /// The head of a [stuck value][Value::Stuck].
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Head {
-    /// Format repr eliminations.
+    /// Primitives that have not yet been reduced.
     Prim(Prim),
     /// Variables that refer to rigid binders.
     RigidVar(GlobalVar),
@@ -80,12 +85,12 @@ pub enum Head {
 /// value][Value::Stuck] becomes known.
 #[derive(Debug, Clone)]
 pub enum Elim<'arena> {
-    /// Function eliminations.
-    Fun(ArcValue<'arena>),
-    /// Record eliminations.
-    Record(StringId),
-    /// Constant Eliminations.
-    Const(Split<'arena>),
+    /// Function applications.
+    FunApp(ArcValue<'arena>),
+    /// Record projections.
+    RecordProj(StringId),
+    /// Constant branches.
+    ConstCase(Branches<'arena, Const>),
 }
 
 /// A closure is a term that can later be instantiated with a value.
@@ -155,37 +160,37 @@ impl<'arena> Telescope<'arena> {
 
 /// The branches of a case split.
 #[derive(Debug, Clone)]
-pub struct Split<'arena> {
+pub struct Branches<'arena, P> {
     rigid_exprs: SharedEnv<ArcValue<'arena>>,
-    branches: &'arena [(Const, Term<'arena>)],
+    pattern_branches: &'arena [(P, Term<'arena>)],
     default_expr: Option<&'arena Term<'arena>>,
 }
 
-impl<'arena> Split<'arena> {
+impl<'arena, P> Branches<'arena, P> {
     /// Construct a case split.
     pub fn new(
         rigid_exprs: SharedEnv<ArcValue<'arena>>,
-        branches: &'arena [(Const, Term<'arena>)],
+        pattern_branches: &'arena [(P, Term<'arena>)],
         default_expr: Option<&'arena Term<'arena>>,
-    ) -> Split<'arena> {
-        Split {
+    ) -> Branches<'arena, P> {
+        Branches {
             rigid_exprs,
-            branches,
+            pattern_branches,
             default_expr,
         }
     }
 
     /// The number of branches in the case split.
     pub fn branches_len(&self) -> usize {
-        self.branches.len()
+        self.pattern_branches.len()
     }
 }
 
-pub type Branch<'arena> = (Const, ArcValue<'arena>);
+pub type PatternBranch<'arena, P> = (P, ArcValue<'arena>);
 
 #[derive(Clone, Debug)]
-pub enum SplitConstBranches<'arena> {
-    Branch(Branch<'arena>, Split<'arena>),
+pub enum SplitBranches<'arena, P> {
+    Branch(PatternBranch<'arena, P>, Branches<'arena, P>),
     Default(Closure<'arena>),
     None,
 }
@@ -196,8 +201,8 @@ pub enum SplitConstBranches<'arena> {
 pub enum Error {
     InvalidRigidVar,
     InvalidFlexibleVar,
-    InvalidFunctionElim,
-    InvalidRecordElim,
+    InvalidFunctionApp,
+    InvalidRecordProj,
     InvalidFormatRepr,
     MissingConstDefault,
 }
@@ -207,8 +212,8 @@ impl Error {
         match &self {
             Error::InvalidRigidVar => "invalid rigid variable",
             Error::InvalidFlexibleVar => "invalid flexible variable",
-            Error::InvalidFunctionElim => "invalid function elim",
-            Error::InvalidRecordElim => "invalid record elim",
+            Error::InvalidFunctionApp => "invalid function application",
+            Error::InvalidRecordProj => "invalid record projection",
             Error::InvalidFormatRepr => "invalid format repr",
             Error::MissingConstDefault => "missing default expression",
         }
@@ -273,7 +278,7 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
                     head_expr = match info {
                         EntryInfo::Definition => head_expr,
                         EntryInfo::Parameter => {
-                            self.elim_context().apply_fun(head_expr, expr.clone())
+                            self.elim_context().apply_fun_app(head_expr, expr.clone())
                         }
                     };
                 }
@@ -288,6 +293,7 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
                 output_expr
             }
             Term::Universe => Arc::new(Value::Universe),
+
             Term::FunType(input_name, input_type, output_type) => Arc::new(Value::FunType(
                 *input_name,
                 self.eval(input_type),
@@ -297,11 +303,12 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
                 *input_name,
                 Closure::new(self.rigid_exprs.clone(), output_expr),
             )),
-            Term::FunElim(head_expr, input_expr) => {
+            Term::FunApp(head_expr, input_expr) => {
                 let head_expr = self.eval(head_expr);
                 let input_expr = self.eval(input_expr);
-                self.elim_context().apply_fun(head_expr, input_expr)
+                self.elim_context().apply_fun_app(head_expr, input_expr)
             }
+
             Term::RecordType(labels, types) => {
                 let types = Telescope::new(self.rigid_exprs.clone(), types);
                 Arc::new(Value::RecordType(labels, types))
@@ -310,16 +317,18 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
                 let exprs = exprs.iter().map(|expr| self.eval(expr)).collect();
                 Arc::new(Value::RecordIntro(labels, exprs))
             }
-            Term::RecordElim(head_expr, label) => {
+            Term::RecordProj(head_expr, label) => {
                 let head_expr = self.eval(head_expr);
-                self.elim_context().apply_record(head_expr, *label)
+                self.elim_context().apply_record_proj(head_expr, *label)
             }
+
             Term::ArrayIntro(elem_exprs) => {
                 let elem_exprs = (elem_exprs.iter())
                     .map(|elem_expr| self.eval(elem_expr))
                     .collect();
                 Arc::new(Value::ArrayIntro(elem_exprs))
             }
+
             Term::FormatRecord(labels, formats) => {
                 let formats = Telescope::new(self.rigid_exprs.clone(), formats);
                 Arc::new(Value::FormatRecord(labels, formats))
@@ -328,14 +337,14 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
                 let formats = Telescope::new(self.rigid_exprs.clone(), formats);
                 Arc::new(Value::FormatOverlap(labels, formats))
             }
+
             Term::Prim(prim) => Arc::new(Value::prim(*prim, [])),
+
             Term::Const(r#const) => Arc::new(Value::Const(*r#const)),
-            Term::ConstElim(head_expr, branches, default_expr) => {
+            Term::ConstCase(head_expr, branches, default_expr) => {
                 let head_expr = self.eval(head_expr);
-                self.elim_context().apply_const(
-                    head_expr,
-                    Split::new(self.rigid_exprs.clone(), branches, *default_expr),
-                )
+                let branches = Branches::new(self.rigid_exprs.clone(), branches, *default_expr);
+                self.elim_context().apply_const_case(head_expr, branches)
             }
         }
     }
@@ -348,7 +357,7 @@ type PrimStep =
 macro_rules! step {
     ($context:pat, [$($input:pat),*] => $output:expr) => {
         Some(|$context, spine| match spine {
-            [$(Elim::Fun($input)),*] => Some($output),
+            [$(Elim::FunApp($input)),*] => Some($output),
             _ => return None,
         })
     };
@@ -510,8 +519,8 @@ fn prim_step(prim: Prim) -> Option<PrimStep> {
 
         Prim::OptionFold => step!(context, [_, _, on_none, on_some, option] => {
             match option.match_prim_spine()? {
-                (Prim::OptionSome, [Elim::Fun(value)]) => {
-                    context.apply_fun(on_some.clone(), value.clone())
+                (Prim::OptionSome, [Elim::FunApp(value)]) => {
+                    context.apply_fun_app(on_some.clone(), value.clone())
                 },
                 (Prim::OptionNone, []) => on_none.clone(),
                 _ => return None,
@@ -522,7 +531,7 @@ fn prim_step(prim: Prim) -> Option<PrimStep> {
             step!(context, [_, _, pred, array] => match array.as_ref() {
                 Value::ArrayIntro(elems) => {
                     for elem in elems {
-                        match context.apply_fun(pred.clone(), elem.clone()).as_ref() {
+                        match context.apply_fun_app(pred.clone(), elem.clone()).as_ref() {
                             Value::Const(Const::Bool(true)) => {
                                 return Some(Arc::new(Value::prim(Prim::OptionSome, [elem.clone()])))
                             },
@@ -613,32 +622,30 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
         }))
     }
 
-    pub fn split_const_branches(
+    pub fn split_branches<P: Copy>(
         &self,
-        mut const_branches: Split<'arena>,
-    ) -> SplitConstBranches<'arena> {
-        match const_branches.branches.split_first() {
-            Some(((r#const, output_expr), branches)) => {
-                const_branches.branches = branches;
-                let mut context =
-                    EvalContext::new(&mut const_branches.rigid_exprs, self.flexible_exprs);
-                SplitConstBranches::Branch((*r#const, context.eval(output_expr)), const_branches)
+        mut branches: Branches<'arena, P>,
+    ) -> SplitBranches<'arena, P> {
+        match branches.pattern_branches.split_first() {
+            Some(((r#const, output_expr), pattern_branches)) => {
+                branches.pattern_branches = pattern_branches;
+                let mut context = EvalContext::new(&mut branches.rigid_exprs, self.flexible_exprs);
+                SplitBranches::Branch((*r#const, context.eval(output_expr)), branches)
             }
-            None => match const_branches.default_expr {
-                Some(default_expr) => SplitConstBranches::Default(Closure::new(
-                    const_branches.rigid_exprs,
-                    default_expr,
-                )),
-                None => SplitConstBranches::None,
+            None => match branches.default_expr {
+                Some(default_expr) => {
+                    SplitBranches::Default(Closure::new(branches.rigid_exprs, default_expr))
+                }
+                None => SplitBranches::None,
             },
         }
     }
 
-    /// Apply a function elimination to an expression, performing
+    /// Apply a function application to an expression, performing
     /// [beta-reduction] if possible.
     ///
     /// [beta-reduction]: https://ncatlab.org/nlab/show/beta-reduction
-    pub fn apply_fun(
+    pub fn apply_fun_app(
         &self,
         mut head_expr: ArcValue<'arena>,
         input_expr: ArcValue<'arena>,
@@ -648,7 +655,7 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
             Value::FunIntro(_, output_expr) => self.apply_closure(output_expr, input_expr),
             // The computation is stuck, preventing further reduction
             Value::Stuck(head, spine) => {
-                spine.push(Elim::Fun(input_expr));
+                spine.push(Elim::FunApp(input_expr));
 
                 match head {
                     Head::Prim(prim) => prim_step(*prim)
@@ -657,15 +664,15 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
                     _ => head_expr,
                 }
             }
-            _ => panic_any(Error::InvalidFunctionElim),
+            _ => panic_any(Error::InvalidFunctionApp),
         }
     }
 
-    /// Apply a record elimination to an expression, performing
+    /// Apply a record projection to an expression, performing
     /// [beta-reduction] if possible.
     ///
     /// [beta-reduction]: https://ncatlab.org/nlab/show/beta-reduction
-    pub fn apply_record(
+    pub fn apply_record_proj(
         &self,
         mut head_expr: ArcValue<'arena>,
         label: StringId,
@@ -675,29 +682,29 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
             Value::RecordIntro(labels, exprs) => (labels.iter())
                 .position(|current_label| *current_label == label)
                 .and_then(|expr_index| exprs.get(expr_index).cloned())
-                .unwrap_or_else(|| panic_any(Error::InvalidRecordElim)),
+                .unwrap_or_else(|| panic_any(Error::InvalidRecordProj)),
             // The computation is stuck, preventing further reduction
             Value::Stuck(_, spine) => {
-                spine.push(Elim::Record(label));
+                spine.push(Elim::RecordProj(label));
                 head_expr
             }
-            _ => panic_any(Error::InvalidRecordElim),
+            _ => panic_any(Error::InvalidRecordProj),
         }
     }
 
-    /// Apply a constant elimination to an expression, performing
+    /// Apply a constant case split to an expression, performing
     /// [beta-reduction] if possible.
     ///
     /// [beta-reduction]: https://ncatlab.org/nlab/show/beta-reduction
-    fn apply_const(
+    fn apply_const_case(
         &self,
         mut head_expr: ArcValue<'arena>,
-        mut split: Split<'arena>,
+        mut split: Branches<'arena, Const>,
     ) -> ArcValue<'arena> {
         match Arc::make_mut(&mut head_expr) {
             Value::Const(r#const) => {
                 // Try each branch
-                for (branch_const, output_expr) in split.branches {
+                for (branch_const, output_expr) in split.pattern_branches {
                     if r#const == branch_const {
                         return EvalContext::new(&mut split.rigid_exprs, self.flexible_exprs)
                             .eval(output_expr);
@@ -715,19 +722,19 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
             }
             // The computation is stuck, preventing further reduction
             Value::Stuck(_, spine) => {
-                spine.push(Elim::Const(split));
+                spine.push(Elim::ConstCase(split));
                 head_expr
             }
-            _ => panic_any(Error::InvalidRecordElim),
+            _ => panic_any(Error::InvalidRecordProj),
         }
     }
 
     /// Apply an expression to an elimination spine.
     fn apply_spine(&self, head_expr: ArcValue<'arena>, spine: &[Elim<'arena>]) -> ArcValue<'arena> {
         spine.iter().fold(head_expr, |head_expr, elim| match elim {
-            Elim::Fun(input_expr) => self.apply_fun(head_expr, input_expr.clone()),
-            Elim::Record(label) => self.apply_record(head_expr, *label),
-            Elim::Const(split) => self.apply_const(head_expr, split.clone()),
+            Elim::FunApp(input_expr) => self.apply_fun_app(head_expr, input_expr.clone()),
+            Elim::RecordProj(label) => self.apply_record_proj(head_expr, *label),
+            Elim::ConstCase(split) => self.apply_const_case(head_expr, split.clone()),
         })
     }
 
@@ -737,50 +744,48 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
             Value::FormatRecord(labels, formats) | Value::FormatOverlap(labels, formats) => {
                 Arc::new(Value::RecordType(labels, formats.clone().apply_repr()))
             }
-            Value::Stuck(Head::Prim(prim), spine) => {
-                match (prim, &spine[..]) {
-                    (Prim::FormatU8, []) => Arc::new(Value::prim(Prim::U8Type, [])),
-                    (Prim::FormatU16Be, []) => Arc::new(Value::prim(Prim::U16Type, [])),
-                    (Prim::FormatU16Le, []) => Arc::new(Value::prim(Prim::U16Type, [])),
-                    (Prim::FormatU32Be, []) => Arc::new(Value::prim(Prim::U32Type, [])),
-                    (Prim::FormatU32Le, []) => Arc::new(Value::prim(Prim::U32Type, [])),
-                    (Prim::FormatU64Be, []) => Arc::new(Value::prim(Prim::U64Type, [])),
-                    (Prim::FormatU64Le, []) => Arc::new(Value::prim(Prim::U64Type, [])),
-                    (Prim::FormatS8, []) => Arc::new(Value::prim(Prim::S8Type, [])),
-                    (Prim::FormatS16Be, []) => Arc::new(Value::prim(Prim::S16Type, [])),
-                    (Prim::FormatS16Le, []) => Arc::new(Value::prim(Prim::S16Type, [])),
-                    (Prim::FormatS32Be, []) => Arc::new(Value::prim(Prim::S32Type, [])),
-                    (Prim::FormatS32Le, []) => Arc::new(Value::prim(Prim::S32Type, [])),
-                    (Prim::FormatS64Be, []) => Arc::new(Value::prim(Prim::S64Type, [])),
-                    (Prim::FormatS64Le, []) => Arc::new(Value::prim(Prim::S64Type, [])),
-                    (Prim::FormatF32Be, []) => Arc::new(Value::prim(Prim::F32Type, [])),
-                    (Prim::FormatF32Le, []) => Arc::new(Value::prim(Prim::F32Type, [])),
-                    (Prim::FormatF64Be, []) => Arc::new(Value::prim(Prim::F64Type, [])),
-                    (Prim::FormatF64Le, []) => Arc::new(Value::prim(Prim::F64Type, [])),
-                    (Prim::FormatArray8, [Elim::Fun(len), Elim::Fun(elem)]) => Arc::new(
-                        Value::prim(Prim::Array8Type, [len.clone(), self.apply_repr(elem)]),
-                    ),
-                    (Prim::FormatArray16, [Elim::Fun(len), Elim::Fun(elem)]) => Arc::new(
-                        Value::prim(Prim::Array16Type, [len.clone(), self.apply_repr(elem)]),
-                    ),
-                    (Prim::FormatArray32, [Elim::Fun(len), Elim::Fun(elem)]) => Arc::new(
-                        Value::prim(Prim::Array32Type, [len.clone(), self.apply_repr(elem)]),
-                    ),
-                    (Prim::FormatArray64, [Elim::Fun(len), Elim::Fun(elem)]) => Arc::new(
-                        Value::prim(Prim::Array64Type, [len.clone(), self.apply_repr(elem)]),
-                    ),
-                    (Prim::FormatLink, [Elim::Fun(_), Elim::Fun(elem)]) => {
-                        Arc::new(Value::prim(Prim::RefType, [elem.clone()]))
-                    }
-                    (Prim::FormatDeref, [Elim::Fun(elem), Elim::Fun(_)]) => self.apply_repr(elem),
-                    (Prim::FormatStreamPos, []) => Arc::new(Value::prim(Prim::PosType, [])),
-                    (Prim::FormatSucceed, [Elim::Fun(elem), _]) => elem.clone(),
-                    (Prim::FormatFail, []) => Arc::new(Value::prim(Prim::VoidType, [])),
-                    (Prim::FormatUnwrap, [Elim::Fun(elem), _]) => elem.clone(),
-                    (Prim::ReportedError, []) => Arc::new(Value::prim(Prim::ReportedError, [])),
-                    _ => Arc::new(Value::prim(Prim::FormatRepr, [format.clone()])),
+            Value::Stuck(Head::Prim(prim), spine) => match (prim, &spine[..]) {
+                (Prim::FormatU8, []) => Arc::new(Value::prim(Prim::U8Type, [])),
+                (Prim::FormatU16Be, []) => Arc::new(Value::prim(Prim::U16Type, [])),
+                (Prim::FormatU16Le, []) => Arc::new(Value::prim(Prim::U16Type, [])),
+                (Prim::FormatU32Be, []) => Arc::new(Value::prim(Prim::U32Type, [])),
+                (Prim::FormatU32Le, []) => Arc::new(Value::prim(Prim::U32Type, [])),
+                (Prim::FormatU64Be, []) => Arc::new(Value::prim(Prim::U64Type, [])),
+                (Prim::FormatU64Le, []) => Arc::new(Value::prim(Prim::U64Type, [])),
+                (Prim::FormatS8, []) => Arc::new(Value::prim(Prim::S8Type, [])),
+                (Prim::FormatS16Be, []) => Arc::new(Value::prim(Prim::S16Type, [])),
+                (Prim::FormatS16Le, []) => Arc::new(Value::prim(Prim::S16Type, [])),
+                (Prim::FormatS32Be, []) => Arc::new(Value::prim(Prim::S32Type, [])),
+                (Prim::FormatS32Le, []) => Arc::new(Value::prim(Prim::S32Type, [])),
+                (Prim::FormatS64Be, []) => Arc::new(Value::prim(Prim::S64Type, [])),
+                (Prim::FormatS64Le, []) => Arc::new(Value::prim(Prim::S64Type, [])),
+                (Prim::FormatF32Be, []) => Arc::new(Value::prim(Prim::F32Type, [])),
+                (Prim::FormatF32Le, []) => Arc::new(Value::prim(Prim::F32Type, [])),
+                (Prim::FormatF64Be, []) => Arc::new(Value::prim(Prim::F64Type, [])),
+                (Prim::FormatF64Le, []) => Arc::new(Value::prim(Prim::F64Type, [])),
+                (Prim::FormatArray8, [Elim::FunApp(len), Elim::FunApp(elem)]) => Arc::new(
+                    Value::prim(Prim::Array8Type, [len.clone(), self.apply_repr(elem)]),
+                ),
+                (Prim::FormatArray16, [Elim::FunApp(len), Elim::FunApp(elem)]) => Arc::new(
+                    Value::prim(Prim::Array16Type, [len.clone(), self.apply_repr(elem)]),
+                ),
+                (Prim::FormatArray32, [Elim::FunApp(len), Elim::FunApp(elem)]) => Arc::new(
+                    Value::prim(Prim::Array32Type, [len.clone(), self.apply_repr(elem)]),
+                ),
+                (Prim::FormatArray64, [Elim::FunApp(len), Elim::FunApp(elem)]) => Arc::new(
+                    Value::prim(Prim::Array64Type, [len.clone(), self.apply_repr(elem)]),
+                ),
+                (Prim::FormatLink, [Elim::FunApp(_), Elim::FunApp(elem)]) => {
+                    Arc::new(Value::prim(Prim::RefType, [elem.clone()]))
                 }
-            }
+                (Prim::FormatDeref, [Elim::FunApp(elem), Elim::FunApp(_)]) => self.apply_repr(elem),
+                (Prim::FormatStreamPos, []) => Arc::new(Value::prim(Prim::PosType, [])),
+                (Prim::FormatSucceed, [Elim::FunApp(elem), _]) => elem.clone(),
+                (Prim::FormatFail, []) => Arc::new(Value::prim(Prim::VoidType, [])),
+                (Prim::FormatUnwrap, [Elim::FunApp(elem), _]) => elem.clone(),
+                (Prim::ReportedError, []) => Arc::new(Value::prim(Prim::ReportedError, [])),
+                _ => Arc::new(Value::prim(Prim::FormatRepr, [format.clone()])),
+            },
             Value::Stuck(_, _) => Arc::new(Value::prim(Prim::FormatRepr, [format.clone()])),
             _ => panic_any(Error::InvalidFormatRepr),
         }
@@ -838,29 +843,31 @@ impl<'in_arena, 'out_arena, 'env> QuoteContext<'in_arena, 'out_arena, 'env> {
                 };
 
                 spine.iter().fold(head_expr, |head_expr, elim| match elim {
-                    Elim::Fun(input_expr) => Term::FunElim(
+                    Elim::FunApp(input_expr) => Term::FunApp(
                         self.scope.to_scope(head_expr),
                         self.scope.to_scope(self.quote(input_expr)),
                     ),
-                    Elim::Record(label) => Term::RecordElim(self.scope.to_scope(head_expr), *label),
-                    Elim::Const(split) => {
+                    Elim::RecordProj(label) => {
+                        Term::RecordProj(self.scope.to_scope(head_expr), *label)
+                    }
+                    Elim::ConstCase(split) => {
                         let mut split = split.clone();
                         let mut branches = SliceVec::new(self.scope, split.branches_len());
 
                         let default_expr = loop {
-                            match self.elim_context().split_const_branches(split) {
-                                SplitConstBranches::Branch((r#const, output_expr), next_split) => {
+                            match self.elim_context().split_branches(split) {
+                                SplitBranches::Branch((r#const, output_expr), next_split) => {
                                     branches.push((r#const, self.quote(&output_expr)));
                                     split = next_split;
                                 }
-                                SplitConstBranches::Default(default_expr) => {
+                                SplitBranches::Default(default_expr) => {
                                     break Some(self.quote_closure(&default_expr))
                                 }
-                                SplitConstBranches::None => break None,
+                                SplitBranches::None => break None,
                             }
                         };
 
-                        Term::ConstElim(
+                        Term::ConstCase(
                             self.scope.to_scope(head_expr),
                             branches.into(),
                             default_expr.map(|expr| self.scope.to_scope(expr) as &_),
@@ -868,7 +875,9 @@ impl<'in_arena, 'out_arena, 'env> QuoteContext<'in_arena, 'out_arena, 'env> {
                     }
                 })
             }
+
             Value::Universe => Term::Universe,
+
             Value::FunType(input_name, input_type, output_type) => {
                 let input_type = self.quote(input_type);
                 let output_type = self.quote_closure(output_type);
@@ -884,6 +893,7 @@ impl<'in_arena, 'out_arena, 'env> QuoteContext<'in_arena, 'out_arena, 'env> {
 
                 Term::FunIntro(*input_name, self.scope.to_scope(output_expr))
             }
+
             Value::RecordType(labels, types) => {
                 let labels = self.scope.to_scope_from_iter(labels.iter().copied()); // FIXME: avoid copy if this is the same arena?
                 let types = self.quote_telescope(types);
@@ -903,6 +913,7 @@ impl<'in_arena, 'out_arena, 'env> QuoteContext<'in_arena, 'out_arena, 'env> {
 
                 Term::ArrayIntro(elem_exprs)
             }
+
             Value::FormatRecord(labels, formats) => {
                 let labels = self.scope.to_scope_from_iter(labels.iter().copied()); // FIXME: avoid copy if this is the same arena?
                 let formats = self.quote_telescope(formats);
@@ -915,6 +926,7 @@ impl<'in_arena, 'out_arena, 'env> QuoteContext<'in_arena, 'out_arena, 'env> {
 
                 Term::FormatOverlap(labels, formats)
             }
+
             Value::Const(r#const) => Term::Const(*r#const),
         }
     }
@@ -1004,14 +1016,16 @@ impl<'arena, 'env> ConversionContext<'arena, 'env> {
             | (_, Value::Stuck(Head::Prim(Prim::ReportedError), _)) => true,
 
             (Value::Stuck(head0, spine0), Value::Stuck(head1, spine1)) => {
+                use Elim::*;
+
                 head0 == head1
                     && spine0.len() == spine1.len()
                     && Iterator::zip(spine0.iter(), spine1.iter()).all(|(elim0, elim1)| {
                         match (elim0, elim1) {
-                            (Elim::Fun(expr0), Elim::Fun(expr1)) => self.is_equal(expr0, expr1),
-                            (Elim::Record(label0), Elim::Record(label1)) => label0 == label1,
-                            (Elim::Const(split0), Elim::Const(split1)) => {
-                                self.is_equal_splits(split0, split1)
+                            (FunApp(expr0), FunApp(expr1)) => self.is_equal(expr0, expr1),
+                            (RecordProj(label0), RecordProj(label1)) => label0 == label1,
+                            (ConstCase(branches0), ConstCase(branches1)) => {
+                                self.is_equal_branches(branches0, branches1)
                             }
                             (_, _) => false,
                         }
@@ -1026,11 +1040,9 @@ impl<'arena, 'env> ConversionContext<'arena, 'env> {
                 self.is_equal(input_type0, input_type1)
                     && self.is_equal_closures(output_type0, output_type1)
             }
-
             (Value::FunIntro(_, output_expr0), Value::FunIntro(_, output_expr1)) => {
                 self.is_equal_closures(output_expr0, output_expr1)
             }
-            // Eta-conversion
             (Value::FunIntro(_, output_expr), _) => {
                 self.is_equal_fun_intro_elim(output_expr, &value1)
             }
@@ -1047,7 +1059,6 @@ impl<'arena, 'env> ConversionContext<'arena, 'env> {
                     && Iterator::zip(exprs0.iter(), exprs1.iter())
                         .all(|(expr0, expr1)| self.is_equal(&expr0, &expr1))
             }
-            // Eta-conversion
             (Value::RecordIntro(labels, exprs), _) => {
                 self.is_equal_record_intro_elim(labels, exprs, &value1)
             }
@@ -1117,35 +1128,34 @@ impl<'arena, 'env> ConversionContext<'arena, 'env> {
         true
     }
 
-    /// Check that two [case splits][Split] are equal.
-    fn is_equal_splits(&mut self, split0: &Split<'_>, split1: &Split<'_>) -> bool {
-        let mut split0 = split0.clone();
-        let mut split1 = split1.clone();
+    /// Check that two [constant branches][Branches] are equal.
+    fn is_equal_branches<P: PartialEq + Copy>(
+        &mut self,
+        branches0: &Branches<'_, P>,
+        branches1: &Branches<'_, P>,
+    ) -> bool {
+        use SplitBranches::*;
+
+        let mut branches0 = branches0.clone();
+        let mut branches1 = branches1.clone();
 
         loop {
             match (
-                self.elim_context().split_const_branches(split0),
-                self.elim_context().split_const_branches(split1),
+                self.elim_context().split_branches(branches0),
+                self.elim_context().split_branches(branches1),
             ) {
                 (
-                    SplitConstBranches::Branch((const0, output_expr0), next_split0),
-                    SplitConstBranches::Branch((const1, output_expr1), next_split1),
+                    Branch((const0, output_expr0), next_branches0),
+                    Branch((const1, output_expr1), next_branches1),
                 ) if const0 == const1 && self.is_equal(&output_expr0, &output_expr1) => {
-                    split0 = next_split0;
-                    split1 = next_split1;
+                    branches0 = next_branches0;
+                    branches1 = next_branches1;
                 }
-                (
-                    SplitConstBranches::Default(default_expr0),
-                    SplitConstBranches::Default(default_expr1),
-                ) => {
+                (Default(default_expr0), Default(default_expr1)) => {
                     return self.is_equal_closures(&default_expr0, &default_expr1);
                 }
-                (SplitConstBranches::None, SplitConstBranches::None) => {
-                    return true;
-                }
-                (_, _) => {
-                    return false;
-                }
+                (None, None) => return true,
+                (_, _) => return false,
             }
         }
     }
@@ -1153,7 +1163,9 @@ impl<'arena, 'env> ConversionContext<'arena, 'env> {
     /// Check that a function is equal to a value, using eta-conversion.
     fn is_equal_fun_intro_elim(&mut self, output_expr: &Closure<'_>, value: &ArcValue<'_>) -> bool {
         let var = Arc::new(Value::rigid_var(self.rigid_exprs.next_global()));
-        let value = self.elim_context().apply_fun(value.clone(), var.clone());
+        let value = self
+            .elim_context()
+            .apply_fun_app(value.clone(), var.clone());
         let output_expr = self.elim_context().apply_closure(output_expr, var);
 
         self.push_rigid();
@@ -1171,7 +1183,7 @@ impl<'arena, 'env> ConversionContext<'arena, 'env> {
         value: &ArcValue<'_>,
     ) -> bool {
         Iterator::zip(labels.iter(), exprs.iter()).all(|(label, expr)| {
-            let field_value = self.elim_context().apply_record(value.clone(), *label);
+            let field_value = self.elim_context().apply_record_proj(value.clone(), *label);
             self.is_equal(expr, &field_value)
         })
     }

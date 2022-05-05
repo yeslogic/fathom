@@ -20,7 +20,7 @@ use std::sync::Arc;
 
 use crate::alloc::SliceVec;
 use crate::core::semantics::{
-    self, ArcValue, Closure, Elim, Head, SplitConstBranches, Telescope, Value,
+    self, ArcValue, Closure, Elim, Head, SplitBranches, Telescope, Value,
 };
 use crate::core::{Prim, Term};
 use crate::env::{EnvLen, GlobalVar, LocalVar, SharedEnv, SliceEnv, UniqueEnv};
@@ -103,12 +103,12 @@ pub enum SpineError {
     /// all computation in the return type, and the pattern solution is
     /// guaranteed to be well-typed.
     NonLinearSpine(GlobalVar),
-    /// A non-rigid-variable function elimination was found in the problem spine.
-    NonRigidFunElim,
+    /// A flexible variable was found in the problem spine.
+    NonRigidFunApp,
     /// A record projection was found in the problem spine.
-    RecordElim(StringId),
-    /// A constant elimination was found in the problem spine.
-    ConstElim,
+    RecordProj(StringId),
+    /// A constant case split was found in the problem spine.
+    ConstCase,
 }
 
 /// An error that occurred when renaming the solution.
@@ -231,11 +231,9 @@ impl<'arena, 'env> Context<'arena, 'env> {
                 self.unify(input_type0, input_type1)?;
                 self.unify_closures(output_type0, output_type1)
             }
-
             (Value::FunIntro(_, output_expr0), Value::FunIntro(_, output_expr1)) => {
                 self.unify_closures(output_expr0, output_expr1)
             }
-            // Eta-conversion
             (Value::FunIntro(_, output_expr), _) => self.unify_fun_intro_elim(output_expr, &value1),
             (_, Value::FunIntro(_, output_expr)) => self.unify_fun_intro_elim(output_expr, &value0),
 
@@ -245,7 +243,6 @@ impl<'arena, 'env> Context<'arena, 'env> {
                 }
                 self.unify_telescopes(types0, types1)
             }
-
             (Value::RecordIntro(labels0, exprs0), Value::RecordIntro(labels1, exprs1)) => {
                 if labels0 != labels1 {
                     return Err(Error::Mismatch);
@@ -255,7 +252,6 @@ impl<'arena, 'env> Context<'arena, 'env> {
                 }
                 Ok(())
             }
-            // Eta-conversion
             (Value::RecordIntro(labels, exprs), _) => {
                 self.unify_record_intro_elim(labels, exprs, &value1)
             }
@@ -307,10 +303,10 @@ impl<'arena, 'env> Context<'arena, 'env> {
         }
         for (elim0, elim1) in Iterator::zip(spine0.iter(), spine1.iter()) {
             match (elim0, elim1) {
-                (Elim::Fun(input_expr0), Elim::Fun(input_expr1)) => {
+                (Elim::FunApp(input_expr0), Elim::FunApp(input_expr1)) => {
                     self.unify(input_expr0, input_expr1)?;
                 }
-                (Elim::Record(label0), Elim::Record(label1)) if label0 == label1 => {}
+                (Elim::RecordProj(label0), Elim::RecordProj(label1)) if label0 == label1 => {}
                 (_, _) => {
                     return Err(Error::Mismatch);
                 }
@@ -376,7 +372,9 @@ impl<'arena, 'env> Context<'arena, 'env> {
         value: &ArcValue<'arena>,
     ) -> Result<(), Error> {
         let var = Arc::new(Value::rigid_var(self.rigid_exprs.next_global()));
-        let value = self.elim_context().apply_fun(value.clone(), var.clone());
+        let value = self
+            .elim_context()
+            .apply_fun_app(value.clone(), var.clone());
         let output_expr = self.elim_context().apply_closure(output_expr, var);
 
         self.rigid_exprs.push();
@@ -394,7 +392,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
         value: &ArcValue<'arena>,
     ) -> Result<(), Error> {
         for (label, expr) in Iterator::zip(labels.iter(), exprs.iter()) {
-            let field_value = self.elim_context().apply_record(value.clone(), *label);
+            let field_value = self.elim_context().apply_record_proj(value.clone(), *label);
             self.unify(expr, &field_value)?;
         }
         Ok(())
@@ -437,16 +435,16 @@ impl<'arena, 'env> Context<'arena, 'env> {
 
         for elim in spine {
             match elim {
-                Elim::Fun(input_expr) => match self.elim_context().force(input_expr).as_ref() {
+                Elim::FunApp(input_expr) => match self.elim_context().force(input_expr).as_ref() {
                     Value::Stuck(Head::RigidVar(source_var), spine)
                         if spine.is_empty() && self.renaming.set_rigid(*source_var) => {}
                     Value::Stuck(Head::RigidVar(source_var), _) => {
                         return Err(SpineError::NonLinearSpine(*source_var))
                     }
-                    _ => return Err(SpineError::NonRigidFunElim),
+                    _ => return Err(SpineError::NonRigidFunApp),
                 },
-                Elim::Record(label) => return Err(SpineError::RecordElim(*label)),
-                Elim::Const(_) => return Err(SpineError::ConstElim),
+                Elim::RecordProj(label) => return Err(SpineError::RecordProj(*label)),
+                Elim::ConstCase(_) => return Err(SpineError::ConstCase),
             }
         }
 
@@ -457,8 +455,8 @@ impl<'arena, 'env> Context<'arena, 'env> {
     /// correspond to the given `spine`.
     fn fun_intros(&self, spine: &[Elim<'arena>], term: Term<'arena>) -> Term<'arena> {
         spine.iter().fold(term, |term, elim| match elim {
-            Elim::Fun(_) => Term::FunIntro(None, self.scope.to_scope(term)),
-            Elim::Record(_) | Elim::Const(_) => {
+            Elim::FunApp(_) => Term::FunIntro(None, self.scope.to_scope(term)),
+            Elim::RecordProj(_) | Elim::ConstCase(_) => {
                 unreachable!("should have been caught by `init_renaming`")
             }
         })
@@ -493,41 +491,38 @@ impl<'arena, 'env> Context<'arena, 'env> {
 
                 spine.iter().fold(Ok(head_expr), |head_expr, elim| {
                     Ok(match elim {
-                        Elim::Fun(input_expr) => Term::FunElim(
+                        Elim::FunApp(input_expr) => Term::FunApp(
                             self.scope.to_scope(head_expr?),
                             self.scope.to_scope(self.rename(flexible_var, input_expr)?),
                         ),
-                        Elim::Record(label) => {
-                            Term::RecordElim(self.scope.to_scope(head_expr?), *label)
+                        Elim::RecordProj(label) => {
+                            Term::RecordProj(self.scope.to_scope(head_expr?), *label)
                         }
-                        Elim::Const(split) => {
+                        Elim::ConstCase(split) => {
                             let mut split = split.clone();
                             let mut branches = SliceVec::new(self.scope, split.branches_len());
 
                             let default_expr = loop {
-                                match self.elim_context().split_const_branches(split) {
-                                    SplitConstBranches::Branch(
-                                        (r#const, output_expr),
-                                        next_split,
-                                    ) => {
+                                match self.elim_context().split_branches(split) {
+                                    SplitBranches::Branch((r#const, output_expr), next_split) => {
                                         branches.push((
                                             r#const,
                                             self.rename(flexible_var, &output_expr)?,
                                         ));
                                         split = next_split;
                                     }
-                                    SplitConstBranches::Default(default_expr) => {
+                                    SplitBranches::Default(default_expr) => {
                                         break Some(
                                             self.rename_closure(flexible_var, &default_expr)?,
                                         );
                                     }
-                                    SplitConstBranches::None => {
+                                    SplitBranches::None => {
                                         break None;
                                     }
                                 }
                             };
 
-                            Term::ConstElim(
+                            Term::ConstCase(
                                 self.scope.to_scope(head_expr?),
                                 branches.into(),
                                 default_expr.map(|expr| self.scope.to_scope(expr) as &_),
@@ -536,7 +531,9 @@ impl<'arena, 'env> Context<'arena, 'env> {
                     })
                 })
             }
+
             Value::Universe => Ok(Term::Universe),
+
             Value::FunType(input_name, input_type, output_type) => {
                 let input_type = self.rename(flexible_var, input_type)?;
                 let output_type = self.rename_closure(flexible_var, output_type)?;
@@ -555,6 +552,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
                     self.scope.to_scope(output_expr),
                 ))
             }
+
             Value::RecordType(labels, types) => {
                 let labels = self.scope.to_scope(labels); // FIXME: avoid copy if this is the same arena?
                 let types = self.rename_telescope(flexible_var, types)?;
@@ -570,6 +568,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
 
                 Ok(Term::RecordIntro(labels, new_exprs.into()))
             }
+
             Value::ArrayIntro(elem_exprs) => {
                 let mut new_elem_exprs = SliceVec::new(self.scope, elem_exprs.len());
                 for elem_expr in elem_exprs {
@@ -578,6 +577,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
 
                 Ok(Term::ArrayIntro(new_elem_exprs.into()))
             }
+
             Value::FormatRecord(labels, formats) => {
                 let labels = self.scope.to_scope(labels); // FIXME: avoid copy if this is the same arena?
                 let formats = self.rename_telescope(flexible_var, formats)?;
@@ -590,6 +590,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
 
                 Ok(Term::FormatOverlap(labels, formats))
             }
+
             Value::Const(constant) => Ok(Term::Const(*constant)),
         }
     }

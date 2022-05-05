@@ -123,7 +123,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
         prim: Prim,
         slice: &[Elim<'arena>],
     ) -> io::Result<ArcValue<'arena>> {
-        use crate::core::semantics::Elim::Fun;
+        use crate::core::semantics::Elim::FunApp;
 
         match (prim, &slice[..]) {
             (Prim::FormatU8, []) => read_const(reader, |num| Const::U8(num, UIntStyle::Decimal), read_u8),
@@ -144,17 +144,17 @@ impl<'arena, 'env> Context<'arena, 'env> {
             (Prim::FormatF32Le, []) => read_const(reader, Const::F32, read_f32le),
             (Prim::FormatF64Be, []) => read_const(reader, Const::F64, read_f64be),
             (Prim::FormatF64Le, []) => read_const(reader, Const::F64, read_f64le),
-            (Prim::FormatArray8, [Fun(len), Fun(elem_format)]) => self.read_array(reader, len, elem_format),
-            (Prim::FormatArray16, [Fun(len), Fun(elem_format)]) => self.read_array(reader, len, elem_format),
-            (Prim::FormatArray32, [Fun(len), Fun(elem_format)]) => self.read_array(reader, len, elem_format),
-            (Prim::FormatArray64, [Fun(len), Fun(elem_format)]) => self.read_array(reader, len, elem_format),
-            (Prim::FormatLink, [Fun(pos), Fun(elem_format)]) => self.read_link(pos, elem_format),
-            (Prim::FormatDeref, [Fun(elem_format), Fun(r#ref)]) => self.read_deref(reader, elem_format, r#ref),
+            (Prim::FormatArray8, [FunApp(len), FunApp(elem_format)]) => self.read_array(reader, len, elem_format),
+            (Prim::FormatArray16, [FunApp(len), FunApp(elem_format)]) => self.read_array(reader, len, elem_format),
+            (Prim::FormatArray32, [FunApp(len), FunApp(elem_format)]) => self.read_array(reader, len, elem_format),
+            (Prim::FormatArray64, [FunApp(len), FunApp(elem_format)]) => self.read_array(reader, len, elem_format),
+            (Prim::FormatLink, [FunApp(pos), FunApp(elem_format)]) => self.read_link(pos, elem_format),
+            (Prim::FormatDeref, [FunApp(elem_format), FunApp(r#ref)]) => self.read_deref(reader, elem_format, r#ref),
             (Prim::FormatStreamPos, []) => read_stream_pos(reader),
-            (Prim::FormatSucceed, [_, Fun(elem)]) => Ok(elem.clone()),
+            (Prim::FormatSucceed, [_, FunApp(elem)]) => Ok(elem.clone()),
             (Prim::FormatFail, []) => Err(io::Error::new(io::ErrorKind::Other, "parse failure")),
-            (Prim::FormatUnwrap, [_, Fun(option)]) => match option.match_prim_spine() {
-                Some((Prim::OptionSome, [Fun(elem)])) => Ok(elem.clone()),
+            (Prim::FormatUnwrap, [_, FunApp(option)]) => match option.match_prim_spine() {
+                Some((Prim::OptionSome, [FunApp(elem)])) => Ok(elem.clone()),
                 Some((Prim::OptionNone, [])) => Err(io::Error::new(io::ErrorKind::Other, "unwrapped none")),
                 _ => Err(io::Error::new(io::ErrorKind::Other, "invalid option")),
             },
