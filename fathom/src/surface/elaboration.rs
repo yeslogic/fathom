@@ -553,6 +553,20 @@ pub struct FlexibleEnv<'arena> {
     exprs: UniqueEnv<Option<ArcValue<'arena>>>,
 }
 
+enum FlexibleEnvReport<'arena> {
+    UnsolvedFlexibleVar {
+        source: FlexSource,
+        // TODO: add type
+        // type: Doc<_>,
+    },
+    HoleSolution {
+        range: ByteRange,
+        name: StringId,
+        // r#type: String,
+        expr: ArcValue<'arena>,
+    },
+}
+
 impl<'arena> FlexibleEnv<'arena> {
     /// Construct a new, empty environment.
     pub fn new() -> FlexibleEnv<'arena> {
@@ -573,26 +587,6 @@ impl<'arena> FlexibleEnv<'arena> {
         self.exprs.push(None);
 
         var
-    }
-
-    /// Report on any unsolved flexible variables, or solved named holes.
-    fn report<'this>(&'this self) -> impl 'this + Iterator<Item = Message> {
-        Iterator::zip(self.sources.iter(), self.exprs.iter()).filter_map(|(&source, expr)| {
-            match (expr, source) {
-                // Avoid producing messages for some unsolved flexible sources:
-                (None, FlexSource::HoleType(_, _)) => None, // should have an unsolved hole expression
-                (None, FlexSource::PlaceholderType(_)) => None, // should have an unsolved placeholder expression
-                (None, FlexSource::ReportedErrorType(_)) => None, // should already have an error reported
-                // For other sources, report an unsolved problem message
-                (None, source) => Some(Message::UnsolvedFlexibleVar { source }),
-                // Yield messages of solved named holes
-                (Some(_), FlexSource::HoleExpr(range, name)) => {
-                    Some(Message::HoleSolution { range, name })
-                }
-                // Ignore solutions of anything else
-                (Some(_), _) => None,
-            }
-        })
     }
 }
 
@@ -681,7 +675,46 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
     }
 
     pub fn drain_messages<'this>(&'this mut self) -> impl 'this + Iterator<Item = Message> {
-        self.messages.drain(..).chain(self.flexible_env.report())
+        let reports = Iterator::zip(
+            self.flexible_env.sources.iter(),
+            self.flexible_env.exprs.iter(),
+        )
+        .filter_map(|(&source, expr)| {
+            match (expr, source) {
+                // Avoid producing messages for some unsolved flexible sources:
+                (None, FlexSource::HoleType(_, _)) => None, // should have an unsolved hole expression
+                (None, FlexSource::PlaceholderType(_)) => None, // should have an unsolved placeholder expression
+                (None, FlexSource::ReportedErrorType(_)) => None, // should already have an error reported
+                // For other sources, report an unsolved problem message
+                (None, source) => Some(FlexibleEnvReport::UnsolvedFlexibleVar { source }),
+                // Yield messages of solved named holes
+                (Some(expr), FlexSource::HoleExpr(range, name)) => {
+                    Some(FlexibleEnvReport::HoleSolution {
+                        range,
+                        name,
+                        expr: Arc::clone(expr),
+                    })
+                }
+                // Ignore solutions of anything else
+                (Some(_), _) => None,
+            }
+        })
+        .collect::<Vec<_>>();
+        let report_messages = reports
+            .into_iter()
+            .map(|report| match report {
+                FlexibleEnvReport::UnsolvedFlexibleVar { source } => {
+                    Message::UnsolvedFlexibleVar { source }
+                }
+                FlexibleEnvReport::HoleSolution { range, name, expr } => Message::HoleSolution {
+                    range,
+                    name,
+                    expr: self.pretty_print_value(&expr),
+                },
+            })
+            .collect::<Vec<_>>();
+
+        self.messages.drain(..).chain(report_messages)
     }
 
     pub fn eval_context(&mut self) -> semantics::EvalContext<'arena, '_> {

@@ -6,6 +6,6 @@ note: solution found for `?fun_type`
   ┌─ tests/succeed/hole/hole-1.fathom:1:15
   │
 1 │ (fun a => a : ?fun_type) Type
-  │               ^^^^^^^^^
+  │               ^^^^^^^^^ solution: `fun (a : Type) -> Type`
 
 '''
