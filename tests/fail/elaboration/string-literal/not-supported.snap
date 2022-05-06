@@ -1,9 +1,11 @@
 stdout = ''
 stderr = '''
-error: string literal not supported for expected type
+error: string literal not supported
   ┌─ tests/fail/elaboration/string-literal/not-supported.fathom:3:1
   │
 3 │ "hello" : Void
-  │ ^^^^^^^
+  │ ^^^^^^^ expected `Void`
+  │
+  = expected `Void`
 
 '''

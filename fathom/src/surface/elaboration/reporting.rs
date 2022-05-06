@@ -44,12 +44,12 @@ pub enum Message {
     },
     ArrayLiteralNotSupported {
         range: ByteRange,
-        // expected_type: Doc<_>,
+        expected_type: String,
     },
     MismatchedArrayLength {
         range: ByteRange,
         found_len: usize,
-        // expected_len: Doc<_>,
+        expected_len: String,
     },
     AmbiguousArrayLiteral {
         range: ByteRange,
@@ -67,16 +67,15 @@ pub enum Message {
     },
     StringLiteralNotSupported {
         range: ByteRange,
-        // expected_type: Doc<_>,
+        expected_type: String,
     },
     InvalidNumericLiteral {
         range: ByteRange,
         message: String,
-        // expected_type: Doc<_>,
     },
     NumericLiteralNotSupported {
         range: ByteRange,
-        // expected_type: Doc<_>,
+        expected_type: String,
     },
     AmbiguousNumericLiteral {
         range: ByteRange,
@@ -254,13 +253,27 @@ impl Message {
                             .format_with(", ", |label, f| f(&format_args!("`{}`", label)))
                     )])
             }
-            Message::ArrayLiteralNotSupported { range } => Diagnostic::error()
-                .with_message("array literal not supported for expected type")
-                .with_labels(vec![Label::primary(file_id, *range)]),
-            Message::MismatchedArrayLength { range, found_len } => Diagnostic::error()
-                .with_message("mismatched array length")
+            Message::ArrayLiteralNotSupported {
+                range,
+                expected_type,
+            } => Diagnostic::error()
+                .with_message("array literal not supported")
                 .with_labels(vec![Label::primary(file_id, *range)
-                    .with_message(format!("found length: {}", found_len))]),
+                    .with_message(format!("expected `{}`", expected_type))])
+                .with_notes(vec![format!("expected `{}`", expected_type)]),
+            Message::MismatchedArrayLength {
+                range,
+                found_len,
+                expected_len,
+            } => Diagnostic::error()
+                .with_message("mismatched array length")
+                .with_labels(vec![
+                    Label::primary(file_id, *range).with_message("array with invalid length")
+                ])
+                .with_notes(vec![
+                    format!("expected length {}", expected_len),
+                    format!("   found length {}", found_len),
+                ]),
             Message::AmbiguousArrayLiteral { range } => Diagnostic::error()
                 .with_message("ambiguous array literal")
                 .with_labels(vec![
@@ -284,9 +297,14 @@ impl Message {
                 .with_labels(vec![
                     Label::primary(file_id, *invalid_range).with_message("non-ASCII character")
                 ]),
-            Message::StringLiteralNotSupported { range } => Diagnostic::error()
-                .with_message("string literal not supported for expected type")
-                .with_labels(vec![Label::primary(file_id, *range)]),
+            Message::StringLiteralNotSupported {
+                range,
+                expected_type,
+            } => Diagnostic::error()
+                .with_message("string literal not supported")
+                .with_labels(vec![Label::primary(file_id, *range)
+                    .with_message(format!("expected `{}`", expected_type))])
+                .with_notes(vec![format!("expected `{}`", expected_type)]),
             Message::AmbiguousStringLiteral { range } => Diagnostic::error()
                 .with_message("ambiguous string literal")
                 .with_labels(vec![
@@ -295,9 +313,14 @@ impl Message {
             Message::InvalidNumericLiteral { range, message } => Diagnostic::error()
                 .with_message("failed to parse numeric literal")
                 .with_labels(vec![(Label::primary(file_id, *range)).with_message(message)]),
-            Message::NumericLiteralNotSupported { range } => Diagnostic::error()
-                .with_message("numeric literal not supported for expected type")
-                .with_labels(vec![Label::primary(file_id, *range)]),
+            Message::NumericLiteralNotSupported {
+                range,
+                expected_type,
+            } => Diagnostic::error()
+                .with_message("numeric literal not supported")
+                .with_labels(vec![Label::primary(file_id, *range)
+                    .with_message(format!("expected `{}`", expected_type))])
+                .with_notes(vec![format!("expected `{}`", expected_type)]),
             Message::AmbiguousNumericLiteral { range } => Diagnostic::error()
                 .with_message("ambiguous numeric literal")
                 .with_labels(vec![
