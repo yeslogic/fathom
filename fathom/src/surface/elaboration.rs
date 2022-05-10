@@ -553,20 +553,6 @@ pub struct FlexibleEnv<'arena> {
     exprs: UniqueEnv<Option<ArcValue<'arena>>>,
 }
 
-enum FlexibleEnvReport<'arena> {
-    UnsolvedFlexibleVar {
-        source: FlexSource,
-        // TODO: add type
-        // type: Doc<_>,
-    },
-    HoleSolution {
-        range: ByteRange,
-        name: StringId,
-        // r#type: String,
-        expr: ArcValue<'arena>,
-    },
-}
-
 impl<'arena> FlexibleEnv<'arena> {
     /// Construct a new, empty environment.
     pub fn new() -> FlexibleEnv<'arena> {
@@ -589,26 +575,38 @@ impl<'arena> FlexibleEnv<'arena> {
         var
     }
 
-    fn report<'this>(&'this self) -> impl 'this + Iterator<Item = FlexibleEnvReport<'arena>> {
-        Iterator::zip(self.sources.iter(), self.exprs.iter()).filter_map(|(&source, expr)| {
-            match (expr, source) {
-                // Avoid producing messages for some unsolved flexible sources:
-                (None, FlexSource::HoleType(_, _)) => None, // should have an unsolved hole expression
-                (None, FlexSource::PlaceholderType(_)) => None, // should have an unsolved placeholder expression
-                (None, FlexSource::ReportedErrorType(_)) => None, // should already have an error reported
-                // For other sources, report an unsolved problem message
-                (None, source) => Some(FlexibleEnvReport::UnsolvedFlexibleVar { source }),
-                // Yield messages of solved named holes
-                (Some(expr), FlexSource::HoleExpr(range, name)) => {
-                    Some(FlexibleEnvReport::HoleSolution {
-                        range,
-                        name,
-                        expr: Arc::clone(expr),
-                    })
-                }
-                // Ignore solutions of anything else
-                (Some(_), _) => None,
+    fn report<'this, 'interner: 'this, 'error: 'this>(
+        &'this self,
+        interner: &'interner RefCell<StringInterner>,
+        scope: &'error Scope<'error>,
+        mut rigid_names: UniqueEnv<Option<StringId>>,
+    ) -> impl 'this + Iterator<Item = Message> {
+        let entries = Iterator::zip(self.sources.iter(), self.exprs.iter());
+
+        entries.filter_map(move |(&source, expr)| match (expr, source) {
+            // Avoid producing messages for some unsolved flexible sources:
+            (None, FlexSource::HoleType(_, _)) => None, // should have an unsolved hole expression
+            (None, FlexSource::PlaceholderType(_)) => None, // should have an unsolved placeholder expression
+            (None, FlexSource::ReportedErrorType(_)) => None, // should already have an error reported
+
+            // For other sources, report an unsolved problem message
+            (None, source) => Some(Message::UnsolvedFlexibleVar { source }),
+            // Yield messages of solved named holes
+            (Some(expr), FlexSource::HoleExpr(range, name)) => {
+                let term = semantics::QuoteContext::new(scope, rigid_names.len(), &self.exprs)
+                    .quote(&expr);
+                let surface_term =
+                    distillation::Context::new(interner, scope, &mut rigid_names, &self.sources)
+                        .check(&term);
+
+                let pretty_context = pretty::Context::new(interner, scope);
+                let doc = pretty_context.term(&surface_term).into_doc();
+                let expr = doc.pretty(usize::MAX).to_string();
+
+                Some(Message::HoleSolution { range, name, expr })
             }
+            // Ignore solutions of anything else
+            (Some(_), _) => None,
         })
     }
 }
@@ -698,19 +696,11 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
     }
 
     pub fn drain_messages<'this>(&'this mut self) -> impl 'this + Iterator<Item = Message> {
-        let reports = self.flexible_env.report().collect::<Vec<_>>();
-        let report_messages = reports
-            .into_iter()
-            .map(|report| match report {
-                FlexibleEnvReport::UnsolvedFlexibleVar { source } => {
-                    Message::UnsolvedFlexibleVar { source }
-                }
-                FlexibleEnvReport::HoleSolution { range, name, expr } => {
-                    let expr = self.pretty_print_value(&expr);
-                    Message::HoleSolution { range, name, expr }
-                }
-            })
-            .collect::<Vec<_>>();
+        let report_messages = self.flexible_env.report(
+            self.interner,
+            self.error_scope,
+            self.rigid_env.names.clone(),
+        );
 
         self.messages.drain(..).chain(report_messages)
     }
@@ -753,6 +743,13 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
 
     pub fn binary_context(&self) -> binary::Context<'arena, '_> {
         binary::Context::new(&self.flexible_env.exprs)
+    }
+
+    fn pretty_print_value(&mut self, value: &ArcValue<'_>) -> String {
+        let term = self.quote_context(&self.error_scope).quote(&value);
+        let surface_term = self.distillation_context(&self.error_scope).check(&term);
+        let doc = self.pretty_context.term(&surface_term).into_doc();
+        doc.pretty(usize::MAX).to_string()
     }
 
     /// Reports an error if there are duplicate fields found, returning a slice
@@ -1941,13 +1938,6 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 core::Term::Prim(Prim::ReportedError)
             }
         }
-    }
-
-    fn pretty_print_value(&mut self, value: &ArcValue) -> String {
-        let term = self.quote_context(&self.error_scope).quote(&value);
-        let surface_term = self.distillation_context(&self.error_scope).check(&term);
-        let doc = self.pretty_context.term(&surface_term).into_doc();
-        doc.pretty(usize::MAX).to_string()
     }
 }
 
