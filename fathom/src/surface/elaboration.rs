@@ -631,8 +631,6 @@ pub struct Context<'interner, 'arena, 'error> {
     scope: &'arena Scope<'arena>,
     /// Scoped arena for storing surface terms generated during error reporting.
     error_scope: &'error Scope<'error>,
-    /// Pretty printing context for error reporting.
-    pretty_context: pretty::Context<'interner, 'error>,
     /// Rigid environment.
     rigid_env: RigidEnv<'arena>,
     /// Flexible environment.
@@ -650,12 +648,10 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
         scope: &'arena Scope<'arena>,
         error_scope: &'error Scope<'error>,
     ) -> Context<'interner, 'arena, 'error> {
-        let pretty_context = pretty::Context::new(interner, error_scope);
         Context {
             interner,
             scope,
             error_scope,
-            pretty_context,
             rigid_env: RigidEnv::default(interner, scope),
             flexible_env: FlexibleEnv::new(),
             renaming: unification::PartialRenaming::new(),
@@ -748,7 +744,8 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
     fn pretty_print_value(&mut self, value: &ArcValue<'_>) -> String {
         let term = self.quote_context(&self.error_scope).quote(&value);
         let surface_term = self.distillation_context(&self.error_scope).check(&term);
-        let doc = self.pretty_context.term(&surface_term).into_doc();
+        let pretty_context = pretty::Context::new(self.interner, self.error_scope);
+        let doc = pretty_context.term(&surface_term).into_doc();
         doc.pretty(usize::MAX).to_string()
     }
 
