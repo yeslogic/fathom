@@ -2,10 +2,12 @@ stdout = '''
 (fun a => a : ?fun_type) Type : Type
 '''
 stderr = '''
-note: solution found for `?fun_type`
+note: solution found for hole `?fun_type`
   ┌─ tests/succeed/hole/hole-1.fathom:1:15
   │
 1 │ (fun a => a : ?fun_type) Type
-  │               ^^^^^^^^^ solution: `fun (a : Type) -> Type`
+  │               ^^^^^^^^^ solution found
+  │
+  = hole `?fun_type` can be replaced with `fun (a : Type) -> Type`
 
 '''

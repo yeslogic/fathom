@@ -380,9 +380,14 @@ impl Message {
                 let name = interner.resolve(*name).unwrap();
 
                 Diagnostic::note()
-                    .with_message(format!("solution found for `?{}`", name))
-                    .with_labels(vec![Label::primary(file_id, *range)
-                        .with_message(format!("solution: `{}`", expr))])
+                    .with_message(format!("solution found for hole `?{}`", name))
+                    .with_labels(vec![
+                        Label::primary(file_id, *range).with_message("solution found")
+                    ])
+                    .with_notes(vec![format!(
+                        "hole `?{}` can be replaced with `{}`",
+                        name, expr,
+                    )])
             }
             Message::UnsolvedFlexibleVar { source } => {
                 let (range, source_name) = match source {
