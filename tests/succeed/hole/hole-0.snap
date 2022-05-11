@@ -2,10 +2,12 @@ stdout = '''
 fun (A : ?universe) -> A : Type
 '''
 stderr = '''
-note: solution found for `?universe`
+note: solution found for hole `?universe`
   ┌─ tests/succeed/hole/hole-0.fathom:1:10
   │
 1 │ fun (A : ?universe) -> A
-  │          ^^^^^^^^^
+  │          ^^^^^^^^^ solution found
+  │
+  = hole `?universe` can be replaced with `Type`
 
 '''

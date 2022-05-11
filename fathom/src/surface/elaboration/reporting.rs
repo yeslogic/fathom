@@ -99,9 +99,9 @@ pub enum Message {
     HoleSolution {
         range: ByteRange,
         name: StringId,
-        // TODO: add type and solution expr
+        // TODO: add type
         // type: Doc<_>,
-        // expr: Doc<_>,
+        expr: String,
     },
 }
 
@@ -375,13 +375,19 @@ impl Message {
                     },
                 }
             }
-            Message::HoleSolution { range, name } => {
+            Message::HoleSolution { range, name, expr } => {
                 let interner = interner.borrow();
                 let name = interner.resolve(*name).unwrap();
 
                 Diagnostic::note()
-                    .with_message(format!("solution found for `?{}`", name))
-                    .with_labels(vec![Label::primary(file_id, *range)])
+                    .with_message(format!("solution found for hole `?{}`", name))
+                    .with_labels(vec![
+                        Label::primary(file_id, *range).with_message("solution found")
+                    ])
+                    .with_notes(vec![format!(
+                        "hole `?{}` can be replaced with `{}`",
+                        name, expr,
+                    )])
             }
             Message::UnsolvedFlexibleVar { source } => {
                 let (range, source_name) = match source {
