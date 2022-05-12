@@ -779,6 +779,9 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
                 (Prim::FormatArray64, [Elim::FunApp(len), Elim::FunApp(elem)]) => Arc::new(
                     Value::prim(Prim::Array64Type, [len.clone(), self.format_repr(elem)]),
                 ),
+                (Prim::FormatRepeatUntilEnd, [Elim::FunApp(elem)]) => {
+                    Arc::new(Value::prim(Prim::ArrayType, [self.format_repr(elem)]))
+                }
                 (Prim::FormatLink, [Elim::FunApp(_), Elim::FunApp(elem)]) => {
                     Arc::new(Value::prim(Prim::RefType, [elem.clone()]))
                 }

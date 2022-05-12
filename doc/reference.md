@@ -24,6 +24,7 @@ elaboration, and core language is forthcoming.
   - [Overlap formats](#overlap-formats)
   - [Number formats](#number-formats)
   - [Array formats](#array-formats)
+  - [Repeat formats](#repeat-formats)
   - [Stream position formats](#stream-position-formats)
   - [Link formats](#link-formats)
   - [Deref formats](#deref-formats)
@@ -354,6 +355,23 @@ of the host [array types](#array-types).
 | `array16 len format`   | `Array16 len (Repr format)`         |
 | `array32 len format`   | `Array32 len (Repr format)`         |
 | `array64 len format`   | `Array64 len (Repr format)`         |
+
+### Repeat formats
+
+The `repeat_until_end` format repeats parsing the given format until the end of
+the current binary stream is reached:
+
+- `repeat_until_end : Format -> Format`
+
+#### Representation of repeat formats
+
+Because the repeat format does not have a predefined length, it is
+[represented](#format-representations) as a dynamically sized
+[array type](#array-types):
+
+| format                    | `Repr` format         |
+| ------------------------- | --------------------- |
+| `repeat_until_end format` | `Array (Repr format)` |
 
 ### Stream position formats
 

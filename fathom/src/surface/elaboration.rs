@@ -148,6 +148,7 @@ impl<'arena> RigidEnv<'arena> {
         env.define_prim_fun(FormatArray16, [&U16_TYPE, &FORMAT_TYPE], &FORMAT_TYPE);
         env.define_prim_fun(FormatArray32, [&U32_TYPE, &FORMAT_TYPE], &FORMAT_TYPE);
         env.define_prim_fun(FormatArray64, [&U64_TYPE, &FORMAT_TYPE], &FORMAT_TYPE);
+        env.define_prim_fun(FormatRepeatUntilEnd, [&FORMAT_TYPE], &FORMAT_TYPE);
         env.define_prim_fun(FormatLink, [&POS_TYPE, &FORMAT_TYPE], &FORMAT_TYPE);
         env.define_prim(
             FormatDeref,
