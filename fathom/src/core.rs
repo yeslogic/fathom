@@ -203,6 +203,8 @@ def_prims! {
     F64Type => "F64",
     /// Type of optional data.
     OptionType => "Option",
+    /// Type of dynamically sized arrays.
+    ArrayType => "Array",
     /// Type of arrays, with 8-bit indices.
     Array8Type => "Array8",
     /// Type of arrays, with 16-bit indices.
@@ -262,6 +264,8 @@ def_prims! {
     FormatArray32 => "array32",
     /// Array formats, with unsigned 64-bit indices.
     FormatArray64 => "array64",
+    /// Repeat a format until the length of the given parse scope is reached.
+    FormatRepeatUntilEnd => "repeat_until_end",
     /// A format which returns the current position in the input stream.
     FormatStreamPos => "stream_pos",
     /// A format that links to another location in the binary data stream,

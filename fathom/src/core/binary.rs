@@ -148,6 +148,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
             (Prim::FormatArray16, [FunApp(len), FunApp(elem_format)]) => self.read_array(reader, len, elem_format),
             (Prim::FormatArray32, [FunApp(len), FunApp(elem_format)]) => self.read_array(reader, len, elem_format),
             (Prim::FormatArray64, [FunApp(len), FunApp(elem_format)]) => self.read_array(reader, len, elem_format),
+            (Prim::FormatRepeatUntilEnd, [FunApp(elem_format)]) => self.read_repeat_until_end(reader, elem_format),
             (Prim::FormatLink, [FunApp(pos), FunApp(elem_format)]) => self.read_link(pos, elem_format),
             (Prim::FormatDeref, [FunApp(elem_format), FunApp(r#ref)]) => self.read_deref(reader, elem_format, r#ref),
             (Prim::FormatStreamPos, []) => read_stream_pos(reader),
@@ -183,7 +184,33 @@ impl<'arena, 'env> Context<'arena, 'env> {
         Ok(Arc::new(Value::ArrayLit(elem_exprs)))
     }
 
-    pub fn read_link(
+    fn read_repeat_until_end(
+        &mut self,
+        reader: &mut dyn SeekRead,
+        elem_format: &ArcValue<'arena>,
+    ) -> Result<ArcValue<'arena>, io::Error> {
+        let mut current_pos = reader.stream_position()?;
+        let mut elems = Vec::new();
+
+        loop {
+            match self.read_format(reader, elem_format) {
+                Ok(elem) => {
+                    elems.push(elem);
+                    current_pos = reader.stream_position()?;
+                }
+                Err(err) => match err.kind() {
+                    io::ErrorKind::UnexpectedEof => {
+                        // FIXME: should this be set to the end of the current stream?
+                        reader.seek(SeekFrom::Start(current_pos))?;
+                        return Ok(Arc::new(Value::ArrayLit(elems)));
+                    }
+                    _ => return Err(err),
+                },
+            };
+        }
+    }
+
+    fn read_link(
         &mut self,
         pos: &ArcValue<'arena>,
         elem_format: &ArcValue<'arena>,

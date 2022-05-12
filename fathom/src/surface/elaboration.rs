@@ -117,6 +117,7 @@ impl<'arena> RigidEnv<'arena> {
         env.define_prim(F32Type, &UNIVERSE);
         env.define_prim(F64Type, &UNIVERSE);
         env.define_prim_fun(OptionType, [&UNIVERSE], &UNIVERSE);
+        env.define_prim_fun(ArrayType, [&UNIVERSE], &UNIVERSE);
         env.define_prim_fun(Array8Type, [&U8_TYPE, &UNIVERSE], &UNIVERSE);
         env.define_prim_fun(Array16Type, [&U16_TYPE, &UNIVERSE], &UNIVERSE);
         env.define_prim_fun(Array32Type, [&U32_TYPE, &UNIVERSE], &UNIVERSE);
@@ -147,6 +148,7 @@ impl<'arena> RigidEnv<'arena> {
         env.define_prim_fun(FormatArray16, [&U16_TYPE, &FORMAT_TYPE], &FORMAT_TYPE);
         env.define_prim_fun(FormatArray32, [&U32_TYPE, &FORMAT_TYPE], &FORMAT_TYPE);
         env.define_prim_fun(FormatArray64, [&U64_TYPE, &FORMAT_TYPE], &FORMAT_TYPE);
+        env.define_prim_fun(FormatRepeatUntilEnd, [&FORMAT_TYPE], &FORMAT_TYPE);
         env.define_prim_fun(FormatLink, [&POS_TYPE, &FORMAT_TYPE], &FORMAT_TYPE);
         env.define_prim(
             FormatDeref,
@@ -1265,13 +1267,14 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 core::Term::FormatRecord(&[], &[])
             }
             (Term::ArrayLiteral(range, elem_exprs), _) => {
-                use crate::core::semantics::Elim::FunApp;
+                use crate::core::semantics::Elim::FunApp as App;
 
                 let (len_value, elem_type) = match expected_type.match_prim_spine() {
-                    Some((Prim::Array8Type, [FunApp(len), FunApp(elem_type)])) => (len, elem_type),
-                    Some((Prim::Array16Type, [FunApp(len), FunApp(elem_type)])) => (len, elem_type),
-                    Some((Prim::Array32Type, [FunApp(len), FunApp(elem_type)])) => (len, elem_type),
-                    Some((Prim::Array64Type, [FunApp(len), FunApp(elem_type)])) => (len, elem_type),
+                    Some((Prim::ArrayType, [App(elem_type)])) => (None, elem_type),
+                    Some((Prim::Array8Type, [App(len), App(elem_type)])) => (Some(len), elem_type),
+                    Some((Prim::Array16Type, [App(len), App(elem_type)])) => (Some(len), elem_type),
+                    Some((Prim::Array32Type, [App(len), App(elem_type)])) => (Some(len), elem_type),
+                    Some((Prim::Array64Type, [App(len), App(elem_type)])) => (Some(len), elem_type),
                     Some((Prim::ReportedError, _)) => return core::Term::Prim(Prim::ReportedError),
                     _ => {
                         let expected_type = self.pretty_print_value(&expected_type);
@@ -1283,12 +1286,13 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                     }
                 };
 
-                let len = match len_value.as_ref() {
-                    Value::ConstLit(Const::U8(len, _)) => Some(*len as u64),
-                    Value::ConstLit(Const::U16(len, _)) => Some(*len as u64),
-                    Value::ConstLit(Const::U32(len, _)) => Some(*len as u64),
-                    Value::ConstLit(Const::U64(len, _)) => Some(*len as u64),
-                    Value::Stuck(Head::Prim(Prim::ReportedError), _) => {
+                let len = match len_value.map(<_>::as_ref) {
+                    None => Some(elem_exprs.len() as u64),
+                    Some(Value::ConstLit(Const::U8(len, _))) => Some(*len as u64),
+                    Some(Value::ConstLit(Const::U16(len, _))) => Some(*len as u64),
+                    Some(Value::ConstLit(Const::U32(len, _))) => Some(*len as u64),
+                    Some(Value::ConstLit(Const::U64(len, _))) => Some(*len as u64),
+                    Some(Value::Stuck(Head::Prim(Prim::ReportedError), _)) => {
                         return core::Term::Prim(Prim::ReportedError);
                     }
                     _ => None,
@@ -1307,14 +1311,14 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                             self.check(elem_expr, elem_type);
                         }
 
-                        let expected_len = self.pretty_print_value(len_value);
+                        let expected_len = self.pretty_print_value(len_value.unwrap());
                         self.push_message(Message::MismatchedArrayLength {
                             range: *range,
                             found_len: elem_exprs.len(),
                             expected_len,
                         });
 
-                        return core::Term::Prim(Prim::ReportedError);
+                        core::Term::Prim(Prim::ReportedError)
                     }
                 }
             }

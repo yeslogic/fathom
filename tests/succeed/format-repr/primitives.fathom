@@ -22,6 +22,8 @@ let test_array16 : fun n -> fun f -> Repr (array16 n f) -> Array16 n (Repr f) = 
 let test_array32 : fun n -> fun f -> Repr (array32 n f) -> Array32 n (Repr f) = fun _ => fun _ => fun x => x;
 let test_array64 : fun n -> fun f -> Repr (array64 n f) -> Array64 n (Repr f) = fun _ => fun _ => fun x => x;
 
+let test_repeat_until_end : fun f -> Repr (repeat_until_end f) -> Array (Repr f) = fun _ => fun x => x;
+
 let test_link : fun pos -> fun f -> Repr (link pos f) -> Ref f = fun _ => fun _ => fun x => x;
 let test_deref : fun f -> fun ref -> Repr (deref f ref) -> Repr f = fun _ => fun _ => fun x => x;
 let test_stream_pos : Repr stream_pos -> Pos = fun x => x;

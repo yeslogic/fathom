@@ -57,7 +57,7 @@ let main = {
     header <- header,
     screen <- logical_screen_descriptor,
     // global_color_table <- global_color_table screen.color_table_size,    // TODO: if `screen.has_color_table,`
-    // blocks <- array 0 block,                                             // TODO: while not EOF or BlockTerminator
+    // blocks <- array 0 block,                                             // TODO: repeat while not EOF or BlockTerminator
 };
 
 main

@@ -24,6 +24,7 @@ elaboration, and core language is forthcoming.
   - [Overlap formats](#overlap-formats)
   - [Number formats](#number-formats)
   - [Array formats](#array-formats)
+  - [Repeat formats](#repeat-formats)
   - [Stream position formats](#stream-position-formats)
   - [Link formats](#link-formats)
   - [Deref formats](#deref-formats)
@@ -346,7 +347,7 @@ There are four array formats, corresponding to the four [array types](#arrays):
 
 The [representation](#format-representations) of the array formats preserve the
 lengths, and use the representation of the element formats as the element types
-of the host array types.
+of the host [array types](#array-types).
 
 | format                 | `Repr` format                       |
 | ---------------------- | ----------------------------------- |
@@ -354,6 +355,23 @@ of the host array types.
 | `array16 len format`   | `Array16 len (Repr format)`         |
 | `array32 len format`   | `Array32 len (Repr format)`         |
 | `array64 len format`   | `Array64 len (Repr format)`         |
+
+### Repeat formats
+
+The `repeat_until_end` format repeats parsing the given format until the end of
+the current binary stream is reached:
+
+- `repeat_until_end : Format -> Format`
+
+#### Representation of repeat formats
+
+Because the repeat format does not have a predefined length, it is
+[represented](#format-representations) as a dynamically sized
+[array type](#array-types):
+
+| format                    | `Repr` format         |
+| ------------------------- | --------------------- |
+| `repeat_until_end format` | `Array (Repr format)` |
 
 ### Stream position formats
 
@@ -772,7 +790,11 @@ Arrays are sequences of elements up to a given length.
 
 ### Array types
 
-Array types are formed with the following primitives:
+Arrays with dynamic lengths are formed with the following primitive:
+
+- `Array : Type -> Type`
+
+Fixed-length array types are formed with the following primitives:
 
 - `Array8 : U8 -> Type -> Type`
 - `Array16 : U16 -> Type -> Type`
@@ -791,9 +813,13 @@ Arrays can be constructed as sequences of terms within square
 brackets. For example:
 
 ```fathom
+[1, 2, 3] : Array S16
 [] : Array32 0 S32
 [3, 32, -6] : Array8 3 S32
 ```
+
+The number of terms in an array literal must match the length parameter of a
+fixed-length array type.
 
 ### Array operations
 

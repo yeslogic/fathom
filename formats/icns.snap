@@ -5,7 +5,7 @@ let icon_data : _ = {
     icon_data_length <- u32be,
     data <- array8 0 u8,
 };
-let main : _ = { header <- header, icons <- array8 0 icon_data };
+let main : _ = { header <- header, icons <- repeat_until_end icon_data };
 main : Format
 '''
 stderr = ''
