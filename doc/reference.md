@@ -21,6 +21,7 @@ elaboration, and core language is forthcoming.
   - [Format types](#format-types)
   - [Format representations](#format-representations)
   - [Record formats](#record-formats)
+  - [Conditional formats](#conditional-formats)
   - [Overlap formats](#overlap-formats)
   - [Number formats](#number-formats)
   - [Array formats](#array-formats)
@@ -271,6 +272,29 @@ Some examples are as follows:
 | `{}`                                       | `{}`                                   |
 | `{ x <- f32le, y <- f32le }`               | `{ x : F32, y : F32 }`                 |
 | `{ len <- u16be, data <- array16 len s8 }` | `{ len : U16, data : Array16 len S8 }` |
+
+### Conditional formats
+
+Conditional formats are formats with an associated condition predicate. The format
+will only succeed if the condition is `true`. This can be used to verify magic numbers
+or version expectations. E.g.
+
+```fathom
+{ magic <- { magic <- u64le | u64_eq magic 0x00ffffffffffff00 } }
+```
+
+```fathom
+{ major_version <- { version <- u16be | u16_lte version 2 } }
+```
+
+#### Representation of conditional formats
+
+The [representation](#format-representations) of a conditional format is the same
+as the representation of the format guarded by the predicate. I.e.
+
+| format                    | `Repr` format        |
+| ------------------------- | -------------------- |
+| `{ x <- format \| cond }` | `Repr format`        |
 
 ### Overlap formats
 
