@@ -1,17 +1,182 @@
 //! Binary semantics of the data description language
 
 use std::collections::HashMap;
-use std::io::{self, Read, Seek, SeekFrom};
+use std::convert::TryFrom;
+use std::slice::SliceIndex;
 use std::sync::Arc;
 
 use crate::core::semantics::{self, ArcValue, Elim, Head, Value};
 use crate::core::{Const, Prim, UIntStyle};
 use crate::env::{EnvLen, SliceEnv};
 
+#[derive(Clone, Debug)]
+pub enum ReadError {
+    InvalidFormat,
+    InvalidValue,
+    UnwrappedNone,
+    ReadFailFormat,
+    CondFailure,
+    SetOffsetOutsideBuffer,
+    UnexpectedEndOfBuffer,
+    PositionOverflow,
+}
+
+/// A buffer that starts at an offset into a larger buffer.
+///
+/// ```text
+///  ┌─────────────────────────┬─────────────────────────────────────────────────────────────────────┐
+///  │                         │                                data                                 │
+///  │                         ├─────┬─────┬─────┬─────┬─────┬─────┬─────┬─────┬ ─ ─ ─ ─ ─ ─ ─ ┬─────┤
+///  │                         │  ?  │  ?  │  ?  │  ?  │  ?  │  ?  │  ?  │  ?  │               │  ?  |
+///  └─────────────────────────┴─────┴─────┴─────┴─────┴─────┴─────┴─────┴─────┴ ─ ─ ─ ─ ─ ─ ─ ┴─────┘
+///  0           ...           n    n+1   n+2   n+3   n+4   n+5   n+6   n+7   n+8     ...    n+m-1  n+m
+/// -n           ...           0     1     2     3     4     5     6     7     8      ...      m-1   m
+///  │                         │                                                                     │
+///  └─ Buffer::start_offset ─►└─────────────────────── Buffer::remaining_len ──────────────────────►│
+///  │                         │                                   │                                 │
+///  │                         └── BufferReader::relative_offset ─►│                                 │
+///  │                                                             │                                 │
+///  └───────────────────── BufferReader::offset ─────────────────►└── BufferReader::remaining_len ─►│
+/// ```
+#[derive(Copy, Clone)]
+pub struct Buffer<'data> {
+    /// Offset from the starting position.
+    start_offset: usize,
+    /// A slice of data, starting from an offset from the start of a larger buffer.
+    data: &'data [u8],
+}
+
+impl<'data> Buffer<'data> {
+    /// Create a new buffer at an offset into a base buffer.
+    pub fn new(start_offset: usize, data: &'data [u8]) -> Buffer<'data> {
+        Buffer { start_offset, data }
+    }
+
+    /// The offset from the start of the base buffer.
+    pub fn start_offset(&self) -> usize {
+        self.start_offset
+    }
+
+    /// Total length of the buffer, including the base buffer.
+    pub fn len(&self) -> Result<usize, ReadError> {
+        usize::checked_add(self.start_offset, self.data.len()).ok_or(ReadError::PositionOverflow)
+    }
+
+    /// Remaining number of bytes in the buffer.
+    pub fn remaining_len(&self) -> usize {
+        self.data.len()
+    }
+
+    /// Get a slice of the bytes in the buffer, relative to the start of the buffer.
+    fn get_relative<I: SliceIndex<[u8]>>(&self, index: I) -> Result<&'data I::Output, ReadError> {
+        self.data.get(index).ok_or(ReadError::UnexpectedEndOfBuffer)
+    }
+
+    /// Create a reader at the start of the buffer.
+    pub fn reader(&self) -> BufferReader<'data> {
+        BufferReader::from(*self)
+    }
+
+    /// Create a reader at an offset measured from the start of the base buffer.
+    pub fn reader_with_offset(&self, offset: usize) -> Result<BufferReader<'data>, ReadError> {
+        let mut reader = self.reader();
+        reader.set_offset(offset)?;
+        Ok(reader)
+    }
+}
+
+impl<'data> From<&'data [u8]> for Buffer<'data> {
+    fn from(data: &'data [u8]) -> Buffer<'data> {
+        Buffer {
+            start_offset: 0,
+            data,
+        }
+    }
+}
+
+/// Stateful reader with a backing buffer.
+#[derive(Clone)]
+pub struct BufferReader<'data> {
+    /// Offset relative to the start of the buffer.
+    // Invariant: self.relative_offset <= self.buffer.remaining_len()
+    relative_offset: usize,
+    /// Backing buffer.
+    buffer: Buffer<'data>,
+}
+
+impl<'data> BufferReader<'data> {
+    /// Return the underlying buffer.
+    pub fn buffer(&self) -> &Buffer<'data> {
+        &self.buffer
+    }
+
+    /// The offset from the start of the underlying buffer.
+    pub fn relative_offset(&self) -> usize {
+        self.relative_offset
+    }
+
+    /// The offset from the start position.
+    pub fn offset(&self) -> Result<usize, ReadError> {
+        usize::checked_add(self.buffer.start_offset, self.relative_offset)
+            .ok_or(ReadError::PositionOverflow)
+    }
+
+    /// Remaining number of bytes from the current position to the end of the buffer.
+    pub fn remaining_len(&self) -> usize {
+        self.buffer.remaining_len() - self.relative_offset
+    }
+
+    /// Set the offset of the reader relative to the start of the backing buffer.
+    pub fn set_relative_offset(&mut self, relative_offset: usize) -> Result<(), ReadError> {
+        (relative_offset <= self.buffer.remaining_len())
+            .then(|| self.relative_offset = relative_offset)
+            .ok_or(ReadError::SetOffsetOutsideBuffer)
+    }
+
+    /// Set the offset of the reader relative to the start position.
+    pub fn set_offset(&mut self, offset: usize) -> Result<(), ReadError> {
+        match usize::checked_sub(offset, self.buffer.start_offset) {
+            Some(relative_offset) => self.set_relative_offset(relative_offset),
+            None => Err(ReadError::SetOffsetOutsideBuffer),
+        }
+    }
+
+    /// Get a slice of the bytes in the buffer, relative to the current offset in the buffer.
+    fn get_relative<I: SliceIndex<[u8]>>(&self, index: I) -> Result<&'data I::Output, ReadError> {
+        let data = self.buffer.get_relative(self.relative_offset..)?;
+        data.get(index).ok_or(ReadError::UnexpectedEndOfBuffer)
+    }
+
+    /// Read a byte and advance the reader.
+    pub fn read_byte(&mut self) -> Result<u8, ReadError> {
+        let first = self.buffer.get_relative(self.relative_offset)?;
+        self.relative_offset += 1;
+        Ok(*first)
+    }
+
+    /// Read an array of bytes and advance the offset into the buffer.
+    pub fn read_byte_array<const N: usize>(&mut self) -> Result<&'data [u8; N], ReadError> {
+        let slice = self.get_relative(..N)?;
+        // SAFETY: slice points to [u8; N]? Yes it's [u8] of length N (checked by BufferReader::get_relative)
+        let array = unsafe { &*(slice.as_ptr() as *const [u8; N]) };
+        self.relative_offset += N;
+        Ok(array)
+    }
+}
+
+impl<'data> From<Buffer<'data>> for BufferReader<'data> {
+    fn from(buffer: Buffer<'data>) -> BufferReader<'data> {
+        BufferReader {
+            relative_offset: 0,
+            buffer,
+        }
+    }
+}
+
 pub struct Context<'arena, 'env> {
     flexible_exprs: &'env SliceEnv<Option<ArcValue<'arena>>>,
-    pending_formats: Vec<(u64, ArcValue<'arena>)>,
-    cached_refs: HashMap<u64, Vec<ParsedRef<'arena>>>,
+    pending_formats: Vec<(usize, ArcValue<'arena>)>,
+    cached_refs: HashMap<usize, Vec<ParsedRef<'arena>>>,
 }
 
 pub struct ParsedRef<'arena> {
@@ -40,27 +205,26 @@ impl<'arena, 'env> Context<'arena, 'env> {
         semantics::ConversionContext::new(EnvLen::new(), self.flexible_exprs)
     }
 
-    // TODO: allow refs to be streamed
-    pub fn read_entrypoint(
+    pub fn read_entrypoint<'data>(
         mut self,
-        reader: &mut dyn SeekRead,
+        buffer: Buffer<'data>,
         format: ArcValue<'arena>,
-    ) -> io::Result<HashMap<u64, Vec<ParsedRef<'arena>>>> {
-        // Parse the entrypoint from the beginning start of the binary data
-        self.pending_formats.push((0, format));
+    ) -> Result<HashMap<usize, Vec<ParsedRef<'arena>>>, ReadError> {
+        // Parse the entrypoint from the start of the binary data
+        self.pending_formats.push((buffer.start_offset(), format));
 
         while let Some((pos, format)) = self.pending_formats.pop() {
-            self.read_cached_ref(reader, pos, &format)?;
+            self.lookup_or_read_ref(&buffer, pos, &format)?;
         }
 
         Ok(self.cached_refs)
     }
 
-    fn read_format(
+    fn read_format<'data>(
         &mut self,
-        reader: &mut dyn SeekRead,
+        reader: &mut BufferReader<'data>,
         format: &ArcValue<'arena>,
-    ) -> io::Result<ArcValue<'arena>> {
+    ) -> Result<ArcValue<'arena>, ReadError> {
         match self.elim_context().force(format).as_ref() {
             Value::Stuck(Head::Prim(prim), slice) => self.read_prim(reader, *prim, slice),
             Value::FormatRecord(labels, formats) => {
@@ -85,17 +249,16 @@ impl<'arena, 'env> Context<'arena, 'env> {
                     Value::ConstLit(Const::Bool(true)) => Ok(value),
                     Value::ConstLit(Const::Bool(false)) => {
                         // TODO: better user experience for this case
-                        Err(io::Error::new(io::ErrorKind::Other, "cond failed"))
+                        Err(ReadError::CondFailure)
                     }
                     _ => {
                         // This shouldn't happen since we check that the cond type is Bool earlier
-                        Err(io::Error::new(io::ErrorKind::Other, "expected bool"))
+                        Err(ReadError::InvalidValue)
                     }
                 }
             }
             Value::FormatOverlap(labels, formats) => {
-                let initial_pos = reader.stream_position()?;
-                let mut max_pos = initial_pos;
+                let mut max_relative_offset = reader.relative_offset();
 
                 let mut formats = formats.clone();
                 let mut exprs = Vec::with_capacity(formats.len());
@@ -103,19 +266,18 @@ impl<'arena, 'env> Context<'arena, 'env> {
                 while let Some((format, next_formats)) =
                     self.elim_context().split_telescope(formats)
                 {
-                    // Reset the stream to the start
-                    reader.seek(SeekFrom::Start(initial_pos))?;
+                    let mut reader = reader.clone();
 
-                    let expr = self.read_format(reader, &format)?;
+                    let expr = self.read_format(&mut reader, &format)?;
                     exprs.push(expr.clone());
                     formats = next_formats(expr);
 
-                    // Update the max position
-                    max_pos = std::cmp::max(max_pos, reader.stream_position()?);
+                    max_relative_offset =
+                        std::cmp::max(max_relative_offset, reader.relative_offset());
                 }
 
                 // Seek to the maximum stream length
-                reader.seek(SeekFrom::Start(max_pos))?;
+                reader.set_relative_offset(max_relative_offset)?;
 
                 Ok(Arc::new(Value::RecordLit(labels, exprs)))
             }
@@ -128,69 +290,69 @@ impl<'arena, 'env> Context<'arena, 'env> {
             | Value::RecordType(_, _)
             | Value::RecordLit(_, _)
             | Value::ArrayLit(_)
-            | Value::ConstLit(_) => Err(io::Error::new(io::ErrorKind::Other, "invalid format")),
+            | Value::ConstLit(_) => Err(ReadError::InvalidFormat),
         }
     }
 
     #[rustfmt::skip]
-    fn read_prim(
+    fn read_prim<'data>(
         &mut self,
-        reader: &mut dyn SeekRead,
+        reader: &mut BufferReader<'data>,
         prim: Prim,
         slice: &[Elim<'arena>],
-    ) -> io::Result<ArcValue<'arena>> {
+    ) -> Result<ArcValue<'arena>, ReadError> {
         use crate::core::semantics::Elim::FunApp;
 
         match (prim, &slice[..]) {
-            (Prim::FormatU8, []) => read_const(reader, |num| Const::U8(num, UIntStyle::Decimal), read_u8),
-            (Prim::FormatU16Be, []) => read_const(reader, |num| Const::U16(num, UIntStyle::Decimal), read_u16be),
-            (Prim::FormatU16Le, []) => read_const(reader, |num| Const::U16(num, UIntStyle::Decimal), read_u16le),
-            (Prim::FormatU32Be, []) => read_const(reader, |num| Const::U32(num, UIntStyle::Decimal), read_u32be),
-            (Prim::FormatU32Le, []) => read_const(reader, |num| Const::U32(num, UIntStyle::Decimal), read_u32le),
-            (Prim::FormatU64Be, []) => read_const(reader, |num| Const::U64(num, UIntStyle::Decimal), read_u64be),
-            (Prim::FormatU64Le, []) => read_const(reader, |num| Const::U64(num, UIntStyle::Decimal), read_u64le),
-            (Prim::FormatS8, []) => read_const(reader, Const::S8, read_s8),
-            (Prim::FormatS16Be, []) => read_const(reader, Const::S16, read_s16be),
-            (Prim::FormatS16Le, []) => read_const(reader, Const::S16, read_s16le),
-            (Prim::FormatS32Be, []) => read_const(reader, Const::S32, read_s32be),
-            (Prim::FormatS32Le, []) => read_const(reader, Const::S32, read_s32le),
-            (Prim::FormatS64Be, []) => read_const(reader, Const::S64, read_s64be),
-            (Prim::FormatS64Le, []) => read_const(reader, Const::S64, read_s64le),
-            (Prim::FormatF32Be, []) => read_const(reader, Const::F32, read_f32be),
-            (Prim::FormatF32Le, []) => read_const(reader, Const::F32, read_f32le),
-            (Prim::FormatF64Be, []) => read_const(reader, Const::F64, read_f64be),
-            (Prim::FormatF64Le, []) => read_const(reader, Const::F64, read_f64le),
-            (Prim::FormatArray8, [FunApp(len), FunApp(elem_format)]) => self.read_array(reader, len, elem_format),
-            (Prim::FormatArray16, [FunApp(len), FunApp(elem_format)]) => self.read_array(reader, len, elem_format),
-            (Prim::FormatArray32, [FunApp(len), FunApp(elem_format)]) => self.read_array(reader, len, elem_format),
-            (Prim::FormatArray64, [FunApp(len), FunApp(elem_format)]) => self.read_array(reader, len, elem_format),
-            (Prim::FormatRepeatUntilEnd, [FunApp(elem_format)]) => self.read_repeat_until_end(reader, elem_format),
-            (Prim::FormatLink, [FunApp(pos), FunApp(elem_format)]) => self.read_link(pos, elem_format),
-            (Prim::FormatDeref, [FunApp(elem_format), FunApp(r#ref)]) => self.read_deref(reader, elem_format, r#ref),
+            (Prim::FormatU8, []) => read_const(reader, read_u8, |num| Const::U8(num, UIntStyle::Decimal)),
+            (Prim::FormatU16Be, []) => read_const(reader, read_u16be, |num| Const::U16(num, UIntStyle::Decimal)),
+            (Prim::FormatU16Le, []) => read_const(reader, read_u16le, |num| Const::U16(num, UIntStyle::Decimal)),
+            (Prim::FormatU32Be, []) => read_const(reader, read_u32be, |num| Const::U32(num, UIntStyle::Decimal)),
+            (Prim::FormatU32Le, []) => read_const(reader, read_u32le, |num| Const::U32(num, UIntStyle::Decimal)),
+            (Prim::FormatU64Be, []) => read_const(reader, read_u64be, |num| Const::U64(num, UIntStyle::Decimal)),
+            (Prim::FormatU64Le, []) => read_const(reader, read_u64le, |num| Const::U64(num, UIntStyle::Decimal)),
+            (Prim::FormatS8, []) => read_const(reader, read_s8, Const::S8),
+            (Prim::FormatS16Be, []) => read_const(reader, read_s16be, Const::S16),
+            (Prim::FormatS16Le, []) => read_const(reader, read_s16le, Const::S16),
+            (Prim::FormatS32Be, []) => read_const(reader, read_s32be, Const::S32),
+            (Prim::FormatS32Le, []) => read_const(reader, read_s32le, Const::S32),
+            (Prim::FormatS64Be, []) => read_const(reader, read_s64be, Const::S64),
+            (Prim::FormatS64Le, []) => read_const(reader, read_s64le, Const::S64),
+            (Prim::FormatF32Be, []) => read_const(reader, read_f32be, Const::F32),
+            (Prim::FormatF32Le, []) => read_const(reader, read_f32le, Const::F32),
+            (Prim::FormatF64Be, []) => read_const(reader, read_f64be, Const::F64),
+            (Prim::FormatF64Le, []) => read_const(reader, read_f64le, Const::F64),
+            (Prim::FormatArray8, [FunApp(len), FunApp(format)]) => self.read_array(reader, len, format),
+            (Prim::FormatArray16, [FunApp(len), FunApp(format)]) => self.read_array(reader, len, format),
+            (Prim::FormatArray32, [FunApp(len), FunApp(format)]) => self.read_array(reader, len, format),
+            (Prim::FormatArray64, [FunApp(len), FunApp(format)]) => self.read_array(reader, len, format),
+            (Prim::FormatRepeatUntilEnd, [FunApp(format)]) => self.read_repeat_until_end(reader, format),
+            (Prim::FormatLink, [FunApp(pos), FunApp(format)]) => self.read_link(pos, format),
+            (Prim::FormatDeref, [FunApp(format), FunApp(r#ref)]) => self.read_deref(reader, format, r#ref),
             (Prim::FormatStreamPos, []) => read_stream_pos(reader),
             (Prim::FormatSucceed, [_, FunApp(elem)]) => Ok(elem.clone()),
-            (Prim::FormatFail, []) => Err(io::Error::new(io::ErrorKind::Other, "parse failure")),
+            (Prim::FormatFail, []) => Err(ReadError::ReadFailFormat),
             (Prim::FormatUnwrap, [_, FunApp(option)]) => match option.match_prim_spine() {
                 Some((Prim::OptionSome, [FunApp(elem)])) => Ok(elem.clone()),
-                Some((Prim::OptionNone, [])) => Err(io::Error::new(io::ErrorKind::Other, "unwrapped none")),
-                _ => Err(io::Error::new(io::ErrorKind::Other, "invalid option")),
+                Some((Prim::OptionNone, [])) => Err(ReadError::UnwrappedNone),
+                _ => Err(ReadError::InvalidValue),
             },
-            _ => Err(io::Error::new(io::ErrorKind::Other, "invalid format")),
+            _ => Err(ReadError::InvalidFormat),
         }
     }
 
-    fn read_array(
+    fn read_array<'data>(
         &mut self,
-        reader: &mut dyn SeekRead,
+        reader: &mut BufferReader<'data>,
         len: &ArcValue<'arena>,
         elem_format: &ArcValue<'arena>,
-    ) -> io::Result<ArcValue<'arena>> {
+    ) -> Result<ArcValue<'arena>, ReadError> {
         let len = match self.elim_context().force(len).as_ref() {
-            Value::ConstLit(Const::U8(len, _)) => *len as u64,
-            Value::ConstLit(Const::U16(len, _)) => *len as u64,
-            Value::ConstLit(Const::U32(len, _)) => *len as u64,
-            Value::ConstLit(Const::U64(len, _)) => *len as u64,
-            _ => return Err(io::Error::new(io::ErrorKind::Other, "invalid array length")),
+            Value::ConstLit(Const::U8(len, _)) => u64::from(*len),
+            Value::ConstLit(Const::U16(len, _)) => u64::from(*len),
+            Value::ConstLit(Const::U32(len, _)) => u64::from(*len),
+            Value::ConstLit(Const::U64(len, _)) => u64::from(*len),
+            _ => return Err(ReadError::InvalidValue),
         };
 
         let elem_exprs = (0..len)
@@ -200,40 +362,38 @@ impl<'arena, 'env> Context<'arena, 'env> {
         Ok(Arc::new(Value::ArrayLit(elem_exprs)))
     }
 
-    fn read_repeat_until_end(
+    fn read_repeat_until_end<'data>(
         &mut self,
-        reader: &mut dyn SeekRead,
+        reader: &mut BufferReader<'data>,
         elem_format: &ArcValue<'arena>,
-    ) -> Result<ArcValue<'arena>, io::Error> {
-        let mut current_pos = reader.stream_position()?;
+    ) -> Result<ArcValue<'arena>, ReadError> {
+        let mut current_offset = reader.relative_offset();
         let mut elems = Vec::new();
 
         loop {
             match self.read_format(reader, elem_format) {
                 Ok(elem) => {
                     elems.push(elem);
-                    current_pos = reader.stream_position()?;
+                    current_offset = reader.relative_offset();
                 }
-                Err(err) => match err.kind() {
-                    io::ErrorKind::UnexpectedEof => {
-                        // FIXME: should this be set to the end of the current stream?
-                        reader.seek(SeekFrom::Start(current_pos))?;
-                        return Ok(Arc::new(Value::ArrayLit(elems)));
-                    }
-                    _ => return Err(err),
-                },
+                Err(ReadError::UnexpectedEndOfBuffer) => {
+                    // Should this be set to the end of the current buffer?
+                    reader.set_relative_offset(current_offset)?;
+                    return Ok(Arc::new(Value::ArrayLit(elems)));
+                }
+                Err(err) => return Err(err),
             };
         }
     }
 
-    fn read_link(
+    fn read_link<'data>(
         &mut self,
         pos: &ArcValue<'arena>,
         elem_format: &ArcValue<'arena>,
-    ) -> io::Result<ArcValue<'arena>> {
+    ) -> Result<ArcValue<'arena>, ReadError> {
         let pos = match self.elim_context().force(pos).as_ref() {
             Value::ConstLit(Const::Pos(pos)) => *pos,
-            _ => return Err(io::Error::new(io::ErrorKind::Other, "invalid link pos")),
+            _ => return Err(ReadError::InvalidValue),
         };
 
         self.pending_formats.push((pos, elem_format.clone()));
@@ -241,28 +401,23 @@ impl<'arena, 'env> Context<'arena, 'env> {
         Ok(Arc::new(Value::ConstLit(Const::Ref(pos))))
     }
 
-    fn read_deref(
+    fn read_deref<'data>(
         &mut self,
-        reader: &mut dyn SeekRead,
+        reader: &mut BufferReader<'data>,
         format: &ArcValue<'arena>,
         r#ref: &ArcValue<'arena>,
-    ) -> io::Result<ArcValue<'arena>> {
+    ) -> Result<ArcValue<'arena>, ReadError> {
         let pos = match self.elim_context().force(r#ref).as_ref() {
             Value::ConstLit(Const::Ref(pos)) => *pos,
-            _ => {
-                return Err(io::Error::new(
-                    io::ErrorKind::Other,
-                    "invalid format reference",
-                ))
-            }
+            _ => return Err(ReadError::InvalidValue),
         };
 
-        self.read_cached_ref(reader, pos, format)
+        self.lookup_or_read_ref(reader.buffer(), pos, format)
     }
 
-    fn lookup_cached_ref<'context>(
+    fn lookup_ref<'context>(
         &'context self,
-        pos: u64,
+        pos: usize,
         format: &ArcValue<'_>,
     ) -> Option<&'context ParsedRef<'arena>> {
         // NOTE: The number of calls to `semantics::ConversionContext::is_equal`
@@ -275,30 +430,25 @@ impl<'arena, 'env> Context<'arena, 'env> {
             .find(|r| self.conversion_context().is_equal(&r.format, &format))
     }
 
-    fn read_cached_ref(
+    fn lookup_or_read_ref<'data>(
         &mut self,
-        reader: &mut dyn SeekRead,
-        pos: u64,
+        buffer: &Buffer<'data>,
+        pos: usize,
         format: &ArcValue<'arena>,
-    ) -> io::Result<ArcValue<'arena>> {
-        if let Some(parsed_ref) = self.lookup_cached_ref(pos, &format) {
+    ) -> Result<ArcValue<'arena>, ReadError> {
+        if let Some(parsed_ref) = self.lookup_ref(pos, &format) {
             return Ok(parsed_ref.expr.clone());
         }
 
-        let initial_pos = reader.stream_position()?;
-
-        // Seek to current current ref location
-        reader.seek(SeekFrom::Start(pos))?;
-        // Parse the data at that location
-        let expr = self.read_format(reader, &format)?;
-        // Reset reader back to the original position
-        reader.seek(SeekFrom::Start(initial_pos))?;
+        // Read the data at the ref location
+        let mut reader = buffer.reader_with_offset(pos)?;
+        let expr = self.read_format(&mut reader, &format)?;
 
         // We might have parsed the current reference during the above call to
         // `read_format`. It's unclear if this could ever happen in practice,
         // especially without succumbing to non-termination, but we'll panic
         // here just in case.
-        if let Some(_) = self.lookup_cached_ref(pos, &format) {
+        if let Some(_) = self.lookup_ref(pos, &format) {
             panic!("recursion found when storing cached reference {}", pos);
         }
 
@@ -315,46 +465,34 @@ impl<'arena, 'env> Context<'arena, 'env> {
     }
 }
 
-pub trait SeekRead: Seek + Read {}
-
-impl<T: Seek + Read> SeekRead for T {}
-
-fn read_stream_pos<'arena>(reader: &mut dyn SeekRead) -> io::Result<ArcValue<'arena>> {
-    let pos = reader.stream_position()?;
-    Ok(Arc::new(Value::ConstLit(Const::Pos(pos))))
+fn read_stream_pos<'arena, 'data>(
+    reader: &mut BufferReader<'data>,
+) -> Result<ArcValue<'arena>, ReadError> {
+    Ok(Arc::new(Value::ConstLit(Const::Pos(reader.offset()?))))
 }
 
-fn read_const<'arena, T>(
-    reader: &mut dyn SeekRead,
+fn read_const<'arena, 'data, T>(
+    reader: &mut BufferReader<'data>,
+    read: fn(&mut BufferReader<'data>) -> Result<T, ReadError>,
     wrap_const: fn(T) -> Const,
-    read: fn(&mut dyn SeekRead) -> io::Result<T>,
-) -> io::Result<ArcValue<'arena>> {
+) -> Result<ArcValue<'arena>, ReadError> {
     let data = read(reader)?;
     Ok(Arc::new(Value::ConstLit(wrap_const(data))))
 }
 
-fn read_u8(reader: &mut dyn SeekRead) -> io::Result<u8> {
-    let [byte] = read_array(reader)?;
-    Ok(byte)
+fn read_u8<'data>(reader: &mut BufferReader<'data>) -> Result<u8, ReadError> {
+    reader.read_byte()
 }
 
-fn read_s8(reader: &mut dyn SeekRead) -> io::Result<i8> {
-    let [byte] = read_array(reader)?;
-    Ok(byte as i8)
-}
-
-fn read_array<const N: usize>(reader: &mut dyn SeekRead) -> io::Result<[u8; N]> {
-    let mut buf = [0; N];
-    reader.read_exact(&mut buf)?;
-    Ok(buf)
+fn read_s8<'data>(reader: &mut BufferReader<'data>) -> Result<i8, ReadError> {
+    reader.read_byte().map(|b| b as i8)
 }
 
 /// Generates a function that reads a multi-byte primitive.
 macro_rules! read_multibyte_prim {
     ($read_multibyte_prim:ident, $from_bytes:ident, $T:ident) => {
-        fn $read_multibyte_prim(reader: &mut dyn SeekRead) -> io::Result<$T> {
-            let data = read_array(reader)?;
-            Ok($T::$from_bytes(data))
+        fn $read_multibyte_prim<'data>(reader: &mut BufferReader<'data>) -> Result<$T, ReadError> {
+            Ok($T::$from_bytes(*reader.read_byte_array()?))
         }
     };
 }

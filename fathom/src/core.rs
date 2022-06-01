@@ -458,8 +458,8 @@ pub enum Const {
     // TODO: use logical equality for floating point numbers
     F32(f32),
     F64(f64),
-    Pos(u64),
-    Ref(u64),
+    Pos(usize),
+    Ref(usize),
 }
 
 impl PartialEq for Const {

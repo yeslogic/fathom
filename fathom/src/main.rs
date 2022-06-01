@@ -1,5 +1,4 @@
 use clap::Parser;
-use std::io::BufReader;
 use std::path::PathBuf;
 
 /// CLI for the programming language prototype.
@@ -153,6 +152,8 @@ fn main() -> ! {
             allow_errors,
             binary_path,
         } => {
+            use std::io::Read;
+
             let mut driver = fathom::Driver::new();
             driver.install_panic_hook();
             driver.set_allow_errors(allow_errors);
@@ -163,8 +164,13 @@ fn main() -> ! {
                 Input::File(path) => driver.read_source_path(&path),
             };
 
-            let mut reader = BufReader::new(std::fs::File::open(binary_path).unwrap()); // TODO: report errors
-            let status = driver.read_format(file_id, &mut reader);
+            // TODO: report errors
+            let mut file = std::fs::File::open(binary_path).unwrap();
+            let mut data = Vec::new();
+            file.read_to_end(&mut data).unwrap();
+            let buffer = fathom::core::binary::Buffer::from(data.as_slice());
+
+            let status = driver.read_format(file_id, buffer);
 
             std::process::exit(status.exit_code());
         }
