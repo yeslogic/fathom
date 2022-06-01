@@ -584,6 +584,15 @@ impl<'arena, 'env> Context<'arena, 'env> {
 
                 Ok(Term::FormatRecord(labels, formats))
             }
+            Value::FormatCond(label, format, cond) => {
+                let format = self.rename(flexible_var, format)?;
+                let cond = self.rename_closure(flexible_var, cond)?;
+                Ok(Term::FormatCond(
+                    *label,
+                    self.scope.to_scope(format),
+                    self.scope.to_scope(cond),
+                ))
+            }
             Value::FormatOverlap(labels, formats) => {
                 let labels = self.scope.to_scope(labels); // FIXME: avoid copy if this is the same arena?
                 let formats = self.rename_telescope(flexible_var, formats)?;

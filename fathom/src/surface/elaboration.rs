@@ -1717,6 +1717,25 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
 
                 (core::Term::FormatRecord(labels, formats), format_type)
             }
+            Term::FormatCond(_range, (_, label), format, cond) => {
+                let format_type = Arc::new(Value::prim(Prim::FormatType, []));
+                let format = self.check(format, &format_type);
+                let format_value = self.eval_context().eval(&format);
+                let r#type = self.elim_context().format_repr(&format_value);
+                self.rigid_env.push_param(Some(*label), r#type);
+                let bool_type = Arc::new(Value::prim(Prim::BoolType, []));
+                let cond_expr = self.check(cond, &bool_type);
+                self.rigid_env.pop();
+
+                (
+                    core::Term::FormatCond(
+                        *label,
+                        self.scope.to_scope(format),
+                        self.scope.to_scope(cond_expr),
+                    ),
+                    format_type,
+                )
+            }
             Term::FormatOverlap(range, format_fields) => {
                 let format_type = Arc::new(Value::prim(Prim::FormatType, []));
                 let (labels, formats) = self.check_format_fields(*range, format_fields);

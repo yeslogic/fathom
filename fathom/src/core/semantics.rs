@@ -41,6 +41,8 @@ pub enum Value<'arena> {
 
     /// Record formats, consisting of a list of dependent formats.
     FormatRecord(&'arena [StringId], Telescope<'arena>),
+    /// Conditional format, consisting of a format and predicate.
+    FormatCond(StringId, ArcValue<'arena>, Closure<'arena>),
     /// Overlap formats, consisting of a list of dependent formats, overlapping
     /// in memory.
     FormatOverlap(&'arena [StringId], Telescope<'arena>),
@@ -336,6 +338,11 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
             Term::FormatRecord(labels, formats) => {
                 let formats = Telescope::new(self.rigid_exprs.clone(), formats);
                 Arc::new(Value::FormatRecord(labels, formats))
+            }
+            Term::FormatCond(name, format, cond) => {
+                let format = self.eval(format);
+                let cond_expr = Closure::new(self.rigid_exprs.clone(), cond);
+                Arc::new(Value::FormatCond(*name, format, cond_expr))
             }
             Term::FormatOverlap(labels, formats) => {
                 let formats = Telescope::new(self.rigid_exprs.clone(), formats);
@@ -748,6 +755,7 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
             Value::FormatRecord(labels, formats) | Value::FormatOverlap(labels, formats) => {
                 Arc::new(Value::RecordType(labels, formats.clone().apply_repr()))
             }
+            Value::FormatCond(_label, format, _cond) => Arc::clone(format),
             Value::Stuck(Head::Prim(prim), spine) => match (prim, &spine[..]) {
                 (Prim::FormatU8, []) => Arc::new(Value::prim(Prim::U8Type, [])),
                 (Prim::FormatU16Be, []) => Arc::new(Value::prim(Prim::U16Type, [])),
@@ -926,6 +934,15 @@ impl<'in_arena, 'out_arena, 'env> QuoteContext<'in_arena, 'out_arena, 'env> {
                 let formats = self.quote_telescope(formats);
 
                 Term::FormatRecord(labels, formats)
+            }
+            Value::FormatCond(label, format, cond) => {
+                let format = self.quote(format);
+                let cond = self.quote_closure(cond);
+                Term::FormatCond(
+                    *label,
+                    self.scope.to_scope(format),
+                    self.scope.to_scope(cond),
+                )
             }
             Value::FormatOverlap(labels, formats) => {
                 let labels = self.scope.to_scope_from_iter(labels.iter().copied()); // FIXME: avoid copy if this is the same arena?
