@@ -1,0 +1,38 @@
+stdout = '''
+0 = [
+    {
+        header = {
+            magic = 72057594037927680,
+            manufacturer_id = 44048,
+            product_code = 41150,
+            serial = 810372684,
+            manufacturer_week = 10,
+            manufacturer_year_mod = 29,
+            edid_version_major = 1,
+            edid_version_minor = 4,
+        },
+        display_parameters = {
+            video_input_parameters = 165,
+            screen_size_h = 53,
+            screen_size_v = 30,
+            gamma_mod = 120,
+            supported_features = 58,
+        },
+        chromacity_coordinates = {
+            red_green_lsb = 226,
+            blue_white_lsb = 69,
+            red_x_msb = 168,
+            red_y_msb = 85,
+            green_x_msb = 77,
+            green_y_msb = 163,
+            blue_x_msb = 38,
+            blue_y_msb = 11,
+            white_x_msb = 80,
+            white_y_msb = 84,
+        },
+        established_timing = { mode_bitmap = [ 165, 75, 0 ] },
+        standard_timing_information = {},
+    },
+]
+'''
+stderr = ''

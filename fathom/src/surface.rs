@@ -133,6 +133,13 @@ pub enum Term<'arena, Range> {
     FormatRecord(Range, &'arena [((Range, StringId), Term<'arena, Range>)]),
     /// Overlap format.
     FormatOverlap(Range, &'arena [((Range, StringId), Term<'arena, Range>)]),
+    /// Conditional format.
+    FormatCond(
+        Range,
+        (Range, StringId),
+        &'arena Term<'arena, Range>,
+        &'arena Term<'arena, Range>,
+    ),
     /// Reported error sentinel.
     ReportedError(Range),
 }
@@ -161,6 +168,7 @@ impl<'arena, Range: Clone> Term<'arena, Range> {
             | Term::NumberLiteral(range, _)
             | Term::BooleanLiteral(range, _)
             | Term::FormatRecord(range, _)
+            | Term::FormatCond(range, _, _, _)
             | Term::FormatOverlap(range, _)
             | Term::ReportedError(range) => range.clone(),
         }

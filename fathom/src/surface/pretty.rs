@@ -247,6 +247,21 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 self.text(","),
                 self.text("}"),
             ),
+            Term::FormatCond(_, (_, label), format, cond) => self.concat([
+                self.text("{"),
+                self.space(),
+                self.string_id(*label),
+                self.space(),
+                self.text("<-"),
+                self.space(),
+                self.term_prec(Prec::Top, format),
+                self.space(),
+                self.text("|"),
+                self.space(),
+                self.term_prec(Prec::Top, cond),
+                self.space(),
+                self.text("}"),
+            ]),
             Term::FormatOverlap(_, format_fields) => self.sequence(
                 self.concat([self.text("overlap"), self.space(), self.text("{")]),
                 format_fields.iter().map(|((_, label), format)| {

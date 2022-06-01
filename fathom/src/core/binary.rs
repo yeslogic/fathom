@@ -77,6 +77,22 @@ impl<'arena, 'env> Context<'arena, 'env> {
 
                 Ok(Arc::new(Value::RecordLit(labels, exprs)))
             }
+            Value::FormatCond(_label, format, cond) => {
+                let value = self.read_format(reader, &format)?;
+                let cond_res = self.elim_context().apply_closure(cond, value.clone());
+
+                match *cond_res {
+                    Value::ConstLit(Const::Bool(true)) => Ok(value),
+                    Value::ConstLit(Const::Bool(false)) => {
+                        // TODO: better user experience for this case
+                        Err(io::Error::new(io::ErrorKind::Other, "cond failed"))
+                    }
+                    _ => {
+                        // This shouldn't happen since we check that the cond type is Bool earlier
+                        Err(io::Error::new(io::ErrorKind::Other, "expected bool"))
+                    }
+                }
+            }
             Value::FormatOverlap(labels, formats) => {
                 let initial_pos = reader.stream_position()?;
                 let mut max_pos = initial_pos;

@@ -1,0 +1,4 @@
+stdout = '''
+{ sfnt_version <- { version <- u32be | u32_eq version 0xffff } } : Format
+'''
+stderr = ''

@@ -37,6 +37,7 @@ extern {
         "." => Token::FullStop,
         "->" => Token::HyphenGreater,
         "<-" => Token::LessHyphen,
+        "|" => Token::Pipe,
         ";" => Token::Semicolon,
         "_" => Token::Underscore,
 
@@ -151,6 +152,9 @@ AtomicTerm: Term<'arena, ByteRange> = {
     },
     <start: @L> "{" <fields: NonEmptySeq<(<RangedName> "<-" <Term>), ",">> "}" <end: @R> => {
         Term::FormatRecord(ByteRange::new(start, end), fields)
+    },
+    <start: @L> "{" <name:RangedName> "<-" <format:Term> "|" <cond:Term> "}" <end: @R> => {
+        Term::FormatCond(ByteRange::new(start, end), name, scope.to_scope(format), scope.to_scope(cond))
     },
     <start: @L> "overlap" "{" <fields: NonEmptySeq<(<RangedName> "<-" <Term>), ",">> "}" <end: @R> => {
         Term::FormatOverlap(ByteRange::new(start, end), fields)

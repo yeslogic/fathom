@@ -32,6 +32,8 @@ struct Config {
     exit_code: i32,
     #[serde(default = "DEFAULT_EXAMPLE_DATA")]
     example_data: Vec<String>,
+    #[serde(default = "DEFAULT_EXAMPLE_DATA")]
+    example_data_invalid: Vec<String>,
     #[serde(skip)]
     update_snapshots: bool,
     #[serde(default = "DEFAULT_TEST_NORMALISATION")]
@@ -80,14 +82,27 @@ struct TestCommand<'a> {
 enum Command<'a> {
     Elaborate,
     Normalise,
-    ParseData(&'a Path),
+    ParseData(&'a Path, ExpectedOutcome),
+}
+
+#[derive(Copy, Clone)]
+enum ExpectedOutcome {
+    Success,
+    Failure,
 }
 
 impl<'a> Command<'a> {
     pub(crate) fn snap_name(&self) -> &'static str {
         match self {
             Command::Normalise => "norm",
-            Command::Elaborate | Command::ParseData(_) => "",
+            Command::Elaborate | Command::ParseData(_, _) => "",
+        }
+    }
+
+    pub(crate) fn expected_outcome(&self) -> ExpectedOutcome {
+        match self {
+            Command::ParseData(_, outcome) => *outcome,
+            Command::Elaborate | Command::Normalise => ExpectedOutcome::Success,
         }
     }
 }
@@ -127,7 +142,7 @@ fn run_test(test: &libtest_mimic::Test<TestData>) -> libtest_mimic::Outcome {
             .filter_map(|line| line.split(CONFIG_COMMENT_START).nth(1))
             .join("\n");
 
-        // Parse as those lines as TOML
+        // Parse those lines as TOML
         match toml::from_str::<Config>(&config_source) {
             Ok(mut config) => {
                 config.update_snapshots = env::var_os("FATHOM_UPDATE_SNAP").is_some();
@@ -178,7 +193,26 @@ fn run_test(test: &libtest_mimic::Test<TestData>) -> libtest_mimic::Outcome {
         .unwrap();
 
     for example_file in example_data.filter_map(Result::ok) {
-        let command = Command::ParseData(&test.data.input_file);
+        let command = Command::ParseData(&test.data.input_file, ExpectedOutcome::Success);
+        let test_command = TestCommand::new(command, &config, example_file.path());
+        match test_command.run() {
+            Ok(mut test_failures) => failures.append(&mut test_failures),
+            Err(error) => {
+                failures.push(TestFailure {
+                    name: "unexpected test command error",
+                    details: vec![("std::io::Error", error.to_string())],
+                });
+            }
+        }
+    }
+
+    let invalid_example_data =
+        globwalk::GlobWalkerBuilder::from_patterns(&base_dir, &config.example_data_invalid)
+            .build()
+            .unwrap();
+
+    for example_file in invalid_example_data.filter_map(Result::ok) {
+        let command = Command::ParseData(&test.data.input_file, ExpectedOutcome::Failure);
         let test_command = TestCommand::new(command, &config, example_file.path());
         match test_command.run() {
             Ok(mut test_failures) => failures.append(&mut test_failures),
@@ -278,7 +312,11 @@ impl<'a> TestCommand<'a> {
                     }
                 }
 
-                if output.status.code() != Some(self.config.exit_code) {
+                if !command_status_matches_expectation(
+                    self.command.expected_outcome(),
+                    output.status.code(),
+                    self.config.exit_code,
+                ) {
                     let mut details = Vec::new();
 
                     // TODO: Improve output
@@ -310,6 +348,19 @@ impl<'a> TestCommand<'a> {
     }
 }
 
+fn command_status_matches_expectation(
+    expected_outcome: ExpectedOutcome,
+    exit_code: Option<i32>,
+    expected_code: i32,
+) -> bool {
+    let expected_code = Some(expected_code);
+    match expected_outcome {
+        ExpectedOutcome::Success if exit_code == expected_code => true,
+        ExpectedOutcome::Failure if exit_code != expected_code => true,
+        _ => false,
+    }
+}
+
 impl<'a> From<Command<'a>> for process::Command {
     fn from(command: Command) -> Self {
         let mut exe = process::Command::new(env!("CARGO_BIN_EXE_fathom"));
@@ -320,7 +371,7 @@ impl<'a> From<Command<'a>> for process::Command {
             Command::Normalise => {
                 exe.args(["norm", "--term"]);
             }
-            Command::ParseData(format) => {
+            Command::ParseData(format, _) => {
                 exe.args(["data", "--format"]);
                 exe.arg(format);
             }

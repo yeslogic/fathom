@@ -138,6 +138,8 @@ pub enum Term<'arena> {
 
     /// Record formats, consisting of a list of dependent formats.
     FormatRecord(&'arena [StringId], &'arena [Term<'arena>]),
+    /// Conditional format, consisting of a format and predicate.
+    FormatCond(StringId, &'arena Term<'arena>, &'arena Term<'arena>),
     /// Overlap formats, consisting of a list of dependent formats, overlapping
     /// in memory.
     FormatOverlap(&'arena [StringId], &'arena [Term<'arena>]),

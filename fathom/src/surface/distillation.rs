@@ -402,6 +402,18 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
             core::Term::FormatRecord(labels, formats) => {
                 Term::FormatRecord((), self.synth_format_fields(labels, formats))
             }
+            core::Term::FormatCond(label, format, cond) => {
+                let format = self.check(format);
+                self.push_rigid(Some(*label));
+                let cond = self.check(cond);
+                self.pop_rigid();
+                Term::FormatCond(
+                    (),
+                    ((), *label),
+                    self.scope.to_scope(format),
+                    self.scope.to_scope(cond),
+                )
+            }
             core::Term::FormatOverlap(labels, formats) => {
                 Term::FormatOverlap((), self.synth_format_fields(labels, formats))
             }

@@ -4,7 +4,6 @@ stdout = '''
         start = 0,
         directory = {
             sfnt_version = 65536,
-            _sfnt_version = {},
             num_tables = 11,
             search_range = 128,
             entry_selector = 3,
@@ -199,15 +198,12 @@ stdout = '''
 188 = [
     {
         major_version = 1,
-        _major_version = {},
         minor_version = 0,
         font_revision = 65536,
         checksum_adjustment = 773317341,
         magic_number = 1594834165,
-        _magic_number = {},
         flags = 11,
         units_per_em = 2048,
-        _units_per_em = {},
         created = 3371744314,
         modified = 3553631405,
         glyph_extents = { x_min = 0, y_min = -20, x_max = 4514, y_max = 1454 },
@@ -221,7 +217,6 @@ stdout = '''
 244 = [
     {
         major_version = 1,
-        _major_version = {},
         minor_version = 0,
         ascent = 1454,
         descent = -20,
@@ -292,7 +287,6 @@ stdout = '''
     {
         hhea = {
             major_version = 1,
-            _major_version = {},
             minor_version = 0,
             ascent = 1454,
             descent = -20,
@@ -640,15 +634,12 @@ stdout = '''
         maxp = { version = 65536, num_glyphs = 12 },
         head = {
             major_version = 1,
-            _major_version = {},
             minor_version = 0,
             font_revision = 65536,
             checksum_adjustment = 773317341,
             magic_number = 1594834165,
-            _magic_number = {},
             flags = 11,
             units_per_em = 2048,
-            _units_per_em = {},
             created = 3371744314,
             modified = 3553631405,
             glyph_extents = {
