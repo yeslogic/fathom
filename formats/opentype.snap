@@ -150,25 +150,13 @@ let cmap_table : _ = {
     encoding_records <- array16 num_tables (encoding_record table_start),
 };
 let head_table : _ = {
-    major_version <- u16be,
-    _major_version <- match (u16_eq major_version 1) {
-        false => fail,
-        true => {},
-    },
+    major_version <- { version <- u16be | u16_eq version 1 },
     minor_version <- u16be,
     font_revision <- fixed,
     checksum_adjustment <- u32be,
-    magic_number <- u32be,
-    _magic_number <- match (u32_eq magic_number 0x5f0f3cf5) {
-        false => fail,
-        true => {},
-    },
+    magic_number <- { magic <- u32be | u32_eq magic 0x5f0f3cf5 },
     flags <- u16be,
-    units_per_em <- u16be,
-    _units_per_em <- match (bool_and (u16_gte units_per_em 16) (u16_lte units_per_em 16384)) {
-        false => fail,
-        true => {},
-    },
+    units_per_em <- { units_per_em <- u16be | bool_and (u16_gte units_per_em 16) (u16_lte units_per_em 16384) },
     created <- long_date_time,
     modified <- long_date_time,
     glyph_extents <- {
@@ -184,11 +172,7 @@ let head_table : _ = {
     glyph_data_format <- s16be,
 };
 let hhea_table : _ = {
-    major_version <- u16be,
-    _major_version <- match (u16_eq major_version 1) {
-        false => fail,
-        true => {},
-    },
+    major_version <- { version <- u16be | u16_eq version 1 },
     minor_version <- u16be,
     ascent <- fword,
     descent <- fword,
@@ -375,31 +359,27 @@ fun num_tables => fun table_records => fun table_id => array16_find (_ num_table
 let link_table : _ =
 fun file_start => fun table_record => fun table_format => link (pos_add_u32 file_start table_record.offset) table_format;
 let table_directory : _ = fun file_start => {
-    sfnt_version <- u32be,
-    _sfnt_version <- match (bool_or (u32_eq sfnt_version 0x10000) (u32_eq sfnt_version "OTTO")) {
-        false => fail,
-        true => {},
-    },
+    sfnt_version <- { version <- u32be | bool_or (u32_eq version 0x10000) (u32_eq version "OTTO") },
     num_tables <- u16be,
     search_range <- u16be,
     entry_selector <- u16be,
     range_shift <- u16be,
     table_records <- array16 num_tables table_record,
     table_links <- let required_table :
-    _ file_start sfnt_version _sfnt_version num_tables search_range entry_selector range_shift table_records =
+    _ file_start sfnt_version num_tables search_range entry_selector range_shift table_records =
     fun table_id => fun table_format => {
-        table_record <- unwrap (Repr table_record) (find_table (_ file_start sfnt_version _sfnt_version num_tables search_range entry_selector range_shift table_records table_id table_format) table_records table_id),
+        table_record <- unwrap (Repr table_record) (find_table (_ file_start sfnt_version num_tables search_range entry_selector range_shift table_records table_id table_format) table_records table_id),
         link <- link_table file_start table_record table_format,
     };
     let required_table_with_len :
-    _ file_start sfnt_version _sfnt_version num_tables search_range entry_selector range_shift table_records =
+    _ file_start sfnt_version num_tables search_range entry_selector range_shift table_records =
     fun table_id => fun table_format => {
-        table_record <- unwrap (Repr table_record) (find_table (_ file_start sfnt_version _sfnt_version num_tables search_range entry_selector range_shift table_records table_id table_format) table_records table_id),
+        table_record <- unwrap (Repr table_record) (find_table (_ file_start sfnt_version num_tables search_range entry_selector range_shift table_records table_id table_format) table_records table_id),
         link <- link_table file_start table_record (table_format table_record.length),
     };
     let optional_table :
-    _ file_start sfnt_version _sfnt_version num_tables search_range entry_selector range_shift table_records =
-    fun table_id => fun table_format => option_fold (Repr table_record) Format {} (fun record => link_table file_start record table_format) (find_table (_ file_start sfnt_version _sfnt_version num_tables search_range entry_selector range_shift table_records table_id table_format) table_records table_id);
+    _ file_start sfnt_version num_tables search_range entry_selector range_shift table_records =
+    fun table_id => fun table_format => option_fold (Repr table_record) Format {} (fun record => link_table file_start record table_format) (find_table (_ file_start sfnt_version num_tables search_range entry_selector range_shift table_records table_id table_format) table_records table_id);
     {
         cmap <- required_table "cmap" cmap_table,
         head <- required_table "head" head_table,

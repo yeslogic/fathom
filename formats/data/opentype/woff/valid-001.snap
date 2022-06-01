@@ -4,7 +4,6 @@ stdout = '''
         start = 0,
         directory = {
             sfnt_version = 1330926671,
-            _sfnt_version = {},
             num_tables = 9,
             search_range = 128,
             entry_selector = 3,
@@ -187,15 +186,12 @@ stdout = '''
 156 = [
     {
         major_version = 1,
-        _major_version = {},
         minor_version = 0,
         font_revision = 65536,
         checksum_adjustment = 1155811448,
         magic_number = 1594834165,
-        _magic_number = {},
         flags = 3,
         units_per_em = 1000,
-        _units_per_em = {},
         created = 3374127268,
         modified = 3374417235,
         glyph_extents = { x_min = 100, y_min = -10, x_max = 2204, y_max = 710 },
@@ -209,7 +205,6 @@ stdout = '''
 212 = [
     {
         major_version = 1,
-        _major_version = {},
         minor_version = 0,
         ascent = 750,
         descent = -250,
@@ -1040,7 +1035,6 @@ stdout = '''
     {
         hhea = {
             major_version = 1,
-            _major_version = {},
             minor_version = 0,
             ascent = 750,
             descent = -250,
