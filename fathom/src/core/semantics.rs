@@ -1095,6 +1095,15 @@ impl<'arena, 'env> ConversionContext<'arena, 'env> {
                 labels0 == labels1 && self.is_equal_telescopes(formats0, formats1)
             }
 
+            (
+                Value::FormatCond(label0, format0, cond0),
+                Value::FormatCond(label1, format1, cond1),
+            ) => {
+                label0 == label1
+                    && self.is_equal(format0, format1)
+                    && self.is_equal_closures(cond0, cond1)
+            }
+
             (Value::ConstLit(const0), Value::ConstLit(const1)) => const0 == const1,
 
             (_, _) => false,
@@ -1211,5 +1220,38 @@ impl<'arena, 'env> ConversionContext<'arena, 'env> {
             let field_value = self.elim_context().record_proj(value.clone(), *label);
             self.is_equal(expr, &field_value)
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::core::Const;
+
+    #[test]
+    fn value_has_unify_and_is_equal_impls() {
+        let value = Arc::new(Value::ConstLit(Const::Bool(false)));
+
+        // This test exists in order to cause a test failure when `Value` is changed. If this test
+        // has failed and you have added a new variant to Value it is a prompt to ensure that
+        // variant is handled in:
+        //
+        // - surface::elaboration::Context::unify
+        // - core::semantics::is_equal
+        //
+        // NOTE: Only update the match below when you've updated the above functions.
+        match value.as_ref() {
+            Value::Stuck(_, _) => {}
+            Value::Universe => {}
+            Value::FunType(_, _, _) => {}
+            Value::FunLit(_, _) => {}
+            Value::RecordType(_, _) => {}
+            Value::RecordLit(_, _) => {}
+            Value::ArrayLit(_) => {}
+            Value::FormatRecord(_, _) => {}
+            Value::FormatCond(_, _, _) => {}
+            Value::FormatOverlap(_, _) => {}
+            Value::ConstLit(_) => {}
+        }
     }
 }

@@ -271,6 +271,17 @@ impl<'arena, 'env> Context<'arena, 'env> {
                 self.unify_telescopes(formats0, formats1)
             }
 
+            (
+                Value::FormatCond(label0, format0, cond0),
+                Value::FormatCond(label1, format1, cond1),
+            ) => {
+                if label0 != label1 {
+                    return Err(Error::Mismatch);
+                }
+                self.unify(format0, format1)?;
+                self.unify_closures(cond0, cond1)
+            }
+
             (Value::ConstLit(const0), Value::ConstLit(const1)) if const0 == const1 => Ok(()),
 
             // Flexible-rigid cases
