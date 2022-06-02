@@ -1,10 +1,6 @@
 stdout = ''
 stderr = '''
-thread 'main' panicked at 'called `Result::unwrap()` on an `Err` value: CondFailure', fathom/src/driver.rs:259:14
-note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
-
-bug: compiler panicked at 'called `Result::unwrap()` on an `Err` value: CondFailure'
- = panicked at: fathom/src/driver.rs:259:14
- = please file a bug report at: https://github.com/yeslogic/fathom/issues/new
+error: conditional format failed
+ = The predicate on a conditional format did not succeed.
 
 '''

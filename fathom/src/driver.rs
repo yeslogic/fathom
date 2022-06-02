@@ -6,9 +6,12 @@ use std::io::Read;
 use std::path::Path;
 
 use crate::core::binary;
+use crate::core::binary::ReadError;
 use crate::source::{ByteRange, FileId};
 use crate::surface::{self, elaboration};
 use crate::StringInterner;
+
+const BUG_REPORT_URL: &str = concat!(env!("CARGO_PKG_REPOSITORY"), "/issues/new");
 
 #[derive(Debug, Copy, Clone)]
 pub enum Status {
@@ -71,8 +74,6 @@ impl<'surface, 'core> Driver<'surface, 'core> {
     /// Setup a global panic hook
     pub fn install_panic_hook(&self) {
         use crate::core::semantics;
-
-        const BUG_REPORT_URL: &str = concat!(env!("CARGO_PKG_REPOSITORY"), "/issues/new");
 
         // Use the currently set codespan configuration
         let term_config = self.codespan_config.clone();
@@ -253,10 +254,13 @@ impl<'surface, 'core> Driver<'surface, 'core> {
         }
 
         let format = context.eval_context().eval(&format);
-        let refs = context
-            .binary_context(buffer)
-            .read_entrypoint(format)
-            .unwrap(); // TODO: render nicer errors
+        let refs = match context.binary_context(buffer).read_entrypoint(format) {
+            Ok(refs) => refs,
+            Err(err) => {
+                self.report_read_error(err);
+                return Status::Error;
+            }
+        };
 
         for (pos, parsed_refs) in refs.into_iter().sorted_by_key(|(pos, _)| *pos) {
             self.surface_scope.reset(); // Reuse the surface scope for distillation
@@ -339,5 +343,55 @@ impl<'surface, 'core> Driver<'surface, 'core> {
         }
 
         is_ok
+    }
+
+    fn report_read_error(&self, err: binary::ReadError) {
+        // Use the currently set codespan configuration
+        let term_config = self.codespan_config.clone();
+
+        let diagnostic = Diagnostic::from(err);
+        let mut writer = BufferedStandardStream::stderr(if atty::is(atty::Stream::Stderr) {
+            ColorChoice::Auto
+        } else {
+            ColorChoice::Never
+        });
+        let dummy_files = SimpleFiles::<String, String>::new();
+
+        codespan_reporting::term::emit(&mut writer, &term_config, &dummy_files, &diagnostic)
+            .unwrap();
+    }
+}
+
+impl From<ReadError> for Diagnostic<usize> {
+    fn from(err: ReadError) -> Diagnostic<usize> {
+        match err {
+            ReadError::ReadFailFormat => Diagnostic::error()
+                .with_message(err.to_string())
+                .with_notes(vec![format!(
+                    "A fail format was encountered when reading this file."
+                )]),
+            ReadError::CondFailure => Diagnostic::error()
+                .with_message(err.to_string())
+                .with_notes(vec![format!(
+                    "The predicate on a conditional format did not succeed."
+                )]),
+            ReadError::UnwrappedNone => Diagnostic::error()
+                .with_message(err.to_string())
+                .with_notes(vec![format!("option_unwrap was called on a none value.")]),
+            ReadError::UnexpectedEndOfBuffer => Diagnostic::error()
+                .with_message(err.to_string())
+                .with_notes(vec![format!(
+                    "The end of the buffer was reached before all data could be read."
+                )]),
+            ReadError::InvalidFormat
+            | ReadError::InvalidValue
+            | ReadError::PositionOverflow
+            | ReadError::SetOffsetOutsideBuffer => Diagnostic::bug()
+                .with_message(format!("unexpected error '{}'", err))
+                .with_notes(vec![format!(
+                    "please file a bug report at: {}",
+                    BUG_REPORT_URL
+                )]),
+        }
     }
 }
