@@ -230,7 +230,7 @@ impl<'surface, 'core> Driver<'surface, 'core> {
         Status::Ok
     }
 
-    pub fn read_format(&mut self, file_id: FileId, reader: &mut dyn binary::SeekRead) -> Status {
+    pub fn read_format<'data>(&mut self, file_id: FileId, buffer: binary::Buffer<'data>) -> Status {
         use itertools::Itertools;
         use pretty::DocAllocator;
         use std::sync::Arc;
@@ -254,8 +254,8 @@ impl<'surface, 'core> Driver<'surface, 'core> {
 
         let format = context.eval_context().eval(&format);
         let refs = context
-            .binary_context()
-            .read_entrypoint(reader, format)
+            .binary_context(buffer)
+            .read_entrypoint(format)
             .unwrap(); // TODO: render nicer errors
 
         for (pos, parsed_refs) in refs.into_iter().sorted_by_key(|(pos, _)| *pos) {

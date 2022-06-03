@@ -10,13 +10,11 @@
 
 /// Reserved formats
 let reserved = fun (format : Format) => fun (default : Repr format) =>
-    // TODO: set to `default` during serialisation
-    format;
+    format; // TODO: set to `default` during serialisation
 
 /// Deprecated formats
 let deprecated = fun (format : Format) => fun (default : Repr format) =>
-    // TODO: set to `default` during serialisation
-    format;
+    format; // TODO: set to `default` during serialisation
 
 
 // -----------------------------------------------------------------------------
@@ -1403,9 +1401,9 @@ let link_table =
     fun (file_start : Pos) =>
     fun (table_record : Repr table_record) =>
     fun (table_format : Format) =>
-        // TODO: make use of `table_record.length`
         // TODO: make use of `table_record.checksum`
-        link (pos_add_u32 file_start table_record.offset) table_format;
+        link (pos_add_u32 file_start table_record.offset)
+            (limit32 table_record.length table_format);
 
 /// # Table Directory
 ///
@@ -1479,8 +1477,8 @@ let table_directory = fun (file_start : Pos) => {
             maxp <- required_table "maxp" maxp_table,
             htmx <- required_table "hmtx" {
                 // TODO: let formats
-                hhea <- deref hhea_table hhea.link,
-                maxp <- deref maxp_table maxp.link,
+                hhea <- deref (limit32 hhea.table_record.length hhea_table) hhea.link,
+                maxp <- deref (limit32 maxp.table_record.length maxp_table) maxp.link,
                 table <- htmx_table
                     hhea.number_of_long_horizontal_metrics
                     maxp.num_glyphs,
@@ -1496,15 +1494,15 @@ let table_directory = fun (file_start : Pos) => {
             fpgm <- optional_table "fpgm" unknown_table,
             glyf <- optional_table "glyf" {
                 // TODO: let formats
-                maxp <- deref maxp_table maxp.link,
+                maxp <- deref (limit32 maxp.table_record.length maxp_table) maxp.link,
                 table <- glyf_table 1,
                 // TODO: use `loca` entries when parsing the glyphs
                 // table <- glyf_table maxp.num_glyphs,
             },
             loca <- optional_table "loca" {
                 // TODO: let formats
-                maxp <- deref maxp_table maxp.link,
-                head <- deref head_table head.link,
+                maxp <- deref (limit32 maxp.table_record.length maxp_table) maxp.link,
+                head <- deref (limit32 head.table_record.length head_table) head.link,
                 table <- loca_table maxp.num_glyphs head.index_to_loc_format,
             },
             prep <- optional_table "prep" unknown_table,

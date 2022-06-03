@@ -393,6 +393,7 @@ macro_rules! const_step {
 #[rustfmt::skip]
 fn prim_step(prim: Prim) -> Option<PrimStep> {
     use std::ops::{BitAnd, BitOr, BitXor, Not};
+    use std::convert::TryFrom;
 
     match prim {
         Prim::FormatRepr => step!(context, [format] => context.format_repr(format)),
@@ -556,10 +557,10 @@ fn prim_step(prim: Prim) -> Option<PrimStep> {
             })
         }
 
-        Prim::PosAddU8 => const_step!([x: Pos, y: U8] => Const::Pos(u64::checked_add(*x, u64::from(*y))?)),
-        Prim::PosAddU16 => const_step!([x: Pos, y: U16] => Const::Pos(u64::checked_add(*x, u64::from(*y))?)),
-        Prim::PosAddU32 => const_step!([x: Pos, y: U32] => Const::Pos(u64::checked_add(*x, u64::from(*y))?)),
-        Prim::PosAddU64 => const_step!([x: Pos, y: U64] => Const::Pos(u64::checked_add(*x, *y)?)),
+        Prim::PosAddU8 => const_step!([x: Pos, y: U8] => Const::Pos(usize::checked_add(*x, usize::from(*y))?)),
+        Prim::PosAddU16 => const_step!([x: Pos, y: U16] => Const::Pos(usize::checked_add(*x, usize::from(*y))?)),
+        Prim::PosAddU32 => const_step!([x: Pos, y: U32] => Const::Pos(usize::checked_add(*x, usize::try_from(*y).ok()?)?)),
+        Prim::PosAddU64 => const_step!([x: Pos, y: U64] => Const::Pos(usize::checked_add(*x, usize::try_from(*y).ok()?)?)),
 
         _ => None,
     }
@@ -787,6 +788,18 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
                 (Prim::FormatArray64, [Elim::FunApp(len), Elim::FunApp(elem)]) => Arc::new(
                     Value::prim(Prim::Array64Type, [len.clone(), self.format_repr(elem)]),
                 ),
+                (Prim::FormatLimit8, [Elim::FunApp(_), Elim::FunApp(elem)]) => {
+                    self.format_repr(elem)
+                }
+                (Prim::FormatLimit16, [Elim::FunApp(_), Elim::FunApp(elem)]) => {
+                    self.format_repr(elem)
+                }
+                (Prim::FormatLimit32, [Elim::FunApp(_), Elim::FunApp(elem)]) => {
+                    self.format_repr(elem)
+                }
+                (Prim::FormatLimit64, [Elim::FunApp(_), Elim::FunApp(elem)]) => {
+                    self.format_repr(elem)
+                }
                 (Prim::FormatRepeatUntilEnd, [Elim::FunApp(elem)]) => {
                     Arc::new(Value::prim(Prim::ArrayType, [self.format_repr(elem)]))
                 }

@@ -26,6 +26,7 @@ elaboration, and core language is forthcoming.
   - [Number formats](#number-formats)
   - [Array formats](#array-formats)
   - [Repeat formats](#repeat-formats)
+  - [Limit formats](#limit-formats)
   - [Stream position formats](#stream-position-formats)
   - [Link formats](#link-formats)
   - [Deref formats](#deref-formats)
@@ -396,6 +397,26 @@ Because the repeat format does not have a predefined length, it is
 | format                    | `Repr` format         |
 | ------------------------- | --------------------- |
 | `repeat_until_end format` | `Array (Repr format)` |
+
+### Limit formats
+
+Limit formats parse a format within a limited sub-stream of the binary data. The
+stream will start from the [current stream position](#stream-position-formats)
+and continue up to the given number of bytes.
+
+- `limit8 : U8 -> Format -> Format`
+- `limit16 : U16 -> Format -> Format`
+- `limit32 : U32 -> Format -> Format`
+- `limit64 : U64 -> Format -> Format`
+
+#### Representation of limit formats
+
+| format                    | `Repr` format       |
+| ------------------------- | ------------------- |
+| `limit8 length format`    | `Repr format`       |
+| `limit16 length format`   | `Repr format`       |
+| `limit32 length format`   | `Repr format`       |
+| `limit64 length format`   | `Repr format`       |
 
 ### Stream position formats
 

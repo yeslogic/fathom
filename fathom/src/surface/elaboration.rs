@@ -149,6 +149,10 @@ impl<'arena> RigidEnv<'arena> {
         env.define_prim_fun(FormatArray32, [&U32_TYPE, &FORMAT_TYPE], &FORMAT_TYPE);
         env.define_prim_fun(FormatArray64, [&U64_TYPE, &FORMAT_TYPE], &FORMAT_TYPE);
         env.define_prim_fun(FormatRepeatUntilEnd, [&FORMAT_TYPE], &FORMAT_TYPE);
+        env.define_prim_fun(FormatLimit8, [&U8_TYPE, &FORMAT_TYPE], &FORMAT_TYPE);
+        env.define_prim_fun(FormatLimit16, [&U16_TYPE, &FORMAT_TYPE], &FORMAT_TYPE);
+        env.define_prim_fun(FormatLimit32, [&U32_TYPE, &FORMAT_TYPE], &FORMAT_TYPE);
+        env.define_prim_fun(FormatLimit64, [&U64_TYPE, &FORMAT_TYPE], &FORMAT_TYPE);
         env.define_prim_fun(FormatLink, [&POS_TYPE, &FORMAT_TYPE], &FORMAT_TYPE);
         env.define_prim(
             FormatDeref,
@@ -739,8 +743,11 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
         )
     }
 
-    pub fn binary_context(&self) -> binary::Context<'arena, '_> {
-        binary::Context::new(&self.flexible_env.exprs)
+    pub fn binary_context<'data>(
+        &self,
+        buffer: binary::Buffer<'data>,
+    ) -> binary::Context<'arena, '_, 'data> {
+        binary::Context::new(&self.flexible_env.exprs, buffer)
     }
 
     fn pretty_print_value(&mut self, value: &ArcValue<'_>) -> String {

@@ -24,6 +24,11 @@ let test_array64 : fun n -> fun f -> Repr (array64 n f) -> Array64 n (Repr f) = 
 
 let test_repeat_until_end : fun f -> Repr (repeat_until_end f) -> Array (Repr f) = fun _ => fun x => x;
 
+let test_limit8 : fun n -> fun f -> Repr (limit8 n f) -> Repr f = fun _ => fun _ => fun x => x;
+let test_limit16 : fun n -> fun f -> Repr (limit16 n f) -> Repr f = fun _ => fun _ => fun x => x;
+let test_limit32 : fun n -> fun f -> Repr (limit32 n f) -> Repr f = fun _ => fun _ => fun x => x;
+let test_limit64 : fun n -> fun f -> Repr (limit64 n f) -> Repr f = fun _ => fun _ => fun x => x;
+
 let test_link : fun pos -> fun f -> Repr (link pos f) -> Ref f = fun _ => fun _ => fun x => x;
 let test_deref : fun f -> fun ref -> Repr (deref f ref) -> Repr f = fun _ => fun _ => fun x => x;
 let test_stream_pos : Repr stream_pos -> Pos = fun x => x;
