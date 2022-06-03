@@ -12,6 +12,43 @@ reduce allocations/indirection where possible.
 
 [elaboration-zoo]: https://github.com/AndrasKovacs/elaboration-zoo/
 
+## Format descriptions as universes
+
+Our approach to format descriptions (inspired by “The power of Pi”) is closely
+related to the idea of [_Tarski-style Universes_][tarski-universes]. In this
+approach, universes _U_ are defined as a datatype, together with an _El_
+operation that interprets these universes into actual types. In Fathom `Format`
+can be seen as a universe of binary formats, and `Repr` interprets these formats
+into representation types in the host language. We still contimue to use
+[_Russell-style universes_][russell-universes] for describing types, however.
+
+Below you can see a comparison between Tarski-style universes and `Format`s in
+Fathom:
+
+```text
+                  A : U
+────────      ────────────
+ U type        El(A) type
+
+ A : U    B : El(A) → U           A : U         B : El(A) → U
+────────────────────────    ──────────────────────────────────────
+      pi(A, B) : U           El(pi(A, B)) ≡ Π x : El(A). El(B(x))
+```
+
+```text
+                    A : Format
+─────────────     ──────────────
+ Format type       Repr(A) type
+
+
+ A : Format    B : Repr(A) → Format        A : Format         B : Repr(A) → Format
+────────────────────────────────────    ──────────────────────────────────────────────
+       pair(A, B) : Format               Repr(pair(A, B)) ≡ Σ x : Repr(A). Repr(B(x))
+```
+
+[tarski-universes]: https://ncatlab.org/homotopytypetheory/show/universe#Tarski
+[russell-universes]: https://ncatlab.org/homotopytypetheory/show/universe#Russell
+
 ## Related projects
 
 - [binary-data](https://github.com/dylan-lang/binary-data)
