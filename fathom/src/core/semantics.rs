@@ -788,6 +788,18 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
                 (Prim::FormatArray64, [Elim::FunApp(len), Elim::FunApp(elem)]) => Arc::new(
                     Value::prim(Prim::Array64Type, [len.clone(), self.format_repr(elem)]),
                 ),
+                (Prim::FormatLimit8, [Elim::FunApp(_), Elim::FunApp(elem)]) => {
+                    self.format_repr(elem)
+                }
+                (Prim::FormatLimit16, [Elim::FunApp(_), Elim::FunApp(elem)]) => {
+                    self.format_repr(elem)
+                }
+                (Prim::FormatLimit32, [Elim::FunApp(_), Elim::FunApp(elem)]) => {
+                    self.format_repr(elem)
+                }
+                (Prim::FormatLimit64, [Elim::FunApp(_), Elim::FunApp(elem)]) => {
+                    self.format_repr(elem)
+                }
                 (Prim::FormatRepeatUntilEnd, [Elim::FunApp(elem)]) => {
                     Arc::new(Value::prim(Prim::ArrayType, [self.format_repr(elem)]))
                 }

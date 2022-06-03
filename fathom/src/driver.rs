@@ -254,8 +254,8 @@ impl<'surface, 'core> Driver<'surface, 'core> {
 
         let format = context.eval_context().eval(&format);
         let refs = context
-            .binary_context()
-            .read_entrypoint(buffer, format)
+            .binary_context(buffer)
+            .read_entrypoint(format)
             .unwrap(); // TODO: render nicer errors
 
         for (pos, parsed_refs) in refs.into_iter().sorted_by_key(|(pos, _)| *pos) {

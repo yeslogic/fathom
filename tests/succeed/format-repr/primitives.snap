@@ -27,6 +27,14 @@ let test_array64 : fun (n : U64) -> fun (f : Format) -> fun (_ :
 Array64 n (Repr f)) -> Array64 n (Repr f) = fun _ => fun _ => fun x => x;
 let test_repeat_until_end : fun (f : Format) -> fun (_ : Array (Repr f)) ->
 Array (Repr f) = fun _ => fun x => x;
+let test_limit8 : fun (n : U8) -> fun (f : Format) -> fun (_ : Repr f) ->
+Repr f = fun _ => fun _ => fun x => x;
+let test_limit16 : fun (n : U16) -> fun (f : Format) -> fun (_ : Repr f) ->
+Repr f = fun _ => fun _ => fun x => x;
+let test_limit32 : fun (n : U32) -> fun (f : Format) -> fun (_ : Repr f) ->
+Repr f = fun _ => fun _ => fun x => x;
+let test_limit64 : fun (n : U64) -> fun (f : Format) -> fun (_ : Repr f) ->
+Repr f = fun _ => fun _ => fun x => x;
 let test_link : fun (pos : Pos) -> fun (f : Format) -> fun (_ : Ref f) ->
 Ref f = fun _ => fun _ => fun x => x;
 let test_deref : fun (f : Format) -> fun (ref : Ref f) -> fun (_ : Repr f) ->

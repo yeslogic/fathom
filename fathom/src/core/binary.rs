@@ -67,6 +67,14 @@ impl<'data> Buffer<'data> {
         self.data.len()
     }
 
+    /// Return a buffer limited to the supplied length.
+    pub fn with_remaining_len(&self, len: usize) -> Result<Buffer<'data>, ReadError> {
+        Ok(Buffer {
+            start_offset: self.start_offset,
+            data: self.get_relative(..len)?,
+        })
+    }
+
     /// Get a slice of the bytes in the buffer, relative to the start of the buffer.
     fn get_relative<I: SliceIndex<[u8]>>(&self, index: I) -> Result<&'data I::Output, ReadError> {
         self.data.get(index).ok_or(ReadError::UnexpectedEndOfBuffer)
@@ -126,6 +134,14 @@ impl<'data> BufferReader<'data> {
         self.buffer.remaining_len() - self.relative_offset
     }
 
+    /// Return a buffer of the remaining data from the current relative offset.
+    pub fn remaining_buffer(&self) -> Result<Buffer<'data>, ReadError> {
+        Ok(Buffer::new(
+            self.offset()?,
+            self.buffer.get_relative(self.relative_offset..)?,
+        ))
+    }
+
     /// Set the offset of the reader relative to the start of the backing buffer.
     pub fn set_relative_offset(&mut self, relative_offset: usize) -> Result<(), ReadError> {
         (relative_offset <= self.buffer.remaining_len())
@@ -173,8 +189,9 @@ impl<'data> From<Buffer<'data>> for BufferReader<'data> {
     }
 }
 
-pub struct Context<'arena, 'env> {
+pub struct Context<'arena, 'env, 'data> {
     flexible_exprs: &'env SliceEnv<Option<ArcValue<'arena>>>,
+    initial_buffer: Buffer<'data>,
     pending_formats: Vec<(usize, ArcValue<'arena>)>,
     cached_refs: HashMap<usize, Vec<ParsedRef<'arena>>>,
 }
@@ -188,10 +205,14 @@ pub struct ParsedRef<'arena> {
     pub expr: ArcValue<'arena>,
 }
 
-impl<'arena, 'env> Context<'arena, 'env> {
-    pub fn new(flexible_exprs: &'env SliceEnv<Option<ArcValue<'arena>>>) -> Context<'arena, 'env> {
+impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
+    pub fn new(
+        flexible_exprs: &'env SliceEnv<Option<ArcValue<'arena>>>,
+        initial_buffer: Buffer<'data>,
+    ) -> Context<'arena, 'env, 'data> {
         Context {
             flexible_exprs,
+            initial_buffer,
             pending_formats: Vec::new(),
             cached_refs: HashMap::new(),
         }
@@ -205,22 +226,22 @@ impl<'arena, 'env> Context<'arena, 'env> {
         semantics::ConversionContext::new(EnvLen::new(), self.flexible_exprs)
     }
 
-    pub fn read_entrypoint<'data>(
+    pub fn read_entrypoint(
         mut self,
-        buffer: Buffer<'data>,
         format: ArcValue<'arena>,
     ) -> Result<HashMap<usize, Vec<ParsedRef<'arena>>>, ReadError> {
         // Parse the entrypoint from the start of the binary data
-        self.pending_formats.push((buffer.start_offset(), format));
+        self.pending_formats
+            .push((self.initial_buffer.start_offset(), format));
 
         while let Some((pos, format)) = self.pending_formats.pop() {
-            self.lookup_or_read_ref(&buffer, pos, &format)?;
+            self.lookup_or_read_ref(pos, &format)?;
         }
 
         Ok(self.cached_refs)
     }
 
-    fn read_format<'data>(
+    fn read_format(
         &mut self,
         reader: &mut BufferReader<'data>,
         format: &ArcValue<'arena>,
@@ -295,7 +316,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
     }
 
     #[rustfmt::skip]
-    fn read_prim<'data>(
+    fn read_prim(
         &mut self,
         reader: &mut BufferReader<'data>,
         prim: Prim,
@@ -327,8 +348,12 @@ impl<'arena, 'env> Context<'arena, 'env> {
             (Prim::FormatArray32, [FunApp(len), FunApp(format)]) => self.read_array(reader, len, format),
             (Prim::FormatArray64, [FunApp(len), FunApp(format)]) => self.read_array(reader, len, format),
             (Prim::FormatRepeatUntilEnd, [FunApp(format)]) => self.read_repeat_until_end(reader, format),
+            (Prim::FormatLimit8, [FunApp(limit), FunApp(format)]) => self.read_limit(reader, limit, format),
+            (Prim::FormatLimit16, [FunApp(limit), FunApp(format)]) => self.read_limit(reader, limit, format),
+            (Prim::FormatLimit32, [FunApp(limit), FunApp(format)]) => self.read_limit(reader, limit, format),
+            (Prim::FormatLimit64, [FunApp(limit), FunApp(format)]) => self.read_limit(reader, limit, format),
             (Prim::FormatLink, [FunApp(pos), FunApp(format)]) => self.read_link(pos, format),
-            (Prim::FormatDeref, [FunApp(format), FunApp(r#ref)]) => self.read_deref(reader, format, r#ref),
+            (Prim::FormatDeref, [FunApp(format), FunApp(r#ref)]) => self.read_deref(format, r#ref),
             (Prim::FormatStreamPos, []) => read_stream_pos(reader),
             (Prim::FormatSucceed, [_, FunApp(elem)]) => Ok(elem.clone()),
             (Prim::FormatFail, []) => Err(ReadError::ReadFailFormat),
@@ -341,7 +366,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
         }
     }
 
-    fn read_array<'data>(
+    fn read_array(
         &mut self,
         reader: &mut BufferReader<'data>,
         len: &ArcValue<'arena>,
@@ -362,7 +387,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
         Ok(Arc::new(Value::ArrayLit(elem_exprs)))
     }
 
-    fn read_repeat_until_end<'data>(
+    fn read_repeat_until_end(
         &mut self,
         reader: &mut BufferReader<'data>,
         elem_format: &ArcValue<'arena>,
@@ -386,7 +411,27 @@ impl<'arena, 'env> Context<'arena, 'env> {
         }
     }
 
-    fn read_link<'data>(
+    fn read_limit(
+        &mut self,
+        reader: &BufferReader<'data>,
+        len: &ArcValue<'arena>,
+        elem_format: &ArcValue<'arena>,
+    ) -> Result<ArcValue<'arena>, ReadError> {
+        let len = match self.elim_context().force(len).as_ref() {
+            Value::ConstLit(Const::U8(len, _)) => Some(usize::from(*len)),
+            Value::ConstLit(Const::U16(len, _)) => Some(usize::from(*len)),
+            Value::ConstLit(Const::U32(len, _)) => usize::try_from(*len).ok(),
+            Value::ConstLit(Const::U64(len, _)) => usize::try_from(*len).ok(),
+            _ => return Err(ReadError::InvalidValue),
+        }
+        .ok_or(ReadError::PositionOverflow)?;
+
+        let buffer = reader.remaining_buffer()?.with_remaining_len(len)?;
+
+        self.read_format(&mut buffer.reader(), elem_format)
+    }
+
+    fn read_link(
         &mut self,
         pos: &ArcValue<'arena>,
         elem_format: &ArcValue<'arena>,
@@ -401,9 +446,8 @@ impl<'arena, 'env> Context<'arena, 'env> {
         Ok(Arc::new(Value::ConstLit(Const::Ref(pos))))
     }
 
-    fn read_deref<'data>(
+    fn read_deref(
         &mut self,
-        reader: &mut BufferReader<'data>,
         format: &ArcValue<'arena>,
         r#ref: &ArcValue<'arena>,
     ) -> Result<ArcValue<'arena>, ReadError> {
@@ -412,7 +456,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
             _ => return Err(ReadError::InvalidValue),
         };
 
-        self.lookup_or_read_ref(reader.buffer(), pos, format)
+        self.lookup_or_read_ref(pos, format)
     }
 
     fn lookup_ref<'context>(
@@ -430,9 +474,8 @@ impl<'arena, 'env> Context<'arena, 'env> {
             .find(|r| self.conversion_context().is_equal(&r.format, &format))
     }
 
-    fn lookup_or_read_ref<'data>(
+    fn lookup_or_read_ref(
         &mut self,
-        buffer: &Buffer<'data>,
         pos: usize,
         format: &ArcValue<'arena>,
     ) -> Result<ArcValue<'arena>, ReadError> {
@@ -441,7 +484,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
         }
 
         // Read the data at the ref location
-        let mut reader = buffer.reader_with_offset(pos)?;
+        let mut reader = self.initial_buffer.reader_with_offset(pos)?;
         let expr = self.read_format(&mut reader, &format)?;
 
         // We might have parsed the current reference during the above call to

@@ -268,6 +268,14 @@ def_prims! {
     FormatArray64 => "array64",
     /// Repeat a format until the length of the given parse scope is reached.
     FormatRepeatUntilEnd => "repeat_until_end",
+    /// Limit the format to an unsigned 8-bit byte length.
+    FormatLimit8 => "limit8",
+    /// Limit the format to an unsigned 16-bit byte length.
+    FormatLimit16 => "limit16",
+    /// Limit the format to an unsigned 32-bit byte length.
+    FormatLimit32 => "limit32",
+    /// Limit the format to an unsigned 64-bit byte length.
+    FormatLimit64 => "limit64",
     /// A format which returns the current position in the input stream.
     FormatStreamPos => "stream_pos",
     /// A format that links to another location in the binary data stream,

@@ -357,7 +357,7 @@ let table_record : _ = {
 let find_table : _ =
 fun num_tables => fun table_records => fun table_id => array16_find (_ num_tables table_records table_id) (Repr table_record) (fun table_record => u32_eq table_record.table_id table_id) table_records;
 let link_table : _ =
-fun file_start => fun table_record => fun table_format => link (pos_add_u32 file_start table_record.offset) table_format;
+fun file_start => fun table_record => fun table_format => link (pos_add_u32 file_start table_record.offset) (limit32 table_record.length table_format);
 let table_directory : _ = fun file_start => {
     sfnt_version <- { version <- u32be | bool_or (u32_eq version 0x10000) (u32_eq version "OTTO") },
     num_tables <- u16be,
@@ -386,8 +386,8 @@ let table_directory : _ = fun file_start => {
         hhea <- required_table "hhea" hhea_table,
         maxp <- required_table "maxp" maxp_table,
         htmx <- required_table "hmtx" {
-            hhea <- deref hhea_table hhea.link,
-            maxp <- deref maxp_table maxp.link,
+            hhea <- deref (limit32 hhea.table_record.length hhea_table) hhea.link,
+            maxp <- deref (limit32 maxp.table_record.length maxp_table) maxp.link,
             table <- htmx_table hhea.number_of_long_horizontal_metrics maxp.num_glyphs,
         },
         name <- required_table "name" name_table,
@@ -396,12 +396,12 @@ let table_directory : _ = fun file_start => {
         cvt <- optional_table "cvt " unknown_table,
         fpgm <- optional_table "fpgm" unknown_table,
         glyf <- optional_table "glyf" {
-            maxp <- deref maxp_table maxp.link,
+            maxp <- deref (limit32 maxp.table_record.length maxp_table) maxp.link,
             table <- glyf_table 1,
         },
         loca <- optional_table "loca" {
-            maxp <- deref maxp_table maxp.link,
-            head <- deref head_table head.link,
+            maxp <- deref (limit32 maxp.table_record.length maxp_table) maxp.link,
+            head <- deref (limit32 head.table_record.length head_table) head.link,
             table <- loca_table maxp.num_glyphs head.index_to_loc_format,
         },
         prep <- optional_table "prep" unknown_table,
