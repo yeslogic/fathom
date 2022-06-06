@@ -386,8 +386,8 @@ let table_directory : _ = fun file_start => {
         hhea <- required_table "hhea" hhea_table,
         maxp <- required_table "maxp" maxp_table,
         htmx <- required_table "hmtx" {
-            hhea <- deref (limit32 hhea.table_record.length hhea_table) hhea.link,
-            maxp <- deref (limit32 maxp.table_record.length maxp_table) maxp.link,
+            hhea <- deref (_ file_start sfnt_version num_tables search_range entry_selector range_shift table_records cmap head hhea maxp) hhea.link,
+            maxp <- deref (_ file_start sfnt_version num_tables search_range entry_selector range_shift table_records cmap head hhea maxp hhea) maxp.link,
             table <- htmx_table hhea.number_of_long_horizontal_metrics maxp.num_glyphs,
         },
         name <- required_table "name" name_table,
@@ -396,12 +396,12 @@ let table_directory : _ = fun file_start => {
         cvt <- optional_table "cvt " unknown_table,
         fpgm <- optional_table "fpgm" unknown_table,
         glyf <- optional_table "glyf" {
-            maxp <- deref (limit32 maxp.table_record.length maxp_table) maxp.link,
+            maxp <- deref (_ file_start sfnt_version num_tables search_range entry_selector range_shift table_records cmap head hhea maxp htmx name os2 post cvt fpgm) maxp.link,
             table <- glyf_table 1,
         },
         loca <- optional_table "loca" {
-            maxp <- deref (limit32 maxp.table_record.length maxp_table) maxp.link,
-            head <- deref (limit32 head.table_record.length head_table) head.link,
+            maxp <- deref (_ file_start sfnt_version num_tables search_range entry_selector range_shift table_records cmap head hhea maxp htmx name os2 post cvt fpgm glyf) maxp.link,
+            head <- deref (_ file_start sfnt_version num_tables search_range entry_selector range_shift table_records cmap head hhea maxp htmx name os2 post cvt fpgm glyf maxp) head.link,
             table <- loca_table maxp.num_glyphs head.index_to_loc_format,
         },
         prep <- optional_table "prep" unknown_table,
