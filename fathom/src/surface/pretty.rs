@@ -2,7 +2,7 @@ use pretty::{Doc, DocAllocator, DocBuilder, DocPtr, RefDoc};
 use scoped_arena::Scope;
 use std::cell::RefCell;
 
-use crate::surface::{Pattern, Term};
+use crate::surface::{FormatField, Pattern, Term};
 use crate::{StringId, StringInterner};
 
 /// Term precedences
@@ -187,13 +187,13 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
             ),
             Term::RecordType(_, type_fields) => self.sequence(
                 self.text("{"),
-                type_fields.iter().map(|((_, label), r#type)| {
+                type_fields.iter().map(|field| {
                     self.concat([
-                        self.string_id(*label),
+                        self.string_id(field.label.1),
                         self.space(),
                         self.text(":"),
                         self.space(),
-                        self.term_prec(Prec::Top, r#type),
+                        self.term_prec(Prec::Top, field.type_),
                     ])
                 }),
                 self.text(","),
@@ -201,13 +201,13 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
             ),
             Term::RecordLiteral(_, expr_fields) => self.sequence(
                 self.text("{"),
-                expr_fields.iter().map(|((_, label), r#expr)| {
+                expr_fields.iter().map(|field| {
                     self.concat([
-                        self.string_id(*label),
+                        self.string_id(field.label.1),
                         self.space(),
                         self.text("="),
                         self.space(),
-                        self.term_prec(Prec::Top, r#expr),
+                        self.term_prec(Prec::Top, field.expr),
                     ])
                 }),
                 self.text(","),
@@ -235,15 +235,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
             },
             Term::FormatRecord(_, format_fields) => self.sequence(
                 self.text("{"),
-                format_fields.iter().map(|((_, label), format)| {
-                    self.concat([
-                        self.string_id(*label),
-                        self.space(),
-                        self.text("<-"),
-                        self.space(),
-                        self.term_prec(Prec::Top, format),
-                    ])
-                }),
+                format_fields.iter().map(|field| self.format_field(field)),
                 self.text(","),
                 self.text("}"),
             ),
@@ -264,20 +256,34 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
             ]),
             Term::FormatOverlap(_, format_fields) => self.sequence(
                 self.concat([self.text("overlap"), self.space(), self.text("{")]),
-                format_fields.iter().map(|((_, label), format)| {
-                    self.concat([
-                        self.string_id(*label),
-                        self.space(),
-                        self.text("<-"),
-                        self.space(),
-                        self.term_prec(Prec::Top, format),
-                    ])
-                }),
+                format_fields.iter().map(|field| self.format_field(field)),
                 self.text(","),
                 self.text("}"),
             ),
             Term::ReportedError(_) => self.text("#error"),
         }
+    }
+
+    fn format_field<Range>(
+        &'arena self,
+        format_field: &FormatField<'_, Range>,
+    ) -> DocBuilder<'arena, Self> {
+        self.concat([
+            self.string_id(format_field.label.1),
+            self.space(),
+            self.text("<-"),
+            self.space(),
+            self.term_prec(Prec::Top, format_field.format),
+            match format_field.pred {
+                Some(pred) => self.concat([
+                    self.space(),
+                    self.text("when"),
+                    self.space(),
+                    self.term_prec(Prec::Top, pred),
+                ]),
+                None => self.nil(),
+            },
+        ])
     }
 
     /// Wrap a document in parens.
@@ -367,6 +373,7 @@ impl<'interner, 'arena, A: 'arena> DocAllocator<'arena, A> for Context<'interner
             Doc::BorrowedText("let") => &Doc::BorrowedText("let"),
             Doc::BorrowedText("overlap") => &Doc::BorrowedText("overlap"),
             Doc::BorrowedText("Type") => &Doc::BorrowedText("Type"),
+            Doc::BorrowedText("when") => &Doc::BorrowedText("when"),
             Doc::BorrowedText(":") => &Doc::BorrowedText(":"),
             Doc::BorrowedText(",") => &Doc::BorrowedText(","),
             Doc::BorrowedText("=") => &Doc::BorrowedText("="),

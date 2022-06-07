@@ -108,9 +108,9 @@ pub enum Term<'arena, Range> {
         &'arena Term<'arena, Range>,
     ),
     /// Dependent record types.
-    RecordType(Range, &'arena [((Range, StringId), Term<'arena, Range>)]),
+    RecordType(Range, &'arena [TypeField<'arena, Range>]),
     /// Record literals.
-    RecordLiteral(Range, &'arena [((Range, StringId), Term<'arena, Range>)]),
+    RecordLiteral(Range, &'arena [ExprField<'arena, Range>]),
     /// Unit literals.
     UnitLiteral(Range),
     /// Projections.
@@ -130,9 +130,9 @@ pub enum Term<'arena, Range> {
     /// Boolean literals.
     BooleanLiteral(Range, bool),
     /// Record format.
-    FormatRecord(Range, &'arena [((Range, StringId), Term<'arena, Range>)]),
+    FormatRecord(Range, &'arena [FormatField<'arena, Range>]),
     /// Overlap format.
-    FormatOverlap(Range, &'arena [((Range, StringId), Term<'arena, Range>)]),
+    FormatOverlap(Range, &'arena [FormatField<'arena, Range>]),
     /// Conditional format.
     FormatCond(
         Range,
@@ -196,6 +196,35 @@ impl<'arena> Term<'arena, ByteRange> {
 
         (term, messages)
     }
+}
+
+/// A field declaration in a record and offset format
+#[derive(Debug, Clone)]
+pub struct FormatField<'arena, Range> {
+    /// Label identifying the field
+    label: (Range, StringId),
+    /// The format that this field will be parsed with
+    format: &'arena Term<'arena, Range>,
+    /// An optional predicate that refines the format field
+    pred: Option<&'arena Term<'arena, Range>>,
+}
+
+/// A field declaration in a record type
+#[derive(Debug, Clone)]
+pub struct TypeField<'arena, Range> {
+    /// Label identifying the field
+    label: (Range, StringId),
+    /// The type that is expected for this field
+    type_: &'arena Term<'arena, Range>,
+}
+
+/// A field definition in a record literal
+#[derive(Debug, Clone)]
+pub struct ExprField<'arena, Range> {
+    /// Label identifying the field
+    label: (Range, StringId),
+    /// The expression that this field will store
+    expr: &'arena Term<'arena, Range>,
 }
 
 /// Messages produced during parsing

@@ -3,7 +3,7 @@ use std::cell::RefCell;
 
 use crate::{StringId, StringInterner};
 use crate::source::ByteRange;
-use crate::surface::{Term, ParseMessage, Pattern};
+use crate::surface::{ExprField, FormatField, ParseMessage, Pattern, Term, TypeField};
 use crate::surface::lexer::{Error as LexerError, Token};
 
 grammar<'arena, 'source>(
@@ -29,6 +29,7 @@ extern {
         "Type" => Token::KeywordType,
         "true" => Token::KeywordTrue,
         "false" => Token::KeywordFalse,
+        "when" => Token::KeywordWhen,
 
         ":" => Token::Colon,
         "," => Token::Comma,
@@ -144,19 +145,19 @@ AtomicTerm: Term<'arena, ByteRange> = {
     <start: @L> "true" <end: @R> => Term::BooleanLiteral(ByteRange::new(start, end), true),
     <start: @L> "false" <end: @R> => Term::BooleanLiteral(ByteRange::new(start, end), false),
     <start: @L> "{" "}" <end: @R> => Term::UnitLiteral(ByteRange::new(start, end)),
-    <start: @L> "{" <fields: NonEmptySeq<(<RangedName> ":" <Term>), ",">> "}" <end: @R> => {
+    <start: @L> "{" <fields: NonEmptySeq<TypeField, ",">> "}" <end: @R> => {
         Term::RecordType(ByteRange::new(start, end), fields)
     },
-    <start: @L> "{" <fields: NonEmptySeq<(<RangedName> "=" <Term>), ",">> "}" <end: @R> => {
+    <start: @L> "{" <fields: NonEmptySeq<ExprField, ",">> "}" <end: @R> => {
         Term::RecordLiteral(ByteRange::new(start, end), fields)
     },
-    <start: @L> "{" <fields: NonEmptySeq<(<RangedName> "<-" <Term>), ",">> "}" <end: @R> => {
+    <start: @L> "{" <fields: NonEmptySeq<FormatField, ",">> "}" <end: @R> => {
         Term::FormatRecord(ByteRange::new(start, end), fields)
     },
-    <start: @L> "{" <name:RangedName> "<-" <format:Term> "|" <cond:Term> "}" <end: @R> => {
+    <start: @L> "{" <name: RangedName> "<-" <format:Term> "|" <cond:Term> "}" <end: @R> => {
         Term::FormatCond(ByteRange::new(start, end), name, scope.to_scope(format), scope.to_scope(cond))
     },
-    <start: @L> "overlap" "{" <fields: NonEmptySeq<(<RangedName> "<-" <Term>), ",">> "}" <end: @R> => {
+    <start: @L> "overlap" "{" <fields: NonEmptySeq<FormatField, ",">> "}" <end: @R> => {
         Term::FormatOverlap(ByteRange::new(start, end), fields)
     },
     <start: @L> <head_expr: AtomicTerm> "." <label: RangedName> <end: @R> => {
@@ -169,6 +170,24 @@ AtomicTerm: Term<'arena, ByteRange> = {
         messages.push(ParseMessage::from(error));
         Term::ReportedError(ByteRange::new(start, end))
     },
+};
+
+FormatField: FormatField<'arena, ByteRange> = {
+    <label: RangedName> "<-" <format: Term> <pred: ("when" <Term>)?> => {
+        FormatField {
+            label,
+            format: scope.to_scope(format),
+            pred: pred.map(|pred| scope.to_scope(pred) as &_),
+        }
+    },
+};
+
+TypeField: TypeField<'arena, ByteRange> = {
+    <label: RangedName> ":" <type_: Term> => TypeField { label, type_: scope.to_scope(type_) },
+};
+
+ExprField: ExprField<'arena, ByteRange> = {
+    <label: RangedName> "=" <expr: Term> => ExprField { label, expr: scope.to_scope(expr) },
 };
 
 #[inline] Name: StringId = { <"name"> => interner.borrow_mut().get_or_intern(<>) };

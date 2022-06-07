@@ -852,7 +852,7 @@ let cmap_table = {
 /// - [Apple's TrueType Reference Manual: The `'head'` table](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6head.html)
 let head_table = {
     /// Major version number of the font header table.
-    major_version <- { version <- u16be | u16_eq version 1 },
+    major_version <- u16be when u16_eq major_version 1,
     /// Minor version number of the font header table.
     minor_version <- u16be, // TODO: where minor_version == 0
     /// Set by the font manufacturer.
@@ -864,13 +864,13 @@ let head_table = {
     checksum_adjustment <- u32be,
     /// [Magic number](https://en.wikipedia.org/wiki/File_format#Magic_number), always set to
     /// 0x5F0F3CF5
-    magic_number <- { magic <- u32be | u32_eq magic 0x5F0F3CF5 },
+    magic_number <- u32be when u32_eq magic_number 0x5F0F3CF5,
     /// General font flags.
     ///
     // TODO: Document flags
     flags <- u16be,  // TODO: bit patterns?
     /// The granularity of the font's coordinate grid.
-    units_per_em <- { units_per_em <- u16be | bool_and (u16_gte units_per_em 16) (u16_lte units_per_em 16384) },
+    units_per_em <- u16be when bool_and (u16_gte units_per_em 16) (u16_lte units_per_em 16384),
     /// The date when the font was created.
     created <- long_date_time,
     /// The date when the font was modified.
@@ -954,7 +954,7 @@ let head_table = {
 /// - [Apple's TrueType Reference Manual: The `'hhea'` table](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6hhea.html)
 let hhea_table = {
     /// Major version number of the horizontal header table.
-    major_version <- { version <- u16be | u16_eq version 1 },
+    major_version <- u16be when u16_eq major_version 1,
     /// Minor version number of the horizontal header table.
     minor_version <- u16be, // TODO: where minor_version == 0
     /// Distance from the baseline to the highest ascender.
@@ -1666,14 +1666,14 @@ let gdef_table = (
     let gdef_header_version_1_3 = fun (gdef_start : Pos) => {
         /// Offset to the Item Variation Store table, from beginning of GDEF header (may be NULL)
         // TODO: Implement [Item Variation Store](https://docs.microsoft.com/en-us/typography/opentype/spec/otvarcommonformats#item-variation-store)
-        item_var_store <- u32be, 
+        item_var_store <- u32be,
     };
 
     {
         /// The start of the `GDEF` table
         table_start <- stream_pos,
         /// Major version of the GDEF table, = 1
-        major_version <- { version <- u16be | u16_eq version 1 },
+        major_version <- u16be when u16_eq major_version 1,
         /// Minor version of the GDEF table
         minor_version <- u16be,
         /// Class definition table for glyph type, from beginning of GDEF header (may be NULL)
@@ -1815,7 +1815,8 @@ let table_directory = fun (file_start : Pos) => {
     /// | `0x4F54544F`  | (`'OTTO'`) for fonts containing CFF data  |
     ///
     /// Apple allows 'true' and 'typ1', but this should not be found in OpenType files.
-    sfnt_version <- { version <- u32be | bool_or (u32_eq version 0x00010000) (u32_eq version "OTTO") },
+    sfnt_version <- u32be when
+        bool_or (u32_eq sfnt_version 0x00010000) (u32_eq sfnt_version "OTTO"),
 
     /// Number of tables in the directory.
     num_tables <- u16be,
