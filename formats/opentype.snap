@@ -80,7 +80,6 @@ let delta_bits : _ = fun delta_format => fun num_sizes => match delta_format {
     0x1 => u16_mul num_sizes 2,
     0x2 => u16_mul num_sizes 4,
     0x3 => u16_mul num_sizes 8,
-    0x8000 => 0,
     _ => 0,
 };
 let num_sizes : _ = fun start => fun end => u16_add (u16_sub end start) 1;
@@ -88,8 +87,23 @@ let num_sizes : _ = fun start => fun end => u16_add (u16_sub end start) 1;
     start_size <- u16be,
     end_size <- u16be,
     delta_format <- u16be,
-    _delta_bits <- succeed (_ start_size end_size delta_format) (delta_bits delta_format (num_sizes start_size end_size)),
-    delta_values <- array16 (u16_div_ceil _delta_bits 16) u16be,
+    delta_values <- let delta_bits : _ start_size end_size delta_format =
+    delta_bits delta_format (num_sizes start_size end_size);
+    array16 (u16_div_ceil delta_bits 16) u16be,
+};
+let variation_index_table : _ = {
+    delta_set_outer_index <- u16be,
+    delta_set_inner_index <- u16be,
+};
+let device_or_variation_index_table : _ = overlap {
+    init <- { _skipped <- array8 4 u8, table_format <- u16be },
+    table <- match init.table_format {
+        0x1 => device_table,
+        0x2 => device_table,
+        0x3 => device_table,
+        0x8000 => variation_index_table,
+        _ => fail,
+    },
 };
 let cmap_language_id : _ = fun platform => language_id;
 let cmap_language_id32 : _ = fun platform => language_id32;
@@ -419,7 +433,7 @@ let caret_value : _ = let caret_value_format_1 : _ = { coordinate <- s16be };
 let caret_value_format_2 : _ = { caret_value_point_index <- u16be };
 let caret_value_format_3 : _ = fun table_start => {
     coordinate <- s16be,
-    device_table <- offset16 table_start device_table,
+    table <- offset16 table_start device_or_variation_index_table,
 };
 {
     table_start <- stream_pos,

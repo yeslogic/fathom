@@ -369,10 +369,37 @@ let device_table = (
         /// Format of deltaValue array data
         delta_format <- u16be,
         /// Array of compressed data
-        _delta_bits <- succeed _ (delta_bits delta_format (num_sizes start_size end_size)),
-        delta_values <- array16 (u16_div_ceil _delta_bits 16) u16be,
+        delta_values <-
+            let delta_bits = delta_bits delta_format (num_sizes start_size end_size);
+            array16 (u16_div_ceil delta_bits 16) u16be,
     }
 );
+
+/// VariationIndex table
+let variation_index_table = {
+    /// A delta-set outer index — used to select an item variation data subtable within the item
+    /// variation store.
+    delta_set_outer_index <- u16be,
+    /// A delta-set inner index — used to select a delta-set row within an item variation data
+    /// subtable.
+    delta_set_inner_index <- u16be,
+};
+
+let device_or_variation_index_table = overlap {
+    // Initial pass to figure out the table format
+    init <- {
+        _skipped <- array8 4 u8,
+        table_format <- u16be,
+    },
+    // Device and VariationIndex Tables
+    table <- match init.table_format {
+        0x0001 => device_table,
+        0x0002 => device_table,
+        0x0003 => device_table,
+        0x8000 => variation_index_table,
+        _ => fail,
+    },
+};
 
 // -----------------------------------------------------------------------------
 
@@ -1556,9 +1583,9 @@ let caret_value = (
     let caret_value_format_3 = fun (table_start : Pos) => {
         /// X or Y value, in design units
         coordinate <- s16be,
-        /// Offset to Device table (non-variable font) / Variation Index table (variable font) for X or
-        /// Y value-from beginning of CaretValue table
-        device_table <- offset16 table_start device_table,
+        /// Offset to Device table (non-variable font) / Variation Index table (variable font) for
+        /// X or Y value-from beginning of CaretValue table
+        table <- offset16 table_start device_or_variation_index_table,
     };
 
     {

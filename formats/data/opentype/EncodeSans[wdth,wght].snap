@@ -8865,19 +8865,13 @@ stdout = '''
     {
         table_start = 85460,
         caret_value_format = 3,
-        data = {
-            coordinate = 1083,
-            device_table = { offset = 6, link = 85466 },
-        },
+        data = { coordinate = 1083, table = { offset = 6, link = 85466 } },
     },
 ]
 85466 = [
     {
-        start_size = 14,
-        end_size = 16,
-        delta_format = 32768,
-        _delta_bits = 0,
-        delta_values = [],
+        init = { _skipped = [ 0, 14, 0, 16 ], table_format = 32768 },
+        table = { delta_set_outer_index = 14, delta_set_inner_index = 16 },
     },
 ]
 85472 = [
@@ -8891,19 +8885,13 @@ stdout = '''
     {
         table_start = 85476,
         caret_value_format = 3,
-        data = {
-            coordinate = 963,
-            device_table = { offset = 6, link = 85482 },
-        },
+        data = { coordinate = 963, table = { offset = 6, link = 85482 } },
     },
 ]
 85482 = [
     {
-        start_size = 11,
-        end_size = 71,
-        delta_format = 32768,
-        _delta_bits = 0,
-        delta_values = [],
+        init = { _skipped = [ 0, 11, 0, 71 ], table_format = 32768 },
+        table = { delta_set_outer_index = 11, delta_set_inner_index = 71 },
     },
 ]
 85488 = [
@@ -8917,19 +8905,13 @@ stdout = '''
     {
         table_start = 85492,
         caret_value_format = 3,
-        data = {
-            coordinate = 1242,
-            device_table = { offset = 6, link = 85498 },
-        },
+        data = { coordinate = 1242, table = { offset = 6, link = 85498 } },
     },
 ]
 85498 = [
     {
-        start_size = 11,
-        end_size = 77,
-        delta_format = 32768,
-        _delta_bits = 0,
-        delta_values = [],
+        init = { _skipped = [ 0, 11, 0, 77 ], table_format = 32768 },
+        table = { delta_set_outer_index = 11, delta_set_inner_index = 77 },
     },
 ]
 85504 = [
@@ -8943,19 +8925,13 @@ stdout = '''
     {
         table_start = 85508,
         caret_value_format = 3,
-        data = {
-            coordinate = 396,
-            device_table = { offset = 6, link = 85514 },
-        },
+        data = { coordinate = 396, table = { offset = 6, link = 85514 } },
     },
 ]
 85514 = [
     {
-        start_size = 10,
-        end_size = 13,
-        delta_format = 32768,
-        _delta_bits = 0,
-        delta_values = [],
+        init = { _skipped = [ 0, 10, 0, 13 ], table_format = 32768 },
+        table = { delta_set_outer_index = 10, delta_set_inner_index = 13 },
     },
 ]
 85520 = [
@@ -8969,19 +8945,13 @@ stdout = '''
     {
         table_start = 85524,
         caret_value_format = 3,
-        data = {
-            coordinate = 868,
-            device_table = { offset = 6, link = 85530 },
-        },
+        data = { coordinate = 868, table = { offset = 6, link = 85530 } },
     },
 ]
 85530 = [
     {
-        start_size = 14,
-        end_size = 21,
-        delta_format = 32768,
-        _delta_bits = 0,
-        delta_values = [],
+        init = { _skipped = [ 0, 14, 0, 21 ], table_format = 32768 },
+        table = { delta_set_outer_index = 14, delta_set_inner_index = 21 },
     },
 ]
 85536 = [
@@ -8995,19 +8965,13 @@ stdout = '''
     {
         table_start = 85540,
         caret_value_format = 3,
-        data = {
-            coordinate = 356,
-            device_table = { offset = 6, link = 85546 },
-        },
+        data = { coordinate = 356, table = { offset = 6, link = 85546 } },
     },
 ]
 85546 = [
     {
-        start_size = 10,
-        end_size = 14,
-        delta_format = 32768,
-        _delta_bits = 0,
-        delta_values = [],
+        init = { _skipped = [ 0, 10, 0, 14 ], table_format = 32768 },
+        table = { delta_set_outer_index = 10, delta_set_inner_index = 14 },
     },
 ]
 85552 = [
@@ -9021,19 +8985,13 @@ stdout = '''
     {
         table_start = 85556,
         caret_value_format = 3,
-        data = {
-            coordinate = 583,
-            device_table = { offset = 6, link = 85562 },
-        },
+        data = { coordinate = 583, table = { offset = 6, link = 85562 } },
     },
 ]
 85562 = [
     {
-        start_size = 14,
-        end_size = 15,
-        delta_format = 32768,
-        _delta_bits = 0,
-        delta_values = [],
+        init = { _skipped = [ 0, 14, 0, 15 ], table_format = 32768 },
+        table = { delta_set_outer_index = 14, delta_set_inner_index = 15 },
     },
 ]
 85568 = [
@@ -9047,19 +9005,13 @@ stdout = '''
     {
         table_start = 85572,
         caret_value_format = 3,
-        data = {
-            coordinate = 396,
-            device_table = { offset = 6, link = 85578 },
-        },
+        data = { coordinate = 396, table = { offset = 6, link = 85578 } },
     },
 ]
 85578 = [
     {
-        start_size = 10,
-        end_size = 10,
-        delta_format = 32768,
-        _delta_bits = 0,
-        delta_values = [],
+        init = { _skipped = [ 0, 10, 0, 10 ], table_format = 32768 },
+        table = { delta_set_outer_index = 10, delta_set_inner_index = 10 },
     },
 ]
 85584 = [
@@ -9073,19 +9025,13 @@ stdout = '''
     {
         table_start = 85588,
         caret_value_format = 3,
-        data = {
-            coordinate = 356,
-            device_table = { offset = 6, link = 85594 },
-        },
+        data = { coordinate = 356, table = { offset = 6, link = 85594 } },
     },
 ]
 85594 = [
     {
-        start_size = 10,
-        end_size = 15,
-        delta_format = 32768,
-        _delta_bits = 0,
-        delta_values = [],
+        init = { _skipped = [ 0, 10, 0, 15 ], table_format = 32768 },
+        table = { delta_set_outer_index = 10, delta_set_inner_index = 15 },
     },
 ]
 85600 = [
@@ -9099,19 +9045,13 @@ stdout = '''
     {
         table_start = 85604,
         caret_value_format = 3,
-        data = {
-            coordinate = 918,
-            device_table = { offset = 6, link = 85610 },
-        },
+        data = { coordinate = 918, table = { offset = 6, link = 85610 } },
     },
 ]
 85610 = [
     {
-        start_size = 14,
-        end_size = 22,
-        delta_format = 32768,
-        _delta_bits = 0,
-        delta_values = [],
+        init = { _skipped = [ 0, 14, 0, 22 ], table_format = 32768 },
+        table = { delta_set_outer_index = 14, delta_set_inner_index = 22 },
     },
 ]
 85616 = [
@@ -9125,19 +9065,13 @@ stdout = '''
     {
         table_start = 85620,
         caret_value_format = 3,
-        data = {
-            coordinate = 400,
-            device_table = { offset = 6, link = 85626 },
-        },
+        data = { coordinate = 400, table = { offset = 6, link = 85626 } },
     },
 ]
 85626 = [
     {
-        start_size = 10,
-        end_size = 12,
-        delta_format = 32768,
-        _delta_bits = 0,
-        delta_values = [],
+        init = { _skipped = [ 0, 10, 0, 12 ], table_format = 32768 },
+        table = { delta_set_outer_index = 10, delta_set_inner_index = 12 },
     },
 ]
 85632 = [
@@ -9151,19 +9085,13 @@ stdout = '''
     {
         table_start = 85636,
         caret_value_format = 3,
-        data = {
-            coordinate = 1103,
-            device_table = { offset = 6, link = 85642 },
-        },
+        data = { coordinate = 1103, table = { offset = 6, link = 85642 } },
     },
 ]
 85642 = [
     {
-        start_size = 14,
-        end_size = 8,
-        delta_format = 32768,
-        _delta_bits = 0,
-        delta_values = [],
+        init = { _skipped = [ 0, 14, 0, 8 ], table_format = 32768 },
+        table = { delta_set_outer_index = 14, delta_set_inner_index = 8 },
     },
 ]
 87912 = [ {} ]
