@@ -1,6 +1,7 @@
 //! # OpenType Font File Format
 
 //~ example-data = [
+//~   "data/opentype/*.ttf",
 //~   "data/opentype/aots/*.otf",
 //~   "data/opentype/woff/*.ttf",
 //~   "data/opentype/woff2/*.ttf",
