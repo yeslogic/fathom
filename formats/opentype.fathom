@@ -183,6 +183,196 @@ let language_id =
 let language_id32 =
     u32be;
 
+
+// # Common Table Formats
+
+/// # Class Definition Table
+///
+/// | Class | Description                                               |
+/// |-------|-----------------------------------------------------------|
+/// | 1     | Base glyph (single character, spacing glyph)              |
+/// | 2     | Ligature glyph (multiple character, spacing glyph)        |
+/// | 3     | Mark glyph (non-spacing combining glyph)                  |
+/// | 4     | Component glyph (part of single character, spacing glyph) |
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: Class Definition Table](https://docs.microsoft.com/en-us/typography/opentype/spec/chapter2#class-definition-table)
+
+/// # Class Definition Table Format 1
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: Class Definition Table Format 1](https://docs.microsoft.com/en-us/typography/opentype/spec/chapter2#class-definition-table-format-1)
+let class_def_format_1 = {
+    /// First glyph ID of the class_value_array
+    start_glyph_id <- u16be,
+    /// Size of the class_value_array
+    glyph_count <- u16be,
+    /// Array of Class Values — one per glyph ID
+    class_value_array <- array16 glyph_count u16be,
+};
+
+/// # Class Definition Table Format 2
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: Class Definition Table Format 2](https://docs.microsoft.com/en-us/typography/opentype/spec/chapter2#class-definition-table-format-2)
+let class_def_format_2 = (
+    /// ClassRangeRecord
+    let class_range_record = {
+        /// First glyph ID in the range
+        start_glyph_id <- u16be,
+        /// Last glyph ID in the range
+        end_glyph_id <- u16be,
+        /// Applied to all glyphs in the range
+        class <- u16be,
+    };
+
+    {
+        /// Number of ClassRangeRecords
+        class_range_count <- u16be,
+        /// Array of ClassRangeRecords — ordered by startGlyphID
+        class_range_records <- array16 class_range_count class_range_record,
+    }
+);
+
+/// # Class Definition Table
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: Class Definition Table](https://docs.microsoft.com/en-us/typography/opentype/spec/chapter2#class-definition-table)
+let class_def = {
+    /// Format identifier
+    class_format <- u16be,
+    /// Format specific data
+    data <- match class_format {
+        1 => class_def_format_1,
+        2 => class_def_format_2,
+        _ => fail,
+    },
+};
+
+/// # Coverage Format 1
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: Coverage Format 1](https://docs.microsoft.com/en-us/typography/opentype/spec/chapter2#coverage-format-1)
+let coverage_format_1 = {
+    /// Number of glyphs in the glyph array
+    glyph_count <- u16be,
+    /// Array of glyph IDs — in numerical order
+    glyph_array <- array16 glyph_count u16be,
+};
+
+/// # Coverage Format 2
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: Coverage Format 2](https://docs.microsoft.com/en-us/typography/opentype/spec/chapter2#coverage-format-2)
+let coverage_format_2 = (
+    /// RangeRecord
+    let range_record = {
+        /// First glyph ID in the range
+        start_glyph_id <- u16be,
+        /// Last glyph ID in the range
+        end_glyph_id <- u16be,
+        /// Coverage Index of first glyph ID in range
+        start_coverage_index <- u16be,
+    };
+
+    {
+        /// Number of RangeRecords
+        range_count <- u16be,
+        /// Array of glyph ranges — ordered by startGlyphID
+        range_records <- array16 range_count range_record,
+    }
+);
+
+/// # Coverage Table
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: Coverage Table](https://docs.microsoft.com/en-us/typography/opentype/spec/chapter2#coverageTbl)
+let coverage_table = {
+    /// Format identifier
+    coverage_format <- u16be,
+    /// Format specific data
+    data <- match coverage_format {
+        1 => coverage_format_1,
+        2 => coverage_format_2,
+        _ => fail,
+    }
+};
+
+/// # Device and VariationIndex Tables
+///
+/// Device tables and VariationIndex tables are used to provide adjustments to font-unit values in
+/// GPOS, JSTF, GDEF or BASE tables, such as the X and Y coordinates of an attachment anchor
+/// position.
+///
+/// Curiously the table has two interpretations. The second interprtation appears to be have been
+/// tacked on for variable fonts. The gist being that if the delta format is 0x8000 then the table
+/// is a VariationIndex table, which names the fields differently and does not contain a delta
+/// value array. E.g.
+///
+/// let variation_index_table = {
+///     /// A delta-set outer index — used to select an item variation data subtable within the item variation store.
+///     delta_set_outer_index <- u16be,
+///     /// A delta-set inner index — used to select a delta-set row within an item variation data subtable.
+///     delta_set_inner_index <- u16be,
+///     /// Format, = 0x8000
+///     delta_format <- u16be,
+/// };
+///
+/// We only define `device_table` and have it conditionally read the delta value array.
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: Device and VariationIndex Tables](https://docs.microsoft.com/en-us/typography/opentype/spec/chapter2#device-and-variationindex-tables)
+///
+let device_table = (
+    // quotient = numerator / denominator # int division
+    // if quotient * denominator < numerator:
+    //     quotient + 1
+    // else:
+    //     quotient
+    let u16_div_ceil = fun (numerator : U16) => fun (denominator : U16) => (
+        let quotient = u16_div numerator denominator;
+        match (u16_lt (u16_mul quotient denominator) numerator) {
+            true => u16_add quotient 1,
+            false => quotient,
+        }
+    );
+
+    let delta_bits = fun (delta_format : U16) => fun (num_sizes : U16) =>
+        match delta_format {
+            // Signed 2-bit value, 8 values per uint16
+            0x0001 => u16_mul num_sizes 2,
+            // Signed 4-bit value, 4 values per uint16
+            0x0002 => u16_mul num_sizes 4,
+            // Signed 8-bit value, 2 values per uint16
+            0x0003 => u16_mul num_sizes 8,
+            // Unreachable due to match done in device_or_variation_index_table
+            _ => 0,
+        };
+
+    let num_sizes = fun (start : U16) => fun (end : U16) =>
+        u16_add (u16_sub end start) 1;
+
+    {
+        /// Smallest size to correct, in ppem
+        start_size <- u16be,
+        /// Largest size to correct, in ppem
+        end_size <- u16be,
+        /// Format of deltaValue array data
+        delta_format <- u16be,
+        /// Array of compressed data
+        _delta_bits <- succeed _ (delta_bits delta_format (num_sizes start_size end_size)),
+        delta_values <- array16 (u16_div_ceil _delta_bits 16) u16be,
+    }
+);
+
 // -----------------------------------------------------------------------------
 
 // # Chararacter to Glyph Index Mappings
@@ -1304,7 +1494,182 @@ let base_table = unknown_table;
 //
 // - [Microsoft's OpenType Spec: GDEF — Glyph Definition Table](https://docs.microsoft.com/en-us/typography/opentype/spec/gdef)
 
-let gdef_table = unknown_table;
+/// # Attachment Point List table
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: Attachment Point List table](https://docs.microsoft.com/en-us/typography/opentype/spec/gdef#attachment-point-list-table)
+let attach_list = (
+    /// AttachPoint table
+    let attach_point_table = {
+        /// Number of attachment points on this glyph
+        point_count <- u16be,
+        /// Array of contour point indices -in increasing numerical order
+        point_indices <- array16 point_count u16be,
+    };
+
+    {
+        /// The start of the AttachList table
+        table_start <- stream_pos,
+        /// Offset to Coverage table - from beginning of AttachList table
+        coverage <- offset16 table_start coverage_table,
+        /// Number of glyphs with attachment points
+        glyph_count <- u16be,
+        /// Array of offsets to AttachPoint tables-from beginning of AttachList table-in Coverage Index
+        /// order
+        attach_point_offsets <- array16 glyph_count (offset16 table_start attach_point_table),
+    }
+);
+
+/// # Caret Value Tables
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: Caret Value Tables](https://docs.microsoft.com/en-us/typography/opentype/spec/gdef#caret-value-tables)
+let caret_value = (
+    /// # Caret Value Format 1
+    ///
+    /// ## References
+    ///
+    /// - [Microsoft's OpenType Spec: Caret Value Format 1](https://docs.microsoft.com/en-us/typography/opentype/spec/gdef#caretvalue-format-1)
+    let caret_value_format_1 = {
+        /// X or Y value, in design units
+        coordinate <- s16be,
+    };
+
+    /// # CaretValue Format 2
+    ///
+    /// ## References
+    ///
+    /// - [Microsoft's OpenType Spec: Caret Value Format 2](https://docs.microsoft.com/en-us/typography/opentype/spec/gdef#caretvalue-format-2)
+    let caret_value_format_2 = {
+        /// Contour point index on glyph
+        caret_value_point_index <- u16be,
+    };
+
+    /// # CaretValue Format 3
+    ///
+    /// ## References
+    ///
+    /// - [Microsoft's OpenType Spec: Caret Value Format 3](https://docs.microsoft.com/en-us/typography/opentype/spec/gdef#caretvalue-format-3)
+    let caret_value_format_3 = fun (table_start : Pos) => {
+        /// X or Y value, in design units
+        coordinate <- s16be,
+        /// Offset to Device table (non-variable font) / Variation Index table (variable font) for X or
+        /// Y value-from beginning of CaretValue table
+        device_table <- offset16 table_start device_table,
+    };
+
+    {
+        /// The start of the Caret Value table
+        table_start <- stream_pos,
+        /// Format identifier
+        caret_value_format <- u16be,
+        data <- match caret_value_format {
+            1 => caret_value_format_1,
+            2 => caret_value_format_2,
+            3 => caret_value_format_3 table_start,
+            _ => fail,
+        },
+    }
+);
+
+/// # Ligature Glyph Table (LigGlyph)
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: Ligature Glyph Table](https://docs.microsoft.com/en-us/typography/opentype/spec/gdef#ligature-glyph-table)
+let lig_glyph = {
+    /// The start of the LigGlyph table
+    table_start <- stream_pos,
+    /// Number of CaretValue tables for this ligature (components - 1)
+    caret_count <- u16be,
+    /// Array of offsets to CaretValue tables, from beginning of LigGlyph table — in increasing
+    /// coordinate order
+    caret_values <- array16 caret_count (offset16 table_start caret_value),
+};
+
+/// # Ligature Caret List Table
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: Ligature Caret List Table](https://docs.microsoft.com/en-us/typography/opentype/spec/gdef#ligature-caret-list-table)
+let lig_caret_list = {
+    /// The start of the LigCaretList table
+    table_start <- stream_pos,
+    /// Offset to Coverage table - from beginning of LigCaretList table
+    coverage <- offset16 table_start coverage_table,
+    /// Number of ligature glyphs
+    lig_glyph_count <- u16be,
+    /// Array of offsets to LigGlyph tables, from beginning of LigCaretList table — in Coverage
+    /// Index order
+    lig_glyph_offsets <- array16 lig_glyph_count (offset16 table_start lig_glyph),
+};
+
+/// # Mark Glyph Sets table
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: Mark Glyph Sets Table](https://docs.microsoft.com/en-us/typography/opentype/spec/gdef#mark-glyph-sets-table)
+let mark_glyph_sets = {
+    /// The start of the MarkGlyphSets table
+    table_start <- stream_pos,
+    /// Format identifier == 1
+    format <- u16be,
+    /// Number of mark glyph sets defined
+    mark_glyph_set_count <- u16be,
+    /// Array of offsets to mark glyph set coverage tables, from the start of the MarkGlyphSets
+    /// table.
+    coverage <- array16 mark_glyph_set_count (offset32 table_start coverage_table),
+};
+
+/// # GDEF — Glyph Definition Table
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: Glyph Definition Table](https://docs.microsoft.com/en-us/typography/opentype/spec/gdef)
+let gdef_table = (
+    let gdef_header_version_1_2 = fun (gdef_start : Pos) => {
+        /// Offset to the table of mark glyph set definitions, from beginning of GDEF header (may be
+        /// NULL)
+        mark_glyph_sets_def <- offset16 gdef_start mark_glyph_sets,
+    };
+
+    let gdef_header_version_1_3 = fun (gdef_start : Pos) => {
+        /// Offset to the Item Variation Store table, from beginning of GDEF header (may be NULL)
+        // TODO: Implement [Item Variation Store](https://docs.microsoft.com/en-us/typography/opentype/spec/otvarcommonformats#item-variation-store)
+        item_var_store <- u32be, 
+    };
+
+    {
+        /// The start of the `GDEF` table
+        table_start <- stream_pos,
+        /// Major version of the GDEF table, = 1
+        major_version <- { version <- u16be | u16_eq version 1 },
+        /// Minor version of the GDEF table
+        minor_version <- u16be,
+        /// Class definition table for glyph type, from beginning of GDEF header (may be NULL)
+        glyph_class_def <- offset16 table_start class_def,
+        /// Attachment point list table, from beginning of GDEF header (may be NULL)
+        attach_list <- offset16 table_start attach_list,
+        /// Ligature caret list table, from beginning of GDEF header (may be NULL)
+        lig_caret_list <- offset16 table_start lig_caret_list,
+        /// Class definition table for mark attachment type, from beginning of GDEF header (may be
+        /// NULL)
+        mark_attach_class_def <- offset16 table_start class_def,
+        /// Version > 1.0 specific data
+        data <- match minor_version {
+            // 1.0 fields are above, shared with later versions
+            0 => {},
+            // 1.1 is not defined in the spec
+            1 => {},
+            2 => gdef_header_version_1_2 table_start,
+            3 => gdef_header_version_1_3 table_start,
+            // read unknown later versions as the last version we know about
+            _ => gdef_header_version_1_3 table_start,
+        },
+    }
+);
 
 
 // -----------------------------------------------------------------------------
