@@ -48,7 +48,7 @@ let class_def : _ = {
     data <- match class_format {
         1 => class_def_format_1,
         2 => class_def_format_2,
-        _ => fail,
+        _ => unknown_table,
     },
 };
 let coverage_format_1 : _ = {
@@ -66,7 +66,7 @@ let coverage_table : _ = {
     data <- match coverage_format {
         1 => coverage_format_1,
         2 => coverage_format_2,
-        _ => fail,
+        _ => unknown_table,
     },
 };
 let device_table : _ = let u16_div_ceil : _ =
@@ -102,7 +102,7 @@ let device_or_variation_index_table : _ = overlap {
         0x2 => device_table,
         0x3 => device_table,
         0x8000 => variation_index_table,
-        _ => fail,
+        _ => unknown_table,
     },
 };
 let cmap_language_id : _ = fun platform => language_id;
@@ -298,7 +298,7 @@ let loca_table : _ = fun num_glyphs => fun index_to_loc_format => {
     offsets <- match index_to_loc_format {
         0 => array16 (u16_add num_glyphs 1) u16be,
         1 => array16 (u16_add num_glyphs 1) u32be,
-        _ => fail,
+        _ => unknown_table,
     },
 };
 let glyph_header : _ = {
@@ -442,7 +442,7 @@ let caret_value_format_3 : _ = fun table_start => {
         1 => caret_value_format_1,
         2 => caret_value_format_2,
         3 => caret_value_format_3 table_start,
-        _ => fail,
+        _ => unknown_table,
     },
 };
 let lig_glyph : _ = {

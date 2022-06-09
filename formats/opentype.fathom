@@ -250,7 +250,7 @@ let class_def = {
     data <- match class_format {
         1 => class_def_format_1,
         2 => class_def_format_2,
-        _ => fail,
+        _ => unknown_table,
     },
 };
 
@@ -302,7 +302,7 @@ let coverage_table = {
     data <- match coverage_format {
         1 => coverage_format_1,
         2 => coverage_format_2,
-        _ => fail,
+        _ => unknown_table,
     }
 };
 
@@ -397,7 +397,7 @@ let device_or_variation_index_table = overlap {
         0x0002 => device_table,
         0x0003 => device_table,
         0x8000 => variation_index_table,
-        _ => fail,
+        _ => unknown_table,
     },
 };
 
@@ -1224,7 +1224,7 @@ let loca_table = fun (num_glyphs : U16) => fun (index_to_loc_format : S16) => {
         0 => array16 (u16_add num_glyphs 1) u16be, // TODO Offset16
         // long offsets
         1 => array16 (u16_add num_glyphs 1) u32be, // TODO Offset32
-        _ => fail
+        _ => unknown_table
     }
 };
 
@@ -1597,7 +1597,7 @@ let caret_value = (
             1 => caret_value_format_1,
             2 => caret_value_format_2,
             3 => caret_value_format_3 table_start,
-            _ => fail,
+            _ => unknown_table,
         },
     }
 );
