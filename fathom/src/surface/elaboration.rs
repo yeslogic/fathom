@@ -1256,7 +1256,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                     expr_fields.next(),
                     self.elim_context().split_telescope(types),
                 ) {
-                    let expr = self.check(expr_field.expr, &r#type);
+                    let expr = self.check(&expr_field.expr, &r#type);
                     types = next_types(self.eval_context().eval(&expr));
                     exprs.push(expr);
                 }
@@ -1623,7 +1623,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 let mut types = SliceVec::new(self.scope, labels.len());
 
                 for type_field in type_fields {
-                    let r#type = self.check(type_field.type_, &universe);
+                    let r#type = self.check(&type_field.type_, &universe);
                     let type_value = self.eval_context().eval(&r#type);
                     self.rigid_env
                         .push_param(Some(type_field.label.1), type_value);
@@ -1641,7 +1641,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 let mut exprs = SliceVec::new(self.scope, labels.len());
 
                 for expr_field in expr_fields {
-                    let (expr, r#type) = self.synth(expr_field.expr);
+                    let (expr, r#type) = self.synth(&expr_field.expr);
                     types.push(self.quote_context(self.scope).quote(&r#type)); // NOTE: Unsure if these are correctly bound!
                     exprs.push(expr);
                 }
@@ -1764,6 +1764,8 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
         format_fields: &[FormatField<'_, ByteRange>],
     ) -> (&'arena [StringId], &'arena [core::Term<'arena>]) {
         let format_type = Arc::new(Value::prim(Prim::FormatType, []));
+        let bool_type = Arc::new(Value::prim(Prim::BoolType, []));
+
         let initial_rigid_len = self.rigid_env.len();
         let (labels, format_fields) =
             self.report_duplicate_labels(range, format_fields, |f| f.label);
@@ -1771,20 +1773,19 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
 
         for format_field in format_fields {
             let label = format_field.label.1;
-            let format = self.check(format_field.format, &format_type);
+            let format = self.check(&format_field.format, &format_type);
             let format_value = self.eval_context().eval(&format);
             let r#type = self.elim_context().format_repr(&format_value);
 
             self.rigid_env.push_param(Some(label), r#type);
 
-            match format_field.pred {
+            match &format_field.pred {
                 None => formats.push(format),
                 // Elaborate refined fields to conditional formats
                 Some(pred) => {
                     // Note: No need to push a param, as this was done above,
                     // in preparation for checking the the next format field.
-                    let bool_type = Arc::new(Value::prim(Prim::BoolType, []));
-                    let cond_expr = self.check(pred, &bool_type);
+                    let cond_expr = self.check(&pred, &bool_type);
 
                     formats.push(core::Term::FormatCond(
                         label,

@@ -204,9 +204,9 @@ pub struct FormatField<'arena, Range> {
     /// Label identifying the field
     label: (Range, StringId),
     /// The format that this field will be parsed with
-    format: &'arena Term<'arena, Range>,
+    format: Term<'arena, Range>,
     /// An optional predicate that refines the format field
-    pred: Option<&'arena Term<'arena, Range>>,
+    pred: Option<Term<'arena, Range>>,
 }
 
 /// A field declaration in a record type
@@ -215,7 +215,8 @@ pub struct TypeField<'arena, Range> {
     /// Label identifying the field
     label: (Range, StringId),
     /// The type that is expected for this field
-    type_: &'arena Term<'arena, Range>,
+    // FIXME: raw identifiers in LALRPOP grammars https://github.com/lalrpop/lalrpop/issues/613
+    type_: Term<'arena, Range>,
 }
 
 /// A field definition in a record literal
@@ -224,7 +225,7 @@ pub struct ExprField<'arena, Range> {
     /// Label identifying the field
     label: (Range, StringId),
     /// The expression that this field will store
-    expr: &'arena Term<'arena, Range>,
+    expr: Term<'arena, Range>,
 }
 
 /// Messages produced during parsing

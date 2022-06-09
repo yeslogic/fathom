@@ -174,20 +174,16 @@ AtomicTerm: Term<'arena, ByteRange> = {
 
 FormatField: FormatField<'arena, ByteRange> = {
     <label: RangedName> "<-" <format: Term> <pred: ("when" <Term>)?> => {
-        FormatField {
-            label,
-            format: scope.to_scope(format),
-            pred: pred.map(|pred| scope.to_scope(pred) as &_),
-        }
+        FormatField { label, format, pred }
     },
 };
 
 TypeField: TypeField<'arena, ByteRange> = {
-    <label: RangedName> ":" <type_: Term> => TypeField { label, type_: scope.to_scope(type_) },
+    <label: RangedName> ":" <type_: Term> => TypeField { label, type_ },
 };
 
 ExprField: ExprField<'arena, ByteRange> = {
-    <label: RangedName> "=" <expr: Term> => ExprField { label, expr: scope.to_scope(expr) },
+    <label: RangedName> "=" <expr: Term> => ExprField { label, expr },
 };
 
 #[inline] Name: StringId = { <"name"> => interner.borrow_mut().get_or_intern(<>) };

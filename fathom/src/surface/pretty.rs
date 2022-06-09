@@ -193,7 +193,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                         self.space(),
                         self.text(":"),
                         self.space(),
-                        self.term_prec(Prec::Top, field.type_),
+                        self.term_prec(Prec::Top, &field.type_),
                     ])
                 }),
                 self.text(","),
@@ -207,7 +207,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                         self.space(),
                         self.text("="),
                         self.space(),
-                        self.term_prec(Prec::Top, field.expr),
+                        self.term_prec(Prec::Top, &field.expr),
                     ])
                 }),
                 self.text(","),
@@ -273,13 +273,13 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
             self.space(),
             self.text("<-"),
             self.space(),
-            self.term_prec(Prec::Top, format_field.format),
-            match format_field.pred {
+            self.term_prec(Prec::Top, &format_field.format),
+            match &format_field.pred {
                 Some(pred) => self.concat([
                     self.space(),
                     self.text("when"),
                     self.space(),
-                    self.term_prec(Prec::Top, pred),
+                    self.term_prec(Prec::Top, &pred),
                 ]),
                 None => self.nil(),
             },

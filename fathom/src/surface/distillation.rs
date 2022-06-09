@@ -198,7 +198,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 let expr_fields =
                     Iterator::zip(labels.iter(), exprs.iter()).map(|(label, expr)| ExprField {
                         label: ((), *label),
-                        expr: scope.to_scope(self.check(expr)),
+                        expr: self.check(expr),
                     });
 
                 Term::RecordLiteral((), scope.to_scope_from_iter(expr_fields))
@@ -372,7 +372,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                         self.push_rigid(Some(*label));
                         TypeField {
                             label: ((), *label),
-                            type_: self.scope.to_scope(r#type),
+                            type_: r#type,
                         }
                     }),
                 );
@@ -384,12 +384,9 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
             core::Term::RecordLit(labels, exprs) => {
                 let scope = self.scope;
                 let expr_fields =
-                    Iterator::zip(labels.iter(), exprs.iter()).map(|(label, expr)| {
-                        let expr = self.synth(expr);
-                        ExprField {
-                            label: ((), *label),
-                            expr: self.scope.to_scope(expr),
-                        }
+                    Iterator::zip(labels.iter(), exprs.iter()).map(|(label, expr)| ExprField {
+                        label: ((), *label),
+                        expr: self.synth(expr),
                     });
 
                 // TODO: type annotations?
@@ -502,28 +499,27 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
         core_formats: &[core::Term<'_>],
     ) -> &'arena [FormatField<'arena, ()>] {
         let initial_rigid_len = self.rigid_len();
-        let format_fields = (self.scope).to_scope_from_iter(
-            Iterator::zip(labels.iter(), core_formats.iter()).map(|(label, format)| {
+        let core_fields = Iterator::zip(labels.iter().copied(), core_formats.iter());
+        let format_fields = (self.scope).to_scope_from_iter(core_fields.map(|(label, format)| {
+            let (format, pred) = match format {
                 // Use field refinements when `format` is a conditional format
                 // that binds the same name as the current field label.
-                let (format, pred) = match format {
-                    core::Term::FormatCond(name, format, pred) if label == name => {
-                        (*format, Some(pred))
-                    }
-                    format => (format, None),
-                };
-
-                let format = self.check(format);
-                self.push_rigid(Some(*label));
-                let pred = pred.map(|pred| self.check(pred));
-
-                FormatField {
-                    label: ((), *label),
-                    format: self.scope.to_scope(format),
-                    pred: pred.map(|pred| self.scope.to_scope(pred) as &_),
+                core::Term::FormatCond(name, format, pred) if label == *name => {
+                    (*format, Some(pred))
                 }
-            }),
-        );
+                format => (format, None),
+            };
+
+            let format = self.check(format);
+            self.push_rigid(Some(label));
+            let pred = pred.map(|pred| self.check(pred));
+
+            FormatField {
+                label: ((), label),
+                format,
+                pred,
+            }
+        }));
         self.truncate_rigid(initial_rigid_len);
 
         format_fields
