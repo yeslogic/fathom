@@ -28,8 +28,8 @@ pub enum Token<'source> {
     KeywordTrue,
     #[token("false")]
     KeywordFalse,
-    #[token("when")]
-    KeywordWhen,
+    #[token("where")]
+    KeywordWhere,
 
     #[token(":")]
     Colon,
@@ -121,7 +121,7 @@ impl<'source> Token<'source> {
             Token::KeywordMatch => "match",
             Token::KeywordOverlap => "overlap",
             Token::KeywordType => "Type",
-            Token::KeywordWhen => "when",
+            Token::KeywordWhere => "where",
             Token::Colon => ":",
             Token::Comma => ",",
             Token::Equals => "=>",

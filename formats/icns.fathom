@@ -5,7 +5,7 @@
 //! - [Wikipedia](https://en.wikipedia.org/wiki/Apple_Icon_Image_format)
 
 let header = {
-    magic <- u32be when u32_eq magic "icns",
+    magic <- u32be where u32_eq magic "icns",
     file_length <- u32be,
 };
 

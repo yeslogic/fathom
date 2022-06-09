@@ -1,6 +1,6 @@
 stdout = '''
 let header : _ = {
-    magic <- u32be when u32_eq magic "icns",
+    magic <- u32be where u32_eq magic "icns",
     file_length <- u32be,
 };
 let icon_data : _ = {

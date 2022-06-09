@@ -1,5 +1,5 @@
 let number = overlap {
-    u <- u32be when u32_gte u 2,
+    u <- u32be where u32_gte u 2,
     s <- s32be,
 };
 

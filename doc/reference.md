@@ -265,16 +265,16 @@ array8 3 {}
 #### Field refinements
 
 The parsed representations of fields can be refined with boolean predicates
-using the `when` syntax. If the predicate evaluates to `false`, the rest of the
+using the `where` syntax. If the predicate evaluates to `false`, the rest of the
 record format will fail to parse. For example:
 
 ```fathom
 {
-    magic <- u32be when u32_eq magic "icns",
-    //                  ▲      ▲
-    //                  │      └──── `magic` is bound as type `Repr u32be`
-    //                  │
-    //                  └──── `u32_eq magic "icns"` must be of type `Bool`
+    magic <- u32be where u32_eq magic "icns",
+    //                   ▲      ▲
+    //                   │      └──── `magic` is bound as type `Repr u32be`
+    //                   │
+    //                   └──── `u32_eq magic "icns"` must be of type `Bool`
 }
 ```
 
@@ -301,7 +301,7 @@ Some examples are as follows:
 | `{}`                                              | `{}`                                   |
 | `{ x <- f32le, y <- f32le }`                      | `{ x : F32, y : F32 }`                 |
 | `{ len <- u16be, data <- array16 len s8 }`        | `{ len : U16, data : Array16 len S8 }` |
-| `{ magic <- u32be when u32_eq magic "icns" }`     | `{ magic : U32 }`                      |
+| `{ magic <- u32be where u32_eq magic "icns" }`    | `{ magic : U32 }`                      |
 
 ### Conditional formats
 

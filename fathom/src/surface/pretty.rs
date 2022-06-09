@@ -277,7 +277,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
             match &format_field.pred {
                 Some(pred) => self.concat([
                     self.space(),
-                    self.text("when"),
+                    self.text("where"),
                     self.space(),
                     self.term_prec(Prec::Top, &pred),
                 ]),
@@ -373,7 +373,7 @@ impl<'interner, 'arena, A: 'arena> DocAllocator<'arena, A> for Context<'interner
             Doc::BorrowedText("let") => &Doc::BorrowedText("let"),
             Doc::BorrowedText("overlap") => &Doc::BorrowedText("overlap"),
             Doc::BorrowedText("Type") => &Doc::BorrowedText("Type"),
-            Doc::BorrowedText("when") => &Doc::BorrowedText("when"),
+            Doc::BorrowedText("where") => &Doc::BorrowedText("where"),
             Doc::BorrowedText(":") => &Doc::BorrowedText(":"),
             Doc::BorrowedText(",") => &Doc::BorrowedText(","),
             Doc::BorrowedText("=") => &Doc::BorrowedText("="),

@@ -29,7 +29,7 @@ extern {
         "Type" => Token::KeywordType,
         "true" => Token::KeywordTrue,
         "false" => Token::KeywordFalse,
-        "when" => Token::KeywordWhen,
+        "where" => Token::KeywordWhere,
 
         ":" => Token::Colon,
         "," => Token::Comma,
@@ -173,7 +173,7 @@ AtomicTerm: Term<'arena, ByteRange> = {
 };
 
 FormatField: FormatField<'arena, ByteRange> = {
-    <label: RangedName> "<-" <format: Term> <pred: ("when" <Term>)?> => {
+    <label: RangedName> "<-" <format: Term> <pred: ("where" <Term>)?> => {
         FormatField { label, format, pred }
     },
 };
