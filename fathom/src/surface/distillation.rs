@@ -504,12 +504,23 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
         let initial_rigid_len = self.rigid_len();
         let format_fields = (self.scope).to_scope_from_iter(
             Iterator::zip(labels.iter(), core_formats.iter()).map(|(label, format)| {
+                // Use field refinements when `format` is a conditional format
+                // that binds the same name as the current field label.
+                let (format, pred) = match format {
+                    core::Term::FormatCond(name, format, pred) if label == name => {
+                        (*format, Some(pred))
+                    }
+                    format => (format, None),
+                };
+
                 let format = self.check(format);
                 self.push_rigid(Some(*label));
+                let pred = pred.map(|pred| self.check(pred));
+
                 FormatField {
                     label: ((), *label),
                     format: self.scope.to_scope(format),
-                    pred: None, // TODO: Use this when `format` is a conditional format
+                    pred: pred.map(|pred| self.scope.to_scope(pred) as &_),
                 }
             }),
         );

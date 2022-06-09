@@ -1,5 +1,5 @@
 stdout = '''
-let number : _ = overlap { u <- { u <- u32be | u32_gte u 2 }, s <- s32be };
+let number : _ = overlap { u <- u32be when u32_gte u 2, s <- s32be };
 let _ : fun (_ : { u : U32, s : S32 }) -> { u : U32, s : S32 } = fun n => n;
 {} : {}
 '''

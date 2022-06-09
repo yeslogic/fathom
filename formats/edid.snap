@@ -1,6 +1,6 @@
 stdout = '''
 let header : _ = {
-    magic <- { magic <- u64le | u64_eq magic 0xffffffffffff00 },
+    magic <- u64le when u64_eq magic 0xffffffffffff00,
     manufacturer_id <- u16le,
     product_code <- u16le,
     serial <- u32le,
