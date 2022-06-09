@@ -29,6 +29,82 @@ let platform_id : _ = u16be;
 let encoding_id : _ = fun platform => u16be;
 let language_id : _ = u16be;
 let language_id32 : _ = u32be;
+let class_def_format_1 : _ = {
+    start_glyph_id <- u16be,
+    glyph_count <- u16be,
+    class_value_array <- array16 glyph_count u16be,
+};
+let class_def_format_2 : _ = let class_range_record : _ = {
+    start_glyph_id <- u16be,
+    end_glyph_id <- u16be,
+    class <- u16be,
+};
+{
+    class_range_count <- u16be,
+    class_range_records <- array16 class_range_count class_range_record,
+};
+let class_def : _ = {
+    class_format <- u16be,
+    data <- match class_format {
+        1 => class_def_format_1,
+        2 => class_def_format_2,
+        _ => unknown_table,
+    },
+};
+let coverage_format_1 : _ = {
+    glyph_count <- u16be,
+    glyph_array <- array16 glyph_count u16be,
+};
+let coverage_format_2 : _ = let range_record : _ = {
+    start_glyph_id <- u16be,
+    end_glyph_id <- u16be,
+    start_coverage_index <- u16be,
+};
+{ range_count <- u16be, range_records <- array16 range_count range_record };
+let coverage_table : _ = {
+    coverage_format <- u16be,
+    data <- match coverage_format {
+        1 => coverage_format_1,
+        2 => coverage_format_2,
+        _ => unknown_table,
+    },
+};
+let device_table : _ = let u16_div_ceil : _ =
+fun numerator => fun denominator => let quotient : _ numerator denominator =
+u16_div numerator denominator;
+match (u16_lt (u16_mul quotient denominator) numerator) {
+    false => quotient,
+    true => u16_add quotient 1,
+};
+let delta_bits : _ = fun delta_format => fun num_sizes => match delta_format {
+    0x1 => u16_mul num_sizes 2,
+    0x2 => u16_mul num_sizes 4,
+    0x3 => u16_mul num_sizes 8,
+    _ => 0,
+};
+let num_sizes : _ = fun start => fun end => u16_add (u16_sub end start) 1;
+{
+    start_size <- u16be,
+    end_size <- u16be,
+    delta_format <- u16be,
+    delta_values <- let delta_bits : _ start_size end_size delta_format =
+    delta_bits delta_format (num_sizes start_size end_size);
+    array16 (u16_div_ceil delta_bits 16) u16be,
+};
+let variation_index_table : _ = {
+    delta_set_outer_index <- u16be,
+    delta_set_inner_index <- u16be,
+};
+let device_or_variation_index_table : _ = overlap {
+    init <- { _skipped <- array8 4 u8, table_format <- u16be },
+    table <- match init.table_format {
+        0x1 => device_table,
+        0x2 => device_table,
+        0x3 => device_table,
+        0x8000 => variation_index_table,
+        _ => unknown_table,
+    },
+};
 let cmap_language_id : _ = fun platform => language_id;
 let cmap_language_id32 : _ = fun platform => language_id32;
 let small_glyph_id : _ = u8;
@@ -222,7 +298,7 @@ let loca_table : _ = fun num_glyphs => fun index_to_loc_format => {
     offsets <- match index_to_loc_format {
         0 => array16 (u16_add num_glyphs 1) u16be,
         1 => array16 (u16_add num_glyphs 1) u32be,
-        _ => fail,
+        _ => unknown_table,
     },
 };
 let glyph_header : _ = {
@@ -343,7 +419,69 @@ let post_table : _ = {
     },
 };
 let base_table : _ = unknown_table;
-let gdef_table : _ = unknown_table;
+let attach_list : _ = let attach_point_table : _ = {
+    point_count <- u16be,
+    point_indices <- array16 point_count u16be,
+};
+{
+    table_start <- stream_pos,
+    coverage <- offset16 table_start coverage_table,
+    glyph_count <- u16be,
+    attach_point_offsets <- array16 glyph_count (offset16 table_start attach_point_table),
+};
+let caret_value : _ = let caret_value_format_1 : _ = { coordinate <- s16be };
+let caret_value_format_2 : _ = { caret_value_point_index <- u16be };
+let caret_value_format_3 : _ = fun table_start => {
+    coordinate <- s16be,
+    table <- offset16 table_start device_or_variation_index_table,
+};
+{
+    table_start <- stream_pos,
+    caret_value_format <- u16be,
+    data <- match caret_value_format {
+        1 => caret_value_format_1,
+        2 => caret_value_format_2,
+        3 => caret_value_format_3 table_start,
+        _ => unknown_table,
+    },
+};
+let lig_glyph : _ = {
+    table_start <- stream_pos,
+    caret_count <- u16be,
+    caret_values <- array16 caret_count (offset16 table_start caret_value),
+};
+let lig_caret_list : _ = {
+    table_start <- stream_pos,
+    coverage <- offset16 table_start coverage_table,
+    lig_glyph_count <- u16be,
+    lig_glyph_offsets <- array16 lig_glyph_count (offset16 table_start lig_glyph),
+};
+let mark_glyph_sets : _ = {
+    table_start <- stream_pos,
+    format <- u16be,
+    mark_glyph_set_count <- u16be,
+    coverage <- array16 mark_glyph_set_count (offset32 table_start coverage_table),
+};
+let gdef_table : _ = let gdef_header_version_1_2 : _ = fun gdef_start => {
+    mark_glyph_sets_def <- offset16 gdef_start mark_glyph_sets,
+};
+let gdef_header_version_1_3 : _ = fun gdef_start => { item_var_store <- u32be };
+{
+    table_start <- stream_pos,
+    major_version <- { version <- u16be | u16_eq version 1 },
+    minor_version <- u16be,
+    glyph_class_def <- offset16 table_start class_def,
+    attach_list <- offset16 table_start attach_list,
+    lig_caret_list <- offset16 table_start lig_caret_list,
+    mark_attach_class_def <- offset16 table_start class_def,
+    data <- match minor_version {
+        0 => {},
+        1 => {},
+        2 => gdef_header_version_1_2 table_start,
+        3 => gdef_header_version_1_3 table_start,
+        _ => gdef_header_version_1_3 table_start,
+    },
+};
 let gpos_table : _ = unknown_table;
 let gsub_table : _ = unknown_table;
 let jstf_table : _ = unknown_table;
