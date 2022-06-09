@@ -1763,35 +1763,75 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
         range: ByteRange,
         format_fields: &[FormatField<'_, ByteRange>],
     ) -> (&'arena [StringId], &'arena [core::Term<'arena>]) {
+        let universe_type = Arc::new(Value::Universe);
         let format_type = Arc::new(Value::prim(Prim::FormatType, []));
         let bool_type = Arc::new(Value::prim(Prim::BoolType, []));
 
         let initial_rigid_len = self.rigid_env.len();
         let (labels, format_fields) =
-            self.report_duplicate_labels(range, format_fields, |f| f.label);
+            self.report_duplicate_labels(range, format_fields, |f| match f {
+                FormatField::Format { label, .. } | FormatField::Computed { label, .. } => *label,
+            });
         let mut formats = SliceVec::new(self.scope, labels.len());
 
         for format_field in format_fields {
-            let label = format_field.label.1;
-            let format = self.check(&format_field.format, &format_type);
-            let format_value = self.eval_context().eval(&format);
-            let r#type = self.elim_context().format_repr(&format_value);
+            match format_field {
+                FormatField::Format {
+                    label: (_, label),
+                    format,
+                    pred,
+                } => {
+                    let format = self.check(format, &format_type);
+                    let format_value = self.eval_context().eval(&format);
+                    let r#type = self.elim_context().format_repr(&format_value);
 
-            self.rigid_env.push_param(Some(label), r#type);
+                    self.rigid_env.push_param(Some(*label), r#type);
 
-            match &format_field.pred {
-                None => formats.push(format),
-                // Elaborate refined fields to conditional formats
-                Some(pred) => {
-                    // Note: No need to push a param, as this was done above,
-                    // in preparation for checking the the next format field.
-                    let cond_expr = self.check(&pred, &bool_type);
+                    match pred {
+                        None => formats.push(format),
+                        // Elaborate refined fields to conditional formats
+                        Some(pred) => {
+                            // Note: No need to push a param, as this was done above,
+                            // in preparation for checking the the next format field.
+                            let cond_expr = self.check(pred, &bool_type);
 
-                    formats.push(core::Term::FormatCond(
-                        label,
-                        self.scope.to_scope(format),
-                        self.scope.to_scope(cond_expr),
-                    ));
+                            formats.push(core::Term::FormatCond(
+                                *label,
+                                self.scope.to_scope(format),
+                                self.scope.to_scope(cond_expr),
+                            ));
+                        }
+                    }
+                }
+                FormatField::Computed {
+                    label: (_, label),
+                    type_: r#type,
+                    expr,
+                } => {
+                    let (expr, r#type, type_value) = match r#type {
+                        Some(r#type) => {
+                            let r#type = self.check(r#type, &universe_type);
+                            let type_value = self.eval_context().eval(&r#type);
+                            (self.check(expr, &type_value), r#type, type_value)
+                        }
+                        None => {
+                            let (expr, type_value) = self.synth(&expr);
+                            let r#type = self.quote_context(self.scope).quote(&type_value);
+                            (expr, r#type, type_value)
+                        }
+                    };
+
+                    let format = core::Term::FunApp(
+                        self.scope.to_scope(core::Term::FunApp(
+                            self.scope.to_scope(core::Term::Prim(Prim::FormatSucceed)),
+                            self.scope.to_scope(r#type),
+                        )),
+                        self.scope.to_scope(expr),
+                    );
+
+                    // Assume that `Repr ${type_value} ${expr} = ${type_value}`
+                    self.rigid_env.push_param(Some(*label), type_value);
+                    formats.push(format);
                 }
             }
         }

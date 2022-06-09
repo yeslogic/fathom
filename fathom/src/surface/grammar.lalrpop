@@ -174,7 +174,10 @@ AtomicTerm: Term<'arena, ByteRange> = {
 
 FormatField: FormatField<'arena, ByteRange> = {
     <label: RangedName> "<-" <format: Term> <pred: ("where" <Term>)?> => {
-        FormatField { label, format, pred }
+        FormatField::Format { label, format, pred }
+    },
+    "let" <label: RangedName> <type_: (":" <Term>)?> "=" <expr: Term> => {
+        FormatField::Computed { label, type_, expr }
     },
 };
 

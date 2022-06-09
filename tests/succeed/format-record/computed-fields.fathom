@@ -1,0 +1,27 @@
+let format = {
+    /// 2 × seg_count.
+    seg_count_x2 <- u16be,
+
+    /// Number of contiguous ranges of character codes
+    let seg_count = u16_div seg_count_x2 2,
+
+    start_code <- array16 seg_count u16be,
+    id_delta <- array16 seg_count s16be,
+};
+
+let _ : Repr format -> {
+    seg_count_x2 : U16,
+    seg_count : U16,
+    start_code : Array16 seg_count U16,
+    id_delta : Array16 seg_count S16,
+} = fun x => x;
+
+let format = {
+    // test annotation
+    let x : U32 = 256,
+};
+
+let _ : Repr format -> { x : U32 } =
+    fun x => x;
+
+{}

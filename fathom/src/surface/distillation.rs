@@ -498,28 +498,52 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
         labels: &[StringId],
         core_formats: &[core::Term<'_>],
     ) -> &'arena [FormatField<'arena, ()>] {
+        use crate::core::Prim::FormatSucceed;
+
         let initial_rigid_len = self.rigid_len();
         let core_fields = Iterator::zip(labels.iter().copied(), core_formats.iter());
-        let format_fields = (self.scope).to_scope_from_iter(core_fields.map(|(label, format)| {
-            let (format, pred) = match format {
+        let format_fields =
+            (self.scope).to_scope_from_iter(core_fields.map(|(label, format)| match format {
+                // Distill succeed formats back to computed formats
+                core::Term::FunApp(
+                    core::Term::FunApp(core::Term::Prim(FormatSucceed), r#type),
+                    expr,
+                ) => {
+                    let r#type = self.check(r#type);
+                    let expr = self.check(expr);
+                    self.push_rigid(Some(label));
+
+                    FormatField::Computed {
+                        label: ((), label),
+                        type_: Some(r#type),
+                        expr,
+                    }
+                }
                 // Use field refinements when `format` is a conditional format
                 // that binds the same name as the current field label.
                 core::Term::FormatCond(name, format, pred) if label == *name => {
-                    (*format, Some(pred))
+                    let format = self.check(format);
+                    self.push_rigid(Some(label));
+                    let pred = self.check(pred);
+
+                    FormatField::Format {
+                        label: ((), label),
+                        format,
+                        pred: Some(pred),
+                    }
                 }
-                format => (format, None),
-            };
+                // Otherwise stick with a regular format field...
+                format => {
+                    let format = self.check(format);
+                    self.push_rigid(Some(label));
 
-            let format = self.check(format);
-            self.push_rigid(Some(label));
-            let pred = pred.map(|pred| self.check(pred));
-
-            FormatField {
-                label: ((), label),
-                format,
-                pred,
-            }
-        }));
+                    FormatField::Format {
+                        label: ((), label),
+                        format,
+                        pred: None,
+                    }
+                }
+            }));
         self.truncate_rigid(initial_rigid_len);
 
         format_fields

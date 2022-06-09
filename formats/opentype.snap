@@ -146,7 +146,7 @@ let cmap_subtable_format4 : _ = fun platform => {
     length <- u16be,
     language <- cmap_language_id platform,
     seg_count_x2 <- u16be,
-    seg_count <- succeed (_ platform length language seg_count_x2) (u16_div seg_count_x2 2),
+    let seg_count : U16 = u16_div seg_count_x2 2,
     search_range <- u16be,
     entry_selector <- u16be,
     range_shift <- u16be,

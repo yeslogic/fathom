@@ -288,20 +288,77 @@ format. For example, the above format is equivalent to:
 }
 ```
 
+#### Computed fields
+
+Sometimes it is useful to embed a pure computation (that does not perform any
+parsing) in the middle of a record format, to be used in subsequent parts of the
+record format. Fathom supports a `let` syntax for format fields to make this
+more convenient:
+
+```fathom
+{
+    /// 2 × seg_count.
+    seg_count_x2 <- u16be,
+
+    /// Number of contiguous ranges of character codes
+    let seg_count = u16_div seg_count_x2 2,
+    //  ▲
+    //  └─── the value computed for `seg_count` will be
+    //       available for use in subsequent fields
+
+    ⋮
+
+    start_code <- array16 seg_count u16be,
+    id_delta <- array16 seg_count s16be,
+    //                  ▲
+    //                  └──── `seg_count` is used here
+}
+```
+
+Computed fields can thought of as a shorthand form of [succeed formats](#succeed-format).
+For example, the beginning of above format is equivalent to:
+
+```fathom
+{
+    seg_count_x2 <- u16be,
+    seg_count <- succeed U16 (u16_div seg_count_x2 2),
+
+    ⋮
+}
+```
+
+Type annotations are also supported on computed fields:
+
+```fathom
+{
+    let x : U32 = 3,
+}
+```
+
 #### Representation of record formats
 
 The [representation](#format-representations) of a record format is a [dependent
 record type](#records), with the `Repr` operation applied to each of the field's
-formats, preserving dependencies as required.
+formats, preserving dependencies as required:
 
-Some examples are as follows:
+| format                                   | `Repr` format                          |
+| ---------------------------------------- | -------------------------------------- |
+| `{}`                                     | `{}`                                   |
+| `{ ..., l <- format, ... }`              | `{ ..., l : Repr format, ... }`        |
+| `{ ..., l <- format where pred, ... }`   | `{ ..., l : Repr format, ... }`        |
+| `{ ..., let l = a : A, ... }`            | `{ ..., l : A, ... }`                  |
+
+Computed fields are included as fields in the representation of record formats
+because they might appear in the representation types of subsequent fields.
+
+Some some examples of record formats and their representations are:
 
 | format                                            | `Repr` format                          |
 | ------------------------------------------------- | -------------------------------------- |
-| `{}`                                              | `{}`                                   |
 | `{ x <- f32le, y <- f32le }`                      | `{ x : F32, y : F32 }`                 |
 | `{ len <- u16be, data <- array16 len s8 }`        | `{ len : U16, data : Array16 len S8 }` |
 | `{ magic <- u32be where u32_eq magic "icns" }`    | `{ magic : U32 }`                      |
+| `{ let len = 4 : U32, data <- array32 len s8 }`   | `{ len : U32, data : Array32 len S8 }` |
 
 ### Conditional formats
 
@@ -349,8 +406,8 @@ overlap {
 }
 ```
 
-Overlap formats also support [field refinements](#field-refinements), like in
-record formats.
+Overlap formats also support [field refinements](#field-refinements) and
+[computed fields](#computed-fields), like in record formats.
 
 #### Representation of overlap formats
 
