@@ -615,7 +615,8 @@ let cmap_subtable_format4 = fun (platform : Repr platform_id) => {
     language <- cmap_language_id platform,
     /// 2 × segCount.
     seg_count_x2 <- u16be,
-    seg_count <- succeed _ (u16_div seg_count_x2 2),
+    /// Number of contiguous ranges of character codes
+    let seg_count = u16_div seg_count_x2 2,
     /// Maximum power of 2 less than or equal to segCount, times 2 ((2**floor(log₂(segCount))) * 2,
     /// where “**” is an exponentiation operator)
     search_range <- u16be,

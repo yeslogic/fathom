@@ -200,13 +200,26 @@ impl<'arena> Term<'arena, ByteRange> {
 
 /// A field declaration in a record and offset format
 #[derive(Debug, Clone)]
-pub struct FormatField<'arena, Range> {
-    /// Label identifying the field
-    label: (Range, StringId),
-    /// The format that this field will be parsed with
-    format: Term<'arena, Range>,
-    /// An optional predicate that refines the format field
-    pred: Option<Term<'arena, Range>>,
+pub enum FormatField<'arena, Range> {
+    /// Regular format field
+    Format {
+        /// Label identifying the field
+        label: (Range, StringId),
+        /// The format that this field will be parsed with
+        format: Term<'arena, Range>,
+        /// An optional predicate that refines the format field
+        pred: Option<Term<'arena, Range>>,
+    },
+    /// Computed format field
+    Computed {
+        /// Label identifying the field
+        label: (Range, StringId),
+        /// Optional type annotation
+        // FIXME: raw identifiers in LALRPOP grammars https://github.com/lalrpop/lalrpop/issues/613
+        type_: Option<Term<'arena, Range>>,
+        /// The expression that this field compute
+        expr: Term<'arena, Range>,
+    },
 }
 
 /// A field declaration in a record type

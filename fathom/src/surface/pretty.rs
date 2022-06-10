@@ -268,22 +268,46 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         &'arena self,
         format_field: &FormatField<'_, Range>,
     ) -> DocBuilder<'arena, Self> {
-        self.concat([
-            self.string_id(format_field.label.1),
-            self.space(),
-            self.text("<-"),
-            self.space(),
-            self.term_prec(Prec::Top, &format_field.format),
-            match &format_field.pred {
-                Some(pred) => self.concat([
-                    self.space(),
-                    self.text("where"),
-                    self.space(),
-                    self.term_prec(Prec::Top, &pred),
-                ]),
-                None => self.nil(),
-            },
-        ])
+        match format_field {
+            FormatField::Format {
+                label,
+                format,
+                pred,
+            } => self.concat([
+                self.string_id(label.1),
+                self.space(),
+                self.text("<-"),
+                self.space(),
+                self.term_prec(Prec::Top, format),
+                match pred {
+                    Some(pred) => self.concat([
+                        self.space(),
+                        self.text("where"),
+                        self.space(),
+                        self.term_prec(Prec::Top, pred),
+                    ]),
+                    None => self.nil(),
+                },
+            ]),
+            FormatField::Computed { label, type_, expr } => self.concat([
+                self.text("let"),
+                self.space(),
+                self.string_id(label.1),
+                match type_ {
+                    Some(r#type) => self.concat([
+                        self.space(),
+                        self.text(":"),
+                        self.space(),
+                        self.term_prec(Prec::Top, r#type),
+                    ]),
+                    None => self.nil(),
+                },
+                self.space(),
+                self.text("="),
+                self.space(),
+                self.term_prec(Prec::Top, expr),
+            ]),
+        }
     }
 
     /// Wrap a document in parens.

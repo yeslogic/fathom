@@ -6,7 +6,7 @@ error: unexpected token ;
 3 │ let x : Type = {;
   │                 ^ unexpected token
   │
-  = expected "name" or "}"
+  = expected "let", "name" or "}"
 
 error: mismatched types
   ┌─ tests/fail/parse/error-recovery.fathom:5:1
