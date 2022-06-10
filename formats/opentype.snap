@@ -273,8 +273,28 @@ let long_horizontal_metric : _ = {
 let htmx_table : _ =
 fun number_of_long_horizontal_metrics => fun num_glyphs => {
     h_metrics <- array16 number_of_long_horizontal_metrics long_horizontal_metric,
+    left_side_bearings <- array16 (u16_sub num_glyphs number_of_long_horizontal_metrics) s16be,
 };
-let maxp_table : _ = { version <- version16dot16, num_glyphs <- u16be };
+let maxp_version_1 : _ = {
+    max_points <- u16be,
+    max_contours <- u16be,
+    max_composite_points <- u16be,
+    max_composite_contours <- u16be,
+    max_zones <- u16be,
+    max_twilight_points <- u16be,
+    max_storage <- u16be,
+    max_function_defs <- u16be,
+    max_instruction_defs <- u16be,
+    max_stack_elements <- u16be,
+    max_size_of_instructions <- u16be,
+    max_component_elements <- u16be,
+    max_component_depth <- u16be where u16_lte max_component_depth 16,
+};
+let maxp_table : _ = {
+    version <- version16dot16,
+    num_glyphs <- u16be,
+    data <- match version { 0x10000 => maxp_version_1, _ => unknown_table },
+};
 let name_record : _ = fun storage_start => {
     platform <- platform_id,
     encoding <- encoding_id platform,
@@ -287,12 +307,21 @@ let lang_tag_record : _ = fun storage_start => {
     length <- u16be,
     offset <- offset16 storage_start (array16 length u8),
 };
+let name_version_1 : _ = fun storage_start => {
+    lang_tag_count <- u16be,
+    lang_tag_records <- array16 lang_tag_count (lang_tag_record storage_start),
+};
 let name_table : _ = {
     table_start <- stream_pos,
     version <- u16be,
     name_count <- u16be,
     storage_offset <- u16be,
     name_records <- array16 name_count (name_record (pos_add_u16 table_start storage_offset)),
+    data <- match version {
+        0 => {},
+        1 => name_version_1 (pos_add_u16 table_start storage_offset),
+        _ => unknown_table,
+    },
 };
 let loca_table : _ = fun num_glyphs => fun index_to_loc_format => {
     offsets <- match index_to_loc_format {
@@ -525,7 +554,7 @@ let table_directory : _ = fun file_start => {
         maxp <- required_table "maxp" maxp_table,
         htmx <- required_table "hmtx" {
             hhea <- deref (_ file_start sfnt_version num_tables search_range entry_selector range_shift table_records cmap head hhea maxp) hhea.link,
-            maxp <- deref (_ file_start sfnt_version num_tables search_range entry_selector range_shift table_records cmap head hhea maxp hhea) maxp.link,
+            maxp <- deref (limit32 maxp.table_record.length maxp_table) maxp.link,
             table <- htmx_table hhea.number_of_long_horizontal_metrics maxp.num_glyphs,
         },
         name <- required_table "name" name_table,
@@ -534,11 +563,11 @@ let table_directory : _ = fun file_start => {
         cvt <- optional_table "cvt " unknown_table,
         fpgm <- optional_table "fpgm" unknown_table,
         glyf <- optional_table "glyf" {
-            maxp <- deref (_ file_start sfnt_version num_tables search_range entry_selector range_shift table_records cmap head hhea maxp htmx name os2 post cvt fpgm) maxp.link,
+            maxp <- deref (limit32 maxp.table_record.length maxp_table) maxp.link,
             table <- glyf_table 1,
         },
         loca <- optional_table "loca" {
-            maxp <- deref (_ file_start sfnt_version num_tables search_range entry_selector range_shift table_records cmap head hhea maxp htmx name os2 post cvt fpgm glyf) maxp.link,
+            maxp <- deref (limit32 maxp.table_record.length maxp_table) maxp.link,
             head <- deref (_ file_start sfnt_version num_tables search_range entry_selector range_shift table_records cmap head hhea maxp htmx name os2 post cvt fpgm glyf maxp) head.link,
             table <- loca_table maxp.num_glyphs head.index_to_loc_format,
         },

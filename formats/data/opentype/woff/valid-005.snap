@@ -240,7 +240,27 @@ stdout = '''
         number_of_long_horizontal_metrics = 4,
     },
 ]
-280 = [ { version = 65536, num_glyphs = 4 } ]
+280 = [
+    {
+        version = 65536,
+        num_glyphs = 4,
+        data = {
+            max_points = 205,
+            max_contours = 6,
+            max_composite_points = 0,
+            max_composite_contours = 0,
+            max_zones = 1,
+            max_twilight_points = 0,
+            max_storage = 0,
+            max_function_defs = 0,
+            max_instruction_defs = 0,
+            max_stack_elements = 0,
+            max_size_of_instructions = 0,
+            max_component_elements = 0,
+            max_component_depth = 0,
+        },
+    },
+]
 312 = [
     {
         version = 3,
@@ -309,7 +329,25 @@ stdout = '''
             metric_data_format = 0,
             number_of_long_horizontal_metrics = 4,
         },
-        maxp = { version = 65536, num_glyphs = 4 },
+        maxp = {
+            version = 65536,
+            num_glyphs = 4,
+            data = {
+                max_points = 205,
+                max_contours = 6,
+                max_composite_points = 0,
+                max_composite_contours = 0,
+                max_zones = 1,
+                max_twilight_points = 0,
+                max_storage = 0,
+                max_function_defs = 0,
+                max_instruction_defs = 0,
+                max_stack_elements = 0,
+                max_size_of_instructions = 0,
+                max_component_elements = 0,
+                max_component_depth = 0,
+            },
+        },
         table = {
             h_metrics = [
                 { advance_width = 1536, left_side_bearing = 0 },
@@ -317,6 +355,7 @@ stdout = '''
                 { advance_width = 4719, left_side_bearing = 205 },
                 { advance_width = 4708, left_side_bearing = 205 },
             ],
+            left_side_bearings = [],
         },
     },
 ]
@@ -635,7 +674,25 @@ stdout = '''
 ]
 2268 = [
     {
-        maxp = { version = 65536, num_glyphs = 4 },
+        maxp = {
+            version = 65536,
+            num_glyphs = 4,
+            data = {
+                max_points = 205,
+                max_contours = 6,
+                max_composite_points = 0,
+                max_composite_contours = 0,
+                max_zones = 1,
+                max_twilight_points = 0,
+                max_storage = 0,
+                max_function_defs = 0,
+                max_instruction_defs = 0,
+                max_stack_elements = 0,
+                max_size_of_instructions = 0,
+                max_component_elements = 0,
+                max_component_depth = 0,
+            },
+        },
         head = {
             major_version = 1,
             minor_version = 0,
@@ -663,7 +720,25 @@ stdout = '''
 ]
 2280 = [
     {
-        maxp = { version = 65536, num_glyphs = 4 },
+        maxp = {
+            version = 65536,
+            num_glyphs = 4,
+            data = {
+                max_points = 205,
+                max_contours = 6,
+                max_composite_points = 0,
+                max_composite_contours = 0,
+                max_zones = 1,
+                max_twilight_points = 0,
+                max_storage = 0,
+                max_function_defs = 0,
+                max_instruction_defs = 0,
+                max_stack_elements = 0,
+                max_size_of_instructions = 0,
+                max_component_elements = 0,
+                max_component_depth = 0,
+            },
+        },
         table = {
             glyphs = [
                 {
@@ -804,6 +879,7 @@ stdout = '''
                 offset = { offset = 403, link = 3537 },
             },
         ],
+        data = {},
     },
 ]
 3147 = [ [ 82, 101, 103, 117, 108, 97, 114 ] ]

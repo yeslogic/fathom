@@ -223,7 +223,7 @@ stdout = '''
         number_of_long_horizontal_metrics = 4,
     },
 ]
-248 = [ { version = 20480, num_glyphs = 4 } ]
+248 = [ { version = 20480, num_glyphs = 4, data = {} } ]
 256 = [
     {
         version = 4,
@@ -391,6 +391,7 @@ stdout = '''
                 offset = { offset = 445, link = 971 },
             },
         ],
+        data = {},
     },
 ]
 539 = [ [ 82, 101, 103, 117, 108, 97, 114 ] ]
@@ -1052,7 +1053,7 @@ stdout = '''
             metric_data_format = 0,
             number_of_long_horizontal_metrics = 4,
         },
-        maxp = { version = 20480, num_glyphs = 4 },
+        maxp = { version = 20480, num_glyphs = 4, data = {} },
         table = {
             h_metrics = [
                 { advance_width = 750, left_side_bearing = 0 },
@@ -1060,6 +1061,7 @@ stdout = '''
                 { advance_width = 2304, left_side_bearing = 100 },
                 { advance_width = 2299, left_side_bearing = 100 },
             ],
+            left_side_bearings = [],
         },
     },
 ]

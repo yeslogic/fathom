@@ -1022,9 +1022,9 @@ let long_horizontal_metric = {
 let htmx_table = fun (number_of_long_horizontal_metrics : U16) => fun (num_glyphs : U16) => {
     /// Long horizontal metrics, indexed by the glyph ID.
     h_metrics <- array16 number_of_long_horizontal_metrics long_horizontal_metric,
-    // /// Left side bearings for glyph IDs greater than or equal to the
-    // /// `number_of_long_horizontal_metrics`.
-    // left_side_bearings <- array16 (num_glyphs - number_of_long_horizontal_metrics) s16be, // TODO: Subtraction
+    /// Left side bearings for glyph IDs greater than or equal to the
+    /// `number_of_long_horizontal_metrics`.
+    left_side_bearings <- array16 (u16_sub num_glyphs number_of_long_horizontal_metrics) s16be,
 };
 
 
@@ -1039,6 +1039,50 @@ let htmx_table = fun (number_of_long_horizontal_metrics : U16) => fun (num_glyph
 // - [Microsoft's OpenType Spec: maxp — Maximum Profile](https://docs.microsoft.com/en-us/typography/opentype/spec/maxp)
 // - [Apple's TrueType Reference Manual: The `'maxp'` table](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6maxp.html)
 
+/// Fields specific to maxp version 1.0
+let maxp_version_1 = {
+    /// Maximum points in non-composite glyphs.
+    max_points <- u16be,
+    /// Maximum contours in non-composite glyphs.
+    max_contours <- u16be,
+    /// Maximum points in composite glyphs.
+    max_composite_points <- u16be,
+    /// Maximum contours in composite glyphs.
+    max_composite_contours <- u16be,
+    /// Should be set to `2` in most cases.
+    ///
+    /// | Value | Meaning                                           |
+    /// | ----- | ------------------------------------------------- |
+    /// | `1`   | instructions do not use the twilight zone (Z0)    |
+    /// | `2`   | instructions do use Z0                            |
+    max_zones <- u16be,
+    /// Maximum points used in in the twilight zone (Z0).
+    max_twilight_points <- u16be,
+    /// Number of Storage Area locations.
+    max_storage <- u16be,
+    /// Number of function definitions (FDEFs).
+    max_function_defs <- u16be,
+    /// Number of instruction definitions (IDEFs).
+    max_instruction_defs <- u16be,
+    /// Maximum stack depth across the Font Program ('fpgm' table), the
+    /// Control Value Program ('prep' table), and all glyph instructions
+    /// (in the 'glyf' table)
+    max_stack_elements <- u16be,
+    /// Maximum size in bytes used for all glyph instructions.
+    max_size_of_instructions <- u16be,
+    /// Maximum number of components referenced at “top level” of all
+    /// composite glyphs.
+    max_component_elements <- u16be,
+    /// Maximum levels of recursion used when constructing compound glyphs.
+    ///
+    /// | Value | Meaning                                           |
+    /// | ----- | ------------------------------------------------- |
+    /// | `0`   | the font only contains simple glyphs              |
+    /// | `1`   | compound glyphs only contain simple glyphs (there are no components within components) |
+    max_component_depth <- u16be where u16_lte max_component_depth 16,
+};
+
+
 /// # Maximium Profile Table (`maxp`)
 ///
 /// ## References
@@ -1048,57 +1092,15 @@ let htmx_table = fun (number_of_long_horizontal_metrics : U16) => fun (num_glyph
 let maxp_table = {
     /// The version of the table
     version <- version16dot16,
-
-    // TODO: Conditional fields
-
-    // if version == 0x00005000 {
-        /// The number of glyphs in the font.
-        num_glyphs <- u16be,
-    // }
-
-    // if version == 0x00010000 {
-    //     /// The number of glyphs in the font.
-    //     num_glyphs <- u16be,
-    //     /// Maximum points in non-composite glyphs.
-    //     max_points <- u16be,
-    //     /// Maximum contours in non-composite glyphs.
-    //     max_contours <- u16be,
-    //     /// Maximum points in composite glyphs.
-    //     max_composite_points <- u16be,
-    //     /// Maximum contours in composite glyphs.
-    //     max_composite_contours <- u16be,
-    //     /// Should be set to `2` in most cases.
-    //     ///
-    //     /// | Value | Meaning                                           |
-    //     /// | ----- | ------------------------------------------------- |
-    //     /// | `1`   | instructions do not use the twilight zone (Z0)    |
-    //     /// | `2`   | instructions do use Z0                            |
-    //     max_zones <- u16be,
-    //     /// Maximum points used in in the twilight zone (Z0).
-    //     max_twilight_points <- u16be,
-    //     /// Number of Storage Area locations.
-    //     max_storage <- u16be,
-    //     /// Number of function definitions (FDEFs).
-    //     max_function_defs <- u16be,
-    //     /// Number of instruction definitions (IDEFs).
-    //     max_instruction_defs <- u16be,
-    //     /// Maximum stack depth across the Font Program ('fpgm' table), the
-    //     /// Control Value Program ('prep' table), and all glyph instructions
-    //     /// (in the 'glyf' table)
-    //     max_stack_elements <- u16be,
-    //     /// Maximum size in bytes used for all glyph instructions.
-    //     max_size_of_instructions <- u16be,
-    //     /// Maximum number of components referenced at “top level” of all
-    //     /// composite glyphs.
-    //     max_component_elements <- u16be,
-    //     /// Maximum levels of recursion used when constructing compound glyphs.
-    //     ///
-    //     /// | Value | Meaning                                           |
-    //     /// | ----- | ------------------------------------------------- |
-    //     /// | `0`   | the font only contains simple glyphs              |
-    //     /// | `1`   | compound glyphs only contain simple glyphs (there are no components within components) |
-    //     max_component_depth <- u16be, // TODO: where max_component_depth in 0..16
-    // }
+    /// The number of glyphs in the font.
+    ///
+    /// Both versions currently defined (0.5 and 1.0) start with num_glyphs.
+    num_glyphs <- u16be,
+    /// Version specific data.
+    data <- match version {
+        0x00010000 => maxp_version_1,
+        _ => unknown_table,
+    },
 };
 
 
@@ -1182,6 +1184,13 @@ let lang_tag_record = fun (storage_start : Pos) => {
     offset <- offset16 storage_start (array16 length u8),
 };
 
+let name_version_1 = fun (storage_start : Pos) => {
+    /// The number of language tags to expect
+    lang_tag_count <- u16be,
+    /// The array of language tag records
+    lang_tag_records <- array16 lang_tag_count (lang_tag_record storage_start),
+};
+
 /// # Naming table
 ///
 /// ## References
@@ -1201,15 +1210,12 @@ let name_table = {
     /// The array of name records
     name_records <- array16 name_count (name_record (pos_add_u16 table_start storage_offset)),
 
-    // TODO: Conditional fields
-
-    // if version <= 1 {
-    // /// The number of language tags to expect
-    // lang_tag_count <- u16be,
-    // // /// The array of language tag records
-    // // TODO: position operations
-    // // lang_tag_records <- array16 lang_tag_count (lang_tag_record (table_start + storage_offset)),
-    // }
+    /// Version specific data
+    data <- match version {
+        0 => {},
+        1 => name_version_1 (pos_add_u16 table_start storage_offset),
+        _ => unknown_table,
+    },
 };
 
 /// # Index to location table
@@ -1872,7 +1878,7 @@ let table_directory = fun (file_start : Pos) => {
             htmx <- required_table "hmtx" {
                 // TODO: let formats
                 hhea <- deref _ hhea.link,
-                maxp <- deref _ maxp.link,
+                maxp <- deref (limit32 maxp.table_record.length maxp_table) maxp.link,
                 table <- htmx_table
                     hhea.number_of_long_horizontal_metrics
                     maxp.num_glyphs,
@@ -1888,14 +1894,14 @@ let table_directory = fun (file_start : Pos) => {
             fpgm <- optional_table "fpgm" unknown_table,
             glyf <- optional_table "glyf" {
                 // TODO: let formats
-                maxp <- deref _ maxp.link,
+                maxp <- deref (limit32 maxp.table_record.length maxp_table) maxp.link,
                 table <- glyf_table 1,
                 // TODO: use `loca` entries when parsing the glyphs
                 // table <- glyf_table maxp.num_glyphs,
             },
             loca <- optional_table "loca" {
                 // TODO: let formats
-                maxp <- deref _ maxp.link,
+                maxp <- deref (limit32 maxp.table_record.length maxp_table) maxp.link,
                 head <- deref _ head.link,
                 table <- loca_table maxp.num_glyphs head.index_to_loc_format,
             },
