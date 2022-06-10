@@ -240,6 +240,8 @@ data-dependent formats. For example:
 }
 ```
 
+#### Empty record formats
+
 Empty record formats must be checked in the presence of an annotation in order
 to disambiguate them from unit record types and literals. For example:
 
@@ -250,8 +252,7 @@ to disambiguate them from unit record types and literals. For example:
 ```fathom
 let unit : Format =
     {};
-
-...
+⋮
 ```
 
 No annotations needed in the following example, as the type can be inferred from
@@ -259,6 +260,32 @@ the type of `array8`:
 
 ```fathom
 array8 3 {}
+```
+
+#### Field refinements
+
+The parsed representations of fields can be refined with boolean predicates
+using the `where` syntax. If the predicate evaluates to `false`, the rest of the
+record format will fail to parse. For example:
+
+```fathom
+{
+    magic <- u32be where u32_eq magic "icns",
+    //                   ▲      ▲
+    //                   │      └──── `magic` is bound as type `Repr u32be`
+    //                   │
+    //                   └──── `u32_eq magic "icns"` must be of type `Bool`
+}
+```
+
+This can be thought of as a shorthand form of [conditional formats](#conditional-format),
+allowing the field label to be reused as the name bound by the conditional
+format. For example, the above format is equivalent to:
+
+```fathom
+{
+    magic <- { magic <- u32be | u32_eq magic "icns" },
+}
 ```
 
 #### Representation of record formats
@@ -269,30 +296,41 @@ formats, preserving dependencies as required.
 
 Some examples are as follows:
 
-| format                                     | `Repr` format                          |
-| ------------------------------------------ | -------------------------------------- |
-| `{}`                                       | `{}`                                   |
-| `{ x <- f32le, y <- f32le }`               | `{ x : F32, y : F32 }`                 |
-| `{ len <- u16be, data <- array16 len s8 }` | `{ len : U16, data : Array16 len S8 }` |
+| format                                            | `Repr` format                          |
+| ------------------------------------------------- | -------------------------------------- |
+| `{}`                                              | `{}`                                   |
+| `{ x <- f32le, y <- f32le }`                      | `{ x : F32, y : F32 }`                 |
+| `{ len <- u16be, data <- array16 len s8 }`        | `{ len : U16, data : Array16 len S8 }` |
+| `{ magic <- u32be where u32_eq magic "icns" }`    | `{ magic : U32 }`                      |
 
 ### Conditional formats
 
-Conditional formats are formats with an associated condition predicate. The format
-will only succeed if the condition is `true`. This can be used to verify magic numbers
-or version expectations. E.g.
+Conditional formats are formats that that have their parsed representations
+refined with boolean predicates. The format will only succeed if the predicate
+evaluates to `true`.
 
 ```fathom
-{ magic <- { magic <- u64le | u64_eq magic 0x00ffffffffffff00 } }
+{ x <- format | pred x }
+//              ▲    ▲
+//              │    └─── `x` is bound as type `Repr format` in the predicate
+//              │
+//              └──── `pred x` must be of type `Bool`
+```
+
+This can be used to verify magic numbers or version expectations. For example:
+
+```fathom
+{ magic <- u64le | u64_eq magic 0x00ffffffffffff00 }
 ```
 
 ```fathom
-{ major_version <- { version <- u16be | u16_lte version 2 } }
+{ version <- u16be | u16_lte version 2 }
 ```
 
 #### Representation of conditional formats
 
-The [representation](#format-representations) of a conditional format is the same
-as the representation of the format guarded by the predicate. I.e.
+The [representation](#format-representations) of a conditional format is the
+same as the representation of the refined format. I.e.
 
 | format                    | `Repr` format        |
 | ------------------------- | -------------------- |
@@ -306,10 +344,13 @@ enriched with information that occurs later on in the stream:
 
 ```fathom
 overlap {
-  records0 : array16 len array_record0,
-  records1 : array16 len (array_record0 records0),
+    records0 : array16 len array_record0,
+    records1 : array16 len (array_record0 records0),
 }
 ```
+
+Overlap formats also support [field refinements](#field-refinements), like in
+record formats.
 
 #### Representation of overlap formats
 
@@ -571,7 +612,7 @@ associated with a corresponding parameter.
 
 ### Record types
 
-Record types are formed as sequences of fields:
+Record types are formed as sequences of field declarations:
 
 ```fathom
 { x : F32, y : F32 }
@@ -590,7 +631,7 @@ The types of later fields and depend on previous fields:
 
 ### Record literals
 
-Records literals consist of a sequence of field assignments. For example:
+Records literals consist of a sequence of field definitions. For example:
 
 ```fathom
 let Point = { x : U32, y : U32 };

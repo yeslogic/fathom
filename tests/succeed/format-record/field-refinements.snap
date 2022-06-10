@@ -1,0 +1,14 @@
+stdout = '''
+let format : _ = {
+    magic <- u64le where u64_eq magic 0xffffffffffff00,
+    len <- u8 where u8_lte len 16,
+    data <- array8 len u8,
+};
+let _ : fun (_ : { magic : U64, len : U8, data : Array8 len U8 }) -> {
+    magic : U64,
+    len : U8,
+    data : Array8 len U8,
+} = fun x => x;
+{} : {}
+'''
+stderr = ''

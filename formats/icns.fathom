@@ -5,7 +5,7 @@
 //! - [Wikipedia](https://en.wikipedia.org/wiki/Apple_Icon_Image_format)
 
 let header = {
-    magic <- u32be,                 // TODO: where magic == ascii "icns",
+    magic <- u32be where u32_eq magic "icns",
     file_length <- u32be,
 };
 
@@ -13,8 +13,7 @@ let icon_data = {
     icon_type <- u32be,             // TODO: bit patterns
     icon_data_length <- u32be,
     // TODO: decode data based on `icon_type`
-    // TODO: repeat while `current_pos < data_start + icon_data_length`
-    data <- array8 0 u8,
+    data <- limit32 icon_data_length (repeat_until_end u8),
 };
 
 let main = {

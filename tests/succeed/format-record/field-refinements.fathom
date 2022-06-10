@@ -1,0 +1,10 @@
+let format = {
+    magic <- u64le where u64_eq magic 0x00ffffffffffff00,
+    len <- u8 where u8_lte len 16,
+    data <- array8 len u8,
+};
+
+let _ : Repr format -> { magic : U64, len : U8, data : Array8 len U8 } =
+    fun x => x;
+
+{}

@@ -1,0 +1,9 @@
+let number = overlap {
+    u <- u32be where u32_gte u 2,
+    s <- s32be,
+};
+
+let _ : Repr number -> { u : U32, s : S32 } =
+    fun n => n;
+
+{}

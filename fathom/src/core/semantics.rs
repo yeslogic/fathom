@@ -756,7 +756,7 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
             Value::FormatRecord(labels, formats) | Value::FormatOverlap(labels, formats) => {
                 Arc::new(Value::RecordType(labels, formats.clone().apply_repr()))
             }
-            Value::FormatCond(_label, format, _cond) => Arc::clone(format),
+            Value::FormatCond(_, format, _) => self.format_repr(format),
             Value::Stuck(Head::Prim(prim), spine) => match (prim, &spine[..]) {
                 (Prim::FormatU8, []) => Arc::new(Value::prim(Prim::U8Type, [])),
                 (Prim::FormatU16Be, []) => Arc::new(Value::prim(Prim::U16Type, [])),

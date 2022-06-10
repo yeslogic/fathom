@@ -15,7 +15,7 @@
 // TODO: Versions 1.0-1.4
 
 let header = {
-    magic <- { magic <- u64le | u64_eq magic 0x00ffffffffffff00 },
+    magic <- u64le where u64_eq magic 0x00ffffffffffff00,
     manufacturer_id <- u16le,                // TODO: bit patterns
     product_code <- u16le,
     serial <- u32le,

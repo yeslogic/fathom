@@ -6,7 +6,7 @@ use std::cell::RefCell;
 use crate::core::UIntStyle;
 use crate::env::{self, EnvLen, GlobalVar, LocalVar, UniqueEnv};
 use crate::surface::elaboration::FlexSource;
-use crate::surface::{Pattern, Term};
+use crate::surface::{ExprField, FormatField, Pattern, Term, TypeField};
 use crate::{core, StringId, StringInterner};
 
 /// Distillation context.
@@ -195,8 +195,11 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
             core::Term::RecordLit(labels, _) if labels.is_empty() => Term::UnitLiteral(()),
             core::Term::RecordLit(labels, exprs) => {
                 let scope = self.scope;
-                let expr_fields = Iterator::zip(labels.iter(), exprs.iter())
-                    .map(|(label, expr)| (((), *label), self.check(expr)));
+                let expr_fields =
+                    Iterator::zip(labels.iter(), exprs.iter()).map(|(label, expr)| ExprField {
+                        label: ((), *label),
+                        expr: self.check(expr),
+                    });
 
                 Term::RecordLiteral((), scope.to_scope_from_iter(expr_fields))
             }
@@ -367,7 +370,10 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                     Iterator::zip(labels.iter(), types.iter()).map(|(label, r#type)| {
                         let r#type = self.check(r#type);
                         self.push_rigid(Some(*label));
-                        (((), *label), r#type)
+                        TypeField {
+                            label: ((), *label),
+                            type_: r#type,
+                        }
                     }),
                 );
                 self.truncate_rigid(initial_rigid_len);
@@ -377,8 +383,11 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
             core::Term::RecordLit(labels, _) if labels.is_empty() => Term::UnitLiteral(()),
             core::Term::RecordLit(labels, exprs) => {
                 let scope = self.scope;
-                let expr_fields = Iterator::zip(labels.iter(), exprs.iter())
-                    .map(|(label, expr)| (((), *label), self.synth(expr)));
+                let expr_fields =
+                    Iterator::zip(labels.iter(), exprs.iter()).map(|(label, expr)| ExprField {
+                        label: ((), *label),
+                        expr: self.synth(expr),
+                    });
 
                 // TODO: type annotations?
                 Term::RecordLiteral((), scope.to_scope_from_iter(expr_fields))
@@ -488,15 +497,29 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
         &mut self,
         labels: &[StringId],
         core_formats: &[core::Term<'_>],
-    ) -> &'arena [(((), StringId), Term<'arena, ()>)] {
+    ) -> &'arena [FormatField<'arena, ()>] {
         let initial_rigid_len = self.rigid_len();
-        let format_fields = (self.scope).to_scope_from_iter(
-            Iterator::zip(labels.iter(), core_formats.iter()).map(|(label, format)| {
-                let format = self.check(format);
-                self.push_rigid(Some(*label));
-                (((), *label), format)
-            }),
-        );
+        let core_fields = Iterator::zip(labels.iter().copied(), core_formats.iter());
+        let format_fields = (self.scope).to_scope_from_iter(core_fields.map(|(label, format)| {
+            let (format, pred) = match format {
+                // Use field refinements when `format` is a conditional format
+                // that binds the same name as the current field label.
+                core::Term::FormatCond(name, format, pred) if label == *name => {
+                    (*format, Some(pred))
+                }
+                format => (format, None),
+            };
+
+            let format = self.check(format);
+            self.push_rigid(Some(label));
+            let pred = pred.map(|pred| self.check(pred));
+
+            FormatField {
+                label: ((), label),
+                format,
+                pred,
+            }
+        }));
         self.truncate_rigid(initial_rigid_len);
 
         format_fields

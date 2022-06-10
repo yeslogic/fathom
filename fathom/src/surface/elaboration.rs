@@ -31,7 +31,7 @@ use crate::core::{self, binary, Const, Prim, UIntStyle};
 use crate::env::{self, EnvLen, GlobalVar, SharedEnv, UniqueEnv};
 use crate::source::ByteRange;
 use crate::surface::elaboration::reporting::Message;
-use crate::surface::{distillation, pretty, Pattern, Term};
+use crate::surface::{distillation, pretty, FormatField, Pattern, Term};
 use crate::{StringId, StringInterner};
 
 mod reporting;
@@ -760,25 +760,24 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
 
     /// Reports an error if there are duplicate fields found, returning a slice
     /// of the labels unique labels and an iterator over the unique fields.
-    fn report_duplicate_labels<'fields, 'a>(
+    fn report_duplicate_labels<'fields, F>(
         &mut self,
         range: ByteRange,
-        fields: &'fields [((ByteRange, StringId), Term<'a, ByteRange>)],
-    ) -> (
-        &'arena [StringId],
-        impl Iterator<Item = &'fields ((ByteRange, StringId), Term<'a, ByteRange>)>,
-    ) {
+        fields: &'fields [F],
+        get_label: fn(&F) -> (ByteRange, StringId),
+    ) -> (&'arena [StringId], impl Iterator<Item = &'fields F>) {
         let mut labels = SliceVec::new(self.scope, fields.len());
         // Will only allocate when duplicates are encountered
         let mut duplicate_indices = Vec::new();
         let mut duplicate_labels = Vec::new();
 
-        for (index, ((range, label), _)) in fields.iter().enumerate() {
-            if labels.contains(label) {
+        for (index, field) in fields.iter().enumerate() {
+            let (range, label) = get_label(field);
+            if labels.contains(&label) {
                 duplicate_indices.push(index);
-                duplicate_labels.push((*range, *label));
+                duplicate_labels.push((range, label));
             } else {
-                labels.push(*label)
+                labels.push(label)
             }
         }
 
@@ -1237,12 +1236,12 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 // TODO: improve handling of duplicate labels
                 if expr_fields.len() != labels.len()
                     || Iterator::zip(expr_fields.iter(), labels.iter())
-                        .any(|(((_, expr_label), _), type_label)| expr_label != type_label)
+                        .any(|(expr_field, type_label)| expr_field.label.1 != *type_label)
                 {
                     self.push_message(Message::MismatchedFieldLabels {
                         range: *range,
                         expr_labels: (expr_fields.iter())
-                            .map(|(ranged_label, _)| *ranged_label)
+                            .map(|expr_field| expr_field.label)
                             .collect(),
                         type_labels: labels.iter().copied().collect(),
                     });
@@ -1253,11 +1252,11 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 let mut expr_fields = expr_fields.iter();
                 let mut exprs = SliceVec::new(self.scope, types.len());
 
-                while let Some(((_, expr), (r#type, next_types))) = Option::zip(
+                while let Some((expr_field, (r#type, next_types))) = Option::zip(
                     expr_fields.next(),
                     self.elim_context().split_telescope(types),
                 ) {
-                    let expr = self.check(expr, &r#type);
+                    let expr = self.check(&expr_field.expr, &r#type);
                     types = next_types(self.eval_context().eval(&expr));
                     exprs.push(expr);
                 }
@@ -1619,13 +1618,15 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
             Term::RecordType(range, type_fields) => {
                 let universe = Arc::new(Value::Universe);
                 let initial_rigid_len = self.rigid_env.len();
-                let (labels, type_fields) = self.report_duplicate_labels(*range, type_fields);
+                let (labels, type_fields) =
+                    self.report_duplicate_labels(*range, type_fields, |f| f.label);
                 let mut types = SliceVec::new(self.scope, labels.len());
 
-                for ((_, label), r#type) in type_fields {
-                    let r#type = self.check(r#type, &universe);
+                for type_field in type_fields {
+                    let r#type = self.check(&type_field.type_, &universe);
                     let type_value = self.eval_context().eval(&r#type);
-                    self.rigid_env.push_param(Some(*label), type_value);
+                    self.rigid_env
+                        .push_param(Some(type_field.label.1), type_value);
                     types.push(r#type);
                 }
 
@@ -1634,12 +1635,13 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 (core::Term::RecordType(labels, types.into()), universe)
             }
             Term::RecordLiteral(range, expr_fields) => {
-                let (labels, expr_fields) = self.report_duplicate_labels(*range, expr_fields);
+                let (labels, expr_fields) =
+                    self.report_duplicate_labels(*range, expr_fields, |f| f.label);
                 let mut types = SliceVec::new(self.scope, labels.len());
                 let mut exprs = SliceVec::new(self.scope, labels.len());
 
-                for (_, expr) in expr_fields {
-                    let (expr, r#type) = self.synth(expr);
+                for expr_field in expr_fields {
+                    let (expr, r#type) = self.synth(&expr_field.expr);
                     types.push(self.quote_context(self.scope).quote(&r#type)); // NOTE: Unsure if these are correctly bound!
                     exprs.push(expr);
                 }
@@ -1720,21 +1722,21 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
 
                 (core::Term::FormatRecord(labels, formats), format_type)
             }
-            Term::FormatCond(_range, (_, label), format, cond) => {
+            Term::FormatCond(_range, (_, name), format, pred) => {
                 let format_type = Arc::new(Value::prim(Prim::FormatType, []));
                 let format = self.check(format, &format_type);
                 let format_value = self.eval_context().eval(&format);
-                let r#type = self.elim_context().format_repr(&format_value);
-                self.rigid_env.push_param(Some(*label), r#type);
+                let repr_type = self.elim_context().format_repr(&format_value);
+                self.rigid_env.push_param(Some(*name), repr_type);
                 let bool_type = Arc::new(Value::prim(Prim::BoolType, []));
-                let cond_expr = self.check(cond, &bool_type);
+                let pred_expr = self.check(pred, &bool_type);
                 self.rigid_env.pop();
 
                 (
                     core::Term::FormatCond(
-                        *label,
+                        *name,
                         self.scope.to_scope(format),
-                        self.scope.to_scope(cond_expr),
+                        self.scope.to_scope(pred_expr),
                     ),
                     format_type,
                 )
@@ -1759,19 +1761,39 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
     fn check_format_fields(
         &mut self,
         range: ByteRange,
-        format_fields: &[((ByteRange, StringId), Term<'_, ByteRange>)],
+        format_fields: &[FormatField<'_, ByteRange>],
     ) -> (&'arena [StringId], &'arena [core::Term<'arena>]) {
         let format_type = Arc::new(Value::prim(Prim::FormatType, []));
+        let bool_type = Arc::new(Value::prim(Prim::BoolType, []));
+
         let initial_rigid_len = self.rigid_env.len();
-        let (labels, format_fields) = self.report_duplicate_labels(range, format_fields);
+        let (labels, format_fields) =
+            self.report_duplicate_labels(range, format_fields, |f| f.label);
         let mut formats = SliceVec::new(self.scope, labels.len());
 
-        for ((_, label), format) in format_fields {
-            let format = self.check(format, &format_type);
+        for format_field in format_fields {
+            let label = format_field.label.1;
+            let format = self.check(&format_field.format, &format_type);
             let format_value = self.eval_context().eval(&format);
             let r#type = self.elim_context().format_repr(&format_value);
-            self.rigid_env.push_param(Some(*label), r#type);
-            formats.push(format);
+
+            self.rigid_env.push_param(Some(label), r#type);
+
+            match &format_field.pred {
+                None => formats.push(format),
+                // Elaborate refined fields to conditional formats
+                Some(pred) => {
+                    // Note: No need to push a param, as this was done above,
+                    // in preparation for checking the the next format field.
+                    let cond_expr = self.check(&pred, &bool_type);
+
+                    formats.push(core::Term::FormatCond(
+                        label,
+                        self.scope.to_scope(format),
+                        self.scope.to_scope(cond_expr),
+                    ));
+                }
+            }
         }
 
         self.rigid_env.truncate(initial_rigid_len);
