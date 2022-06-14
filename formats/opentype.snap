@@ -69,6 +69,10 @@ let coverage_table : _ = {
         _ => unknown_table,
     },
 };
+let sequence_lookup_record : _ = {
+    sequence_index <- u16be,
+    lookup_list_index <- u16be,
+};
 let device_table : _ = let u16_div_ceil : _ =
 fun numerator => fun denominator => let quotient : _ numerator denominator =
 u16_div numerator denominator;
@@ -104,6 +108,304 @@ let device_or_variation_index_table : _ = overlap {
         0x8000 => variation_index_table,
         _ => unknown_table,
     },
+};
+let lang_sys : _ = {
+    lookup_order_offset <- u16be,
+    required_feature_index <- u16be,
+    feature_index_count <- u16be,
+    feature_indices <- array16 feature_index_count u16be,
+};
+let lang_sys_record : _ = fun script_start => {
+    lang_sys_tag <- tag,
+    lang_sys <- offset16 script_start lang_sys,
+};
+let script_table : _ = {
+    table_start <- stream_pos,
+    default_lang_sys <- offset16 table_start lang_sys,
+    lang_sys_count <- u16be,
+    lang_sys_records <- array16 lang_sys_count (lang_sys_record table_start),
+};
+let script_list : _ = let script_record : _ = fun script_list_start => {
+    script_tag <- tag,
+    script <- offset16 script_list_start script_table,
+};
+{
+    table_start <- stream_pos,
+    script_count <- u16be,
+    script_records <- array16 script_count (script_record table_start),
+};
+let feature_table : _ = {
+    table_start <- stream_pos,
+    feature_params <- u16be,
+    lookup_index_count <- u16be,
+    lookup_list_indices <- array16 lookup_index_count u16be,
+};
+let feature_list : _ = let feature_record : _ = fun feature_list_start => {
+    feature_tag <- tag,
+    feature <- offset16 feature_list_start feature_table,
+};
+{
+    table_start <- stream_pos,
+    feature_count <- u16be,
+    feature_records <- array16 feature_count (feature_record table_start),
+};
+let sequence_context_format1 : _ = let sequence_rule : _ = {
+    glyph_count <- u16be,
+    seq_lookup_count <- u16be,
+    input_sequence <- array16 (u16_sub glyph_count 1) u16be,
+    seq_lookup_records <- array16 seq_lookup_count sequence_lookup_record,
+};
+let sequence_rule_set : _ = {
+    table_start <- stream_pos,
+    seq_rule_count <- u16be,
+    seq_rules <- array16 seq_rule_count (offset16 table_start sequence_rule),
+};
+{
+    table_start <- stream_pos,
+    coverage <- offset16 table_start coverage_table,
+    seq_rule_set_count <- u16be,
+    seq_rule_sets <- array16 seq_rule_set_count (offset16 table_start sequence_rule_set),
+};
+let sequence_context_format2 : _ = let class_sequence_rule : _ = {
+    glyph_count <- u16be,
+    seq_lookup_count <- u16be,
+    input_sequence <- array16 (u16_sub glyph_count 1) u16be,
+    seqLookupRecords <- array16 seq_lookup_count sequence_lookup_record,
+};
+let class_sequence_rule_set : _ = {
+    table_start <- stream_pos,
+    class_seq_rule_count <- u16be,
+    class_seq_rules <- array16 class_seq_rule_count (offset16 table_start class_sequence_rule),
+};
+{
+    table_start <- stream_pos,
+    coverage <- offset16 table_start coverage_table,
+    class_def <- offset16 table_start class_def,
+    class_seq_rule_set_count <- u16be,
+    class_seq_rule_sets <- array16 class_seq_rule_set_count (offset16 table_start class_sequence_rule_set),
+};
+let sequence_context_format3 : _ = {
+    table_start <- stream_pos,
+    glyph_count <- u16be,
+    seq_lookup_count <- u16be,
+    coverage_tables <- array16 glyph_count (offset16 table_start coverage_table),
+    seq_lookup_records <- array16 seq_lookup_count sequence_lookup_record,
+};
+let sequence_context : _ = {
+    format <- u16be,
+    subst <- match format {
+        1 => sequence_context_format1,
+        2 => sequence_context_format2,
+        3 => sequence_context_format3,
+        _ => unknown_table,
+    },
+};
+let chained_sequence_context_format_1 : _ = let chained_sequence_rule : _ = {
+    backtrack_glyph_count <- u16be,
+    backtrack_sequence <- array16 backtrack_glyph_count u16be,
+    input_glyph_count <- u16be,
+    input_sequence <- array16 (u16_sub input_glyph_count 1) u16be,
+    lookahead_glyph_count <- u16be,
+    lookahead_sequence <- array16 lookahead_glyph_count u16be,
+    seq_lookup_count <- u16be,
+    seq_lookup_records <- array16 seq_lookup_count sequence_lookup_record,
+};
+let chained_sequence_rule_set : _ = {
+    table_start <- stream_pos,
+    chained_seq_rule_count <- u16be,
+    chained_seq_rules <- array16 chained_seq_rule_count (offset16 table_start chained_sequence_rule),
+};
+{
+    table_start <- stream_pos,
+    coverage <- offset16 table_start coverage_table,
+    chained_seq_rule_set_count <- u16be,
+    chained_seq_rule_sets <- array16 chained_seq_rule_set_count (offset16 table_start chained_sequence_rule_set),
+};
+let chained_sequence_context_format_2 : _ = let chained_class_sequence_rule :
+_ = {
+    backtrack_glyph_count <- u16be,
+    backtrack_sequence <- array16 backtrack_glyph_count u16be,
+    input_glyph_count <- u16be,
+    input_sequence <- array16 (u16_sub input_glyph_count 1) u16be,
+    lookahead_glyph_count <- u16be,
+    lookahead_sequence <- array16 lookahead_glyph_count u16be,
+    seq_lookup_count <- u16be,
+    seq_lookup_records <- array16 seq_lookup_count sequence_lookup_record,
+};
+let chained_class_sequence_rule_set : _ = {
+    table_start <- stream_pos,
+    chained_class_seq_rule_count <- u16be,
+    chained_class_seq_rules <- array16 chained_class_seq_rule_count (offset16 table_start chained_class_sequence_rule),
+};
+{
+    table_start <- stream_pos,
+    coverage <- offset16 table_start coverage_table,
+    backtrack_class_def <- offset16 table_start class_def,
+    input_class_def <- offset16 table_start class_def,
+    lookahead_class_def <- offset16 table_start class_def,
+    chained_class_seq_rule_set_count <- u16be,
+    chained_class_seq_rule_sets <- array16 chained_class_seq_rule_set_count (offset16 table_start chained_class_sequence_rule_set),
+};
+let chained_sequence_context_format_3 : _ = {
+    table_start <- stream_pos,
+    backtrack_glyph_count <- u16be,
+    backtrack_coverages <- array16 backtrack_glyph_count (offset16 table_start coverage_table),
+    input_glyph_count <- u16be,
+    input_coverage_tables <- array16 input_glyph_count (offset16 table_start coverage_table),
+    lookahead_glyph_count <- u16be,
+    lookahead_coverages <- array16 lookahead_glyph_count (offset16 table_start coverage_table),
+    seq_lookup_count <- u16be,
+    seq_lookup_records <- array16 seq_lookup_count sequence_lookup_record,
+};
+let chained_sequence_context : _ = {
+    format <- u16be,
+    subst <- match format {
+        1 => sequence_context_format1,
+        2 => sequence_context_format2,
+        3 => sequence_context_format3,
+        _ => unknown_table,
+    },
+};
+let single_substitution : _ = {
+    table_start <- stream_pos,
+    subst_format <- u16be,
+    coverage <- offset16 table_start coverage_table,
+    subst <- match subst_format {
+        1 => { delta_glyph_id <- s16be },
+        2 => {
+            glyph_count <- u16be,
+            substitute_glyph_ids <- array16 glyph_count u16be,
+        },
+        _ => unknown_table,
+    },
+};
+let multiple_substitution : _ = let sequence_table : _ = {
+    glyph_count <- u16be,
+    substitute_glyph_ids <- array16 glyph_count u16be,
+};
+{
+    table_start <- stream_pos,
+    subst_format <- u16be,
+    coverage <- offset16 table_start coverage_table,
+    subst <- match subst_format {
+        1 => {
+            sequence_count <- u16be,
+            sequences <- array16 sequence_count (offset16 table_start sequence_table),
+        },
+        _ => unknown_table,
+    },
+};
+let alternate_substitution : _ = let alternate_set : _ = {
+    glyph_count <- u16be,
+    alternate_glyph_ids <- array16 glyph_count u16be,
+};
+{
+    table_start <- stream_pos,
+    subst_format <- u16be,
+    coverage <- offset16 table_start coverage_table,
+    subst <- match subst_format {
+        1 => {
+            alternate_set_count <- u16be,
+            alternate_sets <- array16 alternate_set_count (offset16 table_start alternate_set),
+        },
+        _ => unknown_table,
+    },
+};
+let ligature_substitution : _ = let ligature_table : _ = {
+    ligature_glyph <- u16be,
+    component_count <- u16be,
+    component_glyph_ids <- array16 (u16_sub component_count 1) u16be,
+};
+let ligature_set : _ = {
+    table_start <- stream_pos,
+    ligature_count <- u16be,
+    ligatures <- array16 ligature_count (offset16 table_start ligature_table),
+};
+{
+    table_start <- stream_pos,
+    subst_format <- u16be,
+    coverage <- offset16 table_start coverage_table,
+    subst <- match subst_format {
+        1 => {
+            ligature_set_count <- u16be,
+            ligature_sets <- array16 ligature_set_count (offset16 table_start ligature_set),
+        },
+        _ => unknown_table,
+    },
+};
+let contextual_substitution : _ = sequence_context;
+let chained_contexts_substitution : _ = chained_sequence_context;
+let reverse_chaining_contextual_single_substitution : _ =
+let reverse_chain_single_subst_format1 : _ = {
+    table_start <- stream_pos,
+    coverage <- offset16 table_start coverage_table,
+    backtrack_glyph_count <- u16be,
+    backtrack_coverage_tables <- array16 backtrack_glyph_count (offset16 table_start coverage_table),
+    lookahead_glyph_count <- u16be,
+    lookahead_coverage_tables <- array16 lookahead_glyph_count (offset16 table_start coverage_table),
+    glyph_count <- u16be,
+    substitute_glyph_ids <- array16 glyph_count u16be,
+};
+{
+    subst_format <- u16be,
+    subtable <- match subst_format {
+        1 => reverse_chain_single_subst_format1,
+        _ => unknown_table,
+    },
+};
+let extension_substitution : _ = let extension_subst_format1 : _ = {
+    table_start <- stream_pos,
+    extension_lookup_type <- u16be,
+    extension_subtable <- match extension_lookup_type {
+        1 => single_substitution,
+        2 => multiple_substitution,
+        3 => alternate_substitution,
+        4 => ligature_substitution,
+        5 => contextual_substitution,
+        6 => chained_contexts_substitution,
+        7 => fail,
+        8 => reverse_chaining_contextual_single_substitution,
+        _ => unknown_table,
+    },
+};
+{
+    subst_format <- u16be,
+    subtable <- match subst_format {
+        1 => extension_subst_format1,
+        _ => unknown_table,
+    },
+};
+let lookup_table : _ = fun tag => let USE_MARK_FILTERING_SET : U16 = 0x10;
+let lookup_subtable : _ tag = fun tag => fun lookup_type => match tag {
+    "GPOS" => unknown_table,
+    "GSUB" => match lookup_type {
+        1 => single_substitution,
+        2 => multiple_substitution,
+        3 => alternate_substitution,
+        4 => ligature_substitution,
+        5 => contextual_substitution,
+        6 => chained_contexts_substitution,
+        7 => extension_substitution,
+        8 => reverse_chaining_contextual_single_substitution,
+        _ => unknown_table,
+    },
+    _ => fail,
+};
+{
+    table_start <- stream_pos,
+    lookup_type <- u16be,
+    lookup_flag <- u16be,
+    sub_table_count <- u16be,
+    subtables <- array16 sub_table_count (offset16 table_start (lookup_subtable tag lookup_type)),
+    mark_filtering_set <- match (u16_neq (u16_and lookup_flag USE_MARK_FILTERING_SET) 0) {
+        false => {},
+        true => u16be,
+    },
+};
+let lookup_list : _ = fun tag => {
+    table_start <- stream_pos,
+    lookup_count <- u16be,
+    lookups <- array16 lookup_count (offset16 table_start (lookup_table tag)),
 };
 let cmap_language_id : _ = fun platform => language_id;
 let cmap_language_id32 : _ = fun platform => language_id32;
@@ -512,7 +814,14 @@ let gdef_header_version_1_3 : _ = fun gdef_start => { item_var_store <- u32be };
     },
 };
 let gpos_table : _ = unknown_table;
-let gsub_table : _ = unknown_table;
+let gsub_table : _ = {
+    table_start <- stream_pos,
+    major_version <- u16be where u16_eq major_version 1,
+    minor_version <- u16be,
+    script_list <- offset16 table_start script_list,
+    feature_list <- offset16 table_start feature_list,
+    lookup_list <- offset16 table_start (lookup_list "GSUB"),
+};
 let jstf_table : _ = unknown_table;
 let math_table : _ = unknown_table;
 let table_record : _ = {

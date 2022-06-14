@@ -306,6 +306,18 @@ let coverage_table = {
     }
 };
 
+/// # Sequence Lookup Record
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: Sequence Lookup Record](https://docs.microsoft.com/en-us/typography/opentype/spec/chapter2#sequence-lookup-record)
+let sequence_lookup_record = {
+    /// Index (zero-based) into the input glyph sequence
+    sequence_index <- u16be,
+    /// Index (zero-based) into the LookupList
+    lookup_list_index <- u16be,
+};
+
 /// # Device and VariationIndex Tables
 ///
 /// Device tables and VariationIndex tables are used to provide adjustments to font-unit values in
@@ -348,11 +360,11 @@ let device_table = (
 
     let delta_bits = fun (delta_format : U16) => fun (num_sizes : U16) =>
         match delta_format {
-            // Signed 2-bit value, 8 values per uint16
+            // Signed 2-bit value, 8 values per u16be
             0x0001 => u16_mul num_sizes 2,
-            // Signed 4-bit value, 4 values per uint16
+            // Signed 4-bit value, 4 values per u16be
             0x0002 => u16_mul num_sizes 4,
-            // Signed 8-bit value, 2 values per uint16
+            // Signed 8-bit value, 2 values per u16be
             0x0003 => u16_mul num_sizes 8,
             // Unreachable due to match done in device_or_variation_index_table
             _ => 0,
@@ -399,6 +411,690 @@ let device_or_variation_index_table = overlap {
         0x8000 => variation_index_table,
         _ => unknown_table,
     },
+};
+
+/// # Language System Table
+///
+/// Also known as LangSys table.
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: Language System Table](https://docs.microsoft.com/en-us/typography/opentype/spec/chapter2#language-system-table)
+let lang_sys = {
+    /// = NULL (reserved for an offset to a reordering table)
+    lookup_order_offset <- u16be,
+    /// Index of a feature required for this language system; if no required features = 0xFFFF
+    required_feature_index <- u16be,
+    /// Number of feature index values for this language system — excludes the required feature
+    feature_index_count <- u16be,
+    /// Array of indices into the FeatureList, in arbitrary order
+    feature_indices <- array16 feature_index_count u16be,
+};
+
+/// # Language System Record
+///
+/// Also known as LangSys record.
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: Script Table and Language System Record](https://docs.microsoft.com/en-us/typography/opentype/spec/chapter2#script-table-and-language-system-record)
+let lang_sys_record = fun (script_start : Pos) => {
+    /// 4-byte LangSysTag identifier
+    lang_sys_tag <- tag,
+    /// Offset to LangSys table, from beginning of Script table
+    lang_sys <- offset16 script_start lang_sys,
+};
+
+/// # Script table
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: Script Table and Language System Record](https://docs.microsoft.com/en-us/typography/opentype/spec/chapter2#script-table-and-language-system-record)
+let script_table = {
+    /// The start of the script table
+    table_start <- stream_pos,
+    /// Offset to default LangSys table, from beginning of Script table — may be NULL
+    default_lang_sys <- offset16 table_start lang_sys,
+    /// Number of LangSysRecords for this script — excluding the default LangSys
+    lang_sys_count <- u16be,
+    /// Array of LangSysRecords, listed alphabetically by LangSys tag
+    lang_sys_records <- array16 lang_sys_count (lang_sys_record table_start),
+};
+
+/// # Script list table
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: Script List Table and Script Record](https://docs.microsoft.com/en-us/typography/opentype/spec/chapter2#script-list-table-and-script-record)
+let script_list = (
+    /// ScriptRecord
+    let script_record = fun (script_list_start : Pos) => {
+        /// 4-byte script tag identifier
+        script_tag <- tag,
+        /// Offset to Script table, from beginning of ScriptList
+        script <- offset16 script_list_start script_table,
+    };
+
+    {
+        /// The start of the script list table
+        table_start <- stream_pos,
+        /// Number of ScriptRecords
+        script_count <- u16be,
+        /// Array of ScriptRecords, listed alphabetically by script tag
+        script_records <- array16 script_count (script_record table_start),
+    }
+);
+
+/// # Feature Table
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: Feature Table](https://docs.microsoft.com/en-us/typography/opentype/spec/chapter2#feature-table)
+let feature_table = {
+    /// The start of the feature table
+    table_start <- stream_pos,
+    /// Offset from start of Feature table to FeatureParams table, if defined for the feature and
+    /// present, else NULL
+    feature_params <- u16be, // TODO: The format of the params table depends on the feature tag
+    /// Number of LookupList indices for this feature
+    lookup_index_count <- u16be,
+    /// Array of indices into the LookupList — zero-based (first lookup is LookupListIndex = 0)
+    lookup_list_indices <- array16 lookup_index_count u16be,
+};
+
+/// # Feature List Table
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: Feature List Table](https://docs.microsoft.com/en-us/typography/opentype/spec/chapter2#feature-list-table)
+let feature_list = (
+    let feature_record = fun (feature_list_start : Pos) => {
+        /// 4-byte feature identification tag
+        feature_tag <- tag,
+        /// Offset to Feature table, from beginning of FeatureList
+        feature <- offset16 feature_list_start feature_table,
+    };
+
+    {
+        /// The start of the feature list table
+        table_start <- stream_pos,
+        /// Number of FeatureRecords in this table
+        feature_count <- u16be,
+        /// Array of FeatureRecords — zero-based (first feature has FeatureIndex = 0), listed
+        /// alphabetically by feature tag
+        feature_records <- array16 feature_count (feature_record table_start),
+    }
+);
+
+/// # Sequence Context Format 1: simple glyph contexts
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: Sequence Context Format 1](https://docs.microsoft.com/en-us/typography/opentype/spec/chapter2#sequence-context-format-1-simple-glyph-contexts)
+let sequence_context_format1 = (
+    /// SequenceRule table
+    let sequence_rule = {
+        /// Number of glyphs in the input glyph sequence
+        glyph_count <- u16be,
+        /// Number of SequenceLookupRecords
+        seq_lookup_count <- u16be,
+        /// Array of input glyph IDs—starting with the second glyph
+        input_sequence <- array16 (u16_sub glyph_count 1) u16be,
+        /// Array of Sequence lookup records
+        seq_lookup_records <- array16 seq_lookup_count sequence_lookup_record,
+    };
+
+    /// SequenceRuleSet table—all contexts beginning with the same glyph
+    let sequence_rule_set = {
+        /// The start of the table
+        table_start <- stream_pos,
+        /// Number of SequenceRule tables
+        seq_rule_count <- u16be,
+        /// Array of offsets to SequenceRule tables, from beginning of the SequenceRuleSet table
+        seq_rules <- array16 seq_rule_count (offset16 table_start sequence_rule),
+    };
+
+    {
+        /// The start of the table
+        table_start <- stream_pos,
+        /// Offset to Coverage table, from beginning of SequenceContextFormat1 table
+        coverage <- offset16 table_start coverage_table,
+        /// Number of SequenceRuleSet tables
+        seq_rule_set_count <- u16be,
+        /// Array of offsets to SequenceRuleSet tables, from beginning of
+        /// SequenceContextFormat1 table (offsets may be NULL)
+        seq_rule_sets <- array16 seq_rule_set_count (offset16 table_start sequence_rule_set),
+    }
+);
+
+/// # Sequence Context Format 2: class-based glyph contexts
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: Sequence Context Format 2](https://docs.microsoft.com/en-us/typography/opentype/spec/chapter2#sequence-context-format-2-class-based-glyph-contexts)
+let sequence_context_format2 = (
+    /// ClassSequenceRule table
+    let class_sequence_rule = {
+        /// Number of glyphs to be matched
+        glyph_count <- u16be,
+        /// Number of SequenceLookupRecords
+        seq_lookup_count <- u16be,
+        /// Sequence of classes to be matched to the input glyph sequence, beginning with the
+        /// second glyph position
+        input_sequence <- array16 (u16_sub glyph_count 1) u16be,
+        /// Array of SequenceLookupRecords
+        seqLookupRecords <- array16 seq_lookup_count sequence_lookup_record,
+    };
+
+    /// ClassSequenceRuleSet table
+    let class_sequence_rule_set = {
+        /// The start of the table
+        table_start <- stream_pos,
+        /// Number of ClassSequenceRule tables
+        class_seq_rule_count <- u16be,
+        /// Array of offsets to ClassSequenceRule tables, from beginning of ClassSequenceRuleSet
+        /// table
+        class_seq_rules <- array16 class_seq_rule_count (offset16 table_start class_sequence_rule),
+    };
+
+    {
+        /// The start of the table
+        table_start <- stream_pos,
+        /// Offset to Coverage table, from beginning of SequenceContextFormat1 table
+        coverage <- offset16 table_start coverage_table,
+        /// Offset to ClassDef table, from beginning of SequenceContextFormat2 table
+        class_def <- (offset16 table_start class_def),
+        /// Number of ClassSequenceRuleSet tables
+        class_seq_rule_set_count <- u16be,
+        /// Array of offsets to ClassSequenceRuleSet tables, from beginning of
+        /// SequenceContextFormat2 table (may be NULL)
+        class_seq_rule_sets <- array16 class_seq_rule_set_count (offset16 table_start class_sequence_rule_set),
+    }
+);
+
+/// # Sequence Context Format 3: coverage-based glyph contexts
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: Sequence Context Format 3](https://docs.microsoft.com/en-us/typography/opentype/spec/chapter2#sequence-context-format-3-coverage-based-glyph-contexts)
+let sequence_context_format3 = {
+    /// The start of the table
+    table_start <- stream_pos,
+    /// Number of glyphs in the input sequence
+    glyph_count <- u16be,
+    /// Number of SequenceLookupRecords
+    seq_lookup_count <- u16be,
+    /// Array of offsets to Coverage tables, from beginning of SequenceContextFormat3 subtable
+    coverage_tables <- array16 glyph_count (offset16 table_start coverage_table),
+    /// Array of SequenceLookupRecords
+    seq_lookup_records <- array16 seq_lookup_count sequence_lookup_record,
+};
+
+let sequence_context = {
+    /// Format identifier
+    format <- u16be,
+    /// Format specific substitutions
+    subst <- match format {
+        1 => sequence_context_format1,
+        2 => sequence_context_format2,
+        3 => sequence_context_format3,
+        _ => unknown_table,
+    }
+};
+
+/// # Chained Sequence Context Format 1: simple glyph contexts
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: Chained Sequence Context Format 1](https://docs.microsoft.com/en-us/typography/opentype/spec/chapter2#chained-sequence-context-format-1-simple-glyph-contexts)
+let chained_sequence_context_format_1 = (
+    let chained_sequence_rule = {
+        /// Number of glyphs in the backtrack sequence
+        backtrack_glyph_count <- u16be,
+        /// Array of backtrack glyph IDs
+        backtrack_sequence <- array16 backtrack_glyph_count u16be,
+        /// Number of glyphs in the input sequence
+        input_glyph_count <- u16be,
+        /// Array of input glyph IDs—start with second glyph
+        input_sequence <- array16 (u16_sub input_glyph_count 1) u16be,
+        /// Number of glyphs in the lookahead sequence
+        lookahead_glyph_count <- u16be,
+        /// Array of lookahead glyph IDs
+        lookahead_sequence <- array16 lookahead_glyph_count u16be,
+        /// Number of SequenceLookupRecords
+        seq_lookup_count <- u16be,
+        /// Array of SequenceLookupRecords
+        seq_lookup_records <- array16 seq_lookup_count sequence_lookup_record,
+    };
+
+    let chained_sequence_rule_set = {
+        /// The start of the table
+        table_start <- stream_pos,
+        /// Number of ChainedSequenceRule tables
+        chained_seq_rule_count <- u16be,
+        /// Array of offsets to ChainedSequenceRule tables, from beginning of
+        /// ChainedSequenceRuleSet table
+        chained_seq_rules <- array16 chained_seq_rule_count (offset16 table_start chained_sequence_rule),
+    };
+
+    {
+        /// The start of the table
+        table_start <- stream_pos,
+        /// Offset to Coverage table, from beginning of ChainSequenceContextFormat1 table
+        coverage <- (offset16 table_start coverage_table),
+        /// Number of ChainedSequenceRuleSet tables
+        chained_seq_rule_set_count <- u16be,
+        /// Array of offsets to ChainedSeqRuleSet tables, from beginning of
+        /// ChainedSequenceContextFormat1 table (may be NULL)
+        chained_seq_rule_sets <- array16 chained_seq_rule_set_count (offset16 table_start chained_sequence_rule_set),
+    }
+);
+
+/// # Chained Sequence Context Format 2: class-based glyph contexts
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: Chained Sequence Context Format 2](https://docs.microsoft.com/en-us/typography/opentype/spec/chapter2#chained-sequence-context-format-2-class-based-glyph-contexts)
+let chained_sequence_context_format_2 = (
+    /// ChainedClassSequenceRule table
+    let chained_class_sequence_rule = {
+        /// Number of glyphs in the backtrack sequence
+        backtrack_glyph_count <- u16be,
+        /// Array of backtrack-sequence classes
+        backtrack_sequence <- array16 backtrack_glyph_count u16be,
+        /// Total number of glyphs in the input sequence
+        input_glyph_count <- u16be,
+        /// Array of input sequence classes, beginning with the second glyph position
+        input_sequence <- array16 (u16_sub input_glyph_count 1) u16be,
+        /// Number of glyphs in the lookahead sequence
+        lookahead_glyph_count <- u16be,
+        /// Array of lookahead-sequence classes
+        lookahead_sequence <- array16 lookahead_glyph_count u16be,
+        /// Number of SequenceLookupRecords
+        seq_lookup_count <- u16be,
+        /// Array of SequenceLookupRecords
+        seq_lookup_records <- array16 seq_lookup_count sequence_lookup_record,
+    };
+
+    /// ChainedClassSequenceRuleSet table
+    let chained_class_sequence_rule_set = {
+        /// The start of the table
+        table_start <- stream_pos,
+        /// Number of ChainedClassSequenceRule tables
+        chained_class_seq_rule_count <- u16be,
+        /// Array of offsets to ChainedClassSequenceRule tables, from beginning of
+        /// ChainedClassSequenceRuleSet
+        chained_class_seq_rules <- array16 chained_class_seq_rule_count (offset16 table_start chained_class_sequence_rule),
+    };
+
+    {
+        /// The start of the table
+        table_start <- stream_pos,
+        /// Offset to Coverage table, from beginning of ChainedSequenceContextFormat2 table
+        coverage <- offset16 table_start coverage_table,
+        /// Offset to ClassDef table containing backtrack sequence context, from beginning of
+        /// ChainedSequenceContextFormat2 table
+        backtrack_class_def <- offset16 table_start class_def,
+        /// Offset to ClassDef table containing input sequence context, from beginning of
+        /// ChainedSequenceContextFormat2 table
+        input_class_def <- offset16 table_start class_def,
+        /// Offset to ClassDef table containing lookahead sequence context, from beginning of
+        /// ChainedSequenceContextFormat2 table
+        lookahead_class_def <- offset16 table_start class_def,
+        /// Number of ChainedClassSequenceRuleSet tables
+        chained_class_seq_rule_set_count <- u16be,
+        /// Array of offsets to ChainedClassSequenceRuleSet tables, from beginning of
+        /// ChainedSequenceContextFormat2 table (may be NULL)
+        chained_class_seq_rule_sets <- array16 chained_class_seq_rule_set_count (offset16 table_start chained_class_sequence_rule_set),
+    }
+);
+
+/// # Chained Sequence Context Format 3: coverage-based glyph contexts
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: Chained Sequence Context Format 3](https://docs.microsoft.com/en-us/typography/opentype/spec/chapter2#chained-sequence-context-format-3-coverage-based-glyph-contexts)
+let chained_sequence_context_format_3 = {
+    /// The start of the table
+    table_start <- stream_pos,
+    /// Number of glyphs in the backtrack sequence
+    backtrack_glyph_count <- u16be,
+    /// Array of offsets to coverage tables for the backtrack sequence
+    backtrack_coverages <- array16 backtrack_glyph_count (offset16 table_start coverage_table),
+    /// Number of glyphs in the input sequence
+    input_glyph_count <- u16be,
+    /// Array of offsets to coverage tables for the input sequence
+    input_coverage_tables <- array16 input_glyph_count (offset16 table_start coverage_table),
+    /// Number of glyphs in the lookahead sequence
+    lookahead_glyph_count <- u16be,
+    /// Array of offsets to coverage tables for the lookahead sequence
+    lookahead_coverages <- array16 lookahead_glyph_count (offset16 table_start coverage_table),
+    /// Number of SequenceLookupRecords
+    seq_lookup_count <- u16be,
+    /// Array of SequenceLookupRecords
+    seq_lookup_records <- array16 seq_lookup_count sequence_lookup_record,
+};
+
+let chained_sequence_context = {
+    /// Format identifier
+    format <- u16be,
+    /// Format specific substitutions
+    subst <- match format {
+        1 => sequence_context_format1,
+        2 => sequence_context_format2,
+        3 => sequence_context_format3,
+        _ => unknown_table,
+    }
+};
+
+// # Lookup sub-tables
+
+/// # LookupType 1: Single Substitution Subtable
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: LookupType 1](https://docs.microsoft.com/en-us/typography/opentype/spec/gsub#lookuptype-1-single-substitution-subtable)
+let single_substitution = {
+    /// The start of the sub-table
+    table_start <- stream_pos,
+    /// Format identifier
+    subst_format <- u16be,
+    /// Coverage table
+    coverage <- offset16 table_start coverage_table,
+
+    subst <- match subst_format {
+        1 => {
+            /// Add to original glyph ID to get substitute glyph ID
+            delta_glyph_id <- s16be,
+        },
+        2 => {
+            /// Number of glyph IDs in the substitute_glyph_ids array
+            glyph_count <- u16be,
+            /// Array of substitute glyph IDs — ordered by Coverage index
+            substitute_glyph_ids <- array16 glyph_count u16be,
+        },
+        _ => unknown_table
+    },
+};
+
+/// LookupType 2: Multiple Substitution Subtable
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: LookupType 2](https://docs.microsoft.com/en-us/typography/opentype/spec/gsub#lookuptype-2-multiple-substitution-subtable)
+let multiple_substitution = (
+    let sequence_table = {
+        /// Number of glyph IDs in the substitute_glyph_ids array. This must always be greater than
+        /// 0.
+        glyph_count <- u16be,
+        /// String of glyph IDs to substitute
+        substitute_glyph_ids <- array16 glyph_count u16be,
+    };
+
+    {
+        /// The start of the sub-table
+        table_start <- stream_pos,
+        /// Format identifier
+        subst_format <- u16be,
+        /// Coverage table
+        coverage <- offset16 table_start coverage_table,
+        subst <- match subst_format {
+            1 => {
+                /// Number of Sequence table offsets in the sequences array
+                sequence_count <- u16be,
+                /// Array of offsets to Sequence tables. Offsets are from beginning of substitution
+                /// subtable, ordered by Coverage index
+                sequences <- array16 sequence_count (offset16 table_start sequence_table),
+            },
+            _ => unknown_table,
+        },
+    }
+);
+
+/// # LookupType 3: Alternate Substitution Subtable
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: LookupType 3](https://docs.microsoft.com/en-us/typography/opentype/spec/gsub#lookuptype-3-alternate-substitution-subtable)
+let alternate_substitution = (
+    /// AlternateSet table
+    let alternate_set = {
+        /// Number of glyph IDs in the alternate_glyph_ids array
+        glyph_count <- u16be,
+        /// Array of alternate glyph IDs, in arbitrary order
+        alternate_glyph_ids <- array16 glyph_count u16be,
+    };
+
+    {
+        /// The start of the sub-table
+        table_start <- stream_pos,
+        /// Format identifier
+        subst_format <- u16be,
+        /// Coverage table
+        coverage <- offset16 table_start coverage_table,
+        subst <- match subst_format {
+            1 => {
+                /// Number of AlternateSet tables
+                alternate_set_count <- u16be,
+                /// Array of offsets to AlternateSet tables. Offsets are from beginning of
+                /// substitution subtable, ordered by Coverage index
+                alternate_sets <- array16 alternate_set_count (offset16 table_start alternate_set),
+            },
+            _ => unknown_table,
+        },
+    }
+);
+
+/// # LookupType 4: Ligature Substitution Subtable
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: LookupType 4](https://docs.microsoft.com/en-us/typography/opentype/spec/gsub#lookuptype-4-ligature-substitution-subtable)
+let ligature_substitution = (
+    /// Ligature table: Glyph components for one ligature
+    let ligature_table = {
+        /// glyph ID of ligature to substitute
+        ligature_glyph <- u16be,
+        /// Number of components in the ligature
+        component_count <- u16be,
+        /// Array of component glyph IDs — start with the second component, ordered in writing
+        /// direction
+        component_glyph_ids <- array16 (u16_sub component_count 1) u16be,
+    };
+
+    /// LigatureSet table: All ligatures beginning with the same glyph
+    let ligature_set = {
+        /// The start of the LigatureSet table
+        table_start <- stream_pos,
+        /// Number of Ligature tables
+        ligature_count <- u16be,
+        /// Array of offsets to Ligature tables. Offsets are from beginning of LigatureSet table,
+        /// ordered by preference.
+        ///
+        /// For each ligature in the set, a Ligature table specifies the glyph ID of the output
+        /// ligature glyph (ligatureGlyph); a count of the total number of component glyphs in the
+        /// ligature, including the first component (componentCount); and an array of glyph IDs for
+        /// the components (componentGlyphIDs). The array starts with the second component glyph in
+        /// the ligature (glyph sequence index = 1, componentGlyphIDs array index = 0) because the
+        /// first component glyph is specified in the Coverage table.
+        ligatures <- array16 ligature_count (offset16 table_start ligature_table),
+    };
+
+    {
+        /// The start of the sub-table
+        table_start <- stream_pos,
+        /// Format identifier
+        subst_format <- u16be,
+        /// Coverage table
+        coverage <- offset16 table_start coverage_table,
+        subst <- match subst_format {
+            1 => {
+                /// Number of LigatureSet tables
+                ligature_set_count <- u16be,
+                /// Array of offsets to LigatureSet tables. Offsets are from beginning of
+                /// substitution subtable, ordered by Coverage index
+                ligature_sets <- array16 ligature_set_count (offset16 table_start ligature_set),
+            },
+            _ => unknown_table,
+        },
+    }
+);
+
+/// # LookupType 5: Contextual Substitution Subtable
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: LookupType 5](https://docs.microsoft.com/en-us/typography/opentype/spec/gsub#lookuptype-5-contextual-substitution-subtable)
+let contextual_substitution = sequence_context;
+
+/// # LookupType 6: Chained Contexts Substitution Subtable
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: LookupType 6](https://docs.microsoft.com/en-us/typography/opentype/spec/gsub#lookuptype-6-chained-contexts-substitution-subtable)
+let chained_contexts_substitution = chained_sequence_context;
+
+/// # LookupType 8: Reverse Chaining Contextual Single Substitution Subtable
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: LookupType 8](https://docs.microsoft.com/en-us/typography/opentype/spec/gsub#lookuptype-8-reverse-chaining-contextual-single-substitution-subtable)
+let reverse_chaining_contextual_single_substitution = (
+    /// ReverseChainSingleSubstFormat1 Subtable
+    let reverse_chain_single_subst_format1 = {
+        /// The start of the table
+        table_start <- stream_pos,
+        /// Offset to Coverage table, from beginning of substitution subtable.
+        coverage <- offset16 table_start coverage_table,
+        /// Number of glyphs in the backtrack sequence.
+        backtrack_glyph_count <- u16be,
+        /// Array of offsets to coverage tables in backtrack sequence, in glyph sequence order.
+        backtrack_coverage_tables <- array16 backtrack_glyph_count (offset16 table_start coverage_table),
+        /// Number of glyphs in lookahead sequence.
+        lookahead_glyph_count <- u16be,
+        /// Array of offsets to coverage tables in lookahead sequence, in glyph sequence order.
+        lookahead_coverage_tables <- array16 lookahead_glyph_count (offset16 table_start coverage_table),
+        /// Number of glyph IDs in the substituteGlyphIDs array.
+        glyph_count <- u16be,
+        /// Array of substitute glyph IDs — ordered by Coverage index.
+        substitute_glyph_ids <- array16 glyph_count u16be,
+    };
+
+    {
+        /// Format identifier
+        subst_format <- u16be,
+        subtable <- match subst_format {
+            1 => reverse_chain_single_subst_format1,
+            _ => unknown_table,
+        }
+    }
+);
+
+// This one is out of order as it needs to refer to all the other substitutions
+/// # LookupType 7: Extension Substitution
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: LookupType 7](https://docs.microsoft.com/en-us/typography/opentype/spec/gsub#lookuptype-7-extension-substitution)
+let extension_substitution = (
+    /// ExtensionSubstFormat1 subtable
+    let extension_subst_format1 = {
+        /// The start of the table
+        table_start <- stream_pos,
+        /// Lookup type of subtable referenced by extensionOffset (that is, the extension subtable).
+        ///
+        /// The extensionLookupType field must be set to any lookup type other than 7.
+        extension_lookup_type <- u16be,
+        /// Offset to the extension subtable, of lookup type extensionLookupType, relative to the
+        /// start of the ExtensionSubstFormat1 subtable.
+        extension_subtable <- match extension_lookup_type {
+            // Keep in sync with lookup_table GSUB block
+            1 => single_substitution,
+            2 => multiple_substitution,
+            3 => alternate_substitution,
+            4 => ligature_substitution,
+            5 => contextual_substitution,
+            6 => chained_contexts_substitution,
+            7 => fail,
+            8 => reverse_chaining_contextual_single_substitution,
+            _ => unknown_table,
+
+            // TODO: just call back into lookup_table when that's possible
+            // 7 => fail,
+            // _ => offset32 table_start (lookup_table "GSUB"),
+        }
+    };
+
+    {
+        /// Format identifier
+        subst_format <- u16be,
+        subtable <- match subst_format {
+            1 => extension_subst_format1,
+            _ => unknown_table,
+        }
+    }
+);
+
+
+/// # Lookup table
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: Lookup Table](https://docs.microsoft.com/en-us/typography/opentype/spec/chapter2#lookup-table)
+let lookup_table = fun (tag : U32) => (
+    let USE_MARK_FILTERING_SET : U16 = 0x0010;
+
+    let lookup_subtable = fun (tag : U32) => fun (lookup_type : U16) =>
+        match tag {
+            "GSUB" => match lookup_type {
+                1 => single_substitution,
+                2 => multiple_substitution,
+                3 => alternate_substitution,
+                4 => ligature_substitution,
+                5 => contextual_substitution,
+                6 => chained_contexts_substitution,
+                7 => extension_substitution,
+                8 => reverse_chaining_contextual_single_substitution,
+                _ => unknown_table,
+            },
+            "GPOS" => match lookup_type {
+                _ => unknown_table,
+            },
+            _ => fail,
+        };
+
+    {
+        /// The start of the lookup table
+        table_start <- stream_pos,
+        /// Different enumerations for GSUB and GPOS
+        lookup_type <- u16be,
+        /// Lookup qualifiers
+        lookup_flag <- u16be,
+        /// Number of subtables for this lookup
+        sub_table_count <- u16be,
+        /// Array of offsets to lookup subtables, from beginning of Lookup table
+        subtables <- array16 sub_table_count (offset16 table_start (lookup_subtable tag lookup_type)),
+        /// Index (base 0) into GDEF mark glyph sets structure. This field is only present if the
+        /// USE_MARK_FILTERING_SET lookup flag is set.
+        mark_filtering_set <- match (u16_neq (u16_and lookup_flag USE_MARK_FILTERING_SET) 0) {
+            true => u16be,
+            false =>{},
+        },
+    }
+);
+
+/// # Lookup List Table
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: Lookup List Table](https://docs.microsoft.com/en-us/typography/opentype/spec/chapter2#lookup-list-table)
+let lookup_list = fun (tag : U32) => {
+    /// The start of the lookup list table
+    table_start <- stream_pos,
+    /// Number of lookups in this table
+    lookup_count <- u16be,
+    /// Array of offsets to Lookup tables, from beginning of LookupList
+    lookups <- array16 lookup_count (offset16 table_start (lookup_table tag)),
 };
 
 // -----------------------------------------------------------------------------
@@ -1718,11 +2414,26 @@ let gpos_table = unknown_table;
 
 // -----------------------------------------------------------------------------
 
-// TODO: "GSUB" table
-//
-// - [Microsoft's OpenType Spec: GSUB — Glyph Substitution Table](https://docs.microsoft.com/en-us/typography/opentype/spec/gsub)
-
-let gsub_table = unknown_table;
+/// # GSUB — Glyph Substitution Table
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: GSUB — Glyph Substitution Table](https://docs.microsoft.com/en-us/typography/opentype/spec/gsub)
+let gsub_table = {
+    /// The start of the GSUB table
+    table_start <- stream_pos,
+    /// Major version of the GSUB table
+    major_version <- u16be where u16_eq major_version 1,
+    /// Minor version of the GSUB table
+    minor_version <- u16be,
+    /// ScriptList table
+    script_list <- offset16 table_start script_list,
+    /// FeatureList table
+    feature_list <- offset16 table_start feature_list,
+    /// LookupList table
+    lookup_list <- offset16 table_start (lookup_list "GSUB"),
+    // TODO: fields from GSUB version 1.1 (variable fonts)
+};
 
 
 // -----------------------------------------------------------------------------
