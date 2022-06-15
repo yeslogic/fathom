@@ -800,7 +800,7 @@ let single_substitution = {
     /// Format identifier
     subst_format <- u16be,
     /// Coverage table
-    coverage <- offset16 table_start coverage_table,
+    coverage <- offset16 table_start coverage_table, // TODO move
 
     subst <- match subst_format {
         1 => {
@@ -1036,6 +1036,142 @@ let extension_substitution = (
 );
 
 
+// GPOS:
+//
+// | Type | Name                        | Description                                    |
+// |------|-----------------------------|------------------------------------------------|
+// | 1    | Single adjustment           | Adjust position of a single glyph              |
+// | 2    | Pair adjustment             | Adjust position of a pair of glyphs            |
+// | 3    | Cursive attachment          | Attach cursive glyphs                          |
+// | 4    | MarkToBase attachment       | Attach a combining mark to a base glyph        |
+// | 5    | MarkToLigature attachment   | Attach a combining mark to a ligature          |
+// | 6    | MarkToMark attachment       | Attach a combining mark to another mark        |
+// | 7    | Context positioning         | Position one or more glyphs in context         |
+// | 8    | Chained Context positioning | Position one or more glyphs in chained context |
+// | 9    | Extension positioning       | Extension mechanism for other positionings     |
+// | 10   | Reserved                    | For future use (set to zero)                   |
+
+/// # Value Record
+///
+/// Note that all fields of a ValueRecord are optional: to save space, only the fields that are
+/// required need be included in a given instance. Because the GPOS table uses ValueRecords for
+/// many purposes, the sizes and contents of ValueRecords may vary from subtable to subtable.
+///
+/// A ValueRecord is always accompanied by a ValueFormat flags field that specifies which of the
+/// ValueRecord fields is present. If a ValueRecord specifies more than one value, the values must
+/// be listed in the order shown in the ValueRecord definition. If the associated ValueFormat flags
+/// indicate that a field is not present, then the next present field follows immediately after the
+/// last preceding, present field.
+///
+/// ## Value Format Flags
+///
+/// |  Mask  |        Name        |                                                Description                                                |
+/// |:------:|:------------------:|:---------------------------------------------------------------------------------------------------------:|
+/// | 0x0001 | X_PLACEMENT        | Includes horizontal adjustment for placement                                                              |
+/// | 0x0002 | Y_PLACEMENT        | Includes vertical adjustment for placement                                                                |
+/// | 0x0004 | X_ADVANCE          | Includes horizontal adjustment for advance                                                                |
+/// | 0x0008 | Y_ADVANCE          | Includes vertical adjustment for advance                                                                  |
+/// | 0x0010 | X_PLACEMENT_DEVICE | Includes Device table (non-variable font) / VariationIndex table (variable font) for horizontal placement |
+/// | 0x0020 | Y_PLACEMENT_DEVICE | Includes Device table (non-variable font) / VariationIndex table (variable font) for vertical placement   |
+/// | 0x0040 | X_ADVANCE_DEVICE   | Includes Device table (non-variable font) / VariationIndex table (variable font) for horizontal advance   |
+/// | 0x0080 | Y_ADVANCE_DEVICE   | Includes Device table (non-variable font) / VariationIndex table (variable font) for vertical advance     |
+/// | 0xFF00 | Reserved           | For future use (set to zero)                                                                              |
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: Value Record](https://docs.microsoft.com/en-us/typography/opentype/spec/gpos#value-record)
+let value_record = fun (table_start : Pos) => fun (flags : U16) => (
+    let X_PLACEMENT : U16 = 0x0001;
+    let Y_PLACEMENT : U16 = 0x0002;
+    let X_ADVANCE : U16 = 0x0004;
+    let Y_ADVANCE : U16 = 0x0008;
+    let X_PLACEMENT_DEVICE : U16 = 0x0010;
+    let Y_PLACEMENT_DEVICE : U16 = 0x0020;
+    let X_ADVANCE_DEVICE : U16 = 0x0040;
+    let Y_ADVANCE_DEVICE : U16 = 0x0080;
+
+    let optional_field = fun (field : U16) => fun (format : Format) =>
+        match (u16_neq (u16_and flags field) 0) {
+            true => format,
+            false => empty,
+        };
+
+    {
+        /// Horizontal adjustment for placement, in design units.
+        x_placement <- optional_field X_PLACEMENT s16be,
+        /// Vertical adjustment for placement, in design units.
+        y_placement <- optional_field Y_PLACEMENT s16be,
+        /// Horizontal adjustment for advance, in design units — only used for horizontal layout.
+        x_advance <- optional_field X_ADVANCE s16be,
+        /// Vertical adjustment for advance, in design units — only used for vertical layout.
+        y_advance <- optional_field Y_ADVANCE s16be,
+        /// Offset to Device table (non-variable font) / VariationIndex table (variable font) for
+        /// horizontal placement, from beginning of the immediate parent table (SinglePos or
+        /// PairPosFormat2 lookup subtable, PairSet table within a PairPosFormat1 lookup subtable)
+        /// — may be NULL.
+        x_pla_device_offset <- optional_field X_PLACEMENT_DEVICE (offset16 table_start device_or_variation_index_table),
+        /// Offset to Device table (non-variable font) / VariationIndex table (variable font) for
+        /// vertical placement, from beginning of the immediate parent table (SinglePos or
+        /// PairPosFormat2 lookup subtable, PairSet table within a PairPosFormat1 lookup subtable)
+        /// — may be NULL.
+        y_pla_device_offset <- optional_field Y_PLACEMENT_DEVICE (offset16 table_start device_or_variation_index_table),
+        /// Offset to Device table (non-variable font) / VariationIndex table (variable font) for
+        /// horizontal advance, from beginning of the immediate parent table (SinglePos or
+        /// PairPosFormat2 lookup subtable, PairSet table within a PairPosFormat1 lookup subtable)
+        /// — may be NULL.
+        x_adv_device_offset <- optional_field X_ADVANCE_DEVICE (offset16 table_start device_or_variation_index_table),
+        /// Offset to Device table (non-variable font) / VariationIndex table (variable font) for
+        /// vertical advance, from beginning of the immediate parent table (SinglePos or
+        /// PairPosFormat2 lookup subtable, PairSet table within a PairPosFormat1 lookup subtable)
+        /// — may be NULL.
+        y_adv_device_offset <- optional_field Y_ADVANCE_DEVICE (offset16 table_start device_or_variation_index_table),
+    }
+);
+
+/// # GPOS Lookup Type 1: Single Adjustment Positioning Subtable
+///
+/// Also known as SinglePos.
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: GPOS Lookup Type 1](https://docs.microsoft.com/en-us/typography/opentype/spec/gpos#lookup-type-1-single-adjustment-positioning-subtable)
+let single_adjustment = (
+    /// Single Adjustment Positioning Format 1: Single Positioning Value
+    let single_pos_format1 = fun (table_start : Pos) => {
+        /// Offset to Coverage table, from beginning of SinglePos subtable.
+        coverage_offset <- offset16 table_start coverage_table,
+        /// Defines the types of data in the ValueRecord.
+        value_format <- u16be,
+        /// Defines positioning value(s) — applied to all glyphs in the Coverage table.
+        value_record <- value_record table_start value_format,
+    };
+
+    /// Single Adjustment Positioning Format 2: Array of Positioning Values
+    let single_pos_format2 = fun (table_start : Pos) => {
+        /// Offset to Coverage table, from beginning of SinglePos subtable.
+        coverage_offset <- offset16 table_start coverage_table,
+        /// Defines the types of data in the ValueRecords.
+        value_format <- u16be,
+        /// Number of ValueRecords — must equal glyphCount in the Coverage table.
+        value_count <- u16be,
+        /// Array of ValueRecords — positioning values applied to glyphs.
+        value_records <- array16 value_count (value_record table_start value_format),
+    };
+
+    {
+        /// The start of the table
+        table_start <- stream_pos,
+        /// Format identifier
+        pos_format <- u16be,
+        /// Format specific table
+        subtable <- match pos_format {
+            1 => single_pos_format1 table_start,
+            2 => single_pos_format2 table_start,
+            _ => unknown_table,
+        }
+    }
+);
+
 /// # Lookup table
 ///
 /// ## References
@@ -1058,6 +1194,7 @@ let lookup_table = fun (tag : U32) => (
                 _ => unknown_table,
             },
             "GPOS" => match lookup_type {
+                1 => single_adjustment,
                 _ => unknown_table,
             },
             _ => fail,
@@ -2405,11 +2542,28 @@ let gdef_table = (
 
 // -----------------------------------------------------------------------------
 
+/// Shared structure of GSUB and GPOS tables
+let layout_table = fun (tag : U32) => {
+    /// The start of the table
+    table_start <- stream_pos,
+    /// Major version of the table
+    major_version <- u16be where u16_eq major_version 1,
+    /// Minor version of the table
+    minor_version <- u16be,
+    /// ScriptList table
+    script_list <- offset16 table_start script_list,
+    /// FeatureList table
+    feature_list <- offset16 table_start feature_list,
+    /// LookupList table
+    lookup_list <- offset16 table_start (lookup_list tag),
+    // TODO: fields from GPOS/GSUB version 1.1 (variable fonts)
+};
+
 // TODO: "GPOS" table
 //
 // - [Microsoft's OpenType Spec: GPOS — Glyph Positioning Table](https://docs.microsoft.com/en-us/typography/opentype/spec/gpos)
 
-let gpos_table = unknown_table;
+let gpos_table = layout_table "GPOS";
 
 
 // -----------------------------------------------------------------------------
@@ -2419,21 +2573,7 @@ let gpos_table = unknown_table;
 /// ## References
 ///
 /// - [Microsoft's OpenType Spec: GSUB — Glyph Substitution Table](https://docs.microsoft.com/en-us/typography/opentype/spec/gsub)
-let gsub_table = {
-    /// The start of the GSUB table
-    table_start <- stream_pos,
-    /// Major version of the GSUB table
-    major_version <- u16be where u16_eq major_version 1,
-    /// Minor version of the GSUB table
-    minor_version <- u16be,
-    /// ScriptList table
-    script_list <- offset16 table_start script_list,
-    /// FeatureList table
-    feature_list <- offset16 table_start feature_list,
-    /// LookupList table
-    lookup_list <- offset16 table_start (lookup_list "GSUB"),
-    // TODO: fields from GSUB version 1.1 (variable fonts)
-};
+let gsub_table = layout_table "GSUB";
 
 
 // -----------------------------------------------------------------------------
