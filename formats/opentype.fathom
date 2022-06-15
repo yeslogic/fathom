@@ -1134,6 +1134,33 @@ let optional_value_record = fun (table_start : Pos) => fun (flags : U16) => matc
     false => value_record table_start flags
 };
 
+/// # Anchor Tables
+///
+/// ## Refernces
+///
+/// - [Microsoft's OpenType Spec: Anchor Tables](https://docs.microsoft.com/en-us/typography/opentype/spec/gpos#anchor-tables)
+let anchor_table = {
+    /// Format identifier
+    anchor_format <- u16be,
+    table <- match anchor_format {
+        1 => {
+            /// Horizontal value, in design units
+            x_coordinate <- s16be,
+            /// Vertical value, in design units
+            y_coordinate <- s16be,
+        },
+        2 => {
+            /// Horizontal value, in design units
+            x_coordinate <- s16be,
+            /// Vertical value, in design units
+            y_coordinate <- s16be,
+            /// Index to glyph contour point
+            anchor_point <- u16be,
+        },
+        _ => unknown_table,
+    }
+};
+
 /// # GPOS Lookup Type 1: Single Adjustment Positioning Subtable
 ///
 /// Also known as SinglePos.
@@ -1273,6 +1300,46 @@ let pair_adjustment = (
     }
 );
 
+/// # GPOS Lookup Type 3: Cursive Attachment Positioning Subtable
+///
+/// Also known as CursivePos.
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: GPOS Lookup Type 3](https://docs.microsoft.com/en-us/typography/opentype/spec/gpos#lookup-type-3-cursive-attachment-positioning-subtable)
+let cursive_attachment = (
+    /// EntryExitRecord
+    let entry_exit_record = fun (table_start : Pos) => {
+        /// Offset to entry Anchor table, from beginning of CursivePos subtable (may be NULL).
+        entry_anchor <- offset16 table_start anchor_table,
+        /// Offset to exit Anchor table, from beginning of CursivePos subtable (may be NULL).
+        exit_anchor <- offset16 table_start anchor_table,
+    };
+
+
+    /// CursivePosFormat1 Subtable
+    let cursive_pos_format1 = fun (table_start : Pos) => {
+        /// Offset to Coverage table, from beginning of CursivePos subtable.
+        coverage <- offset16 table_start coverage_table,
+        /// Number of EntryExit records
+        entry_exit_count <- u16be,
+        /// Array of EntryExit records, in Coverage index order.
+        entry_exit_record <- array16 entry_exit_count (entry_exit_record table_start),
+    };
+
+    {
+        /// The start of the table
+        table_start <- stream_pos,
+        /// Format identifier
+        pos_format <- u16be,
+        /// Format specific table
+        subtable <- match pos_format {
+            1 => cursive_pos_format1 table_start,
+            _ => unknown_table,
+        }
+    }
+);
+
 /// # Lookup table
 ///
 /// ## References
@@ -1297,6 +1364,7 @@ let lookup_table = fun (tag : U32) => (
             "GPOS" => match lookup_type {
                 1 => single_adjustment,
                 2 => pair_adjustment,
+                3 => cursive_attachment,
                 _ => unknown_table,
             },
             _ => fail,
