@@ -1136,19 +1136,21 @@ let optional_value_record = fun (table_start : Pos) => fun (flags : U16) => matc
 
 /// # Anchor Tables
 ///
-/// ## Refernces
+/// ## References
 ///
 /// - [Microsoft's OpenType Spec: Anchor Tables](https://docs.microsoft.com/en-us/typography/opentype/spec/gpos#anchor-tables)
 let anchor_table = {
     /// Format identifier
     anchor_format <- u16be,
     table <- match anchor_format {
+        // Anchor Table Format 1: Design Units
         1 => {
             /// Horizontal value, in design units
             x_coordinate <- s16be,
             /// Vertical value, in design units
             y_coordinate <- s16be,
         },
+        // Anchor Table Format 2: Design Units Plus Contour Point
         2 => {
             /// Horizontal value, in design units
             x_coordinate <- s16be,
@@ -1157,9 +1159,35 @@ let anchor_table = {
             /// Index to glyph contour point
             anchor_point <- u16be,
         },
+        // Anchor Table Format 3: Design Units Plus Device or VariationIndex Tables
+        // TODO
         _ => unknown_table,
     }
 };
+
+/// # Mark Array Table
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: Mark Array Table](https://docs.microsoft.com/en-us/typography/opentype/spec/gpos#mark-array-table)
+let mark_array_table = (
+    /// MarkRecord
+    let mark_record = fun (table_start : Pos) => {
+        /// Class defined for the associated mark.
+        mark_class <- u16be,
+        /// Offset to Anchor table, from beginning of MarkArray table.
+        mark_anchor_offset <- offset16 table_start anchor_table,
+    };
+
+    {
+        /// The start of the table
+        table_start <- stream_pos,
+        /// Number of MarkRecords
+        mark_count <- u16be,
+        /// Array of MarkRecords, ordered by corresponding glyphs in the associated mark Coverage table.
+        mark_records <- array16 mark_count (mark_record table_start),
+    }
+);
 
 /// # GPOS Lookup Type 1: Single Adjustment Positioning Subtable
 ///
@@ -1340,6 +1368,56 @@ let cursive_attachment = (
     }
 );
 
+/// # GPOS Lookup Type 4: Mark-to-Base Attachment Positioning Subtable
+///
+/// Also known as MarkBasePos.
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: GPOS Lookup Type 4](https://docs.microsoft.com/en-us/typography/opentype/spec/gpos#lookup-type-4-mark-to-base-attachment-positioning-subtable)
+let mark_to_base_attachment = (
+    /// BaseRecord
+    let base_record = fun (table_start : Pos) => fun (mark_class_count : U16) => {
+        /// Array of offsets (one per mark class) to Anchor tables. Offsets are from beginning of
+        /// BaseArray table, ordered by class (offsets may be NULL).
+        base_anchors <- array16 mark_class_count (offset16 table_start anchor_table),
+    };
+
+    /// BaseArray Table
+    let base_array_table = fun (table_start : Pos) => fun (mark_class_count : U16) => {
+        /// Number of BaseRecords
+        base_count <- u16be,
+        /// Array of BaseRecords, in order of baseCoverage Index.
+        base_records <- array16 base_count (base_record table_start mark_class_count),
+    };
+
+    /// MarkBasePosFormat1 Subtable
+    let mark_base_pos_format1 = fun (table_start : Pos) => {
+        /// Offset to markCoverage table, from beginning of MarkBasePos subtable.
+        mark_coverage <- offset16 table_start coverage_table,
+        /// Offset to baseCoverage table, from beginning of MarkBasePos subtable.
+        base_coverage <- offset16 table_start coverage_table,
+        /// Number of classes defined for marks
+        mark_class_count <- u16be,
+        /// Offset to MarkArray table, from beginning of MarkBasePos subtable.
+        mark_array <- offset16 table_start mark_array_table,
+        /// Offset to BaseArray table, from beginning of MarkBasePos subtable.
+        base_array <- offset16 table_start (base_array_table table_start mark_class_count),
+    };
+
+    {
+        /// The start of the table
+        table_start <- stream_pos,
+        /// Format identifier
+        pos_format <- u16be,
+        /// Format specific table
+        subtable <- match pos_format {
+            1 => mark_base_pos_format1 table_start,
+            _ => unknown_table,
+        }
+    }
+);
+
 /// # Lookup table
 ///
 /// ## References
@@ -1365,6 +1443,7 @@ let lookup_table = fun (tag : U32) => (
                 1 => single_adjustment,
                 2 => pair_adjustment,
                 3 => cursive_attachment,
+                4 => mark_to_base_attachment,
                 _ => unknown_table,
             },
             _ => fail,
