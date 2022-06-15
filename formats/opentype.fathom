@@ -1140,6 +1140,8 @@ let optional_value_record = fun (table_start : Pos) => fun (flags : U16) => matc
 ///
 /// - [Microsoft's OpenType Spec: Anchor Tables](https://docs.microsoft.com/en-us/typography/opentype/spec/gpos#anchor-tables)
 let anchor_table = {
+    /// The start of the table
+    table_start <- stream_pos,
     /// Format identifier
     anchor_format <- u16be,
     table <- match anchor_format {
@@ -1160,7 +1162,18 @@ let anchor_table = {
             anchor_point <- u16be,
         },
         // Anchor Table Format 3: Design Units Plus Device or VariationIndex Tables
-        // TODO
+        3 => {
+            /// Horizontal value, in design units
+            x_coordinate <- s16be,
+            /// Vertical value, in design units
+            y_coordinate <- s16be,
+            /// Offset to Device table (non-variable font) / VariationIndex table (variable font)
+            /// for X coordinate, from beginning of Anchor table (may be NULL)
+            x_device_offset <- offset16 table_start device_or_variation_index_table,
+            /// Offset to Device table (non-variable font) / VariationIndex table (variable font)
+            /// for Y coordinate, from beginning of Anchor table (may be NULL)
+            y_device_offset <- offset16 table_start device_or_variation_index_table,
+        },
         _ => unknown_table,
     }
 };
