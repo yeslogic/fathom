@@ -162,7 +162,7 @@ impl<'surface, 'core> Driver<'surface, 'core> {
 
         let diagnostics = {
             let elab_messages = context.drain_messages();
-            parse_diagnostics.chain(elab_messages.map(|m| m.to_diagnostic(&self.interner, file_id)))
+            parse_diagnostics.chain(elab_messages.map(|m| m.to_diagnostic(&self.interner)))
         };
 
         if !(self.emit_diagnostics(diagnostics) || self.allow_errors) {
@@ -189,7 +189,7 @@ impl<'surface, 'core> Driver<'surface, 'core> {
 
         let diagnostics = {
             let elab_messages = context.drain_messages();
-            parse_diagnostics.chain(elab_messages.map(|m| m.to_diagnostic(&self.interner, file_id)))
+            parse_diagnostics.chain(elab_messages.map(|m| m.to_diagnostic(&self.interner)))
         };
 
         if !(self.emit_diagnostics(diagnostics) || self.allow_errors) {
@@ -215,7 +215,7 @@ impl<'surface, 'core> Driver<'surface, 'core> {
 
         let diagnostics = {
             let elab_messages = context.drain_messages();
-            parse_diagnostics.chain(elab_messages.map(|m| m.to_diagnostic(&self.interner, file_id)))
+            parse_diagnostics.chain(elab_messages.map(|m| m.to_diagnostic(&self.interner)))
         };
 
         if !(self.emit_diagnostics(diagnostics) || self.allow_errors) {
@@ -246,7 +246,7 @@ impl<'surface, 'core> Driver<'surface, 'core> {
 
         let diagnostics = {
             let elab_messages = context.drain_messages();
-            parse_diagnostics.chain(elab_messages.map(|m| m.to_diagnostic(&self.interner, file_id)))
+            parse_diagnostics.chain(elab_messages.map(|m| m.to_diagnostic(&self.interner)))
         };
 
         if !(self.emit_diagnostics(diagnostics) || self.allow_errors) {
@@ -308,8 +308,9 @@ impl<'surface, 'core> Driver<'surface, 'core> {
         impl Iterator<Item = Diagnostic<FileId>>,
     ) {
         let source = self.files.get(file_id).unwrap().source();
-        let (term, messages) = surface::Term::parse(&self.interner, &self.surface_scope, source);
-        let diagnostics = messages.into_iter().map(move |m| m.to_diagnostic(file_id));
+        let (term, messages) =
+            surface::Term::parse(&self.interner, &self.surface_scope, file_id, source);
+        let diagnostics = messages.into_iter().map(move |m| m.to_diagnostic());
 
         (term, diagnostics)
     }

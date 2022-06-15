@@ -813,7 +813,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 let ch_end = ch_start + ch.len_utf8();
 
                 self.push_message(Message::NonAsciiStringLiteral {
-                    invalid_range: ByteRange::new(ch_start, ch_end),
+                    invalid_range: ByteRange::new(range.file_id(), ch_start, ch_end),
                 });
                 data = None;
             }

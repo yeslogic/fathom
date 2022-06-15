@@ -181,14 +181,16 @@ impl<'arena> Term<'arena, ByteRange> {
     pub fn parse<'source>(
         interner: &RefCell<StringInterner>,
         scope: &'arena Scope<'arena>,
+        file_id: FileId,
         source: &'source str,
     ) -> (Term<'arena, ByteRange>, Vec<ParseMessage>) {
         let mut messages = Vec::new();
 
+        let tokens = lexer::tokens(file_id, source);
         let term = grammar::TermParser::new()
-            .parse(interner, scope, &mut messages, lexer::tokens(source))
+            .parse(interner, scope, &mut messages, file_id, tokens)
             .unwrap_or_else(|error| {
-                let message = ParseMessage::from(error);
+                let message = ParseMessage::from_lalrpop(file_id, error);
                 let range = message.range();
                 messages.push(message);
                 Term::ReportedError(range)
@@ -274,16 +276,52 @@ impl ParseMessage {
         }
     }
 
-    pub fn to_diagnostic(&self, file_id: FileId) -> Diagnostic<FileId> {
+    fn from_lalrpop(file_id: FileId, error: LalrpopParseError<'_>) -> ParseMessage {
+        match error {
+            LalrpopParseError::InvalidToken { location } => ParseMessage::InvalidToken {
+                range: ByteRange::new(file_id, location, location),
+            },
+            LalrpopParseError::UnrecognizedEOF { location, expected } => {
+                ParseMessage::UnrecognizedEof {
+                    range: ByteRange::new(file_id, location, location),
+                    expected, // TODO: convert to descriptions?
+                }
+            }
+            LalrpopParseError::UnrecognizedToken {
+                token: (start, token, end),
+                expected,
+            } => ParseMessage::UnrecognizedToken {
+                range: ByteRange::new(file_id, start, end),
+                token: token.description(),
+                expected,
+            },
+            LalrpopParseError::ExtraToken {
+                token: (start, token, end),
+            } => ParseMessage::ExtraToken {
+                range: ByteRange::new(file_id, start, end),
+                token: token.description(),
+            },
+            LalrpopParseError::User { error } => ParseMessage::Lexer(error),
+        }
+    }
+
+    fn from_lalrpop_recovery(file_id: FileId, error: LalrpopErrorRecovery<'_>) -> ParseMessage {
+        // TODO: make use of use `error.dropped_tokens` in error reporting?
+        ParseMessage::from_lalrpop(file_id, error.error)
+    }
+
+    pub fn to_diagnostic(&self) -> Diagnostic<FileId> {
+        let primary_label = |range: &ByteRange| Label::primary(range.file_id(), *range);
+
         match self {
-            ParseMessage::Lexer(error) => error.to_diagnostic(file_id),
+            ParseMessage::Lexer(error) => error.to_diagnostic(),
             ParseMessage::InvalidToken { range } => Diagnostic::error()
                 .with_message("invalid token")
-                .with_labels(vec![Label::primary(file_id, *range)]),
+                .with_labels(vec![primary_label(range)]),
             ParseMessage::UnrecognizedEof { range, expected } => Diagnostic::error()
                 .with_message("unexpected end of file")
                 .with_labels(vec![
-                    Label::primary(file_id, *range).with_message("unexpected end of file")
+                    primary_label(range).with_message("unexpected end of file")
                 ])
                 .with_notes(format_expected(expected).map_or(Vec::new(), |message| vec![message])),
             ParseMessage::UnrecognizedToken {
@@ -292,15 +330,11 @@ impl ParseMessage {
                 expected,
             } => Diagnostic::error()
                 .with_message(format!("unexpected token {}", token))
-                .with_labels(vec![
-                    Label::primary(file_id, *range).with_message("unexpected token")
-                ])
+                .with_labels(vec![primary_label(range).with_message("unexpected token")])
                 .with_notes(format_expected(expected).map_or(Vec::new(), |message| vec![message])),
             ParseMessage::ExtraToken { range, token } => Diagnostic::error()
                 .with_message(format!("extra token {}", token))
-                .with_labels(vec![
-                    Label::primary(file_id, *range).with_message("extra token")
-                ]),
+                .with_labels(vec![primary_label(range).with_message("extra token")]),
         }
     }
 }
@@ -308,45 +342,8 @@ impl ParseMessage {
 type LalrpopParseError<'source> =
     lalrpop_util::ParseError<usize, lexer::Token<'source>, lexer::Error>;
 
-impl From<LalrpopParseError<'_>> for ParseMessage {
-    fn from(error: LalrpopParseError<'_>) -> ParseMessage {
-        match error {
-            LalrpopParseError::InvalidToken { location } => ParseMessage::InvalidToken {
-                range: ByteRange::new(location, location),
-            },
-            LalrpopParseError::UnrecognizedEOF { location, expected } => {
-                ParseMessage::UnrecognizedEof {
-                    range: ByteRange::new(location, location),
-                    expected, // TODO: convert to descriptions?
-                }
-            }
-            LalrpopParseError::UnrecognizedToken {
-                token: (start, token, end),
-                expected,
-            } => ParseMessage::UnrecognizedToken {
-                range: ByteRange::new(start, end),
-                token: token.description(),
-                expected,
-            },
-            LalrpopParseError::ExtraToken {
-                token: (start, token, end),
-            } => ParseMessage::ExtraToken {
-                range: ByteRange::new(start, end),
-                token: token.description(),
-            },
-            LalrpopParseError::User { error } => ParseMessage::Lexer(error),
-        }
-    }
-}
-
 type LalrpopErrorRecovery<'source> =
     lalrpop_util::ErrorRecovery<usize, lexer::Token<'source>, lexer::Error>;
-
-impl From<LalrpopErrorRecovery<'_>> for ParseMessage {
-    fn from(error: LalrpopErrorRecovery<'_>) -> ParseMessage {
-        ParseMessage::from(error.error) // TODO: Use dropped tokens?
-    }
-}
 
 fn format_expected(expected: &[impl std::fmt::Display]) -> Option<String> {
     use itertools::Itertools;

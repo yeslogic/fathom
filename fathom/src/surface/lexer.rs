@@ -85,23 +85,24 @@ impl Error {
         }
     }
 
-    pub fn to_diagnostic(&self, file_id: FileId) -> Diagnostic<FileId> {
+    pub fn to_diagnostic(&self) -> Diagnostic<FileId> {
         match self {
             Error::UnexpectedCharacter { range } => Diagnostic::error()
                 .with_message("unexpected character")
-                .with_labels(vec![Label::primary(file_id, *range)]),
+                .with_labels(vec![Label::primary(range.file_id(), *range)]),
         }
     }
 }
 
 pub fn tokens<'source>(
+    file_id: FileId,
     source: &'source str,
 ) -> impl 'source + Iterator<Item = Result<Spanned<Token<'source>, usize>, Error>> {
     Token::lexer(source)
         .spanned()
-        .map(|(token, range)| match token {
+        .map(move |(token, range)| match token {
             Token::Error => Err(Error::UnexpectedCharacter {
-                range: ByteRange::new(range.start, range.end),
+                range: ByteRange::new(file_id, range.start, range.end),
             }),
             token => Ok((range.start, token, range.end)),
         })
