@@ -1128,6 +1128,12 @@ let value_record = fun (table_start : Pos) => fun (flags : U16) => (
     }
 );
 
+/// A value record that is `empty` if flags is 0
+let optional_value_record = fun (table_start : Pos) => fun (flags : U16) => match (u16_eq flags 0) {
+    true => empty,
+    false => value_record table_start flags
+};
+
 /// # GPOS Lookup Type 1: Single Adjustment Positioning Subtable
 ///
 /// Also known as SinglePos.
@@ -1172,6 +1178,101 @@ let single_adjustment = (
     }
 );
 
+/// # GPOS Lookup Type 2: Pair Adjustment Positioning Subtable
+///
+/// A pair adjustment positioning subtable (PairPos).
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: GPOS Lookup Type 2](https://docs.microsoft.com/en-us/typography/opentype/spec/gpos#lookup-type-2-pair-adjustment-positioning-subtable)
+let pair_adjustment = (
+    /// PairValueRecord
+    let pair_value_record = fun (table_start : Pos) => fun (value_format1 : U16) => fun (value_format2 : U16) => {
+        /// Glyph ID of second glyph in the pair (first glyph is listed in the Coverage table).
+        second_glyph <- u16be,
+        /// Positioning data for the first glyph in the pair.
+        value_record1 <- optional_value_record table_start value_format1,
+        /// Positioning data for the second glyph in the pair.
+        value_record2 <- optional_value_record table_start value_format2,
+    };
+
+    /// PairSet Table
+    let pair_set = fun (value_format1 : U16) => fun (value_format2 : U16) => {
+        /// The start of the table
+        table_start <- stream_pos,
+        /// Number of PairValueRecords
+        pair_value_count <- u16be,
+        /// Array of PairValueRecords, ordered by glyph ID of the second glyph.
+        pair_value_records <- array16 pair_value_count (pair_value_record table_start value_format1 value_format2),
+    };
+
+    /// Pair Adjustment Positioning Format 1: Adjustments for Glyph Pairs (PairPosFormat1)
+    let pair_pos_format1 = fun (table_start : Pos) => {
+        /// Offset to Coverage table, from beginning of PairPos subtable.
+        coverage <- offset16 table_start coverage_table,
+        /// Defines the types of data in valueRecord1 — for the first glyph in the pair (may be
+        /// zero).
+        value_format1 <- u16be,
+        /// Defines the types of data in valueRecord2 — for the second glyph in the pair (may be
+        /// zero).
+        value_format2 <- u16be,
+        /// Number of PairSet tables
+        pair_set_count <- u16be,
+        /// Array of offsets to PairSet tables. Offsets are from beginning of PairPos subtable,
+        /// ordered by Coverage Index.
+        pair_sets <- array16 pair_set_count (offset16 table_start (pair_set value_format1 value_format2)),
+    };
+
+    /// Class2Record
+    let class2_record = fun (table_start : Pos) => fun (value_format1 : U16) => fun (value_format2 : U16) => {
+        /// Positioning for first glyph — empty if valueFormat1 = 0.
+        value_record1 <- optional_value_record table_start value_format1,
+        /// Positioning for second glyph — empty if valueFormat2 = 0.
+        value_record2 <- optional_value_record table_start value_format2,
+    };
+
+    /// Class1Record
+    let class1_record = fun (table_start : Pos) => fun (class2_count : U16) => fun (value_format1 : U16) => fun (value_format2 : U16) => {
+        /// Array of Class2 records, ordered by classes in classDef2.
+        class2_records <- array16 class2_count (class2_record table_start value_format1 value_format2),
+    };
+
+    /// Pair Adjustment Positioning Format 2: Class Pair Adjustment (PairPosFormat2)
+    let pair_pos_format2 = fun (pair_pos_start : Pos) => {
+        /// Offset to Coverage table, from beginning of PairPos subtable.
+        coverage <- offset16 pair_pos_start coverage_table,
+        /// ValueRecord definition — for the first glyph of the pair (may be zero).
+        value_format1 <- u16be,
+        /// ValueRecord definition — for the second glyph of the pair (may be zero).
+        value_format2 <- u16be,
+        /// Offset to ClassDef table, from beginning of PairPos subtable — for the first glyph of
+        /// the pair.
+        class_def1 <- offset16 pair_pos_start class_def,
+        /// Offset to ClassDef table, from beginning of PairPos subtable — for the second glyph of
+        /// the pair.
+        class_def2 <- offset16 pair_pos_start class_def,
+        /// Number of classes in classDef1 table — includes Class 0.
+        class1_count <- u16be,
+        /// Number of classes in classDef2 table — includes Class 0.
+        class2_count <- u16be,
+        /// Array of Class1 records, ordered by classes in classDef1.
+        class1_records <- array16 class1_count (class1_record pair_pos_start class2_count value_format1 value_format2),
+    };
+
+    {
+        /// The start of the table
+        table_start <- stream_pos,
+        /// Format identifier
+        pos_format <- u16be,
+        /// Format specific table
+        subtable <- match pos_format {
+            1 => pair_pos_format1 table_start,
+            2 => pair_pos_format2 table_start,
+            _ => unknown_table,
+        }
+    }
+);
+
 /// # Lookup table
 ///
 /// ## References
@@ -1195,6 +1296,7 @@ let lookup_table = fun (tag : U32) => (
             },
             "GPOS" => match lookup_type {
                 1 => single_adjustment,
+                2 => pair_adjustment,
                 _ => unknown_table,
             },
             _ => fail,
