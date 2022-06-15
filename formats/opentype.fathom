@@ -1493,6 +1493,13 @@ let mark_to_mark_attachment = mark_to_base_attachment;
 /// - [Microsoft's OpenType Spec: GPOS Lookup Type 7](https://docs.microsoft.com/en-us/typography/opentype/spec/gpos#lookup-type-7-contextual-positioning-subtables)
 let contextual_positioning = sequence_context;
 
+/// # GPOS Lookup Type 8: Chained Contexts Positioning Subtable
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: GPOS Lookup Type 8](https://docs.microsoft.com/en-us/typography/opentype/spec/gpos#lookuptype-8-chained-contexts-positioning-subtable)
+let chained_contexts_positioning = chained_sequence_context;
+
 /// # Lookup table
 ///
 /// ## References
@@ -1522,6 +1529,7 @@ let lookup_table = fun (tag : U32) => (
                 5 => mark_to_ligature_attachment,
                 6 => mark_to_mark_attachment,
                 7 => contextual_positioning,
+                8 => chained_contexts_positioning,
                 _ => unknown_table,
             },
             _ => fail,
