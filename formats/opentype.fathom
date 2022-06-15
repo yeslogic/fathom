@@ -799,15 +799,17 @@ let single_substitution = {
     table_start <- stream_pos,
     /// Format identifier
     subst_format <- u16be,
-    /// Coverage table
-    coverage <- offset16 table_start coverage_table, // TODO move
 
     subst <- match subst_format {
         1 => {
+            /// Coverage table
+            coverage <- offset16 table_start coverage_table,
             /// Add to original glyph ID to get substitute glyph ID
             delta_glyph_id <- s16be,
         },
         2 => {
+            /// Coverage table
+            coverage <- offset16 table_start coverage_table,
             /// Number of glyph IDs in the substitute_glyph_ids array
             glyph_count <- u16be,
             /// Array of substitute glyph IDs — ordered by Coverage index
