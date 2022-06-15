@@ -1418,6 +1418,64 @@ let mark_to_base_attachment = (
     }
 );
 
+/// # GPOS Lookup Type 5: Mark-to-Ligature Attachment Positioning Subtable
+///
+/// Also known as MarkLigPos.
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: GPOS Lookup Type 5](https://docs.microsoft.com/en-us/typography/opentype/spec/gpos#lookup-type-5-mark-to-ligature-attachment-positioning-subtable)
+let mark_to_ligature_attachment = (
+    let component_record = fun (table_start : Pos) => fun (mark_class_count : U16) => {
+        /// Array of offsets (one per class) to Anchor tables. Offsets are from beginning of
+        /// LigatureAttach table, ordered by class (offsets may be NULL).
+        ligature_anchors <- array16 mark_class_count (offset16 table_start anchor_table),
+    };
+
+    /// LigatureAttach Table
+    let ligature_attach = fun (table_start : Pos) => fun (mark_class_count : U16) => {
+        /// Number of ComponentRecords in this ligature
+        component_count <- u16be,
+        /// Array of Component records, ordered in writing direction.
+        component_records <- array16 component_count (component_record table_start mark_class_count),
+    };
+
+    /// LigatureArray Table
+    let ligature_array = fun (table_start : Pos) => fun (mark_class_count : U16) => {
+        /// Number of LigatureAttach table offsets
+        ligature_count <- u16be,
+        /// Array of offsets to LigatureAttach tables. Offsets are from beginning of LigatureArray
+        /// table, ordered by ligatureCoverage index.
+        ligature_attaches <- array16 ligature_count (offset16 table_start (ligature_attach table_start mark_class_count)),
+    };
+
+    /// MarkLigPosFormat1 Subtable
+    let mark_lig_pos_format1 = fun (table_start : Pos) => {
+        /// Offset to markCoverage table, from beginning of MarkLigPos subtable.
+        mark_coverage <- offset16 table_start coverage_table,
+        /// Offset to ligatureCoverage table, from beginning of MarkLigPos subtable.
+        ligature_coverage <- offset16 table_start coverage_table,
+        /// Number of defined mark classes
+        mark_class_count <- u16be,
+        /// Offset to MarkArray table, from beginning of MarkLigPos subtable.
+        mark_array <- offset16 table_start mark_array_table,
+        /// Offset to LigatureArray table, from beginning of MarkLigPos subtable.
+        ligature_array <- offset16 table_start (ligature_array table_start mark_class_count),
+    };
+
+    {
+        /// The start of the table
+        table_start <- stream_pos,
+        /// Format identifier
+        pos_format <- u16be,
+        /// Format specific table
+        subtable <- match pos_format {
+            1 => mark_lig_pos_format1 table_start,
+            _ => unknown_table,
+        }
+    }
+);
+
 /// # Lookup table
 ///
 /// ## References
@@ -1444,6 +1502,7 @@ let lookup_table = fun (tag : U32) => (
                 2 => pair_adjustment,
                 3 => cursive_attachment,
                 4 => mark_to_base_attachment,
+                5 => mark_to_ligature_attachment,
                 _ => unknown_table,
             },
             _ => fail,
