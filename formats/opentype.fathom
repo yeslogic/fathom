@@ -1476,6 +1476,16 @@ let mark_to_ligature_attachment = (
     }
 );
 
+/// # GPOS Lookup Type 6: Mark-to-Mark Attachment Positioning Subtable
+///
+/// The MarkToMark attachment (MarkMarkPos) subtable is identical in form to the MarkToBase
+/// attachment subtable, although its function is different.
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: GPOS Lookup Type 6](https://docs.microsoft.com/en-us/typography/opentype/spec/gpos#lookup-type-6-mark-to-mark-attachment-positioning-subtable)
+let mark_to_mark_attachment = mark_to_base_attachment;
+
 /// # Lookup table
 ///
 /// ## References
@@ -1503,6 +1513,7 @@ let lookup_table = fun (tag : U32) => (
                 3 => cursive_attachment,
                 4 => mark_to_base_attachment,
                 5 => mark_to_ligature_attachment,
+                6 => mark_to_mark_attachment,
                 _ => unknown_table,
             },
             _ => fail,
