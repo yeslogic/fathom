@@ -627,7 +627,7 @@ let lookup_subtable : _ tag = fun tag => fun lookup_type => match tag {
     sub_table_count <- u16be,
     subtables <- array16 sub_table_count (offset16 table_start (lookup_subtable tag lookup_type)),
     mark_filtering_set <- match (u16_neq (u16_and lookup_flag USE_MARK_FILTERING_SET) 0) {
-        false => {},
+        false => empty,
         true => u16be,
     },
 };

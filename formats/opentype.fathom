@@ -1610,7 +1610,7 @@ let lookup_table = fun (tag : U32) => (
         /// USE_MARK_FILTERING_SET lookup flag is set.
         mark_filtering_set <- match (u16_neq (u16_and lookup_flag USE_MARK_FILTERING_SET) 0) {
             true => u16be,
-            false =>{},
+            false => empty,
         },
     }
 );
