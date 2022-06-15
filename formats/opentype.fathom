@@ -1500,6 +1500,50 @@ let contextual_positioning = sequence_context;
 /// - [Microsoft's OpenType Spec: GPOS Lookup Type 8](https://docs.microsoft.com/en-us/typography/opentype/spec/gpos#lookuptype-8-chained-contexts-positioning-subtable)
 let chained_contexts_positioning = chained_sequence_context;
 
+/// # LookupType 9: Extension Positioning
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: LookupType 9](https://docs.microsoft.com/en-us/typography/opentype/spec/gpos#lookuptype-9-extension-positioning)
+let extension_positioning = (
+    /// ExtensionPosFormat1 subtable
+    let extension_pos_format1 = {
+        /// The start of the table
+        table_start <- stream_pos,
+        /// Lookup type of subtable referenced by extensionOffset (that is, the extension subtable).
+        ///
+        /// The extensionLookupType field must be set to any lookup type other than 9.
+        extension_lookup_type <- u16be,
+        /// Offset to the extension subtable, of lookup type extensionLookupType, relative to the
+        /// start of the ExtensionPosFormat1 subtable.
+        extension_subtable <- match extension_lookup_type {
+            // Keep in sync with lookup_table GPOS block
+            1 => single_adjustment,
+            2 => pair_adjustment,
+            3 => cursive_attachment,
+            4 => mark_to_base_attachment,
+            5 => mark_to_ligature_attachment,
+            6 => mark_to_mark_attachment,
+            7 => contextual_positioning,
+            8 => chained_contexts_positioning,
+            _ => unknown_table,
+
+            // TODO: just call back into lookup_table when that's possible
+            // 9 => fail,
+            // _ => offset32 table_start (lookup_table "GPOS"),
+        }
+    };
+
+    {
+        /// Format identifier
+        pos_format <- u16be,
+        subtable <- match pos_format {
+            1 => extension_pos_format1,
+            _ => unknown_table,
+        }
+    }
+);
+
 /// # Lookup table
 ///
 /// ## References
@@ -1530,6 +1574,7 @@ let lookup_table = fun (tag : U32) => (
                 6 => mark_to_mark_attachment,
                 7 => contextual_positioning,
                 8 => chained_contexts_positioning,
+                9 => extension_positioning,
                 _ => unknown_table,
             },
             _ => fail,
