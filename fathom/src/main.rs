@@ -1,71 +1,47 @@
 use clap::Parser;
 use std::path::PathBuf;
 
-/// CLI for the programming language prototype.
+/// A language for declaratively specifying binary data formats
 #[derive(Parser)]
-#[clap(author, version, about, long_about = None)]
-#[clap(after_help = r#"EXAMPLES:
-
-Using arguments
-
-    fathom elab --term=examples/prelude.txt
-    fathom norm --term=examples/prelude.txt
-
-Using pipes and redirects
-
-    echo "fun (A : Type) -> A -> A" | fathom elab
-    cat examples/prelude.txt | fathom elab
-    fathom elab < examples/prelude.txt
-
-Using heredocs
-
-    fathom elab <<< "fun (A : Type) -> A -> A"
-
-    fathom norm <<EOF
-        let id : fun (A : Type) -> A -> A
-          = fun A => fun a => a;
-
-        id Type Type
-    EOF
-"#)]
+#[clap(author, version, about)]
 enum Options {
     /// Elaborate a term, printing the elaborated term and type
     Elab {
         /// Path to a file containing the surface term
-        #[clap(long = "term", name = "FILE", default_value = "-", parse(from_str))]
+        #[clap(long = "term", name = "FILE", default_value = "-")]
         term_file: PathOrStdin,
-        /// Continue even if errors were encountered.
+        /// Continue even if errors were encountered
         #[clap(long = "allow-errors")]
         allow_errors: bool,
     },
     /// Elaborate a term, printing its normal form and type
     Norm {
         /// Path to a file containing the surface term
-        #[clap(long = "term", name = "FILE", default_value = "-", parse(from_str))]
+        #[clap(long = "term", name = "FILE", default_value = "-")]
         term_file: PathOrStdin,
-        /// Continue even if errors were encountered.
+        /// Continue even if errors were encountered
         #[clap(long = "allow-errors")]
         allow_errors: bool,
     },
     /// Elaborate a term, printing its type
     Type {
         /// Path to a file containing the surface term
-        #[clap(long = "term", name = "FILE", default_value = "-", parse(from_str))]
+        #[clap(long = "term", name = "FILE", default_value = "-")]
         term_file: PathOrStdin,
-        /// Continue even if errors were encountered. v
+        /// Continue even if errors were encountered
         #[clap(long = "allow-errors")]
         allow_errors: bool,
     },
     /// Manipulate binary data
     Data {
         /// Path to a file containing the surface term
-        #[clap(long = "format", name = "FILE", parse(from_str))]
+        #[clap(long = "format", name = "FILE")]
         format_file: PathOrStdin,
         /// Continue even if errors were encountered
         #[clap(long = "allow-errors")]
         allow_errors: bool,
         /// The binary file to read
-        #[clap(name = "BINARY", parse(from_str))]
+        #[clap(name = "BINARY")]
         binary_path: PathBuf, // TODO: parse multiple binary files?
     },
 }
@@ -75,11 +51,13 @@ enum PathOrStdin {
     Path(PathBuf),
 }
 
-impl From<&str> for PathOrStdin {
-    fn from(src: &str) -> PathOrStdin {
+impl std::str::FromStr for PathOrStdin {
+    type Err = &'static str; // Unused, but satisfies `clap`. Could be `!` in the future.
+
+    fn from_str(src: &str) -> Result<PathOrStdin, &'static str> {
         match src {
-            "-" => PathOrStdin::StdIn,
-            _ => PathOrStdin::Path(PathBuf::from(src)),
+            "-" => Ok(PathOrStdin::StdIn),
+            _ => Ok(PathOrStdin::Path(PathBuf::from(src))),
         }
     }
 }
