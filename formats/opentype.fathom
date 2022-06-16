@@ -2216,10 +2216,17 @@ let hhea_table = {
 
     /// Set to `0` for current format.
     metric_data_format <- s16be,
-    /// Number of `long_horizontal_metric` records in the in the `htmx_table`.
+    /// Number of `long_horizontal_metric` records in the in the `hmtx_table`.
     number_of_long_horizontal_metrics <- u16be,
 };
 
+/// # Vertical Header Table (`vhea`)
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: hhea — Vertical Header Table](https://docs.microsoft.com/en-us/typography/opentype/spec/vhea)
+/// - [Apple's TrueType Reference Manual: The `'hhea'` table](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6vhea.html)
+let vhea_table = hhea_table;
 
 // -----------------------------------------------------------------------------
 
@@ -2247,7 +2254,7 @@ let long_horizontal_metric = {
 ///
 /// - [Microsoft's OpenType Spec: hmtx — Horizontal Metrics Table](https://docs.microsoft.com/en-us/typography/opentype/spec/hmtx)
 /// - [Apple's TrueType Reference Manual: The `'hmtx'` table](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6hmtx.html)
-let htmx_table = fun (number_of_long_horizontal_metrics : U16) => fun (num_glyphs : U16) => {
+let hmtx_table = fun (number_of_long_horizontal_metrics : U16) => fun (num_glyphs : U16) => {
     /// Long horizontal metrics, indexed by the glyph ID.
     h_metrics <- array16 number_of_long_horizontal_metrics long_horizontal_metric,
     /// Left side bearings for glyph IDs greater than or equal to the
@@ -2255,6 +2262,13 @@ let htmx_table = fun (number_of_long_horizontal_metrics : U16) => fun (num_glyph
     left_side_bearings <- array16 (u16_sub num_glyphs number_of_long_horizontal_metrics) s16be,
 };
 
+/// # Vertical Metrics Table (`vmtx`)
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: vmtx — Vertical Metrics Table](https://docs.microsoft.com/en-us/typography/opentype/spec/vmtx)
+/// - [Apple's TrueType Reference Manual: The `'vmtx'` table](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6vmtx.html)
+let vmtx_table = hmtx_table;
 
 // -----------------------------------------------------------------------------
 
@@ -3113,6 +3127,14 @@ let table_directory = fun (file_start : Pos) => {
                     (fun record => link_table file_start record table_format)
                     (find_table _ table_records table_id);
 
+        // FIXME: Sensible name for this, or should optional_table become this?
+        let option_table =
+            fun (table_id : Repr tag) =>
+            fun (table_format : Format) =>
+                option_fold (Repr table_record) (Option Format) (none _)
+                    (fun record => some _ { link <- (link_table file_start record table_format), rec <- succeed _ record})
+                    (find_table _ table_records table_id);
+
         {
             // Required Tables
             //
@@ -3121,11 +3143,11 @@ let table_directory = fun (file_start : Pos) => {
             head <- required_table "head" head_table,
             hhea <- required_table "hhea" hhea_table,
             maxp <- required_table "maxp" maxp_table,
-            htmx <- required_table "hmtx" {
+            hmtx <- required_table "hmtx" {
                 // TODO: let formats
                 hhea <- deref _ hhea.link,
                 maxp <- deref (limit32 maxp.table_record.length maxp_table) maxp.link,
-                table <- htmx_table
+                table <- hmtx_table
                     hhea.number_of_long_horizontal_metrics
                     maxp.num_glyphs,
             },
@@ -3219,7 +3241,7 @@ let table_directory = fun (file_start : Pos) => {
             meta <- optional_table "meta" unknown_table,
             pclt <- optional_table "PCLT" unknown_table,
             vdmx <- optional_table "VDMX" unknown_table,
-            vhea <- optional_table "vhea" unknown_table,
+            vhea <- succeed _ (option_table "vhea" vhea_table),
             vmtx <- optional_table "vmtx" unknown_table,
         }
     ),
