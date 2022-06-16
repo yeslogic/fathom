@@ -927,6 +927,20 @@ The following operations are defined for option types:
 
 - `option_fold : fun (A : Type) -> fun (B : Type) -> B -> (A -> B) -> Option A -> B`
 
+I.e.
+
+```fathom
+option_fold : fun (A : Type) -> fun (B : Type) -> B -> (A -> B) -> Option A -> B`
+//                  [1]               [2]        [3]      [4]        [5]      [6]
+```
+
+1. Type of `A`
+2. Type of `B`
+3. Default value if Option (5) is `none`
+4. Function that maps from `A` to `B`, called if the input Option (5) is `some`
+5. Input `Option`
+6. Output value, result of the fold
+
 ## Arrays
 
 Arrays are sequences of elements up to a given length.
