@@ -269,10 +269,13 @@ let chained_sequence_context : _ = {
 let single_substitution : _ = {
     table_start <- stream_pos,
     subst_format <- u16be,
-    coverage <- offset16 table_start coverage_table,
     subst <- match subst_format {
-        1 => { delta_glyph_id <- s16be },
+        1 => {
+            coverage <- offset16 table_start coverage_table,
+            delta_glyph_id <- s16be,
+        },
         2 => {
+            coverage <- offset16 table_start coverage_table,
             glyph_count <- u16be,
             substitute_glyph_ids <- array16 glyph_count u16be,
         },
@@ -375,9 +378,235 @@ let extension_substitution : _ = let extension_subst_format1 : _ = {
         _ => unknown_table,
     },
 };
+let value_record : _ = fun table_start => fun flags => let X_PLACEMENT : U16 =
+0x1;
+let Y_PLACEMENT : U16 = 0x2;
+let X_ADVANCE : U16 = 0x4;
+let Y_ADVANCE : U16 = 0x8;
+let X_PLACEMENT_DEVICE : U16 = 0x10;
+let Y_PLACEMENT_DEVICE : U16 = 0x20;
+let X_ADVANCE_DEVICE : U16 = 0x40;
+let Y_ADVANCE_DEVICE : U16 = 0x80;
+let optional_field : _ table_start flags =
+fun field => fun format => match (u16_neq (u16_and flags field) 0) {
+    false => empty,
+    true => format,
+};
+{
+    x_placement <- optional_field X_PLACEMENT s16be,
+    y_placement <- optional_field Y_PLACEMENT s16be,
+    x_advance <- optional_field X_ADVANCE s16be,
+    y_advance <- optional_field Y_ADVANCE s16be,
+    x_pla_device_offset <- optional_field X_PLACEMENT_DEVICE (offset16 table_start device_or_variation_index_table),
+    y_pla_device_offset <- optional_field Y_PLACEMENT_DEVICE (offset16 table_start device_or_variation_index_table),
+    x_adv_device_offset <- optional_field X_ADVANCE_DEVICE (offset16 table_start device_or_variation_index_table),
+    y_adv_device_offset <- optional_field Y_ADVANCE_DEVICE (offset16 table_start device_or_variation_index_table),
+};
+let optional_value_record : _ =
+fun table_start => fun flags => match (u16_eq flags 0) {
+    false => value_record table_start flags,
+    true => empty,
+};
+let anchor_table : _ = {
+    table_start <- stream_pos,
+    anchor_format <- u16be,
+    table <- match anchor_format {
+        1 => { x_coordinate <- s16be, y_coordinate <- s16be },
+        2 => {
+            x_coordinate <- s16be,
+            y_coordinate <- s16be,
+            anchor_point <- u16be,
+        },
+        3 => {
+            x_coordinate <- s16be,
+            y_coordinate <- s16be,
+            x_device_offset <- offset16 table_start device_or_variation_index_table,
+            y_device_offset <- offset16 table_start device_or_variation_index_table,
+        },
+        _ => unknown_table,
+    },
+};
+let mark_array_table : _ = let mark_record : _ = fun table_start => {
+    mark_class <- u16be,
+    mark_anchor_offset <- offset16 table_start anchor_table,
+};
+{
+    table_start <- stream_pos,
+    mark_count <- u16be,
+    mark_records <- array16 mark_count (mark_record table_start),
+};
+let single_adjustment : _ = let single_pos_format1 : _ = fun table_start => {
+    coverage_offset <- offset16 table_start coverage_table,
+    value_format <- u16be,
+    value_record <- value_record table_start value_format,
+};
+let single_pos_format2 : _ = fun table_start => {
+    coverage_offset <- offset16 table_start coverage_table,
+    value_format <- u16be,
+    value_count <- u16be,
+    value_records <- array16 value_count (value_record table_start value_format),
+};
+{
+    table_start <- stream_pos,
+    pos_format <- u16be,
+    subtable <- match pos_format {
+        1 => single_pos_format1 table_start,
+        2 => single_pos_format2 table_start,
+        _ => unknown_table,
+    },
+};
+let pair_adjustment : _ = let pair_value_record : _ =
+fun table_start => fun value_format1 => fun value_format2 => {
+    second_glyph <- u16be,
+    value_record1 <- optional_value_record table_start value_format1,
+    value_record2 <- optional_value_record table_start value_format2,
+};
+let pair_set : _ = fun value_format1 => fun value_format2 => {
+    table_start <- stream_pos,
+    pair_value_count <- u16be,
+    pair_value_records <- array16 pair_value_count (pair_value_record table_start value_format1 value_format2),
+};
+let pair_pos_format1 : _ = fun table_start => {
+    coverage <- offset16 table_start coverage_table,
+    value_format1 <- u16be,
+    value_format2 <- u16be,
+    pair_set_count <- u16be,
+    pair_sets <- array16 pair_set_count (offset16 table_start (pair_set value_format1 value_format2)),
+};
+let class2_record : _ =
+fun table_start => fun value_format1 => fun value_format2 => {
+    value_record1 <- optional_value_record table_start value_format1,
+    value_record2 <- optional_value_record table_start value_format2,
+};
+let class1_record : _ =
+fun table_start => fun class2_count => fun value_format1 => fun value_format2 => {
+    class2_records <- array16 class2_count (class2_record table_start value_format1 value_format2),
+};
+let pair_pos_format2 : _ = fun pair_pos_start => {
+    coverage <- offset16 pair_pos_start coverage_table,
+    value_format1 <- u16be,
+    value_format2 <- u16be,
+    class_def1 <- offset16 pair_pos_start class_def,
+    class_def2 <- offset16 pair_pos_start class_def,
+    class1_count <- u16be,
+    class2_count <- u16be,
+    class1_records <- array16 class1_count (class1_record pair_pos_start class2_count value_format1 value_format2),
+};
+{
+    table_start <- stream_pos,
+    pos_format <- u16be,
+    subtable <- match pos_format {
+        1 => pair_pos_format1 table_start,
+        2 => pair_pos_format2 table_start,
+        _ => unknown_table,
+    },
+};
+let cursive_attachment : _ = let entry_exit_record : _ = fun table_start => {
+    entry_anchor <- offset16 table_start anchor_table,
+    exit_anchor <- offset16 table_start anchor_table,
+};
+let cursive_pos_format1 : _ = fun table_start => {
+    coverage <- offset16 table_start coverage_table,
+    entry_exit_count <- u16be,
+    entry_exit_record <- array16 entry_exit_count (entry_exit_record table_start),
+};
+{
+    table_start <- stream_pos,
+    pos_format <- u16be,
+    subtable <- match pos_format {
+        1 => cursive_pos_format1 table_start,
+        _ => unknown_table,
+    },
+};
+let mark_to_base_attachment : _ = let base_record : _ =
+fun table_start => fun mark_class_count => {
+    base_anchors <- array16 mark_class_count (offset16 table_start anchor_table),
+};
+let base_array_table : _ = fun table_start => fun mark_class_count => {
+    base_count <- u16be,
+    base_records <- array16 base_count (base_record table_start mark_class_count),
+};
+let mark_base_pos_format1 : _ = fun table_start => {
+    mark_coverage <- offset16 table_start coverage_table,
+    base_coverage <- offset16 table_start coverage_table,
+    mark_class_count <- u16be,
+    mark_array <- offset16 table_start mark_array_table,
+    base_array <- offset16 table_start (base_array_table table_start mark_class_count),
+};
+{
+    table_start <- stream_pos,
+    pos_format <- u16be,
+    subtable <- match pos_format {
+        1 => mark_base_pos_format1 table_start,
+        _ => unknown_table,
+    },
+};
+let mark_to_ligature_attachment : _ = let component_record : _ =
+fun table_start => fun mark_class_count => {
+    ligature_anchors <- array16 mark_class_count (offset16 table_start anchor_table),
+};
+let ligature_attach : _ = fun table_start => fun mark_class_count => {
+    component_count <- u16be,
+    component_records <- array16 component_count (component_record table_start mark_class_count),
+};
+let ligature_array : _ = fun table_start => fun mark_class_count => {
+    ligature_count <- u16be,
+    ligature_attaches <- array16 ligature_count (offset16 table_start (ligature_attach table_start mark_class_count)),
+};
+let mark_lig_pos_format1 : _ = fun table_start => {
+    mark_coverage <- offset16 table_start coverage_table,
+    ligature_coverage <- offset16 table_start coverage_table,
+    mark_class_count <- u16be,
+    mark_array <- offset16 table_start mark_array_table,
+    ligature_array <- offset16 table_start (ligature_array table_start mark_class_count),
+};
+{
+    table_start <- stream_pos,
+    pos_format <- u16be,
+    subtable <- match pos_format {
+        1 => mark_lig_pos_format1 table_start,
+        _ => unknown_table,
+    },
+};
+let mark_to_mark_attachment : _ = mark_to_base_attachment;
+let contextual_positioning : _ = sequence_context;
+let chained_contexts_positioning : _ = chained_sequence_context;
+let extension_positioning : _ = let extension_pos_format1 : _ = {
+    table_start <- stream_pos,
+    extension_lookup_type <- u16be,
+    extension_subtable <- match extension_lookup_type {
+        1 => single_adjustment,
+        2 => pair_adjustment,
+        3 => cursive_attachment,
+        4 => mark_to_base_attachment,
+        5 => mark_to_ligature_attachment,
+        6 => mark_to_mark_attachment,
+        7 => contextual_positioning,
+        8 => chained_contexts_positioning,
+        _ => unknown_table,
+    },
+};
+{
+    pos_format <- u16be,
+    subtable <- match pos_format {
+        1 => extension_pos_format1,
+        _ => unknown_table,
+    },
+};
 let lookup_table : _ = fun tag => let USE_MARK_FILTERING_SET : U16 = 0x10;
 let lookup_subtable : _ tag = fun tag => fun lookup_type => match tag {
-    "GPOS" => unknown_table,
+    "GPOS" => match lookup_type {
+        1 => single_adjustment,
+        2 => pair_adjustment,
+        3 => cursive_attachment,
+        4 => mark_to_base_attachment,
+        5 => mark_to_ligature_attachment,
+        6 => mark_to_mark_attachment,
+        7 => contextual_positioning,
+        8 => chained_contexts_positioning,
+        9 => extension_positioning,
+        _ => unknown_table,
+    },
     "GSUB" => match lookup_type {
         1 => single_substitution,
         2 => multiple_substitution,
@@ -398,7 +627,7 @@ let lookup_subtable : _ tag = fun tag => fun lookup_type => match tag {
     sub_table_count <- u16be,
     subtables <- array16 sub_table_count (offset16 table_start (lookup_subtable tag lookup_type)),
     mark_filtering_set <- match (u16_neq (u16_and lookup_flag USE_MARK_FILTERING_SET) 0) {
-        false => {},
+        false => empty,
         true => u16be,
     },
 };
@@ -813,15 +1042,16 @@ let gdef_header_version_1_3 : _ = fun gdef_start => { item_var_store <- u32be };
         _ => gdef_header_version_1_3 table_start,
     },
 };
-let gpos_table : _ = unknown_table;
-let gsub_table : _ = {
+let layout_table : _ = fun tag => {
     table_start <- stream_pos,
     major_version <- u16be where u16_eq major_version 1,
     minor_version <- u16be,
     script_list <- offset16 table_start script_list,
     feature_list <- offset16 table_start feature_list,
-    lookup_list <- offset16 table_start (lookup_list "GSUB"),
+    lookup_list <- offset16 table_start (lookup_list tag),
 };
+let gpos_table : _ = layout_table "GPOS";
+let gsub_table : _ = layout_table "GSUB";
 let jstf_table : _ = unknown_table;
 let math_table : _ = unknown_table;
 let table_record : _ = {
