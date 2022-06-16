@@ -31,36 +31,36 @@ Using heredocs
 enum Options {
     /// Elaborate a term, printing the elaborated term and type
     Elab {
-        /// Path to a file containing the surface term (`-` to read from stdin)
+        /// Path to a file containing the surface term
         #[clap(long = "term", name = "FILE", default_value = "-", parse(from_str))]
-        term_input: Input,
+        term_file: PathOrStdin,
         /// Continue even if errors were encountered.
         #[clap(long = "allow-errors")]
         allow_errors: bool,
     },
     /// Elaborate a term, printing its normal form and type
     Norm {
-        /// Path to a file containing the surface term (`-` to read from stdin)
+        /// Path to a file containing the surface term
         #[clap(long = "term", name = "FILE", default_value = "-", parse(from_str))]
-        term_input: Input,
+        term_file: PathOrStdin,
         /// Continue even if errors were encountered.
         #[clap(long = "allow-errors")]
         allow_errors: bool,
     },
     /// Elaborate a term, printing its type
     Type {
-        /// Path to a file containing the surface term (`-` to read from stdin)
+        /// Path to a file containing the surface term
         #[clap(long = "term", name = "FILE", default_value = "-", parse(from_str))]
-        term_input: Input,
+        term_file: PathOrStdin,
         /// Continue even if errors were encountered. v
         #[clap(long = "allow-errors")]
         allow_errors: bool,
     },
     /// Manipulate binary data
     Data {
-        /// Path to a file containing the surface term (`-` to read from stdin)
+        /// Path to a file containing the surface term
         #[clap(long = "format", name = "FILE", parse(from_str))]
-        format_input: Input,
+        format_file: PathOrStdin,
         /// Continue even if errors were encountered
         #[clap(long = "allow-errors")]
         allow_errors: bool,
@@ -70,17 +70,24 @@ enum Options {
     },
 }
 
-enum Input {
+enum PathOrStdin {
     StdIn,
-    File(PathBuf),
+    Path(PathBuf),
 }
 
-impl From<&str> for Input {
-    fn from(src: &str) -> Input {
+impl From<&str> for PathOrStdin {
+    fn from(src: &str) -> PathOrStdin {
         match src {
-            "-" => Input::StdIn,
-            _ => Input::File(PathBuf::from(src)),
+            "-" => PathOrStdin::StdIn,
+            _ => PathOrStdin::Path(PathBuf::from(src)),
         }
+    }
+}
+
+fn read_source(driver: &mut fathom::Driver, file: PathOrStdin) -> fathom::source::FileId {
+    match file {
+        PathOrStdin::StdIn => driver.read_source("<stdin>", std::io::stdin()),
+        PathOrStdin::Path(path) => driver.read_source_path(&path),
     }
 }
 
@@ -94,7 +101,7 @@ fn get_pretty_width() -> usize {
 fn main() -> ! {
     match Options::parse() {
         Options::Elab {
-            term_input,
+            term_file,
             allow_errors,
         } => {
             let mut driver = fathom::Driver::new();
@@ -102,17 +109,13 @@ fn main() -> ! {
             driver.set_allow_errors(allow_errors);
             driver.set_emit_width(get_pretty_width());
 
-            let file_id = match term_input {
-                Input::StdIn => driver.read_source("<stdin>", std::io::stdin()),
-                Input::File(path) => driver.read_source_path(&path),
-            };
-
+            let file_id = read_source(&mut driver, term_file);
             let status = driver.elaborate(file_id);
 
             std::process::exit(status.exit_code());
         }
         Options::Norm {
-            term_input,
+            term_file,
             allow_errors,
         } => {
             let mut driver = fathom::Driver::new();
@@ -120,17 +123,13 @@ fn main() -> ! {
             driver.set_allow_errors(allow_errors);
             driver.set_emit_width(get_pretty_width());
 
-            let file_id = match term_input {
-                Input::StdIn => driver.read_source("<stdin>", std::io::stdin()),
-                Input::File(path) => driver.read_source_path(&path),
-            };
-
+            let file_id = read_source(&mut driver, term_file);
             let status = driver.normalise(file_id);
 
             std::process::exit(status.exit_code());
         }
         Options::Type {
-            term_input,
+            term_file,
             allow_errors,
         } => {
             let mut driver = fathom::Driver::new();
@@ -138,17 +137,13 @@ fn main() -> ! {
             driver.set_allow_errors(allow_errors);
             driver.set_emit_width(get_pretty_width());
 
-            let file_id = match term_input {
-                Input::StdIn => driver.read_source("<stdin>", std::io::stdin()),
-                Input::File(path) => driver.read_source_path(&path),
-            };
-
+            let file_id = read_source(&mut driver, term_file);
             let status = driver.r#type(file_id);
 
             std::process::exit(status.exit_code());
         }
         Options::Data {
-            format_input,
+            format_file,
             allow_errors,
             binary_path,
         } => {
@@ -159,10 +154,7 @@ fn main() -> ! {
             driver.set_allow_errors(allow_errors);
             driver.set_emit_width(get_pretty_width());
 
-            let file_id = match format_input {
-                Input::StdIn => driver.read_source("<stdin>", std::io::stdin()),
-                Input::File(path) => driver.read_source_path(&path),
-            };
+            let file_id = read_source(&mut driver, format_file);
 
             // TODO: report errors
             let mut file = std::fs::File::open(binary_path).unwrap();
