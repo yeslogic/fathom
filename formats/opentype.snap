@@ -1150,7 +1150,39 @@ let table_directory : _ = fun file_start => {
         vmtx <- optional_table "vmtx" unknown_table,
     },
 };
-let main : _ = { start <- stream_pos, directory <- table_directory start };
+let ttc_header : _ = fun start => let ttc_header1 : _ start = fun start => {
+    num_fonts <- u32be,
+    table_directories <- array32 num_fonts (offset32 start (table_directory start)),
+};
+let ttc_header2 : _ start = fun start => {
+    num_fonts <- u32be,
+    table_directories <- array32 num_fonts (offset32 start (table_directory start)),
+    dsig_tag <- u32be,
+    dsig_length <- u32be,
+    dsig_offset <- u32be,
+};
+{
+    ttc_tag <- tag,
+    major_version <- u16be,
+    minor_version <- u16be,
+    header <- match major_version {
+        1 => ttc_header1 start,
+        2 => ttc_header2 start,
+        _ => unknown_table,
+    },
+};
+let main : _ = {
+    start <- stream_pos,
+    font <- overlap {
+        magic <- u32be,
+        directory <- match magic {
+            0x10000 => table_directory start,
+            "OTTO" => table_directory start,
+            "ttcf" => ttc_header start,
+            _ => unknown_table,
+        },
+    },
+};
 main : Format
 '''
 stderr = ''
