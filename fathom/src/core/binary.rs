@@ -2,6 +2,7 @@
 
 use std::collections::HashMap;
 use std::convert::TryFrom;
+use std::fmt;
 use std::slice::SliceIndex;
 use std::sync::Arc;
 
@@ -20,6 +21,25 @@ pub enum ReadError {
     UnexpectedEndOfBuffer,
     PositionOverflow,
 }
+
+impl fmt::Display for ReadError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ReadError::InvalidFormat => f.write_str("invalid format"),
+            ReadError::InvalidValue => f.write_str("invalid value"),
+            ReadError::UnwrappedNone => f.write_str("unwrapped none"),
+            ReadError::ReadFailFormat => f.write_str("read a fail format"),
+            ReadError::CondFailure => f.write_str("conditional format failed"),
+            ReadError::SetOffsetOutsideBuffer => {
+                f.write_str("attempt to set buffer offset beyond bounds of buffer")
+            }
+            ReadError::UnexpectedEndOfBuffer => f.write_str("unexpected end of buffer"),
+            ReadError::PositionOverflow => f.write_str("position overflow"),
+        }
+    }
+}
+
+impl std::error::Error for ReadError {}
 
 /// A buffer that starts at an offset into a larger buffer.
 ///
