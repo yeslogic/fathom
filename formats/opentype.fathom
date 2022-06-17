@@ -9,11 +9,11 @@
 // -----------------------------------------------------------------------------
 
 /// Reserved formats
-let reserved = fun (format : Format) => fun (default : Repr format) =>
+def reserved = fun (format : Format) => fun (default : Repr format) =>
     format; // TODO: set to `default` during serialisation
 
 /// Deprecated formats
-let deprecated = fun (format : Format) => fun (default : Repr format) =>
+def deprecated = fun (format : Format) => fun (default : Repr format) =>
     format; // TODO: set to `default` during serialisation
 
 
@@ -35,42 +35,42 @@ let deprecated = fun (format : Format) => fun (default : Repr format) =>
 /// ## References
 ///
 /// - [Microsoft's OpenType Spec: Fixed](https://docs.microsoft.com/en-us/typography/opentype/spec/otff#dt_Fixed)
-let fixed : Format = u32be;
+def fixed : Format = u32be;
 
 /// Signed, 16-bit integer that describes a quantity in font design units.
 ///
 /// ## References
 ///
 /// - [Microsoft's OpenType Spec: FWORD](https://docs.microsoft.com/en-us/typography/opentype/spec/otff#dt_FWORD)
-let fword : Format = s16be;
+def fword : Format = s16be;
 
 /// Unsigned, 16-bit integer that describes a quantity in font design units.
 ///
 /// ## References
 ///
 /// - [Microsoft's OpenType Spec: UFWORD](https://docs.microsoft.com/en-us/typography/opentype/spec/otff#dt_UFWORD)
-let ufword : Format = u16be;
+def ufword : Format = u16be;
 
 /// Signed 16-bit fixed number with the low 14 bits of fraction (2.14).
 ///
 /// ## References
 ///
 /// - [Microsoft's OpenType Spec: F2DOT14](https://docs.microsoft.com/en-us/typography/opentype/spec/otff#dt_F2DOT14)
-let f2dot14 : Format = s16be;
+def f2dot14 : Format = s16be;
 
 /// Unsigned 24-bit integer
 ///
 /// ## References
 ///
 /// - [Microsoft's OpenType Spec: uint24](https://docs.microsoft.com/en-us/typography/opentype/spec/otff#dt_uint24)
-let u24be : Format = array8 3 u8;
+def u24be : Format = array8 3 u8;
 
 /// Date represented in number of seconds since 12:00 midnight, January 1, 1904.
 ///
 /// ## References
 ///
 /// - [Microsoft's OpenType Spec: LONGDATETIME](https://docs.microsoft.com/en-us/typography/opentype/spec/otff#dt_LONGDATETIME)
-let long_date_time : Format = s64be;
+def long_date_time : Format = s64be;
 
 /// Array of four `U8`s used to identify a table, design-variation axis, script,
 /// language system, feature, or baseline.
@@ -81,7 +81,7 @@ let long_date_time : Format = s64be;
 /// ## References
 ///
 /// - [Microsoft's OpenType Spec: Tag](https://docs.microsoft.com/en-us/typography/opentype/spec/otff#dt_Tag)
-let tag : Format =
+def tag : Format =
     // TODO: constrain array elements to the range 0x20 to 0x7E.
     // TODO: pattern matching on arrays
     // array8 4 u8;
@@ -92,17 +92,17 @@ let tag : Format =
 /// This is a placeholder for a table that has an unknown identifier (due to the
 /// file conforming to a newer version of the specification), or for a table has
 /// not yet been implemented.
-let unknown_table : Format = {};
+def unknown_table : Format = {};
 
 /// A format that consumes no input.
-let empty : Format = {};
+def empty : Format = {};
 
 /// 16-bit offset to a `format`, relative to some `base` position.
 ///
 /// ## References
 ///
 /// - [Microsoft's OpenType Spec: Offset16](https://docs.microsoft.com/en-us/typography/opentype/spec/otff#dt_Offset16)
-let offset16 = fun (base : Pos) => fun (format : Format) => {
+def offset16 = fun (base : Pos) => fun (format : Format) => {
     offset <- u16be,
     link <- match offset {
         0 => empty,
@@ -115,7 +115,7 @@ let offset16 = fun (base : Pos) => fun (format : Format) => {
 /// ## References
 ///
 /// - [Microsoft's OpenType Spec: Offset32](https://docs.microsoft.com/en-us/typography/opentype/spec/otff#dt_Offset32)
-let offset32 = fun (base : Pos) => fun (format : Format) => {
+def offset32 = fun (base : Pos) => fun (format : Format) => {
     offset <- u32be,
     link <- match offset {
         0 => empty,
@@ -131,7 +131,7 @@ let offset32 = fun (base : Pos) => fun (format : Format) => {
 /// ## References
 ///
 /// - [Microsoft's OpenType Spec: Version16Dot16](https://docs.microsoft.com/en-us/typography/opentype/spec/otff#dt_Version16Dot16)
-let version16dot16 = u32be;
+def version16dot16 = u32be;
 
 
 // -----------------------------------------------------------------------------
@@ -157,13 +157,13 @@ let version16dot16 = u32be;
 /// - [Microsoft's OpenType Spec: Platform, encoding and language](https://docs.microsoft.com/en-us/typography/opentype/spec/name#platform-encoding-and-language)
 /// - [Apple's TrueType Reference Manual: The `'cmap'` encoding subtables](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6cmap.html)
 /// - [Apple's TrueType Reference Manual: The platform identifier](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6name.html)
-let platform_id =
+def platform_id =
     u16be;
 
 /// # Platform-specific encoding identifiers
 ///
 // TODO: document encoding IDs
-let encoding_id = fun (platform : Repr platform_id) =>
+def encoding_id = fun (platform : Repr platform_id) =>
     u16be;
 
 /// # Language identifiers
@@ -177,10 +177,10 @@ let encoding_id = fun (platform : Repr platform_id) =>
 /// - [Apple's TrueType Reference Manual: The `'cmap'` table and language codes](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6cmap.html)
 ///
 // TODO: add more details to docs
-let language_id =
+def language_id =
     u16be;
 
-let language_id32 =
+def language_id32 =
     u32be;
 
 
@@ -204,7 +204,7 @@ let language_id32 =
 /// ## References
 ///
 /// - [Microsoft's OpenType Spec: Class Definition Table Format 1](https://docs.microsoft.com/en-us/typography/opentype/spec/chapter2#class-definition-table-format-1)
-let class_def_format_1 = {
+def class_def_format_1 = {
     /// First glyph ID of the class_value_array
     start_glyph_id <- u16be,
     /// Size of the class_value_array
@@ -218,7 +218,7 @@ let class_def_format_1 = {
 /// ## References
 ///
 /// - [Microsoft's OpenType Spec: Class Definition Table Format 2](https://docs.microsoft.com/en-us/typography/opentype/spec/chapter2#class-definition-table-format-2)
-let class_def_format_2 = (
+def class_def_format_2 = (
     /// ClassRangeRecord
     let class_range_record = {
         /// First glyph ID in the range
@@ -242,7 +242,7 @@ let class_def_format_2 = (
 /// ## References
 ///
 /// - [Microsoft's OpenType Spec: Class Definition Table](https://docs.microsoft.com/en-us/typography/opentype/spec/chapter2#class-definition-table)
-let class_def = {
+def class_def = {
     /// Format identifier
     class_format <- u16be,
     /// Format specific data
@@ -258,7 +258,7 @@ let class_def = {
 /// ## References
 ///
 /// - [Microsoft's OpenType Spec: Coverage Format 1](https://docs.microsoft.com/en-us/typography/opentype/spec/chapter2#coverage-format-1)
-let coverage_format_1 = {
+def coverage_format_1 = {
     /// Number of glyphs in the glyph array
     glyph_count <- u16be,
     /// Array of glyph IDs — in numerical order
@@ -270,7 +270,7 @@ let coverage_format_1 = {
 /// ## References
 ///
 /// - [Microsoft's OpenType Spec: Coverage Format 2](https://docs.microsoft.com/en-us/typography/opentype/spec/chapter2#coverage-format-2)
-let coverage_format_2 = (
+def coverage_format_2 = (
     /// RangeRecord
     let range_record = {
         /// First glyph ID in the range
@@ -294,7 +294,7 @@ let coverage_format_2 = (
 /// ## References
 ///
 /// - [Microsoft's OpenType Spec: Coverage Table](https://docs.microsoft.com/en-us/typography/opentype/spec/chapter2#coverageTbl)
-let coverage_table = {
+def coverage_table = {
     /// Format identifier
     coverage_format <- u16be,
     /// Format specific data
@@ -310,7 +310,7 @@ let coverage_table = {
 /// ## References
 ///
 /// - [Microsoft's OpenType Spec: Sequence Lookup Record](https://docs.microsoft.com/en-us/typography/opentype/spec/chapter2#sequence-lookup-record)
-let sequence_lookup_record = {
+def sequence_lookup_record = {
     /// Index (zero-based) into the input glyph sequence
     sequence_index <- u16be,
     /// Index (zero-based) into the LookupList
@@ -343,7 +343,7 @@ let sequence_lookup_record = {
 ///
 /// - [Microsoft's OpenType Spec: Device and VariationIndex Tables](https://docs.microsoft.com/en-us/typography/opentype/spec/chapter2#device-and-variationindex-tables)
 ///
-let device_table = (
+def device_table = (
     // quotient = numerator / denominator # int division
     // if quotient * denominator < numerator:
     //     quotient + 1
@@ -387,7 +387,7 @@ let device_table = (
 );
 
 /// VariationIndex table
-let variation_index_table = {
+def variation_index_table = {
     /// A delta-set outer index — used to select an item variation data subtable within the item
     /// variation store.
     delta_set_outer_index <- u16be,
@@ -396,7 +396,7 @@ let variation_index_table = {
     delta_set_inner_index <- u16be,
 };
 
-let device_or_variation_index_table = overlap {
+def device_or_variation_index_table = overlap {
     // Initial pass to figure out the table format
     init <- {
         _skipped <- array8 4 u8,
@@ -419,7 +419,7 @@ let device_or_variation_index_table = overlap {
 /// ## References
 ///
 /// - [Microsoft's OpenType Spec: Language System Table](https://docs.microsoft.com/en-us/typography/opentype/spec/chapter2#language-system-table)
-let lang_sys = {
+def lang_sys = {
     /// = NULL (reserved for an offset to a reordering table)
     lookup_order_offset <- u16be,
     /// Index of a feature required for this language system; if no required features = 0xFFFF
@@ -437,7 +437,7 @@ let lang_sys = {
 /// ## References
 ///
 /// - [Microsoft's OpenType Spec: Script Table and Language System Record](https://docs.microsoft.com/en-us/typography/opentype/spec/chapter2#script-table-and-language-system-record)
-let lang_sys_record = fun (script_start : Pos) => {
+def lang_sys_record = fun (script_start : Pos) => {
     /// 4-byte LangSysTag identifier
     lang_sys_tag <- tag,
     /// Offset to LangSys table, from beginning of Script table
@@ -449,7 +449,7 @@ let lang_sys_record = fun (script_start : Pos) => {
 /// ## References
 ///
 /// - [Microsoft's OpenType Spec: Script Table and Language System Record](https://docs.microsoft.com/en-us/typography/opentype/spec/chapter2#script-table-and-language-system-record)
-let script_table = {
+def script_table = {
     /// The start of the script table
     table_start <- stream_pos,
     /// Offset to default LangSys table, from beginning of Script table — may be NULL
@@ -465,7 +465,7 @@ let script_table = {
 /// ## References
 ///
 /// - [Microsoft's OpenType Spec: Script List Table and Script Record](https://docs.microsoft.com/en-us/typography/opentype/spec/chapter2#script-list-table-and-script-record)
-let script_list = (
+def script_list = (
     /// ScriptRecord
     let script_record = fun (script_list_start : Pos) => {
         /// 4-byte script tag identifier
@@ -489,7 +489,7 @@ let script_list = (
 /// ## References
 ///
 /// - [Microsoft's OpenType Spec: Feature Table](https://docs.microsoft.com/en-us/typography/opentype/spec/chapter2#feature-table)
-let feature_table = {
+def feature_table = {
     /// The start of the feature table
     table_start <- stream_pos,
     /// Offset from start of Feature table to FeatureParams table, if defined for the feature and
@@ -506,7 +506,7 @@ let feature_table = {
 /// ## References
 ///
 /// - [Microsoft's OpenType Spec: Feature List Table](https://docs.microsoft.com/en-us/typography/opentype/spec/chapter2#feature-list-table)
-let feature_list = (
+def feature_list = (
     let feature_record = fun (feature_list_start : Pos) => {
         /// 4-byte feature identification tag
         feature_tag <- tag,
@@ -530,7 +530,7 @@ let feature_list = (
 /// ## References
 ///
 /// - [Microsoft's OpenType Spec: Sequence Context Format 1](https://docs.microsoft.com/en-us/typography/opentype/spec/chapter2#sequence-context-format-1-simple-glyph-contexts)
-let sequence_context_format1 = (
+def sequence_context_format1 = (
     /// SequenceRule table
     let sequence_rule = {
         /// Number of glyphs in the input glyph sequence
@@ -571,7 +571,7 @@ let sequence_context_format1 = (
 /// ## References
 ///
 /// - [Microsoft's OpenType Spec: Sequence Context Format 2](https://docs.microsoft.com/en-us/typography/opentype/spec/chapter2#sequence-context-format-2-class-based-glyph-contexts)
-let sequence_context_format2 = (
+def sequence_context_format2 = (
     /// ClassSequenceRule table
     let class_sequence_rule = {
         /// Number of glyphs to be matched
@@ -616,7 +616,7 @@ let sequence_context_format2 = (
 /// ## References
 ///
 /// - [Microsoft's OpenType Spec: Sequence Context Format 3](https://docs.microsoft.com/en-us/typography/opentype/spec/chapter2#sequence-context-format-3-coverage-based-glyph-contexts)
-let sequence_context_format3 = {
+def sequence_context_format3 = {
     /// The start of the table
     table_start <- stream_pos,
     /// Number of glyphs in the input sequence
@@ -629,7 +629,7 @@ let sequence_context_format3 = {
     seq_lookup_records <- array16 seq_lookup_count sequence_lookup_record,
 };
 
-let sequence_context = {
+def sequence_context = {
     /// Format identifier
     format <- u16be,
     /// Format specific substitutions
@@ -646,7 +646,7 @@ let sequence_context = {
 /// ## References
 ///
 /// - [Microsoft's OpenType Spec: Chained Sequence Context Format 1](https://docs.microsoft.com/en-us/typography/opentype/spec/chapter2#chained-sequence-context-format-1-simple-glyph-contexts)
-let chained_sequence_context_format_1 = (
+def chained_sequence_context_format_1 = (
     let chained_sequence_rule = {
         /// Number of glyphs in the backtrack sequence
         backtrack_glyph_count <- u16be,
@@ -694,7 +694,7 @@ let chained_sequence_context_format_1 = (
 /// ## References
 ///
 /// - [Microsoft's OpenType Spec: Chained Sequence Context Format 2](https://docs.microsoft.com/en-us/typography/opentype/spec/chapter2#chained-sequence-context-format-2-class-based-glyph-contexts)
-let chained_sequence_context_format_2 = (
+def chained_sequence_context_format_2 = (
     /// ChainedClassSequenceRule table
     let chained_class_sequence_rule = {
         /// Number of glyphs in the backtrack sequence
@@ -753,7 +753,7 @@ let chained_sequence_context_format_2 = (
 /// ## References
 ///
 /// - [Microsoft's OpenType Spec: Chained Sequence Context Format 3](https://docs.microsoft.com/en-us/typography/opentype/spec/chapter2#chained-sequence-context-format-3-coverage-based-glyph-contexts)
-let chained_sequence_context_format_3 = {
+def chained_sequence_context_format_3 = {
     /// The start of the table
     table_start <- stream_pos,
     /// Number of glyphs in the backtrack sequence
@@ -774,7 +774,7 @@ let chained_sequence_context_format_3 = {
     seq_lookup_records <- array16 seq_lookup_count sequence_lookup_record,
 };
 
-let chained_sequence_context = {
+def chained_sequence_context = {
     /// Format identifier
     format <- u16be,
     /// Format specific substitutions
@@ -793,7 +793,7 @@ let chained_sequence_context = {
 /// ## References
 ///
 /// - [Microsoft's OpenType Spec: LookupType 1](https://docs.microsoft.com/en-us/typography/opentype/spec/gsub#lookuptype-1-single-substitution-subtable)
-let single_substitution = {
+def single_substitution = {
     /// The start of the sub-table
     table_start <- stream_pos,
     /// Format identifier
@@ -823,7 +823,7 @@ let single_substitution = {
 /// ## References
 ///
 /// - [Microsoft's OpenType Spec: LookupType 2](https://docs.microsoft.com/en-us/typography/opentype/spec/gsub#lookuptype-2-multiple-substitution-subtable)
-let multiple_substitution = (
+def multiple_substitution = (
     let sequence_table = {
         /// Number of glyph IDs in the substitute_glyph_ids array. This must always be greater than
         /// 0.
@@ -857,7 +857,7 @@ let multiple_substitution = (
 /// ## References
 ///
 /// - [Microsoft's OpenType Spec: LookupType 3](https://docs.microsoft.com/en-us/typography/opentype/spec/gsub#lookuptype-3-alternate-substitution-subtable)
-let alternate_substitution = (
+def alternate_substitution = (
     /// AlternateSet table
     let alternate_set = {
         /// Number of glyph IDs in the alternate_glyph_ids array
@@ -891,7 +891,7 @@ let alternate_substitution = (
 /// ## References
 ///
 /// - [Microsoft's OpenType Spec: LookupType 4](https://docs.microsoft.com/en-us/typography/opentype/spec/gsub#lookuptype-4-ligature-substitution-subtable)
-let ligature_substitution = (
+def ligature_substitution = (
     /// Ligature table: Glyph components for one ligature
     let ligature_table = {
         /// glyph ID of ligature to substitute
@@ -946,21 +946,21 @@ let ligature_substitution = (
 /// ## References
 ///
 /// - [Microsoft's OpenType Spec: LookupType 5](https://docs.microsoft.com/en-us/typography/opentype/spec/gsub#lookuptype-5-contextual-substitution-subtable)
-let contextual_substitution = sequence_context;
+def contextual_substitution = sequence_context;
 
 /// # LookupType 6: Chained Contexts Substitution Subtable
 ///
 /// ## References
 ///
 /// - [Microsoft's OpenType Spec: LookupType 6](https://docs.microsoft.com/en-us/typography/opentype/spec/gsub#lookuptype-6-chained-contexts-substitution-subtable)
-let chained_contexts_substitution = chained_sequence_context;
+def chained_contexts_substitution = chained_sequence_context;
 
 /// # LookupType 8: Reverse Chaining Contextual Single Substitution Subtable
 ///
 /// ## References
 ///
 /// - [Microsoft's OpenType Spec: LookupType 8](https://docs.microsoft.com/en-us/typography/opentype/spec/gsub#lookuptype-8-reverse-chaining-contextual-single-substitution-subtable)
-let reverse_chaining_contextual_single_substitution = (
+def reverse_chaining_contextual_single_substitution = (
     /// ReverseChainSingleSubstFormat1 Subtable
     let reverse_chain_single_subst_format1 = {
         /// The start of the table
@@ -997,7 +997,7 @@ let reverse_chaining_contextual_single_substitution = (
 /// ## References
 ///
 /// - [Microsoft's OpenType Spec: LookupType 7](https://docs.microsoft.com/en-us/typography/opentype/spec/gsub#lookuptype-7-extension-substitution)
-let extension_substitution = (
+def extension_substitution = (
     /// ExtensionSubstFormat1 subtable
     let extension_subst_format1 = {
         /// The start of the table
@@ -1081,7 +1081,7 @@ let extension_substitution = (
 /// ## References
 ///
 /// - [Microsoft's OpenType Spec: Value Record](https://docs.microsoft.com/en-us/typography/opentype/spec/gpos#value-record)
-let value_record = fun (table_start : Pos) => fun (flags : U16) => (
+def value_record = fun (table_start : Pos) => fun (flags : U16) => (
     let X_PLACEMENT : U16 = 0x0001;
     let Y_PLACEMENT : U16 = 0x0002;
     let X_ADVANCE : U16 = 0x0004;
@@ -1130,7 +1130,7 @@ let value_record = fun (table_start : Pos) => fun (flags : U16) => (
 );
 
 /// A value record that is `empty` if flags is 0
-let optional_value_record = fun (table_start : Pos) => fun (flags : U16) => match (u16_eq flags 0) {
+def optional_value_record = fun (table_start : Pos) => fun (flags : U16) => match (u16_eq flags 0) {
     true => empty,
     false => value_record table_start flags
 };
@@ -1140,7 +1140,7 @@ let optional_value_record = fun (table_start : Pos) => fun (flags : U16) => matc
 /// ## References
 ///
 /// - [Microsoft's OpenType Spec: Anchor Tables](https://docs.microsoft.com/en-us/typography/opentype/spec/gpos#anchor-tables)
-let anchor_table = {
+def anchor_table = {
     /// The start of the table
     table_start <- stream_pos,
     /// Format identifier
@@ -1184,7 +1184,7 @@ let anchor_table = {
 /// ## References
 ///
 /// - [Microsoft's OpenType Spec: Mark Array Table](https://docs.microsoft.com/en-us/typography/opentype/spec/gpos#mark-array-table)
-let mark_array_table = (
+def mark_array_table = (
     /// MarkRecord
     let mark_record = fun (table_start : Pos) => {
         /// Class defined for the associated mark.
@@ -1210,7 +1210,7 @@ let mark_array_table = (
 /// ## References
 ///
 /// - [Microsoft's OpenType Spec: GPOS Lookup Type 1](https://docs.microsoft.com/en-us/typography/opentype/spec/gpos#lookup-type-1-single-adjustment-positioning-subtable)
-let single_adjustment = (
+def single_adjustment = (
     /// Single Adjustment Positioning Format 1: Single Positioning Value
     let single_pos_format1 = fun (table_start : Pos) => {
         /// Offset to Coverage table, from beginning of SinglePos subtable.
@@ -1254,7 +1254,7 @@ let single_adjustment = (
 /// ## References
 ///
 /// - [Microsoft's OpenType Spec: GPOS Lookup Type 2](https://docs.microsoft.com/en-us/typography/opentype/spec/gpos#lookup-type-2-pair-adjustment-positioning-subtable)
-let pair_adjustment = (
+def pair_adjustment = (
     /// PairValueRecord
     let pair_value_record = fun (table_start : Pos) => fun (value_format1 : U16) => fun (value_format2 : U16) => {
         /// Glyph ID of second glyph in the pair (first glyph is listed in the Coverage table).
@@ -1349,7 +1349,7 @@ let pair_adjustment = (
 /// ## References
 ///
 /// - [Microsoft's OpenType Spec: GPOS Lookup Type 3](https://docs.microsoft.com/en-us/typography/opentype/spec/gpos#lookup-type-3-cursive-attachment-positioning-subtable)
-let cursive_attachment = (
+def cursive_attachment = (
     /// EntryExitRecord
     let entry_exit_record = fun (table_start : Pos) => {
         /// Offset to entry Anchor table, from beginning of CursivePos subtable (may be NULL).
@@ -1389,7 +1389,7 @@ let cursive_attachment = (
 /// ## References
 ///
 /// - [Microsoft's OpenType Spec: GPOS Lookup Type 4](https://docs.microsoft.com/en-us/typography/opentype/spec/gpos#lookup-type-4-mark-to-base-attachment-positioning-subtable)
-let mark_to_base_attachment = (
+def mark_to_base_attachment = (
     /// BaseRecord
     let base_record = fun (table_start : Pos) => fun (mark_class_count : U16) => {
         /// Array of offsets (one per mark class) to Anchor tables. Offsets are from beginning of
@@ -1439,7 +1439,7 @@ let mark_to_base_attachment = (
 /// ## References
 ///
 /// - [Microsoft's OpenType Spec: GPOS Lookup Type 5](https://docs.microsoft.com/en-us/typography/opentype/spec/gpos#lookup-type-5-mark-to-ligature-attachment-positioning-subtable)
-let mark_to_ligature_attachment = (
+def mark_to_ligature_attachment = (
     let component_record = fun (table_start : Pos) => fun (mark_class_count : U16) => {
         /// Array of offsets (one per class) to Anchor tables. Offsets are from beginning of
         /// LigatureAttach table, ordered by class (offsets may be NULL).
@@ -1498,28 +1498,28 @@ let mark_to_ligature_attachment = (
 /// ## References
 ///
 /// - [Microsoft's OpenType Spec: GPOS Lookup Type 6](https://docs.microsoft.com/en-us/typography/opentype/spec/gpos#lookup-type-6-mark-to-mark-attachment-positioning-subtable)
-let mark_to_mark_attachment = mark_to_base_attachment;
+def mark_to_mark_attachment = mark_to_base_attachment;
 
 /// # GPOS Lookup Type 7: Contextual Positioning Subtables
 ///
 /// ## References
 ///
 /// - [Microsoft's OpenType Spec: GPOS Lookup Type 7](https://docs.microsoft.com/en-us/typography/opentype/spec/gpos#lookup-type-7-contextual-positioning-subtables)
-let contextual_positioning = sequence_context;
+def contextual_positioning = sequence_context;
 
 /// # GPOS Lookup Type 8: Chained Contexts Positioning Subtable
 ///
 /// ## References
 ///
 /// - [Microsoft's OpenType Spec: GPOS Lookup Type 8](https://docs.microsoft.com/en-us/typography/opentype/spec/gpos#lookuptype-8-chained-contexts-positioning-subtable)
-let chained_contexts_positioning = chained_sequence_context;
+def chained_contexts_positioning = chained_sequence_context;
 
 /// # LookupType 9: Extension Positioning
 ///
 /// ## References
 ///
 /// - [Microsoft's OpenType Spec: LookupType 9](https://docs.microsoft.com/en-us/typography/opentype/spec/gpos#lookuptype-9-extension-positioning)
-let extension_positioning = (
+def extension_positioning = (
     /// ExtensionPosFormat1 subtable
     let extension_pos_format1 = {
         /// The start of the table
@@ -1563,7 +1563,7 @@ let extension_positioning = (
 /// ## References
 ///
 /// - [Microsoft's OpenType Spec: Lookup Table](https://docs.microsoft.com/en-us/typography/opentype/spec/chapter2#lookup-table)
-let lookup_table = fun (tag : U32) => (
+def lookup_table = fun (tag : U32) => (
     let USE_MARK_FILTERING_SET : U16 = 0x0010;
 
     let lookup_subtable = fun (tag : U32) => fun (lookup_type : U16) =>
@@ -1619,7 +1619,7 @@ let lookup_table = fun (tag : U32) => (
 /// ## References
 ///
 /// - [Microsoft's OpenType Spec: Lookup List Table](https://docs.microsoft.com/en-us/typography/opentype/spec/chapter2#lookup-list-table)
-let lookup_list = fun (tag : U32) => {
+def lookup_list = fun (tag : U32) => {
     /// The start of the lookup list table
     table_start <- stream_pos,
     /// Number of lookups in this table
@@ -1652,15 +1652,15 @@ let lookup_list = fun (tag : U32) => {
 /// - [Apple's TrueType Reference Manual: : The `'cmap'` table and language codes](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6cmap.html)
 ///
 // TODO: add more details to docs
-let cmap_language_id = fun (platform : Repr platform_id) =>
+def cmap_language_id = fun (platform : Repr platform_id) =>
     language_id;
 
 // cmap sub-table format 8 has a 32-bit language code
-let cmap_language_id32 = fun (platform : Repr platform_id) =>
+def cmap_language_id32 = fun (platform : Repr platform_id) =>
     language_id32;
 
 /// A small glyph ID, limited to a glyph set of 256 glyphs.
-let small_glyph_id = u8;
+def small_glyph_id = u8;
 
 /// # SequentialMapGroup Record
 ///
@@ -1673,7 +1673,7 @@ let small_glyph_id = u8;
 ///
 /// - [Microsoft's OpenType Spec: cmap sub-table format 8](https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#format-8-mixed-16-bit-and-32-bit-coverage)
 /// - [Apple's TrueType Reference Manual: `'cmap'` format 8](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6cmap.html)
-let sequential_map_group = {
+def sequential_map_group = {
     /// First character code in this group; note that if this group is for one or more 16-bit
     /// character codes (which is determined from the is32 array), this 32-bit value will have the
     /// high 16-bits set to zero
@@ -1696,7 +1696,7 @@ let sequential_map_group = {
 ///
 /// - [Microsoft's OpenType Spec: cmap sub-table format 13](https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#format-13-many-to-one-range-mappings)
 /// - [Apple's TrueType Reference Manual: `'cmap'` format 13](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6cmap.html)
-let constant_map_group = sequential_map_group;
+def constant_map_group = sequential_map_group;
 
 /// # UnicodeRange Record
 ///
@@ -1706,7 +1706,7 @@ let constant_map_group = sequential_map_group;
 ///
 /// - [Microsoft's OpenType Spec: cmap sub-table format 14](https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#format-14-unicode-variation-sequences)
 /// - [Apple's TrueType Reference Manual: `'cmap'` format 14](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6cmap.html)
-let unicode_range = {
+def unicode_range = {
     /// First value in this range
     start_unicode_value <- u24be,
     /// Number of additional values in this range
@@ -1721,7 +1721,7 @@ let unicode_range = {
 ///
 /// - [Microsoft's OpenType Spec: cmap sub-table format 14](https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#format-14-unicode-variation-sequences)
 /// - [Apple's TrueType Reference Manual: `'cmap'` format 14](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6cmap.html)
-let default_uvs_table = {
+def default_uvs_table = {
     /// Number of Unicode character ranges.
     num_unicode_value_ranges <- u32be,
     /// Array of UnicodeRange records.
@@ -1737,7 +1737,7 @@ let default_uvs_table = {
 ///
 /// - [Microsoft's OpenType Spec: cmap sub-table format 14](https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#format-14-unicode-variation-sequences)
 /// - [Apple's TrueType Reference Manual: `'cmap'` format 14](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6cmap.html)
-let uvs_mapping = {
+def uvs_mapping = {
     /// Base Unicode value of the UVS
     unicode_value <- u24be,
     /// Glyph ID of the UVS
@@ -1752,7 +1752,7 @@ let uvs_mapping = {
 ///
 /// - [Microsoft's OpenType Spec: cmap sub-table format 14](https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#format-14-unicode-variation-sequences)
 /// - [Apple's TrueType Reference Manual: `'cmap'` format 14](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6cmap.html)
-let non_default_uvs_table = {
+def non_default_uvs_table = {
     /// Number of UVS Mappings that follow
     num_uvs_mappings <- u32be,
     /// Array of UVSMapping records.
@@ -1768,7 +1768,7 @@ let non_default_uvs_table = {
 ///
 /// - [Microsoft's OpenType Spec: cmap sub-table format 14](https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#format-14-unicode-variation-sequences)
 /// - [Apple's TrueType Reference Manual: `'cmap'` format 14](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6cmap.html)
-let variation_selector = fun (table_start : Pos) => {
+def variation_selector = fun (table_start : Pos) => {
     /// Variation selector
     var_selector <- u24be,
     /// Offset from the start of the format 14 subtable to Default UVS Table. May be 0.
@@ -1790,7 +1790,7 @@ let variation_selector = fun (table_start : Pos) => {
 ///
 /// - [Microsoft's OpenType Spec: Format 0: Byte encoding table](https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#format-0-byte-encoding-table)
 /// - [Apple's TrueType Reference Manual: `'cmap'` format 0](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6cmap.html)
-let cmap_subtable_format0 = fun (platform : Repr platform_id) => {
+def cmap_subtable_format0 = fun (platform : Repr platform_id) => {
     /// The length of the subtable in bytes
     length <- u16be,
     /// The language ID of the subtable
@@ -1811,7 +1811,7 @@ let cmap_subtable_format0 = fun (platform : Repr platform_id) => {
 ///
 /// - [Microsoft's OpenType Spec: Format 2: Segment mapping to delta values](https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#format-2-high-byte-mapping-through-table)
 /// - [Apple's TrueType Reference Manual: `'cmap'` format 2](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6cmap.html)
-let cmap_subtable_format2 = fun (platform : Repr platform_id) => {
+def cmap_subtable_format2 = fun (platform : Repr platform_id) => {
     /// The length of the subtable in bytes
     length <- u16be,
     /// The language ID of the subtable
@@ -1835,7 +1835,7 @@ let cmap_subtable_format2 = fun (platform : Repr platform_id) => {
 ///
 /// - [Microsoft's OpenType Spec: Format 4: Segment mapping to delta values](https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#format-4-segment-mapping-to-delta-values)
 /// - [Apple's TrueType Reference Manual: `'cmap'` format 4](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6cmap.html)
-let cmap_subtable_format4 = fun (platform : Repr platform_id) => {
+def cmap_subtable_format4 = fun (platform : Repr platform_id) => {
     /// The length of the subtable in bytes
     length <- u16be,
     /// The language ID of the subtable
@@ -1876,7 +1876,7 @@ let cmap_subtable_format4 = fun (platform : Repr platform_id) => {
 ///
 /// - [Microsoft's OpenType Spec: Format 6: Segment mapping to delta values](https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#format-6-trimmed-table-mapping)
 /// - [Apple's TrueType Reference Manual: `'cmap'` format 6](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6cmap.html)
-let cmap_subtable_format6 = fun (platform : Repr platform_id) => {
+def cmap_subtable_format6 = fun (platform : Repr platform_id) => {
     /// The length of the subtable in bytes
     length <- u16be,
     /// The language ID of the subtable
@@ -1900,7 +1900,7 @@ let cmap_subtable_format6 = fun (platform : Repr platform_id) => {
 ///
 /// - [Microsoft's OpenType Spec: Format 8: Segment mapping to delta values](https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#format-8-mixed-16-bit-and-32-bit-coverage)
 /// - [Apple's TrueType Reference Manual: `'cmap'` format 8](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6cmap.html)
-let cmap_subtable_format8 = fun (platform : Repr platform_id) => {
+def cmap_subtable_format8 = fun (platform : Repr platform_id) => {
     /// Set to 0.
     _reserved <- reserved u16be 0,
     /// The length of the subtable in bytes (including the header)
@@ -1926,7 +1926,7 @@ let cmap_subtable_format8 = fun (platform : Repr platform_id) => {
 ///
 /// - [Microsoft's OpenType Spec: Format 10: Segment mapping to delta values](https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#format-10-trimmed-array)
 /// - [Apple's TrueType Reference Manual: `'cmap'` format 10](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6cmap.html)
-let cmap_subtable_format10 = fun (platform : Repr platform_id) => {
+def cmap_subtable_format10 = fun (platform : Repr platform_id) => {
     /// Set to 0.
     _reserved <- reserved u16be 0,
     /// The length of the subtable in bytes (including the header)
@@ -1950,7 +1950,7 @@ let cmap_subtable_format10 = fun (platform : Repr platform_id) => {
 ///
 /// - [Microsoft's OpenType Spec: Format 12: Segment mapping to delta values](https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#format-12-segmented-coverage)
 /// - [Apple's TrueType Reference Manual: `'cmap'` format 12](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6cmap.html)
-let cmap_subtable_format12 = fun (platform : Repr platform_id) => {
+def cmap_subtable_format12 = fun (platform : Repr platform_id) => {
     /// Set to 0.
     _reserved <- reserved u16be 0,
     /// The length of the subtable in bytes (including the header)
@@ -1974,7 +1974,7 @@ let cmap_subtable_format12 = fun (platform : Repr platform_id) => {
 ///
 /// - [Microsoft's OpenType Spec: Format 13: Segment mapping to delta values](https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#format-13-many-to-one-range-mappings)
 /// - [Apple's TrueType Reference Manual: `'cmap'` format 13](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6cmap.html)
-let cmap_subtable_format13 = fun (platform : Repr platform_id) => {
+def cmap_subtable_format13 = fun (platform : Repr platform_id) => {
     /// Set to 0.
     _reserved <- reserved u16be 0,
     /// The length of the subtable in bytes (including the header)
@@ -1999,7 +1999,7 @@ let cmap_subtable_format13 = fun (platform : Repr platform_id) => {
 ///
 /// - [Microsoft's OpenType Spec: Format 14: Segment mapping to delta values](https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#format-14-unicode-variation-sequences)
 /// - [Apple's TrueType Reference Manual: `'cmap'` format 14](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6cmap.html)
-let cmap_subtable_format14 = fun (platform : Repr platform_id) => fun (table_start : Pos) => {
+def cmap_subtable_format14 = fun (platform : Repr platform_id) => fun (table_start : Pos) => {
     /// The length of the subtable in bytes (including the header)
     length <- u32be,
     /// Number of variation Selector Records
@@ -2009,7 +2009,7 @@ let cmap_subtable_format14 = fun (platform : Repr platform_id) => fun (table_sta
 };
 
 /// # Character Mapping subtable
-let cmap_subtable = fun (platform : Repr platform_id) => {
+def cmap_subtable = fun (platform : Repr platform_id) => {
     /// The start of the character mapping sub-table
     table_start <- stream_pos,
     /// Format number of the subtable
@@ -2034,7 +2034,7 @@ let cmap_subtable = fun (platform : Repr platform_id) => {
 /// ## References
 ///
 /// - [Microsoft's OpenType Spec: Encoding records and encodings](https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#encoding-records-and-encodings)
-let encoding_record = fun (table_start : Pos) => {
+def encoding_record = fun (table_start : Pos) => {
     /// Platform identifier
     platform <- platform_id,
     /// Platform-specific encoding identifier
@@ -2049,7 +2049,7 @@ let encoding_record = fun (table_start : Pos) => {
 ///
 /// - [Microsoft's OpenType Spec: 'cmap' Header](https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#cmap-header)
 /// - [Apple's TrueType Reference Manual: The `'cmap'` table](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6cmap.html)
-let cmap_table = {
+def cmap_table = {
     /// The start of the character mapping table
     table_start <- stream_pos,
     /// The version of the character
@@ -2078,7 +2078,7 @@ let cmap_table = {
 ///
 /// - [Microsoft's OpenType Spec: head — Font Header Table](https://docs.microsoft.com/en-us/typography/opentype/spec/head)
 /// - [Apple's TrueType Reference Manual: The `'head'` table](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6head.html)
-let head_table = {
+def head_table = {
     /// Major version number of the font header table.
     major_version <- u16be where u16_eq major_version 1,
     /// Minor version number of the font header table.
@@ -2180,7 +2180,7 @@ let head_table = {
 ///
 /// - [Microsoft's OpenType Spec: hhea — Horizontal Header Table](https://docs.microsoft.com/en-us/typography/opentype/spec/hhea)
 /// - [Apple's TrueType Reference Manual: The `'hhea'` table](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6hhea.html)
-let hhea_table = {
+def hhea_table = {
     /// Major version number of the horizontal header table.
     major_version <- u16be where u16_eq major_version 1,
     /// Minor version number of the horizontal header table.
@@ -2234,7 +2234,7 @@ let hhea_table = {
 // - [Apple's TrueType Reference Manual: The `'hmtx'` table](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6hmtx.html)
 
 /// Horizontal metrics that provide an `advance_width`.
-let long_horizontal_metric = {
+def long_horizontal_metric = {
     /// Advance width, in font design units.
     advance_width <- u16be,
     /// Glyph left side bearing, in font design units.
@@ -2247,7 +2247,7 @@ let long_horizontal_metric = {
 ///
 /// - [Microsoft's OpenType Spec: hmtx — Horizontal Metrics Table](https://docs.microsoft.com/en-us/typography/opentype/spec/hmtx)
 /// - [Apple's TrueType Reference Manual: The `'hmtx'` table](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6hmtx.html)
-let htmx_table = fun (number_of_long_horizontal_metrics : U16) => fun (num_glyphs : U16) => {
+def htmx_table = fun (number_of_long_horizontal_metrics : U16) => fun (num_glyphs : U16) => {
     /// Long horizontal metrics, indexed by the glyph ID.
     h_metrics <- array16 number_of_long_horizontal_metrics long_horizontal_metric,
     /// Left side bearings for glyph IDs greater than or equal to the
@@ -2268,7 +2268,7 @@ let htmx_table = fun (number_of_long_horizontal_metrics : U16) => fun (num_glyph
 // - [Apple's TrueType Reference Manual: The `'maxp'` table](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6maxp.html)
 
 /// Fields specific to maxp version 1.0
-let maxp_version_1 = {
+def maxp_version_1 = {
     /// Maximum points in non-composite glyphs.
     max_points <- u16be,
     /// Maximum contours in non-composite glyphs.
@@ -2317,7 +2317,7 @@ let maxp_version_1 = {
 ///
 /// - [Microsoft's OpenType Spec: maxp — Maximum Profile](https://docs.microsoft.com/en-us/typography/opentype/spec/maxp)
 /// - [Apple's TrueType Reference Manual: The `'maxp'` table](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6maxp.html)
-let maxp_table = {
+def maxp_table = {
     /// The version of the table
     version <- version16dot16,
     /// The number of glyphs in the font.
@@ -2353,7 +2353,7 @@ let maxp_table = {
 ///
 /// - [Microsoft's OpenType Spec: Name records](https://docs.microsoft.com/en-us/typography/opentype/spec/name#name-records)
 /// - [Apple's TrueType Reference Manual: The `'name'` table](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6name.html)
-let name_record = fun (storage_start : Pos) => {
+def name_record = fun (storage_start : Pos) => {
     /// Platform identifier
     platform <- platform_id,
     /// Platform-specific encoding identifier
@@ -2387,8 +2387,8 @@ let name_record = fun (storage_start : Pos) => {
     /// | `20`          | PostScript font name                  |
     /// | `21`          | WWS family name                       |
     /// | `22`          | WWS subfamily name                    |
-    /// | `23`          | light background palette              |
-    /// | `24`          | dark background palette               |
+    /// | `23`          | light background padefte              |
+    /// | `24`          | dark background padefte               |
     /// | `25`          | variations PostScript name prefix     |
     /// | `26..<256`    | reserved                              |
     /// | `256..<32768` | font-specific names                   |
@@ -2405,14 +2405,14 @@ let name_record = fun (storage_start : Pos) => {
 ///
 /// - [Microsoft's OpenType Spec: Naming table header](https://docs.microsoft.com/en-us/typography/opentype/spec/name#naming-table-header)
 /// - [Apple's TrueType Reference Manual: The `'name'` table](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6name.html)
-let lang_tag_record = fun (storage_start : Pos) => {
+def lang_tag_record = fun (storage_start : Pos) => {
     /// Language tag string length
     length <- u16be,
     /// Offset to the language tag string data
     offset <- offset16 storage_start (array16 length u8),
 };
 
-let name_version_1 = fun (storage_start : Pos) => {
+def name_version_1 = fun (storage_start : Pos) => {
     /// The number of language tags to expect
     lang_tag_count <- u16be,
     /// The array of language tag records
@@ -2425,7 +2425,7 @@ let name_version_1 = fun (storage_start : Pos) => {
 ///
 /// - [Microsoft's OpenType Spec: Naming table header](https://docs.microsoft.com/en-us/typography/opentype/spec/name#naming-table-header)
 /// - [Apple's TrueType Reference Manual: The `'name'` table](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6name.html)
-let name_table = {
+def name_table = {
     /// The start of the naming table
     table_start <- stream_pos,
 
@@ -2452,7 +2452,7 @@ let name_table = {
 ///
 /// - [Microsoft's OpenType Spec: `loca` table](https://docs.microsoft.com/en-us/typography/opentype/spec/loca)
 /// - [Apple's TrueType Reference Manual: The `'loca'` table](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6loca.html)
-let loca_table = fun (num_glyphs : U16) => fun (index_to_loc_format : S16) => {
+def loca_table = fun (num_glyphs : U16) => fun (index_to_loc_format : S16) => {
     offsets <- match index_to_loc_format {
         // short offsets
         0 => array16 (u16_add num_glyphs 1) u16be, // TODO Offset16
@@ -2468,7 +2468,7 @@ let loca_table = fun (num_glyphs : U16) => fun (index_to_loc_format : S16) => {
 ///
 /// - [Microsoft's OpenType Spec: Glyph Headers](https://docs.microsoft.com/en-us/typography/opentype/spec/glyf#glyph-headers)
 /// - [Apple's TrueType Reference Manual: The `'loca'` table](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6glyf.html)
-let glyph_header = {
+def glyph_header = {
     /// If the number of contours is greater than or equal to zero, this is a simple glyph. If
     /// negative, this is a composite glyph — the value -1 should be used for composite glyphs.
     number_of_contours <- s16be,
@@ -2488,7 +2488,7 @@ let glyph_header = {
 ///
 /// - [Microsoft's OpenType Spec: Glyph Headers](https://docs.microsoft.com/en-us/typography/opentype/spec/glyf#simple-glyph-description)
 /// - [Apple's TrueType Reference Manual: The `'loca'` table](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6glyf.html)
-let simple_glyph = fun (number_of_contours : U16) => {
+def simple_glyph = fun (number_of_contours : U16) => {
     /// Array of point indices for the last point of each contour, in increasing numeric order.
     end_pts_of_contours <- array16 number_of_contours u16be,
     /// Total number of bytes for instructions. If instructionLength is zero, no instructions are
@@ -2506,10 +2506,10 @@ let simple_glyph = fun (number_of_contours : U16) => {
     // or int16 <- uint8,
 };
 
-let args_are_signed = fun (flags : U16) =>
+def args_are_signed = fun (flags : U16) =>
     (u16_neq (u16_and flags 0x0002) 0);
 
-let arg_format = fun (flags : U16) =>
+def arg_format = fun (flags : U16) =>
     match (u16_neq (u16_and flags 0x0001) 0) {
         // If the bit is set the arguments are 16-bit
         true => match (args_are_signed flags) {
@@ -2529,7 +2529,7 @@ let arg_format = fun (flags : U16) =>
 ///
 /// - [Microsoft's OpenType Spec: Glyph Headers](https://docs.microsoft.com/en-us/typography/opentype/spec/glyf#composite-glyph-description)
 /// - [Apple's TrueType Reference Manual: The `'loca'` table](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6glyf.html)
-let composite_glyph = {
+def composite_glyph = {
     /// component flag
     flags <- u16be,
     /// glyph index of component
@@ -2541,7 +2541,7 @@ let composite_glyph = {
 };
 
 /// # TrueType glyph
-let glyph = {
+def glyph = {
     header <- glyph_header,
     data <- match (s16_lt header.number_of_contours 0) {
         true => composite_glyph,
@@ -2555,7 +2555,7 @@ let glyph = {
 ///
 /// - [Microsoft's OpenType Spec: Glyph Data](https://docs.microsoft.com/en-us/typography/opentype/spec/glyf)
 /// - [Apple's TrueType Reference Manual: The `'glyf'` table](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6glyf.html)
-let glyf_table = fun (num_glyphs : U16) => {
+def glyf_table = fun (num_glyphs : U16) => {
     glyphs <- array16 num_glyphs glyph,
 };
 
@@ -2567,7 +2567,7 @@ let glyf_table = fun (num_glyphs : U16) => {
 ///
 /// - [Microsoft's OpenType Spec: Glyph Data](https://docs.microsoft.com/en-us/typography/opentype/spec/os2#version-0)
 /// - [Apple's TrueType Reference Manual: The `'OS/2'` table](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6OS2.html)
-let os2_version_0 = {
+def os2_version_0 = {
     s_typo_ascender <- s16be,
     s_typo_descender <- s16be,
     s_typo_line_gap <- s16be,
@@ -2581,7 +2581,7 @@ let os2_version_0 = {
 ///
 /// - [Microsoft's OpenType Spec: Glyph Data](https://docs.microsoft.com/en-us/typography/opentype/spec/os2#version-1)
 /// - [Apple's TrueType Reference Manual: The `'OS/2'` table](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6OS2.html)
-let os2_version_1 = {
+def os2_version_1 = {
     version_0 <- os2_version_0,
     ul_code_page_range1 <- u32be,
     ul_code_page_range2 <- u32be,
@@ -2593,7 +2593,7 @@ let os2_version_1 = {
 ///
 /// - [Microsoft's OpenType Spec: Glyph Data](https://docs.microsoft.com/en-us/typography/opentype/spec/os2#version-2)
 /// - [Apple's TrueType Reference Manual: The `'OS/2'` table](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6OS2.html)
-let os2_version_2_3_4 = {
+def os2_version_2_3_4 = {
     version_1 <- os2_version_1,
     sx_height <- s16be,
     s_cap_height <- s16be,
@@ -2608,7 +2608,7 @@ let os2_version_2_3_4 = {
 ///
 /// - [Microsoft's OpenType Spec: Glyph Data](https://docs.microsoft.com/en-us/typography/opentype/spec/os2#version-0)
 /// - [Apple's TrueType Reference Manual: The `'OS/2'` table](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6OS2.html)
-let os2_version_5 = {
+def os2_version_5 = {
     parent <- os2_version_2_3_4,
     usLowerOpticalPointSize <- u16be,
     usUpperOpticalPointSize <- u16be,
@@ -2620,7 +2620,7 @@ let os2_version_5 = {
 ///
 /// - [Microsoft's OpenType Spec: Glyph Data](https://docs.microsoft.com/en-us/typography/opentype/spec/os2)
 /// - [Apple's TrueType Reference Manual: The `'OS/2'` table](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6OS2.html)
-let os2_table = fun (table_length : U32) => {
+def os2_table = fun (table_length : U32) => {
     version <- u16be,
     x_avg_char_width <- s16be,
     us_weight_class <- u16be,
@@ -2677,7 +2677,7 @@ let os2_table = fun (table_length : U32) => {
 ///
 /// - [Microsoft's OpenType Spec: Glyph Data](https://docs.microsoft.com/en-us/typography/opentype/spec/post)
 /// - [Apple's TrueType Reference Manual: The `'post'` table](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6post.html)
-let post_table = {
+def post_table = {
     /// 0x00010000 for version 1.0 0x00020000 for version 2.0
     /// 0x00025000 for version 2.5 (deprecated) 0x00030000 for version 3.0
     version <- version16dot16,
@@ -2747,7 +2747,7 @@ let post_table = {
 //
 // - [Microsoft's OpenType Spec: BASE — Baseline Table](https://docs.microsoft.com/en-us/typography/opentype/spec/base)
 
-let base_table = unknown_table;
+def base_table = unknown_table;
 
 
 // -----------------------------------------------------------------------------
@@ -2761,7 +2761,7 @@ let base_table = unknown_table;
 /// ## References
 ///
 /// - [Microsoft's OpenType Spec: Attachment Point List table](https://docs.microsoft.com/en-us/typography/opentype/spec/gdef#attachment-point-list-table)
-let attach_list = (
+def attach_list = (
     /// AttachPoint table
     let attach_point_table = {
         /// Number of attachment points on this glyph
@@ -2788,7 +2788,7 @@ let attach_list = (
 /// ## References
 ///
 /// - [Microsoft's OpenType Spec: Caret Value Tables](https://docs.microsoft.com/en-us/typography/opentype/spec/gdef#caret-value-tables)
-let caret_value = (
+def caret_value = (
     /// # Caret Value Format 1
     ///
     /// ## References
@@ -2841,7 +2841,7 @@ let caret_value = (
 /// ## References
 ///
 /// - [Microsoft's OpenType Spec: Ligature Glyph Table](https://docs.microsoft.com/en-us/typography/opentype/spec/gdef#ligature-glyph-table)
-let lig_glyph = {
+def lig_glyph = {
     /// The start of the LigGlyph table
     table_start <- stream_pos,
     /// Number of CaretValue tables for this ligature (components - 1)
@@ -2856,7 +2856,7 @@ let lig_glyph = {
 /// ## References
 ///
 /// - [Microsoft's OpenType Spec: Ligature Caret List Table](https://docs.microsoft.com/en-us/typography/opentype/spec/gdef#ligature-caret-list-table)
-let lig_caret_list = {
+def lig_caret_list = {
     /// The start of the LigCaretList table
     table_start <- stream_pos,
     /// Offset to Coverage table - from beginning of LigCaretList table
@@ -2873,7 +2873,7 @@ let lig_caret_list = {
 /// ## References
 ///
 /// - [Microsoft's OpenType Spec: Mark Glyph Sets Table](https://docs.microsoft.com/en-us/typography/opentype/spec/gdef#mark-glyph-sets-table)
-let mark_glyph_sets = {
+def mark_glyph_sets = {
     /// The start of the MarkGlyphSets table
     table_start <- stream_pos,
     /// Format identifier == 1
@@ -2890,7 +2890,7 @@ let mark_glyph_sets = {
 /// ## References
 ///
 /// - [Microsoft's OpenType Spec: Glyph Definition Table](https://docs.microsoft.com/en-us/typography/opentype/spec/gdef)
-let gdef_table = (
+def gdef_table = (
     let gdef_header_version_1_2 = fun (gdef_start : Pos) => {
         /// Offset to the table of mark glyph set definitions, from beginning of GDEF header (may be
         /// NULL)
@@ -2937,7 +2937,7 @@ let gdef_table = (
 // -----------------------------------------------------------------------------
 
 /// Shared structure of GSUB and GPOS tables
-let layout_table = fun (tag : U32) => {
+def layout_table = fun (tag : U32) => {
     /// The start of the table
     table_start <- stream_pos,
     /// Major version of the table
@@ -2957,7 +2957,7 @@ let layout_table = fun (tag : U32) => {
 //
 // - [Microsoft's OpenType Spec: GPOS — Glyph Positioning Table](https://docs.microsoft.com/en-us/typography/opentype/spec/gpos)
 
-let gpos_table = layout_table "GPOS";
+def gpos_table = layout_table "GPOS";
 
 
 // -----------------------------------------------------------------------------
@@ -2967,7 +2967,7 @@ let gpos_table = layout_table "GPOS";
 /// ## References
 ///
 /// - [Microsoft's OpenType Spec: GSUB — Glyph Substitution Table](https://docs.microsoft.com/en-us/typography/opentype/spec/gsub)
-let gsub_table = layout_table "GSUB";
+def gsub_table = layout_table "GSUB";
 
 
 // -----------------------------------------------------------------------------
@@ -2976,7 +2976,7 @@ let gsub_table = layout_table "GSUB";
 //
 // - [Microsoft's OpenType Spec: JSTF — Justification Table](https://docs.microsoft.com/en-us/typography/opentype/spec/jstf)
 
-let jstf_table = unknown_table;
+def jstf_table = unknown_table;
 
 
 // -----------------------------------------------------------------------------
@@ -2985,7 +2985,7 @@ let jstf_table = unknown_table;
 //
 // - [Microsoft's OpenType Spec: MATH - The Mathematical Typesetting Table](https://docs.microsoft.com/en-us/typography/opentype/spec/math)
 
-let math_table = unknown_table;
+def math_table = unknown_table;
 
 
 // -----------------------------------------------------------------------------
@@ -3013,7 +3013,7 @@ let math_table = unknown_table;
 ///
 /// - [Microsoft's OpenType Spec: Table Directory](https://docs.microsoft.com/en-us/typography/opentype/spec/otff#table-directory)
 /// - [Apple's TrueType Reference Manual: The Font Directory](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6.html#Directory)
-let table_record = {
+def table_record = {
     /// Table identifier.
     table_id <- tag,
     /// CheckSum for this table.
@@ -3029,7 +3029,7 @@ let table_record = {
 };
 
 /// Find a table record using the given `table_id`.
-let find_table =
+def find_table =
     fun (num_tables : U16) =>
     fun (table_records : Array16 num_tables (Repr table_record)) =>
     fun (table_id : Repr tag) =>
@@ -3042,7 +3042,7 @@ let find_table =
             table_records;
 
 /// Create a link to the given `table_format`.
-let link_table =
+def link_table =
     fun (file_start : Pos) =>
     fun (table_record : Repr table_record) =>
     fun (table_format : Format) =>
@@ -3058,7 +3058,7 @@ let link_table =
 ///
 /// - [Microsoft's OpenType Spec: Table Directory](https://docs.microsoft.com/en-us/typography/opentype/spec/otff#table-directory)
 /// - [Apple's TrueType Reference Manual: The Font Directory](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6.html#Directory)
-let table_directory = fun (file_start : Pos) => {
+def table_directory = fun (file_start : Pos) => {
     /// Version of the font.
     ///
     /// | Value         | Meaning                                   |
@@ -3230,7 +3230,7 @@ let table_directory = fun (file_start : Pos) => {
 /// ## References
 ///
 /// - [Microsoft's OpenType Spec: TTC Header](https://docs.microsoft.com/en-us/typography/opentype/spec/otff#ttc-header)
-let ttc_header = fun (start : Pos) => (
+def ttc_header = fun (start : Pos) => (
     /// TTC Header Version 1.0
     let ttc_header1 = fun (start : Pos) => {
         /// Number of fonts in TTC
@@ -3279,7 +3279,7 @@ let ttc_header = fun (start : Pos) => (
 ///
 /// - [Microsoft's OpenType Spec: Organization of an OpenType Font](https://docs.microsoft.com/en-us/typography/opentype/spec/otff#organization-of-an-opentype-font)
 /// - [Apple's TrueType Reference Manual: TrueType Font files](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6.html#Overview)
-let main = {
+def main = {
     /// The start of the font file.
     start <- stream_pos,
     /// The directory of tables in the font.
@@ -3296,8 +3296,3 @@ let main = {
         },
     },
 };
-
-
-// -----------------------------------------------------------------------------
-
-main

@@ -16,19 +16,17 @@ A language for specifying data-dependent binary formats.
 ## Example
 
 ```fathom
-let pixel = {
+def pixel = {
     red <- u8,
     green <- u8,
     blue <- u8,
 };
 
-let image = {
+def main = {
     width <- u16le,
     height <- u16le,
     pixels <- array16 (u16_mul width height) pixel,
 };
-
-image
 ```
 
 More examples can be found in the [formats](./formats) directory.

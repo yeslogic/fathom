@@ -13,22 +13,20 @@
 // - SolidView
 // - Materialise Magics
 
-let vec3d = {
+def vec3d = {
     x <- f32le,
     y <- f32le,
     z <- f32le,
 };
 
-let triangle = {
+def triangle = {
     normal <- vec3d,
     vertices <- array8 3 vec3d,
     attribute_byte_count <- u16le,
 };
 
-let main = {
+def main = {
     header <- array8 80 u8,
     triangle_count <- u32le,
     triangles <- array32 triangle_count triangle,
 };
-
-main

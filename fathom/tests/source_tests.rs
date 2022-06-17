@@ -11,8 +11,8 @@ fn main() {
     std::env::set_current_dir("..").unwrap();
 
     let tests = std::iter::empty()
-        .chain(find_source_files("formats").map(extract_test))
-        .chain(find_source_files("tests").map(extract_test))
+        .chain(find_source_files("formats").map(extract_module_test))
+        .chain(find_source_files("tests").map(extract_term_test))
         .collect();
 
     libtest_mimic::run_tests(&args, tests, run_test).exit();
@@ -20,6 +20,12 @@ fn main() {
 
 pub struct TestData {
     input_file: PathBuf,
+    mode: TestMode,
+}
+
+pub enum TestMode {
+    ElabModule,
+    ElabTerm,
 }
 
 #[derive(Deserialize, Debug)]
@@ -80,7 +86,8 @@ struct TestCommand<'a> {
 
 #[derive(Copy, Clone)]
 enum Command<'a> {
-    Elaborate,
+    ElabModule,
+    ElabTerm,
     Normalise,
     ParseData(&'a Path, ExpectedOutcome),
 }
@@ -92,17 +99,19 @@ enum ExpectedOutcome {
 }
 
 impl<'a> Command<'a> {
-    pub(crate) fn snap_name(&self) -> &'static str {
+    pub fn snap_name(&self) -> &'static str {
         match self {
             Command::Normalise => "norm",
-            Command::Elaborate | Command::ParseData(_, _) => "",
+            Command::ElabModule | Command::ElabTerm | Command::ParseData(_, _) => "",
         }
     }
 
     pub(crate) fn expected_outcome(&self) -> ExpectedOutcome {
         match self {
             Command::ParseData(_, outcome) => *outcome,
-            Command::Elaborate | Command::Normalise => ExpectedOutcome::Success,
+            Command::ElabModule | Command::ElabTerm | Command::Normalise => {
+                ExpectedOutcome::Success
+            }
         }
     }
 }
@@ -117,13 +126,29 @@ pub fn find_source_files(root: impl AsRef<Path>) -> impl Iterator<Item = PathBuf
         .map(|entry| entry.into_path())
 }
 
-pub fn extract_test(path: PathBuf) -> libtest_mimic::Test<TestData> {
+fn extract_module_test(path: PathBuf) -> libtest_mimic::Test<TestData> {
     libtest_mimic::Test {
         name: path.display().to_string(),
         kind: String::new(),
         is_ignored: false,
         is_bench: false,
-        data: TestData { input_file: path },
+        data: TestData {
+            input_file: path,
+            mode: TestMode::ElabModule,
+        },
+    }
+}
+
+fn extract_term_test(path: PathBuf) -> libtest_mimic::Test<TestData> {
+    libtest_mimic::Test {
+        name: path.display().to_string(),
+        kind: String::new(),
+        is_ignored: false,
+        is_bench: false,
+        data: TestData {
+            input_file: path,
+            mode: TestMode::ElabTerm,
+        },
     }
 }
 
@@ -163,7 +188,11 @@ fn run_test(test: &libtest_mimic::Test<TestData>) -> libtest_mimic::Outcome {
         return libtest_mimic::Outcome::Ignored;
     }
 
-    let test_command = TestCommand::new(Command::Elaborate, &config, &test.data.input_file);
+    let command = match test.data.mode {
+        TestMode::ElabModule => Command::ElabModule,
+        TestMode::ElabTerm => Command::ElabTerm,
+    };
+    let test_command = TestCommand::new(command, &config, &test.data.input_file);
     match test_command.run() {
         Ok(mut test_failures) => failures.append(&mut test_failures),
         Err(error) => {
@@ -365,14 +394,17 @@ impl<'a> From<Command<'a>> for process::Command {
     fn from(command: Command) -> Self {
         let mut exe = process::Command::new(env!("CARGO_BIN_EXE_fathom"));
         match command {
-            Command::Elaborate => {
+            Command::ElabModule => {
+                exe.args(["elab", "--module"]);
+            }
+            Command::ElabTerm => {
                 exe.args(["elab", "--term"]);
             }
             Command::Normalise => {
                 exe.args(["norm", "--term"]);
             }
             Command::ParseData(format, _) => {
-                exe.args(["data", "--format"]);
+                exe.args(["data", "--module"]);
                 exe.arg(format);
             }
         }

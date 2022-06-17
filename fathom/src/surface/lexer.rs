@@ -14,6 +14,10 @@ pub enum Token<'source> {
     #[regex(r"[+-]?[0-9][a-zA-Z0-9_]*")]
     NumberLiteral(&'source str),
 
+    #[token("def")]
+    KeywordDef,
+    #[token("false")]
+    KeywordFalse,
     #[token("fun")]
     KeywordFun,
     #[token("let")]
@@ -26,8 +30,6 @@ pub enum Token<'source> {
     KeywordType,
     #[token("true")]
     KeywordTrue,
-    #[token("false")]
-    KeywordFalse,
     #[token("where")]
     KeywordWhere,
 
@@ -85,23 +87,24 @@ impl Error {
         }
     }
 
-    pub fn to_diagnostic(&self, file_id: FileId) -> Diagnostic<FileId> {
+    pub fn to_diagnostic(&self) -> Diagnostic<FileId> {
         match self {
             Error::UnexpectedCharacter { range } => Diagnostic::error()
                 .with_message("unexpected character")
-                .with_labels(vec![Label::primary(file_id, *range)]),
+                .with_labels(vec![Label::primary(range.file_id(), *range)]),
         }
     }
 }
 
 pub fn tokens<'source>(
+    file_id: FileId,
     source: &'source str,
 ) -> impl 'source + Iterator<Item = Result<Spanned<Token<'source>, usize>, Error>> {
     Token::lexer(source)
         .spanned()
-        .map(|(token, range)| match token {
+        .map(move |(token, range)| match token {
             Token::Error => Err(Error::UnexpectedCharacter {
-                range: ByteRange::new(range.start, range.end),
+                range: ByteRange::new(file_id, range.start, range.end),
             }),
             token => Ok((range.start, token, range.end)),
         })
@@ -114,12 +117,13 @@ impl<'source> Token<'source> {
             Token::Hole(_) => "hole",
             Token::StringLiteral(_) => "string literal",
             Token::NumberLiteral(_) => "number literal",
-            Token::KeywordTrue => "true",
+            Token::KeywordDef => "def",
             Token::KeywordFalse => "false",
             Token::KeywordFun => "fun",
             Token::KeywordLet => "let",
             Token::KeywordMatch => "match",
             Token::KeywordOverlap => "overlap",
+            Token::KeywordTrue => "true",
             Token::KeywordType => "Type",
             Token::KeywordWhere => "where",
             Token::Colon => ":",

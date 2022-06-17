@@ -9,13 +9,22 @@ pub type BytePos = usize;
 /// Byte ranges in source files.
 #[derive(Debug, Copy, Clone)]
 pub struct ByteRange {
+    file_id: FileId,
     start: BytePos,
     end: BytePos,
 }
 
 impl ByteRange {
-    pub const fn new(start: BytePos, end: BytePos) -> ByteRange {
-        ByteRange { start, end }
+    pub const fn new(file_id: FileId, start: BytePos, end: BytePos) -> ByteRange {
+        ByteRange {
+            file_id,
+            start,
+            end,
+        }
+    }
+
+    pub fn file_id(&self) -> FileId {
+        self.file_id
     }
 
     pub const fn start(&self) -> BytePos {

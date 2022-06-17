@@ -1,15 +1,14 @@
 stdout = '''
-let vec3d : _ = { x <- f32le, y <- f32le, z <- f32le };
-let triangle : _ = {
+def vec3d : Format = { x <- f32le, y <- f32le, z <- f32le };
+def triangle : Format = {
     normal <- vec3d,
     vertices <- array8 3 vec3d,
     attribute_byte_count <- u16le,
 };
-let main : _ = {
+def main : Format = {
     header <- array8 80 u8,
     triangle_count <- u32le,
     triangles <- array32 triangle_count triangle,
 };
-main : Format
 '''
 stderr = ''

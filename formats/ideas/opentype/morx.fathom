@@ -6,7 +6,7 @@
 //!
 //! [Apple Developer Documentation](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6morx.html)
 
-let table_header = {
+def table_header = {
     /// Version number of the extended glyph metamorphosis table (either 2 or 3)
     version <- u16be,
     unused <- u16be, // TODO: reserved, set to 0
@@ -14,7 +14,7 @@ let table_header = {
     num_chains <- u32be,
 };
 
-let chain_header = {
+def chain_header = {
     /// The default specification for subtables.
     default_flags <- u32be,
     /// Total byte count, including this header; must be a multiple of 4.
@@ -25,7 +25,7 @@ let chain_header = {
     num_subtables <- u32be,
 };
 
-let feature_table = {
+def feature_table = {
     /// The type of feature.
     feature_type <- uint16,
     /// The feature's setting (aka selector)
@@ -36,7 +36,7 @@ let feature_table = {
     disable_flags <- uint32,
 };
 
-let subtable_glyph_coverage_table = {
+def subtable_glyph_coverage_table = {
     /// Array of offsets from the beginning of the subtable glyph coverage table
     /// to the glyph coverage bitfield for a given subtable; there is one offset
     /// for each subtable in the chain
@@ -45,7 +45,7 @@ let subtable_glyph_coverage_table = {
     coverage_bitfields <- array _ u8, // TODO: array length?
 };
 
-let subtable_header = {
+def subtable_header = {
     /// Total subtable length, including this header.
     length <- u32be,
     /// Coverage flags and subtable type.
@@ -56,17 +56,15 @@ let subtable_header = {
     sub_feature_flags <- u32be,
 };
 
-let subtable = {
+def subtable = {
     header <- subtable_header,
     ... // TODO: ...
 };
 
 // TODO: ...
 
-let morx = {
+def morx = {
     header <- table_header,
     chains <- ..., // TODO
     subtable_glyph_coverage_array <- array _ _ if table_header.version >= 3,
 };
-
-morx

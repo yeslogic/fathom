@@ -2,7 +2,7 @@ use pretty::{Doc, DocAllocator, DocBuilder, DocPtr, RefDoc};
 use scoped_arena::Scope;
 use std::cell::RefCell;
 
-use crate::surface::{FormatField, Pattern, Term};
+use crate::surface::{FormatField, Item, Module, Pattern, Term};
 use crate::{StringId, StringInterner};
 
 /// Term precedences
@@ -34,6 +34,39 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         match self.interner.borrow().resolve(name) {
             Some(name) => self.text(name.to_owned()),
             None => self.text("#error"),
+        }
+    }
+
+    pub fn module<Range>(&'arena self, module: &Module<'_, Range>) -> DocBuilder<'arena, Self> {
+        self.intersperse(
+            module.items.iter().map(|item| self.item(item)),
+            self.hardline(),
+        )
+    }
+
+    fn item<Range>(&'arena self, item: &Item<'_, Range>) -> DocBuilder<'arena, Self> {
+        match item {
+            Item::Definition { label, type_, expr } => self
+                .concat([
+                    self.text("def"),
+                    self.space(),
+                    match type_ {
+                        None => self.string_id(label.1),
+                        Some(r#type) => self.concat([
+                            self.concat([self.string_id(label.1), self.space(), self.text(":")])
+                                .group(),
+                            self.softline(),
+                            self.term_prec(Prec::Top, &r#type),
+                        ]),
+                    },
+                    self.space(),
+                    self.text("="),
+                    self.softline(),
+                    self.term_prec(Prec::Let, expr),
+                    self.text(";"),
+                ])
+                .group(),
+            Item::ReportedError(_) => self.text("#error"),
         }
     }
 

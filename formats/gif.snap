@@ -1,17 +1,16 @@
 stdout = '''
-let logical_screen_descriptor : _ = {
+def logical_screen_descriptor : Format = {
     image_width <- u16le,
     image_height <- u16le,
     flags <- u8,
     bg_color_index <- u8,
     pixel_aspect_ratio <- u8,
 };
-let header : _ = { magic <- array8 3 u8, version <- array8 3 u8 };
-let color_table_entry : _ = { red <- u8, green <- u8, blue <- u8 };
-let global_color_table : _ = fun len => {
+def header : Format = { magic <- array8 3 u8, version <- array8 3 u8 };
+def color_table_entry : Format = { red <- u8, green <- u8, blue <- u8 };
+def global_color_table : fun (len : U16) -> Format = fun len => {
     entries <- array16 len color_table_entry,
 };
-let main : _ = { header <- header, screen <- logical_screen_descriptor };
-main : Format
+def main : Format = { header <- header, screen <- logical_screen_descriptor };
 '''
 stderr = ''

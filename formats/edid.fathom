@@ -14,7 +14,7 @@
 
 // TODO: Versions 1.0-1.4
 
-let header = {
+def header = {
     magic <- u64le where u64_eq magic 0x00ffffffffffff00,
     manufacturer_id <- u16le,                // TODO: bit patterns
     product_code <- u16le,
@@ -25,7 +25,7 @@ let header = {
     edid_version_minor <- u8,
 };
 
-let display_parameters = {
+def display_parameters = {
     video_input_parameters <- u8,            // TODO: bit patterns
     screen_size_h <- u8,
     screen_size_v <- u8,
@@ -33,7 +33,7 @@ let display_parameters = {
     supported_features <- u8,                // TODO: bit patterns
 };
 
-let chromacity_coordinates = {
+def chromacity_coordinates = {
     red_green_lsb <- u8,                     // TODO: bit patterns
     blue_white_lsb <- u8,                    // TODO: bit patterns
     red_x_msb <- u8,
@@ -46,20 +46,18 @@ let chromacity_coordinates = {
     white_y_msb <- u8,
 };
 
-let established_timing = {
+def established_timing = {
     mode_bitmap <- array8 3 u8,             // TODO: bit patterns
 };
 
-let standard_timing_information : Format = {
+def standard_timing_information : Format = {
     // TODO: Standard timing information
 };
 
-let main = {
+def main = {
     header <- header,
     display_parameters <- display_parameters,
     chromacity_coordinates <- chromacity_coordinates,
     established_timing <- established_timing,
     standard_timing_information <- standard_timing_information,
 };
-
-main
