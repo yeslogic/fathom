@@ -159,6 +159,8 @@ pub struct Context<'arena, 'env> {
     /// unification. We store it in the parent context, re-initialising it on
     /// each call to [`Context::solve`] in order to reuse previous allocations.
     renaming: &'env mut PartialRenaming,
+    /// Item expressions.
+    item_exprs: &'env SliceEnv<ArcValue<'arena>>,
     /// The length of the rigid environment.
     rigid_exprs: EnvLen,
     /// Solutions for flexible variables.
@@ -169,19 +171,21 @@ impl<'arena, 'env> Context<'arena, 'env> {
     pub fn new(
         scope: &'arena Scope<'arena>,
         renaming: &'env mut PartialRenaming,
+        item_exprs: &'env SliceEnv<ArcValue<'arena>>,
         rigid_exprs: EnvLen,
         flexible_exprs: &'env mut SliceEnv<Option<ArcValue<'arena>>>,
     ) -> Context<'arena, 'env> {
         Context {
             scope,
             renaming,
+            item_exprs,
             rigid_exprs,
             flexible_exprs,
         }
     }
 
     fn elim_context(&self) -> semantics::ElimContext<'arena, '_> {
-        semantics::ElimContext::new(self.flexible_exprs)
+        semantics::ElimContext::new(self.item_exprs, self.flexible_exprs)
     }
 
     /// Unify two values, updating the solution environment if necessary.
@@ -432,8 +436,10 @@ impl<'arena, 'env> Context<'arena, 'env> {
         self.init_renaming(spine)?;
         let term = self.rename(flexible_var, value)?;
         let fun_term = self.fun_intros(spine, term);
-        let solution =
-            semantics::EvalContext::new(&mut SharedEnv::new(), self.flexible_exprs).eval(&fun_term);
+        let solution = self
+            .elim_context()
+            .eval_context(&mut SharedEnv::new())
+            .eval(&fun_term);
 
         self.flexible_exprs.set_global(flexible_var, Some(solution));
 

@@ -3,7 +3,7 @@ use std::cell::RefCell;
 
 use crate::{StringId, StringInterner};
 use crate::source::{ByteRange, FileId};
-use crate::surface::{ExprField, FormatField, ParseMessage, Pattern, Term, TypeField};
+use crate::surface::{ExprField, FormatField, Item, Module, ParseMessage, Pattern, Term, TypeField};
 use crate::surface::lexer::{Error as LexerError, Token};
 
 grammar<'arena, 'source>(
@@ -23,6 +23,7 @@ extern {
         "string literal" => Token::StringLiteral(<&'source str>),
         "number literal" => Token::NumberLiteral(<&'source str>),
 
+        "def" => Token::KeywordDef,
         "fun" => Token::KeywordFun,
         "let" => Token::KeywordLet,
         "match" => Token::KeywordMatch,
@@ -51,6 +52,26 @@ extern {
         ")" => Token::CloseParen,
     }
 }
+
+pub Module: Module<'arena, ByteRange> = {
+    <items: Item*> => Module {
+        items: scope.to_scope_from_iter(items.into_iter()),
+    },
+};
+
+Item: Item<'arena, ByteRange> = {
+    <start: @L> "def" <label: ItemName> <type_: (":" <LetTerm>)?> "=" <expr: Term> ";" <end: @R> => {
+        Item::Definition {
+            label,
+            type_: type_.map(|type_| scope.to_scope(type_) as &_),
+            expr: scope.to_scope(expr),
+        }
+    },
+    <start: @L> <error: !> <end: @R> => {
+        messages.push(ParseMessage::from_lalrpop_recovery(file_id, error));
+        Item::ReportedError(ByteRange::new(file_id, start, end))
+    },
+};
 
 Pattern: Pattern<ByteRange> = {
     <start: @L> <name: Name> <end: @R> => Pattern::Name(ByteRange::new(file_id, start, end), name),
@@ -194,6 +215,11 @@ ExprField: ExprField<'arena, ByteRange> = {
 #[inline] Hole: StringId = { <"hole"> => interner.borrow_mut().get_or_intern(<>) };
 #[inline] StringLiteral: StringId = { <"string literal"> => interner.borrow_mut().get_or_intern(<>) };
 #[inline] NumberLiteral: StringId = { <"number literal"> => interner.borrow_mut().get_or_intern(<>) };
+
+ItemName: (ByteRange, Option<StringId>) = {
+    <start: @L> "_" <end: @R> => (ByteRange::new(file_id, start, end), None),
+    <start: @L> <name: Name> <end: @R> => (ByteRange::new(file_id, start, end), Some(name)),
+};
 
 #[inline]
 RangedName: (ByteRange, StringId) = {

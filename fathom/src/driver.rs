@@ -35,6 +35,7 @@ pub struct Driver<'surface, 'core> {
     core_scope: scoped_arena::Scope<'core>,
 
     allow_errors: bool,
+    seen_errors: RefCell<bool>,
     codespan_config: codespan_reporting::term::Config,
     diagnostic_writer: RefCell<Box<dyn WriteColor>>,
 
@@ -51,6 +52,7 @@ impl<'surface, 'core> Driver<'surface, 'core> {
             files: SimpleFiles::new(),
 
             allow_errors: false,
+            seen_errors: RefCell::new(false),
             codespan_config: codespan_reporting::term::Config::default(),
             diagnostic_writer: RefCell::new(Box::new(BufferedStandardStream::stderr(
                 if atty::is(atty::Stream::Stderr) {
@@ -138,34 +140,97 @@ impl<'surface, 'core> Driver<'surface, 'core> {
         self.emit_writer = RefCell::new(Box::new(stream) as Box<dyn WriteColor>);
     }
 
-    /// Read a source file using a reader.
-    pub fn read_source(&mut self, name: &str, mut reader: impl Read) -> FileId {
-        // TODO: render diagnostics
-        let mut source = String::new();
-        reader.read_to_string(&mut source).unwrap();
+    /// Load a source string into the file database.
+    pub fn load_source_string(&mut self, name: String, source: String) -> FileId {
         self.files.add(name.to_owned(), source)
     }
 
-    /// Read a source file at the given path.
-    pub fn read_source_path(&mut self, path: &Path) -> FileId {
-        // TODO: render diagnostics
-        let source = std::fs::read_to_string(path).unwrap();
-        self.files.add(path.display().to_string(), source)
+    /// Load a source file into the file database using a reader.
+    pub fn load_source(&mut self, name: String, mut reader: impl Read) -> Option<FileId> {
+        let mut source = String::new();
+        match reader.read_to_string(&mut source) {
+            Ok(_) => Some(self.load_source_string(name, source)),
+            Err(error) => {
+                self.emit_read_diagnostic(name, error);
+                None
+            }
+        }
     }
 
-    pub fn elaborate(&mut self, file_id: FileId) -> Status {
-        let (surface_term, parse_diagnostics) = self.parse_term(file_id);
+    /// Load a source file into the file database from the given path.
+    pub fn load_source_path(&mut self, path: &Path) -> Option<FileId> {
+        match std::fs::File::open(path) {
+            Ok(file) => self.load_source(path.display().to_string(), file),
+            Err(error) => {
+                self.emit_read_diagnostic(path.display(), error);
+                None
+            }
+        }
+    }
+
+    /// Read all the bytes from a reader into a vector.
+    pub fn read_bytes(&mut self, name: String, mut reader: impl Read) -> Option<Vec<u8>> {
+        let mut bytes = Vec::new();
+        match reader.read_to_end(&mut bytes) {
+            Ok(_) => Some(bytes),
+            Err(error) => {
+                self.emit_read_diagnostic(name, error);
+                None
+            }
+        }
+    }
+
+    /// Read all the bytes in a given file.
+    pub fn read_bytes_path(&mut self, path: &Path) -> Option<Vec<u8>> {
+        match std::fs::File::open(path) {
+            Ok(file) => self.read_bytes(path.display().to_string(), file),
+            Err(error) => {
+                self.emit_read_diagnostic(path.display(), error);
+                None
+            }
+        }
+    }
+
+    pub fn elaborate_and_emit_module(&mut self, file_id: FileId) -> Status {
         let err_scope = scoped_arena::Scope::new();
         let mut context = elaboration::Context::new(&self.interner, &self.core_scope, &err_scope);
+
+        let surface_module = self.parse_module(file_id);
+        let module = context.elab_module(&surface_module);
+
+        // Emit errors we might have found during elaboration
+        let elab_messages = context.drain_messages();
+        self.emit_diagnostics(elab_messages.map(|m| m.to_diagnostic(&self.interner)));
+
+        // Return early if we’ve seen any errors, unless `allow_errors` is enabled
+        if *self.seen_errors.borrow() && !self.allow_errors {
+            return Status::Error;
+        }
+
+        self.surface_scope.reset(); // Reuse the surface scope for distillation
+        let context = context.distillation_context(&self.surface_scope);
+        let module = context.distill_module(&module);
+
+        self.emit_module(&module);
+
+        Status::Ok
+    }
+
+    pub fn elaborate_and_emit_term(&mut self, file_id: FileId) -> Status {
+        let err_scope = scoped_arena::Scope::new();
+        let mut context = elaboration::Context::new(&self.interner, &self.core_scope, &err_scope);
+
+        // Parse and elaborate the term
+        let surface_term = self.parse_term(file_id);
         let (term, r#type) = context.synth(&surface_term);
         let r#type = context.quote_context(&self.core_scope).quote(&r#type);
 
-        let diagnostics = {
-            let elab_messages = context.drain_messages();
-            parse_diagnostics.chain(elab_messages.map(|m| m.to_diagnostic(&self.interner)))
-        };
+        // Emit errors we might have found during elaboration
+        let elab_messages = context.drain_messages();
+        self.emit_diagnostics(elab_messages.map(|m| m.to_diagnostic(&self.interner)));
 
-        if !(self.emit_diagnostics(diagnostics) || self.allow_errors) {
+        // Return early if we’ve seen any errors, unless `allow_errors` is enabled
+        if *self.seen_errors.borrow() && !self.allow_errors {
             return Status::Error;
         }
 
@@ -179,23 +244,26 @@ impl<'surface, 'core> Driver<'surface, 'core> {
         Status::Ok
     }
 
-    pub fn normalise(&mut self, file_id: FileId) -> Status {
-        let (surface_term, parse_diagnostics) = self.parse_term(file_id);
+    pub fn normalise_and_emit_term(&mut self, file_id: FileId) -> Status {
         let err_scope = scoped_arena::Scope::new();
         let mut context = elaboration::Context::new(&self.interner, &self.core_scope, &err_scope);
+
+        // Parse and elaborate the term
+        let surface_term = self.parse_term(file_id);
         let (term, r#type) = context.synth(&surface_term);
+
+        // Emit errors we might have found during elaboration
+        let elab_messages = context.drain_messages();
+        self.emit_diagnostics(elab_messages.map(|m| m.to_diagnostic(&self.interner)));
+
+        // Return early if we’ve seen any errors, unless `allow_errors` is enabled
+        if *self.seen_errors.borrow() && !self.allow_errors {
+            return Status::Error;
+        }
+
         let term = context.eval_context().normalise(&self.core_scope, &term);
         let r#type = context.quote_context(&self.core_scope).quote(&r#type);
 
-        let diagnostics = {
-            let elab_messages = context.drain_messages();
-            parse_diagnostics.chain(elab_messages.map(|m| m.to_diagnostic(&self.interner)))
-        };
-
-        if !(self.emit_diagnostics(diagnostics) || self.allow_errors) {
-            return Status::Error;
-        }
-
         self.surface_scope.reset(); // Reuse the surface scope for distillation
         let mut context = context.distillation_context(&self.surface_scope);
         let term = context.check(&term);
@@ -206,118 +274,122 @@ impl<'surface, 'core> Driver<'surface, 'core> {
         Status::Ok
     }
 
-    pub fn r#type(&mut self, file_id: FileId) -> Status {
-        let (surface_term, parse_diagnostics) = self.parse_term(file_id);
-        let err_scope = scoped_arena::Scope::new();
-        let mut context = elaboration::Context::new(&self.interner, &self.core_scope, &err_scope);
-        let (_, r#type) = context.synth(&surface_term);
-        let r#type = context.quote_context(&self.core_scope).quote(&r#type);
-
-        let diagnostics = {
-            let elab_messages = context.drain_messages();
-            parse_diagnostics.chain(elab_messages.map(|m| m.to_diagnostic(&self.interner)))
-        };
-
-        if !(self.emit_diagnostics(diagnostics) || self.allow_errors) {
-            return Status::Error;
-        }
-
-        self.surface_scope.reset(); // Reuse the surface scope for distillation
-        let mut context = context.distillation_context(&self.surface_scope);
-        let r#type = context.check(&r#type);
-
-        self.emit_term(&r#type);
-
-        Status::Ok
-    }
-
-    pub fn read_format<'data>(&mut self, file_id: FileId, buffer: binary::Buffer<'data>) -> Status {
+    pub fn read_and_emit_format<'data>(
+        &mut self,
+        module_file_id: Option<FileId>,
+        format_file_id: FileId,
+        buffer_data: &[u8],
+    ) -> Status {
         use itertools::Itertools;
-        use pretty::DocAllocator;
         use std::sync::Arc;
 
         use crate::core::semantics::Value;
         use crate::core::Prim;
 
-        let (surface_term, parse_diagnostics) = self.parse_term(file_id);
         let err_scope = scoped_arena::Scope::new();
         let mut context = elaboration::Context::new(&self.interner, &self.core_scope, &err_scope);
-        let format = context.check(&surface_term, &Arc::new(Value::prim(Prim::FormatType, [])));
 
-        let diagnostics = {
-            let elab_messages = context.drain_messages();
-            parse_diagnostics.chain(elab_messages.map(|m| m.to_diagnostic(&self.interner)))
-        };
+        // Parse and elaborate the supplied module
+        if let Some(file_id) = module_file_id {
+            let surface_module = self.parse_module(file_id);
+            context.elab_module(&surface_module);
+        }
 
-        if !(self.emit_diagnostics(diagnostics) || self.allow_errors) {
+        // Parse and elaborate the supplied format with the items from the
+        // supplied in the module in scope. This is still a bit of a hack, and
+        // will need to be revisited if we need to support multiple modules, but
+        // it works for now!
+        let surface_format = self.parse_term(format_file_id);
+        let format_term = context.check(
+            &surface_format,
+            &Arc::new(Value::prim(Prim::FormatType, [])),
+        );
+
+        // Emit errors we might have found during elaboration
+        let elab_messages = context.drain_messages();
+        self.emit_diagnostics(elab_messages.map(|m| m.to_diagnostic(&self.interner)));
+
+        // Return early if we’ve seen any errors, unless `allow_errors` is enabled
+        if *self.seen_errors.borrow() && !self.allow_errors {
             return Status::Error;
         }
 
-        let format = context.eval_context().eval(&format);
+        let format = context.eval_context().eval(&format_term);
+        let buffer = binary::Buffer::from(buffer_data);
         let refs = match context.binary_context(buffer).read_entrypoint(format) {
             Ok(refs) => refs,
             Err(err) => {
-                self.report_read_error(err);
+                self.emit_diagnostic(Diagnostic::from(err));
                 return Status::Error;
             }
         };
 
+        // Render the data we have read
         for (pos, parsed_refs) in refs.into_iter().sorted_by_key(|(pos, _)| *pos) {
             self.surface_scope.reset(); // Reuse the surface scope for distillation
 
-            let exprs = parsed_refs
-                .iter()
-                .map(|parsed_ref| {
-                    let expr = context
-                        .quote_context(&self.core_scope)
-                        .quote(&parsed_ref.expr);
-                    context
-                        .distillation_context(&self.surface_scope)
-                        .check(&expr)
-                })
-                .collect::<Vec<_>>();
+            let exprs = parsed_refs.iter().map(|parsed_ref| {
+                let core_scope = &self.core_scope;
+                let surface_scope = &self.surface_scope;
+                let expr = context.quote_context(core_scope).quote(&parsed_ref.expr);
+                context.distillation_context(surface_scope).check(&expr)
+            });
 
-            let context = surface::pretty::Context::new(&self.interner, &self.surface_scope);
-            let pos = pos.to_string();
-            let doc = context
-                .concat([
-                    context.text(&pos),
-                    context.space(),
-                    context.text("="),
-                    context.space(),
-                    context.sequence(
-                        context.text("["),
-                        exprs.iter().map(|expr| context.term(&expr)),
-                        context.text(","),
-                        context.text("]"),
-                    ),
-                ])
-                .into_doc();
-
-            self.emit_doc(doc);
+            self.emit_ref(pos, exprs.collect());
         }
 
         Status::Ok
     }
 
-    fn parse_term(
-        &'surface self,
-        file_id: FileId,
-    ) -> (
-        surface::Term<'surface, ByteRange>,
-        impl Iterator<Item = Diagnostic<FileId>>,
-    ) {
+    fn parse_module(&'surface self, file_id: FileId) -> surface::Module<'surface, ByteRange> {
+        let source = self.files.get(file_id).unwrap().source();
+        let (module, messages) =
+            surface::Module::parse(&self.interner, &self.surface_scope, file_id, source);
+        self.emit_diagnostics(messages.into_iter().map(|m| m.to_diagnostic()));
+
+        module
+    }
+
+    fn parse_term(&'surface self, file_id: FileId) -> surface::Term<'surface, ByteRange> {
         let source = self.files.get(file_id).unwrap().source();
         let (term, messages) =
             surface::Term::parse(&self.interner, &self.surface_scope, file_id, source);
-        let diagnostics = messages.into_iter().map(move |m| m.to_diagnostic());
+        self.emit_diagnostics(messages.into_iter().map(move |m| m.to_diagnostic()));
 
-        (term, diagnostics)
+        term
+    }
+
+    fn emit_module(&self, module: &surface::Module<'_, ()>) {
+        let context = surface::pretty::Context::new(&self.interner, &self.surface_scope);
+        self.emit_doc(context.module(module).into_doc());
     }
 
     fn emit_term(&self, term: &surface::Term<'_, ()>) {
         let context = surface::pretty::Context::new(&self.interner, &self.surface_scope);
         self.emit_doc(context.term(term).into_doc());
+    }
+
+    fn emit_ref(&self, pos: usize, exprs: Vec<surface::Term<'_, ()>>) {
+        use pretty::DocAllocator;
+
+        let context = surface::pretty::Context::new(&self.interner, &self.surface_scope);
+        let pos = pos.to_string();
+        let doc = context
+            .concat([
+                context.text(&pos),
+                context.space(),
+                context.text("="),
+                context.space(),
+                context.sequence(
+                    context.text("["),
+                    exprs.iter().map(|expr| context.term(&expr)),
+                    context.text(","),
+                    context.text("]"),
+                ),
+            ])
+            .into_doc();
+
+        self.emit_doc(doc);
     }
 
     fn emit_doc(&self, doc: pretty::RefDoc) {
@@ -326,40 +398,28 @@ impl<'surface, 'core> Driver<'surface, 'core> {
         emit_writer.flush().unwrap();
     }
 
-    fn emit_diagnostics(&self, diagnostics: impl Iterator<Item = Diagnostic<FileId>>) -> bool {
-        let mut is_ok = true;
+    fn emit_diagnostic(&self, diagnostic: Diagnostic<FileId>) {
+        let mut writer = self.diagnostic_writer.borrow_mut();
+        let config = &self.codespan_config;
 
-        for diagnostic in diagnostics {
-            let mut diagnostic_writer = self.diagnostic_writer.borrow_mut();
-            codespan_reporting::term::emit(
-                &mut *diagnostic_writer,
-                &self.codespan_config,
-                &self.files,
-                &diagnostic,
-            )
-            .unwrap();
-            diagnostic_writer.flush().unwrap();
+        codespan_reporting::term::emit(&mut *writer, config, &self.files, &diagnostic).unwrap();
+        writer.flush().unwrap();
 
-            is_ok &= diagnostic.severity < Severity::Error;
+        if diagnostic.severity >= Severity::Error {
+            *self.seen_errors.borrow_mut() = true;
         }
-
-        is_ok
     }
 
-    fn report_read_error(&self, err: binary::ReadError) {
-        // Use the currently set codespan configuration
-        let term_config = self.codespan_config.clone();
+    fn emit_diagnostics(&self, diagnostics: impl Iterator<Item = Diagnostic<FileId>>) {
+        for diagnostic in diagnostics {
+            self.emit_diagnostic(diagnostic);
+        }
+    }
 
-        let diagnostic = Diagnostic::from(err);
-        let mut writer = BufferedStandardStream::stderr(if atty::is(atty::Stream::Stderr) {
-            ColorChoice::Auto
-        } else {
-            ColorChoice::Never
-        });
-        let dummy_files = SimpleFiles::<String, String>::new();
-
-        codespan_reporting::term::emit(&mut writer, &term_config, &dummy_files, &diagnostic)
-            .unwrap();
+    fn emit_read_diagnostic(&self, name: impl std::fmt::Display, error: std::io::Error) {
+        let diagnostic =
+            Diagnostic::error().with_message(format!("couldn't read `{}`: {}", name, error));
+        self.emit_diagnostic(diagnostic);
     }
 }
 
@@ -386,6 +446,7 @@ impl From<ReadError> for Diagnostic<usize> {
                 )]),
             ReadError::InvalidFormat
             | ReadError::InvalidValue
+            | ReadError::UnknownItem
             | ReadError::PositionOverflow
             | ReadError::SetOffsetOutsideBuffer => Diagnostic::bug()
                 .with_message(format!("unexpected error '{}'", err))

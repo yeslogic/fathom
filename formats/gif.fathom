@@ -11,7 +11,7 @@
 /// ## References
 ///
 /// - [GIF89a Specification: Section 18](https://www.w3.org/Graphics/GIF/spec-gif89a.txt)
-let logical_screen_descriptor = {
+def logical_screen_descriptor = {
     image_width <- u16le,
     image_height <- u16le,
     flags <- u8,
@@ -28,7 +28,7 @@ let logical_screen_descriptor = {
 /// ## References
 ///
 /// - [GIF89a Specification: Section 17](https://www.w3.org/Graphics/GIF/spec-gif89a.txt)
-let header = {
+def header = {
     magic <- array8 3 u8,   // TODO: where magic == ascii "GIF"`,
     version <- array8 3 u8,
 };
@@ -38,7 +38,7 @@ let header = {
 /// ## References
 ///
 /// - [GIF89a Specification: Section 19](https://www.w3.org/Graphics/GIF/spec-gif89a.txt)
-let color_table_entry = {
+def color_table_entry = {
     red <- u8,
     green <- u8,
     blue <- u8,
@@ -49,15 +49,13 @@ let color_table_entry = {
 /// ## References
 ///
 /// - [GIF89a Specification: Section 19](https://www.w3.org/Graphics/GIF/spec-gif89a.txt)
-let global_color_table = fun (len : U16) => {
+def global_color_table = fun (len : U16) => {
     entries <- array16 len color_table_entry,
 };
 
-let main = {
+def main = {
     header <- header,
     screen <- logical_screen_descriptor,
     // global_color_table <- global_color_table screen.color_table_size,    // TODO: if `screen.has_color_table,`
     // blocks <- array 0 block,                                             // TODO: repeat while not EOF or BlockTerminator
 };
-
-main

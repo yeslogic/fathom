@@ -28,14 +28,51 @@ use std::sync::Arc;
 use crate::alloc::SliceVec;
 use crate::core::semantics::{self, ArcValue, Closure, Head, Telescope, Value};
 use crate::core::{self, binary, Const, Prim, UIntStyle};
-use crate::env::{self, EnvLen, GlobalVar, SharedEnv, UniqueEnv};
+use crate::env::{self, EnvLen, GlobalVar, SharedEnv, SliceEnv, UniqueEnv};
 use crate::source::ByteRange;
 use crate::surface::elaboration::reporting::Message;
-use crate::surface::{distillation, pretty, FormatField, Pattern, Term};
+use crate::surface::{distillation, pretty, FormatField, Item, Module, Pattern, Term};
 use crate::{StringId, StringInterner};
 
 mod reporting;
 mod unification;
+
+/// Top-level item environment.
+pub struct ItemEnv<'arena> {
+    /// Names of items.
+    names: UniqueEnv<StringId>,
+    /// Types of items.
+    types: UniqueEnv<ArcValue<'arena>>,
+    /// Expressions of items.
+    exprs: UniqueEnv<ArcValue<'arena>>,
+}
+
+impl<'arena> ItemEnv<'arena> {
+    /// Construct a new, empty environment.
+    pub fn new() -> ItemEnv<'arena> {
+        ItemEnv {
+            names: UniqueEnv::new(),
+            types: UniqueEnv::new(),
+            exprs: UniqueEnv::new(),
+        }
+    }
+
+    pub fn push_definition(
+        &mut self,
+        name: StringId,
+        r#type: ArcValue<'arena>,
+        expr: ArcValue<'arena>,
+    ) {
+        self.names.push(name);
+        self.types.push(r#type);
+        self.exprs.push(expr);
+    }
+
+    pub fn get_name(&self, name: StringId) -> Option<(GlobalVar, ArcValue<'arena>)> {
+        itertools::izip!(env::global_vars(), self.names.iter(), self.types.iter())
+            .find_map(|(var, n, r#type)| (name == *n).then(|| (var, r#type.clone())))
+    }
+}
 
 /// Rigid environment.
 ///
@@ -487,8 +524,10 @@ impl<'i, 'arena> RigidEnvBuilder<'i, 'arena> {
     fn define_prim(&mut self, prim: Prim, r#type: &core::Term<'arena>) {
         let name = self.name(prim.name());
         let flexible_exprs = UniqueEnv::new();
+        let item_exprs = UniqueEnv::new();
         let r#type =
-            semantics::EvalContext::new(&mut SharedEnv::new(), &flexible_exprs).eval(r#type);
+            semantics::EvalContext::new(&item_exprs, &mut SharedEnv::new(), &flexible_exprs)
+                .eval(r#type);
         self.env
             .push_def(name, Arc::new(Value::prim(prim, [])), r#type);
     }
@@ -585,6 +624,8 @@ impl<'arena> FlexibleEnv<'arena> {
         &'this self,
         interner: &'interner RefCell<StringInterner>,
         scope: &'error Scope<'error>,
+        mut item_names: UniqueEnv<StringId>,
+        item_exprs: &'this SliceEnv<ArcValue<'this>>,
         mut rigid_names: UniqueEnv<Option<StringId>>,
     ) -> impl 'this + Iterator<Item = Message> {
         let entries = Iterator::zip(self.sources.iter(), self.exprs.iter());
@@ -599,11 +640,17 @@ impl<'arena> FlexibleEnv<'arena> {
             (None, source) => Some(Message::UnsolvedFlexibleVar { source }),
             // Yield messages of solved named holes
             (Some(expr), FlexSource::HoleExpr(range, name)) => {
-                let term = semantics::QuoteContext::new(scope, rigid_names.len(), &self.exprs)
-                    .quote(&expr);
-                let surface_term =
-                    distillation::Context::new(interner, scope, &mut rigid_names, &self.sources)
-                        .check(&term);
+                let term =
+                    semantics::QuoteContext::new(scope, item_exprs, rigid_names.len(), &self.exprs)
+                        .quote(&expr);
+                let surface_term = distillation::Context::new(
+                    interner,
+                    scope,
+                    &mut item_names,
+                    &mut rigid_names,
+                    &self.sources,
+                )
+                .check(&term);
 
                 let pretty_context = pretty::Context::new(interner, scope);
                 let doc = pretty_context.term(&surface_term).into_doc();
@@ -637,6 +684,8 @@ pub struct Context<'interner, 'arena, 'error> {
     scope: &'arena Scope<'arena>,
     /// Scoped arena for storing surface terms generated during error reporting.
     error_scope: &'error Scope<'error>,
+    /// Item environment.
+    item_env: ItemEnv<'arena>,
     /// Rigid environment.
     rigid_env: RigidEnv<'arena>,
     /// Flexible environment.
@@ -658,6 +707,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
             interner,
             scope,
             error_scope,
+            item_env: ItemEnv::new(),
             rigid_env: RigidEnv::default(interner, scope),
             flexible_env: FlexibleEnv::new(),
             renaming: unification::PartialRenaming::new(),
@@ -665,12 +715,20 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
         }
     }
 
-    /// Lookup a name in the context.
-    fn get_name(&self, name: StringId) -> Option<(env::LocalVar, &ArcValue<'arena>)> {
-        let rigid_types = Iterator::zip(env::local_vars(), self.rigid_env.types.iter().rev());
+    /// Lookup an item name in the context.
+    fn get_item_name(&self, name: StringId) -> Option<(env::GlobalVar, &ArcValue<'arena>)> {
+        let item_var = self.item_env.names.elem_global(&name)?;
+        let item_type = self.item_env.types.get_global(item_var)?;
 
-        Iterator::zip(self.rigid_env.names.iter().copied().rev(), rigid_types)
-            .find_map(|(n, (var, r#type))| (Some(name) == n).then(|| (var, r#type)))
+        Some((item_var, item_type))
+    }
+
+    /// Lookup a rigid name in the context.
+    fn get_rigid_name(&self, name: StringId) -> Option<(env::LocalVar, &ArcValue<'arena>)> {
+        let rigid_var = self.rigid_env.names.elem_local(&Some(name))?;
+        let rigid_type = self.rigid_env.types.get_local(rigid_var)?;
+
+        Some((rigid_var, rigid_type))
     }
 
     /// Push an unsolved flexible binder onto the context.
@@ -701,6 +759,8 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
         let report_messages = self.flexible_env.report(
             self.interner,
             self.error_scope,
+            self.item_env.names.clone(),
+            &self.item_env.exprs,
             self.rigid_env.names.clone(),
         );
 
@@ -708,24 +768,34 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
     }
 
     pub fn eval_context(&mut self) -> semantics::EvalContext<'arena, '_> {
-        semantics::EvalContext::new(&mut self.rigid_env.exprs, &self.flexible_env.exprs)
+        semantics::EvalContext::new(
+            &self.item_env.exprs,
+            &mut self.rigid_env.exprs,
+            &self.flexible_env.exprs,
+        )
     }
 
     pub fn elim_context(&self) -> semantics::ElimContext<'arena, '_> {
-        semantics::ElimContext::new(&self.flexible_env.exprs)
+        semantics::ElimContext::new(&self.item_env.exprs, &self.flexible_env.exprs)
     }
 
     pub fn quote_context<'out_arena>(
         &self,
         scope: &'out_arena Scope<'out_arena>,
     ) -> semantics::QuoteContext<'arena, 'out_arena, '_> {
-        semantics::QuoteContext::new(scope, self.rigid_env.len(), &self.flexible_env.exprs)
+        semantics::QuoteContext::new(
+            scope,
+            &self.item_env.exprs,
+            self.rigid_env.len(),
+            &self.flexible_env.exprs,
+        )
     }
 
     fn unification_context(&mut self) -> unification::Context<'arena, '_> {
         unification::Context::new(
             &self.scope,
             &mut self.renaming,
+            &self.item_env.exprs,
             self.rigid_env.len(),
             &mut self.flexible_env.exprs,
         )
@@ -738,6 +808,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
         distillation::Context::new(
             self.interner,
             scope,
+            &mut self.item_env.names,
             &mut self.rigid_env.names,
             &self.flexible_env.sources,
         )
@@ -747,7 +818,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
         &self,
         buffer: binary::Buffer<'data>,
     ) -> binary::Context<'arena, '_, 'data> {
-        binary::Context::new(&self.flexible_env.exprs, buffer)
+        binary::Context::new(&self.item_env.exprs, &self.flexible_env.exprs, buffer)
     }
 
     fn pretty_print_value(&mut self, value: &ArcValue<'_>) -> String {
@@ -906,6 +977,67 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 });
                 core::Term::Prim(Prim::ReportedError)
             }
+        }
+    }
+
+    /// Elaborate a module
+    pub fn elab_module(&mut self, surface_module: &Module<'_, ByteRange>) -> core::Module<'arena> {
+        let universe = Arc::new(Value::Universe);
+        let num_items = (surface_module.items.iter())
+            .filter(|item| matches!(item, Item::Definition { label, .. } if label.1.is_some()))
+            .count();
+        let mut items = SliceVec::new(self.scope, num_items);
+
+        for item in surface_module.items {
+            match item {
+                Item::Definition {
+                    label: (_, label),
+                    type_: None,
+                    expr,
+                } => {
+                    let (expr, type_value) = self.synth(expr);
+                    let r#type = self.quote_context(self.scope).quote(&type_value);
+                    let expr_value = self.eval_context().eval(&expr);
+
+                    if let Some(label) = *label {
+                        self.item_env.push_definition(label, type_value, expr_value);
+
+                        let r#type = self.scope.to_scope(r#type);
+                        let expr = self.scope.to_scope(expr);
+
+                        items.push(core::Item::Definition {
+                            label,
+                            r#type: self.scope.to_scope(r#type),
+                            expr: self.scope.to_scope(expr),
+                        })
+                    }
+                }
+                Item::Definition {
+                    label: (_, label),
+                    type_: Some(r#type),
+                    expr,
+                } => {
+                    let r#type = self.check(r#type, &universe);
+                    let type_value = self.eval_context().eval(&r#type);
+                    let expr = self.check(expr, &type_value);
+                    let expr_value = self.eval_context().eval(&expr);
+
+                    if let Some(label) = *label {
+                        self.item_env.push_definition(label, type_value, expr_value);
+
+                        items.push(core::Item::Definition {
+                            label,
+                            r#type: self.scope.to_scope(r#type),
+                            expr: self.scope.to_scope(expr),
+                        })
+                    }
+                }
+                Item::ReportedError(_) => {}
+            }
+        }
+
+        core::Module {
+            items: items.into(),
         }
     }
 
@@ -1414,16 +1546,20 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
         surface_term: &Term<'_, ByteRange>,
     ) -> (core::Term<'arena>, ArcValue<'arena>) {
         match surface_term {
-            Term::Name(range, name) => match self.get_name(*name) {
-                Some((term, r#type)) => (core::Term::RigidVar(term), r#type.clone()),
-                None => {
-                    self.push_message(Message::UnboundName {
-                        range: *range,
-                        name: *name,
-                    });
-                    self.synth_reported_error(*range)
+            Term::Name(range, name) => {
+                if let Some((term, r#type)) = self.get_rigid_name(*name) {
+                    return (core::Term::RigidVar(term), r#type.clone());
                 }
-            },
+                if let Some((term, r#type)) = self.get_item_name(*name) {
+                    return (core::Term::ItemVar(term), r#type.clone());
+                }
+
+                self.push_message(Message::UnboundName {
+                    range: *range,
+                    name: *name,
+                });
+                self.synth_reported_error(*range)
+            }
             Term::Hole(range, name) => {
                 let type_source = FlexSource::HoleType(*range, *name);
                 let expr_source = FlexSource::HoleExpr(*range, *name);

@@ -202,6 +202,7 @@ pub enum SplitBranches<'arena, P> {
 // TODO: include stack trace(??)
 #[derive(Clone, Debug)]
 pub enum Error {
+    InvalidItemVar,
     InvalidRigidVar,
     InvalidFlexibleVar,
     InvalidFunctionApp,
@@ -214,6 +215,7 @@ pub enum Error {
 impl Error {
     pub fn description(&self) -> &str {
         match &self {
+            Error::InvalidItemVar => "invalid item variable",
             Error::InvalidRigidVar => "invalid rigid variable",
             Error::InvalidFlexibleVar => "invalid flexible variable",
             Error::InvalidFunctionApp => "invalid function application",
@@ -230,23 +232,26 @@ impl Error {
 /// Like the [`ElimContext`], this allows for the running of computations, but
 /// also maintains a rigid environment, allowing for evaluation.
 pub struct EvalContext<'arena, 'env> {
+    item_exprs: &'env SliceEnv<ArcValue<'arena>>,
     rigid_exprs: &'env mut SharedEnv<ArcValue<'arena>>,
     flexible_exprs: &'env SliceEnv<Option<ArcValue<'arena>>>,
 }
 
 impl<'arena, 'env> EvalContext<'arena, 'env> {
     pub fn new(
+        item_exprs: &'env SliceEnv<ArcValue<'arena>>,
         rigid_exprs: &'env mut SharedEnv<ArcValue<'arena>>,
         flexible_exprs: &'env SliceEnv<Option<ArcValue<'arena>>>,
     ) -> EvalContext<'arena, 'env> {
         EvalContext {
+            item_exprs,
             rigid_exprs,
             flexible_exprs,
         }
     }
 
     fn elim_context(&self) -> ElimContext<'arena, 'env> {
-        ElimContext::new(self.flexible_exprs)
+        ElimContext::new(self.item_exprs, self.flexible_exprs)
     }
 
     /// Fully normalise a term by first [evaluating][EvalContext::eval] it into
@@ -257,8 +262,13 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
         scope: &'out_arena Scope<'out_arena>,
         term: &Term<'arena>,
     ) -> Term<'out_arena> {
-        QuoteContext::new(scope, self.rigid_exprs.len(), self.flexible_exprs)
-            .quote(&self.eval(term))
+        QuoteContext::new(
+            scope,
+            self.item_exprs,
+            self.rigid_exprs.len(),
+            self.flexible_exprs,
+        )
+        .quote(&self.eval(term))
     }
 
     /// Evaluate a [term][Term] into a [value][Value].
@@ -268,6 +278,10 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
     /// twitter thread](https://twitter.com/brendanzab/status/1423536653658771457)).
     pub fn eval(&mut self, term: &Term<'arena>) -> ArcValue<'arena> {
         match term {
+            Term::ItemVar(var) => match self.item_exprs.get_global(*var) {
+                Some(value) => value.clone(),
+                None => panic_any(Error::InvalidItemVar),
+            },
             Term::RigidVar(var) => match self.rigid_exprs.get_local(*var) {
                 Some(value) => value.clone(),
                 None => panic_any(Error::InvalidRigidVar),
@@ -571,14 +585,26 @@ fn prim_step(prim: Prim) -> Option<PrimStep> {
 /// Contains enough state to run computations, but does not contain a rigid
 /// environment that would be needed for full evaluation.
 pub struct ElimContext<'arena, 'env> {
+    item_exprs: &'env SliceEnv<ArcValue<'arena>>,
     flexible_exprs: &'env SliceEnv<Option<ArcValue<'arena>>>,
 }
 
 impl<'arena, 'env> ElimContext<'arena, 'env> {
     pub fn new(
+        item_exprs: &'env SliceEnv<ArcValue<'arena>>,
         flexible_exprs: &'env SliceEnv<Option<ArcValue<'arena>>>,
     ) -> ElimContext<'arena, 'env> {
-        ElimContext { flexible_exprs }
+        ElimContext {
+            item_exprs,
+            flexible_exprs,
+        }
+    }
+
+    pub fn eval_context(
+        &self,
+        rigid_exprs: &'env mut SharedEnv<ArcValue<'arena>>,
+    ) -> EvalContext<'arena, 'env> {
+        EvalContext::new(self.item_exprs, rigid_exprs, self.flexible_exprs)
     }
 
     /// Bring a value up-to-date with any new unification solutions that
@@ -608,7 +634,7 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
     ) -> ArcValue<'arena> {
         let mut rigid_exprs = closure.rigid_exprs.clone();
         rigid_exprs.push(value);
-        EvalContext::new(&mut rigid_exprs, self.flexible_exprs).eval(closure.term)
+        self.eval_context(&mut rigid_exprs).eval(closure.term)
     }
 
     /// Split a telescope into the first value, and a continuation that returns
@@ -621,7 +647,7 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
         impl FnOnce(ArcValue<'arena>) -> Telescope<'arena>,
     )> {
         let (term, terms) = telescope.terms.split_first()?;
-        let mut context = EvalContext::new(&mut telescope.rigid_exprs, self.flexible_exprs);
+        let mut context = self.eval_context(&mut telescope.rigid_exprs);
         let value = match telescope.apply_repr {
             true => context.elim_context().format_repr(&context.eval(term)),
             false => context.eval(term),
@@ -639,10 +665,10 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
         mut branches: Branches<'arena, P>,
     ) -> SplitBranches<'arena, P> {
         match branches.pattern_branches.split_first() {
-            Some(((r#const, output_expr), pattern_branches)) => {
+            Some(((pattern, output_expr), pattern_branches)) => {
                 branches.pattern_branches = pattern_branches;
-                let mut context = EvalContext::new(&mut branches.rigid_exprs, self.flexible_exprs);
-                SplitBranches::Branch((*r#const, context.eval(output_expr)), branches)
+                let mut context = self.eval_context(&mut branches.rigid_exprs);
+                SplitBranches::Branch((*pattern, context.eval(output_expr)), branches)
             }
             None => match branches.default_expr {
                 Some(default_expr) => {
@@ -718,7 +744,8 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
                 // Try each branch
                 for (branch_const, output_expr) in branches.pattern_branches {
                     if r#const == branch_const {
-                        return EvalContext::new(&mut branches.rigid_exprs, self.flexible_exprs)
+                        return self
+                            .eval_context(&mut branches.rigid_exprs)
                             .eval(output_expr);
                     }
                 }
@@ -726,9 +753,7 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
                 let mut rigid_exprs = branches.rigid_exprs.clone();
                 rigid_exprs.push(head_expr);
                 match branches.default_expr {
-                    Some(default_expr) => {
-                        EvalContext::new(&mut rigid_exprs, self.flexible_exprs).eval(default_expr)
-                    }
+                    Some(default_expr) => self.eval_context(&mut rigid_exprs).eval(default_expr),
                     None => panic_any(Error::MissingConstDefault),
                 }
             }
@@ -829,6 +854,7 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
 #[derive(Clone)]
 pub struct QuoteContext<'in_arena, 'out_arena, 'env> {
     scope: &'out_arena Scope<'out_arena>,
+    item_exprs: &'env SliceEnv<ArcValue<'in_arena>>,
     rigid_exprs: EnvLen,
     flexible_exprs: &'env SliceEnv<Option<ArcValue<'in_arena>>>,
 }
@@ -836,18 +862,20 @@ pub struct QuoteContext<'in_arena, 'out_arena, 'env> {
 impl<'in_arena, 'out_arena, 'env> QuoteContext<'in_arena, 'out_arena, 'env> {
     pub fn new(
         scope: &'out_arena Scope<'out_arena>,
+        item_exprs: &'env SliceEnv<ArcValue<'in_arena>>,
         rigid_exprs: EnvLen,
         flexible_exprs: &'env SliceEnv<Option<ArcValue<'in_arena>>>,
     ) -> QuoteContext<'in_arena, 'out_arena, 'env> {
         QuoteContext {
             scope,
+            item_exprs,
             rigid_exprs,
             flexible_exprs,
         }
     }
 
     fn elim_context<'this>(&'this self) -> ElimContext<'in_arena, 'env> {
-        ElimContext::new(self.flexible_exprs)
+        ElimContext::new(self.item_exprs, self.flexible_exprs)
     }
 
     fn push_rigid(&mut self) {
@@ -1009,23 +1037,26 @@ impl<'in_arena, 'out_arena, 'env> QuoteContext<'in_arena, 'out_arena, 'env> {
 /// This context keeps track of the length of the environment, for use in
 /// conversion checking.
 pub struct ConversionContext<'arena, 'env> {
+    item_exprs: &'env SliceEnv<ArcValue<'arena>>,
     rigid_exprs: EnvLen,
     flexible_exprs: &'env SliceEnv<Option<ArcValue<'arena>>>,
 }
 
 impl<'arena, 'env> ConversionContext<'arena, 'env> {
     pub fn new(
+        item_exprs: &'env SliceEnv<ArcValue<'arena>>,
         rigid_exprs: EnvLen,
         flexible_exprs: &'env SliceEnv<Option<ArcValue<'arena>>>,
     ) -> ConversionContext<'arena, 'env> {
         ConversionContext {
+            item_exprs,
             rigid_exprs,
             flexible_exprs,
         }
     }
 
     fn elim_context(&self) -> ElimContext<'arena, 'env> {
-        ElimContext::new(self.flexible_exprs)
+        ElimContext::new(self.item_exprs, self.flexible_exprs)
     }
 
     fn push_rigid(&mut self) {

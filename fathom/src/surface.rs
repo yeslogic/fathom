@@ -15,6 +15,52 @@ pub mod pretty;
 pub mod distillation;
 pub mod elaboration;
 
+/// Modules, consisting of a sequence of top-level items.
+#[derive(Debug, Clone)]
+pub struct Module<'arena, Range> {
+    items: &'arena [Item<'arena, Range>],
+}
+
+impl<'arena> Module<'arena, ByteRange> {
+    /// Parse a term from the `source` string, interning strings to the
+    /// supplied `interner` and allocating nodes to the `arena`.
+    pub fn parse<'source>(
+        interner: &RefCell<StringInterner>,
+        scope: &'arena Scope<'arena>,
+        file_id: FileId,
+        source: &'source str,
+    ) -> (Module<'arena, ByteRange>, Vec<ParseMessage>) {
+        let mut messages = Vec::new();
+
+        let tokens = lexer::tokens(file_id, source);
+        let term = grammar::ModuleParser::new()
+            .parse(interner, scope, &mut messages, file_id, tokens)
+            .unwrap_or_else(|error| {
+                messages.push(ParseMessage::from_lalrpop(file_id, error));
+                Module { items: &[] }
+            });
+
+        (term, messages)
+    }
+}
+
+/// Top-level items.
+#[derive(Debug, Clone)]
+pub enum Item<'arena, Range> {
+    /// Top-level definitions
+    Definition {
+        /// The label that identifies this definition
+        label: (Range, Option<StringId>),
+        /// An optional type annotation for the defined expression
+        // FIXME: raw identifiers in LALRPOP grammars https://github.com/lalrpop/lalrpop/issues/613
+        type_: Option<&'arena Term<'arena, Range>>,
+        /// The defined expression
+        expr: &'arena Term<'arena, Range>,
+    },
+    /// Reported error sentinel
+    ReportedError(Range),
+}
+
 /// Surface patterns.
 #[derive(Debug, Clone)]
 pub enum Pattern<Range> {

@@ -8,6 +8,8 @@ elaboration, and core language is forthcoming.
 
 ## Contents
 
+- [Modules](#items)
+  - [Definitions](#definitions)
 - [Structure](#structure)
   - [Names](#names)
   - [Let expressions](#let-expressions)
@@ -59,6 +61,37 @@ elaboration, and core language is forthcoming.
   - [Position operations](#position-operations)
 - [References](#references)
 - [Void](#void)
+
+## Modules
+
+Fathom modules are made up of multiple top-level items
+
+### Definitions
+
+Top-level definitions are preceded by the `def` keyword:
+
+```fathom
+def point = {
+  x <- u32be,
+  y <- u32be,
+};
+```
+
+Definitions can optionally have a type annotation given to them:
+
+```fathom
+def point : Format = {
+  x <- u32be,
+  y <- u32be,
+};
+```
+
+Definitions with `_` in place of the name are still type checked, but cannot be
+used in other parts of the Fathom module:
+
+```fathom
+def _ = u32be;
+```
 
 ## Structure
 

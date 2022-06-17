@@ -14,6 +14,10 @@ pub enum Token<'source> {
     #[regex(r"[+-]?[0-9][a-zA-Z0-9_]*")]
     NumberLiteral(&'source str),
 
+    #[token("def")]
+    KeywordDef,
+    #[token("false")]
+    KeywordFalse,
     #[token("fun")]
     KeywordFun,
     #[token("let")]
@@ -26,8 +30,6 @@ pub enum Token<'source> {
     KeywordType,
     #[token("true")]
     KeywordTrue,
-    #[token("false")]
-    KeywordFalse,
     #[token("where")]
     KeywordWhere,
 
@@ -115,12 +117,13 @@ impl<'source> Token<'source> {
             Token::Hole(_) => "hole",
             Token::StringLiteral(_) => "string literal",
             Token::NumberLiteral(_) => "number literal",
-            Token::KeywordTrue => "true",
+            Token::KeywordDef => "def",
             Token::KeywordFalse => "false",
             Token::KeywordFun => "fun",
             Token::KeywordLet => "let",
             Token::KeywordMatch => "match",
             Token::KeywordOverlap => "overlap",
+            Token::KeywordTrue => "true",
             Token::KeywordType => "Type",
             Token::KeywordWhere => "where",
             Token::Colon => ":",

@@ -6,7 +6,7 @@ use std::cell::RefCell;
 use crate::core::UIntStyle;
 use crate::env::{self, EnvLen, GlobalVar, LocalVar, UniqueEnv};
 use crate::surface::elaboration::FlexSource;
-use crate::surface::{ExprField, FormatField, Pattern, Term, TypeField};
+use crate::surface::{ExprField, FormatField, Item, Module, Pattern, Term, TypeField};
 use crate::{core, StringId, StringInterner};
 
 /// Distillation context.
@@ -14,6 +14,8 @@ pub struct Context<'interner, 'arena, 'env> {
     interner: &'interner RefCell<StringInterner>,
     /// Scoped arena for storing distilled terms.
     scope: &'arena Scope<'arena>,
+    /// Item name environment.
+    item_names: &'env mut UniqueEnv<StringId>,
     /// Rigid name environment.
     rigid_names: &'env mut UniqueEnv<Option<StringId>>,
     /// Flexible sources.
@@ -25,12 +27,14 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
     pub fn new(
         interner: &'interner RefCell<StringInterner>,
         scope: &'arena Scope<'arena>,
+        item_names: &'env mut UniqueEnv<StringId>,
         rigid_names: &'env mut UniqueEnv<Option<StringId>>,
         flexible_sources: &'env UniqueEnv<FlexSource>,
     ) -> Context<'interner, 'arena, 'env> {
         Context {
             interner,
             scope,
+            item_names,
             rigid_names,
             flexible_sources,
         }
@@ -38,6 +42,14 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
 
     fn rigid_len(&mut self) -> EnvLen {
         self.rigid_names.len()
+    }
+
+    fn get_item_name(&self, var: GlobalVar) -> Option<StringId> {
+        self.item_names.get_global(var).copied()
+    }
+
+    fn push_item(&mut self, name: StringId) {
+        self.item_names.push(name);
     }
 
     fn get_rigid_name(&self, var: LocalVar) -> Option<StringId> {
@@ -78,6 +90,32 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
         let string = style.format(number);
         let number = self.interner.borrow_mut().get_or_intern(string);
         Term::NumberLiteral((), number)
+    }
+
+    pub fn distill_module(mut self, core_module: &core::Module<'_>) -> Module<'arena, ()> {
+        let scope = self.scope;
+
+        let items = core_module.items.iter().map(|item| match item {
+            core::Item::Definition {
+                label,
+                r#type,
+                expr,
+            } => {
+                let r#type = scope.to_scope(self.synth(r#type));
+                let expr = scope.to_scope(self.check(expr));
+                self.push_item(*label);
+
+                Item::Definition {
+                    label: ((), Some(*label)),
+                    type_: Some(r#type),
+                    expr,
+                }
+            }
+        });
+
+        Module {
+            items: scope.to_scope_from_iter(items),
+        }
     }
 
     fn check_number_literal<T: std::fmt::Display>(&mut self, number: T) -> Term<'arena, ()> {
@@ -273,6 +311,10 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
     /// Distill a core term into a surface term, in a 'synthesizable' context.
     pub fn synth(&mut self, core_term: &core::Term<'_>) -> Term<'arena, ()> {
         match core_term {
+            core::Term::ItemVar(var) => match self.get_item_name(*var) {
+                Some(name) => Term::Name((), name),
+                None => todo!("misbound variable"), // TODO: error?
+            },
             core::Term::RigidVar(var) => match self.get_rigid_name(*var) {
                 Some(name) => Term::Name((), name),
                 None => todo!("misbound variable"), // TODO: error?

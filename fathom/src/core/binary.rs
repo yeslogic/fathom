@@ -14,6 +14,7 @@ use crate::env::{EnvLen, SliceEnv};
 pub enum ReadError {
     InvalidFormat,
     InvalidValue,
+    UnknownItem,
     UnwrappedNone,
     ReadFailFormat,
     CondFailure,
@@ -28,6 +29,7 @@ impl fmt::Display for ReadError {
             ReadError::InvalidFormat => f.write_str("invalid format"),
             ReadError::InvalidValue => f.write_str("invalid value"),
             ReadError::UnwrappedNone => f.write_str("unwrapped none"),
+            ReadError::UnknownItem => f.write_str("unknown item"),
             ReadError::ReadFailFormat => f.write_str("read a fail format"),
             ReadError::CondFailure => f.write_str("conditional format failed"),
             ReadError::SetOffsetOutsideBuffer => {
@@ -210,6 +212,7 @@ impl<'data> From<Buffer<'data>> for BufferReader<'data> {
 }
 
 pub struct Context<'arena, 'env, 'data> {
+    item_exprs: &'env SliceEnv<ArcValue<'arena>>,
     flexible_exprs: &'env SliceEnv<Option<ArcValue<'arena>>>,
     initial_buffer: Buffer<'data>,
     pending_formats: Vec<(usize, ArcValue<'arena>)>,
@@ -227,10 +230,12 @@ pub struct ParsedRef<'arena> {
 
 impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
     pub fn new(
+        item_exprs: &'env SliceEnv<ArcValue<'arena>>,
         flexible_exprs: &'env SliceEnv<Option<ArcValue<'arena>>>,
         initial_buffer: Buffer<'data>,
     ) -> Context<'arena, 'env, 'data> {
         Context {
+            item_exprs,
             flexible_exprs,
             initial_buffer,
             pending_formats: Vec::new(),
@@ -239,11 +244,11 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
     }
 
     fn elim_context(&self) -> semantics::ElimContext<'arena, 'env> {
-        semantics::ElimContext::new(self.flexible_exprs)
+        semantics::ElimContext::new(self.item_exprs, self.flexible_exprs)
     }
 
     fn conversion_context(&self) -> semantics::ConversionContext<'arena, 'env> {
-        semantics::ConversionContext::new(EnvLen::new(), self.flexible_exprs)
+        semantics::ConversionContext::new(self.item_exprs, EnvLen::new(), self.flexible_exprs)
     }
 
     pub fn read_entrypoint(

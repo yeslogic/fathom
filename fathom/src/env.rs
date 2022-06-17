@@ -255,6 +255,17 @@ impl<Entry> SliceEnv<Entry> {
     }
 }
 
+impl<Entry: PartialEq> SliceEnv<Entry> {
+    pub fn elem_global(&self, entry: &Entry) -> Option<GlobalVar> {
+        Iterator::zip(global_vars(), self.iter()).find_map(|(var, e)| (entry == e).then(|| var))
+    }
+
+    pub fn elem_local(&self, entry: &Entry) -> Option<LocalVar> {
+        Iterator::zip(local_vars(), self.iter().rev())
+            .find_map(|(var, e)| (entry == e).then(|| var))
+    }
+}
+
 /// A persistent environment with structural sharing.
 #[derive(Clone)]
 pub struct SharedEnv<Entry> {

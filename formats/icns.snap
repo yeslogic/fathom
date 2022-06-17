@@ -1,14 +1,13 @@
 stdout = '''
-let header : _ = {
+def header : Format = {
     magic <- u32be where u32_eq magic "icns",
     file_length <- u32be,
 };
-let icon_data : _ = {
+def icon_data : Format = {
     icon_type <- u32be,
     icon_data_length <- u32be,
     data <- limit32 icon_data_length (repeat_until_end u8),
 };
-let main : _ = { header <- header, icons <- repeat_until_end icon_data };
-main : Format
+def main : Format = { header <- header, icons <- repeat_until_end icon_data };
 '''
 stderr = ''

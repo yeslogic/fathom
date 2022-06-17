@@ -6,6 +6,24 @@ use crate::StringId;
 pub mod binary;
 pub mod semantics;
 
+/// Modules
+pub struct Module<'arena> {
+    pub items: &'arena [Item<'arena>],
+}
+
+/// Top-level items
+pub enum Item<'arena> {
+    /// Top-level definitions
+    Definition {
+        /// The label that identifies this definition
+        label: StringId,
+        /// The type of the defined expression
+        r#type: &'arena Term<'arena>,
+        /// The defined expression
+        expr: &'arena Term<'arena>,
+    },
+}
+
 /// Information about how entries were bound in the rigid environment. This is
 /// used when inserting [flexible variables][Term::FlexibleInsertion] during
 /// elaboration.
@@ -22,6 +40,10 @@ pub enum EntryInfo {
 /// Core language terms.
 #[derive(Debug, Clone)]
 pub enum Term<'arena> {
+    /// Item variable occurrences.
+    ///
+    /// These refer to [items][Item] bound at the top-level of a [module][Module].
+    ItemVar(GlobalVar),
     /// Rigid variable occurrences.
     ///
     /// These correspond to variables that were most likely bound as a result of

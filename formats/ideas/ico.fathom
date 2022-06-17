@@ -7,12 +7,12 @@
 //! - [Wikipedia](https://en.wikipedia.org/wiki/ICO_(file_format))
 //! - [Wikidata](https://www.wikidata.org/wiki/Q729366)
 
-let reserved : fun (f : Format) -> Repr f -> Format =
+def reserved : fun (f : Format) -> Repr f -> Format =
     fun f => fun default =>
         let data <- f;
         return data;
 
-let image = {
+def image = {
     width <- u8 if 0 then 256,
     height <- u8 if 0 then 256,
     num_colors <- u8,
@@ -23,7 +23,7 @@ let image = {
     image_offset <- u32le,
 };
 
-let ico = {
+def main = {
     // NOTE: Could be useful to have invertible patterns here?
     magic <- array8 4 u8 match {
         [0, 0, 1, 0] => icon,   // TODO
@@ -32,5 +32,3 @@ let ico = {
     num_images <- u16le,
     images <- repeat num_images image,
 };
-
-ico
