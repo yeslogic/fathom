@@ -984,7 +984,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
     pub fn elab_module(&mut self, surface_module: &Module<'_, ByteRange>) -> core::Module<'arena> {
         let universe = Arc::new(Value::Universe);
         let num_items = (surface_module.items.iter())
-            .filter(|item| matches!(item, Item::Definition { label, .. } if label.1.is_some()))
+            .filter(|item| matches!(item, Item::Definition { .. }))
             .count();
         let mut items = SliceVec::new(self.scope, num_items);
 
@@ -999,18 +999,14 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                     let r#type = self.quote_context(self.scope).quote(&type_value);
                     let expr_value = self.eval_context().eval(&expr);
 
-                    if let Some(label) = *label {
-                        self.item_env.push_definition(label, type_value, expr_value);
+                    self.item_env
+                        .push_definition(*label, type_value, expr_value);
 
-                        let r#type = self.scope.to_scope(r#type);
-                        let expr = self.scope.to_scope(expr);
-
-                        items.push(core::Item::Definition {
-                            label,
-                            r#type: self.scope.to_scope(r#type),
-                            expr: self.scope.to_scope(expr),
-                        })
-                    }
+                    items.push(core::Item::Definition {
+                        label: *label,
+                        r#type: self.scope.to_scope(r#type),
+                        expr: self.scope.to_scope(expr),
+                    });
                 }
                 Item::Definition {
                     label: (_, label),
@@ -1022,15 +1018,14 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                     let expr = self.check(expr, &type_value);
                     let expr_value = self.eval_context().eval(&expr);
 
-                    if let Some(label) = *label {
-                        self.item_env.push_definition(label, type_value, expr_value);
+                    self.item_env
+                        .push_definition(*label, type_value, expr_value);
 
-                        items.push(core::Item::Definition {
-                            label,
-                            r#type: self.scope.to_scope(r#type),
-                            expr: self.scope.to_scope(expr),
-                        })
-                    }
+                    items.push(core::Item::Definition {
+                        label: *label,
+                        r#type: self.scope.to_scope(r#type),
+                        expr: self.scope.to_scope(expr),
+                    });
                 }
                 Item::ReportedError(_) => {}
             }

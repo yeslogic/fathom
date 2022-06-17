@@ -50,7 +50,7 @@ pub enum Item<'arena, Range> {
     /// Top-level definitions
     Definition {
         /// The label that identifies this definition
-        label: (Range, Option<StringId>),
+        label: (Range, StringId),
         /// An optional type annotation for the defined expression
         // FIXME: raw identifiers in LALRPOP grammars https://github.com/lalrpop/lalrpop/issues/613
         type_: Option<&'arena Term<'arena, Range>>,

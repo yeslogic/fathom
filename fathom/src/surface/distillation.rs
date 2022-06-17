@@ -106,7 +106,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 self.push_item(*label);
 
                 Item::Definition {
-                    label: ((), Some(*label)),
+                    label: ((), *label),
                     type_: Some(r#type),
                     expr,
                 }

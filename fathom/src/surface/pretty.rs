@@ -46,19 +46,15 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
 
     fn item<Range>(&'arena self, item: &Item<'_, Range>) -> DocBuilder<'arena, Self> {
         match item {
-            Item::Definition { label, type_, expr } => {
-                let name = match label.1 {
-                    None => self.text("_"),
-                    Some(name) => self.string_id(name),
-                };
-
-                self.concat([
+            Item::Definition { label, type_, expr } => self
+                .concat([
                     self.text("def"),
                     self.space(),
                     match type_ {
-                        None => name,
+                        None => self.string_id(label.1),
                         Some(r#type) => self.concat([
-                            self.concat([name, self.space(), self.text(":")]).group(),
+                            self.concat([self.string_id(label.1), self.space(), self.text(":")])
+                                .group(),
                             self.softline(),
                             self.term_prec(Prec::Top, &r#type),
                         ]),
@@ -69,8 +65,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                     self.term_prec(Prec::Let, expr),
                     self.text(";"),
                 ])
-                .group()
-            }
+                .group(),
             Item::ReportedError(_) => self.text("#error"),
         }
     }

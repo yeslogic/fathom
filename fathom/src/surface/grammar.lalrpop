@@ -60,7 +60,7 @@ pub Module: Module<'arena, ByteRange> = {
 };
 
 Item: Item<'arena, ByteRange> = {
-    <start: @L> "def" <label: ItemName> <type_: (":" <LetTerm>)?> "=" <expr: Term> ";" <end: @R> => {
+    <start: @L> "def" <label: RangedName> <type_: (":" <LetTerm>)?> "=" <expr: Term> ";" <end: @R> => {
         Item::Definition {
             label,
             type_: type_.map(|type_| scope.to_scope(type_) as &_),
@@ -215,11 +215,6 @@ ExprField: ExprField<'arena, ByteRange> = {
 #[inline] Hole: StringId = { <"hole"> => interner.borrow_mut().get_or_intern(<>) };
 #[inline] StringLiteral: StringId = { <"string literal"> => interner.borrow_mut().get_or_intern(<>) };
 #[inline] NumberLiteral: StringId = { <"number literal"> => interner.borrow_mut().get_or_intern(<>) };
-
-ItemName: (ByteRange, Option<StringId>) = {
-    <start: @L> "_" <end: @R> => (ByteRange::new(file_id, start, end), None),
-    <start: @L> <name: Name> <end: @R> => (ByteRange::new(file_id, start, end), Some(name)),
-};
 
 #[inline]
 RangedName: (ByteRange, StringId) = {

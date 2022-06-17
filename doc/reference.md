@@ -86,13 +86,6 @@ def point : Format = {
 };
 ```
 
-Definitions with `_` in place of the name are still type checked, but cannot be
-used in other parts of the Fathom module:
-
-```fathom
-def _ = u32be;
-```
-
 ## Structure
 
 This section descibes basic structural parts of Fathom.
