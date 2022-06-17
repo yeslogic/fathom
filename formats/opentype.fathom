@@ -3225,6 +3225,52 @@ let table_directory = fun (file_start : Pos) => {
     ),
 };
 
+/// # TTC Header (OpenType Font Collection)
+///
+/// ## References
+///
+/// - [Microsoft's OpenType Spec: TTC Header](https://docs.microsoft.com/en-us/typography/opentype/spec/otff#ttc-header)
+let ttc_header = fun (start : Pos) => (
+    /// TTC Header Version 1.0
+    let ttc_header1 = fun (start : Pos) => {
+        /// Number of fonts in TTC
+        num_fonts <- u32be,
+        /// Array of offsets to the TableDirectory for each font from the beginning of the file
+        table_directories <- array32 num_fonts (offset32 start (table_directory start)),
+    };
+
+    /// TTC Header Version 2.0
+    let ttc_header2 = fun (start : Pos) => {
+        /// Number of fonts in TTC
+        num_fonts <- u32be,
+        /// Array of offsets to the TableDirectory for each font from the beginning of the file
+        table_directories <- array32 num_fonts (offset32 start (table_directory start)),
+        /// Tag indicating that a DSIG table exists, 0x44534947 ('DSIG') (null if no signature)
+        dsig_tag <- u32be,
+        /// The length (in bytes) of the DSIG table (null if no signature)
+        dsig_length <- u32be,
+        /// The offset (in bytes) of the DSIG table from the beginning of the TTC file (null if no
+        /// signature)
+        dsig_offset <- u32be,
+    };
+
+    {
+        /// Font Collection ID string: 'ttcf' (used for fonts with CFF or CFF2 outlines as well as
+        /// TrueType outlines)
+        ttc_tag <- tag,
+        /// Major version of the TTC Header
+        major_version <- u16be,
+        /// Minor version of the TTC Header
+        minor_version <- u16be,
+        /// Version specific fields
+        header <- match major_version {
+            1 => ttc_header1 start,
+            2 => ttc_header2 start,
+            _ => unknown_table,
+        },
+    }
+);
+
 /// # OpenType file
 ///
 /// The main entrypoint of an OpenType font file.
@@ -3237,7 +3283,18 @@ let main = {
     /// The start of the font file.
     start <- stream_pos,
     /// The directory of tables in the font.
-    directory <- table_directory start,
+    font <- overlap {
+        magic <- u32be,
+        directory <- match magic {
+            // TrueType font
+            0x00010000 => table_directory start,
+            // CFF font
+            "OTTO" => table_directory start,
+            // OpenType Font Collection
+            "ttcf" => ttc_header start,
+            _ => unknown_table,
+        },
+    },
 };
 
 
