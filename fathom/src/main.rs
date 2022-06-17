@@ -98,9 +98,9 @@ enum PathOrStdin {
 }
 
 impl std::str::FromStr for PathOrStdin {
-    type Err = &'static str; // Unused, but satisfies `clap`. Could be `!` in the future.
+    type Err = std::convert::Infallible;
 
-    fn from_str(src: &str) -> Result<PathOrStdin, &'static str> {
+    fn from_str(src: &str) -> Result<PathOrStdin, std::convert::Infallible> {
         match src {
             "-" => Ok(PathOrStdin::StdIn),
             _ => Ok(PathOrStdin::Path(PathBuf::from(src))),
