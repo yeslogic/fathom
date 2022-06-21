@@ -18,7 +18,7 @@ pub enum ReadError {
     UnwrappedNone,
     ReadFailFormat,
     CondFailure,
-    SetOffsetOutsideBuffer,
+    SetOffsetOutsideBuffer(usize),
     UnexpectedEndOfBuffer,
     PositionOverflow,
 }
@@ -32,7 +32,7 @@ impl fmt::Display for ReadError {
             ReadError::UnknownItem => f.write_str("unknown item"),
             ReadError::ReadFailFormat => f.write_str("read a fail format"),
             ReadError::CondFailure => f.write_str("conditional format failed"),
-            ReadError::SetOffsetOutsideBuffer => {
+            ReadError::SetOffsetOutsideBuffer(_) => {
                 f.write_str("attempt to set buffer offset beyond bounds of buffer")
             }
             ReadError::UnexpectedEndOfBuffer => f.write_str("unexpected end of buffer"),
@@ -165,18 +165,16 @@ impl<'data> BufferReader<'data> {
     }
 
     /// Set the offset of the reader relative to the start of the backing buffer.
-    pub fn set_relative_offset(&mut self, relative_offset: usize) -> Result<(), ReadError> {
+    pub fn set_relative_offset(&mut self, relative_offset: usize) -> Option<()> {
         (relative_offset <= self.buffer.remaining_len())
             .then(|| self.relative_offset = relative_offset)
-            .ok_or(ReadError::SetOffsetOutsideBuffer)
     }
 
     /// Set the offset of the reader relative to the start position.
     pub fn set_offset(&mut self, offset: usize) -> Result<(), ReadError> {
-        match usize::checked_sub(offset, self.buffer.start_offset) {
-            Some(relative_offset) => self.set_relative_offset(relative_offset),
-            None => Err(ReadError::SetOffsetOutsideBuffer),
-        }
+        usize::checked_sub(offset, self.buffer.start_offset)
+            .and_then(|relative_offset| self.set_relative_offset(relative_offset))
+            .ok_or_else(|| ReadError::SetOffsetOutsideBuffer(offset))
     }
 
     /// Get a slice of the bytes in the buffer, relative to the current offset in the buffer.
@@ -322,8 +320,9 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
                         std::cmp::max(max_relative_offset, reader.relative_offset());
                 }
 
-                // Seek to the maximum stream length
-                reader.set_relative_offset(max_relative_offset)?;
+                // Seek to the maximum stream length. unwrap is safe due to that offset being
+                // reached in loop above.
+                reader.set_relative_offset(max_relative_offset).unwrap();
 
                 Ok(Arc::new(Value::RecordLit(labels, exprs)))
             }
@@ -427,8 +426,9 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
                     current_offset = reader.relative_offset();
                 }
                 Err(ReadError::UnexpectedEndOfBuffer) => {
+                    // unwrap shouldn't panic as we're rewinding to a known good offset
                     // Should this be set to the end of the current buffer?
-                    reader.set_relative_offset(current_offset)?;
+                    reader.set_relative_offset(current_offset).unwrap();
                     return Ok(Arc::new(Value::ArrayLit(elems)));
                 }
                 Err(err) => return Err(err),
