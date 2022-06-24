@@ -981,14 +981,19 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
     }
 
     /// Elaborate a module
-    pub fn elab_module(&mut self, surface_module: &Module<'_, ByteRange>) -> core::Module<'arena> {
+    pub fn elab_module(
+        &mut self,
+        surface_module: &Module<'_, ByteRange>,
+        elab_order: &[usize],
+    ) -> core::Module<'arena> {
         let universe = Arc::new(Value::Universe);
+        // TODO: Could the Module keep track of this as items are added to it
         let num_items = (surface_module.items.iter())
             .filter(|item| matches!(item, Item::Definition { .. }))
             .count();
         let mut items = SliceVec::new(self.scope, num_items);
 
-        for item in surface_module.items {
+        for item in elab_order.iter().copied().map(|i| &surface_module.items[i]) {
             match item {
                 Item::Definition {
                     label: (_, label),
