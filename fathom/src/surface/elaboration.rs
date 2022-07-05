@@ -30,10 +30,12 @@ use crate::core::semantics::{self, ArcValue, Closure, Head, Telescope, Value};
 use crate::core::{self, binary, Const, Prim, UIntStyle};
 use crate::env::{self, EnvLen, GlobalVar, SharedEnv, SliceEnv, UniqueEnv};
 use crate::source::ByteRange;
+use crate::surface::elaboration::order::ModuleOrderMessage;
 use crate::surface::elaboration::reporting::Message;
 use crate::surface::{distillation, pretty, FormatField, Item, Module, Pattern, Term};
 use crate::{StringId, StringInterner};
 
+mod order;
 mod reporting;
 mod unification;
 
@@ -984,8 +986,9 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
     pub fn elab_module(
         &mut self,
         surface_module: &Module<'_, ByteRange>,
-        elab_order: &[usize],
-    ) -> core::Module<'arena> {
+    ) -> Result<core::Module<'arena>, Vec<ModuleOrderMessage>> {
+        let elab_order = order::elaboration_order(surface_module)?;
+
         let universe = Arc::new(Value::Universe);
         // TODO: Could the Module keep track of this as items are added to it
         let num_items = (surface_module.items.iter())
@@ -1036,9 +1039,9 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
             }
         }
 
-        core::Module {
+        Ok(core::Module {
             items: items.into(),
-        }
+        })
     }
 
     /// Check that a pattern matches an expected type.
