@@ -47,8 +47,12 @@ pub enum Token<'source> {
     HyphenGreater,
     #[token("<-")]
     LessHyphen,
+    #[token("-")]
+    Minus,
     #[token("|")]
     Pipe,
+    #[token("+")]
+    Plus,
     #[token(";")]
     Semicolon,
     #[token("_")]
@@ -133,8 +137,10 @@ impl<'source> Token<'source> {
             Token::FullStop => ".",
             Token::HyphenGreater => "->",
             Token::LessHyphen => "<-",
+            Token::Minus => "-",
             Token::Semicolon => ";",
             Token::Pipe => "|",
+            Token::Plus => "+",
             Token::Underscore => "_",
             Token::OpenBrace => "{",
             Token::CloseBrace => "}",

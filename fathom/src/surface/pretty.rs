@@ -293,6 +293,16 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 self.text(","),
                 self.text("}"),
             ),
+            Term::BinOp(_, lhs, op, rhs) => self.paren(
+                prec > Prec::Top,
+                self.concat([
+                    self.term_prec(Prec::Atomic, lhs),
+                    self.space(),
+                    self.text(op.to_string()),
+                    self.space(),
+                    self.term_prec(Prec::Atomic, rhs),
+                ]),
+            ),
             Term::ReportedError(_) => self.text("#error"),
         }
     }

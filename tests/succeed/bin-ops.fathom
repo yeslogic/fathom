@@ -1,0 +1,39 @@
+let device_table = (
+    let u16_div_ceil = fun (numerator : U16) => fun (denominator : U16) => (
+        let quotient = u16_div numerator denominator;
+        match (u16_lt (u16_mul quotient denominator) numerator) {
+            true => quotient + (1 : U16),
+            false => quotient,
+        }
+    );
+
+    let delta_bits = fun (delta_format : U16) => fun (num_sizes : U16) =>
+        match delta_format {
+            // Signed 2-bit value, 8 values per u16be
+            0x0001 => u16_mul num_sizes 2,
+            // Signed 4-bit value, 4 values per u16be
+            0x0002 => u16_mul num_sizes 4,
+            // Signed 8-bit value, 2 values per u16be
+            0x0003 => u16_mul num_sizes 8,
+            // Unreachable due to match done in device_or_variation_index_table
+            _ => 0,
+        };
+
+    let num_sizes = fun (start : U16) => fun (end : U16) =>
+        (end - start) + (1 : U16);
+
+    {
+        /// Smallest size to correct, in ppem
+        start_size <- u16be,
+        /// Largest size to correct, in ppem
+        end_size <- u16be,
+        /// Format of deltaValue array data
+        delta_format <- u16be,
+        /// Array of compressed data
+        delta_values <-
+            let delta_bits = delta_bits delta_format (num_sizes start_size end_size);
+            array16 (u16_div_ceil delta_bits 16) u16be,
+    }
+);
+
+{}

@@ -3,7 +3,7 @@ use std::cell::RefCell;
 
 use crate::{StringId, StringInterner};
 use crate::source::{ByteRange, FileId};
-use crate::surface::{ExprField, FormatField, Item, Module, ParseMessage, Pattern, Term, TypeField};
+use crate::surface::{ExprField, FormatField, Item, Module, ParseMessage, Pattern, Term, TypeField, BinOp};
 use crate::surface::lexer::{Error as LexerError, Token};
 
 grammar<'arena, 'source>(
@@ -40,7 +40,9 @@ extern {
         "." => Token::FullStop,
         "->" => Token::HyphenGreater,
         "<-" => Token::LessHyphen,
+        "-" => Token::Minus,
         "|" => Token::Pipe,
+        "+" => Token::Plus,
         ";" => Token::Semicolon,
         "_" => Token::Underscore,
 
@@ -142,12 +144,24 @@ FunTerm: Term<'arena, ByteRange> = {
 };
 
 AppTerm: Term<'arena, ByteRange> = {
-    AtomicTerm,
+    BinExpr,
     <start: @L> <head_expr: AppTerm> <input_expr: AtomicTerm> <end: @R> => {
         Term::App(
             ByteRange::new(file_id, start, end),
             scope.to_scope(head_expr),
             scope.to_scope(input_expr),
+        )
+    },
+};
+
+BinExpr: Term<'arena, ByteRange> = {
+    AtomicTerm,
+    <start: @L> <lhs: BinExpr> <op: BinOp> <rhs: AtomicTerm> <end: @R> => {
+        Term::BinOp(
+            ByteRange::new(file_id, start, end),
+            scope.to_scope(lhs),
+            op,
+            scope.to_scope(rhs),
         )
     },
 };
@@ -210,6 +224,12 @@ TypeField: TypeField<'arena, ByteRange> = {
 ExprField: ExprField<'arena, ByteRange> = {
     <label: RangedName> "=" <expr: Term> => ExprField { label, expr },
 };
+
+BinOp: BinOp<ByteRange> = {
+    <start: @L> "+" <end: @R> => BinOp::Plus(ByteRange::new(file_id, start, end)),
+    <start: @L> "-" <end: @R> => BinOp::Minus(ByteRange::new(file_id, start, end)),
+    // TOOD: * and /
+}
 
 #[inline] Name: StringId = { <"name"> => interner.borrow_mut().get_or_intern(<>) };
 #[inline] Hole: StringId = { <"hole"> => interner.borrow_mut().get_or_intern(<>) };

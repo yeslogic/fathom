@@ -6,7 +6,7 @@ use std::cell::RefCell;
 use crate::core::UIntStyle;
 use crate::env::{self, EnvLen, GlobalVar, LocalVar, UniqueEnv};
 use crate::surface::elaboration::FlexSource;
-use crate::surface::{ExprField, FormatField, Item, Module, Pattern, Term, TypeField};
+use crate::surface::{BinOp, ExprField, FormatField, Item, Module, Pattern, Term, TypeField};
 use crate::{core, StringId, StringInterner};
 
 /// Distillation context.
@@ -393,16 +393,54 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                     self.scope.to_scope(output_expr),
                 )
             }
-            core::Term::FunApp(head_expr, input_expr) => {
-                let head_expr = self.synth(head_expr);
-                let input_expr = self.check(input_expr);
+            core::Term::FunApp(head_expr, input_expr) => match (head_expr, input_expr) {
+                (
+                    core::Term::FunApp(
+                        core::Term::Prim(
+                            core::Prim::U8Add
+                            | core::Prim::U16Add
+                            | core::Prim::U32Add
+                            | core::Prim::U64Add
+                            | core::Prim::S8Add
+                            | core::Prim::S16Add
+                            | core::Prim::S32Add
+                            | core::Prim::S64Add
+                            | core::Prim::PosAddU8
+                            | core::Prim::PosAddU16
+                            | core::Prim::PosAddU32
+                            | core::Prim::PosAddU64,
+                        ),
+                        lhs,
+                    ),
+                    rhs,
+                ) => self.synth_bin_op(lhs, rhs, BinOp::Plus(())),
+                (
+                    core::Term::FunApp(
+                        core::Term::Prim(
+                            core::Prim::U8Sub
+                            | core::Prim::U16Sub
+                            | core::Prim::U32Sub
+                            | core::Prim::U64Sub
+                            | core::Prim::S8Sub
+                            | core::Prim::S16Sub
+                            | core::Prim::S32Sub
+                            | core::Prim::S64Sub,
+                        ),
+                        lhs,
+                    ),
+                    rhs,
+                ) => self.synth_bin_op(lhs, rhs, BinOp::Minus(())),
+                _ => {
+                    let head_expr = self.synth(head_expr);
+                    let input_expr = self.check(input_expr);
 
-                Term::App(
-                    (),
-                    self.scope.to_scope(head_expr),
-                    self.scope.to_scope(input_expr),
-                )
-            }
+                    Term::App(
+                        (),
+                        self.scope.to_scope(head_expr),
+                        self.scope.to_scope(input_expr),
+                    )
+                }
+            },
             core::Term::RecordType(labels, _) if labels.is_empty() => {
                 Term::Ann((), &Term::UnitLiteral(()), &Term::Universe(()))
             }
@@ -533,6 +571,22 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 }
             }
         }
+    }
+
+    fn synth_bin_op(
+        &mut self,
+        lhs: &core::Term<'_>,
+        rhs: &core::Term<'_>,
+        op: BinOp<()>,
+    ) -> Term<'arena, ()> {
+        let lhs = self.synth(lhs);
+        let rhs = self.synth(rhs);
+        Term::BinOp(
+            (),
+            self.scope.to_scope(lhs),
+            op,
+            self.scope.to_scope(self.scope.to_scope(rhs)),
+        )
     }
 
     fn synth_format_fields(

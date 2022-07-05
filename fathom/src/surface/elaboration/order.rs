@@ -268,6 +268,10 @@ fn term_deps(
             term_deps(cond, item_names, local_names, deps);
             local_names.pop();
         }
+        Term::BinOp(_, lhs, _, rhs) => {
+            term_deps(lhs, item_names, local_names, deps);
+            term_deps(rhs, item_names, local_names, deps);
+        }
         Term::Hole(_, _)
         | Term::Placeholder(_)
         | Term::Universe(_)
