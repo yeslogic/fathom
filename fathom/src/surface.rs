@@ -107,6 +107,12 @@ impl<Range> BinOp<Range> {
             BinOp::Minus(_) => "-",
         }
     }
+
+    fn precedence(&self) -> pretty::Prec {
+        match self {
+            BinOp::Plus(_) | BinOp::Minus(_) => pretty::Prec::Add,
+        }
+    }
 }
 
 impl<Range> fmt::Display for BinOp<Range> {

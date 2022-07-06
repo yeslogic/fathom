@@ -12,7 +12,7 @@ let delta_bits : _ = fun delta_format => fun num_sizes => match delta_format {
     0x3 => u16_mul num_sizes 8,
     _ => 0,
 };
-let num_sizes : _ = fun start => fun end => ((end - start) + (1 : U16));
+let num_sizes : _ = fun start => fun end => (end - start) + (1 : U16);
 {
     start_size <- u16be,
     end_size <- u16be,

@@ -11,6 +11,7 @@ pub enum Prec {
     Top = 0,
     Let,
     Fun,
+    Add,
     App,
     Atomic,
 }
@@ -294,7 +295,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 self.text("}"),
             ),
             Term::BinOp(_, lhs, op, rhs) => self.paren(
-                prec > Prec::Top,
+                prec > op.precedence(),
                 self.concat([
                     self.term_prec(Prec::Atomic, lhs),
                     self.space(),
