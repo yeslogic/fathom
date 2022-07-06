@@ -11,6 +11,7 @@ pub enum Prec {
     Top = 0,
     Let,
     Fun,
+    Mul,
     Add,
     App,
     Atomic,

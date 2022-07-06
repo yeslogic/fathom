@@ -1924,6 +1924,26 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
 
         let output_type = Arc::clone(lhs_type);
         match (op, operand_types) {
+            (Mul(_), Some(((U8Type, []), (U8Type, []))))    => (core::Term::Prim(U8Mul), output_type),
+            (Mul(_), Some(((U16Type, []), (U16Type, []))))  => (core::Term::Prim(U16Mul), output_type),
+            (Mul(_), Some(((U32Type, []), (U32Type, []))))  => (core::Term::Prim(U32Mul), output_type),
+            (Mul(_), Some(((U64Type, []), (U64Type, []))))  => (core::Term::Prim(U64Mul), output_type),
+
+            (Mul(_), Some(((S8Type, []), (S8Type, []))))    => (core::Term::Prim(S8Mul), output_type),
+            (Mul(_), Some(((S16Type, []), (S16Type, []))))  => (core::Term::Prim(S16Mul), output_type),
+            (Mul(_), Some(((S32Type, []), (S32Type, []))))  => (core::Term::Prim(S32Mul), output_type),
+            (Mul(_), Some(((S64Type, []), (S64Type, []))))  => (core::Term::Prim(S64Mul), output_type),
+
+            (Div(_), Some(((U8Type, []), (U8Type, []))))    => (core::Term::Prim(U8Div), output_type),
+            (Div(_), Some(((U16Type, []), (U16Type, []))))  => (core::Term::Prim(U16Div), output_type),
+            (Div(_), Some(((U32Type, []), (U32Type, []))))  => (core::Term::Prim(U32Div), output_type),
+            (Div(_), Some(((U64Type, []), (U64Type, []))))  => (core::Term::Prim(U64Div), output_type),
+
+            (Div(_), Some(((S8Type, []), (S8Type, []))))    => (core::Term::Prim(S8Div), output_type),
+            (Div(_), Some(((S16Type, []), (S16Type, []))))  => (core::Term::Prim(S16Div), output_type),
+            (Div(_), Some(((S32Type, []), (S32Type, []))))  => (core::Term::Prim(S32Div), output_type),
+            (Div(_), Some(((S64Type, []), (S64Type, []))))  => (core::Term::Prim(S64Div), output_type),
+
             (Plus(_), Some(((U8Type, []), (U8Type, []))))    => (core::Term::Prim(U8Add), output_type),
             (Plus(_), Some(((U16Type, []), (U16Type, []))))  => (core::Term::Prim(U16Add), output_type),
             (Plus(_), Some(((U32Type, []), (U32Type, []))))  => (core::Term::Prim(U32Add), output_type),

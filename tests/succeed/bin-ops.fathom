@@ -1,7 +1,7 @@
 let device_table = (
     let u16_div_ceil = fun (numerator : U16) => fun (denominator : U16) => (
-        let quotient = u16_div numerator denominator;
-        match (u16_lt (u16_mul quotient denominator) numerator) {
+        let quotient = numerator / denominator;
+        match (u16_lt (quotient * denominator) numerator) {
             true => quotient + (1 : U16),
             false => quotient,
         }
@@ -10,11 +10,11 @@ let device_table = (
     let delta_bits = fun (delta_format : U16) => fun (num_sizes : U16) =>
         match delta_format {
             // Signed 2-bit value, 8 values per u16be
-            0x0001 => u16_mul num_sizes 2,
+            0x0001 => num_sizes * (2 : U16),
             // Signed 4-bit value, 4 values per u16be
-            0x0002 => u16_mul num_sizes 4,
+            0x0002 => num_sizes * (4 : U16),
             // Signed 8-bit value, 2 values per u16be
-            0x0003 => u16_mul num_sizes 8,
+            0x0003 => num_sizes * (8 : U16),
             // Unreachable due to match done in device_or_variation_index_table
             _ => 0,
         };

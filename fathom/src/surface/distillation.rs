@@ -397,6 +397,38 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 (
                     core::Term::FunApp(
                         core::Term::Prim(
+                            core::Prim::U8Mul
+                            | core::Prim::U16Mul
+                            | core::Prim::U32Mul
+                            | core::Prim::U64Mul
+                            | core::Prim::S8Mul
+                            | core::Prim::S16Mul
+                            | core::Prim::S32Mul
+                            | core::Prim::S64Mul,
+                        ),
+                        lhs,
+                    ),
+                    rhs,
+                ) => self.synth_bin_op(lhs, rhs, BinOp::Mul(())),
+                (
+                    core::Term::FunApp(
+                        core::Term::Prim(
+                            core::Prim::U8Div
+                            | core::Prim::U16Div
+                            | core::Prim::U32Div
+                            | core::Prim::U64Div
+                            | core::Prim::S8Div
+                            | core::Prim::S16Div
+                            | core::Prim::S32Div
+                            | core::Prim::S64Div,
+                        ),
+                        lhs,
+                    ),
+                    rhs,
+                ) => self.synth_bin_op(lhs, rhs, BinOp::Div(())),
+                (
+                    core::Term::FunApp(
+                        core::Term::Prim(
                             core::Prim::U8Add
                             | core::Prim::U16Add
                             | core::Prim::U32Add

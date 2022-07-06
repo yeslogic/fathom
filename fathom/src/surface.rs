@@ -90,12 +90,16 @@ pub enum Pattern<Range> {
 pub enum BinOp<Range> {
     Plus(Range),
     Minus(Range),
+    Mul(Range),
+    Div(Range),
 }
 
 impl BinOp<ByteRange> {
     fn range(&self) -> ByteRange {
         match self {
-            BinOp::Plus(range) | BinOp::Minus(range) => *range,
+            BinOp::Plus(range) | BinOp::Minus(range) | BinOp::Mul(range) | BinOp::Div(range) => {
+                *range
+            }
         }
     }
 }
@@ -105,22 +109,22 @@ impl<Range> BinOp<Range> {
         match self {
             BinOp::Plus(_) => "+",
             BinOp::Minus(_) => "-",
+            BinOp::Mul(_) => "*",
+            BinOp::Div(_) => "/",
         }
     }
 
     fn precedence(&self) -> pretty::Prec {
         match self {
             BinOp::Plus(_) | BinOp::Minus(_) => pretty::Prec::Add,
+            BinOp::Mul(_) | BinOp::Div(_) => pretty::Prec::Mul,
         }
     }
 }
 
 impl<Range> fmt::Display for BinOp<Range> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            BinOp::Plus(_) => f.write_str(self.as_str()),
-            BinOp::Minus(_) => f.write_str(self.as_str()),
-        }
+        f.write_str(self.as_str())
     }
 }
 

@@ -38,12 +38,14 @@ extern {
         "=" => Token::Equals,
         "=>" => Token::EqualsGreater,
         "." => Token::FullStop,
+        "/" => Token::ForwardSlash,
         "->" => Token::HyphenGreater,
         "<-" => Token::LessHyphen,
         "-" => Token::Minus,
         "|" => Token::Pipe,
         "+" => Token::Plus,
         ";" => Token::Semicolon,
+        "*" => Token::Star,
         "_" => Token::Underscore,
 
         "{" => Token::OpenBrace,
@@ -144,9 +146,15 @@ FunTerm: Term<'arena, ByteRange> = {
 };
 
 AddExpr: Term<'arena, ByteRange> = {
+    MulExpr,
+    BinExpr<MulExpr, BinOpAdd, AddExpr>,
+    BinExpr<MulExpr, BinOpSub, AddExpr>,
+};
+
+MulExpr: Term<'arena, ByteRange> = {
     AppTerm,
-    BinExpr<AppTerm, BinOpAdd, AddExpr>,
-    BinExpr<AppTerm, BinOpSub, AddExpr>,
+    BinExpr<AppTerm, BinOpMul, MulExpr>,
+    BinExpr<AppTerm, BinOpDiv, MulExpr>,
 };
 
 AppTerm: Term<'arena, ByteRange> = {
@@ -232,6 +240,8 @@ BinExpr<Lhs, Op, Rhs>: Term<'arena, ByteRange> = {
 
 BinOpAdd: BinOp<ByteRange> = <start: @L> "+" <end: @R> => BinOp::Plus(ByteRange::new(file_id, start, end));
 BinOpSub: BinOp<ByteRange> = <start: @L> "-" <end: @R> => BinOp::Minus(ByteRange::new(file_id, start, end));
+BinOpMul: BinOp<ByteRange> = <start: @L> "*" <end: @R> => BinOp::Mul(ByteRange::new(file_id, start, end));
+BinOpDiv: BinOp<ByteRange> = <start: @L> "/" <end: @R> => BinOp::Div(ByteRange::new(file_id, start, end));
 
 #[inline] Name: StringId = { <"name"> => interner.borrow_mut().get_or_intern(<>) };
 #[inline] Hole: StringId = { <"hole"> => interner.borrow_mut().get_or_intern(<>) };

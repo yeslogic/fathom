@@ -43,6 +43,8 @@ pub enum Token<'source> {
     EqualsGreater,
     #[token(".")]
     FullStop,
+    #[token("/")]
+    ForwardSlash,
     #[token("->")]
     HyphenGreater,
     #[token("<-")]
@@ -55,6 +57,8 @@ pub enum Token<'source> {
     Plus,
     #[token(";")]
     Semicolon,
+    #[token("*")]
+    Star,
     #[token("_")]
     Underscore,
 
@@ -134,11 +138,13 @@ impl<'source> Token<'source> {
             Token::Comma => ",",
             Token::Equals => "=>",
             Token::EqualsGreater => "=>",
+            Token::ForwardSlash => "/",
             Token::FullStop => ".",
             Token::HyphenGreater => "->",
             Token::LessHyphen => "<-",
             Token::Minus => "-",
             Token::Semicolon => ";",
+            Token::Star => "*",
             Token::Pipe => "|",
             Token::Plus => "+",
             Token::Underscore => "_",

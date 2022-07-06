@@ -1,15 +1,15 @@
 stdout = '''
 let device_table : _ = let u16_div_ceil : _ =
 fun numerator => fun denominator => let quotient : _ numerator denominator =
-u16_div numerator denominator;
-match (u16_lt (u16_mul quotient denominator) numerator) {
+numerator / denominator;
+match (u16_lt (quotient * denominator) numerator) {
     false => quotient,
     true => quotient + (1 : U16),
 };
 let delta_bits : _ = fun delta_format => fun num_sizes => match delta_format {
-    0x1 => u16_mul num_sizes 2,
-    0x2 => u16_mul num_sizes 4,
-    0x3 => u16_mul num_sizes 8,
+    0x1 => num_sizes * (2 : U16),
+    0x2 => num_sizes * (4 : U16),
+    0x3 => num_sizes * (8 : U16),
     _ => 0,
 };
 let num_sizes : _ = fun start => fun end => (end - start) + (1 : U16);
