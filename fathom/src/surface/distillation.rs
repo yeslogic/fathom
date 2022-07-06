@@ -445,7 +445,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                         lhs,
                     ),
                     rhs,
-                ) => self.synth_bin_op(lhs, rhs, BinOp::Plus(())),
+                ) => self.synth_bin_op(lhs, rhs, BinOp::Add(())),
                 (
                     core::Term::FunApp(
                         core::Term::Prim(
@@ -461,7 +461,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                         lhs,
                     ),
                     rhs,
-                ) => self.synth_bin_op(lhs, rhs, BinOp::Minus(())),
+                ) => self.synth_bin_op(lhs, rhs, BinOp::Sub(())),
                 _ => {
                     let head_expr = self.synth(head_expr);
                     let input_expr = self.check(input_expr);

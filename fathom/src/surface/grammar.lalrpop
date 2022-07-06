@@ -238,8 +238,8 @@ BinExpr<Lhs, Op, Rhs>: Term<'arena, ByteRange> = {
     },
 };
 
-BinOpAdd: BinOp<ByteRange> = <start: @L> "+" <end: @R> => BinOp::Plus(ByteRange::new(file_id, start, end));
-BinOpSub: BinOp<ByteRange> = <start: @L> "-" <end: @R> => BinOp::Minus(ByteRange::new(file_id, start, end));
+BinOpAdd: BinOp<ByteRange> = <start: @L> "+" <end: @R> => BinOp::Add(ByteRange::new(file_id, start, end));
+BinOpSub: BinOp<ByteRange> = <start: @L> "-" <end: @R> => BinOp::Sub(ByteRange::new(file_id, start, end));
 BinOpMul: BinOp<ByteRange> = <start: @L> "*" <end: @R> => BinOp::Mul(ByteRange::new(file_id, start, end));
 BinOpDiv: BinOp<ByteRange> = <start: @L> "/" <end: @R> => BinOp::Div(ByteRange::new(file_id, start, end));
 
