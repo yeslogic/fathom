@@ -100,11 +100,20 @@ impl BinOp<ByteRange> {
     }
 }
 
+impl<Range> BinOp<Range> {
+    fn as_str(&self) -> &'static str {
+        match self {
+            BinOp::Plus(_) => "+",
+            BinOp::Minus(_) => "-",
+        }
+    }
+}
+
 impl<Range> fmt::Display for BinOp<Range> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            BinOp::Plus(_) => f.write_str("+"),
-            BinOp::Minus(_) => f.write_str("-"),
+            BinOp::Plus(_) => f.write_str(self.as_str()),
+            BinOp::Minus(_) => f.write_str(self.as_str()),
         }
     }
 }

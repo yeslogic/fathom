@@ -298,7 +298,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 self.concat([
                     self.term_prec(Prec::Atomic, lhs),
                     self.space(),
-                    self.text(op.to_string()),
+                    self.text(op.as_str()),
                     self.space(),
                     self.term_prec(Prec::Atomic, rhs),
                 ]),
