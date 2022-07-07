@@ -144,3 +144,22 @@ error: duplicate labels found in record
 
 
 ```
+
+### Module item cycle
+
+Cycles in a module are reported during elaboration
+
+```console
+$ fathom elab --module tests/fail/elaboration/item-cycle.fathom
+? failed
+error: cycle detected
+ = first → second → third → first
+
+error: cannot find `first` in scope
+  ┌─ tests/fail/elaboration/item-cycle.fathom:5:13
+  │
+5 │ def third = first;
+  │             ^^^^^ unbound name
+
+
+```

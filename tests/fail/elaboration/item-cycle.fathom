@@ -1,0 +1,5 @@
+//~ ignore = true
+
+def first = second;
+def second = third;
+def third = first;
