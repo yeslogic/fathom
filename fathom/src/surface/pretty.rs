@@ -7,7 +7,7 @@ use crate::{StringId, StringInterner};
 
 /// Term precedences
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub enum Prec {
+enum Prec {
     Top = 0,
     Let,
     Fun,
@@ -109,7 +109,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         self.term_prec(Prec::Top, term)
     }
 
-    pub fn term_prec<Range>(
+    fn term_prec<Range>(
         &'arena self,
         prec: Prec,
         term: &Term<'_, Range>,
