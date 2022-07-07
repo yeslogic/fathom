@@ -298,11 +298,11 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
             Term::BinOp(_, lhs, op, rhs) => self.paren(
                 prec > op.precedence(),
                 self.concat([
-                    self.term_prec(Prec::Atomic, lhs),
+                    self.term_prec(op.lhs_prec(), lhs),
                     self.space(),
                     self.text(op.as_str()),
                     self.space(),
-                    self.term_prec(Prec::Atomic, rhs),
+                    self.term_prec(op.rhs_prec(), rhs),
                 ]),
             ),
             Term::ReportedError(_) => self.text("#error"),
@@ -480,6 +480,20 @@ impl<'interner, 'arena, A: 'arena> DocAllocator<'arena, A> for Context<'interner
 
 impl<Range> BinOp<Range> {
     fn precedence(&self) -> Prec {
+        match self {
+            BinOp::Add(_) | BinOp::Sub(_) => Prec::Add,
+            BinOp::Mul(_) | BinOp::Div(_) => Prec::Mul,
+        }
+    }
+
+    fn lhs_prec(&self) -> Prec {
+        match self {
+            BinOp::Add(_) | BinOp::Sub(_) => Prec::Mul,
+            BinOp::Mul(_) | BinOp::Div(_) => Prec::App,
+        }
+    }
+
+    fn rhs_prec(&self) -> Prec {
         match self {
             BinOp::Add(_) | BinOp::Sub(_) => Prec::Add,
             BinOp::Mul(_) | BinOp::Div(_) => Prec::Mul,
