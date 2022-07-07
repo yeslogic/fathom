@@ -2,7 +2,7 @@ use pretty::{Doc, DocAllocator, DocBuilder, DocPtr, RefDoc};
 use scoped_arena::Scope;
 use std::cell::RefCell;
 
-use crate::surface::{FormatField, Item, Module, Pattern, Term};
+use crate::surface::{BinOp, FormatField, Item, Module, Pattern, Term};
 use crate::{StringId, StringInterner};
 
 /// Term precedences
@@ -475,5 +475,14 @@ impl<'interner, 'arena, A: 'arena> DocAllocator<'arena, A> for Context<'interner
         f: impl 'arena + Fn(isize) -> Self::Doc,
     ) -> <Self::Doc as DocPtr<'arena, A>>::WidthFn {
         self.scope.to_scope(f)
+    }
+}
+
+impl<Range> BinOp<Range> {
+    fn precedence(&self) -> Prec {
+        match self {
+            BinOp::Add(_) | BinOp::Sub(_) => Prec::Add,
+            BinOp::Mul(_) | BinOp::Div(_) => Prec::Mul,
+        }
     }
 }

@@ -111,13 +111,6 @@ impl<Range> BinOp<Range> {
             BinOp::Div(_) => "/",
         }
     }
-
-    fn precedence(&self) -> pretty::Prec {
-        match self {
-            BinOp::Add(_) | BinOp::Sub(_) => pretty::Prec::Add,
-            BinOp::Mul(_) | BinOp::Div(_) => pretty::Prec::Mul,
-        }
-    }
 }
 
 impl<Range> fmt::Display for BinOp<Range> {
