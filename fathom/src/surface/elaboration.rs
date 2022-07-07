@@ -26,7 +26,7 @@ use std::str::FromStr;
 use std::sync::Arc;
 
 use crate::alloc::SliceVec;
-use crate::core::semantics::{self, ArcValue, Closure, Elim, Head, Telescope, Value};
+use crate::core::semantics::{self, ArcValue, Closure, Head, Telescope, Value};
 use crate::core::{self, binary, Const, Prim, UIntStyle};
 use crate::env::{self, EnvLen, GlobalVar, SharedEnv, SliceEnv, UniqueEnv};
 use crate::source::ByteRange;
@@ -1877,111 +1877,98 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
 
                 (core::Term::FormatOverlap(labels, formats), format_type)
             }
-            Term::BinOp(range, lhs, op, rhs) => {
-                // de-sugar into function application
-                let (lhs_expr, lhs_type) = self.synth(lhs);
-                let (rhs_expr, rhs_type) = self.synth(rhs);
-                let lhs_type = self.elim_context().force(&lhs_type);
-                let rhs_type = self.elim_context().force(&rhs_type);
-                let operand_types =
-                    Option::zip(lhs_type.match_prim_spine(), rhs_type.match_prim_spine());
-                let (fun, output_type) = self.match_bin_op(
-                    *range,
-                    lhs.range(),
-                    rhs.range(),
-                    &lhs_type,
-                    &rhs_type,
-                    *op,
-                    operand_types,
-                );
-                let fun_app = core::Term::FunApp(
-                    self.scope.to_scope(core::Term::FunApp(
-                        self.scope.to_scope(fun),
-                        self.scope.to_scope(lhs_expr),
-                    )),
-                    self.scope.to_scope(rhs_expr),
-                );
-
-                (fun_app, output_type)
-            }
+            Term::BinOp(range, lhs, op, rhs) => self.synth_bin_op(*range, lhs, *op, rhs),
             Term::ReportedError(range) => self.synth_reported_error(*range),
         }
     }
 
-    #[rustfmt::skip]
-    fn match_bin_op(
+    fn synth_bin_op(
         &mut self,
         range: ByteRange,
-        lhs_range: ByteRange,
-        rhs_range: ByteRange,
-        lhs_type: &ArcValue<'arena>,
-        rhs_type: &ArcValue<'arena>,
+        lhs: &Term<'_, ByteRange>,
         op: BinOp<ByteRange>,
-        operand_types: Option<((Prim, &[Elim<'arena>]), (Prim, &[Elim<'arena>]))>,
+        rhs: &Term<'_, ByteRange>,
     ) -> (core::Term<'arena>, ArcValue<'arena>) {
         use BinOp::*;
         use Prim::*;
 
-        let output_type = Arc::clone(lhs_type);
-        match (op, operand_types) {
-            (Mul(_), Some(((U8Type, []), (U8Type, []))))    => (core::Term::Prim(U8Mul), output_type),
-            (Mul(_), Some(((U16Type, []), (U16Type, []))))  => (core::Term::Prim(U16Mul), output_type),
-            (Mul(_), Some(((U32Type, []), (U32Type, []))))  => (core::Term::Prim(U32Mul), output_type),
-            (Mul(_), Some(((U64Type, []), (U64Type, []))))  => (core::Term::Prim(U64Mul), output_type),
+        // de-sugar into function application
+        let (lhs_expr, lhs_type) = self.synth(lhs);
+        let (rhs_expr, rhs_type) = self.synth(rhs);
+        let lhs_type = self.elim_context().force(&lhs_type);
+        let rhs_type = self.elim_context().force(&rhs_type);
+        let operand_types = Option::zip(lhs_type.match_prim_spine(), rhs_type.match_prim_spine());
+        let output_type = Arc::clone(&lhs_type);
 
-            (Mul(_), Some(((S8Type, []), (S8Type, []))))    => (core::Term::Prim(S8Mul), output_type),
-            (Mul(_), Some(((S16Type, []), (S16Type, []))))  => (core::Term::Prim(S16Mul), output_type),
-            (Mul(_), Some(((S32Type, []), (S32Type, []))))  => (core::Term::Prim(S32Mul), output_type),
-            (Mul(_), Some(((S64Type, []), (S64Type, []))))  => (core::Term::Prim(S64Mul), output_type),
+        let fun = match (op, operand_types) {
+            (Mul(_), Some(((U8Type, []), (U8Type, [])))) => core::Term::Prim(U8Mul),
+            (Mul(_), Some(((U16Type, []), (U16Type, [])))) => core::Term::Prim(U16Mul),
+            (Mul(_), Some(((U32Type, []), (U32Type, [])))) => core::Term::Prim(U32Mul),
+            (Mul(_), Some(((U64Type, []), (U64Type, [])))) => core::Term::Prim(U64Mul),
 
-            (Div(_), Some(((U8Type, []), (U8Type, []))))    => (core::Term::Prim(U8Div), output_type),
-            (Div(_), Some(((U16Type, []), (U16Type, []))))  => (core::Term::Prim(U16Div), output_type),
-            (Div(_), Some(((U32Type, []), (U32Type, []))))  => (core::Term::Prim(U32Div), output_type),
-            (Div(_), Some(((U64Type, []), (U64Type, []))))  => (core::Term::Prim(U64Div), output_type),
+            (Mul(_), Some(((S8Type, []), (S8Type, [])))) => core::Term::Prim(S8Mul),
+            (Mul(_), Some(((S16Type, []), (S16Type, [])))) => core::Term::Prim(S16Mul),
+            (Mul(_), Some(((S32Type, []), (S32Type, [])))) => core::Term::Prim(S32Mul),
+            (Mul(_), Some(((S64Type, []), (S64Type, [])))) => core::Term::Prim(S64Mul),
 
-            (Div(_), Some(((S8Type, []), (S8Type, []))))    => (core::Term::Prim(S8Div), output_type),
-            (Div(_), Some(((S16Type, []), (S16Type, []))))  => (core::Term::Prim(S16Div), output_type),
-            (Div(_), Some(((S32Type, []), (S32Type, []))))  => (core::Term::Prim(S32Div), output_type),
-            (Div(_), Some(((S64Type, []), (S64Type, []))))  => (core::Term::Prim(S64Div), output_type),
+            (Div(_), Some(((U8Type, []), (U8Type, [])))) => core::Term::Prim(U8Div),
+            (Div(_), Some(((U16Type, []), (U16Type, [])))) => core::Term::Prim(U16Div),
+            (Div(_), Some(((U32Type, []), (U32Type, [])))) => core::Term::Prim(U32Div),
+            (Div(_), Some(((U64Type, []), (U64Type, [])))) => core::Term::Prim(U64Div),
 
-            (Add(_), Some(((U8Type, []), (U8Type, []))))    => (core::Term::Prim(U8Add), output_type),
-            (Add(_), Some(((U16Type, []), (U16Type, []))))  => (core::Term::Prim(U16Add), output_type),
-            (Add(_), Some(((U32Type, []), (U32Type, []))))  => (core::Term::Prim(U32Add), output_type),
-            (Add(_), Some(((U64Type, []), (U64Type, []))))  => (core::Term::Prim(U64Add), output_type),
+            (Div(_), Some(((S8Type, []), (S8Type, [])))) => core::Term::Prim(S8Div),
+            (Div(_), Some(((S16Type, []), (S16Type, [])))) => core::Term::Prim(S16Div),
+            (Div(_), Some(((S32Type, []), (S32Type, [])))) => core::Term::Prim(S32Div),
+            (Div(_), Some(((S64Type, []), (S64Type, [])))) => core::Term::Prim(S64Div),
 
-            (Add(_), Some(((S8Type, []), (S8Type, []))))    => (core::Term::Prim(S8Add), output_type),
-            (Add(_), Some(((S16Type, []), (S16Type, []))))  => (core::Term::Prim(S16Add), output_type),
-            (Add(_), Some(((S32Type, []), (S32Type, []))))  => (core::Term::Prim(S32Add), output_type),
-            (Add(_), Some(((S64Type, []), (S64Type, []))))  => (core::Term::Prim(S64Add), output_type),
+            (Add(_), Some(((U8Type, []), (U8Type, [])))) => core::Term::Prim(U8Add),
+            (Add(_), Some(((U16Type, []), (U16Type, [])))) => core::Term::Prim(U16Add),
+            (Add(_), Some(((U32Type, []), (U32Type, [])))) => core::Term::Prim(U32Add),
+            (Add(_), Some(((U64Type, []), (U64Type, [])))) => core::Term::Prim(U64Add),
 
-            (Add(_), Some(((PosType, []), (U8Type, []))))  => (core::Term::Prim(PosAddU8), output_type),
-            (Add(_), Some(((PosType, []), (U16Type, []))))  => (core::Term::Prim(PosAddU16), output_type),
-            (Add(_), Some(((PosType, []), (U32Type, []))))  => (core::Term::Prim(PosAddU32), output_type),
-            (Add(_), Some(((PosType, []), (U64Type, []))))  => (core::Term::Prim(PosAddU64), output_type),
+            (Add(_), Some(((S8Type, []), (S8Type, [])))) => core::Term::Prim(S8Add),
+            (Add(_), Some(((S16Type, []), (S16Type, [])))) => core::Term::Prim(S16Add),
+            (Add(_), Some(((S32Type, []), (S32Type, [])))) => core::Term::Prim(S32Add),
+            (Add(_), Some(((S64Type, []), (S64Type, [])))) => core::Term::Prim(S64Add),
 
-            (Sub(_), Some(((U8Type, []), (U8Type, []))))   => (core::Term::Prim(U8Sub), output_type),
-            (Sub(_), Some(((U16Type, []), (U16Type, [])))) => (core::Term::Prim(U16Sub), output_type),
-            (Sub(_), Some(((U32Type, []), (U32Type, [])))) => (core::Term::Prim(U32Sub), output_type),
-            (Sub(_), Some(((U64Type, []), (U64Type, [])))) => (core::Term::Prim(U64Sub), output_type),
+            (Add(_), Some(((PosType, []), (U8Type, [])))) => core::Term::Prim(PosAddU8),
+            (Add(_), Some(((PosType, []), (U16Type, [])))) => core::Term::Prim(PosAddU16),
+            (Add(_), Some(((PosType, []), (U32Type, [])))) => core::Term::Prim(PosAddU32),
+            (Add(_), Some(((PosType, []), (U64Type, [])))) => core::Term::Prim(PosAddU64),
 
-            (Sub(_), Some(((S8Type, []), (S8Type, []))))   => (core::Term::Prim(S8Sub), output_type),
-            (Sub(_), Some(((S16Type, []), (S16Type, [])))) => (core::Term::Prim(S16Sub), output_type),
-            (Sub(_), Some(((S32Type, []), (S32Type, [])))) => (core::Term::Prim(S32Sub), output_type),
-            (Sub(_), Some(((S64Type, []), (S64Type, [])))) => (core::Term::Prim(S64Sub), output_type),
+            (Sub(_), Some(((U8Type, []), (U8Type, [])))) => core::Term::Prim(U8Sub),
+            (Sub(_), Some(((U16Type, []), (U16Type, [])))) => core::Term::Prim(U16Sub),
+            (Sub(_), Some(((U32Type, []), (U32Type, [])))) => core::Term::Prim(U32Sub),
+            (Sub(_), Some(((U64Type, []), (U64Type, [])))) => core::Term::Prim(U64Sub),
+
+            (Sub(_), Some(((S8Type, []), (S8Type, [])))) => core::Term::Prim(S8Sub),
+            (Sub(_), Some(((S16Type, []), (S16Type, [])))) => core::Term::Prim(S16Sub),
+            (Sub(_), Some(((S32Type, []), (S32Type, [])))) => core::Term::Prim(S32Sub),
+            (Sub(_), Some(((S64Type, []), (S64Type, [])))) => core::Term::Prim(S64Sub),
             _ => {
-                let lhs = self.pretty_print_value(&lhs_type);
-                let rhs = self.pretty_print_value(&rhs_type);
+                let lhs_pretty = self.pretty_print_value(&lhs_type);
+                let rhs_pretty = self.pretty_print_value(&rhs_type);
                 self.push_message(Message::BinOpMismatchedTypes {
                     range,
-                    lhs_range,
-                    rhs_range,
+                    lhs_range: lhs.range(),
+                    rhs_range: rhs.range(),
                     op,
-                    lhs,
-                    rhs,
+                    lhs: lhs_pretty,
+                    rhs: rhs_pretty,
                 });
                 return self.synth_reported_error(range);
             }
-        }
+        };
+
+        let fun_app = core::Term::FunApp(
+            self.scope.to_scope(core::Term::FunApp(
+                self.scope.to_scope(fun),
+                self.scope.to_scope(lhs_expr),
+            )),
+            self.scope.to_scope(rhs_expr),
+        );
+
+        (fun_app, output_type)
     }
 
     fn synth_reported_error(&mut self, range: ByteRange) -> (core::Term<'arena>, ArcValue<'arena>) {
