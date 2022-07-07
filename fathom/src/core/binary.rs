@@ -18,7 +18,8 @@ pub enum ReadError {
     UnwrappedNone,
     ReadFailFormat,
     CondFailure,
-    SetOffsetOutsideBuffer(usize),
+    SetOffsetBeforeStartOfBuffer { offset: usize },
+    SetOffsetAfterEndOfBuffer { offset: Option<usize> },
     UnexpectedEndOfBuffer,
     PositionOverflow,
 }
@@ -32,8 +33,11 @@ impl fmt::Display for ReadError {
             ReadError::UnknownItem => f.write_str("unknown item"),
             ReadError::ReadFailFormat => f.write_str("read a fail format"),
             ReadError::CondFailure => f.write_str("conditional format failed"),
-            ReadError::SetOffsetOutsideBuffer(_) => {
-                f.write_str("attempt to set buffer offset beyond bounds of buffer")
+            ReadError::SetOffsetBeforeStartOfBuffer { .. } => {
+                f.write_str("attempt to set buffer offset before the start of the buffer")
+            }
+            ReadError::SetOffsetAfterEndOfBuffer { .. } => {
+                f.write_str("attempt to set buffer offset after the end of the buffer")
             }
             ReadError::UnexpectedEndOfBuffer => f.write_str("unexpected end of buffer"),
             ReadError::PositionOverflow => f.write_str("position overflow"),
@@ -165,16 +169,19 @@ impl<'data> BufferReader<'data> {
     }
 
     /// Set the offset of the reader relative to the start of the backing buffer.
-    pub fn set_relative_offset(&mut self, relative_offset: usize) -> Option<()> {
+    pub fn set_relative_offset(&mut self, relative_offset: usize) -> Result<(), ReadError> {
         (relative_offset <= self.buffer.remaining_len())
             .then(|| self.relative_offset = relative_offset)
+            .ok_or(ReadError::SetOffsetAfterEndOfBuffer {
+                offset: self.buffer.start_offset.checked_add(relative_offset),
+            })
     }
 
     /// Set the offset of the reader relative to the start position.
     pub fn set_offset(&mut self, offset: usize) -> Result<(), ReadError> {
         usize::checked_sub(offset, self.buffer.start_offset)
+            .ok_or_else(|| ReadError::SetOffsetBeforeStartOfBuffer { offset })
             .and_then(|relative_offset| self.set_relative_offset(relative_offset))
-            .ok_or_else(|| ReadError::SetOffsetOutsideBuffer(offset))
     }
 
     /// Get a slice of the bytes in the buffer, relative to the current offset in the buffer.
