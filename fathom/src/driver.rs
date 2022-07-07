@@ -196,13 +196,7 @@ impl<'surface, 'core> Driver<'surface, 'core> {
         let mut context = elaboration::Context::new(&self.interner, &self.core_scope, &err_scope);
 
         let surface_module = self.parse_module(file_id);
-        let module = match context.elab_module(&surface_module) {
-            Ok(module) => module,
-            Err(messages) => {
-                self.emit_diagnostics(messages.iter().map(|m| m.to_diagnostic(&self.interner)));
-                return Status::Error;
-            }
-        };
+        let module = context.elab_module(&surface_module);
 
         // Emit errors we might have found during elaboration
         let elab_messages = context.drain_messages();
@@ -298,13 +292,7 @@ impl<'surface, 'core> Driver<'surface, 'core> {
         // Parse and elaborate the supplied module
         if let Some(file_id) = module_file_id {
             let surface_module = self.parse_module(file_id);
-            match context.elab_module(&surface_module) {
-                Ok(module) => module,
-                Err(messages) => {
-                    self.emit_diagnostics(messages.iter().map(|m| m.to_diagnostic(&self.interner)));
-                    return Status::Error;
-                }
-            };
+            context.elab_module(&surface_module);
         }
 
         // Parse and elaborate the supplied format with the items from the

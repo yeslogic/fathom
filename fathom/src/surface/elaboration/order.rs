@@ -18,29 +18,22 @@
 //!       re-enter an item already in the stack report an error indicating a
 //!       cycle has been detected.
 
-use std::cell::RefCell;
-
-use codespan_reporting::diagnostic::Diagnostic;
 use fxhash::{FxHashMap, FxHashSet};
 
-use crate::source::{ByteRange, FileId};
-use crate::surface::{FormatField, Item, Module, Pattern, Term};
-use crate::{StringId, StringInterner};
+use crate::source::ByteRange;
+use crate::surface::elaboration::reporting::Message;
+use crate::surface::{elaboration, FormatField, Item, Module, Pattern, Term};
+use crate::StringId;
 
 pub fn elaboration_order(
+    elab_context: &mut elaboration::Context,
     surface_module: &Module<'_, ByteRange>,
-) -> Result<Vec<usize>, Vec<ModuleOrderMessage>> {
+) -> Vec<usize> {
     let item_names = item_names(surface_module);
     let item_deps = collect_item_dependencies(surface_module, &item_names);
 
-    let mut context = ModuleOrderContext::new();
-    context.determine_order(&surface_module.items, &item_names, &item_deps);
-
-    if context.messages.is_empty() {
-        Ok(context.output)
-    } else {
-        Err(context.messages)
-    }
+    let context = ModuleOrderContext::new(elab_context);
+    context.determine_order(&surface_module.items, &item_names, &item_deps)
 }
 
 fn item_names(surface_module: &Module<'_, ByteRange>) -> FxHashMap<StringId, usize> {
@@ -69,52 +62,29 @@ fn collect_item_dependencies(
         .collect()
 }
 
-#[derive(Clone, Debug)]
-pub enum ModuleOrderMessage {
-    CycleDetected { names: Vec<StringId> },
-}
-
-impl ModuleOrderMessage {
-    pub fn to_diagnostic(&self, interner: &RefCell<StringInterner>) -> Diagnostic<FileId> {
-        match self {
-            ModuleOrderMessage::CycleDetected { names } => {
-                let interner = interner.borrow();
-                let names: Vec<_> = names
-                    .iter()
-                    .map(|id| interner.resolve(*id).unwrap())
-                    .collect();
-                let cycle = names.join(" → ");
-                Diagnostic::error()
-                    .with_message("cycle detected")
-                    .with_notes(vec![cycle])
-            }
-        }
-    }
-}
-
-struct ModuleOrderContext {
+struct ModuleOrderContext<'a, 'interner, 'arena, 'error> {
+    elab_context: &'a mut elaboration::Context<'interner, 'arena, 'error>,
     output: Vec<usize>,
     visited: FxHashSet<StringId>,
     stack: Vec<StringId>,
-    messages: Vec<ModuleOrderMessage>,
 }
 
-impl ModuleOrderContext {
-    fn new() -> Self {
+impl<'a, 'interner, 'arena, 'error> ModuleOrderContext<'a, 'interner, 'arena, 'error> {
+    fn new(elab_context: &'a mut elaboration::Context<'interner, 'arena, 'error>) -> Self {
         ModuleOrderContext {
+            elab_context,
             output: Vec::new(),
             visited: FxHashSet::default(),
             stack: Vec::new(),
-            messages: Vec::new(),
         }
     }
 
     fn determine_order(
-        &mut self,
+        mut self,
         items: &[Item<'_, ByteRange>],
         item_names: &FxHashMap<StringId, usize>,
         dependencies: &[Vec<StringId>],
-    ) {
+    ) -> Vec<usize> {
         for item in items {
             match item {
                 Item::Definition {
@@ -126,6 +96,7 @@ impl ModuleOrderContext {
                 Item::ReportedError(_) => {}
             }
         }
+        self.output
     }
 
     fn visit_item(
@@ -140,7 +111,7 @@ impl ModuleOrderContext {
 
         if self.stack.contains(&name) {
             self.stack.push(name);
-            self.messages.push(ModuleOrderMessage::CycleDetected {
+            self.elab_context.push_message(Message::CycleDetected {
                 names: self.stack.clone(),
             });
             return;
