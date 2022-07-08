@@ -393,75 +393,13 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                     self.scope.to_scope(output_expr),
                 )
             }
-            core::Term::FunApp(head_expr, input_expr) => match (head_expr, input_expr) {
-                (
-                    core::Term::FunApp(
-                        core::Term::Prim(
-                            core::Prim::U8Mul
-                            | core::Prim::U16Mul
-                            | core::Prim::U32Mul
-                            | core::Prim::U64Mul
-                            | core::Prim::S8Mul
-                            | core::Prim::S16Mul
-                            | core::Prim::S32Mul
-                            | core::Prim::S64Mul,
-                        ),
-                        lhs,
-                    ),
-                    rhs,
-                ) => self.synth_bin_op(lhs, rhs, BinOp::Mul(())),
-                (
-                    core::Term::FunApp(
-                        core::Term::Prim(
-                            core::Prim::U8Div
-                            | core::Prim::U16Div
-                            | core::Prim::U32Div
-                            | core::Prim::U64Div
-                            | core::Prim::S8Div
-                            | core::Prim::S16Div
-                            | core::Prim::S32Div
-                            | core::Prim::S64Div,
-                        ),
-                        lhs,
-                    ),
-                    rhs,
-                ) => self.synth_bin_op(lhs, rhs, BinOp::Div(())),
-                (
-                    core::Term::FunApp(
-                        core::Term::Prim(
-                            core::Prim::U8Add
-                            | core::Prim::U16Add
-                            | core::Prim::U32Add
-                            | core::Prim::U64Add
-                            | core::Prim::S8Add
-                            | core::Prim::S16Add
-                            | core::Prim::S32Add
-                            | core::Prim::S64Add
-                            | core::Prim::PosAddU8
-                            | core::Prim::PosAddU16
-                            | core::Prim::PosAddU32
-                            | core::Prim::PosAddU64,
-                        ),
-                        lhs,
-                    ),
-                    rhs,
-                ) => self.synth_bin_op(lhs, rhs, BinOp::Add(())),
-                (
-                    core::Term::FunApp(
-                        core::Term::Prim(
-                            core::Prim::U8Sub
-                            | core::Prim::U16Sub
-                            | core::Prim::U32Sub
-                            | core::Prim::U64Sub
-                            | core::Prim::S8Sub
-                            | core::Prim::S16Sub
-                            | core::Prim::S32Sub
-                            | core::Prim::S64Sub,
-                        ),
-                        lhs,
-                    ),
-                    rhs,
-                ) => self.synth_bin_op(lhs, rhs, BinOp::Sub(())),
+            core::Term::FunApp(head_expr, input_expr) => match head_expr {
+                core::Term::FunApp(core::Term::Prim(prim), lhs)
+                    if prim_to_bin_op(prim).is_some() =>
+                {
+                    // unwrap is safe due to is_some check above
+                    self.synth_bin_op(lhs, input_expr, prim_to_bin_op(prim).unwrap())
+                }
                 _ => {
                     let head_expr = self.synth(head_expr);
                     let input_expr = self.check(input_expr);
@@ -675,5 +613,18 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
         self.truncate_rigid(initial_rigid_len);
 
         format_fields
+    }
+}
+
+fn prim_to_bin_op(prim: &core::Prim) -> Option<BinOp<()>> {
+    use crate::core::Prim::*;
+
+    match prim {
+        U8Mul | U16Mul | U32Mul | U64Mul | S8Mul | S16Mul | S32Mul | S64Mul => Some(BinOp::Mul(())),
+        U8Div | U16Div | U32Div | U64Div | S8Div | S16Div | S32Div | S64Div => Some(BinOp::Div(())),
+        U8Add | U16Add | U32Add | U64Add | S8Add | S16Add | S32Add | S64Add | PosAddU8
+        | PosAddU16 | PosAddU32 | PosAddU64 => Some(BinOp::Add(())),
+        U8Sub | U16Sub | U32Sub | U64Sub | S8Sub | S16Sub | S32Sub | S64Sub => Some(BinOp::Sub(())),
+        _ => None,
     }
 }
