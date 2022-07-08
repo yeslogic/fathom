@@ -444,11 +444,29 @@ impl From<ReadError> for Diagnostic<usize> {
                 .with_notes(vec![format!(
                     "The end of the buffer was reached before all data could be read."
                 )]),
+            ReadError::SetOffsetBeforeStartOfBuffer { offset } => Diagnostic::error()
+                .with_message(err.to_string())
+                .with_notes(vec![format!(
+                    "The offset {} is before the start of the buffer.",
+                    offset
+                )]),
+            ReadError::SetOffsetAfterEndOfBuffer {
+                offset: Some(offset),
+            } => Diagnostic::error()
+                .with_message(err.to_string())
+                .with_notes(vec![format!(
+                    "The offset {} is beyond the end of the buffer.",
+                    offset
+                )]),
+            ReadError::SetOffsetAfterEndOfBuffer { offset: None } => Diagnostic::error()
+                .with_message(err.to_string())
+                .with_notes(vec![format!(
+                    "The offset is beyond the end of the buffer (overflow).",
+                )]),
             ReadError::InvalidFormat
             | ReadError::InvalidValue
             | ReadError::UnknownItem
-            | ReadError::PositionOverflow
-            | ReadError::SetOffsetOutsideBuffer => Diagnostic::bug()
+            | ReadError::PositionOverflow => Diagnostic::bug()
                 .with_message(format!("unexpected error '{}'", err))
                 .with_notes(vec![format!(
                     "please file a bug report at: {}",
