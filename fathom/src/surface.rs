@@ -92,12 +92,27 @@ pub enum BinOp<Range> {
     Sub(Range),
     Mul(Range),
     Div(Range),
+    Eq(Range),
+    Neq(Range),
+    Lt(Range),
+    Lte(Range),
+    Gt(Range),
+    Gte(Range),
 }
 
 impl BinOp<ByteRange> {
     fn range(&self) -> ByteRange {
         match self {
-            BinOp::Add(range) | BinOp::Sub(range) | BinOp::Mul(range) | BinOp::Div(range) => *range,
+            BinOp::Add(range)
+            | BinOp::Sub(range)
+            | BinOp::Mul(range)
+            | BinOp::Div(range)
+            | BinOp::Eq(range)
+            | BinOp::Neq(range)
+            | BinOp::Lt(range)
+            | BinOp::Lte(range)
+            | BinOp::Gt(range)
+            | BinOp::Gte(range) => *range,
         }
     }
 }
@@ -109,6 +124,12 @@ impl<Range> BinOp<Range> {
             BinOp::Sub(_) => "-",
             BinOp::Mul(_) => "*",
             BinOp::Div(_) => "/",
+            BinOp::Eq(_) => "==",
+            BinOp::Neq(_) => "!=",
+            BinOp::Lt(_) => "<",
+            BinOp::Lte(_) => "<=",
+            BinOp::Gt(_) => ">",
+            BinOp::Gte(_) => ">=",
         }
     }
 }

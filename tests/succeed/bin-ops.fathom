@@ -1,7 +1,7 @@
 let device_table = (
     let u16_div_ceil = fun (numerator : U16) => fun (denominator : U16) => (
         let quotient = numerator / denominator;
-        match (u16_lt (quotient * denominator) numerator) {
+        match ((quotient * denominator) < numerator) {
             true => quotient + (1 : U16),
             false => quotient,
         }

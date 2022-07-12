@@ -11,6 +11,8 @@ enum Prec {
     Top = 0,
     Let,
     Fun,
+    Eq,
+    Cmp,
     Mul,
     Add,
     App,
@@ -480,23 +482,28 @@ impl<'interner, 'arena, A: 'arena> DocAllocator<'arena, A> for Context<'interner
 
 impl<Range> BinOp<Range> {
     fn precedence(&self) -> Prec {
-        match self {
-            BinOp::Add(_) | BinOp::Sub(_) => Prec::Add,
-            BinOp::Mul(_) | BinOp::Div(_) => Prec::Mul,
-        }
+        self.precedence_impl().1
     }
 
     fn lhs_prec(&self) -> Prec {
-        match self {
-            BinOp::Add(_) | BinOp::Sub(_) => Prec::Mul,
-            BinOp::Mul(_) | BinOp::Div(_) => Prec::App,
-        }
+        self.precedence_impl().0
     }
 
     fn rhs_prec(&self) -> Prec {
+        self.precedence_impl().2
+    }
+
+    /// Returns the precedence of this operator and its operands
+    ///
+    /// (lhs, op, rhs)
+    fn precedence_impl(&self) -> (Prec, Prec, Prec) {
         match self {
-            BinOp::Add(_) | BinOp::Sub(_) => Prec::Add,
-            BinOp::Mul(_) | BinOp::Div(_) => Prec::Mul,
+            BinOp::Eq(_) | BinOp::Neq(_) => (Prec::Cmp, Prec::Eq, Prec::Eq),
+            BinOp::Lt(_) | BinOp::Lte(_) | BinOp::Gt(_) | BinOp::Gte(_) => {
+                (Prec::Add, Prec::Cmp, Prec::Cmp)
+            }
+            BinOp::Add(_) | BinOp::Sub(_) => (Prec::Mul, Prec::Add, Prec::Add),
+            BinOp::Mul(_) | BinOp::Div(_) => (Prec::App, Prec::Mul, Prec::Mul),
         }
     }
 }

@@ -2,7 +2,7 @@ stdout = '''
 let device_table : _ = let u16_div_ceil : _ =
 fun numerator => fun denominator => let quotient : _ numerator denominator =
 numerator / denominator;
-match (u16_lt (quotient * denominator) numerator) {
+match ((quotient * denominator) < numerator) {
     false => quotient,
     true => quotient + (1 : U16),
 };
