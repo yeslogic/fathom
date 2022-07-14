@@ -155,11 +155,8 @@ $ fathom elab --module tests/fail/elaboration/item-cycle.fathom
 error: cycle detected
  = first → second → third → first
 
-error: cannot find `first` in scope
-  ┌─ tests/fail/elaboration/item-cycle.fathom:5:13
-  │
-5 │ def third = first;
-  │             ^^^^^ unbound name
+error: cycle detected
+ = a → b → c → d → b
 
 
 ```

@@ -25,6 +25,10 @@ use crate::surface::elaboration::reporting::Message;
 use crate::surface::{elaboration, FormatField, Item, Module, Pattern, Term};
 use crate::StringId;
 
+enum Error {
+    CycleDetected,
+}
+
 pub fn elaboration_order(
     elab_context: &mut elaboration::Context,
     surface_module: &Module<'_, ByteRange>,
@@ -85,13 +89,19 @@ impl<'a, 'interner, 'arena, 'error> ModuleOrderContext<'a, 'interner, 'arena, 'e
         item_names: &FxHashMap<StringId, usize>,
         dependencies: &[Vec<StringId>],
     ) -> Vec<usize> {
+        let mut erroneous = FxHashSet::default();
         for item in items {
             match item {
                 Item::Definition {
                     label: (_, label), ..
                 } => {
-                    self.visit_item(*label, item_names, dependencies);
-                    self.stack.clear();
+                    if erroneous.contains(label) {
+                        continue;
+                    }
+                    match self.visit_item(*label, item_names, dependencies) {
+                        Ok(()) => self.stack.clear(),
+                        Err(Error::CycleDetected) => erroneous.extend(self.stack.drain(..)),
+                    }
                 }
                 Item::ReportedError(_) => {}
             }
@@ -104,9 +114,9 @@ impl<'a, 'interner, 'arena, 'error> ModuleOrderContext<'a, 'interner, 'arena, 'e
         name: StringId,
         item_names: &FxHashMap<StringId, usize>,
         dependencies: &[Vec<StringId>],
-    ) {
+    ) -> Result<(), Error> {
         if self.visited.contains(&name) {
-            return;
+            return Ok(());
         }
 
         if self.stack.contains(&name) {
@@ -114,23 +124,24 @@ impl<'a, 'interner, 'arena, 'error> ModuleOrderContext<'a, 'interner, 'arena, 'e
             self.elab_context.push_message(Message::CycleDetected {
                 names: self.stack.clone(),
             });
-            return;
+            return Err(Error::CycleDetected);
         }
 
         match item_names.get(&name) {
             Some(index) => {
                 let index = *index;
                 self.stack.push(name);
-                let deps = &dependencies[index];
-                for dep in deps {
-                    self.visit_item(*dep, item_names, dependencies);
-                }
+                dependencies[index]
+                    .iter()
+                    .map(|dep| self.visit_item(*dep, item_names, dependencies))
+                    .collect::<Result<(), _>>()?;
                 self.stack.pop();
                 self.visited.insert(name);
                 self.output.push(index);
+                Ok(())
             }
             // not a module item
-            None => {}
+            None => Ok(()),
         }
     }
 }
