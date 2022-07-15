@@ -4,6 +4,7 @@ use std::cell::RefCell;
 
 use crate::source::{ByteRange, FileId};
 use crate::surface::elaboration::{unification, FlexSource};
+use crate::surface::BinOp;
 use crate::{StringId, StringInterner};
 
 /// Elaboration diagnostic messages.
@@ -89,6 +90,14 @@ pub enum Message {
         lhs: String,
         rhs: String,
         error: unification::Error,
+    },
+    BinOpMismatchedTypes {
+        range: ByteRange,
+        lhs_range: ByteRange,
+        rhs_range: ByteRange,
+        op: BinOp<ByteRange>,
+        lhs: String,
+        rhs: String,
     },
     /// A solution for a flexible variable could not be found.
     UnsolvedFlexibleVar {
@@ -322,6 +331,21 @@ impl Message {
             Message::BooleanLiteralNotSupported { range } => Diagnostic::error()
                 .with_message("boolean literal not supported for expected type")
                 .with_labels(vec![primary_label(range)]),
+            Message::BinOpMismatchedTypes {
+                range: _,
+                lhs_range,
+                rhs_range,
+                op,
+                lhs,
+                rhs,
+            } => Diagnostic::error()
+                .with_message("mismatched types")
+                .with_labels(vec![
+                    primary_label(lhs_range).with_message(format!("has type `{}`", lhs)),
+                    primary_label(rhs_range).with_message(format!("has type `{}`", rhs)),
+                    secondary_label(&op.range())
+                        .with_message(format!("no implementation for `{} {} {}`", lhs, op, rhs)),
+                ]),
             Message::FailedToUnify {
                 range,
                 lhs,

@@ -2,15 +2,17 @@ use pretty::{Doc, DocAllocator, DocBuilder, DocPtr, RefDoc};
 use scoped_arena::Scope;
 use std::cell::RefCell;
 
-use crate::surface::{FormatField, Item, Module, Pattern, Term};
+use crate::surface::{BinOp, FormatField, Item, Module, Pattern, Term};
 use crate::{StringId, StringInterner};
 
 /// Term precedences
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub enum Prec {
+enum Prec {
     Top = 0,
     Let,
     Fun,
+    Mul,
+    Add,
     App,
     Atomic,
 }
@@ -107,7 +109,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         self.term_prec(Prec::Top, term)
     }
 
-    pub fn term_prec<Range>(
+    fn term_prec<Range>(
         &'arena self,
         prec: Prec,
         term: &Term<'_, Range>,
@@ -293,6 +295,16 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 self.text(","),
                 self.text("}"),
             ),
+            Term::BinOp(_, lhs, op, rhs) => self.paren(
+                prec > op.precedence(),
+                self.concat([
+                    self.term_prec(op.lhs_prec(), lhs),
+                    self.space(),
+                    self.text(op.as_str()),
+                    self.space(),
+                    self.term_prec(op.rhs_prec(), rhs),
+                ]),
+            ),
             Term::ReportedError(_) => self.text("#error"),
         }
     }
@@ -463,5 +475,28 @@ impl<'interner, 'arena, A: 'arena> DocAllocator<'arena, A> for Context<'interner
         f: impl 'arena + Fn(isize) -> Self::Doc,
     ) -> <Self::Doc as DocPtr<'arena, A>>::WidthFn {
         self.scope.to_scope(f)
+    }
+}
+
+impl<Range> BinOp<Range> {
+    fn precedence(&self) -> Prec {
+        match self {
+            BinOp::Add(_) | BinOp::Sub(_) => Prec::Add,
+            BinOp::Mul(_) | BinOp::Div(_) => Prec::Mul,
+        }
+    }
+
+    fn lhs_prec(&self) -> Prec {
+        match self {
+            BinOp::Add(_) | BinOp::Sub(_) => Prec::Mul,
+            BinOp::Mul(_) | BinOp::Div(_) => Prec::App,
+        }
+    }
+
+    fn rhs_prec(&self) -> Prec {
+        match self {
+            BinOp::Add(_) | BinOp::Sub(_) => Prec::Add,
+            BinOp::Mul(_) | BinOp::Div(_) => Prec::Mul,
+        }
     }
 }

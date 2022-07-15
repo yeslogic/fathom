@@ -31,7 +31,7 @@ use crate::core::{self, binary, Const, Prim, UIntStyle};
 use crate::env::{self, EnvLen, GlobalVar, SharedEnv, SliceEnv, UniqueEnv};
 use crate::source::ByteRange;
 use crate::surface::elaboration::reporting::Message;
-use crate::surface::{distillation, pretty, FormatField, Item, Module, Pattern, Term};
+use crate::surface::{distillation, pretty, BinOp, FormatField, Item, Module, Pattern, Term};
 use crate::{StringId, StringInterner};
 
 mod order;
@@ -1877,8 +1877,98 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
 
                 (core::Term::FormatOverlap(labels, formats), format_type)
             }
+            Term::BinOp(range, lhs, op, rhs) => self.synth_bin_op(*range, lhs, *op, rhs),
             Term::ReportedError(range) => self.synth_reported_error(*range),
         }
+    }
+
+    fn synth_bin_op(
+        &mut self,
+        range: ByteRange,
+        lhs: &Term<'_, ByteRange>,
+        op: BinOp<ByteRange>,
+        rhs: &Term<'_, ByteRange>,
+    ) -> (core::Term<'arena>, ArcValue<'arena>) {
+        use BinOp::*;
+        use Prim::*;
+
+        // de-sugar into function application
+        let (lhs_expr, lhs_type) = self.synth(lhs);
+        let (rhs_expr, rhs_type) = self.synth(rhs);
+        let lhs_type = self.elim_context().force(&lhs_type);
+        let rhs_type = self.elim_context().force(&rhs_type);
+        let operand_types = Option::zip(lhs_type.match_prim_spine(), rhs_type.match_prim_spine());
+        let output_type = Arc::clone(&lhs_type);
+
+        let fun = match (op, operand_types) {
+            (Mul(_), Some(((U8Type, []), (U8Type, [])))) => core::Term::Prim(U8Mul),
+            (Mul(_), Some(((U16Type, []), (U16Type, [])))) => core::Term::Prim(U16Mul),
+            (Mul(_), Some(((U32Type, []), (U32Type, [])))) => core::Term::Prim(U32Mul),
+            (Mul(_), Some(((U64Type, []), (U64Type, [])))) => core::Term::Prim(U64Mul),
+
+            (Mul(_), Some(((S8Type, []), (S8Type, [])))) => core::Term::Prim(S8Mul),
+            (Mul(_), Some(((S16Type, []), (S16Type, [])))) => core::Term::Prim(S16Mul),
+            (Mul(_), Some(((S32Type, []), (S32Type, [])))) => core::Term::Prim(S32Mul),
+            (Mul(_), Some(((S64Type, []), (S64Type, [])))) => core::Term::Prim(S64Mul),
+
+            (Div(_), Some(((U8Type, []), (U8Type, [])))) => core::Term::Prim(U8Div),
+            (Div(_), Some(((U16Type, []), (U16Type, [])))) => core::Term::Prim(U16Div),
+            (Div(_), Some(((U32Type, []), (U32Type, [])))) => core::Term::Prim(U32Div),
+            (Div(_), Some(((U64Type, []), (U64Type, [])))) => core::Term::Prim(U64Div),
+
+            (Div(_), Some(((S8Type, []), (S8Type, [])))) => core::Term::Prim(S8Div),
+            (Div(_), Some(((S16Type, []), (S16Type, [])))) => core::Term::Prim(S16Div),
+            (Div(_), Some(((S32Type, []), (S32Type, [])))) => core::Term::Prim(S32Div),
+            (Div(_), Some(((S64Type, []), (S64Type, [])))) => core::Term::Prim(S64Div),
+
+            (Add(_), Some(((U8Type, []), (U8Type, [])))) => core::Term::Prim(U8Add),
+            (Add(_), Some(((U16Type, []), (U16Type, [])))) => core::Term::Prim(U16Add),
+            (Add(_), Some(((U32Type, []), (U32Type, [])))) => core::Term::Prim(U32Add),
+            (Add(_), Some(((U64Type, []), (U64Type, [])))) => core::Term::Prim(U64Add),
+
+            (Add(_), Some(((S8Type, []), (S8Type, [])))) => core::Term::Prim(S8Add),
+            (Add(_), Some(((S16Type, []), (S16Type, [])))) => core::Term::Prim(S16Add),
+            (Add(_), Some(((S32Type, []), (S32Type, [])))) => core::Term::Prim(S32Add),
+            (Add(_), Some(((S64Type, []), (S64Type, [])))) => core::Term::Prim(S64Add),
+
+            (Add(_), Some(((PosType, []), (U8Type, [])))) => core::Term::Prim(PosAddU8),
+            (Add(_), Some(((PosType, []), (U16Type, [])))) => core::Term::Prim(PosAddU16),
+            (Add(_), Some(((PosType, []), (U32Type, [])))) => core::Term::Prim(PosAddU32),
+            (Add(_), Some(((PosType, []), (U64Type, [])))) => core::Term::Prim(PosAddU64),
+
+            (Sub(_), Some(((U8Type, []), (U8Type, [])))) => core::Term::Prim(U8Sub),
+            (Sub(_), Some(((U16Type, []), (U16Type, [])))) => core::Term::Prim(U16Sub),
+            (Sub(_), Some(((U32Type, []), (U32Type, [])))) => core::Term::Prim(U32Sub),
+            (Sub(_), Some(((U64Type, []), (U64Type, [])))) => core::Term::Prim(U64Sub),
+
+            (Sub(_), Some(((S8Type, []), (S8Type, [])))) => core::Term::Prim(S8Sub),
+            (Sub(_), Some(((S16Type, []), (S16Type, [])))) => core::Term::Prim(S16Sub),
+            (Sub(_), Some(((S32Type, []), (S32Type, [])))) => core::Term::Prim(S32Sub),
+            (Sub(_), Some(((S64Type, []), (S64Type, [])))) => core::Term::Prim(S64Sub),
+            _ => {
+                let lhs_pretty = self.pretty_print_value(&lhs_type);
+                let rhs_pretty = self.pretty_print_value(&rhs_type);
+                self.push_message(Message::BinOpMismatchedTypes {
+                    range,
+                    lhs_range: lhs.range(),
+                    rhs_range: rhs.range(),
+                    op,
+                    lhs: lhs_pretty,
+                    rhs: rhs_pretty,
+                });
+                return self.synth_reported_error(range);
+            }
+        };
+
+        let fun_app = core::Term::FunApp(
+            self.scope.to_scope(core::Term::FunApp(
+                self.scope.to_scope(fun),
+                self.scope.to_scope(lhs_expr),
+            )),
+            self.scope.to_scope(rhs_expr),
+        );
+
+        (fun_app, output_type)
     }
 
     fn synth_reported_error(&mut self, range: ByteRange) -> (core::Term<'arena>, ArcValue<'arena>) {

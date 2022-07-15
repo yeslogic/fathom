@@ -3,7 +3,7 @@ use std::cell::RefCell;
 
 use crate::{StringId, StringInterner};
 use crate::source::{ByteRange, FileId};
-use crate::surface::{ExprField, FormatField, Item, Module, ParseMessage, Pattern, Term, TypeField};
+use crate::surface::{ExprField, FormatField, Item, Module, ParseMessage, Pattern, Term, TypeField, BinOp};
 use crate::surface::lexer::{Error as LexerError, Token};
 
 grammar<'arena, 'source>(
@@ -38,10 +38,14 @@ extern {
         "=" => Token::Equals,
         "=>" => Token::EqualsGreater,
         "." => Token::FullStop,
+        "/" => Token::ForwardSlash,
         "->" => Token::HyphenGreater,
         "<-" => Token::LessHyphen,
+        "-" => Token::Minus,
         "|" => Token::Pipe,
+        "+" => Token::Plus,
         ";" => Token::Semicolon,
+        "*" => Token::Star,
         "_" => Token::Underscore,
 
         "{" => Token::OpenBrace,
@@ -113,7 +117,7 @@ LetTerm: Term<'arena, ByteRange> = {
 };
 
 FunTerm: Term<'arena, ByteRange> = {
-    AppTerm,
+    AddExpr,
     <start: @L> <input_type: AppTerm> "->"  <output_type: FunTerm> <end: @R> => {
         Term::Arrow(
             ByteRange::new(file_id, start, end),
@@ -139,6 +143,18 @@ FunTerm: Term<'arena, ByteRange> = {
             scope.to_scope(output_type),
         )
     },
+};
+
+AddExpr: Term<'arena, ByteRange> = {
+    MulExpr,
+    BinExpr<MulExpr, BinOpAdd, AddExpr>,
+    BinExpr<MulExpr, BinOpSub, AddExpr>,
+};
+
+MulExpr: Term<'arena, ByteRange> = {
+    AppTerm,
+    BinExpr<AppTerm, BinOpMul, MulExpr>,
+    BinExpr<AppTerm, BinOpDiv, MulExpr>,
 };
 
 AppTerm: Term<'arena, ByteRange> = {
@@ -210,6 +226,22 @@ TypeField: TypeField<'arena, ByteRange> = {
 ExprField: ExprField<'arena, ByteRange> = {
     <label: RangedName> "=" <expr: Term> => ExprField { label, expr },
 };
+
+BinExpr<Lhs, Op, Rhs>: Term<'arena, ByteRange> = {
+    <start: @L> <lhs: Lhs> <op: Op> <rhs: Rhs> <end: @R> => {
+        Term::BinOp(
+            ByteRange::new(file_id, start, end),
+            scope.to_scope(lhs),
+            op,
+            scope.to_scope(rhs),
+        )
+    },
+};
+
+BinOpAdd: BinOp<ByteRange> = <start: @L> "+" <end: @R> => BinOp::Add(ByteRange::new(file_id, start, end));
+BinOpSub: BinOp<ByteRange> = <start: @L> "-" <end: @R> => BinOp::Sub(ByteRange::new(file_id, start, end));
+BinOpMul: BinOp<ByteRange> = <start: @L> "*" <end: @R> => BinOp::Mul(ByteRange::new(file_id, start, end));
+BinOpDiv: BinOp<ByteRange> = <start: @L> "/" <end: @R> => BinOp::Div(ByteRange::new(file_id, start, end));
 
 #[inline] Name: StringId = { <"name"> => interner.borrow_mut().get_or_intern(<>) };
 #[inline] Hole: StringId = { <"hole"> => interner.borrow_mut().get_or_intern(<>) };

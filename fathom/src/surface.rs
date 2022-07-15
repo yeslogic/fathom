@@ -1,6 +1,7 @@
 //! Surface language.
 
 use std::cell::RefCell;
+use std::fmt;
 
 use codespan_reporting::diagnostic::{Diagnostic, Label};
 use lalrpop_util::lalrpop_mod;
@@ -83,6 +84,39 @@ pub enum Pattern<Range> {
     BooleanLiteral(Range, bool),
     // TODO: Record literal patterns
     // RecordLiteral(Range, &'arena [((ByteRange, StringId), Pattern<'arena, Range>)]),
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum BinOp<Range> {
+    Add(Range),
+    Sub(Range),
+    Mul(Range),
+    Div(Range),
+}
+
+impl BinOp<ByteRange> {
+    fn range(&self) -> ByteRange {
+        match self {
+            BinOp::Add(range) | BinOp::Sub(range) | BinOp::Mul(range) | BinOp::Div(range) => *range,
+        }
+    }
+}
+
+impl<Range> BinOp<Range> {
+    fn as_str(&self) -> &'static str {
+        match self {
+            BinOp::Add(_) => "+",
+            BinOp::Sub(_) => "-",
+            BinOp::Mul(_) => "*",
+            BinOp::Div(_) => "/",
+        }
+    }
+}
+
+impl<Range> fmt::Display for BinOp<Range> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
 }
 
 impl<Range: Clone> Pattern<Range> {
@@ -187,6 +221,13 @@ pub enum Term<'arena, Range> {
         &'arena Term<'arena, Range>,
         &'arena Term<'arena, Range>,
     ),
+    /// Binary operator expressions.
+    BinOp(
+        Range,
+        &'arena Term<'arena, Range>,
+        BinOp<Range>,
+        &'arena Term<'arena, Range>,
+    ),
     /// Reported error sentinel.
     ReportedError(Range),
 }
@@ -217,6 +258,7 @@ impl<'arena, Range: Clone> Term<'arena, Range> {
             | Term::FormatRecord(range, _)
             | Term::FormatCond(range, _, _, _)
             | Term::FormatOverlap(range, _)
+            | Term::BinOp(range, _, _, _)
             | Term::ReportedError(range) => range.clone(),
         }
     }
