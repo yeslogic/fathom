@@ -625,6 +625,15 @@ fn prim_to_bin_op(prim: &core::Prim) -> Option<BinOp<()>> {
         U8Add | U16Add | U32Add | U64Add | S8Add | S16Add | S32Add | S64Add | PosAddU8
         | PosAddU16 | PosAddU32 | PosAddU64 => Some(BinOp::Add(())),
         U8Sub | U16Sub | U32Sub | U64Sub | S8Sub | S16Sub | S32Sub | S64Sub => Some(BinOp::Sub(())),
+        BoolEq | U8Eq | U16Eq | U32Eq | U64Eq | S8Eq | S16Eq | S32Eq | S64Eq => Some(BinOp::Eq(())),
+        BoolNeq | U8Neq | U16Neq | U32Neq | U64Neq | S8Neq | S16Neq | S32Neq | S64Neq => {
+            Some(BinOp::Neq(()))
+        }
+        U8Lt | U16Lt | U32Lt | U64Lt | S8Lt | S16Lt | S32Lt | S64Lt => Some(BinOp::Lt(())),
+        U8Lte | U16Lte | U32Lte | U64Lte | S8Lte | S16Lte | S32Lte | S64Lte => Some(BinOp::Lte(())),
+        U8Gt | U16Gt | U32Gt | U64Gt | S8Gt | S16Gt | S32Gt | S64Gt => Some(BinOp::Gt(())),
+        U8Gte | U16Gte | U32Gte | U64Gte | S8Gte | S16Gte | S32Gte | S64Gte => Some(BinOp::Gte(())),
+
         _ => None,
     }
 }

@@ -39,8 +39,20 @@ pub enum Token<'source> {
     Comma,
     #[token("=")]
     Equals,
+    #[token("!=")]
+    BangEquals,
+    #[token("==")]
+    EqualsEquals,
     #[token("=>")]
     EqualsGreater,
+    #[token(">=")]
+    GreaterEquals,
+    #[token(">")]
+    Greater,
+    #[token("<=")]
+    LessEquals,
+    #[token("<")]
+    Less,
     #[token(".")]
     FullStop,
     #[token("/")]
@@ -61,7 +73,6 @@ pub enum Token<'source> {
     Star,
     #[token("_")]
     Underscore,
-
     #[token("{")]
     OpenBrace,
     #[token("}")]
@@ -155,6 +166,12 @@ impl<'source> Token<'source> {
             Token::OpenParen => "(",
             Token::CloseParen => ")",
             Token::Error => "error",
+            Token::BangEquals => "!=",
+            Token::EqualsEquals => "==",
+            Token::GreaterEquals => ">=",
+            Token::Greater => ">",
+            Token::LessEquals => "<=",
+            Token::Less => "<",
         }
     }
 }

@@ -62,7 +62,7 @@ def table_directory = fun (file_start : Pos) => {
     ///
     /// Apple allows 'true' and 'typ1', but this should not be found in OpenType files.
     sfnt_version <- u32be where
-        bool_or (u32_eq sfnt_version 0x00010000) (u32_eq sfnt_version "OTTO"),
+        bool_or (sfnt_version == (0x00010000 : U32)) (sfnt_version == ("OTTO" : U32)),
 
     /// Number of tables in the directory.
     num_tables <- u16be,
@@ -299,7 +299,7 @@ def find_table =
         // TODO: make use of `table_record.entry_selector`
         // TODO: make use of `table_record.range_shift`
         array16_find _ (Repr table_record)
-            (fun table_record => u32_eq table_record.table_id table_id)
+            (fun table_record => table_record.table_id == table_id)
             table_records;
 
 /// Create a link to the given `table_format`.
@@ -656,7 +656,7 @@ def device_table = (
     //     quotient
     let u16_div_ceil = fun (numerator : U16) => fun (denominator : U16) => (
         let quotient = u16_div numerator denominator;
-        match (u16_lt (u16_mul quotient denominator) numerator) {
+        match ((u16_mul quotient denominator) < numerator) {
             true => u16_add quotient 1,
             false => quotient,
         }
@@ -1397,7 +1397,7 @@ def value_record = fun (table_start : Pos) => fun (flags : U16) => (
     let Y_ADVANCE_DEVICE : U16 = 0x0080;
 
     let optional_field = fun (field : U16) => fun (format : Format) =>
-        match (u16_neq (u16_and flags field) 0) {
+        match (u16_and flags field != (0 : U16)) {
             true => format,
             false => empty,
         };
@@ -1435,7 +1435,7 @@ def value_record = fun (table_start : Pos) => fun (flags : U16) => (
 );
 
 /// A value record that is `empty` if flags is 0
-def optional_value_record = fun (table_start : Pos) => fun (flags : U16) => match (u16_eq flags 0) {
+def optional_value_record = fun (table_start : Pos) => fun (flags : U16) => match (flags == (0 : U16)) {
     true => empty,
     false => value_record table_start flags
 };
@@ -1912,7 +1912,7 @@ def lookup_table = fun (tag : U32) => (
         subtables <- array16 sub_table_count (offset16 table_start (lookup_subtable tag lookup_type)),
         /// Index (base 0) into GDEF mark glyph sets structure. This field is only present if the
         /// USE_MARK_FILTERING_SET lookup flag is set.
-        mark_filtering_set <- match (u16_neq (u16_and lookup_flag USE_MARK_FILTERING_SET) 0) {
+        mark_filtering_set <- match (u16_and lookup_flag USE_MARK_FILTERING_SET != (0 : U16)) {
             true => u16be,
             false => empty,
         },
@@ -2385,7 +2385,7 @@ def cmap_table = {
 /// - [Apple's TrueType Reference Manual: The `'head'` table](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6head.html)
 def head_table = {
     /// Major version number of the font header table.
-    major_version <- u16be where u16_eq major_version 1,
+    major_version <- u16be where major_version == ( 1 : U16),
     /// Minor version number of the font header table.
     minor_version <- u16be, // TODO: where minor_version == 0
     /// Set by the font manufacturer.
@@ -2397,13 +2397,13 @@ def head_table = {
     checksum_adjustment <- u32be,
     /// [Magic number](https://en.wikipedia.org/wiki/File_format#Magic_number), always set to
     /// 0x5F0F3CF5
-    magic_number <- u32be where u32_eq magic_number 0x5F0F3CF5,
+    magic_number <- u32be where magic_number == (0x5F0F3CF5 : U32),
     /// General font flags.
     ///
     // TODO: Document flags
     flags <- u16be,  // TODO: bit patterns?
     /// The granularity of the font's coordinate grid.
-    units_per_em <- u16be where bool_and (u16_gte units_per_em 16) (u16_lte units_per_em 16384),
+    units_per_em <- u16be where bool_and (units_per_em >= (16 : U16)) (units_per_em <= (16384 : U16)),
     /// The date when the font was created.
     created <- long_date_time,
     /// The date when the font was modified.
@@ -2487,7 +2487,7 @@ def head_table = {
 /// - [Apple's TrueType Reference Manual: The `'hhea'` table](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6hhea.html)
 def hhea_table = {
     /// Major version number of the horizontal header table.
-    major_version <- u16be where u16_eq major_version 1,
+    major_version <- u16be where major_version == (1 : U16),
     /// Minor version number of the horizontal header table.
     minor_version <- u16be, // TODO: where minor_version == 0
     /// Distance from the baseline to the highest ascender.
@@ -2612,7 +2612,7 @@ def maxp_version_1 = {
     /// | ----- | ------------------------------------------------- |
     /// | `0`   | the font only contains simple glyphs              |
     /// | `1`   | compound glyphs only contain simple glyphs (there are no components within components) |
-    max_component_depth <- u16be where u16_lte max_component_depth 16,
+    max_component_depth <- u16be where max_component_depth <= (16 : U16),
 };
 
 
@@ -2812,10 +2812,10 @@ def simple_glyph = fun (number_of_contours : U16) => {
 };
 
 def args_are_signed = fun (flags : U16) =>
-    (u16_neq (u16_and flags 0x0002) 0);
+    u16_and flags 0x0002 != (0 : U16);
 
 def arg_format = fun (flags : U16) =>
-    match (u16_neq (u16_and flags 0x0001) 0) {
+    match (u16_and flags 0x0001 != (0 : U16)) {
         // If the bit is set the arguments are 16-bit
         true => match (args_are_signed flags) {
             true => s16be,
@@ -2848,7 +2848,7 @@ def composite_glyph = {
 /// # TrueType glyph
 def glyph = {
     header <- glyph_header,
-    data <- match (s16_lt header.number_of_contours 0) {
+    data <- match (header.number_of_contours < (0 : S16)) {
         true => composite_glyph,
         false => simple_glyph (s16_unsigned_abs header.number_of_contours),
     }
@@ -2957,7 +2957,7 @@ def os2_table = fun (table_length : U32) => {
         // defined by Microsoft. Some legacy TrueType fonts may have been built with a shortened
         // version 0 OS/2 table. Applications should check the table length for a version 0 OS/2
         // table before reading these fields.
-        0 => match (u32_gte table_length 78) {
+        0 => match (table_length >= (78 : U32)) {
             true => os2_version_0,
             false => {},
         },
@@ -3212,7 +3212,7 @@ def gdef_table = (
         /// The start of the `GDEF` table
         table_start <- stream_pos,
         /// Major version of the GDEF table, = 1
-        major_version <- u16be where u16_eq major_version 1,
+        major_version <- u16be where major_version == (1 : U16),
         /// Minor version of the GDEF table
         minor_version <- u16be,
         /// Class definition table for glyph type, from beginning of GDEF header (may be NULL)
@@ -3246,7 +3246,7 @@ def layout_table = fun (tag : U32) => {
     /// The start of the table
     table_start <- stream_pos,
     /// Major version of the table
-    major_version <- u16be where u16_eq major_version 1,
+    major_version <- u16be where major_version == (1 : U16),
     /// Minor version of the table
     minor_version <- u16be,
     /// ScriptList table

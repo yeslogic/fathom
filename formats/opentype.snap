@@ -18,7 +18,7 @@ Array16 num_tables {
     offset : U32,
     length : U32,
 } =
-fun num_tables => fun table_records => fun table_id => array16_find (_ num_tables table_records table_id) (Repr table_record) (fun table_record => u32_eq table_record.table_id table_id) table_records;
+fun num_tables => fun table_records => fun table_id => array16_find (_ num_tables table_records table_id) (Repr table_record) (fun table_record => table_record.table_id == table_id) table_records;
 def link_table : fun (file_start : Pos) -> fun (table_record : {
     table_id : U32,
     checksum : U32,
@@ -172,13 +172,14 @@ def long_date_time : Format = s64be;
 def deprecated : fun (format : Format) -> fun (default : Repr format) ->
 Format = fun format => fun default => format;
 def head_table : Format = {
-    major_version <- u16be where u16_eq major_version 1,
+    major_version <- u16be where major_version == (1 : U16),
     minor_version <- u16be,
     font_revision <- fixed,
     checksum_adjustment <- u32be,
-    magic_number <- u32be where u32_eq magic_number 0x5f0f3cf5,
+    magic_number <- u32be where magic_number == (0x5f0f3cf5 : U32),
     flags <- u16be,
-    units_per_em <- u16be where bool_and (u16_gte units_per_em 16) (u16_lte units_per_em 16384),
+    units_per_em <- u16be where bool_and (units_per_em >= (16 :
+    U16)) (units_per_em <= (16384 : U16)),
     created <- long_date_time,
     modified <- long_date_time,
     glyph_extents <- {
@@ -196,7 +197,7 @@ def head_table : Format = {
 def fword : Format = s16be;
 def ufword : Format = u16be;
 def hhea_table : Format = {
-    major_version <- u16be where u16_eq major_version 1,
+    major_version <- u16be where major_version == (1 : U16),
     minor_version <- u16be,
     ascent <- fword,
     descent <- fword,
@@ -228,7 +229,7 @@ def maxp_version_1 : Format = {
     max_stack_elements <- u16be,
     max_size_of_instructions <- u16be,
     max_component_elements <- u16be,
-    max_component_depth <- u16be where u16_lte max_component_depth 16,
+    max_component_depth <- u16be where max_component_depth <= (16 : U16),
 };
 def maxp_table : Format = {
     version <- version16dot16,
@@ -335,7 +336,7 @@ def os2_table : fun (table_length : U32) -> Format = fun table_length => {
     us_first_char_index <- u16be,
     us_last_char_index <- u16be,
     data <- match version {
-        0 => match (u32_gte table_length 78) {
+        0 => match (table_length >= (78 : U32)) {
             false => {},
             true => os2_version_0,
         },
@@ -377,9 +378,9 @@ def glyph_header : Format = {
     y_max <- s16be,
 };
 def args_are_signed : fun (flags : U16) -> Bool =
-fun flags => u16_neq (u16_and flags 0x2) 0;
+fun flags => u16_and flags 0x2 != (0 : U16);
 def arg_format : fun (flags : U16) -> Format =
-fun flags => match (u16_neq (u16_and flags 0x1) 0) {
+fun flags => match (u16_and flags 0x1 != (0 : U16)) {
     false => match (args_are_signed flags) { false => u8, true => s8 },
     true => match (args_are_signed flags) { false => u16be, true => s16be },
 };
@@ -397,7 +398,7 @@ fun number_of_contours => {
 };
 def glyph : Format = {
     header <- glyph_header,
-    data <- match (s16_lt header.number_of_contours 0) {
+    data <- match (header.number_of_contours < (0 : S16)) {
         false => simple_glyph (s16_unsigned_abs header.number_of_contours),
         true => composite_glyph,
     },
@@ -473,7 +474,7 @@ def attach_list : Format = let attach_point_table : _ = {
 def device_table : Format = let u16_div_ceil : _ =
 fun numerator => fun denominator => let quotient : _ numerator denominator =
 u16_div numerator denominator;
-match (u16_lt (u16_mul quotient denominator) numerator) {
+match (u16_mul quotient denominator < numerator) {
     false => quotient,
     true => u16_add quotient 1,
 };
@@ -541,7 +542,7 @@ def gdef_table : Format = let gdef_header_version_1_2 : _ = fun gdef_start => {
 let gdef_header_version_1_3 : _ = fun gdef_start => { item_var_store <- u32be };
 {
     table_start <- stream_pos,
-    major_version <- u16be where u16_eq major_version 1,
+    major_version <- u16be where major_version == (1 : U16),
     minor_version <- u16be,
     glyph_class_def <- offset16 table_start class_def,
     attach_list <- offset16 table_start attach_list,
@@ -781,7 +782,7 @@ let Y_PLACEMENT_DEVICE : U16 = 0x20;
 let X_ADVANCE_DEVICE : U16 = 0x40;
 let Y_ADVANCE_DEVICE : U16 = 0x80;
 let optional_field : _ table_start flags =
-fun field => fun format => match (u16_neq (u16_and flags field) 0) {
+fun field => fun format => match (u16_and flags field != (0 : U16)) {
     false => empty,
     true => format,
 };
@@ -817,7 +818,7 @@ let single_pos_format2 : _ = fun table_start => {
     },
 };
 def optional_value_record : fun (table_start : Pos) -> fun (flags : U16) ->
-Format = fun table_start => fun flags => match (u16_eq flags 0) {
+Format = fun table_start => fun flags => match (flags == (0 : U16)) {
     false => value_record table_start flags,
     true => empty,
 };
@@ -1022,7 +1023,8 @@ let lookup_subtable : _ tag = fun tag => fun lookup_type => match tag {
     lookup_flag <- u16be,
     sub_table_count <- u16be,
     subtables <- array16 sub_table_count (offset16 table_start (lookup_subtable tag lookup_type)),
-    mark_filtering_set <- match (u16_neq (u16_and lookup_flag USE_MARK_FILTERING_SET) 0) {
+    mark_filtering_set <- match (u16_and lookup_flag USE_MARK_FILTERING_SET != (0 :
+    U16)) {
         false => empty,
         true => u16be,
     },
@@ -1034,7 +1036,7 @@ def lookup_list : fun (tag : U32) -> Format = fun tag => {
 };
 def layout_table : fun (tag : U32) -> Format = fun tag => {
     table_start <- stream_pos,
-    major_version <- u16be where u16_eq major_version 1,
+    major_version <- u16be where major_version == (1 : U16),
     minor_version <- u16be,
     script_list <- offset16 table_start script_list,
     feature_list <- offset16 table_start feature_list,
@@ -1045,7 +1047,8 @@ def gsub_table : Format = layout_table "GSUB";
 def jstf_table : Format = unknown_table;
 def math_table : Format = unknown_table;
 def table_directory : fun (file_start : Pos) -> Format = fun file_start => {
-    sfnt_version <- u32be where bool_or (u32_eq sfnt_version 0x10000) (u32_eq sfnt_version "OTTO"),
+    sfnt_version <- u32be where bool_or (sfnt_version == (0x10000 :
+    U32)) (sfnt_version == ("OTTO" : U32)),
     num_tables <- u16be,
     search_range <- u16be,
     entry_selector <- u16be,
