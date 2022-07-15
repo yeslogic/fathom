@@ -34,6 +34,7 @@ use crate::surface::elaboration::reporting::Message;
 use crate::surface::{distillation, pretty, FormatField, Item, Module, Pattern, Term};
 use crate::{StringId, StringInterner};
 
+mod order;
 mod reporting;
 mod unification;
 
@@ -982,13 +983,11 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
 
     /// Elaborate a module
     pub fn elab_module(&mut self, surface_module: &Module<'_, ByteRange>) -> core::Module<'arena> {
+        let elab_order = order::elaboration_order(self, surface_module);
         let universe = Arc::new(Value::Universe);
-        let num_items = (surface_module.items.iter())
-            .filter(|item| matches!(item, Item::Definition { .. }))
-            .count();
-        let mut items = SliceVec::new(self.scope, num_items);
+        let mut items = SliceVec::new(self.scope, elab_order.len());
 
-        for item in surface_module.items {
+        for item in elab_order.iter().copied().map(|i| &surface_module.items[i]) {
             match item {
                 Item::Definition {
                     label: (_, label),

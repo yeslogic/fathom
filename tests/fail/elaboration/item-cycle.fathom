@@ -1,0 +1,15 @@
+//~ ignore = true
+
+def first = second;
+def second = third;
+def third = first;
+
+def ok = u16be;
+def ok2 = {
+    x <- ok,
+};
+
+def a = b;
+def b = c;
+def c = d;
+def d = b;

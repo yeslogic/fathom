@@ -1,9 +1,10 @@
 //! Surface language.
 
+use std::cell::RefCell;
+
 use codespan_reporting::diagnostic::{Diagnostic, Label};
 use lalrpop_util::lalrpop_mod;
 use scoped_arena::Scope;
-use std::cell::RefCell;
 
 use crate::source::{ByteRange, FileId};
 use crate::{StringId, StringInterner};

@@ -103,6 +103,10 @@ pub enum Message {
         // type: Doc<_>,
         expr: String,
     },
+    /// A cycle between module items was detected.
+    CycleDetected {
+        names: Vec<StringId>,
+    },
 }
 
 impl Message {
@@ -397,6 +401,17 @@ impl Message {
                     .with_labels(vec![
                         primary_label(range).with_message(format!("unsolved {}", source_name))
                     ])
+            }
+            Message::CycleDetected { names } => {
+                let interner = interner.borrow();
+                let names: Vec<_> = names
+                    .iter()
+                    .map(|id| interner.resolve(*id).unwrap())
+                    .collect();
+                let cycle = names.join(" → ");
+                Diagnostic::error()
+                    .with_message("cycle detected")
+                    .with_notes(vec![cycle])
             }
         }
     }
