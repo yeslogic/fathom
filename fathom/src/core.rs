@@ -1,6 +1,7 @@
 //! Core language.
 
 use crate::env::{GlobalVar, LocalVar};
+use crate::source::ByteRange;
 use crate::StringId;
 
 pub mod binary;
@@ -37,13 +38,26 @@ pub enum EntryInfo {
     Parameter,
 }
 
+// TODO: Better name?
+#[derive(Debug, Copy, Clone)]
+pub enum Span {
+    Range(ByteRange),
+    Empty,
+}
+
+impl From<&ByteRange> for Span {
+    fn from(range: &ByteRange) -> Self {
+        Span::Range(*range)
+    }
+}
+
 /// Core language terms.
 #[derive(Debug, Clone)]
 pub enum Term<'arena> {
     /// Item variable occurrences.
     ///
     /// These refer to [items][Item] bound at the top-level of a [module][Module].
-    ItemVar(GlobalVar),
+    ItemVar(Span, GlobalVar),
     /// Rigid variable occurrences.
     ///
     /// These correspond to variables that were most likely bound as a result of
@@ -587,7 +601,7 @@ impl<'arena> Term<'arena> {
     pub fn contains_free(&self, mut var: LocalVar) -> bool {
         match self {
             Term::RigidVar(v) => *v == var,
-            Term::ItemVar(_)
+            Term::ItemVar(_, _)
             | Term::FlexibleVar(_)
             | Term::FlexibleInsertion(_, _)
             | Term::Universe

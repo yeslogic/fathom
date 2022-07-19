@@ -1544,7 +1544,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                     return (core::Term::RigidVar(term), r#type.clone());
                 }
                 if let Some((term, r#type)) = self.get_item_name(*name) {
-                    return (core::Term::ItemVar(term), r#type.clone());
+                    return (core::Term::ItemVar(range.into(), term), r#type.clone());
                 }
 
                 self.push_message(Message::UnboundName {

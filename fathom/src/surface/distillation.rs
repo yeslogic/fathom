@@ -311,8 +311,8 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
     /// Distill a core term into a surface term, in a 'synthesizable' context.
     pub fn synth(&mut self, core_term: &core::Term<'_>) -> Term<'arena, ()> {
         match core_term {
-            core::Term::ItemVar(var) => match self.get_item_name(*var) {
-                Some(name) => Term::Name((), name),
+            core::Term::ItemVar(_range, var) => match self.get_item_name(*var) {
+                Some(name) => Term::Name((), name), // TODO: copy range
                 None => todo!("misbound variable"), // TODO: error?
             },
             core::Term::RigidVar(var) => match self.get_rigid_name(*var) {

@@ -278,7 +278,7 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
     /// twitter thread](https://twitter.com/brendanzab/status/1423536653658771457)).
     pub fn eval(&mut self, term: &Term<'arena>) -> ArcValue<'arena> {
         match term {
-            Term::ItemVar(var) => match self.item_exprs.get_global(*var) {
+            Term::ItemVar(_range, var) => match self.item_exprs.get_global(*var) {
                 Some(value) => value.clone(),
                 None => panic_any(Error::InvalidItemVar),
             },
