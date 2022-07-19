@@ -3,7 +3,7 @@
 use scoped_arena::Scope;
 use std::cell::RefCell;
 
-use crate::core::UIntStyle;
+use crate::core::{Span, UIntStyle};
 use crate::env::{self, EnvLen, GlobalVar, LocalVar, UniqueEnv};
 use crate::surface::elaboration::FlexSource;
 use crate::surface::{BinOp, ExprField, FormatField, Item, Module, Pattern, Term, TypeField};
@@ -311,11 +311,11 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
     /// Distill a core term into a surface term, in a 'synthesizable' context.
     pub fn synth(&mut self, core_term: &core::Term<'_>) -> Term<'arena, ()> {
         match core_term {
-            core::Term::ItemVar(_range, var) => match self.get_item_name(*var) {
-                Some(name) => Term::Name((), name), // TODO: copy range
+            core::Term::ItemVar(_span, var) => match self.get_item_name(*var) {
+                Some(name) => Term::Name((), name),
                 None => todo!("misbound variable"), // TODO: error?
             },
-            core::Term::RigidVar(var) => match self.get_rigid_name(*var) {
+            core::Term::RigidVar(_span, var) => match self.get_rigid_name(*var) {
                 Some(name) => Term::Name((), name),
                 None => todo!("misbound variable"), // TODO: error?
             },
@@ -331,7 +331,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                         core::EntryInfo::Definition => {}
                         core::EntryInfo::Parameter => {
                             let var = self.rigid_len().global_to_local(var).unwrap();
-                            let input_expr = self.check(&core::Term::RigidVar(var));
+                            let input_expr = self.check(&core::Term::RigidVar(Span::fixme(), var));
                             head_expr = Term::App(
                                 (),
                                 self.scope.to_scope(head_expr),

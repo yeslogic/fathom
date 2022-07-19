@@ -6,7 +6,7 @@ use std::panic::panic_any;
 use std::sync::Arc;
 
 use crate::alloc::SliceVec;
-use crate::core::{Const, EntryInfo, Prim, Term, UIntStyle};
+use crate::core::{Const, EntryInfo, Prim, Span, Term, UIntStyle};
 use crate::env::{EnvLen, GlobalVar, SharedEnv, SliceEnv};
 use crate::StringId;
 
@@ -278,11 +278,11 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
     /// twitter thread](https://twitter.com/brendanzab/status/1423536653658771457)).
     pub fn eval(&mut self, term: &Term<'arena>) -> ArcValue<'arena> {
         match term {
-            Term::ItemVar(_range, var) => match self.item_exprs.get_global(*var) {
+            Term::ItemVar(_span, var) => match self.item_exprs.get_global(*var) {
                 Some(value) => value.clone(),
                 None => panic_any(Error::InvalidItemVar),
             },
-            Term::RigidVar(var) => match self.rigid_exprs.get_local(*var) {
+            Term::RigidVar(_span, var) => match self.rigid_exprs.get_local(*var) {
                 Some(value) => value.clone(),
                 None => panic_any(Error::InvalidRigidVar),
             },
@@ -895,7 +895,10 @@ impl<'in_arena, 'out_arena, 'env> QuoteContext<'in_arena, 'out_arena, 'env> {
                     Head::Prim(prim) => Term::Prim(*prim),
                     Head::RigidVar(var) => {
                         // FIXME: Unwrap
-                        Term::RigidVar(self.rigid_exprs.global_to_local(*var).unwrap())
+                        Term::RigidVar(
+                            Span::from_value(&value),
+                            self.rigid_exprs.global_to_local(*var).unwrap(),
+                        )
                     }
                     Head::FlexibleVar(var) => Term::FlexibleVar(*var),
                 };

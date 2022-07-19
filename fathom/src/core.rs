@@ -1,5 +1,6 @@
 //! Core language.
 
+use crate::core::semantics::ArcValue;
 use crate::env::{GlobalVar, LocalVar};
 use crate::source::ByteRange;
 use crate::StringId;
@@ -45,6 +46,30 @@ pub enum Span {
     Empty,
 }
 
+impl Span {
+    pub(crate) fn from_value(_value: &ArcValue) -> Span {
+        // Placeholder for when values have Spans. When the do this can return the span of the
+        // Value.
+        Span::fixme()
+    }
+}
+
+impl Span {
+    pub const fn fixme() -> Span {
+        Span::Empty
+    }
+
+    pub fn range_todo(self) {
+        // placeholder function for when we should build a span from a ByteRange
+        // but the current location is expecting a range of (). Eventually this
+        // should be renamed range and return Option<ByteRange>?
+        // match self {
+        //     Span::Range(range) => Some(range),
+        //     Span::Empty => None
+        // }
+    }
+}
+
 impl From<&ByteRange> for Span {
     fn from(range: &ByteRange) -> Self {
         Span::Range(*range)
@@ -72,7 +97,7 @@ pub enum Term<'arena> {
     ///
     /// - [A unification algorithm for typed λ-calculus](https://doi.org/10.1016/0304-3975(75)90011-0)
     /// - [Type Classes: Rigid type variables](https://typeclasses.com/rigid-type-variables)
-    RigidVar(LocalVar),
+    RigidVar(Span, LocalVar),
     /// Flexible variable occurrences.
     ///
     /// These are inserted during [elaboration] when we have something we want
@@ -600,7 +625,7 @@ mod tests {
 impl<'arena> Term<'arena> {
     pub fn contains_free(&self, mut var: LocalVar) -> bool {
         match self {
-            Term::RigidVar(v) => *v == var,
+            Term::RigidVar(_, v) => *v == var,
             Term::ItemVar(_, _)
             | Term::FlexibleVar(_)
             | Term::FlexibleInsertion(_, _)

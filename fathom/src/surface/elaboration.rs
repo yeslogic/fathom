@@ -27,7 +27,7 @@ use std::sync::Arc;
 
 use crate::alloc::SliceVec;
 use crate::core::semantics::{self, ArcValue, Closure, Head, Telescope, Value};
-use crate::core::{self, binary, Const, Prim, UIntStyle};
+use crate::core::{self, binary, Const, Prim, Span, UIntStyle};
 use crate::env::{self, EnvLen, GlobalVar, SharedEnv, SliceEnv, UniqueEnv};
 use crate::source::ByteRange;
 use crate::surface::elaboration::reporting::Message;
@@ -118,10 +118,11 @@ impl<'arena> RigidEnv<'arena> {
         use crate::core::Prim::*;
         use crate::core::Term;
 
-        const VAR0: Term<'_> = Term::RigidVar(env::LocalVar::last());
-        const VAR1: Term<'_> = Term::RigidVar(env::LocalVar::last().prev());
-        const VAR2: Term<'_> = Term::RigidVar(env::LocalVar::last().prev().prev());
-        const VAR3: Term<'_> = Term::RigidVar(env::LocalVar::last().prev().prev().prev());
+        const VAR0: Term<'_> = Term::RigidVar(Span::fixme(), env::LocalVar::last());
+        const VAR1: Term<'_> = Term::RigidVar(Span::fixme(), env::LocalVar::last().prev());
+        const VAR2: Term<'_> = Term::RigidVar(Span::fixme(), env::LocalVar::last().prev().prev());
+        const VAR3: Term<'_> =
+            Term::RigidVar(Span::fixme(), env::LocalVar::last().prev().prev().prev());
         const UNIVERSE: Term<'_> = Term::Universe;
         const FORMAT_TYPE: Term<'_> = Term::Prim(FormatType);
         const BOOL_TYPE: Term<'_> = Term::Prim(BoolType);
@@ -1541,7 +1542,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
         match surface_term {
             Term::Name(range, name) => {
                 if let Some((term, r#type)) = self.get_rigid_name(*name) {
-                    return (core::Term::RigidVar(term), r#type.clone());
+                    return (core::Term::RigidVar(range.into(), term), r#type.clone());
                 }
                 if let Some((term, r#type)) = self.get_item_name(*name) {
                     return (core::Term::ItemVar(range.into(), term), r#type.clone());

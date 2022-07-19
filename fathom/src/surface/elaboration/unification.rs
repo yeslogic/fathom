@@ -22,7 +22,7 @@ use crate::alloc::SliceVec;
 use crate::core::semantics::{
     self, ArcValue, Closure, Elim, Head, SplitBranches, Telescope, Value,
 };
-use crate::core::{Prim, Term};
+use crate::core::{Prim, Span, Term};
 use crate::env::{EnvLen, GlobalVar, LocalVar, SharedEnv, SliceEnv, UniqueEnv};
 use crate::StringId;
 
@@ -500,7 +500,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
                     Head::Prim(prim) => Term::Prim(*prim),
                     Head::RigidVar(source_var) => match self.renaming.get_as_local(*source_var) {
                         None => return Err(RenameError::EscapingRigidVar(*source_var)),
-                        Some(target_var) => Term::RigidVar(target_var),
+                        Some(target_var) => Term::RigidVar(Span::from_value(value), target_var), // FIXME: Should this be the value we're matching on and not the value passed into the function?
                     },
                     Head::FlexibleVar(var) => match *var {
                         var if flexible_var == var => return Err(RenameError::InfiniteSolution),
