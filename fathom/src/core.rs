@@ -108,7 +108,7 @@ pub enum Term<'arena> {
     /// Also known as: metavariables.
     ///
     /// [elaboration]: crate::surface::elaboration
-    FlexibleVar(GlobalVar),
+    FlexibleVar(Span, GlobalVar),
     /// A flexible variable that has been inserted during elaboration, along
     /// with the [entry information] in the rigid environment at the time of
     /// insertion.
@@ -627,7 +627,7 @@ impl<'arena> Term<'arena> {
         match self {
             Term::RigidVar(_, v) => *v == var,
             Term::ItemVar(_, _)
-            | Term::FlexibleVar(_)
+            | Term::FlexibleVar(_, _)
             | Term::FlexibleInsertion(_, _)
             | Term::Universe
             | Term::Prim(_)

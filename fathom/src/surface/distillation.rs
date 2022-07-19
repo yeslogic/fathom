@@ -319,12 +319,12 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 Some(name) => Term::Name((), name),
                 None => todo!("misbound variable"), // TODO: error?
             },
-            core::Term::FlexibleVar(var) => match self.get_flexible_name(*var) {
+            core::Term::FlexibleVar(_span, var) => match self.get_flexible_name(*var) {
                 Some(name) => Term::Hole((), name),
                 None => Term::Placeholder(()),
             },
             core::Term::FlexibleInsertion(var, rigid_infos) => {
-                let mut head_expr = self.synth(&core::Term::FlexibleVar(*var));
+                let mut head_expr = self.synth(&core::Term::FlexibleVar(Span::fixme(), *var)); // TODO: Use span from FlexibleInsertion when it has one
 
                 for (var, info) in Iterator::zip(env::global_vars(), rigid_infos.iter()) {
                     match info {

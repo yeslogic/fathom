@@ -504,7 +504,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
                     },
                     Head::FlexibleVar(var) => match *var {
                         var if flexible_var == var => return Err(RenameError::InfiniteSolution),
-                        var => Term::FlexibleVar(var),
+                        var => Term::FlexibleVar(Span::from_value(value), var), // FIXME: As above
                     },
                 };
 
