@@ -559,6 +559,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
                 let output_type = self.rename_closure(flexible_var, output_type)?;
 
                 Ok(Term::FunType(
+                    Span::from_value(value), // FIXME: As above
                     *input_name,
                     self.scope.to_scope(input_type),
                     self.scope.to_scope(output_type),

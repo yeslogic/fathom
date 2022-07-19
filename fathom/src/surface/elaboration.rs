@@ -195,9 +195,11 @@ impl<'arena> RigidEnv<'arena> {
         env.define_prim(
             FormatDeref,
             &core::Term::FunType(
+                Span::Empty,
                 env.name("A"),
                 &FORMAT_TYPE,
                 &Term::FunType(
+                    Span::Empty,
                     None,
                     &Term::FunApp(&Term::Prim(RefType), &VAR0),
                     &FORMAT_TYPE,
@@ -208,9 +210,10 @@ impl<'arena> RigidEnv<'arena> {
         env.define_prim(
             FormatSucceed,
             &core::Term::FunType(
+                Span::Empty,
                 env.name("A"),
                 &UNIVERSE,
-                &Term::FunType(None, &VAR0, &FORMAT_TYPE),
+                &Term::FunType(Span::Empty, None, &VAR0, &FORMAT_TYPE),
             ),
         );
         env.define_prim(FormatFail, &FORMAT_TYPE);
@@ -219,9 +222,11 @@ impl<'arena> RigidEnv<'arena> {
             // fun (A : Type) -> Option A   -> Format
             // fun (A : Type) -> Option A@0 -> Format
             &core::Term::FunType(
+                Span::Empty,
                 env.name("A"),
                 &UNIVERSE,
                 &Term::FunType(
+                    Span::Empty,
                     None,
                     &Term::FunApp(&Term::Prim(OptionType), &VAR0),
                     &FORMAT_TYPE,
@@ -366,9 +371,15 @@ impl<'arena> RigidEnv<'arena> {
             // fun (A : Type) -> A   -> Option A
             // fun (A : Type) -> A@0 -> Option A@1
             &core::Term::FunType(
+                Span::Empty,
                 env.name("A"),
                 &UNIVERSE,
-                &Term::FunType(None, &VAR0, &Term::FunApp(&Term::Prim(OptionType), &VAR1)),
+                &Term::FunType(
+                    Span::Empty,
+                    None,
+                    &VAR0,
+                    &Term::FunApp(&Term::Prim(OptionType), &VAR1),
+                ),
             ),
         );
         env.define_prim(
@@ -376,6 +387,7 @@ impl<'arena> RigidEnv<'arena> {
             // fun (A : Type) -> Option A
             // fun (A : Type) -> Option A@0
             &core::Term::FunType(
+                Span::Empty,
                 env.name("A"),
                 &UNIVERSE,
                 &Term::FunApp(&Term::Prim(OptionType), &VAR0),
@@ -386,18 +398,23 @@ impl<'arena> RigidEnv<'arena> {
             // fun (A : Type) (B : Type) -> B   -> (A   -> B  ) -> Option A   -> B
             // fun (A : Type) (B : Type) -> B@0 -> (A@2 -> B@2) -> Option A@3 -> B@3
             scope.to_scope(core::Term::FunType(
+                Span::Empty,
                 env.name("A"),
                 &UNIVERSE,
                 scope.to_scope(core::Term::FunType(
+                    Span::Empty,
                     env.name("B"),
                     &UNIVERSE,
                     scope.to_scope(core::Term::FunType(
+                        Span::Empty,
                         None,
                         &VAR0, // B@0
                         scope.to_scope(core::Term::FunType(
+                            Span::Empty,
                             None,
-                            &Term::FunType(None, &VAR2, &VAR2), // A@2 -> B@2
+                            &Term::FunType(Span::Empty, None, &VAR2, &VAR2), // A@2 -> B@2
                             scope.to_scope(core::Term::FunType(
+                                Span::Empty,
                                 None,
                                 &Term::FunApp(&Term::Prim(OptionType), &VAR3), // Option A@3
                                 &VAR3,                                         // B@3
@@ -412,15 +429,19 @@ impl<'arena> RigidEnv<'arena> {
         // fun (len : UN) (A : Type) -> (A@0 -> Bool) -> ArrayN len@2 A@1 -> Option A@2
         let find_type = |index_type, array_type| {
             scope.to_scope(core::Term::FunType(
+                Span::Empty,
                 env.name("len"),
                 index_type,
                 scope.to_scope(core::Term::FunType(
+                    Span::Empty,
                     env.name("A"),
                     &UNIVERSE,
                     scope.to_scope(core::Term::FunType(
+                        Span::Empty,
                         None,
-                        &Term::FunType(None, &VAR0, &BOOL_TYPE), // (A@0 -> Bool)
+                        &Term::FunType(Span::Empty, None, &VAR0, &BOOL_TYPE), // (A@0 -> Bool)
                         scope.to_scope(core::Term::FunType(
+                            Span::Empty,
                             None,
                             // ArrayN len@2 A@1
                             scope.to_scope(Term::FunApp(
@@ -543,7 +564,7 @@ impl<'i, 'arena> RigidEnvBuilder<'i, 'arena> {
             prim,
             (input_tys.iter().rev()).fold(output_ty, |output_ty, input_ty| {
                 self.scope
-                    .to_scope(core::Term::FunType(None, input_ty, output_ty))
+                    .to_scope(core::Term::FunType(Span::Empty, None, input_ty, output_ty))
             }),
         );
     }
@@ -1637,7 +1658,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 core::Term::Universe(range.into()),
                 Arc::new(Value::Universe),
             ),
-            Term::Arrow(_, input_type, output_type) => {
+            Term::Arrow(range, input_type, output_type) => {
                 let universe = Arc::new(Value::Universe); // FIXME: avoid temporary Arc
                 let input_type = self.check(input_type, &universe);
                 let input_type_value = self.eval_context().eval(&input_type);
@@ -1647,6 +1668,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 self.rigid_env.pop();
 
                 let fun_type = core::Term::FunType(
+                    range.into(),
                     None,
                     self.scope.to_scope(input_type),
                     self.scope.to_scope(output_type),
@@ -1654,7 +1676,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
 
                 (fun_type, universe)
             }
-            Term::FunType(_, input_pattern, input_type, output_type) => {
+            Term::FunType(range, input_pattern, input_type, output_type) => {
                 let universe = Arc::new(Value::Universe); // FIXME: avoid temporary Arc
                 let (input_pattern, input_type_value) =
                     self.synth_ann_pattern(input_pattern, *input_type);
@@ -1665,6 +1687,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 self.rigid_env.pop();
 
                 let fun_type = core::Term::FunType(
+                    range.into(),
                     input_name,
                     self.scope.to_scope(input_type),
                     self.scope.to_scope(output_type),

@@ -180,7 +180,12 @@ pub enum Term<'arena> {
     /// Dependent function types.
     ///
     /// Also known as: pi types, dependent product types.
-    FunType(Option<StringId>, &'arena Term<'arena>, &'arena Term<'arena>),
+    FunType(
+        Span,
+        Option<StringId>,
+        &'arena Term<'arena>,
+        &'arena Term<'arena>,
+    ),
     /// Function literals.
     ///
     /// Also known as: lambda expressions, anonymous functions.
@@ -640,7 +645,7 @@ impl<'arena> Term<'arena> {
                     || def.contains_free(var)
                     || body.contains_free(var.prev())
             }
-            Term::FunType(_, input_type, output_type) => {
+            Term::FunType(_, _, input_type, output_type) => {
                 input_type.contains_free(var) || output_type.contains_free(var.prev())
             }
             Term::FunLit(_, body) => body.contains_free(var.prev()),

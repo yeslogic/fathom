@@ -366,7 +366,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 )
             }
             core::Term::Universe(_span) => Term::Universe(()),
-            core::Term::FunType(_, input_type, output_type)
+            core::Term::FunType(_span, _, input_type, output_type)
                 if !output_type.contains_free(LocalVar::last()) =>
             {
                 let input_type = self.check(input_type);
@@ -381,7 +381,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                     self.scope.to_scope(output_type),
                 )
             }
-            core::Term::FunType(input_name, input_type, output_type) => {
+            core::Term::FunType(_span, input_name, input_type, output_type) => {
                 let input_type = self.check(input_type);
 
                 let input_name = self.push_rigid(*input_name);
