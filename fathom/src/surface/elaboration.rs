@@ -118,27 +118,26 @@ impl<'arena> RigidEnv<'arena> {
         use crate::core::Prim::*;
         use crate::core::Term;
 
-        const VAR0: core::Term<'_> = core::Term::RigidVar(env::LocalVar::last());
-        const VAR1: core::Term<'_> = core::Term::RigidVar(env::LocalVar::last().prev());
-        const VAR2: core::Term<'_> = core::Term::RigidVar(env::LocalVar::last().prev().prev());
-        const VAR3: core::Term<'_> =
-            core::Term::RigidVar(env::LocalVar::last().prev().prev().prev());
-        const UNIVERSE: core::Term<'_> = core::Term::Universe;
-        const FORMAT_TYPE: core::Term<'_> = core::Term::Prim(Prim::FormatType);
-        const BOOL_TYPE: core::Term<'_> = core::Term::Prim(Prim::BoolType);
-        const U8_TYPE: core::Term<'_> = core::Term::Prim(Prim::U8Type);
-        const U16_TYPE: core::Term<'_> = core::Term::Prim(Prim::U16Type);
-        const U32_TYPE: core::Term<'_> = core::Term::Prim(Prim::U32Type);
-        const U64_TYPE: core::Term<'_> = core::Term::Prim(Prim::U64Type);
-        const S8_TYPE: core::Term<'_> = core::Term::Prim(Prim::S8Type);
-        const S16_TYPE: core::Term<'_> = core::Term::Prim(Prim::S16Type);
-        const S32_TYPE: core::Term<'_> = core::Term::Prim(Prim::S32Type);
-        const S64_TYPE: core::Term<'_> = core::Term::Prim(Prim::S64Type);
-        const ARRAY8_TYPE: core::Term<'_> = core::Term::Prim(Array8Type);
-        const ARRAY16_TYPE: core::Term<'_> = core::Term::Prim(Array16Type);
-        const ARRAY32_TYPE: core::Term<'_> = core::Term::Prim(Array32Type);
-        const ARRAY64_TYPE: core::Term<'_> = core::Term::Prim(Array64Type);
-        const POS_TYPE: core::Term<'_> = core::Term::Prim(Prim::PosType);
+        const VAR0: Term<'_> = Term::RigidVar(env::LocalVar::last());
+        const VAR1: Term<'_> = Term::RigidVar(env::LocalVar::last().prev());
+        const VAR2: Term<'_> = Term::RigidVar(env::LocalVar::last().prev().prev());
+        const VAR3: Term<'_> = Term::RigidVar(env::LocalVar::last().prev().prev().prev());
+        const UNIVERSE: Term<'_> = Term::Universe;
+        const FORMAT_TYPE: Term<'_> = Term::Prim(FormatType);
+        const BOOL_TYPE: Term<'_> = Term::Prim(BoolType);
+        const U8_TYPE: Term<'_> = Term::Prim(U8Type);
+        const U16_TYPE: Term<'_> = Term::Prim(U16Type);
+        const U32_TYPE: Term<'_> = Term::Prim(U32Type);
+        const U64_TYPE: Term<'_> = Term::Prim(U64Type);
+        const S8_TYPE: Term<'_> = Term::Prim(S8Type);
+        const S16_TYPE: Term<'_> = Term::Prim(S16Type);
+        const S32_TYPE: Term<'_> = Term::Prim(S32Type);
+        const S64_TYPE: Term<'_> = Term::Prim(S64Type);
+        const ARRAY8_TYPE: Term<'_> = Term::Prim(Array8Type);
+        const ARRAY16_TYPE: Term<'_> = Term::Prim(Array16Type);
+        const ARRAY32_TYPE: Term<'_> = Term::Prim(Array32Type);
+        const ARRAY64_TYPE: Term<'_> = Term::Prim(Array64Type);
+        const POS_TYPE: Term<'_> = Term::Prim(PosType);
 
         let mut env = RigidEnvBuilder::new(interner, scope);
 
