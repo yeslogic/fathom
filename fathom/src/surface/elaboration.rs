@@ -1576,13 +1576,16 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
 
                 (expr, r#type)
             }
-            Term::Ann(_, expr, r#type) => {
+            Term::Ann(range, expr, r#type) => {
                 let r#type = self.check(r#type, &Arc::new(Value::Universe)); // FIXME: avoid temporary Arc
                 let type_value = self.eval_context().eval(&r#type);
                 let expr = self.check(expr, &type_value);
 
-                let ann_expr =
-                    core::Term::Ann(self.scope.to_scope(expr), self.scope.to_scope(r#type));
+                let ann_expr = core::Term::Ann(
+                    range.into(),
+                    self.scope.to_scope(expr),
+                    self.scope.to_scope(r#type),
+                );
 
                 (ann_expr, type_value)
             }

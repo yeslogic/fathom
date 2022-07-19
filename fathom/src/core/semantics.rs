@@ -303,7 +303,7 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
                 }
                 head_expr
             }
-            Term::Ann(expr, _) => self.eval(expr),
+            Term::Ann(_span, expr, _) => self.eval(expr), // TODO: Should the span be passed down?
             Term::Let(_, _, def_expr, output_expr) => {
                 let def_expr = self.eval(def_expr);
                 self.rigid_exprs.push(def_expr);

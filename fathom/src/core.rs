@@ -164,7 +164,7 @@ pub enum Term<'arena> {
     // - https://lib.rs/crates/bit-vec
     FlexibleInsertion(Span, GlobalVar, &'arena [EntryInfo]),
     /// Annotated expressions.
-    Ann(&'arena Term<'arena>, &'arena Term<'arena>),
+    Ann(Span, &'arena Term<'arena>, &'arena Term<'arena>),
     /// Let expressions.
     Let(
         Option<StringId>,
@@ -633,7 +633,7 @@ impl<'arena> Term<'arena> {
             | Term::Prim(_)
             | Term::ConstLit(_) => false,
 
-            Term::Ann(term, r#type) => term.contains_free(var) || r#type.contains_free(var),
+            Term::Ann(_, term, r#type) => term.contains_free(var) || r#type.contains_free(var),
             Term::Let(_, r#type, def, body) => {
                 r#type.contains_free(var)
                     || def.contains_free(var)

@@ -197,7 +197,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
     /// Distill a core term into a surface term, in a 'checkable' context.
     pub fn check(&mut self, core_term: &core::Term<'_>) -> Term<'arena, ()> {
         match core_term {
-            core::Term::Ann(expr, _) => {
+            core::Term::Ann(_span, expr, _) => {
                 // Avoid adding extraneous type annotations!
                 self.check(expr)
             }
@@ -343,7 +343,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
 
                 head_expr
             }
-            core::Term::Ann(expr, r#type) => {
+            core::Term::Ann(_span, expr, r#type) => {
                 let r#type = self.check(r#type);
                 let expr = self.check(expr);
 
