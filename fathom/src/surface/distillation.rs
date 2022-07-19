@@ -323,15 +323,15 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 Some(name) => Term::Hole((), name),
                 None => Term::Placeholder(()),
             },
-            core::Term::FlexibleInsertion(var, rigid_infos) => {
-                let mut head_expr = self.synth(&core::Term::FlexibleVar(Span::fixme(), *var)); // TODO: Use span from FlexibleInsertion when it has one
+            core::Term::FlexibleInsertion(span, var, rigid_infos) => {
+                let mut head_expr = self.synth(&core::Term::FlexibleVar(*span, *var));
 
                 for (var, info) in Iterator::zip(env::global_vars(), rigid_infos.iter()) {
                     match info {
                         core::EntryInfo::Definition => {}
                         core::EntryInfo::Parameter => {
                             let var = self.rigid_len().global_to_local(var).unwrap();
-                            let input_expr = self.check(&core::Term::RigidVar(Span::fixme(), var));
+                            let input_expr = self.check(&core::Term::RigidVar(Span::fixme(), var)); // FIXME: What span should be used here?
                             head_expr = Term::App(
                                 (),
                                 self.scope.to_scope(head_expr),

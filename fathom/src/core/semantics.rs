@@ -291,8 +291,8 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
                 Some(None) => Arc::new(Value::flexible_var(*var)),
                 None => panic_any(Error::InvalidFlexibleVar),
             },
-            Term::FlexibleInsertion(var, rigid_infos) => {
-                let mut head_expr = self.eval(&Term::FlexibleVar(Span::fixme(), *var)); // TODO: use term's span when FlexibleInsertion has one
+            Term::FlexibleInsertion(span, var, rigid_infos) => {
+                let mut head_expr = self.eval(&Term::FlexibleVar(*span, *var));
                 for (info, expr) in Iterator::zip(rigid_infos.iter(), self.rigid_exprs.iter()) {
                     head_expr = match info {
                         EntryInfo::Definition => head_expr,

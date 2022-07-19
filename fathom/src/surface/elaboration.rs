@@ -739,7 +739,11 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
         r#type: ArcValue<'arena>,
     ) -> core::Term<'arena> {
         let rigid_infos = (self.scope).to_scope_from_iter(self.rigid_env.infos.iter().copied());
-        core::Term::FlexibleInsertion(self.flexible_env.push(source, r#type), rigid_infos)
+        core::Term::FlexibleInsertion(
+            Span::fixme(),
+            self.flexible_env.push(source, r#type),
+            rigid_infos,
+        )
     }
 
     /// Push an unsolved flexible binder onto the context.

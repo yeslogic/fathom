@@ -162,7 +162,7 @@ pub enum Term<'arena> {
     //
     // - https://lib.rs/crates/smallbitvec
     // - https://lib.rs/crates/bit-vec
-    FlexibleInsertion(GlobalVar, &'arena [EntryInfo]),
+    FlexibleInsertion(Span, GlobalVar, &'arena [EntryInfo]),
     /// Annotated expressions.
     Ann(&'arena Term<'arena>, &'arena Term<'arena>),
     /// Let expressions.
@@ -628,7 +628,7 @@ impl<'arena> Term<'arena> {
             Term::RigidVar(_, v) => *v == var,
             Term::ItemVar(_, _)
             | Term::FlexibleVar(_, _)
-            | Term::FlexibleInsertion(_, _)
+            | Term::FlexibleInsertion(_, _, _)
             | Term::Universe
             | Term::Prim(_)
             | Term::ConstLit(_) => false,
