@@ -530,7 +530,7 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
         // Store the parsed reference in the reference cache
         self.cached_refs
             .entry(pos)
-            .or_insert(Vec::with_capacity(1))
+            .or_insert_with(|| Vec::with_capacity(1))
             .push(ParsedRef {
                 format: format.clone(),
                 expr: expr.clone(),
