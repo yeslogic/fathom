@@ -1317,7 +1317,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
         let expected_type = self.elim_context().force(expected_type);
 
         match (surface_term, expected_type.as_ref()) {
-            (Term::Let(_, def_pattern, def_type, def_expr, output_expr), _) => {
+            (Term::Let(range, def_pattern, def_type, def_expr, output_expr), _) => {
                 let (def_pattern, def_type_value) = self.synth_ann_pattern(def_pattern, *def_type);
                 let def_type = self.quote_context(self.scope).quote(&def_type_value); // FIXME: avoid requote if possible?
                 let def_expr = self.check(def_expr, &def_type_value);
@@ -1328,6 +1328,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 self.rigid_env.pop();
 
                 core::Term::Let(
+                    range.into(),
                     def_name,
                     self.scope.to_scope(def_type),
                     self.scope.to_scope(def_expr),
@@ -1589,7 +1590,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
 
                 (ann_expr, type_value)
             }
-            Term::Let(_, def_pattern, def_type, def_expr, output_expr) => {
+            Term::Let(range, def_pattern, def_type, def_expr, output_expr) => {
                 let (def_pattern, def_type_value) = self.synth_ann_pattern(def_pattern, *def_type);
                 let def_type = self.quote_context(self.scope).quote(&def_type_value); // FIXME: avoid requote if possible?
                 let def_expr = self.check(def_expr, &def_type_value);
@@ -1600,6 +1601,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 self.rigid_env.pop();
 
                 let let_expr = core::Term::Let(
+                    range.into(),
                     def_name,
                     self.scope.to_scope(def_type),
                     self.scope.to_scope(def_expr),
@@ -2168,7 +2170,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 }
 
                 match def_pattern {
-                    CheckedPattern::Name(_, name) => {
+                    CheckedPattern::Name(range, name) => {
                         let def_name = Some(name);
                         let def_expr = self.eval_context().eval(&scrutinee_expr);
                         self.rigid_env.push_def(def_name, def_expr, def_type_value);
@@ -2187,6 +2189,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                         );
 
                         core::Term::Let(
+                            (&range).into(), // FIXME: is this the right range to use here?
                             def_name,
                             self.scope.to_scope(def_type),
                             scrutinee_expr,

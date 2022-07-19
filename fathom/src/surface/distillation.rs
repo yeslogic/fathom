@@ -201,7 +201,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 // Avoid adding extraneous type annotations!
                 self.check(expr)
             }
-            core::Term::Let(def_name, def_type, def_expr, output_expr) => {
+            core::Term::Let(_span, def_name, def_type, def_expr, output_expr) => {
                 let def_type = self.synth(def_type);
                 let def_expr = self.check(def_expr);
 
@@ -349,7 +349,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
 
                 Term::Ann((), self.scope.to_scope(expr), self.scope.to_scope(r#type))
             }
-            core::Term::Let(def_name, def_type, def_expr, output_expr) => {
+            core::Term::Let(_span, def_name, def_type, def_expr, output_expr) => {
                 let def_type = self.synth(def_type);
                 let def_expr = self.check(def_expr);
 

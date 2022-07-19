@@ -167,7 +167,7 @@ pub enum Term<'arena> {
     Ann(Span, &'arena Term<'arena>, &'arena Term<'arena>),
     /// Let expressions.
     Let(
-        // TODO: Allow fetching Let span by merging the term spans
+        Span,
         Option<StringId>,
         &'arena Term<'arena>,
         &'arena Term<'arena>,
@@ -635,7 +635,7 @@ impl<'arena> Term<'arena> {
             | Term::ConstLit(_) => false,
 
             Term::Ann(_, term, r#type) => term.contains_free(var) || r#type.contains_free(var),
-            Term::Let(_, r#type, def, body) => {
+            Term::Let(_, _, r#type, def, body) => {
                 r#type.contains_free(var)
                     || def.contains_free(var)
                     || body.contains_free(var.prev())

@@ -304,12 +304,12 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
                 head_expr
             }
             Term::Ann(_span, expr, _) => self.eval(expr), // TODO: Should the span be passed down?
-            Term::Let(_, _, def_expr, output_expr) => {
+            Term::Let(_span, _, _, def_expr, output_expr) => {
                 let def_expr = self.eval(def_expr);
                 self.rigid_exprs.push(def_expr);
                 let output_expr = self.eval(output_expr);
                 self.rigid_exprs.pop();
-                output_expr
+                output_expr // TODO: Wrap output in span
             }
 
             Term::Universe(_span) => Arc::new(Value::Universe), // TODO: pass span to value
