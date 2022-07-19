@@ -365,7 +365,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                     self.scope.to_scope(output_expr),
                 )
             }
-            core::Term::Universe => Term::Universe(()),
+            core::Term::Universe(_span) => Term::Universe(()),
             core::Term::FunType(_, input_type, output_type)
                 if !output_type.contains_free(LocalVar::last()) =>
             {

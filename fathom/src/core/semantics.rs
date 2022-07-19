@@ -312,7 +312,7 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
                 output_expr
             }
 
-            Term::Universe => Arc::new(Value::Universe),
+            Term::Universe(_span) => Arc::new(Value::Universe), // TODO: pass span to value
 
             Term::FunType(input_name, input_type, output_type) => Arc::new(Value::FunType(
                 *input_name,
@@ -938,7 +938,7 @@ impl<'in_arena, 'out_arena, 'env> QuoteContext<'in_arena, 'out_arena, 'env> {
                 })
             }
 
-            Value::Universe => Term::Universe,
+            Value::Universe => Term::Universe(Span::from_value(&value)),
 
             Value::FunType(input_name, input_type, output_type) => {
                 let input_type = self.quote(input_type);

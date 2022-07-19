@@ -167,6 +167,7 @@ pub enum Term<'arena> {
     Ann(Span, &'arena Term<'arena>, &'arena Term<'arena>),
     /// Let expressions.
     Let(
+        // TODO: Allow fetching Let span by merging the term spans
         Option<StringId>,
         &'arena Term<'arena>,
         &'arena Term<'arena>,
@@ -174,7 +175,7 @@ pub enum Term<'arena> {
     ),
 
     /// The type of types.
-    Universe,
+    Universe(Span),
 
     /// Dependent function types.
     ///
@@ -629,7 +630,7 @@ impl<'arena> Term<'arena> {
             Term::ItemVar(_, _)
             | Term::FlexibleVar(_, _)
             | Term::FlexibleInsertion(_, _, _)
-            | Term::Universe
+            | Term::Universe(_)
             | Term::Prim(_)
             | Term::ConstLit(_) => false,
 

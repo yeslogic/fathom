@@ -552,7 +552,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
                 })
             }
 
-            Value::Universe => Ok(Term::Universe),
+            Value::Universe => Ok(Term::Universe(Span::from_value(value))), // FIXME: As above
 
             Value::FunType(input_name, input_type, output_type) => {
                 let input_type = self.rename(flexible_var, input_type)?;

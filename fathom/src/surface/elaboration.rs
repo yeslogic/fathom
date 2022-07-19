@@ -123,7 +123,7 @@ impl<'arena> RigidEnv<'arena> {
         const VAR2: Term<'_> = Term::RigidVar(Span::fixme(), env::LocalVar::last().prev().prev());
         const VAR3: Term<'_> =
             Term::RigidVar(Span::fixme(), env::LocalVar::last().prev().prev().prev());
-        const UNIVERSE: Term<'_> = Term::Universe;
+        const UNIVERSE: Term<'_> = Term::Universe(Span::fixme());
         const FORMAT_TYPE: Term<'_> = Term::Prim(FormatType);
         const BOOL_TYPE: Term<'_> = Term::Prim(BoolType);
         const U8_TYPE: Term<'_> = Term::Prim(U8Type);
@@ -1631,7 +1631,10 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
 
                 (match_expr, output_type)
             }
-            Term::Universe(_) => (core::Term::Universe, Arc::new(Value::Universe)),
+            Term::Universe(range) => (
+                core::Term::Universe(range.into()),
+                Arc::new(Value::Universe),
+            ),
             Term::Arrow(_, input_type, output_type) => {
                 let universe = Arc::new(Value::Universe); // FIXME: avoid temporary Arc
                 let input_type = self.check(input_type, &universe);
