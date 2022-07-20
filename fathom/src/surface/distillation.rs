@@ -407,8 +407,8 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                     self.scope.to_scope(output_expr),
                 )
             }
-            core::Term::FunApp(head_expr, input_expr) => match head_expr {
-                core::Term::FunApp(core::Term::Prim(prim), lhs)
+            core::Term::FunApp(_span, head_expr, input_expr) => match head_expr {
+                core::Term::FunApp(_span, core::Term::Prim(prim), lhs)
                     if prim_to_bin_op(prim).is_some() =>
                 {
                     // unwrap is safe due to is_some check above
@@ -586,7 +586,8 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
             (self.scope).to_scope_from_iter(core_fields.map(|(label, format)| match format {
                 // Distill succeed formats back to computed formats
                 core::Term::FunApp(
-                    core::Term::FunApp(core::Term::Prim(FormatSucceed), r#type),
+                    _,
+                    core::Term::FunApp(_, core::Term::Prim(FormatSucceed), r#type),
                     expr,
                 ) => {
                     let r#type = self.check(r#type);

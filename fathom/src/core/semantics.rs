@@ -329,9 +329,10 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
                     Closure::new(self.rigid_exprs.clone(), output_expr),
                 ))
             }
-            Term::FunApp(head_expr, input_expr) => {
+            Term::FunApp(_span, head_expr, input_expr) => {
                 let head_expr = self.eval(head_expr);
                 let input_expr = self.eval(input_expr);
+                // TODO: set span of Value
                 self.elim_context().fun_app(head_expr, input_expr)
             }
 
@@ -911,6 +912,7 @@ impl<'in_arena, 'out_arena, 'env> QuoteContext<'in_arena, 'out_arena, 'env> {
 
                 spine.iter().fold(head_expr, |head_expr, elim| match elim {
                     Elim::FunApp(input_expr) => Term::FunApp(
+                        Span::from_value(&value),
                         self.scope.to_scope(head_expr),
                         self.scope.to_scope(self.quote(input_expr)),
                     ),

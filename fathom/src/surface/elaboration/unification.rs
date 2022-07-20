@@ -511,6 +511,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
                 spine.iter().fold(Ok(head_expr), |head_expr, elim| {
                     Ok(match elim {
                         Elim::FunApp(input_expr) => Term::FunApp(
+                            Span::from_value(value), // FIXME: As above
                             self.scope.to_scope(head_expr?),
                             self.scope.to_scope(self.rename(flexible_var, input_expr)?),
                         ),

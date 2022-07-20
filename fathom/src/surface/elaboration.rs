@@ -201,7 +201,7 @@ impl<'arena> RigidEnv<'arena> {
                 &Term::FunType(
                     Span::Empty,
                     None,
-                    &Term::FunApp(&Term::Prim(RefType), &VAR0),
+                    &Term::FunApp(Span::Empty, &Term::Prim(RefType), &VAR0),
                     &FORMAT_TYPE,
                 ),
             ),
@@ -228,7 +228,7 @@ impl<'arena> RigidEnv<'arena> {
                 &Term::FunType(
                     Span::Empty,
                     None,
-                    &Term::FunApp(&Term::Prim(OptionType), &VAR0),
+                    &Term::FunApp(Span::Empty, &Term::Prim(OptionType), &VAR0),
                     &FORMAT_TYPE,
                 ),
             ),
@@ -378,7 +378,7 @@ impl<'arena> RigidEnv<'arena> {
                     Span::Empty,
                     None,
                     &VAR0,
-                    &Term::FunApp(&Term::Prim(OptionType), &VAR1),
+                    &Term::FunApp(Span::Empty, &Term::Prim(OptionType), &VAR1),
                 ),
             ),
         );
@@ -390,7 +390,7 @@ impl<'arena> RigidEnv<'arena> {
                 Span::Empty,
                 env.name("A"),
                 &UNIVERSE,
-                &Term::FunApp(&Term::Prim(OptionType), &VAR0),
+                &Term::FunApp(Span::Empty, &Term::Prim(OptionType), &VAR0),
             ),
         );
         env.define_prim(
@@ -416,8 +416,8 @@ impl<'arena> RigidEnv<'arena> {
                             scope.to_scope(core::Term::FunType(
                                 Span::Empty,
                                 None,
-                                &Term::FunApp(&Term::Prim(OptionType), &VAR3), // Option A@3
-                                &VAR3,                                         // B@3
+                                &Term::FunApp(Span::Empty, &Term::Prim(OptionType), &VAR3), // Option A@3
+                                &VAR3,                                                      // B@3
                             )),
                         )),
                     )),
@@ -445,10 +445,11 @@ impl<'arena> RigidEnv<'arena> {
                             None,
                             // ArrayN len@2 A@1
                             scope.to_scope(Term::FunApp(
-                                scope.to_scope(Term::FunApp(array_type, &VAR2)),
+                                Span::Empty,
+                                scope.to_scope(Term::FunApp(Span::Empty, array_type, &VAR2)),
                                 &VAR1,
                             )),
-                            &Term::FunApp(&Term::Prim(OptionType), &VAR2), // Option A@2
+                            &Term::FunApp(Span::Empty, &Term::Prim(OptionType), &VAR2), // Option A@2
                         )),
                     )),
                 )),
@@ -1774,6 +1775,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
 
                 // Construct the final function application
                 let fun_app = core::Term::FunApp(
+                    range.into(),
                     self.scope.to_scope(head_expr),
                     self.scope.to_scope(input_expr),
                 );
@@ -2063,7 +2065,9 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
         };
 
         let fun_app = core::Term::FunApp(
+            (&range).into(),
             self.scope.to_scope(core::Term::FunApp(
+                (&range).into(), // FIXME: Should this be a sub-range of range (from one of the terms)?
                 self.scope.to_scope(fun),
                 self.scope.to_scope(lhs_expr),
             )),
@@ -2145,7 +2149,9 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                     };
 
                     let format = core::Term::FunApp(
+                        (&range).into(),
                         self.scope.to_scope(core::Term::FunApp(
+                            (&range).into(), // FIXME: sub-range?
                             self.scope.to_scope(core::Term::Prim(Prim::FormatSucceed)),
                             self.scope.to_scope(r#type),
                         )),
