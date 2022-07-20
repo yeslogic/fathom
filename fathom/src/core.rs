@@ -196,7 +196,7 @@ pub enum Term<'arena> {
     /// Dependent record types.
     RecordType(Span, &'arena [StringId], &'arena [Term<'arena>]),
     /// Record literals.
-    RecordLit(&'arena [StringId], &'arena [Term<'arena>]),
+    RecordLit(Span, &'arena [StringId], &'arena [Term<'arena>]),
     /// Record projections.
     RecordProj(&'arena Term<'arena>, StringId),
 
@@ -651,7 +651,7 @@ impl<'arena> Term<'arena> {
             Term::FunLit(_, _, body) => body.contains_free(var.prev()),
             Term::FunApp(_, head, arg) => head.contains_free(var) || arg.contains_free(var),
             Term::RecordType(_, _, terms)
-            | Term::RecordLit(_, terms)
+            | Term::RecordLit(_, _, terms)
             | Term::FormatRecord(_, terms)
             | Term::FormatOverlap(_, terms) => terms.iter().any(|term| {
                 let result = term.contains_free(var);

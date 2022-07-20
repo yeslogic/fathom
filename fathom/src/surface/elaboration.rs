@@ -1414,7 +1414,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                     exprs.push(expr);
                 }
 
-                core::Term::RecordLit(labels, exprs.into())
+                core::Term::RecordLit(range.into(), labels, exprs.into())
             }
             (Term::UnitLiteral(range), Value::Universe) => {
                 core::Term::RecordType(range.into(), &[], &[])
@@ -1821,12 +1821,12 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 let types = Telescope::new(self.rigid_env.exprs.clone(), types.into());
 
                 (
-                    core::Term::RecordLit(labels, exprs.into()),
+                    core::Term::RecordLit(range.into(), labels, exprs.into()),
                     Arc::new(Value::RecordType(labels, types)),
                 )
             }
-            Term::UnitLiteral(_) => (
-                core::Term::RecordLit(&[], &[]),
+            Term::UnitLiteral(range) => (
+                core::Term::RecordLit(range.into(), &[], &[]),
                 Arc::new(Value::RecordType(
                     &[],
                     Telescope::new(SharedEnv::new(), &[]),

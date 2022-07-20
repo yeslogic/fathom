@@ -230,8 +230,8 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 )
             }
             core::Term::RecordType(_span, labels, _) if labels.is_empty() => Term::UnitLiteral(()),
-            core::Term::RecordLit(labels, _) if labels.is_empty() => Term::UnitLiteral(()),
-            core::Term::RecordLit(labels, exprs) => {
+            core::Term::RecordLit(_span, labels, _) if labels.is_empty() => Term::UnitLiteral(()),
+            core::Term::RecordLit(_span, labels, exprs) => {
                 let scope = self.scope;
                 let expr_fields =
                     Iterator::zip(labels.iter(), exprs.iter()).map(|(label, expr)| ExprField {
@@ -444,8 +444,8 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
 
                 Term::RecordType((), type_fields)
             }
-            core::Term::RecordLit(labels, _) if labels.is_empty() => Term::UnitLiteral(()),
-            core::Term::RecordLit(labels, exprs) => {
+            core::Term::RecordLit(_span, labels, _) if labels.is_empty() => Term::UnitLiteral(()),
+            core::Term::RecordLit(_span, labels, exprs) => {
                 let scope = self.scope;
                 let expr_fields =
                     Iterator::zip(labels.iter(), exprs.iter()).map(|(label, expr)| ExprField {

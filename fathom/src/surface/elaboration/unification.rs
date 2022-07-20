@@ -593,7 +593,11 @@ impl<'arena, 'env> Context<'arena, 'env> {
                     new_exprs.push(self.rename(flexible_var, expr)?);
                 }
 
-                Ok(Term::RecordLit(labels, new_exprs.into()))
+                Ok(Term::RecordLit(
+                    Span::from_value(value), // FIXME: As above
+                    labels,
+                    new_exprs.into(),
+                ))
             }
 
             Value::ArrayLit(elem_exprs) => {
