@@ -580,7 +580,11 @@ impl<'arena, 'env> Context<'arena, 'env> {
                 let labels = self.scope.to_scope(labels); // FIXME: avoid copy if this is the same arena?
                 let types = self.rename_telescope(flexible_var, types)?;
 
-                Ok(Term::RecordType(labels, types))
+                Ok(Term::RecordType(
+                    Span::from_value(value), // FIXME: As above
+                    labels,
+                    types,
+                ))
             }
             Value::RecordLit(labels, exprs) => {
                 let labels = self.scope.to_scope(labels); // FIXME: avoid copy if this is the same arena?

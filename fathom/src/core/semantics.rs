@@ -336,8 +336,9 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
                 self.elim_context().fun_app(head_expr, input_expr)
             }
 
-            Term::RecordType(labels, types) => {
+            Term::RecordType(_span, labels, types) => {
                 let types = Telescope::new(self.rigid_exprs.clone(), types);
+                // TODO: set span of Value
                 Arc::new(Value::RecordType(labels, types))
             }
             Term::RecordLit(labels, exprs) => {
@@ -973,7 +974,7 @@ impl<'in_arena, 'out_arena, 'env> QuoteContext<'in_arena, 'out_arena, 'env> {
                 let labels = self.scope.to_scope_from_iter(labels.iter().copied()); // FIXME: avoid copy if this is the same arena?
                 let types = self.quote_telescope(types);
 
-                Term::RecordType(labels, types)
+                Term::RecordType(Span::from_value(&value), labels, types)
             }
             Value::RecordLit(labels, exprs) => {
                 let labels = self.scope.to_scope_from_iter(labels.iter().copied()); // FIXME: avoid copy if this is the same arena?

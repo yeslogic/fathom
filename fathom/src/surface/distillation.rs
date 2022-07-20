@@ -229,7 +229,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                     self.scope.to_scope(output_expr),
                 )
             }
-            core::Term::RecordType(labels, _) if labels.is_empty() => Term::UnitLiteral(()),
+            core::Term::RecordType(_span, labels, _) if labels.is_empty() => Term::UnitLiteral(()),
             core::Term::RecordLit(labels, _) if labels.is_empty() => Term::UnitLiteral(()),
             core::Term::RecordLit(labels, exprs) => {
                 let scope = self.scope;
@@ -425,17 +425,17 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                     )
                 }
             },
-            core::Term::RecordType(labels, _) if labels.is_empty() => {
+            core::Term::RecordType(_span, labels, _) if labels.is_empty() => {
                 Term::Ann((), &Term::UnitLiteral(()), &Term::Universe(()))
             }
-            core::Term::RecordType(labels, types) => {
+            core::Term::RecordType(_span, labels, types) => {
                 let initial_rigid_len = self.rigid_len();
                 let type_fields = (self.scope).to_scope_from_iter(
                     Iterator::zip(labels.iter(), types.iter()).map(|(label, r#type)| {
                         let r#type = self.check(r#type);
                         self.push_rigid(Some(*label));
                         TypeField {
-                            label: ((), *label),
+                            label: ((), *label), // TODO: range from span
                             type_: r#type,
                         }
                     }),

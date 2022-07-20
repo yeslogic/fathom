@@ -1416,7 +1416,9 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
 
                 core::Term::RecordLit(labels, exprs.into())
             }
-            (Term::UnitLiteral(_), Value::Universe) => core::Term::RecordType(&[], &[]),
+            (Term::UnitLiteral(range), Value::Universe) => {
+                core::Term::RecordType(range.into(), &[], &[])
+            }
             (Term::UnitLiteral(_), _)
                 if matches!(
                     expected_type.match_prim_spine(),
@@ -1799,7 +1801,10 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
 
                 self.rigid_env.truncate(initial_rigid_len);
 
-                (core::Term::RecordType(labels, types.into()), universe)
+                (
+                    core::Term::RecordType(range.into(), labels, types.into()),
+                    universe,
+                )
             }
             Term::RecordLiteral(range, expr_fields) => {
                 let (labels, expr_fields) =
