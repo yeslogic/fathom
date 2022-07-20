@@ -220,6 +220,7 @@ pub enum Term<'arena> {
     ///
     /// (head_expr, pattern_branches, default_expr)
     ConstMatch(
+        Span,
         &'arena Term<'arena>,
         &'arena [(Const, Term<'arena>)],
         Option<&'arena Term<'arena>>,
@@ -661,7 +662,7 @@ impl<'arena> Term<'arena> {
             Term::RecordProj(_, term, _) => term.contains_free(var),
             Term::ArrayLit(_, terms) => terms.iter().any(|term| term.contains_free(var)),
             Term::FormatCond(_, _, t1, t2) => t1.contains_free(var) || t2.contains_free(var),
-            Term::ConstMatch(scrut, branches, default) => {
+            Term::ConstMatch(_, scrut, branches, default) => {
                 scrut.contains_free(var)
                     || branches.iter().any(|(_, term)| term.contains_free(var))
                     || default.map(|term| term.contains_free(var)).unwrap_or(false)

@@ -548,6 +548,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
                             };
 
                             Term::ConstMatch(
+                                Span::from_value(value), // FIXME: As above
                                 self.scope.to_scope(head_expr?),
                                 pattern_branches.into(),
                                 default_expr.map(|expr| self.scope.to_scope(expr) as &_),

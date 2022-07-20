@@ -2496,6 +2496,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                                     self.rigid_env.pop();
 
                                     return core::Term::ConstMatch(
+                                        (&range).into(),
                                         scrutinee_expr,
                                         self.scope.to_scope_from_iter(branches.into_iter()),
                                         Some(self.scope.to_scope(default_expr)),
@@ -2507,6 +2508,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                         if num_constructors == Some(branches.len()) {
                             // The absence of a default constructor is ok as the match was exhaustive.
                             return core::Term::ConstMatch(
+                                (&range).into(),
                                 scrutinee_expr,
                                 self.scope.to_scope_from_iter(branches.into_iter()),
                                 None,

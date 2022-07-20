@@ -386,9 +386,10 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
                 // TODO: set span of Value
                 Arc::new(Value::ConstLit(*r#const))
             }
-            Term::ConstMatch(head_expr, branches, default_expr) => {
+            Term::ConstMatch(_span, head_expr, branches, default_expr) => {
                 let head_expr = self.eval(head_expr);
                 let branches = Branches::new(self.rigid_exprs.clone(), branches, *default_expr);
+                // TODO: set span of Value
                 self.elim_context().const_match(head_expr, branches)
             }
         }
@@ -953,6 +954,7 @@ impl<'in_arena, 'out_arena, 'env> QuoteContext<'in_arena, 'out_arena, 'env> {
                         };
 
                         Term::ConstMatch(
+                            Span::from_value(&value),
                             self.scope.to_scope(head_expr),
                             pattern_branches.into(),
                             default_expr.map(|expr| self.scope.to_scope(expr) as &_),
