@@ -382,7 +382,10 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
                 Arc::new(Value::prim(*prim, []))
             }
 
-            Term::ConstLit(r#const) => Arc::new(Value::ConstLit(*r#const)),
+            Term::ConstLit(_span, r#const) => {
+                // TODO: set span of Value
+                Arc::new(Value::ConstLit(*r#const))
+            }
             Term::ConstMatch(head_expr, branches, default_expr) => {
                 let head_expr = self.eval(head_expr);
                 let branches = Branches::new(self.rigid_exprs.clone(), branches, *default_expr);
@@ -1024,7 +1027,7 @@ impl<'in_arena, 'out_arena, 'env> QuoteContext<'in_arena, 'out_arena, 'env> {
                 Term::FormatOverlap(Span::from_value(&value), labels, formats)
             }
 
-            Value::ConstLit(r#const) => Term::ConstLit(*r#const),
+            Value::ConstLit(r#const) => Term::ConstLit(Span::from_value(&value), *r#const),
         }
     }
 

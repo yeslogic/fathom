@@ -1520,7 +1520,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 };
 
                 match constant {
-                    Some(constant) => core::Term::ConstLit(constant),
+                    Some(constant) => core::Term::ConstLit(range.into(), constant),
                     None => core::Term::Prim(range.into(), Prim::ReportedError),
                 }
             }
@@ -1556,7 +1556,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 };
 
                 match constant {
-                    Some(constant) => core::Term::ConstLit(constant),
+                    Some(constant) => core::Term::ConstLit(range.into(), constant),
                     None => core::Term::Prim(range.into(), Prim::ReportedError),
                 }
             }
@@ -1891,9 +1891,12 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 self.push_message(Message::AmbiguousNumericLiteral { range: *range });
                 self.synth_reported_error(*range)
             }
-            Term::BooleanLiteral(_range, val) => {
+            Term::BooleanLiteral(range, val) => {
                 let bool_type = Arc::new(Value::prim(Prim::BoolType, []));
-                (core::Term::ConstLit(Const::Bool(*val)), bool_type)
+                (
+                    core::Term::ConstLit(range.into(), Const::Bool(*val)),
+                    bool_type,
+                )
             }
             Term::FormatRecord(range, format_fields) => {
                 let format_type = Arc::new(Value::prim(Prim::FormatType, []));

@@ -647,7 +647,10 @@ impl<'arena, 'env> Context<'arena, 'env> {
                 ))
             }
 
-            Value::ConstLit(constant) => Ok(Term::ConstLit(*constant)),
+            Value::ConstLit(constant) => Ok(Term::ConstLit(
+                Span::from_value(value), // FIXME: As above
+                *constant,
+            )),
         }
     }
 

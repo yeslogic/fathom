@@ -250,7 +250,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
             core::Term::FormatRecord(_span, labels, _) if labels.is_empty() => {
                 Term::UnitLiteral(())
             }
-            core::Term::ConstLit(r#const) => match r#const {
+            core::Term::ConstLit(_span, r#const) => match r#const {
                 core::Const::Bool(boolean) => Term::BooleanLiteral((), *boolean),
                 core::Const::U8(number, style) => self.check_number_literal_styled(number, *style),
                 core::Const::U16(number, style) => self.check_number_literal_styled(number, *style),
@@ -493,7 +493,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 Term::FormatOverlap((), self.synth_format_fields(labels, formats))
             }
             core::Term::Prim(_span, prim) => self.synth_prim(*prim),
-            core::Term::ConstLit(r#const) => match r#const {
+            core::Term::ConstLit(_span, r#const) => match r#const {
                 core::Const::Bool(boolean) => Term::BooleanLiteral((), *boolean),
                 core::Const::U8(number, style) => {
                     self.synth_number_literal_styled(number, *style, core::Prim::U8Type)

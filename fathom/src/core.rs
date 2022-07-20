@@ -215,7 +215,7 @@ pub enum Term<'arena> {
     Prim(Span, Prim),
 
     /// Constant literals.
-    ConstLit(Const),
+    ConstLit(Span, Const),
     /// Match on a constant.
     ///
     /// (head_expr, pattern_branches, default_expr)
@@ -637,7 +637,7 @@ impl<'arena> Term<'arena> {
             | Term::FlexibleInsertion(_, _, _)
             | Term::Universe(_)
             | Term::Prim(_, _)
-            | Term::ConstLit(_) => false,
+            | Term::ConstLit(_, _) => false,
 
             Term::Ann(_, term, r#type) => term.contains_free(var) || r#type.contains_free(var),
             Term::Let(_, _, r#type, def, body) => {
