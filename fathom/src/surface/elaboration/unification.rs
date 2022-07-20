@@ -630,6 +630,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
                 let format = self.rename(flexible_var, format)?;
                 let cond = self.rename_closure(flexible_var, cond)?;
                 Ok(Term::FormatCond(
+                    Span::from_value(value), // FIXME: As above
                     *label,
                     self.scope.to_scope(format),
                     self.scope.to_scope(cond),

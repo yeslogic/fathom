@@ -477,7 +477,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
             core::Term::FormatRecord(_span, labels, formats) => {
                 Term::FormatRecord((), self.synth_format_fields(labels, formats))
             }
-            core::Term::FormatCond(label, format, cond) => {
+            core::Term::FormatCond(_span, label, format, cond) => {
                 let format = self.check(format);
                 self.push_rigid(Some(*label));
                 let cond = self.check(cond);
@@ -604,7 +604,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 }
                 // Use field refinements when `format` is a conditional format
                 // that binds the same name as the current field label.
-                core::Term::FormatCond(name, format, pred) if label == *name => {
+                core::Term::FormatCond(_span, name, format, pred) if label == *name => {
                     let format = self.check(format);
                     self.push_rigid(Some(label));
                     let pred = self.check(pred);

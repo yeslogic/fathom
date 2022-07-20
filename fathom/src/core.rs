@@ -206,7 +206,7 @@ pub enum Term<'arena> {
     /// Record formats, consisting of a list of dependent formats.
     FormatRecord(Span, &'arena [StringId], &'arena [Term<'arena>]),
     /// Conditional format, consisting of a format and predicate.
-    FormatCond(StringId, &'arena Term<'arena>, &'arena Term<'arena>),
+    FormatCond(Span, StringId, &'arena Term<'arena>, &'arena Term<'arena>),
     /// Overlap formats, consisting of a list of dependent formats, overlapping
     /// in memory.
     FormatOverlap(&'arena [StringId], &'arena [Term<'arena>]),
@@ -660,7 +660,7 @@ impl<'arena> Term<'arena> {
             }),
             Term::RecordProj(_, term, _) => term.contains_free(var),
             Term::ArrayLit(_, terms) => terms.iter().any(|term| term.contains_free(var)),
-            Term::FormatCond(_, t1, t2) => t1.contains_free(var) || t2.contains_free(var),
+            Term::FormatCond(_, _, t1, t2) => t1.contains_free(var) || t2.contains_free(var),
             Term::ConstMatch(scrut, branches, default) => {
                 scrut.contains_free(var)
                     || branches.iter().any(|(_, term)| term.contains_free(var))

@@ -1898,7 +1898,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                     format_type,
                 )
             }
-            Term::FormatCond(_range, (_, name), format, pred) => {
+            Term::FormatCond(range, (_, name), format, pred) => {
                 let format_type = Arc::new(Value::prim(Prim::FormatType, []));
                 let format = self.check(format, &format_type);
                 let format_value = self.eval_context().eval(&format);
@@ -1910,6 +1910,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
 
                 (
                     core::Term::FormatCond(
+                        range.into(),
                         *name,
                         self.scope.to_scope(format),
                         self.scope.to_scope(pred_expr),
@@ -2132,6 +2133,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                             let cond_expr = self.check(pred, &bool_type);
 
                             formats.push(core::Term::FormatCond(
+                                (&range).into(), // FIXME: Is this range of all the fields? If so we need to merge ranges of the field only
                                 *label,
                                 self.scope.to_scope(format),
                                 self.scope.to_scope(cond_expr),

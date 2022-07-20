@@ -365,9 +365,10 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
                 // TODO: set span of Value
                 Arc::new(Value::FormatRecord(labels, formats))
             }
-            Term::FormatCond(name, format, cond) => {
+            Term::FormatCond(_span, name, format, cond) => {
                 let format = self.eval(format);
                 let cond_expr = Closure::new(self.rigid_exprs.clone(), cond);
+                // TODO: set span of Value
                 Arc::new(Value::FormatCond(*name, format, cond_expr))
             }
             Term::FormatOverlap(labels, formats) => {
@@ -1006,6 +1007,7 @@ impl<'in_arena, 'out_arena, 'env> QuoteContext<'in_arena, 'out_arena, 'env> {
                 let format = self.quote(format);
                 let cond = self.quote_closure(cond);
                 Term::FormatCond(
+                    Span::from_value(&value),
                     *label,
                     self.scope.to_scope(format),
                     self.scope.to_scope(cond),
