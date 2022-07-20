@@ -247,7 +247,9 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
 
                 Term::ArrayLiteral((), scope.to_scope_from_iter(elem_exprs))
             }
-            core::Term::FormatRecord(labels, _) if labels.is_empty() => Term::UnitLiteral(()),
+            core::Term::FormatRecord(_span, labels, _) if labels.is_empty() => {
+                Term::UnitLiteral(())
+            }
             core::Term::ConstLit(r#const) => match r#const {
                 core::Const::Bool(boolean) => Term::BooleanLiteral((), *boolean),
                 core::Const::U8(number, style) => self.check_number_literal_styled(number, *style),
@@ -468,11 +470,11 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 // FIXME: Type annotations
                 Term::ArrayLiteral((), scope.to_scope_from_iter(elem_exprs))
             }
-            core::Term::FormatRecord(labels, _) if labels.is_empty() => {
+            core::Term::FormatRecord(_span, labels, _) if labels.is_empty() => {
                 let format_type = self.synth_prim(core::Prim::FormatType);
                 Term::Ann((), &Term::UnitLiteral(()), self.scope.to_scope(format_type))
             }
-            core::Term::FormatRecord(labels, formats) => {
+            core::Term::FormatRecord(_span, labels, formats) => {
                 Term::FormatRecord((), self.synth_format_fields(labels, formats))
             }
             core::Term::FormatCond(label, format, cond) => {

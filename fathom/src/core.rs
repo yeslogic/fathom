@@ -204,7 +204,7 @@ pub enum Term<'arena> {
     ArrayLit(Span, &'arena [Term<'arena>]),
 
     /// Record formats, consisting of a list of dependent formats.
-    FormatRecord(&'arena [StringId], &'arena [Term<'arena>]),
+    FormatRecord(Span, &'arena [StringId], &'arena [Term<'arena>]),
     /// Conditional format, consisting of a format and predicate.
     FormatCond(StringId, &'arena Term<'arena>, &'arena Term<'arena>),
     /// Overlap formats, consisting of a list of dependent formats, overlapping
@@ -652,7 +652,7 @@ impl<'arena> Term<'arena> {
             Term::FunApp(_, head, arg) => head.contains_free(var) || arg.contains_free(var),
             Term::RecordType(_, _, terms)
             | Term::RecordLit(_, _, terms)
-            | Term::FormatRecord(_, terms)
+            | Term::FormatRecord(_, _, terms)
             | Term::FormatOverlap(_, terms) => terms.iter().any(|term| {
                 let result = term.contains_free(var);
                 var = var.prev();

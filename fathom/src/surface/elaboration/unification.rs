@@ -620,7 +620,11 @@ impl<'arena, 'env> Context<'arena, 'env> {
                 let labels = self.scope.to_scope(labels); // FIXME: avoid copy if this is the same arena?
                 let formats = self.rename_telescope(flexible_var, formats)?;
 
-                Ok(Term::FormatRecord(labels, formats))
+                Ok(Term::FormatRecord(
+                    Span::from_value(value), // FIXME: As above
+                    labels,
+                    formats,
+                ))
             }
             Value::FormatCond(label, format, cond) => {
                 let format = self.rename(flexible_var, format)?;

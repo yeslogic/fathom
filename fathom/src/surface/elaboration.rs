@@ -1419,13 +1419,13 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
             (Term::UnitLiteral(range), Value::Universe) => {
                 core::Term::RecordType(range.into(), &[], &[])
             }
-            (Term::UnitLiteral(_), _)
+            (Term::UnitLiteral(range), _)
                 if matches!(
                     expected_type.match_prim_spine(),
                     Some((Prim::FormatType, [])),
                 ) =>
             {
-                core::Term::FormatRecord(&[], &[])
+                core::Term::FormatRecord(range.into(), &[], &[])
             }
             (Term::ArrayLiteral(range, elem_exprs), _) => {
                 use crate::core::semantics::Elim::FunApp as App;
@@ -1893,7 +1893,10 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 let format_type = Arc::new(Value::prim(Prim::FormatType, []));
                 let (labels, formats) = self.check_format_fields(*range, format_fields);
 
-                (core::Term::FormatRecord(labels, formats), format_type)
+                (
+                    core::Term::FormatRecord(range.into(), labels, formats),
+                    format_type,
+                )
             }
             Term::FormatCond(_range, (_, name), format, pred) => {
                 let format_type = Arc::new(Value::prim(Prim::FormatType, []));

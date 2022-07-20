@@ -360,8 +360,9 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
                 Arc::new(Value::ArrayLit(elem_exprs))
             }
 
-            Term::FormatRecord(labels, formats) => {
+            Term::FormatRecord(_span, labels, formats) => {
                 let formats = Telescope::new(self.rigid_exprs.clone(), formats);
+                // TODO: set span of Value
                 Arc::new(Value::FormatRecord(labels, formats))
             }
             Term::FormatCond(name, format, cond) => {
@@ -999,7 +1000,7 @@ impl<'in_arena, 'out_arena, 'env> QuoteContext<'in_arena, 'out_arena, 'env> {
                 let labels = self.scope.to_scope_from_iter(labels.iter().copied()); // FIXME: avoid copy if this is the same arena?
                 let formats = self.quote_telescope(formats);
 
-                Term::FormatRecord(labels, formats)
+                Term::FormatRecord(Span::from_value(&value), labels, formats)
             }
             Value::FormatCond(label, format, cond) => {
                 let format = self.quote(format);
