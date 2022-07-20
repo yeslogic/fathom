@@ -377,7 +377,10 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
                 Arc::new(Value::FormatOverlap(labels, formats))
             }
 
-            Term::Prim(prim) => Arc::new(Value::prim(*prim, [])),
+            Term::Prim(_span, prim) => {
+                // TODO: set span of Value
+                Arc::new(Value::prim(*prim, []))
+            }
 
             Term::ConstLit(r#const) => Arc::new(Value::ConstLit(*r#const)),
             Term::ConstMatch(head_expr, branches, default_expr) => {
@@ -906,7 +909,7 @@ impl<'in_arena, 'out_arena, 'env> QuoteContext<'in_arena, 'out_arena, 'env> {
         match value.as_ref() {
             Value::Stuck(head, spine) => {
                 let head_expr = match head {
-                    Head::Prim(prim) => Term::Prim(*prim),
+                    Head::Prim(prim) => Term::Prim(Span::fixme(), *prim),
                     Head::RigidVar(var) => {
                         // FIXME: Unwrap
                         Term::RigidVar(

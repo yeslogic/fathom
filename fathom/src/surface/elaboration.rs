@@ -124,21 +124,21 @@ impl<'arena> RigidEnv<'arena> {
         const VAR3: Term<'_> =
             Term::RigidVar(Span::fixme(), env::LocalVar::last().prev().prev().prev());
         const UNIVERSE: Term<'_> = Term::Universe(Span::fixme());
-        const FORMAT_TYPE: Term<'_> = Term::Prim(FormatType);
-        const BOOL_TYPE: Term<'_> = Term::Prim(BoolType);
-        const U8_TYPE: Term<'_> = Term::Prim(U8Type);
-        const U16_TYPE: Term<'_> = Term::Prim(U16Type);
-        const U32_TYPE: Term<'_> = Term::Prim(U32Type);
-        const U64_TYPE: Term<'_> = Term::Prim(U64Type);
-        const S8_TYPE: Term<'_> = Term::Prim(S8Type);
-        const S16_TYPE: Term<'_> = Term::Prim(S16Type);
-        const S32_TYPE: Term<'_> = Term::Prim(S32Type);
-        const S64_TYPE: Term<'_> = Term::Prim(S64Type);
-        const ARRAY8_TYPE: Term<'_> = Term::Prim(Array8Type);
-        const ARRAY16_TYPE: Term<'_> = Term::Prim(Array16Type);
-        const ARRAY32_TYPE: Term<'_> = Term::Prim(Array32Type);
-        const ARRAY64_TYPE: Term<'_> = Term::Prim(Array64Type);
-        const POS_TYPE: Term<'_> = Term::Prim(PosType);
+        const FORMAT_TYPE: Term<'_> = Term::Prim(Span::Empty, FormatType);
+        const BOOL_TYPE: Term<'_> = Term::Prim(Span::Empty, BoolType);
+        const U8_TYPE: Term<'_> = Term::Prim(Span::Empty, U8Type);
+        const U16_TYPE: Term<'_> = Term::Prim(Span::Empty, U16Type);
+        const U32_TYPE: Term<'_> = Term::Prim(Span::Empty, U32Type);
+        const U64_TYPE: Term<'_> = Term::Prim(Span::Empty, U64Type);
+        const S8_TYPE: Term<'_> = Term::Prim(Span::Empty, S8Type);
+        const S16_TYPE: Term<'_> = Term::Prim(Span::Empty, S16Type);
+        const S32_TYPE: Term<'_> = Term::Prim(Span::Empty, S32Type);
+        const S64_TYPE: Term<'_> = Term::Prim(Span::Empty, S64Type);
+        const ARRAY8_TYPE: Term<'_> = Term::Prim(Span::Empty, Array8Type);
+        const ARRAY16_TYPE: Term<'_> = Term::Prim(Span::Empty, Array16Type);
+        const ARRAY32_TYPE: Term<'_> = Term::Prim(Span::Empty, Array32Type);
+        const ARRAY64_TYPE: Term<'_> = Term::Prim(Span::Empty, Array64Type);
+        const POS_TYPE: Term<'_> = Term::Prim(Span::Empty, PosType);
 
         let mut env = RigidEnvBuilder::new(interner, scope);
 
@@ -201,7 +201,7 @@ impl<'arena> RigidEnv<'arena> {
                 &Term::FunType(
                     Span::Empty,
                     None,
-                    &Term::FunApp(Span::Empty, &Term::Prim(RefType), &VAR0),
+                    &Term::FunApp(Span::Empty, &Term::Prim(Span::Empty, RefType), &VAR0),
                     &FORMAT_TYPE,
                 ),
             ),
@@ -228,7 +228,7 @@ impl<'arena> RigidEnv<'arena> {
                 &Term::FunType(
                     Span::Empty,
                     None,
-                    &Term::FunApp(Span::Empty, &Term::Prim(OptionType), &VAR0),
+                    &Term::FunApp(Span::Empty, &Term::Prim(Span::Empty, OptionType), &VAR0),
                     &FORMAT_TYPE,
                 ),
             ),
@@ -378,7 +378,7 @@ impl<'arena> RigidEnv<'arena> {
                     Span::Empty,
                     None,
                     &VAR0,
-                    &Term::FunApp(Span::Empty, &Term::Prim(OptionType), &VAR1),
+                    &Term::FunApp(Span::Empty, &Term::Prim(Span::Empty, OptionType), &VAR1),
                 ),
             ),
         );
@@ -390,7 +390,7 @@ impl<'arena> RigidEnv<'arena> {
                 Span::Empty,
                 env.name("A"),
                 &UNIVERSE,
-                &Term::FunApp(Span::Empty, &Term::Prim(OptionType), &VAR0),
+                &Term::FunApp(Span::Empty, &Term::Prim(Span::Empty, OptionType), &VAR0),
             ),
         );
         env.define_prim(
@@ -416,8 +416,12 @@ impl<'arena> RigidEnv<'arena> {
                             scope.to_scope(core::Term::FunType(
                                 Span::Empty,
                                 None,
-                                &Term::FunApp(Span::Empty, &Term::Prim(OptionType), &VAR3), // Option A@3
-                                &VAR3,                                                      // B@3
+                                &Term::FunApp(
+                                    Span::Empty,
+                                    &Term::Prim(Span::Empty, OptionType),
+                                    &VAR3,
+                                ), // Option A@3
+                                &VAR3, // B@3
                             )),
                         )),
                     )),
@@ -449,7 +453,7 @@ impl<'arena> RigidEnv<'arena> {
                                 scope.to_scope(Term::FunApp(Span::Empty, array_type, &VAR2)),
                                 &VAR1,
                             )),
-                            &Term::FunApp(Span::Empty, &Term::Prim(OptionType), &VAR2), // Option A@2
+                            &Term::FunApp(Span::Empty, &Term::Prim(Span::Empty, OptionType), &VAR2), // Option A@2
                         )),
                     )),
                 )),
@@ -986,7 +990,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
     //       coercions to the core language.
     fn convert(
         &mut self,
-        range: ByteRange, // NOTE: could be removed if source info is added to `core::Term`
+        range: ByteRange, // TODO: could be removed if source info is added to `core::Term`
         expr: core::Term<'arena>,
         type0: &ArcValue<'arena>,
         type1: &ArcValue<'arena>,
@@ -1002,7 +1006,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                     rhs,
                     error,
                 });
-                core::Term::Prim(Prim::ReportedError)
+                core::Term::Prim((&range).into(), Prim::ReportedError)
             }
         }
     }
@@ -1398,7 +1402,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                             .collect(),
                         type_labels: labels.iter().copied().collect(),
                     });
-                    return core::Term::Prim(Prim::ReportedError);
+                    return core::Term::Prim(range.into(), Prim::ReportedError);
                 }
 
                 let mut types = types.clone();
@@ -1436,14 +1440,16 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                     Some((Prim::Array16Type, [App(len), App(elem_type)])) => (Some(len), elem_type),
                     Some((Prim::Array32Type, [App(len), App(elem_type)])) => (Some(len), elem_type),
                     Some((Prim::Array64Type, [App(len), App(elem_type)])) => (Some(len), elem_type),
-                    Some((Prim::ReportedError, _)) => return core::Term::Prim(Prim::ReportedError),
+                    Some((Prim::ReportedError, _)) => {
+                        return core::Term::Prim(range.into(), Prim::ReportedError)
+                    }
                     _ => {
                         let expected_type = self.pretty_print_value(&expected_type);
                         self.push_message(Message::ArrayLiteralNotSupported {
                             range: *range,
                             expected_type,
                         });
-                        return core::Term::Prim(Prim::ReportedError);
+                        return core::Term::Prim(range.into(), Prim::ReportedError);
                     }
                 };
 
@@ -1454,7 +1460,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                     Some(Value::ConstLit(Const::U32(len, _))) => Some(*len as u64),
                     Some(Value::ConstLit(Const::U64(len, _))) => Some(*len as u64),
                     Some(Value::Stuck(Head::Prim(Prim::ReportedError), _)) => {
-                        return core::Term::Prim(Prim::ReportedError);
+                        return core::Term::Prim(range.into(), Prim::ReportedError);
                     }
                     _ => None,
                 };
@@ -1480,7 +1486,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                             expected_len,
                         });
 
-                        core::Term::Prim(Prim::ReportedError)
+                        core::Term::Prim(range.into(), Prim::ReportedError)
                     }
                 }
             }
@@ -1515,7 +1521,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
 
                 match constant {
                     Some(constant) => core::Term::ConstLit(constant),
-                    None => core::Term::Prim(Prim::ReportedError),
+                    None => core::Term::Prim(range.into(), Prim::ReportedError),
                 }
             }
             (Term::NumberLiteral(range, number), _) => {
@@ -1545,16 +1551,16 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                             range: *range,
                             expected_type,
                         });
-                        return core::Term::Prim(Prim::ReportedError);
+                        return core::Term::Prim(range.into(), Prim::ReportedError);
                     }
                 };
 
                 match constant {
                     Some(constant) => core::Term::ConstLit(constant),
-                    None => core::Term::Prim(Prim::ReportedError),
+                    None => core::Term::Prim(range.into(), Prim::ReportedError),
                 }
             }
-            (Term::ReportedError(_), _) => core::Term::Prim(Prim::ReportedError),
+            (Term::ReportedError(range), _) => core::Term::Prim(range.into(), Prim::ReportedError),
             (_, _) => {
                 let (core_term, synth_type) = self.synth(surface_term);
                 self.convert(surface_term.range(), core_term, &synth_type, &expected_type)
@@ -1950,118 +1956,284 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
         let operand_types = Option::zip(lhs_type.match_prim_spine(), rhs_type.match_prim_spine());
 
         let (fun, output_type) = match (op, operand_types) {
-            (Mul(_), Some(((U8Type, []), (U8Type, [])))) => (core::Term::Prim(U8Mul), U8Type),
-            (Mul(_), Some(((U16Type, []), (U16Type, [])))) => (core::Term::Prim(U16Mul), U16Type),
-            (Mul(_), Some(((U32Type, []), (U32Type, [])))) => (core::Term::Prim(U32Mul), U32Type),
-            (Mul(_), Some(((U64Type, []), (U64Type, [])))) => (core::Term::Prim(U64Mul), U64Type),
+            (Mul(_), Some(((U8Type, []), (U8Type, [])))) => {
+                (core::Term::Prim(Span::Empty, U8Mul), U8Type)
+            }
+            (Mul(_), Some(((U16Type, []), (U16Type, [])))) => {
+                (core::Term::Prim(Span::Empty, U16Mul), U16Type)
+            }
+            (Mul(_), Some(((U32Type, []), (U32Type, [])))) => {
+                (core::Term::Prim(Span::Empty, U32Mul), U32Type)
+            }
+            (Mul(_), Some(((U64Type, []), (U64Type, [])))) => {
+                (core::Term::Prim(Span::Empty, U64Mul), U64Type)
+            }
 
-            (Mul(_), Some(((S8Type, []), (S8Type, [])))) => (core::Term::Prim(S8Mul), S8Type),
-            (Mul(_), Some(((S16Type, []), (S16Type, [])))) => (core::Term::Prim(S16Mul), S16Type),
-            (Mul(_), Some(((S32Type, []), (S32Type, [])))) => (core::Term::Prim(S32Mul), S32Type),
-            (Mul(_), Some(((S64Type, []), (S64Type, [])))) => (core::Term::Prim(S64Mul), S64Type),
+            (Mul(_), Some(((S8Type, []), (S8Type, [])))) => {
+                (core::Term::Prim(Span::Empty, S8Mul), S8Type)
+            }
+            (Mul(_), Some(((S16Type, []), (S16Type, [])))) => {
+                (core::Term::Prim(Span::Empty, S16Mul), S16Type)
+            }
+            (Mul(_), Some(((S32Type, []), (S32Type, [])))) => {
+                (core::Term::Prim(Span::Empty, S32Mul), S32Type)
+            }
+            (Mul(_), Some(((S64Type, []), (S64Type, [])))) => {
+                (core::Term::Prim(Span::Empty, S64Mul), S64Type)
+            }
 
-            (Div(_), Some(((U8Type, []), (U8Type, [])))) => (core::Term::Prim(U8Div), U8Type),
-            (Div(_), Some(((U16Type, []), (U16Type, [])))) => (core::Term::Prim(U16Div), U16Type),
-            (Div(_), Some(((U32Type, []), (U32Type, [])))) => (core::Term::Prim(U32Div), U32Type),
-            (Div(_), Some(((U64Type, []), (U64Type, [])))) => (core::Term::Prim(U64Div), U64Type),
+            (Div(_), Some(((U8Type, []), (U8Type, [])))) => {
+                (core::Term::Prim(Span::Empty, U8Div), U8Type)
+            }
+            (Div(_), Some(((U16Type, []), (U16Type, [])))) => {
+                (core::Term::Prim(Span::Empty, U16Div), U16Type)
+            }
+            (Div(_), Some(((U32Type, []), (U32Type, [])))) => {
+                (core::Term::Prim(Span::Empty, U32Div), U32Type)
+            }
+            (Div(_), Some(((U64Type, []), (U64Type, [])))) => {
+                (core::Term::Prim(Span::Empty, U64Div), U64Type)
+            }
 
-            (Div(_), Some(((S8Type, []), (S8Type, [])))) => (core::Term::Prim(S8Div), S8Type),
-            (Div(_), Some(((S16Type, []), (S16Type, [])))) => (core::Term::Prim(S16Div), S16Type),
-            (Div(_), Some(((S32Type, []), (S32Type, [])))) => (core::Term::Prim(S32Div), S32Type),
-            (Div(_), Some(((S64Type, []), (S64Type, [])))) => (core::Term::Prim(S64Div), S64Type),
+            (Div(_), Some(((S8Type, []), (S8Type, [])))) => {
+                (core::Term::Prim(Span::Empty, S8Div), S8Type)
+            }
+            (Div(_), Some(((S16Type, []), (S16Type, [])))) => {
+                (core::Term::Prim(Span::Empty, S16Div), S16Type)
+            }
+            (Div(_), Some(((S32Type, []), (S32Type, [])))) => {
+                (core::Term::Prim(Span::Empty, S32Div), S32Type)
+            }
+            (Div(_), Some(((S64Type, []), (S64Type, [])))) => {
+                (core::Term::Prim(Span::Empty, S64Div), S64Type)
+            }
 
-            (Add(_), Some(((U8Type, []), (U8Type, [])))) => (core::Term::Prim(U8Add), U8Type),
-            (Add(_), Some(((U16Type, []), (U16Type, [])))) => (core::Term::Prim(U16Add), U16Type),
-            (Add(_), Some(((U32Type, []), (U32Type, [])))) => (core::Term::Prim(U32Add), U32Type),
-            (Add(_), Some(((U64Type, []), (U64Type, [])))) => (core::Term::Prim(U64Add), U64Type),
+            (Add(_), Some(((U8Type, []), (U8Type, [])))) => {
+                (core::Term::Prim(Span::Empty, U8Add), U8Type)
+            }
+            (Add(_), Some(((U16Type, []), (U16Type, [])))) => {
+                (core::Term::Prim(Span::Empty, U16Add), U16Type)
+            }
+            (Add(_), Some(((U32Type, []), (U32Type, [])))) => {
+                (core::Term::Prim(Span::Empty, U32Add), U32Type)
+            }
+            (Add(_), Some(((U64Type, []), (U64Type, [])))) => {
+                (core::Term::Prim(Span::Empty, U64Add), U64Type)
+            }
 
-            (Add(_), Some(((S8Type, []), (S8Type, [])))) => (core::Term::Prim(S8Add), S8Type),
-            (Add(_), Some(((S16Type, []), (S16Type, [])))) => (core::Term::Prim(S16Add), S16Type),
-            (Add(_), Some(((S32Type, []), (S32Type, [])))) => (core::Term::Prim(S32Add), S32Type),
-            (Add(_), Some(((S64Type, []), (S64Type, [])))) => (core::Term::Prim(S64Add), S64Type),
+            (Add(_), Some(((S8Type, []), (S8Type, [])))) => {
+                (core::Term::Prim(Span::Empty, S8Add), S8Type)
+            }
+            (Add(_), Some(((S16Type, []), (S16Type, [])))) => {
+                (core::Term::Prim(Span::Empty, S16Add), S16Type)
+            }
+            (Add(_), Some(((S32Type, []), (S32Type, [])))) => {
+                (core::Term::Prim(Span::Empty, S32Add), S32Type)
+            }
+            (Add(_), Some(((S64Type, []), (S64Type, [])))) => {
+                (core::Term::Prim(Span::Empty, S64Add), S64Type)
+            }
 
-            (Add(_), Some(((PosType, []), (U8Type, [])))) => (core::Term::Prim(PosAddU8), PosType),
+            (Add(_), Some(((PosType, []), (U8Type, [])))) => {
+                (core::Term::Prim(Span::Empty, PosAddU8), PosType)
+            }
             (Add(_), Some(((PosType, []), (U16Type, [])))) => {
-                (core::Term::Prim(PosAddU16), PosType)
+                (core::Term::Prim(Span::Empty, PosAddU16), PosType)
             }
             (Add(_), Some(((PosType, []), (U32Type, [])))) => {
-                (core::Term::Prim(PosAddU32), PosType)
+                (core::Term::Prim(Span::Empty, PosAddU32), PosType)
             }
             (Add(_), Some(((PosType, []), (U64Type, [])))) => {
-                (core::Term::Prim(PosAddU64), PosType)
+                (core::Term::Prim(Span::Empty, PosAddU64), PosType)
             }
 
-            (Sub(_), Some(((U8Type, []), (U8Type, [])))) => (core::Term::Prim(U8Sub), U8Type),
-            (Sub(_), Some(((U16Type, []), (U16Type, [])))) => (core::Term::Prim(U16Sub), U16Type),
-            (Sub(_), Some(((U32Type, []), (U32Type, [])))) => (core::Term::Prim(U32Sub), U32Type),
-            (Sub(_), Some(((U64Type, []), (U64Type, [])))) => (core::Term::Prim(U64Sub), U64Type),
+            (Sub(_), Some(((U8Type, []), (U8Type, [])))) => {
+                (core::Term::Prim(Span::Empty, U8Sub), U8Type)
+            }
+            (Sub(_), Some(((U16Type, []), (U16Type, [])))) => {
+                (core::Term::Prim(Span::Empty, U16Sub), U16Type)
+            }
+            (Sub(_), Some(((U32Type, []), (U32Type, [])))) => {
+                (core::Term::Prim(Span::Empty, U32Sub), U32Type)
+            }
+            (Sub(_), Some(((U64Type, []), (U64Type, [])))) => {
+                (core::Term::Prim(Span::Empty, U64Sub), U64Type)
+            }
 
-            (Sub(_), Some(((S8Type, []), (S8Type, [])))) => (core::Term::Prim(S8Sub), S8Type),
-            (Sub(_), Some(((S16Type, []), (S16Type, [])))) => (core::Term::Prim(S16Sub), S16Type),
-            (Sub(_), Some(((S32Type, []), (S32Type, [])))) => (core::Term::Prim(S32Sub), S32Type),
-            (Sub(_), Some(((S64Type, []), (S64Type, [])))) => (core::Term::Prim(S64Sub), S64Type),
+            (Sub(_), Some(((S8Type, []), (S8Type, [])))) => {
+                (core::Term::Prim(Span::Empty, S8Sub), S8Type)
+            }
+            (Sub(_), Some(((S16Type, []), (S16Type, [])))) => {
+                (core::Term::Prim(Span::Empty, S16Sub), S16Type)
+            }
+            (Sub(_), Some(((S32Type, []), (S32Type, [])))) => {
+                (core::Term::Prim(Span::Empty, S32Sub), S32Type)
+            }
+            (Sub(_), Some(((S64Type, []), (S64Type, [])))) => {
+                (core::Term::Prim(Span::Empty, S64Sub), S64Type)
+            }
 
-            (Eq(_), Some(((BoolType, []), (BoolType, [])))) => (core::Term::Prim(U8Eq), BoolType),
-            (Eq(_), Some(((U8Type, []), (U8Type, [])))) => (core::Term::Prim(U8Eq), BoolType),
-            (Eq(_), Some(((U16Type, []), (U16Type, [])))) => (core::Term::Prim(U16Eq), BoolType),
-            (Eq(_), Some(((U32Type, []), (U32Type, [])))) => (core::Term::Prim(U32Eq), BoolType),
-            (Eq(_), Some(((U64Type, []), (U64Type, [])))) => (core::Term::Prim(U64Eq), BoolType),
+            (Eq(_), Some(((BoolType, []), (BoolType, [])))) => {
+                (core::Term::Prim(Span::Empty, U8Eq), BoolType)
+            }
+            (Eq(_), Some(((U8Type, []), (U8Type, [])))) => {
+                (core::Term::Prim(Span::Empty, U8Eq), BoolType)
+            }
+            (Eq(_), Some(((U16Type, []), (U16Type, [])))) => {
+                (core::Term::Prim(Span::Empty, U16Eq), BoolType)
+            }
+            (Eq(_), Some(((U32Type, []), (U32Type, [])))) => {
+                (core::Term::Prim(Span::Empty, U32Eq), BoolType)
+            }
+            (Eq(_), Some(((U64Type, []), (U64Type, [])))) => {
+                (core::Term::Prim(Span::Empty, U64Eq), BoolType)
+            }
 
-            (Eq(_), Some(((S8Type, []), (S8Type, [])))) => (core::Term::Prim(S8Eq), BoolType),
-            (Eq(_), Some(((S16Type, []), (S16Type, [])))) => (core::Term::Prim(S16Eq), BoolType),
-            (Eq(_), Some(((S32Type, []), (S32Type, [])))) => (core::Term::Prim(S32Eq), BoolType),
-            (Eq(_), Some(((S64Type, []), (S64Type, [])))) => (core::Term::Prim(S64Eq), BoolType),
+            (Eq(_), Some(((S8Type, []), (S8Type, [])))) => {
+                (core::Term::Prim(Span::Empty, S8Eq), BoolType)
+            }
+            (Eq(_), Some(((S16Type, []), (S16Type, [])))) => {
+                (core::Term::Prim(Span::Empty, S16Eq), BoolType)
+            }
+            (Eq(_), Some(((S32Type, []), (S32Type, [])))) => {
+                (core::Term::Prim(Span::Empty, S32Eq), BoolType)
+            }
+            (Eq(_), Some(((S64Type, []), (S64Type, [])))) => {
+                (core::Term::Prim(Span::Empty, S64Eq), BoolType)
+            }
 
-            (Neq(_), Some(((BoolType, []), (BoolType, [])))) => (core::Term::Prim(U8Neq), BoolType),
-            (Neq(_), Some(((U8Type, []), (U8Type, [])))) => (core::Term::Prim(U8Neq), BoolType),
-            (Neq(_), Some(((U16Type, []), (U16Type, [])))) => (core::Term::Prim(U16Neq), BoolType),
-            (Neq(_), Some(((U32Type, []), (U32Type, [])))) => (core::Term::Prim(U32Neq), BoolType),
-            (Neq(_), Some(((U64Type, []), (U64Type, [])))) => (core::Term::Prim(U64Neq), BoolType),
+            (Neq(_), Some(((BoolType, []), (BoolType, [])))) => {
+                (core::Term::Prim(Span::Empty, U8Neq), BoolType)
+            }
+            (Neq(_), Some(((U8Type, []), (U8Type, [])))) => {
+                (core::Term::Prim(Span::Empty, U8Neq), BoolType)
+            }
+            (Neq(_), Some(((U16Type, []), (U16Type, [])))) => {
+                (core::Term::Prim(Span::Empty, U16Neq), BoolType)
+            }
+            (Neq(_), Some(((U32Type, []), (U32Type, [])))) => {
+                (core::Term::Prim(Span::Empty, U32Neq), BoolType)
+            }
+            (Neq(_), Some(((U64Type, []), (U64Type, [])))) => {
+                (core::Term::Prim(Span::Empty, U64Neq), BoolType)
+            }
 
-            (Neq(_), Some(((S8Type, []), (S8Type, [])))) => (core::Term::Prim(S8Neq), BoolType),
-            (Neq(_), Some(((S16Type, []), (S16Type, [])))) => (core::Term::Prim(S16Neq), BoolType),
-            (Neq(_), Some(((S32Type, []), (S32Type, [])))) => (core::Term::Prim(S32Neq), BoolType),
-            (Neq(_), Some(((S64Type, []), (S64Type, [])))) => (core::Term::Prim(S64Neq), BoolType),
+            (Neq(_), Some(((S8Type, []), (S8Type, [])))) => {
+                (core::Term::Prim(Span::Empty, S8Neq), BoolType)
+            }
+            (Neq(_), Some(((S16Type, []), (S16Type, [])))) => {
+                (core::Term::Prim(Span::Empty, S16Neq), BoolType)
+            }
+            (Neq(_), Some(((S32Type, []), (S32Type, [])))) => {
+                (core::Term::Prim(Span::Empty, S32Neq), BoolType)
+            }
+            (Neq(_), Some(((S64Type, []), (S64Type, [])))) => {
+                (core::Term::Prim(Span::Empty, S64Neq), BoolType)
+            }
 
-            (Lt(_), Some(((U8Type, []), (U8Type, [])))) => (core::Term::Prim(U8Lt), BoolType),
-            (Lt(_), Some(((U16Type, []), (U16Type, [])))) => (core::Term::Prim(U16Lt), BoolType),
-            (Lt(_), Some(((U32Type, []), (U32Type, [])))) => (core::Term::Prim(U32Lt), BoolType),
-            (Lt(_), Some(((U64Type, []), (U64Type, [])))) => (core::Term::Prim(U64Lt), BoolType),
+            (Lt(_), Some(((U8Type, []), (U8Type, [])))) => {
+                (core::Term::Prim(Span::Empty, U8Lt), BoolType)
+            }
+            (Lt(_), Some(((U16Type, []), (U16Type, [])))) => {
+                (core::Term::Prim(Span::Empty, U16Lt), BoolType)
+            }
+            (Lt(_), Some(((U32Type, []), (U32Type, [])))) => {
+                (core::Term::Prim(Span::Empty, U32Lt), BoolType)
+            }
+            (Lt(_), Some(((U64Type, []), (U64Type, [])))) => {
+                (core::Term::Prim(Span::Empty, U64Lt), BoolType)
+            }
 
-            (Lt(_), Some(((S8Type, []), (S8Type, [])))) => (core::Term::Prim(S8Lt), BoolType),
-            (Lt(_), Some(((S16Type, []), (S16Type, [])))) => (core::Term::Prim(S16Lt), BoolType),
-            (Lt(_), Some(((S32Type, []), (S32Type, [])))) => (core::Term::Prim(S32Lt), BoolType),
-            (Lt(_), Some(((S64Type, []), (S64Type, [])))) => (core::Term::Prim(S64Lt), BoolType),
+            (Lt(_), Some(((S8Type, []), (S8Type, [])))) => {
+                (core::Term::Prim(Span::Empty, S8Lt), BoolType)
+            }
+            (Lt(_), Some(((S16Type, []), (S16Type, [])))) => {
+                (core::Term::Prim(Span::Empty, S16Lt), BoolType)
+            }
+            (Lt(_), Some(((S32Type, []), (S32Type, [])))) => {
+                (core::Term::Prim(Span::Empty, S32Lt), BoolType)
+            }
+            (Lt(_), Some(((S64Type, []), (S64Type, [])))) => {
+                (core::Term::Prim(Span::Empty, S64Lt), BoolType)
+            }
 
-            (Lte(_), Some(((U8Type, []), (U8Type, [])))) => (core::Term::Prim(U8Lte), BoolType),
-            (Lte(_), Some(((U16Type, []), (U16Type, [])))) => (core::Term::Prim(U16Lte), BoolType),
-            (Lte(_), Some(((U32Type, []), (U32Type, [])))) => (core::Term::Prim(U32Lte), BoolType),
-            (Lte(_), Some(((U64Type, []), (U64Type, [])))) => (core::Term::Prim(U64Lte), BoolType),
+            (Lte(_), Some(((U8Type, []), (U8Type, [])))) => {
+                (core::Term::Prim(Span::Empty, U8Lte), BoolType)
+            }
+            (Lte(_), Some(((U16Type, []), (U16Type, [])))) => {
+                (core::Term::Prim(Span::Empty, U16Lte), BoolType)
+            }
+            (Lte(_), Some(((U32Type, []), (U32Type, [])))) => {
+                (core::Term::Prim(Span::Empty, U32Lte), BoolType)
+            }
+            (Lte(_), Some(((U64Type, []), (U64Type, [])))) => {
+                (core::Term::Prim(Span::Empty, U64Lte), BoolType)
+            }
 
-            (Lte(_), Some(((S8Type, []), (S8Type, [])))) => (core::Term::Prim(S8Lte), BoolType),
-            (Lte(_), Some(((S16Type, []), (S16Type, [])))) => (core::Term::Prim(S16Lte), BoolType),
-            (Lte(_), Some(((S32Type, []), (S32Type, [])))) => (core::Term::Prim(S32Lte), BoolType),
-            (Lte(_), Some(((S64Type, []), (S64Type, [])))) => (core::Term::Prim(S64Lte), BoolType),
+            (Lte(_), Some(((S8Type, []), (S8Type, [])))) => {
+                (core::Term::Prim(Span::Empty, S8Lte), BoolType)
+            }
+            (Lte(_), Some(((S16Type, []), (S16Type, [])))) => {
+                (core::Term::Prim(Span::Empty, S16Lte), BoolType)
+            }
+            (Lte(_), Some(((S32Type, []), (S32Type, [])))) => {
+                (core::Term::Prim(Span::Empty, S32Lte), BoolType)
+            }
+            (Lte(_), Some(((S64Type, []), (S64Type, [])))) => {
+                (core::Term::Prim(Span::Empty, S64Lte), BoolType)
+            }
 
-            (Gt(_), Some(((U8Type, []), (U8Type, [])))) => (core::Term::Prim(U8Gt), BoolType),
-            (Gt(_), Some(((U16Type, []), (U16Type, [])))) => (core::Term::Prim(U16Gt), BoolType),
-            (Gt(_), Some(((U32Type, []), (U32Type, [])))) => (core::Term::Prim(U32Gt), BoolType),
-            (Gt(_), Some(((U64Type, []), (U64Type, [])))) => (core::Term::Prim(U64Gt), BoolType),
+            (Gt(_), Some(((U8Type, []), (U8Type, [])))) => {
+                (core::Term::Prim(Span::Empty, U8Gt), BoolType)
+            }
+            (Gt(_), Some(((U16Type, []), (U16Type, [])))) => {
+                (core::Term::Prim(Span::Empty, U16Gt), BoolType)
+            }
+            (Gt(_), Some(((U32Type, []), (U32Type, [])))) => {
+                (core::Term::Prim(Span::Empty, U32Gt), BoolType)
+            }
+            (Gt(_), Some(((U64Type, []), (U64Type, [])))) => {
+                (core::Term::Prim(Span::Empty, U64Gt), BoolType)
+            }
 
-            (Gt(_), Some(((S8Type, []), (S8Type, [])))) => (core::Term::Prim(S8Gt), BoolType),
-            (Gt(_), Some(((S16Type, []), (S16Type, [])))) => (core::Term::Prim(S16Gt), BoolType),
-            (Gt(_), Some(((S32Type, []), (S32Type, [])))) => (core::Term::Prim(S32Gt), BoolType),
-            (Gt(_), Some(((S64Type, []), (S64Type, [])))) => (core::Term::Prim(S64Gt), BoolType),
+            (Gt(_), Some(((S8Type, []), (S8Type, [])))) => {
+                (core::Term::Prim(Span::Empty, S8Gt), BoolType)
+            }
+            (Gt(_), Some(((S16Type, []), (S16Type, [])))) => {
+                (core::Term::Prim(Span::Empty, S16Gt), BoolType)
+            }
+            (Gt(_), Some(((S32Type, []), (S32Type, [])))) => {
+                (core::Term::Prim(Span::Empty, S32Gt), BoolType)
+            }
+            (Gt(_), Some(((S64Type, []), (S64Type, [])))) => {
+                (core::Term::Prim(Span::Empty, S64Gt), BoolType)
+            }
 
-            (Gte(_), Some(((U8Type, []), (U8Type, [])))) => (core::Term::Prim(U8Gte), BoolType),
-            (Gte(_), Some(((U16Type, []), (U16Type, [])))) => (core::Term::Prim(U16Gte), BoolType),
-            (Gte(_), Some(((U32Type, []), (U32Type, [])))) => (core::Term::Prim(U32Gte), BoolType),
-            (Gte(_), Some(((U64Type, []), (U64Type, [])))) => (core::Term::Prim(U64Gte), BoolType),
+            (Gte(_), Some(((U8Type, []), (U8Type, [])))) => {
+                (core::Term::Prim(Span::Empty, U8Gte), BoolType)
+            }
+            (Gte(_), Some(((U16Type, []), (U16Type, [])))) => {
+                (core::Term::Prim(Span::Empty, U16Gte), BoolType)
+            }
+            (Gte(_), Some(((U32Type, []), (U32Type, [])))) => {
+                (core::Term::Prim(Span::Empty, U32Gte), BoolType)
+            }
+            (Gte(_), Some(((U64Type, []), (U64Type, [])))) => {
+                (core::Term::Prim(Span::Empty, U64Gte), BoolType)
+            }
 
-            (Gte(_), Some(((S8Type, []), (S8Type, [])))) => (core::Term::Prim(S8Gte), BoolType),
-            (Gte(_), Some(((S16Type, []), (S16Type, [])))) => (core::Term::Prim(S16Gte), BoolType),
-            (Gte(_), Some(((S32Type, []), (S32Type, [])))) => (core::Term::Prim(S32Gte), BoolType),
-            (Gte(_), Some(((S64Type, []), (S64Type, [])))) => (core::Term::Prim(S64Gte), BoolType),
+            (Gte(_), Some(((S8Type, []), (S8Type, [])))) => {
+                (core::Term::Prim(Span::Empty, S8Gte), BoolType)
+            }
+            (Gte(_), Some(((S16Type, []), (S16Type, [])))) => {
+                (core::Term::Prim(Span::Empty, S16Gte), BoolType)
+            }
+            (Gte(_), Some(((S32Type, []), (S32Type, [])))) => {
+                (core::Term::Prim(Span::Empty, S32Gte), BoolType)
+            }
+            (Gte(_), Some(((S64Type, []), (S64Type, [])))) => {
+                (core::Term::Prim(Span::Empty, S64Gte), BoolType)
+            }
             _ => {
                 let lhs_pretty = self.pretty_print_value(&lhs_type);
                 let rhs_pretty = self.pretty_print_value(&rhs_type);
@@ -2094,7 +2266,10 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
     fn synth_reported_error(&mut self, range: ByteRange) -> (core::Term<'arena>, ArcValue<'arena>) {
         let type_source = FlexSource::ReportedErrorType(range);
         let r#type = self.push_flexible_value(type_source, Arc::new(Value::Universe));
-        (core::Term::Prim(Prim::ReportedError), r#type)
+        (
+            core::Term::Prim((&range).into(), Prim::ReportedError),
+            r#type,
+        )
     }
 
     /// Check a series of format fields
@@ -2165,8 +2340,9 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                     let format = core::Term::FunApp(
                         (&range).into(),
                         self.scope.to_scope(core::Term::FunApp(
-                            (&range).into(), // FIXME: sub-range?
-                            self.scope.to_scope(core::Term::Prim(Prim::FormatSucceed)),
+                            Span::Empty, // FIXME: sub-range?
+                            self.scope
+                                .to_scope(core::Term::Prim(Span::Empty, Prim::FormatSucceed)), // FIXME: sub-range?
                             self.scope.to_scope(r#type),
                         )),
                         self.scope.to_scope(expr),
@@ -2255,7 +2431,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
 
                         output_expr
                     }
-                    CheckedPattern::Const(_, _) => {
+                    CheckedPattern::Const(range, _) => {
                         // Temporary vector for accumulating branches
                         let mut branches = Vec::new();
                         let num_constructors = match scrutinee_type.match_prim_spine() {
@@ -2341,9 +2517,9 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                                 scrutinee_expr_range: scrutinee_range,
                             });
                         }
-                        core::Term::Prim(Prim::ReportedError)
+                        core::Term::Prim((&range).into(), Prim::ReportedError)
                     }
-                    CheckedPattern::ReportedError(_) => {
+                    CheckedPattern::ReportedError(range) => {
                         // Check for any further errors in the first equation's output expression.
                         self.check(output_expr, expected_type);
                         self.check_match(
@@ -2356,7 +2532,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                             expected_type,
                         );
 
-                        core::Term::Prim(Prim::ReportedError)
+                        core::Term::Prim((&range).into(), Prim::ReportedError)
                     }
                 }
             }
@@ -2368,7 +2544,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                         scrutinee_expr_range: scrutinee_range,
                     });
                 }
-                core::Term::Prim(Prim::ReportedError)
+                core::Term::Prim((&match_range).into(), Prim::ReportedError)
             }
         }
     }

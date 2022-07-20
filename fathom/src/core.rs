@@ -212,7 +212,7 @@ pub enum Term<'arena> {
     FormatOverlap(Span, &'arena [StringId], &'arena [Term<'arena>]),
 
     /// Primitives.
-    Prim(Prim),
+    Prim(Span, Prim),
 
     /// Constant literals.
     ConstLit(Const),
@@ -636,7 +636,7 @@ impl<'arena> Term<'arena> {
             | Term::FlexibleVar(_, _)
             | Term::FlexibleInsertion(_, _, _)
             | Term::Universe(_)
-            | Term::Prim(_)
+            | Term::Prim(_, _)
             | Term::ConstLit(_) => false,
 
             Term::Ann(_, term, r#type) => term.contains_free(var) || r#type.contains_free(var),

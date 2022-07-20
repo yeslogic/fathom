@@ -410,7 +410,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 )
             }
             core::Term::FunApp(_span, head_expr, input_expr) => match head_expr {
-                core::Term::FunApp(_span, core::Term::Prim(prim), lhs)
+                core::Term::FunApp(_span, core::Term::Prim(_span2, prim), lhs)
                     if prim_to_bin_op(prim).is_some() =>
                 {
                     // unwrap is safe due to is_some check above
@@ -492,7 +492,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
             core::Term::FormatOverlap(_span, labels, formats) => {
                 Term::FormatOverlap((), self.synth_format_fields(labels, formats))
             }
-            core::Term::Prim(prim) => self.synth_prim(*prim),
+            core::Term::Prim(_span, prim) => self.synth_prim(*prim),
             core::Term::ConstLit(r#const) => match r#const {
                 core::Const::Bool(boolean) => Term::BooleanLiteral((), *boolean),
                 core::Const::U8(number, style) => {
@@ -589,7 +589,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 // Distill succeed formats back to computed formats
                 core::Term::FunApp(
                     _,
-                    core::Term::FunApp(_, core::Term::Prim(FormatSucceed), r#type),
+                    core::Term::FunApp(_span, core::Term::Prim(_prim_span, FormatSucceed), r#type),
                     expr,
                 ) => {
                     let r#type = self.check(r#type);

@@ -497,7 +497,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
         match self.elim_context().force(value).as_ref() {
             Value::Stuck(head, spine) => {
                 let head_expr = match head {
-                    Head::Prim(prim) => Term::Prim(*prim),
+                    Head::Prim(prim) => Term::Prim(Span::fixme(), *prim),
                     Head::RigidVar(source_var) => match self.renaming.get_as_local(*source_var) {
                         None => return Err(RenameError::EscapingRigidVar(*source_var)),
                         Some(target_var) => Term::RigidVar(Span::from_value(value), target_var), // FIXME: Should this be the value we're matching on and not the value passed into the function?
