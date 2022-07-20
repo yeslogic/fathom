@@ -489,7 +489,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                     self.scope.to_scope(cond),
                 )
             }
-            core::Term::FormatOverlap(labels, formats) => {
+            core::Term::FormatOverlap(_span, labels, formats) => {
                 Term::FormatOverlap((), self.synth_format_fields(labels, formats))
             }
             core::Term::Prim(prim) => self.synth_prim(*prim),

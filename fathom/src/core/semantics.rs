@@ -371,8 +371,9 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
                 // TODO: set span of Value
                 Arc::new(Value::FormatCond(*name, format, cond_expr))
             }
-            Term::FormatOverlap(labels, formats) => {
+            Term::FormatOverlap(_span, labels, formats) => {
                 let formats = Telescope::new(self.rigid_exprs.clone(), formats);
+                // TODO: set span of Value
                 Arc::new(Value::FormatOverlap(labels, formats))
             }
 
@@ -1017,7 +1018,7 @@ impl<'in_arena, 'out_arena, 'env> QuoteContext<'in_arena, 'out_arena, 'env> {
                 let labels = self.scope.to_scope_from_iter(labels.iter().copied()); // FIXME: avoid copy if this is the same arena?
                 let formats = self.quote_telescope(formats);
 
-                Term::FormatOverlap(labels, formats)
+                Term::FormatOverlap(Span::from_value(&value), labels, formats)
             }
 
             Value::ConstLit(r#const) => Term::ConstLit(*r#const),

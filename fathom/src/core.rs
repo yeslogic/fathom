@@ -209,7 +209,7 @@ pub enum Term<'arena> {
     FormatCond(Span, StringId, &'arena Term<'arena>, &'arena Term<'arena>),
     /// Overlap formats, consisting of a list of dependent formats, overlapping
     /// in memory.
-    FormatOverlap(&'arena [StringId], &'arena [Term<'arena>]),
+    FormatOverlap(Span, &'arena [StringId], &'arena [Term<'arena>]),
 
     /// Primitives.
     Prim(Prim),
@@ -653,7 +653,7 @@ impl<'arena> Term<'arena> {
             Term::RecordType(_, _, terms)
             | Term::RecordLit(_, _, terms)
             | Term::FormatRecord(_, _, terms)
-            | Term::FormatOverlap(_, terms) => terms.iter().any(|term| {
+            | Term::FormatOverlap(_, _, terms) => terms.iter().any(|term| {
                 let result = term.contains_free(var);
                 var = var.prev();
                 result

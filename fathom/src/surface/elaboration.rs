@@ -1922,7 +1922,10 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 let format_type = Arc::new(Value::prim(Prim::FormatType, []));
                 let (labels, formats) = self.check_format_fields(*range, format_fields);
 
-                (core::Term::FormatOverlap(labels, formats), format_type)
+                (
+                    core::Term::FormatOverlap(range.into(), labels, formats),
+                    format_type,
+                )
             }
             Term::BinOp(range, lhs, op, rhs) => self.synth_bin_op(*range, lhs, *op, rhs),
             Term::ReportedError(range) => self.synth_reported_error(*range),
