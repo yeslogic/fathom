@@ -1848,7 +1848,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                         {
                             if label == type_label {
                                 let head_expr = self.scope.to_scope(head_expr);
-                                let expr = core::Term::RecordProj(head_expr, *label);
+                                let expr = core::Term::RecordProj(range.into(), head_expr, *label);
                                 return (expr, r#type);
                             } else {
                                 let head_expr = head_expr_value.clone();

@@ -516,7 +516,11 @@ impl<'arena, 'env> Context<'arena, 'env> {
                             self.scope.to_scope(self.rename(flexible_var, input_expr)?),
                         ),
                         Elim::RecordProj(label) => {
-                            Term::RecordProj(self.scope.to_scope(head_expr?), *label)
+                            Term::RecordProj(
+                                Span::from_value(value), // FIXME: As above
+                                self.scope.to_scope(head_expr?),
+                                *label,
+                            )
                         }
                         Elim::ConstMatch(branches) => {
                             let mut branches = branches.clone();

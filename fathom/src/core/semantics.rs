@@ -346,8 +346,9 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
                 // TODO: set span of Value
                 Arc::new(Value::RecordLit(labels, exprs))
             }
-            Term::RecordProj(head_expr, label) => {
+            Term::RecordProj(_span, head_expr, label) => {
                 let head_expr = self.eval(head_expr);
+                // TODO: set span of Value
                 self.elim_context().record_proj(head_expr, *label)
             }
 
@@ -918,9 +919,11 @@ impl<'in_arena, 'out_arena, 'env> QuoteContext<'in_arena, 'out_arena, 'env> {
                         self.scope.to_scope(head_expr),
                         self.scope.to_scope(self.quote(input_expr)),
                     ),
-                    Elim::RecordProj(label) => {
-                        Term::RecordProj(self.scope.to_scope(head_expr), *label)
-                    }
+                    Elim::RecordProj(label) => Term::RecordProj(
+                        Span::from_value(&value),
+                        self.scope.to_scope(head_expr),
+                        *label,
+                    ),
                     Elim::ConstMatch(branches) => {
                         let mut branches = branches.clone();
                         let mut pattern_branches =

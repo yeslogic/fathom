@@ -456,7 +456,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 // TODO: type annotations?
                 Term::RecordLiteral((), scope.to_scope_from_iter(expr_fields))
             }
-            core::Term::RecordProj(head_expr, label) => {
+            core::Term::RecordProj(_span, head_expr, label) => {
                 let head_expr = self.synth(head_expr);
 
                 Term::Proj((), self.scope.to_scope(head_expr), ((), *label))

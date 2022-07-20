@@ -198,7 +198,7 @@ pub enum Term<'arena> {
     /// Record literals.
     RecordLit(Span, &'arena [StringId], &'arena [Term<'arena>]),
     /// Record projections.
-    RecordProj(&'arena Term<'arena>, StringId),
+    RecordProj(Span, &'arena Term<'arena>, StringId),
 
     /// Array literals.
     ArrayLit(&'arena [Term<'arena>]),
@@ -658,7 +658,7 @@ impl<'arena> Term<'arena> {
                 var = var.prev();
                 result
             }),
-            Term::RecordProj(term, _) => term.contains_free(var),
+            Term::RecordProj(_, term, _) => term.contains_free(var),
             Term::ArrayLit(terms) => terms.iter().any(|term| term.contains_free(var)),
             Term::FormatCond(_, t1, t2) => t1.contains_free(var) || t2.contains_free(var),
             Term::ConstMatch(scrut, branches, default) => {
