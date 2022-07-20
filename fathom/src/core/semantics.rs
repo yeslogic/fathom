@@ -322,10 +322,13 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
                     Closure::new(self.rigid_exprs.clone(), output_type),
                 ))
             }
-            Term::FunLit(input_name, output_expr) => Arc::new(Value::FunLit(
-                *input_name,
-                Closure::new(self.rigid_exprs.clone(), output_expr),
-            )),
+            Term::FunLit(_span, input_name, output_expr) => {
+                // TODO: pass span to value
+                Arc::new(Value::FunLit(
+                    *input_name,
+                    Closure::new(self.rigid_exprs.clone(), output_expr),
+                ))
+            }
             Term::FunApp(head_expr, input_expr) => {
                 let head_expr = self.eval(head_expr);
                 let input_expr = self.eval(input_expr);
@@ -957,7 +960,11 @@ impl<'in_arena, 'out_arena, 'env> QuoteContext<'in_arena, 'out_arena, 'env> {
             Value::FunLit(input_name, output_expr) => {
                 let output_expr = self.quote_closure(output_expr);
 
-                Term::FunLit(*input_name, self.scope.to_scope(output_expr))
+                Term::FunLit(
+                    Span::from_value(&value),
+                    *input_name,
+                    self.scope.to_scope(output_expr),
+                )
             }
 
             Value::RecordType(labels, types) => {

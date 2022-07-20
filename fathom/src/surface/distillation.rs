@@ -217,7 +217,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                     self.scope.to_scope(output_expr),
                 )
             }
-            core::Term::FunLit(input_name, output_expr) => {
+            core::Term::FunLit(_span, input_name, output_expr) => {
                 let input_name = self.push_rigid(*input_name);
                 let output_expr = self.check(output_expr);
                 self.pop_rigid();
@@ -395,7 +395,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                     self.scope.to_scope(output_type),
                 )
             }
-            core::Term::FunLit(input_name, output_expr) => {
+            core::Term::FunLit(_span, input_name, output_expr) => {
                 let input_name = self.push_rigid(*input_name);
                 let output_expr = self.synth(output_expr);
                 self.pop_rigid();

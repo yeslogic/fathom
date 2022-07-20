@@ -189,7 +189,7 @@ pub enum Term<'arena> {
     /// Function literals.
     ///
     /// Also known as: lambda expressions, anonymous functions.
-    FunLit(Option<StringId>, &'arena Term<'arena>),
+    FunLit(Span, Option<StringId>, &'arena Term<'arena>),
     /// Function applications.
     FunApp(&'arena Term<'arena>, &'arena Term<'arena>),
 
@@ -648,7 +648,7 @@ impl<'arena> Term<'arena> {
             Term::FunType(_, _, input_type, output_type) => {
                 input_type.contains_free(var) || output_type.contains_free(var.prev())
             }
-            Term::FunLit(_, body) => body.contains_free(var.prev()),
+            Term::FunLit(_, _, body) => body.contains_free(var.prev()),
             Term::FunApp(head, arg) => head.contains_free(var) || arg.contains_free(var),
             Term::RecordType(_, terms)
             | Term::RecordLit(_, terms)

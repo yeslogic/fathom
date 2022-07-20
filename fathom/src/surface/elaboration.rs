@@ -1371,7 +1371,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 )
             }
             (
-                Term::FunLiteral(_, input_pattern, input_type, output_expr),
+                Term::FunLiteral(range, input_pattern, input_type, output_expr),
                 Value::FunType(_, expected_input_type, output_type),
             ) => {
                 let (input_name, input_type) =
@@ -1382,7 +1382,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
 
                 self.rigid_env.pop();
 
-                core::Term::FunLit(input_name, self.scope.to_scope(output_expr))
+                core::Term::FunLit(range.into(), input_name, self.scope.to_scope(output_expr))
             }
             (Term::RecordLiteral(range, expr_fields), Value::RecordType(labels, types)) => {
                 // TODO: improve handling of duplicate labels
@@ -1695,7 +1695,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
 
                 (fun_type, universe)
             }
-            Term::FunLiteral(_, input_pattern, input_type, output_expr) => {
+            Term::FunLiteral(range, input_pattern, input_type, output_expr) => {
                 let (input_pattern, input_type) =
                     self.synth_ann_pattern(input_pattern, *input_type);
 
@@ -1705,7 +1705,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 self.rigid_env.pop();
 
                 (
-                    core::Term::FunLit(input_name, self.scope.to_scope(output_expr)),
+                    core::Term::FunLit(range.into(), input_name, self.scope.to_scope(output_expr)),
                     Arc::new(Value::FunType(
                         input_name,
                         input_type,

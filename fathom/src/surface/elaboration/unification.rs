@@ -474,7 +474,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
     /// correspond to the given `spine`.
     fn fun_intros(&self, spine: &[Elim<'arena>], term: Term<'arena>) -> Term<'arena> {
         spine.iter().fold(term, |term, elim| match elim {
-            Elim::FunApp(_) => Term::FunLit(None, self.scope.to_scope(term)),
+            Elim::FunApp(_) => Term::FunLit(Span::fixme(), None, self.scope.to_scope(term)),
             Elim::RecordProj(_) | Elim::ConstMatch(_) => {
                 unreachable!("should have been caught by `init_renaming`")
             }
@@ -568,7 +568,11 @@ impl<'arena, 'env> Context<'arena, 'env> {
             Value::FunLit(input_name, output_expr) => {
                 let output_expr = self.rename_closure(flexible_var, output_expr)?;
 
-                Ok(Term::FunLit(*input_name, self.scope.to_scope(output_expr)))
+                Ok(Term::FunLit(
+                    Span::from_value(value), // FIXME: As above
+                    *input_name,
+                    self.scope.to_scope(output_expr),
+                ))
             }
 
             Value::RecordType(labels, types) => {
