@@ -352,10 +352,11 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
                 self.elim_context().record_proj(head_expr, *label)
             }
 
-            Term::ArrayLit(elem_exprs) => {
+            Term::ArrayLit(_span, elem_exprs) => {
                 let elem_exprs = (elem_exprs.iter())
                     .map(|elem_expr| self.eval(elem_expr))
                     .collect();
+                // TODO: set span of Value
                 Arc::new(Value::ArrayLit(elem_exprs))
             }
 
@@ -991,7 +992,7 @@ impl<'in_arena, 'out_arena, 'env> QuoteContext<'in_arena, 'out_arena, 'env> {
                 let elem_exprs = (self.scope)
                     .to_scope_from_iter(elem_exprs.iter().map(|elem_expr| self.quote(elem_expr)));
 
-                Term::ArrayLit(elem_exprs)
+                Term::ArrayLit(Span::from_value(&value), elem_exprs)
             }
 
             Value::FormatRecord(labels, formats) => {

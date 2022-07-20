@@ -1460,11 +1460,12 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 };
 
                 match len {
-                    Some(len) if elem_exprs.len() as u64 == len => {
-                        core::Term::ArrayLit(self.scope.to_scope_from_iter(
+                    Some(len) if elem_exprs.len() as u64 == len => core::Term::ArrayLit(
+                        range.into(),
+                        self.scope.to_scope_from_iter(
                             (elem_exprs.iter()).map(|elem_expr| self.check(elem_expr, elem_type)),
-                        ))
-                    }
+                        ),
+                    ),
                     _ => {
                         // Check the array elements anyway in order to report
                         // any errors inside the literal as well.
