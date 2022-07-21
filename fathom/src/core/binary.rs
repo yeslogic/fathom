@@ -307,7 +307,7 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
                     }
                 }
             }
-            Value::FormatOverlap(labels, formats) => {
+            Value::FormatOverlap(span, labels, formats) => {
                 let mut max_relative_offset = reader.relative_offset();
 
                 let mut formats = formats.clone();
@@ -330,7 +330,7 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
                 // reached in loop above.
                 reader.set_relative_offset(max_relative_offset).unwrap();
 
-                Ok(Arc::new(Value::RecordLit(Span::fixme(), labels, exprs)))
+                Ok(Arc::new(Value::RecordLit(*span, labels, exprs)))
             }
 
             Value::Stuck(span, Head::RigidVar(_), _)
