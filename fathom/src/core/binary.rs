@@ -342,8 +342,9 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
             | Value::FunType(span, _, _, _)
             | Value::FunLit(span, _, _)
             | Value::RecordType(span, _, _)
-            | Value::RecordLit(span, _, _) => Err(ReadError::InvalidFormat(*span)),
-            Value::ArrayLit(_) | Value::ConstLit(_) => Err(ReadError::InvalidFormat(Span::fixme())),
+            | Value::RecordLit(span, _, _)
+            | Value::ArrayLit(span, _) => Err(ReadError::InvalidFormat(*span)),
+            Value::ConstLit(_) => Err(ReadError::InvalidFormat(Span::fixme())),
         }
     }
 
@@ -417,7 +418,10 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
             .map(|_| self.read_format(reader, elem_format))
             .collect::<Result<_, _>>()?;
 
-        Ok(Arc::new(Value::ArrayLit(elem_exprs)))
+        Ok(Arc::new(Value::ArrayLit(
+            Span::from_value(elem_format),
+            elem_exprs,
+        )))
     }
 
     fn read_repeat_until_end(
@@ -438,7 +442,10 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
                     // unwrap shouldn't panic as we're rewinding to a known good offset
                     // Should this be set to the end of the current buffer?
                     reader.set_relative_offset(current_offset).unwrap();
-                    return Ok(Arc::new(Value::ArrayLit(elems)));
+                    return Ok(Arc::new(Value::ArrayLit(
+                        Span::from_value(elem_format),
+                        elems,
+                    )));
                 }
                 Err(err) => return Err(err),
             };

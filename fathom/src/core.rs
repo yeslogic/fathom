@@ -55,9 +55,9 @@ impl Span {
             | Value::FunType(span, _, _, _)
             | Value::FunLit(span, _, _)
             | Value::RecordType(span, _, _)
-            | Value::RecordLit(span, _, _) => *span,
-            Value::ArrayLit(_)
-            | Value::FormatRecord(_, _)
+            | Value::RecordLit(span, _, _)
+            | Value::ArrayLit(span, _) => *span,
+            Value::FormatRecord(_, _)
             | Value::FormatCond(_, _, _)
             | Value::FormatOverlap(_, _)
             | Value::ConstLit(_) => Span::fixme(),
