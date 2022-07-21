@@ -240,7 +240,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
             (Value::FunLit(_, _, output_expr), _) => self.unify_fun_lit(output_expr, &value1),
             (_, Value::FunLit(_, _, output_expr)) => self.unify_fun_lit(output_expr, &value0),
 
-            (Value::RecordType(labels0, types0), Value::RecordType(labels1, types1)) => {
+            (Value::RecordType(_, labels0, types0), Value::RecordType(_, labels1, types1)) => {
                 if labels0 != labels1 {
                     return Err(Error::Mismatch);
                 }
@@ -576,11 +576,11 @@ impl<'arena, 'env> Context<'arena, 'env> {
                 ))
             }
 
-            Value::RecordType(labels, types) => {
+            Value::RecordType(span, labels, types) => {
                 let labels = self.scope.to_scope(labels); // FIXME: avoid copy if this is the same arena?
                 let types = self.rename_telescope(flexible_var, types)?;
 
-                Ok(Term::RecordType(Span::fixme(), labels, types))
+                Ok(Term::RecordType(*span, labels, types))
             }
             Value::RecordLit(labels, exprs) => {
                 let labels = self.scope.to_scope(labels); // FIXME: avoid copy if this is the same arena?

@@ -32,7 +32,7 @@ pub enum Value<'arena> {
     FunLit(Span, Option<StringId>, Closure<'arena>),
 
     /// Record types.
-    RecordType(&'arena [StringId], Telescope<'arena>),
+    RecordType(Span, &'arena [StringId], Telescope<'arena>),
     /// Record literals.
     RecordLit(&'arena [StringId], Vec<ArcValue<'arena>>),
 
@@ -337,10 +337,9 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
                 self.elim_context().fun_app(head_expr, input_expr)
             }
 
-            Term::RecordType(_span, labels, types) => {
+            Term::RecordType(span, labels, types) => {
                 let types = Telescope::new(self.rigid_exprs.clone(), types);
-                // TODO: set span of Value
-                Arc::new(Value::RecordType(labels, types))
+                Arc::new(Value::RecordType(*span, labels, types))
             }
             Term::RecordLit(_span, labels, exprs) => {
                 let exprs = exprs.iter().map(|expr| self.eval(expr)).collect();
@@ -802,7 +801,11 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
     pub fn format_repr(&self, format: &ArcValue<'arena>) -> ArcValue<'arena> {
         match format.as_ref() {
             Value::FormatRecord(labels, formats) | Value::FormatOverlap(labels, formats) => {
-                Arc::new(Value::RecordType(labels, formats.clone().apply_repr()))
+                Arc::new(Value::RecordType(
+                    Span::Empty,
+                    labels,
+                    formats.clone().apply_repr(),
+                )) // TODO: Should this copy the span from FormatRecord?
             }
             Value::FormatCond(_, format, _) => self.format_repr(format),
             Value::Stuck(_span, Head::Prim(prim), spine) => match (prim, &spine[..]) {
@@ -982,11 +985,11 @@ impl<'in_arena, 'out_arena, 'env> QuoteContext<'in_arena, 'out_arena, 'env> {
                 Term::FunLit(*span, *input_name, self.scope.to_scope(output_expr))
             }
 
-            Value::RecordType(labels, types) => {
+            Value::RecordType(span, labels, types) => {
                 let labels = self.scope.to_scope_from_iter(labels.iter().copied()); // FIXME: avoid copy if this is the same arena?
                 let types = self.quote_telescope(types);
 
-                Term::RecordType(Span::from_value(&value), labels, types)
+                Term::RecordType(*span, labels, types)
             }
             Value::RecordLit(labels, exprs) => {
                 let labels = self.scope.to_scope_from_iter(labels.iter().copied()); // FIXME: avoid copy if this is the same arena?
@@ -1147,7 +1150,7 @@ impl<'arena, 'env> ConversionContext<'arena, 'env> {
             (Value::FunLit(_, _, output_expr), _) => self.is_equal_fun_lit(output_expr, &value1),
             (_, Value::FunLit(_, _, output_expr)) => self.is_equal_fun_lit(output_expr, &value0),
 
-            (Value::RecordType(labels0, types0), Value::RecordType(labels1, types1)) => {
+            (Value::RecordType(_, labels0, types0), Value::RecordType(_, labels1, types1)) => {
                 labels0 == labels1 && self.is_equal_telescopes(types0, types1)
             }
             (Value::RecordLit(labels0, exprs0), Value::RecordLit(labels1, exprs1)) => {
@@ -1322,7 +1325,7 @@ mod tests {
             Value::Universe(_) => {}
             Value::FunType(_, _, _, _) => {}
             Value::FunLit(_, _, _) => {}
-            Value::RecordType(_, _) => {}
+            Value::RecordType(_, _, _) => {}
             Value::RecordLit(_, _) => {}
             Value::ArrayLit(_) => {}
             Value::FormatRecord(_, _) => {}

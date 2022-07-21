@@ -1389,7 +1389,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
 
                 core::Term::FunLit(range.into(), input_name, self.scope.to_scope(output_expr))
             }
-            (Term::RecordLiteral(range, expr_fields), Value::RecordType(labels, types)) => {
+            (Term::RecordLiteral(range, expr_fields), Value::RecordType(_, labels, types)) => {
                 // TODO: improve handling of duplicate labels
                 if expr_fields.len() != labels.len()
                     || Iterator::zip(expr_fields.iter(), labels.iter())
@@ -1828,12 +1828,13 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
 
                 (
                     core::Term::RecordLit(range.into(), labels, exprs.into()),
-                    Arc::new(Value::RecordType(labels, types)),
+                    Arc::new(Value::RecordType(Span::Empty, labels, types)),
                 )
             }
             Term::UnitLiteral(range) => (
                 core::Term::RecordLit(range.into(), &[], &[]),
                 Arc::new(Value::RecordType(
+                    Span::Empty,
                     &[],
                     Telescope::new(SharedEnv::new(), &[]),
                 )),
@@ -1845,7 +1846,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
 
                 let head_type = self.elim_context().force(&head_type);
                 match head_type.as_ref() {
-                    Value::RecordType(labels, types) => {
+                    Value::RecordType(_, labels, types) => {
                         let mut labels = labels.iter();
                         let mut types = types.clone();
 

@@ -53,9 +53,9 @@ impl Span {
             Value::Stuck(span, _, _)
             | Value::Universe(span)
             | Value::FunType(span, _, _, _)
-            | Value::FunLit(span, _, _) => *span,
-            Value::RecordType(_, _)
-            | Value::RecordLit(_, _)
+            | Value::FunLit(span, _, _)
+            | Value::RecordType(span, _, _) => *span,
+            Value::RecordLit(_, _)
             | Value::ArrayLit(_)
             | Value::FormatRecord(_, _)
             | Value::FormatCond(_, _, _)
