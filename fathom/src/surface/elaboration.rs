@@ -1377,7 +1377,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
             }
             (
                 Term::FunLiteral(range, input_pattern, input_type, output_expr),
-                Value::FunType(_, expected_input_type, output_type),
+                Value::FunType(_, _, expected_input_type, output_type),
             ) => {
                 let (input_name, input_type) =
                     self.check_ann_pattern(input_pattern, *input_type, expected_input_type);
@@ -1714,6 +1714,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 (
                     core::Term::FunLit(range.into(), input_name, self.scope.to_scope(output_expr)),
                     Arc::new(Value::FunType(
+                        Span::Empty,
                         input_name,
                         input_type,
                         Closure::new(
@@ -1731,7 +1732,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 let head_type = self.elim_context().force(&head_type);
                 let (head_expr, input_type, output_type) = match head_type.as_ref() {
                     // The simple case - it's easy to see that it is a function type!
-                    Value::FunType(_, input_type, output_type) => {
+                    Value::FunType(_, _, input_type, output_type) => {
                         (head_expr, input_type.clone(), output_type.clone())
                     }
                     Value::Stuck(_, Head::Prim(Prim::ReportedError), _) => {
@@ -1760,6 +1761,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                             self.scope.to_scope(output_type),
                         );
                         let fun_type = Arc::new(Value::FunType(
+                            Span::Empty,
                             None,
                             input_type.clone(),
                             output_type.clone(),
