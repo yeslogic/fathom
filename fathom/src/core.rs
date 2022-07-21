@@ -57,10 +57,9 @@ impl Span {
             | Value::RecordType(span, _, _)
             | Value::RecordLit(span, _, _)
             | Value::ArrayLit(span, _)
-            | Value::FormatRecord(span, _, _) => *span,
-            Value::FormatCond(_, _, _) | Value::FormatOverlap(_, _) | Value::ConstLit(_) => {
-                Span::fixme()
-            }
+            | Value::FormatRecord(span, _, _)
+            | Value::FormatCond(span, _, _, _) => *span,
+            Value::FormatOverlap(_, _) | Value::ConstLit(_) => Span::fixme(),
         }
     }
 }
@@ -236,6 +235,34 @@ pub enum Term<'arena> {
         &'arena [(Const, Term<'arena>)],
         Option<&'arena Term<'arena>>,
     ),
+}
+
+impl<'arena> Term<'arena> {
+    /// Get the source span of the term.
+    pub fn span(&self) -> Span {
+        match self {
+            Term::ItemVar(span, _)
+            | Term::RigidVar(span, _)
+            | Term::FlexibleVar(span, _)
+            | Term::FlexibleInsertion(span, _, _)
+            | Term::Ann(span, _, _)
+            | Term::Let(span, _, _, _, _)
+            | Term::Universe(span)
+            | Term::FunType(span, _, _, _)
+            | Term::FunLit(span, _, _)
+            | Term::FunApp(span, _, _)
+            | Term::RecordType(span, _, _)
+            | Term::RecordLit(span, _, _)
+            | Term::RecordProj(span, _, _)
+            | Term::ArrayLit(span, _)
+            | Term::FormatRecord(span, _, _)
+            | Term::FormatCond(span, _, _, _)
+            | Term::FormatOverlap(span, _, _)
+            | Term::Prim(span, _)
+            | Term::ConstLit(span, _)
+            | Term::ConstMatch(span, _, _, _) => *span,
+        }
+    }
 }
 
 macro_rules! def_prims {

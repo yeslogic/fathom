@@ -244,7 +244,12 @@ Unexpected data in the binary file will result in an error
 $ fathom data --module formats/edid.fathom formats/data/edid/invalid/wrong-magic.edid
 ? failed
 error: conditional format failed
- = The predicate on a conditional format did not succeed.
+   ┌─ formats/edid.fathom:18:26
+   │
+18 │     magic <- u64le where u64_eq magic 0x00ffffffffffff00,
+   │                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   │
+   = The predicate on a conditional format did not succeed.
 
 
 ```

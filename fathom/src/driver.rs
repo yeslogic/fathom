@@ -436,8 +436,14 @@ impl From<ReadError> for Diagnostic<usize> {
                 .with_notes(vec![format!(
                     "A fail format was encountered when reading this file."
                 )]),
-            ReadError::CondFailure => Diagnostic::error()
+            ReadError::CondFailure(span) => Diagnostic::error()
                 .with_message(err.to_string())
+                .with_labels(
+                    IntoIterator::into_iter([primary_label(&span)])
+                        .into_iter()
+                        .flatten()
+                        .collect(),
+                )
                 .with_notes(vec![format!(
                     "The predicate on a conditional format did not succeed."
                 )]),

@@ -17,7 +17,7 @@ pub enum ReadError {
     UnknownItem,
     UnwrappedNone(Span),
     ReadFailFormat,
-    CondFailure,
+    CondFailure(Span),
     SetOffsetBeforeStartOfBuffer { offset: usize },
     SetOffsetAfterEndOfBuffer { offset: Option<usize> },
     UnexpectedEndOfBuffer,
@@ -32,7 +32,7 @@ impl fmt::Display for ReadError {
             ReadError::UnwrappedNone(_) => f.write_str("unwrapped none"),
             ReadError::UnknownItem => f.write_str("unknown item"),
             ReadError::ReadFailFormat => f.write_str("read a fail format"),
-            ReadError::CondFailure => f.write_str("conditional format failed"),
+            ReadError::CondFailure(_) => f.write_str("conditional format failed"),
             ReadError::SetOffsetBeforeStartOfBuffer { .. } => {
                 f.write_str("attempt to set buffer offset before the start of the buffer")
             }
@@ -294,19 +294,16 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
 
                 Ok(Arc::new(Value::RecordLit(*span, labels, exprs)))
             }
-            Value::FormatCond(_label, format, cond) => {
+            Value::FormatCond(_span, _label, format, cond) => {
                 let value = self.read_format(reader, &format)?;
                 let cond_res = self.elim_context().apply_closure(cond, value.clone());
 
                 match *cond_res {
                     Value::ConstLit(Const::Bool(true)) => Ok(value),
-                    Value::ConstLit(Const::Bool(false)) => {
-                        // TODO: better user experience for this case
-                        Err(ReadError::CondFailure)
-                    }
+                    Value::ConstLit(Const::Bool(false)) => Err(ReadError::CondFailure(cond.span())),
                     _ => {
                         // This shouldn't happen since we check that the cond type is Bool earlier
-                        Err(ReadError::InvalidValue(Span::fixme()))
+                        Err(ReadError::InvalidValue(Span::from_value(&cond_res)))
                     }
                 }
             }

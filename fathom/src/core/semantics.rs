@@ -42,7 +42,7 @@ pub enum Value<'arena> {
     /// Record formats, consisting of a list of dependent formats.
     FormatRecord(Span, &'arena [StringId], Telescope<'arena>),
     /// Conditional format, consisting of a format and predicate.
-    FormatCond(StringId, ArcValue<'arena>, Closure<'arena>),
+    FormatCond(Span, StringId, ArcValue<'arena>, Closure<'arena>),
     /// Overlap formats, consisting of a list of dependent formats, overlapping
     /// in memory.
     FormatOverlap(&'arena [StringId], Telescope<'arena>),
@@ -119,6 +119,10 @@ impl<'arena> Closure<'arena> {
         term: &'arena Term<'arena>,
     ) -> Closure<'arena> {
         Closure { rigid_exprs, term }
+    }
+
+    pub fn span(&self) -> Span {
+        self.term.span()
     }
 }
 
@@ -362,11 +366,10 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
                 let formats = Telescope::new(self.rigid_exprs.clone(), formats);
                 Arc::new(Value::FormatRecord(*span, labels, formats))
             }
-            Term::FormatCond(_span, name, format, cond) => {
+            Term::FormatCond(span, name, format, cond) => {
                 let format = self.eval(format);
                 let cond_expr = Closure::new(self.rigid_exprs.clone(), cond);
-                // TODO: set span of Value
-                Arc::new(Value::FormatCond(*name, format, cond_expr))
+                Arc::new(Value::FormatCond(*span, *name, format, cond_expr))
             }
             Term::FormatOverlap(_span, labels, formats) => {
                 let formats = Telescope::new(self.rigid_exprs.clone(), formats);
@@ -804,7 +807,7 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
                     formats.clone().apply_repr(),
                 )) // TODO: Should this copy the span from FormatRecord?
             }
-            Value::FormatCond(_, format, _) => self.format_repr(format),
+            Value::FormatCond(_, _, format, _) => self.format_repr(format),
             Value::Stuck(_span, Head::Prim(prim), spine) => match (prim, &spine[..]) {
                 (Prim::FormatU8, []) => Arc::new(Value::prim(Prim::U8Type, [])),
                 (Prim::FormatU16Be, []) => Arc::new(Value::prim(Prim::U16Type, [])),
@@ -1008,11 +1011,11 @@ impl<'in_arena, 'out_arena, 'env> QuoteContext<'in_arena, 'out_arena, 'env> {
 
                 Term::FormatRecord(*span, labels, formats)
             }
-            Value::FormatCond(label, format, cond) => {
+            Value::FormatCond(span, label, format, cond) => {
                 let format = self.quote(format);
                 let cond = self.quote_closure(cond);
                 Term::FormatCond(
-                    Span::from_value(&value),
+                    *span,
                     *label,
                     self.scope.to_scope(format),
                     self.scope.to_scope(cond),
@@ -1176,8 +1179,8 @@ impl<'arena, 'env> ConversionContext<'arena, 'env> {
             }
 
             (
-                Value::FormatCond(label0, format0, cond0),
-                Value::FormatCond(label1, format1, cond1),
+                Value::FormatCond(_, label0, format0, cond0),
+                Value::FormatCond(_, label1, format1, cond1),
             ) => {
                 label0 == label1
                     && self.is_equal(format0, format1)
@@ -1329,7 +1332,7 @@ mod tests {
             Value::RecordLit(_, _, _) => {}
             Value::ArrayLit(_, _) => {}
             Value::FormatRecord(_, _, _) => {}
-            Value::FormatCond(_, _, _) => {}
+            Value::FormatCond(_, _, _, _) => {}
             Value::FormatOverlap(_, _) => {}
             Value::ConstLit(_) => {}
         }

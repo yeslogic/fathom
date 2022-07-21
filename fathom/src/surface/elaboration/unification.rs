@@ -282,8 +282,8 @@ impl<'arena, 'env> Context<'arena, 'env> {
             }
 
             (
-                Value::FormatCond(label0, format0, cond0),
-                Value::FormatCond(label1, format1, cond1),
+                Value::FormatCond(_, label0, format0, cond0),
+                Value::FormatCond(_, label1, format1, cond1),
             ) => {
                 if label0 != label1 {
                     return Err(Error::Mismatch);
@@ -614,11 +614,11 @@ impl<'arena, 'env> Context<'arena, 'env> {
 
                 Ok(Term::FormatRecord(*span, labels, formats))
             }
-            Value::FormatCond(label, format, cond) => {
+            Value::FormatCond(span, label, format, cond) => {
                 let format = self.rename(flexible_var, format)?;
                 let cond = self.rename_closure(flexible_var, cond)?;
                 Ok(Term::FormatCond(
-                    Span::fixme(),
+                    *span,
                     *label,
                     self.scope.to_scope(format),
                     self.scope.to_scope(cond),
