@@ -7,15 +7,15 @@ use std::slice::SliceIndex;
 use std::sync::Arc;
 
 use crate::core::semantics::{self, ArcValue, Elim, Head, Value};
-use crate::core::{Const, Prim, UIntStyle};
+use crate::core::{Const, Prim, Span, UIntStyle};
 use crate::env::{EnvLen, SliceEnv};
 
 #[derive(Clone, Debug)]
 pub enum ReadError {
-    InvalidFormat,
-    InvalidValue,
+    InvalidFormat(Span),
+    InvalidValue(Span),
     UnknownItem,
-    UnwrappedNone,
+    UnwrappedNone(Span),
     ReadFailFormat,
     CondFailure,
     SetOffsetBeforeStartOfBuffer { offset: usize },
@@ -27,9 +27,9 @@ pub enum ReadError {
 impl fmt::Display for ReadError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            ReadError::InvalidFormat => f.write_str("invalid format"),
-            ReadError::InvalidValue => f.write_str("invalid value"),
-            ReadError::UnwrappedNone => f.write_str("unwrapped none"),
+            ReadError::InvalidFormat(_) => f.write_str("invalid format"),
+            ReadError::InvalidValue(_) => f.write_str("invalid value"),
+            ReadError::UnwrappedNone(_) => f.write_str("unwrapped none"),
             ReadError::UnknownItem => f.write_str("unknown item"),
             ReadError::ReadFailFormat => f.write_str("read a fail format"),
             ReadError::CondFailure => f.write_str("conditional format failed"),
@@ -277,7 +277,9 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
         format: &ArcValue<'arena>,
     ) -> Result<ArcValue<'arena>, ReadError> {
         match self.elim_context().force(format).as_ref() {
-            Value::Stuck(Head::Prim(prim), slice) => self.read_prim(reader, *prim, slice),
+            Value::Stuck(span, Head::Prim(prim), slice) => {
+                self.read_prim(reader, *prim, slice, *span)
+            }
             Value::FormatRecord(labels, formats) => {
                 let mut formats = formats.clone();
                 let mut exprs = Vec::with_capacity(formats.len());
@@ -304,7 +306,7 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
                     }
                     _ => {
                         // This shouldn't happen since we check that the cond type is Bool earlier
-                        Err(ReadError::InvalidValue)
+                        Err(ReadError::InvalidValue(Span::fixme()))
                     }
                 }
             }
@@ -334,15 +336,15 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
                 Ok(Arc::new(Value::RecordLit(labels, exprs)))
             }
 
-            Value::Stuck(Head::RigidVar(_), _)
-            | Value::Stuck(Head::FlexibleVar(_), _)
-            | Value::Universe
+            Value::Stuck(span, Head::RigidVar(_), _)
+            | Value::Stuck(span, Head::FlexibleVar(_), _) => Err(ReadError::InvalidFormat(*span)),
+            Value::Universe
             | Value::FunType(_, _, _)
             | Value::FunLit(_, _)
             | Value::RecordType(_, _)
             | Value::RecordLit(_, _)
             | Value::ArrayLit(_)
-            | Value::ConstLit(_) => Err(ReadError::InvalidFormat),
+            | Value::ConstLit(_) => Err(ReadError::InvalidFormat(Span::fixme())),
         }
     }
 
@@ -352,6 +354,7 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
         reader: &mut BufferReader<'data>,
         prim: Prim,
         slice: &[Elim<'arena>],
+        span: Span,
     ) -> Result<ArcValue<'arena>, ReadError> {
         use crate::core::semantics::Elim::FunApp;
 
@@ -390,10 +393,10 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
             (Prim::FormatFail, []) => Err(ReadError::ReadFailFormat),
             (Prim::FormatUnwrap, [_, FunApp(option)]) => match option.match_prim_spine() {
                 Some((Prim::OptionSome, [FunApp(elem)])) => Ok(elem.clone()),
-                Some((Prim::OptionNone, [])) => Err(ReadError::UnwrappedNone),
-                _ => Err(ReadError::InvalidValue),
+                Some((Prim::OptionNone, [])) => Err(ReadError::UnwrappedNone(span)),
+                _ => Err(ReadError::InvalidValue(span)),
             },
-            _ => Err(ReadError::InvalidFormat),
+            _ => Err(ReadError::InvalidFormat(span)),
         }
     }
 
@@ -408,7 +411,7 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
             Value::ConstLit(Const::U16(len, _)) => u64::from(*len),
             Value::ConstLit(Const::U32(len, _)) => u64::from(*len),
             Value::ConstLit(Const::U64(len, _)) => u64::from(*len),
-            _ => return Err(ReadError::InvalidValue),
+            _ => return Err(ReadError::InvalidValue(Span::fixme())),
         };
 
         let elem_exprs = (0..len)
@@ -454,7 +457,7 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
             Value::ConstLit(Const::U16(len, _)) => Some(usize::from(*len)),
             Value::ConstLit(Const::U32(len, _)) => usize::try_from(*len).ok(),
             Value::ConstLit(Const::U64(len, _)) => usize::try_from(*len).ok(),
-            _ => return Err(ReadError::InvalidValue),
+            _ => return Err(ReadError::InvalidValue(Span::fixme())),
         }
         .ok_or(ReadError::PositionOverflow)?;
 
@@ -470,7 +473,7 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
     ) -> Result<ArcValue<'arena>, ReadError> {
         let pos = match self.elim_context().force(pos).as_ref() {
             Value::ConstLit(Const::Pos(pos)) => *pos,
-            _ => return Err(ReadError::InvalidValue),
+            _ => return Err(ReadError::InvalidValue(Span::fixme())),
         };
 
         self.pending_formats.push((pos, elem_format.clone()));
@@ -485,7 +488,7 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
     ) -> Result<ArcValue<'arena>, ReadError> {
         let pos = match self.elim_context().force(r#ref).as_ref() {
             Value::ConstLit(Const::Ref(pos)) => *pos,
-            _ => return Err(ReadError::InvalidValue),
+            _ => return Err(ReadError::InvalidValue(Span::fixme())),
         };
 
         self.lookup_or_read_ref(pos, format)

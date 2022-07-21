@@ -21,7 +21,7 @@ pub enum Value<'arena> {
     /// [evaluate][EvalContext::eval] an open [term][Term], along with a spine
     /// of eliminations. Subsequent eliminations applied to this value are
     /// accumulated in the spine.
-    Stuck(Head, Vec<Elim<'arena>>),
+    Stuck(Span, Head, Vec<Elim<'arena>>),
 
     /// Universes.
     Universe,
@@ -54,20 +54,20 @@ pub enum Value<'arena> {
 impl<'arena> Value<'arena> {
     pub fn prim(prim: Prim, inputs: impl IntoIterator<Item = ArcValue<'arena>>) -> Value<'arena> {
         let inputs = inputs.into_iter().map(Elim::FunApp).collect();
-        Value::Stuck(Head::Prim(prim), inputs)
+        Value::Stuck(Span::fixme(), Head::Prim(prim), inputs)
     }
 
     pub fn rigid_var(global: GlobalVar) -> Value<'arena> {
-        Value::Stuck(Head::RigidVar(global), Vec::new())
+        Value::Stuck(Span::fixme(), Head::RigidVar(global), Vec::new())
     }
 
     pub fn flexible_var(global: GlobalVar) -> Value<'arena> {
-        Value::Stuck(Head::FlexibleVar(global), Vec::new())
+        Value::Stuck(Span::fixme(), Head::FlexibleVar(global), Vec::new())
     }
 
     pub fn match_prim_spine(&self) -> Option<(Prim, &[Elim<'arena>])> {
         match self {
-            Value::Stuck(Head::Prim(prim), spine) => Some((*prim, &spine)),
+            Value::Stuck(_span, Head::Prim(prim), spine) => Some((*prim, &spine)),
             _ => None,
         }
     }
@@ -633,7 +633,7 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
     pub fn force(&self, value: &ArcValue<'arena>) -> ArcValue<'arena> {
         let mut forced_value = value.clone();
         // Attempt to force flexible values until we don't see any more.
-        while let Value::Stuck(Head::FlexibleVar(var), spine) = forced_value.as_ref() {
+        while let Value::Stuck(_span, Head::FlexibleVar(var), spine) = forced_value.as_ref() {
             match self.flexible_exprs.get_global(*var) {
                 // Apply the spine to the solution. This might uncover another
                 // flexible value so we'll continue looping.
@@ -641,7 +641,7 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
                 // There's no solution for this flexible variable yet, meaning
                 // that we've forced the value as much as possible for now
                 Some(None) => break,
-                None => panic_any(Error::InvalidFlexibleVar),
+                None => panic_any(Error::InvalidFlexibleVar), // TODO: Pass span into this error?
             }
         }
         forced_value
@@ -713,7 +713,7 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
             // Beta-reduction
             Value::FunLit(_, output_expr) => self.apply_closure(output_expr, input_expr),
             // The computation is stuck, preventing further reduction
-            Value::Stuck(head, spine) => {
+            Value::Stuck(_span, head, spine) => {
                 spine.push(Elim::FunApp(input_expr));
 
                 match head {
@@ -743,7 +743,7 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
                 .and_then(|expr_index| exprs.get(expr_index).cloned())
                 .unwrap_or_else(|| panic_any(Error::InvalidRecordProj)),
             // The computation is stuck, preventing further reduction
-            Value::Stuck(_, spine) => {
+            Value::Stuck(_span, _, spine) => {
                 spine.push(Elim::RecordProj(label));
                 head_expr
             }
@@ -779,7 +779,7 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
                 }
             }
             // The computation is stuck, preventing further reduction
-            Value::Stuck(_, spine) => {
+            Value::Stuck(_span, _, spine) => {
                 spine.push(Elim::ConstMatch(branches));
                 head_expr
             }
@@ -803,7 +803,7 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
                 Arc::new(Value::RecordType(labels, formats.clone().apply_repr()))
             }
             Value::FormatCond(_, format, _) => self.format_repr(format),
-            Value::Stuck(Head::Prim(prim), spine) => match (prim, &spine[..]) {
+            Value::Stuck(_span, Head::Prim(prim), spine) => match (prim, &spine[..]) {
                 (Prim::FormatU8, []) => Arc::new(Value::prim(Prim::U8Type, [])),
                 (Prim::FormatU16Be, []) => Arc::new(Value::prim(Prim::U16Type, [])),
                 (Prim::FormatU16Le, []) => Arc::new(Value::prim(Prim::U16Type, [])),
@@ -862,7 +862,7 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
                 (Prim::ReportedError, []) => Arc::new(Value::prim(Prim::ReportedError, [])),
                 _ => Arc::new(Value::prim(Prim::FormatRepr, [format.clone()])),
             },
-            Value::Stuck(_, _) => Arc::new(Value::prim(Prim::FormatRepr, [format.clone()])),
+            Value::Stuck(_span, _, _) => Arc::new(Value::prim(Prim::FormatRepr, [format.clone()])),
             _ => panic_any(Error::InvalidFormatRepr),
         }
     }
@@ -911,30 +911,28 @@ impl<'in_arena, 'out_arena, 'env> QuoteContext<'in_arena, 'out_arena, 'env> {
     pub fn quote(&mut self, value: &ArcValue<'in_arena>) -> Term<'out_arena> {
         let value = self.elim_context().force(value);
         match value.as_ref() {
-            Value::Stuck(head, spine) => {
+            Value::Stuck(span, head, spine) => {
                 let head_expr = match head {
                     Head::Prim(prim) => Term::Prim(Span::fixme(), *prim),
                     Head::RigidVar(var) => {
                         // FIXME: Unwrap
                         Term::RigidVar(
-                            Span::from_value(&value),
+                            Span::fixme(),
                             self.rigid_exprs.global_to_local(*var).unwrap(),
                         )
                     }
-                    Head::FlexibleVar(var) => Term::FlexibleVar(Span::from_value(&value), *var),
+                    Head::FlexibleVar(var) => Term::FlexibleVar(Span::fixme(), *var),
                 };
 
                 spine.iter().fold(head_expr, |head_expr, elim| match elim {
                     Elim::FunApp(input_expr) => Term::FunApp(
-                        Span::from_value(&value),
+                        *span,
                         self.scope.to_scope(head_expr),
                         self.scope.to_scope(self.quote(input_expr)),
                     ),
-                    Elim::RecordProj(label) => Term::RecordProj(
-                        Span::from_value(&value),
-                        self.scope.to_scope(head_expr),
-                        *label,
-                    ),
+                    Elim::RecordProj(label) => {
+                        Term::RecordProj(*span, self.scope.to_scope(head_expr), *label)
+                    }
                     Elim::ConstMatch(branches) => {
                         let mut branches = branches.clone();
                         let mut pattern_branches =
@@ -954,7 +952,7 @@ impl<'in_arena, 'out_arena, 'env> QuoteContext<'in_arena, 'out_arena, 'env> {
                         };
 
                         Term::ConstMatch(
-                            Span::from_value(&value),
+                            *span,
                             self.scope.to_scope(head_expr),
                             pattern_branches.into(),
                             default_expr.map(|expr| self.scope.to_scope(expr) as &_),
@@ -1117,10 +1115,10 @@ impl<'arena, 'env> ConversionContext<'arena, 'env> {
         match (value0.as_ref(), value1.as_ref()) {
             // `ReportedError`s result from errors that have already been
             // reported, so we prevent them from triggering more errors.
-            (Value::Stuck(Head::Prim(Prim::ReportedError), _), _)
-            | (_, Value::Stuck(Head::Prim(Prim::ReportedError), _)) => true,
+            (Value::Stuck(_, Head::Prim(Prim::ReportedError), _), _)
+            | (_, Value::Stuck(_, Head::Prim(Prim::ReportedError), _)) => true,
 
-            (Value::Stuck(head0, spine0), Value::Stuck(head1, spine1)) => {
+            (Value::Stuck(_, head0, spine0), Value::Stuck(_, head1, spine1)) => {
                 use Elim::*;
 
                 head0 == head1
@@ -1322,7 +1320,7 @@ mod tests {
         //
         // NOTE: Only update the match below when you've updated the above functions.
         match value.as_ref() {
-            Value::Stuck(_, _) => {}
+            Value::Stuck(_, _, _) => {}
             Value::Universe => {}
             Value::FunType(_, _, _) => {}
             Value::FunLit(_, _) => {}

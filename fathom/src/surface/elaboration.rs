@@ -1459,8 +1459,8 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                     Some(Value::ConstLit(Const::U16(len, _))) => Some(*len as u64),
                     Some(Value::ConstLit(Const::U32(len, _))) => Some(*len as u64),
                     Some(Value::ConstLit(Const::U64(len, _))) => Some(*len as u64),
-                    Some(Value::Stuck(Head::Prim(Prim::ReportedError), _)) => {
-                        return core::Term::Prim(range.into(), Prim::ReportedError);
+                    Some(Value::Stuck(span, Head::Prim(Prim::ReportedError), _)) => {
+                        return core::Term::Prim(*span, Prim::ReportedError); // FIXME: should it use span here or range?
                     }
                     _ => None,
                 };
@@ -1737,7 +1737,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                     Value::FunType(_, input_type, output_type) => {
                         (head_expr, input_type.clone(), output_type.clone())
                     }
-                    Value::Stuck(Head::Prim(Prim::ReportedError), _) => {
+                    Value::Stuck(_, Head::Prim(Prim::ReportedError), _) => {
                         return self.synth_reported_error(*range);
                     }
                     // It's not immediately obvious that the head type is a
@@ -1864,7 +1864,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                             }
                         }
                     }
-                    Value::Stuck(Head::Prim(Prim::ReportedError), _) => {
+                    Value::Stuck(_, Head::Prim(Prim::ReportedError), _) => {
                         return self.synth_reported_error(*range);
                     }
                     _ => {}

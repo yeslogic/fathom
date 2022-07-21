@@ -205,25 +205,24 @@ impl<'arena, 'env> Context<'arena, 'env> {
         match (value0.as_ref(), value1.as_ref()) {
             // `ReportedError`s result from errors that have already been
             // reported, so we prevent them from triggering more errors.
-            (Value::Stuck(Head::Prim(Prim::ReportedError), _), _)
-            | (_, Value::Stuck(Head::Prim(Prim::ReportedError), _)) => Ok(()),
+            (Value::Stuck(_, Head::Prim(Prim::ReportedError), _), _)
+            | (_, Value::Stuck(_, Head::Prim(Prim::ReportedError), _)) => Ok(()),
 
             // Rigid-rigid and flexible-flexible cases
             //
             // Both values have head variables in common, so all we need to do
             // is unify the elimination spines.
-            (Value::Stuck(Head::Prim(prim0), spine0), Value::Stuck(Head::Prim(prim1), spine1))
-                if prim0 == prim1 =>
-            {
-                self.unify_spines(spine0, spine1)
-            }
             (
-                Value::Stuck(Head::RigidVar(var0), spine0),
-                Value::Stuck(Head::RigidVar(var1), spine1),
+                Value::Stuck(_, Head::Prim(prim0), spine0),
+                Value::Stuck(_, Head::Prim(prim1), spine1),
+            ) if prim0 == prim1 => self.unify_spines(spine0, spine1),
+            (
+                Value::Stuck(_, Head::RigidVar(var0), spine0),
+                Value::Stuck(_, Head::RigidVar(var1), spine1),
             ) if var0 == var1 => self.unify_spines(spine0, spine1),
             (
-                Value::Stuck(Head::FlexibleVar(var0), spine0),
-                Value::Stuck(Head::FlexibleVar(var1), spine1),
+                Value::Stuck(_, Head::FlexibleVar(var0), spine0),
+                Value::Stuck(_, Head::FlexibleVar(var1), spine1),
             ) if var0 == var1 => self.unify_spines(spine0, spine1),
 
             (Value::Universe, Value::Universe) => Ok(()),
@@ -292,10 +291,10 @@ impl<'arena, 'env> Context<'arena, 'env> {
             //
             // One of the values has a flexible variable at its head, so we
             // attempt to solve it using pattern unification.
-            (Value::Stuck(Head::FlexibleVar(var0), spine0), _) => {
+            (Value::Stuck(_, Head::FlexibleVar(var0), spine0), _) => {
                 self.solve(*var0, spine0, &value1)
             }
-            (_, Value::Stuck(Head::FlexibleVar(var1), spine1)) => {
+            (_, Value::Stuck(_, Head::FlexibleVar(var1), spine1)) => {
                 self.solve(*var1, spine1, &value0)
             }
 
@@ -455,9 +454,9 @@ impl<'arena, 'env> Context<'arena, 'env> {
         for elim in spine {
             match elim {
                 Elim::FunApp(input_expr) => match self.elim_context().force(input_expr).as_ref() {
-                    Value::Stuck(Head::RigidVar(source_var), spine)
+                    Value::Stuck(_, Head::RigidVar(source_var), spine)
                         if spine.is_empty() && self.renaming.set_rigid(*source_var) => {}
-                    Value::Stuck(Head::RigidVar(source_var), _) => {
+                    Value::Stuck(_, Head::RigidVar(source_var), _) => {
                         return Err(SpineError::NonLinearSpine(*source_var))
                     }
                     _ => return Err(SpineError::NonRigidFunApp),
@@ -495,32 +494,28 @@ impl<'arena, 'env> Context<'arena, 'env> {
         value: &ArcValue<'arena>,
     ) -> Result<Term<'arena>, RenameError> {
         match self.elim_context().force(value).as_ref() {
-            Value::Stuck(head, spine) => {
+            Value::Stuck(span, head, spine) => {
                 let head_expr = match head {
-                    Head::Prim(prim) => Term::Prim(Span::fixme(), *prim),
+                    Head::Prim(prim) => Term::Prim(*span, *prim),
                     Head::RigidVar(source_var) => match self.renaming.get_as_local(*source_var) {
                         None => return Err(RenameError::EscapingRigidVar(*source_var)),
-                        Some(target_var) => Term::RigidVar(Span::from_value(value), target_var), // FIXME: Should this be the value we're matching on and not the value passed into the function?
+                        Some(target_var) => Term::RigidVar(*span, target_var),
                     },
                     Head::FlexibleVar(var) => match *var {
                         var if flexible_var == var => return Err(RenameError::InfiniteSolution),
-                        var => Term::FlexibleVar(Span::from_value(value), var), // FIXME: As above
+                        var => Term::FlexibleVar(*span, var),
                     },
                 };
 
                 spine.iter().fold(Ok(head_expr), |head_expr, elim| {
                     Ok(match elim {
                         Elim::FunApp(input_expr) => Term::FunApp(
-                            Span::from_value(value), // FIXME: As above
+                            *span,
                             self.scope.to_scope(head_expr?),
                             self.scope.to_scope(self.rename(flexible_var, input_expr)?),
                         ),
                         Elim::RecordProj(label) => {
-                            Term::RecordProj(
-                                Span::from_value(value), // FIXME: As above
-                                self.scope.to_scope(head_expr?),
-                                *label,
-                            )
+                            Term::RecordProj(*span, self.scope.to_scope(head_expr?), *label)
                         }
                         Elim::ConstMatch(branches) => {
                             let mut branches = branches.clone();
@@ -548,7 +543,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
                             };
 
                             Term::ConstMatch(
-                                Span::from_value(value), // FIXME: As above
+                                *span,
                                 self.scope.to_scope(head_expr?),
                                 pattern_branches.into(),
                                 default_expr.map(|expr| self.scope.to_scope(expr) as &_),
@@ -558,14 +553,14 @@ impl<'arena, 'env> Context<'arena, 'env> {
                 })
             }
 
-            Value::Universe => Ok(Term::Universe(Span::from_value(value))), // FIXME: As above
+            Value::Universe => Ok(Term::Universe(Span::fixme())),
 
             Value::FunType(input_name, input_type, output_type) => {
                 let input_type = self.rename(flexible_var, input_type)?;
                 let output_type = self.rename_closure(flexible_var, output_type)?;
 
                 Ok(Term::FunType(
-                    Span::from_value(value), // FIXME: As above
+                    Span::fixme(),
                     *input_name,
                     self.scope.to_scope(input_type),
                     self.scope.to_scope(output_type),
@@ -575,7 +570,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
                 let output_expr = self.rename_closure(flexible_var, output_expr)?;
 
                 Ok(Term::FunLit(
-                    Span::from_value(value), // FIXME: As above
+                    Span::fixme(),
                     *input_name,
                     self.scope.to_scope(output_expr),
                 ))
@@ -585,11 +580,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
                 let labels = self.scope.to_scope(labels); // FIXME: avoid copy if this is the same arena?
                 let types = self.rename_telescope(flexible_var, types)?;
 
-                Ok(Term::RecordType(
-                    Span::from_value(value), // FIXME: As above
-                    labels,
-                    types,
-                ))
+                Ok(Term::RecordType(Span::fixme(), labels, types))
             }
             Value::RecordLit(labels, exprs) => {
                 let labels = self.scope.to_scope(labels); // FIXME: avoid copy if this is the same arena?
@@ -598,11 +589,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
                     new_exprs.push(self.rename(flexible_var, expr)?);
                 }
 
-                Ok(Term::RecordLit(
-                    Span::from_value(value), // FIXME: As above
-                    labels,
-                    new_exprs.into(),
-                ))
+                Ok(Term::RecordLit(Span::fixme(), labels, new_exprs.into()))
             }
 
             Value::ArrayLit(elem_exprs) => {
@@ -611,27 +598,20 @@ impl<'arena, 'env> Context<'arena, 'env> {
                     new_elem_exprs.push(self.rename(flexible_var, elem_expr)?);
                 }
 
-                Ok(Term::ArrayLit(
-                    Span::from_value(value), // FIXME: As above
-                    new_elem_exprs.into(),
-                ))
+                Ok(Term::ArrayLit(Span::fixme(), new_elem_exprs.into()))
             }
 
             Value::FormatRecord(labels, formats) => {
                 let labels = self.scope.to_scope(labels); // FIXME: avoid copy if this is the same arena?
                 let formats = self.rename_telescope(flexible_var, formats)?;
 
-                Ok(Term::FormatRecord(
-                    Span::from_value(value), // FIXME: As above
-                    labels,
-                    formats,
-                ))
+                Ok(Term::FormatRecord(Span::fixme(), labels, formats))
             }
             Value::FormatCond(label, format, cond) => {
                 let format = self.rename(flexible_var, format)?;
                 let cond = self.rename_closure(flexible_var, cond)?;
                 Ok(Term::FormatCond(
-                    Span::from_value(value), // FIXME: As above
+                    Span::fixme(),
                     *label,
                     self.scope.to_scope(format),
                     self.scope.to_scope(cond),
@@ -641,17 +621,10 @@ impl<'arena, 'env> Context<'arena, 'env> {
                 let labels = self.scope.to_scope(labels); // FIXME: avoid copy if this is the same arena?
                 let formats = self.rename_telescope(flexible_var, formats)?;
 
-                Ok(Term::FormatOverlap(
-                    Span::from_value(value), // FIXME: As above
-                    labels,
-                    formats,
-                ))
+                Ok(Term::FormatOverlap(Span::fixme(), labels, formats))
             }
 
-            Value::ConstLit(constant) => Ok(Term::ConstLit(
-                Span::from_value(value), // FIXME: As above
-                *constant,
-            )),
+            Value::ConstLit(constant) => Ok(Term::ConstLit(Span::fixme(), *constant)),
         }
     }
 

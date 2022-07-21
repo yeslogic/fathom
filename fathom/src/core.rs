@@ -1,6 +1,6 @@
 //! Core language.
 
-use crate::core::semantics::ArcValue;
+use crate::core::semantics::Value;
 use crate::env::{GlobalVar, LocalVar};
 use crate::source::ByteRange;
 use crate::StringId;
@@ -47,10 +47,20 @@ pub enum Span {
 }
 
 impl Span {
-    pub(crate) fn from_value(_value: &ArcValue) -> Span {
-        // Placeholder for when values have Spans. When the do this can return the span of the
-        // Value.
-        Span::fixme()
+    pub(crate) fn from_value(value: &Value) -> Span {
+        match value {
+            Value::Stuck(span, _, _) => *span,
+            Value::Universe
+            | Value::FunType(_, _, _)
+            | Value::FunLit(_, _)
+            | Value::RecordType(_, _)
+            | Value::RecordLit(_, _)
+            | Value::ArrayLit(_)
+            | Value::FormatRecord(_, _)
+            | Value::FormatCond(_, _, _)
+            | Value::FormatOverlap(_, _)
+            | Value::ConstLit(_) => Span::fixme(),
+        }
     }
 }
 

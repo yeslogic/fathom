@@ -1,12 +1,12 @@
-use codespan_reporting::diagnostic::{Diagnostic, Severity};
+use codespan_reporting::diagnostic::{Diagnostic, Label, Severity};
 use codespan_reporting::files::SimpleFiles;
 use codespan_reporting::term::termcolor::{BufferedStandardStream, ColorChoice, WriteColor};
 use std::cell::RefCell;
 use std::io::Read;
 use std::path::Path;
 
-use crate::core::binary;
 use crate::core::binary::ReadError;
+use crate::core::{binary, Span};
 use crate::source::{ByteRange, FileId};
 use crate::surface::{self, elaboration};
 use crate::StringInterner;
@@ -425,6 +425,11 @@ impl<'surface, 'core> Driver<'surface, 'core> {
 
 impl From<ReadError> for Diagnostic<usize> {
     fn from(err: ReadError) -> Diagnostic<usize> {
+        let primary_label = |span: &Span| match span {
+            Span::Range(range) => Some(Label::primary(range.file_id(), *range)),
+            Span::Empty => None,
+        };
+
         match err {
             ReadError::ReadFailFormat => Diagnostic::error()
                 .with_message(err.to_string())
@@ -436,7 +441,7 @@ impl From<ReadError> for Diagnostic<usize> {
                 .with_notes(vec![format!(
                     "The predicate on a conditional format did not succeed."
                 )]),
-            ReadError::UnwrappedNone => Diagnostic::error()
+            ReadError::UnwrappedNone(_) => Diagnostic::error()
                 .with_message(err.to_string())
                 .with_notes(vec![format!("option_unwrap was called on a none value.")]),
             ReadError::UnexpectedEndOfBuffer => Diagnostic::error()
@@ -463,10 +468,19 @@ impl From<ReadError> for Diagnostic<usize> {
                 .with_notes(vec![format!(
                     "The offset is beyond the end of the buffer (overflow).",
                 )]),
-            ReadError::InvalidFormat
-            | ReadError::InvalidValue
-            | ReadError::UnknownItem
-            | ReadError::PositionOverflow => Diagnostic::bug()
+            ReadError::InvalidFormat(span) | ReadError::InvalidValue(span) => Diagnostic::bug()
+                .with_message(format!("unexpected error '{}'", err))
+                .with_labels(
+                    IntoIterator::into_iter([primary_label(&span)])
+                        .into_iter()
+                        .flatten()
+                        .collect(),
+                )
+                .with_notes(vec![format!(
+                    "please file a bug report at: {}",
+                    BUG_REPORT_URL
+                )]),
+            ReadError::UnknownItem | ReadError::PositionOverflow => Diagnostic::bug()
                 .with_message(format!("unexpected error '{}'", err))
                 .with_notes(vec![format!(
                     "please file a bug report at: {}",
