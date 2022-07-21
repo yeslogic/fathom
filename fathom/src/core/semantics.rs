@@ -40,7 +40,7 @@ pub enum Value<'arena> {
     ArrayLit(Span, Vec<ArcValue<'arena>>),
 
     /// Record formats, consisting of a list of dependent formats.
-    FormatRecord(&'arena [StringId], Telescope<'arena>),
+    FormatRecord(Span, &'arena [StringId], Telescope<'arena>),
     /// Conditional format, consisting of a format and predicate.
     FormatCond(StringId, ArcValue<'arena>, Closure<'arena>),
     /// Overlap formats, consisting of a list of dependent formats, overlapping
@@ -358,10 +358,9 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
                 Arc::new(Value::ArrayLit(*span, elem_exprs))
             }
 
-            Term::FormatRecord(_span, labels, formats) => {
+            Term::FormatRecord(span, labels, formats) => {
                 let formats = Telescope::new(self.rigid_exprs.clone(), formats);
-                // TODO: set span of Value
-                Arc::new(Value::FormatRecord(labels, formats))
+                Arc::new(Value::FormatRecord(*span, labels, formats))
             }
             Term::FormatCond(_span, name, format, cond) => {
                 let format = self.eval(format);
@@ -798,7 +797,7 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
     /// Find the representation type of a format description.
     pub fn format_repr(&self, format: &ArcValue<'arena>) -> ArcValue<'arena> {
         match format.as_ref() {
-            Value::FormatRecord(labels, formats) | Value::FormatOverlap(labels, formats) => {
+            Value::FormatRecord(_, labels, formats) | Value::FormatOverlap(labels, formats) => {
                 Arc::new(Value::RecordType(
                     Span::Empty,
                     labels,
@@ -1003,11 +1002,11 @@ impl<'in_arena, 'out_arena, 'env> QuoteContext<'in_arena, 'out_arena, 'env> {
                 Term::ArrayLit(*span, elem_exprs)
             }
 
-            Value::FormatRecord(labels, formats) => {
+            Value::FormatRecord(span, labels, formats) => {
                 let labels = self.scope.to_scope_from_iter(labels.iter().copied()); // FIXME: avoid copy if this is the same arena?
                 let formats = self.quote_telescope(formats);
 
-                Term::FormatRecord(Span::from_value(&value), labels, formats)
+                Term::FormatRecord(*span, labels, formats)
             }
             Value::FormatCond(label, format, cond) => {
                 let format = self.quote(format);
@@ -1168,7 +1167,10 @@ impl<'arena, 'env> ConversionContext<'arena, 'env> {
                     .all(|(elem_expr0, elem_expr1)| self.is_equal(&elem_expr0, &elem_expr1))
             }
 
-            (Value::FormatRecord(labels0, formats0), Value::FormatRecord(labels1, formats1))
+            (
+                Value::FormatRecord(_, labels0, formats0),
+                Value::FormatRecord(_, labels1, formats1),
+            )
             | (Value::FormatOverlap(labels0, formats0), Value::FormatOverlap(labels1, formats1)) => {
                 labels0 == labels1 && self.is_equal_telescopes(formats0, formats1)
             }
@@ -1326,7 +1328,7 @@ mod tests {
             Value::RecordType(_, _, _) => {}
             Value::RecordLit(_, _, _) => {}
             Value::ArrayLit(_, _) => {}
-            Value::FormatRecord(_, _) => {}
+            Value::FormatRecord(_, _, _) => {}
             Value::FormatCond(_, _, _) => {}
             Value::FormatOverlap(_, _) => {}
             Value::ConstLit(_) => {}

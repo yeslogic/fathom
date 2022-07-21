@@ -271,7 +271,10 @@ impl<'arena, 'env> Context<'arena, 'env> {
                 Ok(())
             }
 
-            (Value::FormatRecord(labels0, formats0), Value::FormatRecord(labels1, formats1)) => {
+            (
+                Value::FormatRecord(_, labels0, formats0),
+                Value::FormatRecord(_, labels1, formats1),
+            ) => {
                 if labels0 != labels1 {
                     return Err(Error::Mismatch);
                 }
@@ -605,11 +608,11 @@ impl<'arena, 'env> Context<'arena, 'env> {
                 Ok(Term::ArrayLit(*span, new_elem_exprs.into()))
             }
 
-            Value::FormatRecord(labels, formats) => {
+            Value::FormatRecord(span, labels, formats) => {
                 let labels = self.scope.to_scope(labels); // FIXME: avoid copy if this is the same arena?
                 let formats = self.rename_telescope(flexible_var, formats)?;
 
-                Ok(Term::FormatRecord(Span::fixme(), labels, formats))
+                Ok(Term::FormatRecord(*span, labels, formats))
             }
             Value::FormatCond(label, format, cond) => {
                 let format = self.rename(flexible_var, format)?;
