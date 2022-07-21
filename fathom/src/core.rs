@@ -54,9 +54,9 @@ impl Span {
             | Value::Universe(span)
             | Value::FunType(span, _, _, _)
             | Value::FunLit(span, _, _)
-            | Value::RecordType(span, _, _) => *span,
-            Value::RecordLit(_, _)
-            | Value::ArrayLit(_)
+            | Value::RecordType(span, _, _)
+            | Value::RecordLit(span, _, _) => *span,
+            Value::ArrayLit(_)
             | Value::FormatRecord(_, _)
             | Value::FormatCond(_, _, _)
             | Value::FormatOverlap(_, _)

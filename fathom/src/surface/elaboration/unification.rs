@@ -246,7 +246,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
                 }
                 self.unify_telescopes(types0, types1)
             }
-            (Value::RecordLit(labels0, exprs0), Value::RecordLit(labels1, exprs1)) => {
+            (Value::RecordLit(_, labels0, exprs0), Value::RecordLit(_, labels1, exprs1)) => {
                 if labels0 != labels1 {
                     return Err(Error::Mismatch);
                 }
@@ -255,8 +255,12 @@ impl<'arena, 'env> Context<'arena, 'env> {
                 }
                 Ok(())
             }
-            (Value::RecordLit(labels, exprs), _) => self.unify_record_lit(labels, exprs, &value1),
-            (_, Value::RecordLit(labels, exprs)) => self.unify_record_lit(labels, exprs, &value0),
+            (Value::RecordLit(_, labels, exprs), _) => {
+                self.unify_record_lit(labels, exprs, &value1)
+            }
+            (_, Value::RecordLit(_, labels, exprs)) => {
+                self.unify_record_lit(labels, exprs, &value0)
+            }
 
             (Value::ArrayLit(elem_exprs0), Value::ArrayLit(elem_exprs1)) => {
                 for (elem_expr0, elem_expr1) in
@@ -582,14 +586,14 @@ impl<'arena, 'env> Context<'arena, 'env> {
 
                 Ok(Term::RecordType(*span, labels, types))
             }
-            Value::RecordLit(labels, exprs) => {
+            Value::RecordLit(span, labels, exprs) => {
                 let labels = self.scope.to_scope(labels); // FIXME: avoid copy if this is the same arena?
                 let mut new_exprs = SliceVec::new(self.scope, exprs.len());
                 for expr in exprs {
                     new_exprs.push(self.rename(flexible_var, expr)?);
                 }
 
-                Ok(Term::RecordLit(Span::fixme(), labels, new_exprs.into()))
+                Ok(Term::RecordLit(*span, labels, new_exprs.into()))
             }
 
             Value::ArrayLit(elem_exprs) => {
