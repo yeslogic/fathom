@@ -337,9 +337,9 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
             }
 
             Value::Stuck(span, Head::RigidVar(_), _)
-            | Value::Stuck(span, Head::FlexibleVar(_), _) => Err(ReadError::InvalidFormat(*span)),
-            Value::Universe
-            | Value::FunType(_, _, _)
+            | Value::Stuck(span, Head::FlexibleVar(_), _)
+            | Value::Universe(span) => Err(ReadError::InvalidFormat(*span)),
+            Value::FunType(_, _, _)
             | Value::FunLit(_, _)
             | Value::RecordType(_, _)
             | Value::RecordLit(_, _)

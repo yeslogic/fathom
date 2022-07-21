@@ -47,11 +47,11 @@ pub enum Span {
 }
 
 impl Span {
+    // TODO: Delete this when all values have a span
     pub(crate) fn from_value(value: &Value) -> Span {
         match value {
-            Value::Stuck(span, _, _) => *span,
-            Value::Universe
-            | Value::FunType(_, _, _)
+            Value::Stuck(span, _, _) | Value::Universe(span) => *span,
+            Value::FunType(_, _, _)
             | Value::FunLit(_, _)
             | Value::RecordType(_, _)
             | Value::RecordLit(_, _)

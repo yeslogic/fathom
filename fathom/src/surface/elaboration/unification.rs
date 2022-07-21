@@ -225,7 +225,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
                 Value::Stuck(_, Head::FlexibleVar(var1), spine1),
             ) if var0 == var1 => self.unify_spines(spine0, spine1),
 
-            (Value::Universe, Value::Universe) => Ok(()),
+            (Value::Universe(_), Value::Universe(_)) => Ok(()),
 
             (
                 Value::FunType(_, input_type0, output_type0),
@@ -553,7 +553,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
                 })
             }
 
-            Value::Universe => Ok(Term::Universe(Span::fixme())),
+            Value::Universe(span) => Ok(Term::Universe(*span)),
 
             Value::FunType(input_name, input_type, output_type) => {
                 let input_type = self.rename(flexible_var, input_type)?;

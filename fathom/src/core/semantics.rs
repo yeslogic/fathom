@@ -24,7 +24,7 @@ pub enum Value<'arena> {
     Stuck(Span, Head, Vec<Elim<'arena>>),
 
     /// Universes.
-    Universe,
+    Universe(Span),
 
     /// Dependent function types.
     FunType(Option<StringId>, ArcValue<'arena>, Closure<'arena>),
@@ -70,6 +70,11 @@ impl<'arena> Value<'arena> {
             Value::Stuck(_span, Head::Prim(prim), spine) => Some((*prim, &spine)),
             _ => None,
         }
+    }
+
+    /// Create a new `Arc<Value::Universe>` with no associated span.
+    pub fn arc_universe() -> ArcValue<'arena> {
+        Arc::new(Value::Universe(Span::Empty))
     }
 }
 
@@ -312,7 +317,7 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
                 output_expr // TODO: Wrap output in span
             }
 
-            Term::Universe(_span) => Arc::new(Value::Universe), // TODO: pass span to value
+            Term::Universe(span) => Arc::new(Value::Universe(*span)),
 
             Term::FunType(_span, input_name, input_type, output_type) => {
                 // TODO: pass span to value
@@ -961,7 +966,7 @@ impl<'in_arena, 'out_arena, 'env> QuoteContext<'in_arena, 'out_arena, 'env> {
                 })
             }
 
-            Value::Universe => Term::Universe(Span::from_value(&value)),
+            Value::Universe(span) => Term::Universe(*span),
 
             Value::FunType(input_name, input_type, output_type) => {
                 let input_type = self.quote(input_type);
@@ -1134,7 +1139,7 @@ impl<'arena, 'env> ConversionContext<'arena, 'env> {
                         }
                     })
             }
-            (Value::Universe, Value::Universe) => true,
+            (Value::Universe(_), Value::Universe(_)) => true,
 
             (
                 Value::FunType(_, input_type0, output_type0),
@@ -1321,7 +1326,7 @@ mod tests {
         // NOTE: Only update the match below when you've updated the above functions.
         match value.as_ref() {
             Value::Stuck(_, _, _) => {}
-            Value::Universe => {}
+            Value::Universe(_) => {}
             Value::FunType(_, _, _) => {}
             Value::FunLit(_, _) => {}
             Value::RecordType(_, _) => {}
