@@ -59,8 +59,8 @@ impl Span {
             | Value::ArrayLit(span, _)
             | Value::FormatRecord(span, _, _)
             | Value::FormatCond(span, _, _, _)
-            | Value::FormatOverlap(span, _, _) => *span,
-            Value::ConstLit(_) => Span::fixme(),
+            | Value::FormatOverlap(span, _, _)
+            | Value::ConstLit(span, _) => *span,
         }
     }
 }

@@ -1455,10 +1455,10 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
 
                 let len = match len_value.map(<_>::as_ref) {
                     None => Some(elem_exprs.len() as u64),
-                    Some(Value::ConstLit(Const::U8(len, _))) => Some(*len as u64),
-                    Some(Value::ConstLit(Const::U16(len, _))) => Some(*len as u64),
-                    Some(Value::ConstLit(Const::U32(len, _))) => Some(*len as u64),
-                    Some(Value::ConstLit(Const::U64(len, _))) => Some(*len as u64),
+                    Some(Value::ConstLit(_, Const::U8(len, _))) => Some(*len as u64),
+                    Some(Value::ConstLit(_, Const::U16(len, _))) => Some(*len as u64),
+                    Some(Value::ConstLit(_, Const::U32(len, _))) => Some(*len as u64),
+                    Some(Value::ConstLit(_, Const::U64(len, _))) => Some(*len as u64),
                     Some(Value::Stuck(span, Head::Prim(Prim::ReportedError), _)) => {
                         return core::Term::Prim(*span, Prim::ReportedError); // FIXME: should it use span here or range?
                     }
