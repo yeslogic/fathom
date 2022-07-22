@@ -305,7 +305,7 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
                     }
                     _ => {
                         // This shouldn't happen since we check that the cond type is Bool earlier
-                        Err(ReadError::InvalidValue(Span::from_value(&cond_res)))
+                        Err(ReadError::InvalidValue(cond_res.span()))
                     }
                 }
             }
@@ -417,10 +417,7 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
             .map(|_| self.read_format(reader, elem_format))
             .collect::<Result<_, _>>()?;
 
-        Ok(Arc::new(Value::ArrayLit(
-            Span::from_value(elem_format),
-            elem_exprs,
-        )))
+        Ok(Arc::new(Value::ArrayLit(elem_format.span(), elem_exprs)))
     }
 
     fn read_repeat_until_end(
@@ -441,10 +438,7 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
                     // unwrap shouldn't panic as we're rewinding to a known good offset
                     // Should this be set to the end of the current buffer?
                     reader.set_relative_offset(current_offset).unwrap();
-                    return Ok(Arc::new(Value::ArrayLit(
-                        Span::from_value(elem_format),
-                        elems,
-                    )));
+                    return Ok(Arc::new(Value::ArrayLit(elem_format.span(), elems)));
                 }
                 Err(err) => return Err(err),
             };
@@ -478,15 +472,12 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
     ) -> Result<ArcValue<'arena>, ReadError> {
         let pos = match self.elim_context().force(pos_value).as_ref() {
             Value::ConstLit(_, Const::Pos(pos)) => *pos,
-            value => return Err(ReadError::InvalidValue(Span::from_value(value))),
+            value => return Err(ReadError::InvalidValue(value.span())),
         };
 
         self.pending_formats.push((pos, elem_format.clone()));
 
-        Ok(Arc::new(Value::ConstLit(
-            Span::from_value(pos_value),
-            Const::Ref(pos),
-        )))
+        Ok(Arc::new(Value::ConstLit(pos_value.span(), Const::Ref(pos))))
     }
 
     fn read_deref(
@@ -496,7 +487,7 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
     ) -> Result<ArcValue<'arena>, ReadError> {
         let pos = match self.elim_context().force(r#ref).as_ref() {
             Value::ConstLit(_, Const::Ref(pos)) => *pos,
-            value => return Err(ReadError::InvalidValue(Span::from_value(value))),
+            value => return Err(ReadError::InvalidValue(value.span())),
         };
 
         self.lookup_or_read_ref(pos, format)

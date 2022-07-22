@@ -76,6 +76,22 @@ impl<'arena> Value<'arena> {
     pub fn arc_universe() -> ArcValue<'arena> {
         Arc::new(Value::Universe(Span::Empty))
     }
+
+    pub fn span(&self) -> Span {
+        match self {
+            Value::Stuck(span, _, _)
+            | Value::Universe(span)
+            | Value::FunType(span, _, _, _)
+            | Value::FunLit(span, _, _)
+            | Value::RecordType(span, _, _)
+            | Value::RecordLit(span, _, _)
+            | Value::ArrayLit(span, _)
+            | Value::FormatRecord(span, _, _)
+            | Value::FormatCond(span, _, _, _)
+            | Value::FormatOverlap(span, _, _)
+            | Value::ConstLit(span, _) => *span,
+        }
+    }
 }
 
 /// The head of a [stuck value][Value::Stuck].

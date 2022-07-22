@@ -1,6 +1,5 @@
 //! Core language.
 
-use crate::core::semantics::Value;
 use crate::env::{GlobalVar, LocalVar};
 use crate::source::ByteRange;
 use crate::StringId;
@@ -44,25 +43,6 @@ pub enum EntryInfo {
 pub enum Span {
     Range(ByteRange),
     Empty,
-}
-
-impl Span {
-    // TODO: Delete this when all values have a span
-    pub(crate) fn from_value(value: &Value) -> Span {
-        match value {
-            Value::Stuck(span, _, _)
-            | Value::Universe(span)
-            | Value::FunType(span, _, _, _)
-            | Value::FunLit(span, _, _)
-            | Value::RecordType(span, _, _)
-            | Value::RecordLit(span, _, _)
-            | Value::ArrayLit(span, _)
-            | Value::FormatRecord(span, _, _)
-            | Value::FormatCond(span, _, _, _)
-            | Value::FormatOverlap(span, _, _)
-            | Value::ConstLit(span, _) => *span,
-        }
-    }
 }
 
 impl Span {
