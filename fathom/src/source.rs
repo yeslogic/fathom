@@ -14,16 +14,6 @@ impl Span {
     pub const fn fixme() -> Span {
         Span::Empty
     }
-
-    pub fn range_todo(self) {
-        // placeholder function for when we should build a span from a ByteRange
-        // but the current location is expecting a range of (). Eventually this
-        // should be renamed range and return Option<ByteRange>?
-        // match self {
-        //     Span::Range(range) => Some(range),
-        //     Span::Empty => None
-        // }
-    }
 }
 
 impl From<&ByteRange> for Span {
