@@ -22,8 +22,9 @@ use crate::alloc::SliceVec;
 use crate::core::semantics::{
     self, ArcValue, Closure, Elim, Head, SplitBranches, Telescope, Value,
 };
-use crate::core::{Prim, Span, Term};
+use crate::core::{Prim, Term};
 use crate::env::{EnvLen, GlobalVar, LocalVar, SharedEnv, SliceEnv, UniqueEnv};
+use crate::source::Span;
 use crate::StringId;
 
 /// Errors encountered during unification.

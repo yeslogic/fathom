@@ -6,8 +6,9 @@ use std::panic::panic_any;
 use std::sync::Arc;
 
 use crate::alloc::SliceVec;
-use crate::core::{Const, EntryInfo, Prim, Span, Term, UIntStyle};
+use crate::core::{Const, EntryInfo, Prim, Term, UIntStyle};
 use crate::env::{EnvLen, GlobalVar, SharedEnv, SliceEnv};
+use crate::source::Span;
 use crate::StringId;
 
 /// Atomically reference counted values. We use reference counting to increase

@@ -3,8 +3,9 @@
 use scoped_arena::Scope;
 use std::cell::RefCell;
 
-use crate::core::{Span, UIntStyle};
+use crate::core::UIntStyle;
 use crate::env::{self, EnvLen, GlobalVar, LocalVar, UniqueEnv};
+use crate::source::Span;
 use crate::surface::elaboration::FlexSource;
 use crate::surface::{BinOp, ExprField, FormatField, Item, Module, Pattern, Term, TypeField};
 use crate::{core, StringId, StringInterner};

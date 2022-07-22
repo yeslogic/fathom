@@ -1,7 +1,7 @@
 //! Core language.
 
 use crate::env::{GlobalVar, LocalVar};
-use crate::source::ByteRange;
+use crate::source::Span;
 use crate::StringId;
 
 pub mod binary;
@@ -36,35 +36,6 @@ pub enum EntryInfo {
     Definition,
     /// The entry was bound as a parameter in the environment
     Parameter,
-}
-
-// TODO: Better name?
-#[derive(Debug, Copy, Clone)]
-pub enum Span {
-    Range(ByteRange),
-    Empty,
-}
-
-impl Span {
-    pub const fn fixme() -> Span {
-        Span::Empty
-    }
-
-    pub fn range_todo(self) {
-        // placeholder function for when we should build a span from a ByteRange
-        // but the current location is expecting a range of (). Eventually this
-        // should be renamed range and return Option<ByteRange>?
-        // match self {
-        //     Span::Range(range) => Some(range),
-        //     Span::Empty => None
-        // }
-    }
-}
-
-impl From<&ByteRange> for Span {
-    fn from(range: &ByteRange) -> Self {
-        Span::Range(*range)
-    }
 }
 
 /// Core language terms.

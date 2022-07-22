@@ -5,9 +5,9 @@ use std::cell::RefCell;
 use std::io::Read;
 use std::path::Path;
 
+use crate::core::binary;
 use crate::core::binary::ReadError;
-use crate::core::{binary, Span};
-use crate::source::{ByteRange, FileId};
+use crate::source::{ByteRange, FileId, Span};
 use crate::surface::{self, elaboration};
 use crate::StringInterner;
 
