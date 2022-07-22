@@ -410,7 +410,7 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
             Value::ConstLit(_, Const::U16(len, _)) => u64::from(*len),
             Value::ConstLit(_, Const::U32(len, _)) => u64::from(*len),
             Value::ConstLit(_, Const::U64(len, _)) => u64::from(*len),
-            _ => return Err(ReadError::InvalidValue(Span::fixme())),
+            _ => return Err(ReadError::InvalidValue(len.span())),
         };
 
         let elem_exprs = (0..len)
@@ -456,7 +456,7 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
             Value::ConstLit(_, Const::U16(len, _)) => Some(usize::from(*len)),
             Value::ConstLit(_, Const::U32(len, _)) => usize::try_from(*len).ok(),
             Value::ConstLit(_, Const::U64(len, _)) => usize::try_from(*len).ok(),
-            _ => return Err(ReadError::InvalidValue(Span::fixme())),
+            _ => return Err(ReadError::InvalidValue(len.span())),
         }
         .ok_or(ReadError::PositionOverflow)?;
 

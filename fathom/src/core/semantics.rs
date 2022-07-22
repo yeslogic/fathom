@@ -54,26 +54,27 @@ pub enum Value<'arena> {
 impl<'arena> Value<'arena> {
     pub fn prim(prim: Prim, inputs: impl IntoIterator<Item = ArcValue<'arena>>) -> Value<'arena> {
         let inputs = inputs.into_iter().map(Elim::FunApp).collect();
-        Value::Stuck(Span::fixme(), Head::Prim(prim), inputs)
+        Value::Stuck(Span::Empty, Head::Prim(prim), inputs)
     }
 
     pub fn rigid_var(global: GlobalVar) -> Value<'arena> {
-        Value::Stuck(Span::fixme(), Head::RigidVar(global), Vec::new())
+        Value::Stuck(Span::Empty, Head::RigidVar(global), Vec::new())
     }
 
     pub fn flexible_var(global: GlobalVar) -> Value<'arena> {
-        Value::Stuck(Span::fixme(), Head::FlexibleVar(global), Vec::new())
+        Value::Stuck(Span::Empty, Head::FlexibleVar(global), Vec::new())
     }
 
     pub fn match_prim_spine(&self) -> Option<(Prim, &[Elim<'arena>])> {
         match self {
-            Value::Stuck(_span, Head::Prim(prim), spine) => Some((*prim, &spine)),
+            Value::Stuck(_, Head::Prim(prim), spine) => Some((*prim, &spine)),
             _ => None,
         }
     }
 
     /// Create a new `Arc<Value::Universe>` with no associated span.
     pub fn arc_universe() -> ArcValue<'arena> {
+        // TODO: Can we share a single instance of this?
         Arc::new(Value::Universe(Span::Empty))
     }
 
@@ -931,15 +932,12 @@ impl<'in_arena, 'out_arena, 'env> QuoteContext<'in_arena, 'out_arena, 'env> {
         match value.as_ref() {
             Value::Stuck(span, head, spine) => {
                 let head_expr = match head {
-                    Head::Prim(prim) => Term::Prim(Span::fixme(), *prim),
+                    Head::Prim(prim) => Term::Prim(Span::Empty, *prim),
                     Head::RigidVar(var) => {
                         // FIXME: Unwrap
-                        Term::RigidVar(
-                            Span::fixme(),
-                            self.rigid_exprs.global_to_local(*var).unwrap(),
-                        )
+                        Term::RigidVar(Span::Empty, self.rigid_exprs.global_to_local(*var).unwrap())
                     }
-                    Head::FlexibleVar(var) => Term::FlexibleVar(Span::fixme(), *var),
+                    Head::FlexibleVar(var) => Term::FlexibleVar(Span::Empty, *var),
                 };
 
                 spine.iter().fold(head_expr, |head_expr, elim| match elim {
