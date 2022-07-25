@@ -1,4 +1,4 @@
 stdout = '''
-fun (A : Type) -> Type : Type
+Type -> Type : Type
 '''
 stderr = ''

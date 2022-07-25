@@ -8,6 +8,6 @@ note: solution found for hole `?fun_type`
 1 │ (fun a => a : ?fun_type) Type
   │               ^^^^^^^^^ solution found
   │
-  = hole `?fun_type` can be replaced with `fun (a : Type) -> Type`
+  = hole `?fun_type` can be replaced with `Type -> Type`
 
 '''

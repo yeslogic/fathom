@@ -8,7 +8,7 @@ def logical_screen_descriptor : Format = {
 };
 def header : Format = { magic <- array8 3 u8, version <- array8 3 u8 };
 def color_table_entry : Format = { red <- u8, green <- u8, blue <- u8 };
-def global_color_table : fun (len : U16) -> Format = fun len => {
+def global_color_table : U16 -> Format = fun len => {
     entries <- array16 len color_table_entry,
 };
 def main : Format = { header <- header, screen <- logical_screen_descriptor };

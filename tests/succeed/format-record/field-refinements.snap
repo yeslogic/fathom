@@ -4,7 +4,7 @@ let format : _ = {
     len <- u8 where u8_lte len 16,
     data <- array8 len u8,
 };
-let _ : fun (_ : { magic : U64, len : U8, data : Array8 len U8 }) -> {
+let _ : { magic : U64, len : U8, data : Array8 len U8 } -> {
     magic : U64,
     len : U8,
     data : Array8 len U8,

@@ -1,5 +1,4 @@
 stdout = '''
-(fun a => a : fun (_ : fun (_ : Type) -> Type) -> fun (_ : Type) ->
-Type) (fun a => a) Type : Type
+(fun a => a : (Type -> Type) -> Type -> Type) (fun a => a) Type : Type
 '''
 stderr = ''
