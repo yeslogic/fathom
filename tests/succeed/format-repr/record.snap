@@ -1,8 +1,8 @@
 stdout = '''
 let pair : _ = { fst <- u32be, snd <- u32be };
-let test_pair : fun (_ : { fst : U32, snd : U32 }) -> { fst : U32, snd : U32 } =
+let test_pair : { fst : U32, snd : U32 } -> { fst : U32, snd : U32 } =
 fun p => p;
-let test_pair : fun (_ : { fst : U32, snd : U32 }) -> { fst : U32, snd : U32 } =
+let test_pair : { fst : U32, snd : U32 } -> { fst : U32, snd : U32 } =
 fun p => { fst = p.fst, snd = p.snd };
 pair : Format
 '''

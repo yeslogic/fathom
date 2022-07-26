@@ -5,19 +5,19 @@ let format : _ = {
     start_code <- array16 seg_count u16be,
     id_delta <- array16 seg_count s16be,
 };
-let _ : fun (_ : {
+let _ : {
     seg_count_x2 : U16,
     seg_count : U16,
     start_code : Array16 seg_count U16,
     id_delta : Array16 seg_count S16,
-}) -> {
+} -> {
     seg_count_x2 : U16,
     seg_count : U16,
     start_code : Array16 seg_count U16,
     id_delta : Array16 seg_count S16,
 } = fun x => x;
 let format : _ = { let x : U32 = 256 };
-let _ : fun (_ : { x : U32 }) -> { x : U32 } = fun x => x;
+let _ : { x : U32 } -> { x : U32 } = fun x => x;
 {} : {}
 '''
 stderr = ''

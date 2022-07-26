@@ -366,6 +366,21 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 )
             }
             core::Term::Universe => Term::Universe(()),
+            core::Term::FunType(_, input_type, output_type)
+                if !output_type.contains_free(LocalVar::last()) =>
+            {
+                let input_type = self.check(input_type);
+
+                self.push_rigid(None);
+                let output_type = self.check(output_type);
+                self.pop_rigid();
+
+                Term::Arrow(
+                    (),
+                    self.scope.to_scope(input_type),
+                    self.scope.to_scope(output_type),
+                )
+            }
             core::Term::FunType(input_name, input_type, output_type) => {
                 let input_type = self.check(input_type);
 
@@ -373,7 +388,6 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 let output_type = self.check(output_type);
                 self.pop_rigid();
 
-                // TODO: distill to arrow if `input_name` is not bound in `output_type`
                 Term::FunType(
                     (),
                     Pattern::Name((), input_name),

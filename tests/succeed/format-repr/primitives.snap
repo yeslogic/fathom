@@ -1,48 +1,48 @@
 stdout = '''
-let test_u8_repr : fun (_ : U8) -> U8 = fun x => x;
-let test_u16be_repr : fun (_ : U16) -> U16 = fun x => x;
-let test_u16le_repr : fun (_ : U16) -> U16 = fun x => x;
-let test_u32be_repr : fun (_ : U32) -> U32 = fun x => x;
-let test_u32le_repr : fun (_ : U32) -> U32 = fun x => x;
-let test_u64be_repr : fun (_ : U64) -> U64 = fun x => x;
-let test_u64le_repr : fun (_ : U64) -> U64 = fun x => x;
-let test_s8_repr : fun (_ : S8) -> S8 = fun x => x;
-let test_s16be_repr : fun (_ : S16) -> S16 = fun x => x;
-let test_s16le_repr : fun (_ : S16) -> S16 = fun x => x;
-let test_s32be_repr : fun (_ : S32) -> S32 = fun x => x;
-let test_s32le_repr : fun (_ : S32) -> S32 = fun x => x;
-let test_s64be_repr : fun (_ : S64) -> S64 = fun x => x;
-let test_s64le_repr : fun (_ : S64) -> S64 = fun x => x;
-let test_f32be_repr : fun (_ : F32) -> F32 = fun x => x;
-let test_f32le_repr : fun (_ : F32) -> F32 = fun x => x;
-let test_f64be_repr : fun (_ : F64) -> F64 = fun x => x;
-let test_f64le_repr : fun (_ : F64) -> F64 = fun x => x;
-let test_array8 : fun (n : U8) -> fun (f : Format) -> fun (_ :
-Array8 n (Repr f)) -> Array8 n (Repr f) = fun _ => fun _ => fun x => x;
-let test_array16 : fun (n : U16) -> fun (f : Format) -> fun (_ :
-Array16 n (Repr f)) -> Array16 n (Repr f) = fun _ => fun _ => fun x => x;
-let test_array32 : fun (n : U32) -> fun (f : Format) -> fun (_ :
-Array32 n (Repr f)) -> Array32 n (Repr f) = fun _ => fun _ => fun x => x;
-let test_array64 : fun (n : U64) -> fun (f : Format) -> fun (_ :
-Array64 n (Repr f)) -> Array64 n (Repr f) = fun _ => fun _ => fun x => x;
-let test_repeat_until_end : fun (f : Format) -> fun (_ : Array (Repr f)) ->
+let test_u8_repr : U8 -> U8 = fun x => x;
+let test_u16be_repr : U16 -> U16 = fun x => x;
+let test_u16le_repr : U16 -> U16 = fun x => x;
+let test_u32be_repr : U32 -> U32 = fun x => x;
+let test_u32le_repr : U32 -> U32 = fun x => x;
+let test_u64be_repr : U64 -> U64 = fun x => x;
+let test_u64le_repr : U64 -> U64 = fun x => x;
+let test_s8_repr : S8 -> S8 = fun x => x;
+let test_s16be_repr : S16 -> S16 = fun x => x;
+let test_s16le_repr : S16 -> S16 = fun x => x;
+let test_s32be_repr : S32 -> S32 = fun x => x;
+let test_s32le_repr : S32 -> S32 = fun x => x;
+let test_s64be_repr : S64 -> S64 = fun x => x;
+let test_s64le_repr : S64 -> S64 = fun x => x;
+let test_f32be_repr : F32 -> F32 = fun x => x;
+let test_f32le_repr : F32 -> F32 = fun x => x;
+let test_f64be_repr : F64 -> F64 = fun x => x;
+let test_f64le_repr : F64 -> F64 = fun x => x;
+let test_array8 : fun (n : U8) -> fun (f : Format) -> Array8 n (Repr f) ->
+Array8 n (Repr f) = fun _ => fun _ => fun x => x;
+let test_array16 : fun (n : U16) -> fun (f : Format) -> Array16 n (Repr f) ->
+Array16 n (Repr f) = fun _ => fun _ => fun x => x;
+let test_array32 : fun (n : U32) -> fun (f : Format) -> Array32 n (Repr f) ->
+Array32 n (Repr f) = fun _ => fun _ => fun x => x;
+let test_array64 : fun (n : U64) -> fun (f : Format) -> Array64 n (Repr f) ->
+Array64 n (Repr f) = fun _ => fun _ => fun x => x;
+let test_repeat_until_end : fun (f : Format) -> Array (Repr f) ->
 Array (Repr f) = fun _ => fun x => x;
-let test_limit8 : fun (n : U8) -> fun (f : Format) -> fun (_ : Repr f) ->
-Repr f = fun _ => fun _ => fun x => x;
-let test_limit16 : fun (n : U16) -> fun (f : Format) -> fun (_ : Repr f) ->
-Repr f = fun _ => fun _ => fun x => x;
-let test_limit32 : fun (n : U32) -> fun (f : Format) -> fun (_ : Repr f) ->
-Repr f = fun _ => fun _ => fun x => x;
-let test_limit64 : fun (n : U64) -> fun (f : Format) -> fun (_ : Repr f) ->
-Repr f = fun _ => fun _ => fun x => x;
-let test_link : fun (pos : Pos) -> fun (f : Format) -> fun (_ : Ref f) ->
-Ref f = fun _ => fun _ => fun x => x;
-let test_deref : fun (f : Format) -> fun (ref : Ref f) -> fun (_ : Repr f) ->
-Repr f = fun _ => fun _ => fun x => x;
-let test_stream_pos : fun (_ : Pos) -> Pos = fun x => x;
-let test_succeed : fun (_ : S32) -> S32 = fun x => x;
-let test_fail : fun (_ : Void) -> Void = fun x => x;
-let test_unwrap : fun (A : Type) -> fun (opt_a : Option A) -> fun (_ : A) -> A =
+let test_limit8 : U8 -> fun (f : Format) -> Repr f -> Repr f =
+fun _ => fun _ => fun x => x;
+let test_limit16 : U16 -> fun (f : Format) -> Repr f -> Repr f =
+fun _ => fun _ => fun x => x;
+let test_limit32 : U32 -> fun (f : Format) -> Repr f -> Repr f =
+fun _ => fun _ => fun x => x;
+let test_limit64 : U64 -> fun (f : Format) -> Repr f -> Repr f =
+fun _ => fun _ => fun x => x;
+let test_link : Pos -> fun (f : Format) -> Ref f -> Ref f =
+fun _ => fun _ => fun x => x;
+let test_deref : fun (f : Format) -> Ref f -> Repr f -> Repr f =
+fun _ => fun _ => fun x => x;
+let test_stream_pos : Pos -> Pos = fun x => x;
+let test_succeed : S32 -> S32 = fun x => x;
+let test_fail : Void -> Void = fun x => x;
+let test_unwrap : fun (A : Type) -> Option A -> A -> A =
 fun _ => fun _ => fun x => x;
 Type : Type
 '''

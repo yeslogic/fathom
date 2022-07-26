@@ -582,3 +582,45 @@ mod tests {
         assert!(!std::mem::needs_drop::<Term<'_>>());
     }
 }
+
+impl<'arena> Term<'arena> {
+    pub fn contains_free(&self, mut var: LocalVar) -> bool {
+        match self {
+            Term::RigidVar(v) => *v == var,
+            Term::ItemVar(_)
+            | Term::FlexibleVar(_)
+            | Term::FlexibleInsertion(_, _)
+            | Term::Universe
+            | Term::Prim(_)
+            | Term::ConstLit(_) => false,
+
+            Term::Ann(term, r#type) => term.contains_free(var) || r#type.contains_free(var),
+            Term::Let(_, r#type, def, body) => {
+                r#type.contains_free(var)
+                    || def.contains_free(var)
+                    || body.contains_free(var.prev())
+            }
+            Term::FunType(_, input_type, output_type) => {
+                input_type.contains_free(var) || output_type.contains_free(var.prev())
+            }
+            Term::FunLit(_, body) => body.contains_free(var.prev()),
+            Term::FunApp(head, arg) => head.contains_free(var) || arg.contains_free(var),
+            Term::RecordType(_, terms)
+            | Term::RecordLit(_, terms)
+            | Term::FormatRecord(_, terms)
+            | Term::FormatOverlap(_, terms) => terms.iter().any(|term| {
+                let result = term.contains_free(var);
+                var = var.prev();
+                result
+            }),
+            Term::RecordProj(term, _) => term.contains_free(var),
+            Term::ArrayLit(terms) => terms.iter().any(|term| term.contains_free(var)),
+            Term::FormatCond(_, t1, t2) => t1.contains_free(var) || t2.contains_free(var),
+            Term::ConstMatch(scrut, branches, default) => {
+                scrut.contains_free(var)
+                    || branches.iter().any(|(_, term)| term.contains_free(var))
+                    || default.map(|term| term.contains_free(var)).unwrap_or(false)
+            }
+        }
+    }
+}

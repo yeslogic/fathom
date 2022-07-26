@@ -278,9 +278,9 @@ error: mismatched types
   ┌─ <FORMAT>:1:1
   │
 1 │ offset16
-  │ ^^^^^^^^ type mismatch, expected `fun (base : Pos) -> fun (format : Format) -> Format`, found `Format`
+  │ ^^^^^^^^ type mismatch, expected `Pos -> Format -> Format`, found `Format`
   │
-  = expected `fun (base : Pos) -> fun (format : Format) -> Format`
+  = expected `Pos -> Format -> Format`
        found `Format`
 
 
