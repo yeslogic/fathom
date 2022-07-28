@@ -6,7 +6,7 @@ use std::io::Read;
 use std::path::Path;
 
 use crate::core::binary;
-use crate::core::binary::ReadError;
+use crate::core::binary::{BufferError, ReadError};
 use crate::source::{ByteRange, FileId, Span};
 use crate::surface::{self, elaboration};
 use crate::{StringInterner, BUG_REPORT_URL};
@@ -448,30 +448,34 @@ impl From<ReadError> for Diagnostic<usize> {
             ReadError::UnwrappedNone(_) => Diagnostic::error()
                 .with_message(err.to_string())
                 .with_notes(vec![format!("option_unwrap was called on a none value.")]),
-            ReadError::UnexpectedEndOfBuffer => Diagnostic::error()
+            ReadError::BufferError(BufferError::UnexpectedEndOfBuffer) => Diagnostic::error()
                 .with_message(err.to_string())
                 .with_notes(vec![format!(
                     "The end of the buffer was reached before all data could be read."
                 )]),
-            ReadError::SetOffsetBeforeStartOfBuffer { offset } => Diagnostic::error()
-                .with_message(err.to_string())
-                .with_notes(vec![format!(
-                    "The offset {} is before the start of the buffer.",
-                    offset
-                )]),
-            ReadError::SetOffsetAfterEndOfBuffer {
+            ReadError::BufferError(BufferError::SetOffsetBeforeStartOfBuffer { offset }) => {
+                Diagnostic::error()
+                    .with_message(err.to_string())
+                    .with_notes(vec![format!(
+                        "The offset {} is before the start of the buffer.",
+                        offset
+                    )])
+            }
+            ReadError::BufferError(BufferError::SetOffsetAfterEndOfBuffer {
                 offset: Some(offset),
-            } => Diagnostic::error()
+            }) => Diagnostic::error()
                 .with_message(err.to_string())
                 .with_notes(vec![format!(
                     "The offset {} is beyond the end of the buffer.",
                     offset
                 )]),
-            ReadError::SetOffsetAfterEndOfBuffer { offset: None } => Diagnostic::error()
-                .with_message(err.to_string())
-                .with_notes(vec![format!(
-                    "The offset is beyond the end of the buffer (overflow).",
-                )]),
+            ReadError::BufferError(BufferError::SetOffsetAfterEndOfBuffer { offset: None }) => {
+                Diagnostic::error()
+                    .with_message(err.to_string())
+                    .with_notes(vec![format!(
+                        "The offset is beyond the end of the buffer (overflow).",
+                    )])
+            }
             ReadError::InvalidFormat(span) | ReadError::InvalidValue(span) => Diagnostic::bug()
                 .with_message(format!("unexpected error '{}'", err))
                 .with_labels(
@@ -484,12 +488,14 @@ impl From<ReadError> for Diagnostic<usize> {
                     "please file a bug report at: {}",
                     BUG_REPORT_URL
                 )]),
-            ReadError::UnknownItem | ReadError::PositionOverflow => Diagnostic::bug()
-                .with_message(format!("unexpected error '{}'", err))
-                .with_notes(vec![format!(
-                    "please file a bug report at: {}",
-                    BUG_REPORT_URL
-                )]),
+            ReadError::UnknownItem | ReadError::BufferError(BufferError::PositionOverflow) => {
+                Diagnostic::bug()
+                    .with_message(format!("unexpected error '{}'", err))
+                    .with_notes(vec![format!(
+                        "please file a bug report at: {}",
+                        BUG_REPORT_URL
+                    )])
+            }
         }
     }
 }

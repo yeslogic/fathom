@@ -3,6 +3,7 @@
 use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::fmt;
+use std::fmt::Debug;
 use std::slice::SliceIndex;
 use std::sync::Arc;
 
@@ -19,10 +20,7 @@ pub enum ReadError {
     UnwrappedNone(Span),
     ReadFailFormat,
     CondFailure(Span),
-    SetOffsetBeforeStartOfBuffer { offset: usize },
-    SetOffsetAfterEndOfBuffer { offset: Option<usize> },
-    UnexpectedEndOfBuffer,
-    PositionOverflow,
+    BufferError(BufferError),
 }
 
 impl fmt::Display for ReadError {
@@ -34,19 +32,18 @@ impl fmt::Display for ReadError {
             ReadError::UnknownItem => f.write_str("unknown item"),
             ReadError::ReadFailFormat => f.write_str("read a fail format"),
             ReadError::CondFailure(_) => f.write_str("conditional format failed"),
-            ReadError::SetOffsetBeforeStartOfBuffer { .. } => {
-                f.write_str("attempt to set buffer offset before the start of the buffer")
-            }
-            ReadError::SetOffsetAfterEndOfBuffer { .. } => {
-                f.write_str("attempt to set buffer offset after the end of the buffer")
-            }
-            ReadError::UnexpectedEndOfBuffer => f.write_str("unexpected end of buffer"),
-            ReadError::PositionOverflow => f.write_str("position overflow"),
+            ReadError::BufferError(err) => fmt::Display::fmt(&err, f),
         }
     }
 }
 
 impl std::error::Error for ReadError {}
+
+impl From<BufferError> for ReadError {
+    fn from(err: BufferError) -> Self {
+        ReadError::BufferError(err)
+    }
+}
 
 /// A buffer that starts at an offset into a larger buffer.
 ///
@@ -85,8 +82,8 @@ impl<'data> Buffer<'data> {
     }
 
     /// Total length of the buffer, including the base buffer.
-    pub fn len(&self) -> Result<usize, ReadError> {
-        usize::checked_add(self.start_offset, self.data.len()).ok_or(ReadError::PositionOverflow)
+    pub fn len(&self) -> Result<usize, BufferError> {
+        usize::checked_add(self.start_offset, self.data.len()).ok_or(BufferError::PositionOverflow)
     }
 
     /// Remaining number of bytes in the buffer.
@@ -95,7 +92,7 @@ impl<'data> Buffer<'data> {
     }
 
     /// Return a buffer limited to the supplied length.
-    pub fn with_remaining_len(&self, len: usize) -> Result<Buffer<'data>, ReadError> {
+    pub fn with_remaining_len(&self, len: usize) -> Result<Buffer<'data>, BufferError> {
         Ok(Buffer {
             start_offset: self.start_offset,
             data: self.get_relative(..len)?,
@@ -103,8 +100,10 @@ impl<'data> Buffer<'data> {
     }
 
     /// Get a slice of the bytes in the buffer, relative to the start of the buffer.
-    fn get_relative<I: SliceIndex<[u8]>>(&self, index: I) -> Result<&'data I::Output, ReadError> {
-        self.data.get(index).ok_or(ReadError::UnexpectedEndOfBuffer)
+    fn get_relative<I: SliceIndex<[u8]>>(&self, index: I) -> Result<&'data I::Output, BufferError> {
+        self.data
+            .get(index)
+            .ok_or(BufferError::UnexpectedEndOfBuffer)
     }
 
     /// Create a reader at the start of the buffer.
@@ -113,7 +112,7 @@ impl<'data> Buffer<'data> {
     }
 
     /// Create a reader at an offset measured from the start of the base buffer.
-    pub fn reader_with_offset(&self, offset: usize) -> Result<BufferReader<'data>, ReadError> {
+    pub fn reader_with_offset(&self, offset: usize) -> Result<BufferReader<'data>, BufferError> {
         let mut reader = self.reader();
         reader.set_offset(offset)?;
         Ok(reader)
@@ -151,9 +150,9 @@ impl<'data> BufferReader<'data> {
     }
 
     /// The offset from the start position.
-    pub fn offset(&self) -> Result<usize, ReadError> {
+    pub fn offset(&self) -> Result<usize, BufferError> {
         usize::checked_add(self.buffer.start_offset, self.relative_offset)
-            .ok_or(ReadError::PositionOverflow)
+            .ok_or(BufferError::PositionOverflow)
     }
 
     /// Remaining number of bytes from the current position to the end of the buffer.
@@ -162,7 +161,7 @@ impl<'data> BufferReader<'data> {
     }
 
     /// Return a buffer of the remaining data from the current relative offset.
-    pub fn remaining_buffer(&self) -> Result<Buffer<'data>, ReadError> {
+    pub fn remaining_buffer(&self) -> Result<Buffer<'data>, BufferError> {
         Ok(Buffer::new(
             self.offset()?,
             self.buffer.get_relative(self.relative_offset..)?,
@@ -170,36 +169,36 @@ impl<'data> BufferReader<'data> {
     }
 
     /// Set the offset of the reader relative to the start of the backing buffer.
-    pub fn set_relative_offset(&mut self, relative_offset: usize) -> Result<(), ReadError> {
+    pub fn set_relative_offset(&mut self, relative_offset: usize) -> Result<(), BufferError> {
         (relative_offset <= self.buffer.remaining_len())
             .then(|| self.relative_offset = relative_offset)
-            .ok_or(ReadError::SetOffsetAfterEndOfBuffer {
+            .ok_or(BufferError::SetOffsetAfterEndOfBuffer {
                 offset: self.buffer.start_offset.checked_add(relative_offset),
             })
     }
 
     /// Set the offset of the reader relative to the start position.
-    pub fn set_offset(&mut self, offset: usize) -> Result<(), ReadError> {
+    pub fn set_offset(&mut self, offset: usize) -> Result<(), BufferError> {
         usize::checked_sub(offset, self.buffer.start_offset)
-            .ok_or_else(|| ReadError::SetOffsetBeforeStartOfBuffer { offset })
+            .ok_or_else(|| BufferError::SetOffsetBeforeStartOfBuffer { offset })
             .and_then(|relative_offset| self.set_relative_offset(relative_offset))
     }
 
     /// Get a slice of the bytes in the buffer, relative to the current offset in the buffer.
-    fn get_relative<I: SliceIndex<[u8]>>(&self, index: I) -> Result<&'data I::Output, ReadError> {
+    fn get_relative<I: SliceIndex<[u8]>>(&self, index: I) -> Result<&'data I::Output, BufferError> {
         let data = self.buffer.get_relative(self.relative_offset..)?;
-        data.get(index).ok_or(ReadError::UnexpectedEndOfBuffer)
+        data.get(index).ok_or(BufferError::UnexpectedEndOfBuffer)
     }
 
     /// Read a byte and advance the reader.
-    pub fn read_byte(&mut self) -> Result<u8, ReadError> {
+    pub fn read_byte(&mut self) -> Result<u8, BufferError> {
         let first = self.buffer.get_relative(self.relative_offset)?;
         self.relative_offset += 1;
         Ok(*first)
     }
 
     /// Read an array of bytes and advance the offset into the buffer.
-    pub fn read_byte_array<const N: usize>(&mut self) -> Result<&'data [u8; N], ReadError> {
+    pub fn read_byte_array<const N: usize>(&mut self) -> Result<&'data [u8; N], BufferError> {
         let slice = self.get_relative(..N)?;
         // SAFETY: slice points to [u8; N]? Yes it's [u8] of length N (checked by BufferReader::get_relative)
         let array = unsafe { &*(slice.as_ptr() as *const [u8; N]) };
@@ -216,6 +215,31 @@ impl<'data> From<Buffer<'data>> for BufferReader<'data> {
         }
     }
 }
+
+#[derive(Clone, Debug)]
+pub enum BufferError {
+    SetOffsetBeforeStartOfBuffer { offset: usize },
+    SetOffsetAfterEndOfBuffer { offset: Option<usize> },
+    UnexpectedEndOfBuffer,
+    PositionOverflow,
+}
+
+impl fmt::Display for BufferError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            BufferError::SetOffsetBeforeStartOfBuffer { .. } => {
+                f.write_str("attempt to set buffer offset before the start of the buffer")
+            }
+            BufferError::SetOffsetAfterEndOfBuffer { .. } => {
+                f.write_str("attempt to set buffer offset after the end of the buffer")
+            }
+            BufferError::UnexpectedEndOfBuffer => f.write_str("unexpected end of buffer"),
+            BufferError::PositionOverflow => f.write_str("position overflow"),
+        }
+    }
+}
+
+impl std::error::Error for BufferError {}
 
 pub struct Context<'arena, 'env, 'data> {
     item_exprs: &'env SliceEnv<ArcValue<'arena>>,
@@ -435,7 +459,7 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
                     elems.push(elem);
                     current_offset = reader.relative_offset();
                 }
-                Err(ReadError::UnexpectedEndOfBuffer) => {
+                Err(ReadError::BufferError(BufferError::UnexpectedEndOfBuffer)) => {
                     // unwrap shouldn't panic as we're rewinding to a known good offset
                     // Should this be set to the end of the current buffer?
                     reader.set_relative_offset(current_offset).unwrap();
@@ -459,7 +483,7 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
             Value::ConstLit(_, Const::U64(len, _)) => usize::try_from(*len).ok(),
             _ => return Err(ReadError::InvalidValue(len.span())),
         }
-        .ok_or(ReadError::PositionOverflow)?;
+        .ok_or(BufferError::PositionOverflow)?;
 
         let buffer = reader.remaining_buffer()?.with_remaining_len(len)?;
 
@@ -554,25 +578,27 @@ fn read_stream_pos<'arena, 'data>(
 
 fn read_const<'arena, 'data, T>(
     reader: &mut BufferReader<'data>,
-    read: fn(&mut BufferReader<'data>) -> Result<T, ReadError>,
+    read: fn(&mut BufferReader<'data>) -> Result<T, BufferError>,
     wrap_const: fn(T) -> Const,
 ) -> Result<ArcValue<'arena>, ReadError> {
     let data = read(reader)?;
     Ok(Arc::new(Value::ConstLit(Span::Empty, wrap_const(data))))
 }
 
-fn read_u8<'data>(reader: &mut BufferReader<'data>) -> Result<u8, ReadError> {
+fn read_u8<'data>(reader: &mut BufferReader<'data>) -> Result<u8, BufferError> {
     reader.read_byte()
 }
 
-fn read_s8<'data>(reader: &mut BufferReader<'data>) -> Result<i8, ReadError> {
+fn read_s8<'data>(reader: &mut BufferReader<'data>) -> Result<i8, BufferError> {
     reader.read_byte().map(|b| b as i8)
 }
 
 /// Generates a function that reads a multi-byte primitive.
 macro_rules! read_multibyte_prim {
     ($read_multibyte_prim:ident, $from_bytes:ident, $T:ident) => {
-        fn $read_multibyte_prim<'data>(reader: &mut BufferReader<'data>) -> Result<$T, ReadError> {
+        fn $read_multibyte_prim<'data>(
+            reader: &mut BufferReader<'data>,
+        ) -> Result<$T, BufferError> {
             Ok($T::$from_bytes(*reader.read_byte_array()?))
         }
     };
