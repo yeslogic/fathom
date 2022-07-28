@@ -596,13 +596,13 @@ fn prim_step(prim: Prim) -> Option<PrimStep> {
 
         Prim::Array8Find | Prim::Array16Find | Prim::Array32Find | Prim::Array64Find => {
             step!(context, [_, _, pred, array] => match array.as_ref() {
-                Value::ArrayLit(_span, elems) => { // TODO: Use the span for the result of the find?
+                Value::ArrayLit(_span, elems) => {
                     for elem in elems {
                         match context.fun_app(pred.clone(), elem.clone()).as_ref() {
-                            Value::ConstLit(Span::Empty, Const::Bool(true)) => {
-                                return Some(Arc::new(Value::prim(Prim::OptionSome, [elem.clone()])))
+                            Value::ConstLit(_, Const::Bool(true)) => {
+                                return Some(Arc::new(Value::prim_with_span(elem.span(), Prim::OptionSome, [elem.clone()])))
                             },
-                            Value::ConstLit(Span::Empty, Const::Bool(false)) => {}
+                            Value::ConstLit(_, Const::Bool(false)) => {}
                             _ => return None,
                         }
                     }
