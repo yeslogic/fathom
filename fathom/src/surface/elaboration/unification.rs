@@ -24,7 +24,6 @@ use crate::core::semantics::{
 };
 use crate::core::{Prim, Term};
 use crate::env::{EnvLen, GlobalVar, LocalVar, SharedEnv, SliceEnv, UniqueEnv};
-use crate::source::Span;
 use crate::StringId;
 
 /// Errors encountered during unification.
@@ -481,7 +480,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
     /// correspond to the given `spine`.
     fn fun_intros(&self, spine: &[Elim<'arena>], term: Term<'arena>) -> Term<'arena> {
         spine.iter().fold(term, |term, elim| match elim {
-            Elim::FunApp(_) => Term::FunLit(Span::fixme(), None, self.scope.to_scope(term)),
+            Elim::FunApp(_) => Term::FunLit(term.span(), None, self.scope.to_scope(term)),
             Elim::RecordProj(_) | Elim::ConstMatch(_) => {
                 unreachable!("should have been caught by `init_renaming`")
             }

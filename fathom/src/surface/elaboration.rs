@@ -118,12 +118,12 @@ impl<'arena> RigidEnv<'arena> {
         use crate::core::Prim::*;
         use crate::core::Term;
 
-        const VAR0: Term<'_> = Term::RigidVar(Span::fixme(), env::LocalVar::last());
-        const VAR1: Term<'_> = Term::RigidVar(Span::fixme(), env::LocalVar::last().prev());
-        const VAR2: Term<'_> = Term::RigidVar(Span::fixme(), env::LocalVar::last().prev().prev());
+        const VAR0: Term<'_> = Term::RigidVar(Span::Empty, env::LocalVar::last());
+        const VAR1: Term<'_> = Term::RigidVar(Span::Empty, env::LocalVar::last().prev());
+        const VAR2: Term<'_> = Term::RigidVar(Span::Empty, env::LocalVar::last().prev().prev());
         const VAR3: Term<'_> =
-            Term::RigidVar(Span::fixme(), env::LocalVar::last().prev().prev().prev());
-        const UNIVERSE: Term<'_> = Term::Universe(Span::fixme());
+            Term::RigidVar(Span::Empty, env::LocalVar::last().prev().prev().prev());
+        const UNIVERSE: Term<'_> = Term::Universe(Span::Empty);
         const FORMAT_TYPE: Term<'_> = Term::Prim(Span::Empty, FormatType);
         const BOOL_TYPE: Term<'_> = Term::Prim(Span::Empty, BoolType);
         const U8_TYPE: Term<'_> = Term::Prim(Span::Empty, U8Type);
