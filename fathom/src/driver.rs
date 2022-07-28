@@ -317,7 +317,7 @@ impl<'surface, 'core> Driver<'surface, 'core> {
         let refs = match context.binary_context(buffer).read_entrypoint(format) {
             Ok(refs) => refs,
             Err(err) => {
-                self.emit_diagnostic(Diagnostic::from(err));
+                self.emit_diagnostic(self.read_error_to_diagnostic(err, &mut context));
                 return Status::Error;
             }
         };
@@ -419,10 +419,12 @@ impl<'surface, 'core> Driver<'surface, 'core> {
             Diagnostic::error().with_message(format!("couldn't read `{}`: {}", name, error));
         self.emit_diagnostic(diagnostic);
     }
-}
 
-impl From<ReadError> for Diagnostic<usize> {
-    fn from(err: ReadError) -> Diagnostic<usize> {
+    fn read_error_to_diagnostic(
+        &self,
+        err: ReadError<'_>,
+        context: &mut elaboration::Context,
+    ) -> Diagnostic<FileId> {
         let primary_label = |span: &Span| match span {
             Span::Range(range) => Some(Label::primary(range.file_id(), *range)),
             Span::Empty => None,
@@ -434,17 +436,27 @@ impl From<ReadError> for Diagnostic<usize> {
                 .with_notes(vec![format!(
                     "A fail format was encountered when reading this file."
                 )]),
-            ReadError::CondFailure(span) => Diagnostic::error()
-                .with_message(err.to_string())
-                .with_labels(
-                    IntoIterator::into_iter([primary_label(&span)])
-                        .into_iter()
-                        .flatten()
-                        .collect(),
-                )
-                .with_notes(vec![format!(
-                    "The predicate on a conditional format did not succeed."
-                )]),
+            ReadError::CondFailure(span, ref value) => {
+                let core_scope = &self.core_scope;
+                let surface_scope = &self.surface_scope;
+                let expr = context.quote_context(core_scope).quote(value);
+                let surface_term = context.distillation_context(surface_scope).check(&expr);
+                let pretty_context = surface::pretty::Context::new(&self.interner, surface_scope);
+                let doc = pretty_context.term(&surface_term).into_doc();
+
+                Diagnostic::error()
+                    .with_message(err.to_string())
+                    .with_labels(
+                        IntoIterator::into_iter([primary_label(&span)])
+                            .into_iter()
+                            .flatten()
+                            .collect(),
+                    )
+                    .with_notes(vec![
+                        "The predicate on a conditional format did not succeed.".to_string(),
+                        format!("failed value: {}", doc.pretty(self.emit_width).to_string()),
+                    ])
+            }
             ReadError::UnwrappedNone(_) => Diagnostic::error()
                 .with_message(err.to_string())
                 .with_notes(vec![format!("option_unwrap was called on a none value.")]),

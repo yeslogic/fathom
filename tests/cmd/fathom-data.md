@@ -250,6 +250,7 @@ error: conditional format failed
    │                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
    │
    = The predicate on a conditional format did not succeed.
+   = failed value: 18374686479671623935
 
 
 ```
