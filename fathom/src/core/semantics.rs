@@ -1000,12 +1000,12 @@ impl<'in_arena, 'out_arena, 'env> QuoteContext<'in_arena, 'out_arena, 'env> {
         match value.as_ref() {
             Value::Stuck(span, head, spine) => {
                 let head_expr = match head {
-                    Head::Prim(prim) => Term::Prim(Span::Empty, *prim),
+                    Head::Prim(prim) => Term::Prim(*span, *prim),
                     Head::RigidVar(var) => {
                         // FIXME: Unwrap
-                        Term::RigidVar(Span::Empty, self.rigid_exprs.global_to_local(*var).unwrap())
+                        Term::RigidVar(*span, self.rigid_exprs.global_to_local(*var).unwrap())
                     }
-                    Head::FlexibleVar(var) => Term::FlexibleVar(Span::Empty, *var),
+                    Head::FlexibleVar(var) => Term::FlexibleVar(*span, *var),
                 };
 
                 spine.iter().fold(head_expr, |head_expr, elim| match elim {
