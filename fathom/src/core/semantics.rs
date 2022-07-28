@@ -54,16 +54,24 @@ pub enum Value<'arena> {
 
 impl<'arena> Value<'arena> {
     pub fn prim(prim: Prim, inputs: impl IntoIterator<Item = ArcValue<'arena>>) -> Value<'arena> {
+        Self::prim_with_span(Span::Empty, prim, inputs)
+    }
+
+    pub fn prim_with_span(
+        span: Span,
+        prim: Prim,
+        inputs: impl IntoIterator<Item = ArcValue<'arena>>,
+    ) -> Value<'arena> {
         let inputs = inputs.into_iter().map(Elim::FunApp).collect();
-        Value::Stuck(Span::Empty, Head::Prim(prim), inputs)
+        Value::Stuck(span, Head::Prim(prim), inputs)
     }
 
     pub fn rigid_var(global: GlobalVar) -> Value<'arena> {
         Value::Stuck(Span::Empty, Head::RigidVar(global), Vec::new())
     }
 
-    pub fn flexible_var(global: GlobalVar) -> Value<'arena> {
-        Value::Stuck(Span::Empty, Head::FlexibleVar(global), Vec::new())
+    pub fn flexible_var(span: Span, global: GlobalVar) -> Value<'arena> {
+        Value::Stuck(span, Head::FlexibleVar(global), Vec::new())
     }
 
     pub fn match_prim_spine(&self) -> Option<(Prim, &[Elim<'arena>])> {
@@ -313,9 +321,9 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
                 Some(value) => value.clone(),
                 None => panic_any(Error::InvalidRigidVar),
             },
-            Term::FlexibleVar(_span, var) => match self.flexible_exprs.get_global(*var) {
+            Term::FlexibleVar(span, var) => match self.flexible_exprs.get_global(*var) {
                 Some(Some(value)) => value.clone(),
-                Some(None) => Arc::new(Value::flexible_var(*var)),
+                Some(None) => Arc::new(Value::flexible_var(*span, *var)),
                 None => panic_any(Error::InvalidFlexibleVar),
             },
             Term::FlexibleInsertion(span, var, rigid_infos) => {
@@ -336,7 +344,7 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
                 self.rigid_exprs.push(def_expr);
                 let output_expr = self.eval(output_expr);
                 self.rigid_exprs.pop();
-                output_expr // TODO: Wrap output in span
+                output_expr // TODO: Wrap output in span?
             }
 
             Term::Universe(span) => Arc::new(Value::Universe(*span)),
@@ -355,7 +363,7 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
             Term::FunApp(_span, head_expr, input_expr) => {
                 let head_expr = self.eval(head_expr);
                 let input_expr = self.eval(input_expr);
-                // TODO: set span of Value
+                // TODO: set span of Value?
                 self.elim_context().fun_app(head_expr, input_expr)
             }
 
@@ -369,7 +377,7 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
             }
             Term::RecordProj(_span, head_expr, label) => {
                 let head_expr = self.eval(head_expr);
-                // TODO: set span of Value
+                // TODO: set span of Value?
                 self.elim_context().record_proj(head_expr, *label)
             }
 
@@ -394,16 +402,13 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
                 Arc::new(Value::FormatOverlap(*span, labels, formats))
             }
 
-            Term::Prim(_span, prim) => {
-                // TODO: set span of Value
-                Arc::new(Value::prim(*prim, []))
-            }
+            Term::Prim(span, prim) => Arc::new(Value::prim_with_span(*span, *prim, [])),
 
             Term::ConstLit(span, r#const) => Arc::new(Value::ConstLit(*span, *r#const)),
             Term::ConstMatch(_span, head_expr, branches, default_expr) => {
                 let head_expr = self.eval(head_expr);
                 let branches = Branches::new(self.rigid_exprs.clone(), branches, *default_expr);
-                // TODO: set span of Value
+                // TODO: set span of Value?
                 self.elim_context().const_match(head_expr, branches)
             }
         }

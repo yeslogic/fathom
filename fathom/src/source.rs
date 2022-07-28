@@ -53,6 +53,18 @@ impl ByteRange {
     pub const fn end(&self) -> BytePos {
         self.end
     }
+
+    pub fn merge(&self, other: &ByteRange) -> Option<ByteRange> {
+        if self.file_id == other.file_id {
+            Some(ByteRange::new(
+                self.file_id,
+                self.start.min(other.start),
+                self.end.max(other.end),
+            ))
+        } else {
+            None
+        }
+    }
 }
 
 impl Into<std::ops::Range<usize>> for ByteRange {
