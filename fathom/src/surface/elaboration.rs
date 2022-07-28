@@ -604,6 +604,23 @@ pub enum FlexSource {
     ReportedErrorType(ByteRange),
 }
 
+impl FlexSource {
+    pub fn range(&self) -> ByteRange {
+        match self {
+            FlexSource::HoleType(range, _)
+            | FlexSource::HoleExpr(range, _)
+            | FlexSource::PlaceholderType(range)
+            | FlexSource::PlaceholderExpr(range)
+            | FlexSource::PlaceholderPatternType(range)
+            | FlexSource::NamedPatternType(range, _)
+            | FlexSource::MatchOutputType(range)
+            | FlexSource::FunInputType(range)
+            | FlexSource::FunOutputType(range)
+            | FlexSource::ReportedErrorType(range) => *range,
+        }
+    }
+}
+
 /// Flexible environment.
 ///
 /// This is used for keeping track of the state of [flexible variables] whose
@@ -766,7 +783,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
     ) -> core::Term<'arena> {
         let rigid_infos = (self.scope).to_scope_from_iter(self.rigid_env.infos.iter().copied());
         core::Term::FlexibleInsertion(
-            Span::fixme(),
+            (&source.range()).into(),
             self.flexible_env.push(source, r#type),
             rigid_infos,
         )
@@ -990,11 +1007,21 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
     //       coercions to the core language.
     fn convert(
         &mut self,
-        range: ByteRange, // TODO: could be removed if source info is added to `core::Term`
+        surface_range: ByteRange, // TODO: could be removed if we never encounter empty spans in the core term
         expr: core::Term<'arena>,
         type0: &ArcValue<'arena>,
         type1: &ArcValue<'arena>,
     ) -> core::Term<'arena> {
+        let span = expr.span();
+        let range = match span {
+            Span::Range(range) => range,
+            Span::Empty => {
+                self.push_message(Message::MissingSpan {
+                    range: surface_range,
+                });
+                surface_range
+            }
+        };
         match self.unification_context().unify(type0, type1) {
             Ok(()) => expr,
             Err(error) => {
@@ -1006,7 +1033,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                     rhs,
                     error,
                 });
-                core::Term::Prim((&range).into(), Prim::ReportedError)
+                core::Term::Prim(span, Prim::ReportedError)
             }
         }
     }

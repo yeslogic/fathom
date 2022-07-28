@@ -12,6 +12,8 @@ pub mod surface;
 // Top level driver
 mod driver;
 
+pub const BUG_REPORT_URL: &str = concat!(env!("CARGO_PKG_REPOSITORY"), "/issues/new");
+
 // Public exports
 pub use driver::{Driver, Status};
 

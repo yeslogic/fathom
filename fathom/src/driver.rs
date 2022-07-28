@@ -9,9 +9,7 @@ use crate::core::binary;
 use crate::core::binary::ReadError;
 use crate::source::{ByteRange, FileId, Span};
 use crate::surface::{self, elaboration};
-use crate::StringInterner;
-
-const BUG_REPORT_URL: &str = concat!(env!("CARGO_PKG_REPOSITORY"), "/issues/new");
+use crate::{StringInterner, BUG_REPORT_URL};
 
 #[derive(Debug, Copy, Clone)]
 pub enum Status {
