@@ -7,6 +7,7 @@ use std::path::Path;
 
 use crate::core::binary;
 use crate::core::binary::{BufferError, ReadError};
+use crate::core::semantics::SpanValue;
 use crate::source::{ByteRange, FileId, Span};
 use crate::surface::{self, elaboration};
 use crate::{StringInterner, BUG_REPORT_URL};
@@ -300,7 +301,7 @@ impl<'surface, 'core> Driver<'surface, 'core> {
         let surface_format = self.parse_term(format_file_id);
         let format_term = context.check(
             &surface_format,
-            &Arc::new(Value::prim(Prim::FormatType, [])),
+            &SpanValue::fixme(Arc::new(Value::prim(Prim::FormatType, []))),
         );
 
         // Emit errors we might have found during elaboration
@@ -431,8 +432,14 @@ impl<'surface, 'core> Driver<'surface, 'core> {
         };
 
         match err {
-            ReadError::ReadFailFormat => Diagnostic::error()
+            ReadError::ReadFailFormat(span) => Diagnostic::error()
                 .with_message(err.to_string())
+                .with_labels(
+                    IntoIterator::into_iter([primary_label(&span)])
+                        .into_iter()
+                        .flatten()
+                        .collect(),
+                )
                 .with_notes(vec![format!(
                     "A fail format was encountered when reading this file."
                 )]),

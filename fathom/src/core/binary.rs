@@ -7,7 +7,7 @@ use std::fmt::Debug;
 use std::slice::SliceIndex;
 use std::sync::Arc;
 
-use crate::core::semantics::{self, ArcValue, Elim, Head, Value};
+use crate::core::semantics::{self, ArcValue, Elim, Head, SpanValue, Value};
 use crate::core::{Const, Prim, UIntStyle};
 use crate::env::{EnvLen, SliceEnv};
 use crate::source::Span;
@@ -18,7 +18,7 @@ pub enum ReadError<'arena> {
     InvalidValue(Span),
     UnknownItem,
     UnwrappedNone(Span),
-    ReadFailFormat,
+    ReadFailFormat(Span),
     CondFailure(Span, ArcValue<'arena>),
     BufferError(BufferError),
 }
@@ -30,7 +30,7 @@ impl<'arena> fmt::Display for ReadError<'arena> {
             ReadError::InvalidValue(_) => f.write_str("invalid value"),
             ReadError::UnwrappedNone(_) => f.write_str("unwrapped none"),
             ReadError::UnknownItem => f.write_str("unknown item"),
-            ReadError::ReadFailFormat => f.write_str("read a fail format"),
+            ReadError::ReadFailFormat(_) => f.write_str("read a fail format"),
             ReadError::CondFailure(_, _) => f.write_str("conditional format failed"),
             ReadError::BufferError(err) => fmt::Display::fmt(&err, f),
         }
@@ -301,9 +301,10 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
         reader: &mut BufferReader<'data>,
         format: &ArcValue<'arena>,
     ) -> Result<ArcValue<'arena>, ReadError<'arena>> {
-        match self.elim_context().force(format).as_ref() {
+        let SpanValue(format_span, val) = self.elim_context().force(format);
+        match val.as_ref() {
             Value::Stuck(span, Head::Prim(prim), slice) => {
-                self.read_prim(reader, *prim, slice, *span)
+                self.read_prim(reader, *prim, slice, format_span)
             }
             Value::FormatRecord(span, labels, formats) => {
                 let mut formats = formats.clone();
@@ -317,11 +318,14 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
                     formats = next_formats(expr);
                 }
 
-                Ok(Arc::new(Value::RecordLit(*span, labels, exprs)))
+                Ok(SpanValue(
+                    *span,
+                    Arc::new(Value::RecordLit(*span, labels, exprs)),
+                ))
             }
             Value::FormatCond(_span, _label, format, cond) => {
                 let value = self.read_format(reader, &format)?;
-                let cond_res = self.elim_context().apply_closure(cond, value.clone());
+                let SpanValue(_, cond_res) = self.elim_context().apply_closure(cond, value.clone());
 
                 match *cond_res {
                     Value::ConstLit(_, Const::Bool(true)) => Ok(value),
@@ -357,7 +361,10 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
                 // reached in loop above.
                 reader.set_relative_offset(max_relative_offset).unwrap();
 
-                Ok(Arc::new(Value::RecordLit(*span, labels, exprs)))
+                Ok(SpanValue(
+                    *span,
+                    Arc::new(Value::RecordLit(*span, labels, exprs)),
+                ))
             }
 
             Value::Stuck(span, Head::RigidVar(_), _)
@@ -414,8 +421,8 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
             (Prim::FormatDeref, [FunApp(format), FunApp(r#ref)]) => self.read_deref(format, r#ref),
             (Prim::FormatStreamPos, []) => read_stream_pos(reader),
             (Prim::FormatSucceed, [_, FunApp(elem)]) => Ok(elem.clone()),
-            (Prim::FormatFail, []) => Err(ReadError::ReadFailFormat),
-            (Prim::FormatUnwrap, [_, FunApp(option)]) => match option.match_prim_spine() {
+            (Prim::FormatFail, []) => Err(ReadError::ReadFailFormat(span)),
+            (Prim::FormatUnwrap, [_, FunApp(option)]) => match option.1.match_prim_spine() {
                 Some((Prim::OptionSome, [FunApp(elem)])) => Ok(elem.clone()),
                 Some((Prim::OptionNone, [])) => Err(ReadError::UnwrappedNone(span)),
                 _ => Err(ReadError::InvalidValue(span)),
@@ -430,7 +437,7 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
         len: &ArcValue<'arena>,
         elem_format: &ArcValue<'arena>,
     ) -> Result<ArcValue<'arena>, ReadError<'arena>> {
-        let len = match self.elim_context().force(len).as_ref() {
+        let len = match self.elim_context().force(len).1.as_ref() {
             Value::ConstLit(_, Const::U8(len, _)) => u64::from(*len),
             Value::ConstLit(_, Const::U16(len, _)) => u64::from(*len),
             Value::ConstLit(_, Const::U32(len, _)) => u64::from(*len),
@@ -442,7 +449,10 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
             .map(|_| self.read_format(reader, elem_format))
             .collect::<Result<_, _>>()?;
 
-        Ok(Arc::new(Value::ArrayLit(elem_format.span(), elem_exprs)))
+        Ok(SpanValue::fixme(Arc::new(Value::ArrayLit(
+            elem_format.span(),
+            elem_exprs,
+        ))))
     }
 
     fn read_repeat_until_end(
@@ -463,7 +473,10 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
                     // unwrap shouldn't panic as we're rewinding to a known good offset
                     // Should this be set to the end of the current buffer?
                     reader.set_relative_offset(current_offset).unwrap();
-                    return Ok(Arc::new(Value::ArrayLit(elem_format.span(), elems)));
+                    return Ok(SpanValue::fixme(Arc::new(Value::ArrayLit(
+                        elem_format.span(),
+                        elems,
+                    ))));
                 }
                 Err(err) => return Err(err),
             };
@@ -476,7 +489,7 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
         len: &ArcValue<'arena>,
         elem_format: &ArcValue<'arena>,
     ) -> Result<ArcValue<'arena>, ReadError<'arena>> {
-        let len = match self.elim_context().force(len).as_ref() {
+        let len = match self.elim_context().force(len).1.as_ref() {
             Value::ConstLit(_, Const::U8(len, _)) => Some(usize::from(*len)),
             Value::ConstLit(_, Const::U16(len, _)) => Some(usize::from(*len)),
             Value::ConstLit(_, Const::U32(len, _)) => usize::try_from(*len).ok(),
@@ -495,14 +508,17 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
         pos_value: &ArcValue<'arena>,
         elem_format: &ArcValue<'arena>,
     ) -> Result<ArcValue<'arena>, ReadError<'arena>> {
-        let pos = match self.elim_context().force(pos_value).as_ref() {
+        let pos = match self.elim_context().force(pos_value).1.as_ref() {
             Value::ConstLit(_, Const::Pos(pos)) => *pos,
             value => return Err(ReadError::InvalidValue(value.span())),
         };
 
         self.pending_formats.push((pos, elem_format.clone()));
 
-        Ok(Arc::new(Value::ConstLit(pos_value.span(), Const::Ref(pos))))
+        Ok(SpanValue::fixme(Arc::new(Value::ConstLit(
+            pos_value.span(),
+            Const::Ref(pos),
+        ))))
     }
 
     fn read_deref(
@@ -510,7 +526,7 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
         format: &ArcValue<'arena>,
         r#ref: &ArcValue<'arena>,
     ) -> Result<ArcValue<'arena>, ReadError<'arena>> {
-        let pos = match self.elim_context().force(r#ref).as_ref() {
+        let pos = match self.elim_context().force(r#ref).1.as_ref() {
             Value::ConstLit(_, Const::Ref(pos)) => *pos,
             value => return Err(ReadError::InvalidValue(value.span())),
         };
@@ -570,10 +586,10 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
 fn read_stream_pos<'arena, 'data>(
     reader: &mut BufferReader<'data>,
 ) -> Result<ArcValue<'arena>, ReadError<'arena>> {
-    Ok(Arc::new(Value::ConstLit(
+    Ok(SpanValue::fixme(Arc::new(Value::ConstLit(
         Span::Empty,
         Const::Pos(reader.offset()?),
-    )))
+    ))))
 }
 
 fn read_const<'arena, 'data, T>(
@@ -582,7 +598,10 @@ fn read_const<'arena, 'data, T>(
     wrap_const: fn(T) -> Const,
 ) -> Result<ArcValue<'arena>, ReadError<'arena>> {
     let data = read(reader)?;
-    Ok(Arc::new(Value::ConstLit(Span::Empty, wrap_const(data))))
+    Ok(SpanValue::fixme(Arc::new(Value::ConstLit(
+        Span::Empty,
+        wrap_const(data),
+    ))))
 }
 
 fn read_u8<'data>(reader: &mut BufferReader<'data>) -> Result<u8, BufferError> {
