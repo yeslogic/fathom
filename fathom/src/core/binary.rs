@@ -423,7 +423,7 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
             (Prim::FormatLimit16, [FunApp(limit), FunApp(format)]) => self.read_limit(reader, limit, format),
             (Prim::FormatLimit32, [FunApp(limit), FunApp(format)]) => self.read_limit(reader, limit, format),
             (Prim::FormatLimit64, [FunApp(limit), FunApp(format)]) => self.read_limit(reader, limit, format),
-            (Prim::FormatLink, [FunApp(pos), FunApp(format)]) => self.read_link(pos, format),
+            (Prim::FormatLink, [FunApp(pos), FunApp(format)]) => self.read_link(span, pos, format),
             (Prim::FormatDeref, [FunApp(format), FunApp(r#ref)]) => self.read_deref(format, r#ref),
             (Prim::FormatStreamPos, []) => read_stream_pos(reader, span),
             (Prim::FormatSucceed, [_, FunApp(elem)]) => Ok(elem.clone()),
@@ -513,6 +513,7 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
 
     fn read_link(
         &mut self,
+        span: Span,
         pos_value: &ArcValue<'arena>,
         elem_format: &ArcValue<'arena>,
     ) -> Result<ArcValue<'arena>, ReadError<'arena>> {
@@ -523,10 +524,7 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
 
         self.pending_formats.push((pos, elem_format.clone()));
 
-        Ok(SpanValue(
-            pos_value.span(),
-            Arc::new(Value::ConstLit(Const::Ref(pos))),
-        ))
+        Ok(SpanValue(span, Arc::new(Value::ConstLit(Const::Ref(pos)))))
     }
 
     fn read_deref(
