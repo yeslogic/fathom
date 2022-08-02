@@ -306,7 +306,7 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
             Value::Stuck(Head::Prim(prim), slice) => {
                 self.read_prim(reader, *prim, slice, format_span)
             }
-            Value::FormatRecord(span, labels, formats) => {
+            Value::FormatRecord(labels, formats) => {
                 let mut formats = formats.clone();
                 let mut exprs = Vec::with_capacity(formats.len());
 
@@ -318,7 +318,10 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
                     formats = next_formats(expr);
                 }
 
-                Ok(SpanValue(*span, Arc::new(Value::RecordLit(labels, exprs))))
+                Ok(SpanValue(
+                    format_span,
+                    Arc::new(Value::RecordLit(labels, exprs)),
+                ))
             }
             Value::FormatCond(_span, _label, format, cond) => {
                 let value = self.read_format(reader, &format)?;

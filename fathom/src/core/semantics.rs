@@ -66,7 +66,7 @@ pub enum Value<'arena> {
     ArrayLit(Vec<ArcValue<'arena>>),
 
     /// Record formats, consisting of a list of dependent formats.
-    FormatRecord(Span, &'arena [StringId], Telescope<'arena>),
+    FormatRecord(&'arena [StringId], Telescope<'arena>),
     /// Conditional format, consisting of a format and predicate.
     FormatCond(Span, StringId, ArcValue<'arena>, Closure<'arena>),
     /// Overlap formats, consisting of a list of dependent formats, overlapping
@@ -112,11 +112,11 @@ impl<'arena> Value<'arena> {
             | Value::FunLit(_, _)
             | Value::RecordType(_, _)
             | Value::RecordLit(_, _)
-            | Value::ArrayLit(_) => {
+            | Value::ArrayLit(_)
+            | Value::FormatRecord(_, _) => {
                 unreachable!("value has no span")
             }
-            Value::FormatRecord(span, _, _)
-            | Value::FormatCond(span, _, _, _)
+            Value::FormatCond(span, _, _, _)
             | Value::FormatOverlap(span, _, _)
             | Value::ConstLit(span, _) => *span,
         }
@@ -413,7 +413,7 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
 
             Term::FormatRecord(span, labels, formats) => {
                 let formats = Telescope::new(self.rigid_exprs.clone(), formats);
-                SpanValue(*span, Arc::new(Value::FormatRecord(*span, labels, formats)))
+                SpanValue(*span, Arc::new(Value::FormatRecord(labels, formats)))
             }
             Term::FormatCond(span, name, format, cond) => {
                 let format = self.eval(format);
@@ -851,11 +851,11 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
     /// Find the representation type of a format description.
     pub fn format_repr(&self, format: &ArcValue<'arena>) -> ArcValue<'arena> {
         match format.1.as_ref() {
-            Value::FormatRecord(_, labels, formats) | Value::FormatOverlap(_, labels, formats) => {
+            Value::FormatRecord(labels, formats) | Value::FormatOverlap(_, labels, formats) => {
                 SpanValue(
                     format.span(),
                     Arc::new(Value::RecordType(labels, formats.clone().apply_repr())),
-                ) // TODO: Should this copy the span from FormatRecord?
+                )
             }
             Value::FormatCond(_, _, format, _) => self.format_repr(format),
             Value::Stuck(Head::Prim(prim), spine) => match (prim, &spine[..]) {
@@ -1120,11 +1120,11 @@ impl<'in_arena, 'out_arena, 'env> QuoteContext<'in_arena, 'out_arena, 'env> {
                 Term::ArrayLit(span, elem_exprs)
             }
 
-            Value::FormatRecord(span, labels, formats) => {
+            Value::FormatRecord(labels, formats) => {
                 let labels = self.scope.to_scope_from_iter(labels.iter().copied()); // FIXME: avoid copy if this is the same arena?
                 let formats = self.quote_telescope(formats);
 
-                Term::FormatRecord(*span, labels, formats)
+                Term::FormatRecord(span, labels, formats)
             }
             Value::FormatCond(span, label, format, cond) => {
                 let format = self.quote(format);
@@ -1287,10 +1287,7 @@ impl<'arena, 'env> ConversionContext<'arena, 'env> {
                     .all(|(elem_expr0, elem_expr1)| self.is_equal(&elem_expr0, &elem_expr1))
             }
 
-            (
-                Value::FormatRecord(_, labels0, formats0),
-                Value::FormatRecord(_, labels1, formats1),
-            )
+            (Value::FormatRecord(labels0, formats0), Value::FormatRecord(labels1, formats1))
             | (
                 Value::FormatOverlap(_, labels0, formats0),
                 Value::FormatOverlap(_, labels1, formats1),
@@ -1450,7 +1447,7 @@ mod tests {
             Value::RecordType(_, _) => {}
             Value::RecordLit(_, _) => {}
             Value::ArrayLit(_) => {}
-            Value::FormatRecord(_, _, _) => {}
+            Value::FormatRecord(_, _) => {}
             Value::FormatCond(_, _, _, _) => {}
             Value::FormatOverlap(_, _, _) => {}
             Value::ConstLit(_, _) => {}
