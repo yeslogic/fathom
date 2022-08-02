@@ -462,8 +462,7 @@ impl<'surface, 'core> Driver<'surface, 'core> {
             ReadError::UnwrappedNone(_) => Diagnostic::error()
                 .with_message(err.to_string())
                 .with_notes(vec![format!("option_unwrap was called on a none value.")]),
-            ReadError::BufferError(err) => self.buffer_error_to_diagnostic(err, Span::Empty),
-            ReadError::BufferErrorWithSpan(span, err) => self.buffer_error_to_diagnostic(err, span),
+            ReadError::BufferError(span, err) => self.buffer_error_to_diagnostic(err, span),
             ReadError::InvalidFormat(span) | ReadError::InvalidValue(span) => Diagnostic::bug()
                 .with_message(format!("unexpected error '{}'", err))
                 .with_labels(

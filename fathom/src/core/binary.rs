@@ -20,8 +20,7 @@ pub enum ReadError<'arena> {
     UnwrappedNone(Span),
     ReadFailFormat(Span),
     CondFailure(Span, ArcValue<'arena>),
-    BufferError(BufferError),
-    BufferErrorWithSpan(Span, BufferError),
+    BufferError(Span, BufferError),
 }
 
 impl<'arena> fmt::Display for ReadError<'arena> {
@@ -33,8 +32,7 @@ impl<'arena> fmt::Display for ReadError<'arena> {
             ReadError::UnknownItem => f.write_str("unknown item"),
             ReadError::ReadFailFormat(_) => f.write_str("read a fail format"),
             ReadError::CondFailure(_, _) => f.write_str("conditional format failed"),
-            ReadError::BufferError(err) => fmt::Display::fmt(&err, f),
-            ReadError::BufferErrorWithSpan(_span, err) => fmt::Display::fmt(&err, f),
+            ReadError::BufferError(_, err) => fmt::Display::fmt(&err, f),
         }
     }
 }
@@ -43,7 +41,7 @@ impl<'arena> std::error::Error for ReadError<'arena> {}
 
 impl<'arena> From<BufferError> for ReadError<'arena> {
     fn from(err: BufferError) -> Self {
-        ReadError::BufferError(err)
+        ReadError::BufferError(Span::Empty, err)
     }
 }
 
@@ -228,7 +226,7 @@ pub enum BufferError {
 
 impl BufferError {
     fn with_span<'arena>(self, span: Span) -> ReadError<'arena> {
-        ReadError::BufferErrorWithSpan(span, self)
+        ReadError::BufferError(span, self)
     }
 }
 
@@ -475,7 +473,7 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
                     elems.push(elem);
                     current_offset = reader.relative_offset();
                 }
-                Err(ReadError::BufferError(BufferError::UnexpectedEndOfBuffer)) => {
+                Err(ReadError::BufferError(_, BufferError::UnexpectedEndOfBuffer)) => {
                     // unwrap shouldn't panic as we're rewinding to a known good offset
                     // Should this be set to the end of the current buffer?
                     reader.set_relative_offset(current_offset).unwrap();
