@@ -21,6 +21,7 @@ pub enum ReadError<'arena> {
     ReadFailFormat(Span),
     CondFailure(Span, ArcValue<'arena>),
     BufferError(BufferError),
+    BufferErrorWithSpan(Span, BufferError),
 }
 
 impl<'arena> fmt::Display for ReadError<'arena> {
@@ -33,6 +34,7 @@ impl<'arena> fmt::Display for ReadError<'arena> {
             ReadError::ReadFailFormat(_) => f.write_str("read a fail format"),
             ReadError::CondFailure(_, _) => f.write_str("conditional format failed"),
             ReadError::BufferError(err) => fmt::Display::fmt(&err, f),
+            ReadError::BufferErrorWithSpan(_span, err) => fmt::Display::fmt(&err, f),
         }
     }
 }
@@ -390,24 +392,24 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
         use crate::core::semantics::Elim::FunApp;
 
         match (prim, &slice[..]) {
-            (Prim::FormatU8, []) => read_const(reader, read_u8, |num| Const::U8(num, UIntStyle::Decimal)),
-            (Prim::FormatU16Be, []) => read_const(reader, read_u16be, |num| Const::U16(num, UIntStyle::Decimal)),
-            (Prim::FormatU16Le, []) => read_const(reader, read_u16le, |num| Const::U16(num, UIntStyle::Decimal)),
-            (Prim::FormatU32Be, []) => read_const(reader, read_u32be, |num| Const::U32(num, UIntStyle::Decimal)),
-            (Prim::FormatU32Le, []) => read_const(reader, read_u32le, |num| Const::U32(num, UIntStyle::Decimal)),
-            (Prim::FormatU64Be, []) => read_const(reader, read_u64be, |num| Const::U64(num, UIntStyle::Decimal)),
-            (Prim::FormatU64Le, []) => read_const(reader, read_u64le, |num| Const::U64(num, UIntStyle::Decimal)),
-            (Prim::FormatS8, []) => read_const(reader, read_s8, Const::S8),
-            (Prim::FormatS16Be, []) => read_const(reader, read_s16be, Const::S16),
-            (Prim::FormatS16Le, []) => read_const(reader, read_s16le, Const::S16),
-            (Prim::FormatS32Be, []) => read_const(reader, read_s32be, Const::S32),
-            (Prim::FormatS32Le, []) => read_const(reader, read_s32le, Const::S32),
-            (Prim::FormatS64Be, []) => read_const(reader, read_s64be, Const::S64),
-            (Prim::FormatS64Le, []) => read_const(reader, read_s64le, Const::S64),
-            (Prim::FormatF32Be, []) => read_const(reader, read_f32be, Const::F32),
-            (Prim::FormatF32Le, []) => read_const(reader, read_f32le, Const::F32),
-            (Prim::FormatF64Be, []) => read_const(reader, read_f64be, Const::F64),
-            (Prim::FormatF64Le, []) => read_const(reader, read_f64le, Const::F64),
+            (Prim::FormatU8, []) => read_const(reader, span, read_u8, |num| Const::U8(num, UIntStyle::Decimal)),
+            (Prim::FormatU16Be, []) => read_const(reader, span, read_u16be, |num| Const::U16(num, UIntStyle::Decimal)),
+            (Prim::FormatU16Le, []) => read_const(reader, span, read_u16le, |num| Const::U16(num, UIntStyle::Decimal)),
+            (Prim::FormatU32Be, []) => read_const(reader, span, read_u32be, |num| Const::U32(num, UIntStyle::Decimal)),
+            (Prim::FormatU32Le, []) => read_const(reader, span, read_u32le, |num| Const::U32(num, UIntStyle::Decimal)),
+            (Prim::FormatU64Be, []) => read_const(reader, span, read_u64be, |num| Const::U64(num, UIntStyle::Decimal)),
+            (Prim::FormatU64Le, []) => read_const(reader, span, read_u64le, |num| Const::U64(num, UIntStyle::Decimal)),
+            (Prim::FormatS8, []) => read_const(reader, span, read_s8, Const::S8),
+            (Prim::FormatS16Be, []) => read_const(reader, span, read_s16be, Const::S16),
+            (Prim::FormatS16Le, []) => read_const(reader, span, read_s16le, Const::S16),
+            (Prim::FormatS32Be, []) => read_const(reader, span, read_s32be, Const::S32),
+            (Prim::FormatS32Le, []) => read_const(reader, span, read_s32le, Const::S32),
+            (Prim::FormatS64Be, []) => read_const(reader, span, read_s64be, Const::S64),
+            (Prim::FormatS64Le, []) => read_const(reader, span, read_s64le, Const::S64),
+            (Prim::FormatF32Be, []) => read_const(reader, span, read_f32be, Const::F32),
+            (Prim::FormatF32Le, []) => read_const(reader, span, read_f32le, Const::F32),
+            (Prim::FormatF64Be, []) => read_const(reader, span, read_f64be, Const::F64),
+            (Prim::FormatF64Le, []) => read_const(reader, span, read_f64le, Const::F64),
             (Prim::FormatArray8, [FunApp(len), FunApp(format)]) => self.read_array(reader, len, format),
             (Prim::FormatArray16, [FunApp(len), FunApp(format)]) => self.read_array(reader, len, format),
             (Prim::FormatArray32, [FunApp(len), FunApp(format)]) => self.read_array(reader, len, format),
@@ -593,13 +595,12 @@ fn read_stream_pos<'arena, 'data>(
 
 fn read_const<'arena, 'data, T>(
     reader: &mut BufferReader<'data>,
+    span: Span,
     read: fn(&mut BufferReader<'data>) -> Result<T, BufferError>,
     wrap_const: fn(T) -> Const,
 ) -> Result<ArcValue<'arena>, ReadError<'arena>> {
-    let data = read(reader)?;
-    Ok(SpanValue::empty(Arc::new(Value::ConstLit(wrap_const(
-        data,
-    )))))
+    let data = read(reader).map_err(|err| ReadError::BufferErrorWithSpan(span, err))?;
+    Ok(SpanValue(span, Arc::new(Value::ConstLit(wrap_const(data)))))
 }
 
 fn read_u8<'data>(reader: &mut BufferReader<'data>) -> Result<u8, BufferError> {
