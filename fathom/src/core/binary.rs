@@ -421,7 +421,7 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
             (Prim::FormatLimit64, [FunApp(limit), FunApp(format)]) => self.read_limit(reader, limit, format),
             (Prim::FormatLink, [FunApp(pos), FunApp(format)]) => self.read_link(pos, format),
             (Prim::FormatDeref, [FunApp(format), FunApp(r#ref)]) => self.read_deref(format, r#ref),
-            (Prim::FormatStreamPos, []) => read_stream_pos(reader),
+            (Prim::FormatStreamPos, []) => read_stream_pos(reader, span),
             (Prim::FormatSucceed, [_, FunApp(elem)]) => Ok(elem.clone()),
             (Prim::FormatFail, []) => Err(ReadError::ReadFailFormat(span)),
             (Prim::FormatUnwrap, [_, FunApp(option)]) => match option.match_prim_spine() {
@@ -587,10 +587,16 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
 
 fn read_stream_pos<'arena, 'data>(
     reader: &mut BufferReader<'data>,
+    span: Span,
 ) -> Result<ArcValue<'arena>, ReadError<'arena>> {
-    Ok(SpanValue::empty(Arc::new(Value::ConstLit(Const::Pos(
-        reader.offset()?,
-    )))))
+    Ok(SpanValue(
+        span,
+        Arc::new(Value::ConstLit(Const::Pos(
+            reader
+                .offset()
+                .map_err(|err| ReadError::BufferErrorWithSpan(span, err))?,
+        ))),
+    ))
 }
 
 fn read_const<'arena, 'data, T>(
