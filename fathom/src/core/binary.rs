@@ -318,10 +318,7 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
                     formats = next_formats(expr);
                 }
 
-                Ok(SpanValue(
-                    *span,
-                    Arc::new(Value::RecordLit(*span, labels, exprs)),
-                ))
+                Ok(SpanValue(*span, Arc::new(Value::RecordLit(labels, exprs))))
             }
             Value::FormatCond(_span, _label, format, cond) => {
                 let value = self.read_format(reader, &format)?;
@@ -361,10 +358,7 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
                 // reached in loop above.
                 reader.set_relative_offset(max_relative_offset).unwrap();
 
-                Ok(SpanValue(
-                    *span,
-                    Arc::new(Value::RecordLit(*span, labels, exprs)),
-                ))
+                Ok(SpanValue(*span, Arc::new(Value::RecordLit(labels, exprs))))
             }
 
             Value::Stuck(Head::RigidVar(_), _) | Value::Stuck(Head::FlexibleVar(_), _) => {
@@ -373,8 +367,9 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
             Value::Universe
             | Value::FunType(_, _, _)
             | Value::FunLit(_, _)
-            | Value::RecordType(_, _) => Err(ReadError::InvalidFormat(format_span)),
-            Value::RecordLit(span, _, _) | Value::ArrayLit(span, _) | Value::ConstLit(span, _) => {
+            | Value::RecordType(_, _)
+            | Value::RecordLit(_, _) => Err(ReadError::InvalidFormat(format_span)),
+            Value::ArrayLit(span, _) | Value::ConstLit(span, _) => {
                 Err(ReadError::InvalidFormat(*span))
             }
         }
