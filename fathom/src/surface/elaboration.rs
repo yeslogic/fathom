@@ -498,7 +498,8 @@ impl<'arena> RigidEnv<'arena> {
     fn push_param(&mut self, name: Option<StringId>, r#type: ArcValue<'arena>) -> ArcValue<'arena> {
         // An expression that refers to itself once it is pushed onto the rigid
         // expression environment.
-        let expr = SpanValue::empty_fixme(Arc::new(Value::rigid_var(self.exprs.len().next_global())));
+        let expr =
+            SpanValue::empty_fixme(Arc::new(Value::rigid_var(self.exprs.len().next_global())));
 
         self.names.push(name);
         self.types.push(r#type);
@@ -1450,7 +1451,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
 
                 core::Term::RecordLit(range.into(), labels, exprs.into())
             }
-            (Term::UnitLiteral(range), Value::Universe(_)) => {
+            (Term::UnitLiteral(range), Value::Universe) => {
                 core::Term::RecordType(range.into(), &[], &[])
             }
             (Term::UnitLiteral(range), _)
@@ -1929,7 +1930,8 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 )
             }
             Term::FormatRecord(range, format_fields) => {
-                let format_type = SpanValue::empty_fixme(Arc::new(Value::prim(Prim::FormatType, [])));
+                let format_type =
+                    SpanValue::empty_fixme(Arc::new(Value::prim(Prim::FormatType, [])));
                 let (labels, formats) = self.check_format_fields(*range, format_fields);
 
                 (
@@ -1938,7 +1940,8 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 )
             }
             Term::FormatCond(range, (_, name), format, pred) => {
-                let format_type = SpanValue::empty_fixme(Arc::new(Value::prim(Prim::FormatType, [])));
+                let format_type =
+                    SpanValue::empty_fixme(Arc::new(Value::prim(Prim::FormatType, [])));
                 let format = self.check(format, &format_type);
                 let format_value = self.eval_context().eval(&format);
                 let repr_type = self.elim_context().format_repr(&format_value);
@@ -1958,7 +1961,8 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 )
             }
             Term::FormatOverlap(range, format_fields) => {
-                let format_type = SpanValue::empty_fixme(Arc::new(Value::prim(Prim::FormatType, [])));
+                let format_type =
+                    SpanValue::empty_fixme(Arc::new(Value::prim(Prim::FormatType, [])));
                 let (labels, formats) = self.check_format_fields(*range, format_fields);
 
                 (

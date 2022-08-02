@@ -50,7 +50,7 @@ pub enum Value<'arena> {
     Stuck(Head, Vec<Elim<'arena>>),
 
     /// Universes.
-    Universe(Span),
+    Universe,
 
     /// Dependent function types.
     FunType(Span, Option<StringId>, ArcValue<'arena>, Closure<'arena>),
@@ -101,14 +101,13 @@ impl<'arena> Value<'arena> {
     /// Create a new `Arc<Value::Universe>` with no associated span.
     pub fn arc_universe() -> ArcValue<'arena> {
         // TODO: Can we share a single instance of this?
-        SpanValue::fixme(Arc::new(Value::Universe(Span::Empty)))
+        SpanValue::empty(Arc::new(Value::Universe))
     }
 
     pub fn span(&self) -> Span {
         match self {
-            Value::Stuck(_, _) => unreachable!("value has no span"),
-            Value::Universe(span)
-            | Value::FunType(span, _, _, _)
+            Value::Stuck(_, _) | Value::Universe => unreachable!("value has no span"),
+            Value::FunType(span, _, _, _)
             | Value::FunLit(span, _, _)
             | Value::RecordType(span, _, _)
             | Value::RecordLit(span, _, _)
@@ -364,7 +363,7 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
                 output_expr // TODO: Wrap output in span?
             }
 
-            Term::Universe(span) => SpanValue(*span, Arc::new(Value::Universe(*span))),
+            Term::Universe(span) => SpanValue(*span, Arc::new(Value::Universe)),
 
             Term::FunType(span, input_name, input_type, output_type) => SpanValue(
                 *span,
@@ -1084,7 +1083,7 @@ impl<'in_arena, 'out_arena, 'env> QuoteContext<'in_arena, 'out_arena, 'env> {
                 })
             }
 
-            Value::Universe(span) => Term::Universe(*span),
+            Value::Universe => Term::Universe(span),
 
             Value::FunType(span, input_name, input_type, output_type) => {
                 let input_type = self.quote(input_type);
@@ -1255,7 +1254,7 @@ impl<'arena, 'env> ConversionContext<'arena, 'env> {
                         }
                     })
             }
-            (Value::Universe(_), Value::Universe(_)) => true,
+            (Value::Universe, Value::Universe) => true,
 
             (
                 Value::FunType(_, _, input_type0, output_type0),
@@ -1350,7 +1349,8 @@ impl<'arena, 'env> ConversionContext<'arena, 'env> {
                 return false;
             }
 
-            let var = SpanValue::empty_fixme(Arc::new(Value::rigid_var(self.rigid_exprs.next_global())));
+            let var =
+                SpanValue::empty_fixme(Arc::new(Value::rigid_var(self.rigid_exprs.next_global())));
             telescope0 = next_telescope0(var.clone());
             telescope1 = next_telescope1(var);
             self.rigid_exprs.push();
@@ -1446,7 +1446,7 @@ mod tests {
         // NOTE: Only update the match below when you've updated the above functions.
         match value.as_ref() {
             Value::Stuck(_, _) => {}
-            Value::Universe(_) => {}
+            Value::Universe => {}
             Value::FunType(_, _, _, _) => {}
             Value::FunLit(_, _, _) => {}
             Value::RecordType(_, _, _) => {}

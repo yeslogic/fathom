@@ -226,7 +226,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
                 Value::Stuck(Head::FlexibleVar(var1), spine1),
             ) if var0 == var1 => self.unify_spines(spine0, spine1),
 
-            (Value::Universe(_), Value::Universe(_)) => Ok(()),
+            (Value::Universe, Value::Universe) => Ok(()),
 
             (
                 Value::FunType(_, _, input_type0, output_type0),
@@ -339,7 +339,8 @@ impl<'arena, 'env> Context<'arena, 'env> {
         closure0: &Closure<'arena>,
         closure1: &Closure<'arena>,
     ) -> Result<(), Error> {
-        let var = SpanValue::empty_fixme(Arc::new(Value::rigid_var(self.rigid_exprs.next_global())));
+        let var =
+            SpanValue::empty_fixme(Arc::new(Value::rigid_var(self.rigid_exprs.next_global())));
         let value0 = self.elim_context().apply_closure(closure0, var.clone());
         let value1 = self.elim_context().apply_closure(closure1, var);
 
@@ -373,7 +374,8 @@ impl<'arena, 'env> Context<'arena, 'env> {
                 return Err(error);
             }
 
-            let var = SpanValue::empty_fixme(Arc::new(Value::rigid_var(self.rigid_exprs.next_global())));
+            let var =
+                SpanValue::empty_fixme(Arc::new(Value::rigid_var(self.rigid_exprs.next_global())));
             telescope0 = next_telescope0(var.clone());
             telescope1 = next_telescope1(var);
             self.rigid_exprs.push();
@@ -393,7 +395,8 @@ impl<'arena, 'env> Context<'arena, 'env> {
         output_expr: &Closure<'arena>,
         value: &ArcValue<'arena>,
     ) -> Result<(), Error> {
-        let var = SpanValue::empty_fixme(Arc::new(Value::rigid_var(self.rigid_exprs.next_global())));
+        let var =
+            SpanValue::empty_fixme(Arc::new(Value::rigid_var(self.rigid_exprs.next_global())));
         let value = self.elim_context().fun_app(value.clone(), var.clone());
         let output_expr = self.elim_context().apply_closure(output_expr, var);
 
@@ -565,7 +568,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
                 })
             }
 
-            Value::Universe(span) => Ok(Term::Universe(*span)),
+            Value::Universe => Ok(Term::Universe(span)),
 
             Value::FunType(span, input_name, input_type, output_type) => {
                 let input_type = self.rename(flexible_var, input_type)?;
