@@ -26,6 +26,18 @@ impl<'arena> SpanValue<'arena> {
     pub fn fixme(val: Arc<Value<'arena>>) -> Self {
         SpanValue(val.span(), val)
     }
+
+    pub fn empty_fixme(val: Arc<Value<'arena>>) -> Self {
+        SpanValue::empty(val)
+    }
+
+    pub fn empty(val: Arc<Value<'arena>>) -> Self {
+        SpanValue(Span::Empty, val)
+    }
+
+    pub fn match_prim_spine(&self) -> Option<(Prim, &[Elim<'arena>])> {
+        self.1.match_prim_spine()
+    }
 }
 
 /// Values in weak-head-normal form, with bindings converted to closures.
@@ -35,7 +47,7 @@ pub enum Value<'arena> {
     /// [evaluate][EvalContext::eval] an open [term][Term], along with a spine
     /// of eliminations. Subsequent eliminations applied to this value are
     /// accumulated in the spine.
-    Stuck(Span, Head, Vec<Elim<'arena>>),
+    Stuck(Head, Vec<Elim<'arena>>),
 
     /// Universes.
     Universe(Span),
@@ -67,29 +79,21 @@ pub enum Value<'arena> {
 
 impl<'arena> Value<'arena> {
     pub fn prim(prim: Prim, inputs: impl IntoIterator<Item = ArcValue<'arena>>) -> Value<'arena> {
-        Self::prim_with_span(Span::Empty, prim, inputs)
-    }
-
-    pub fn prim_with_span(
-        span: Span,
-        prim: Prim,
-        inputs: impl IntoIterator<Item = ArcValue<'arena>>,
-    ) -> Value<'arena> {
         let inputs = inputs.into_iter().map(Elim::FunApp).collect();
-        Value::Stuck(span, Head::Prim(prim), inputs)
+        Value::Stuck(Head::Prim(prim), inputs)
     }
 
     pub fn rigid_var(global: GlobalVar) -> Value<'arena> {
-        Value::Stuck(Span::Empty, Head::RigidVar(global), Vec::new())
+        Value::Stuck(Head::RigidVar(global), Vec::new())
     }
 
-    pub fn flexible_var(span: Span, global: GlobalVar) -> Value<'arena> {
-        Value::Stuck(span, Head::FlexibleVar(global), Vec::new())
+    pub fn flexible_var(global: GlobalVar) -> Value<'arena> {
+        Value::Stuck(Head::FlexibleVar(global), Vec::new())
     }
 
     pub fn match_prim_spine(&self) -> Option<(Prim, &[Elim<'arena>])> {
         match self {
-            Value::Stuck(_, Head::Prim(prim), spine) => Some((*prim, &spine)),
+            Value::Stuck(Head::Prim(prim), spine) => Some((*prim, &spine)),
             _ => None,
         }
     }
@@ -102,8 +106,8 @@ impl<'arena> Value<'arena> {
 
     pub fn span(&self) -> Span {
         match self {
-            Value::Stuck(span, _, _)
-            | Value::Universe(span)
+            Value::Stuck(_, _) => unreachable!("value has no span"),
+            Value::Universe(span)
             | Value::FunType(span, _, _, _)
             | Value::FunLit(span, _, _)
             | Value::RecordType(span, _, _)
@@ -336,7 +340,7 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
             },
             Term::FlexibleVar(span, var) => match self.flexible_exprs.get_global(*var) {
                 Some(Some(value)) => SpanValue(*span, value.1.clone()),
-                Some(None) => SpanValue(*span, Arc::new(Value::flexible_var(*span, *var))),
+                Some(None) => SpanValue(*span, Arc::new(Value::flexible_var(*var))),
                 None => panic_any(Error::InvalidFlexibleVar),
             },
             Term::FlexibleInsertion(span, var, rigid_infos) => {
@@ -427,9 +431,7 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
                 )
             }
 
-            Term::Prim(span, prim) => {
-                SpanValue(*span, Arc::new(Value::prim_with_span(*span, *prim, [])))
-            }
+            Term::Prim(span, prim) => SpanValue(*span, Arc::new(Value::prim(*prim, []))),
 
             Term::ConstLit(span, r#const) => {
                 SpanValue(*span, Arc::new(Value::ConstLit(*span, *r#const)))
@@ -614,7 +616,7 @@ fn prim_step(prim: Prim) -> Option<PrimStep> {
         Prim::S64UAbs => const_step!([x: S64] => Const::U64(i64::unsigned_abs(*x), UIntStyle::Decimal)),
 
         Prim::OptionFold => step!(context, [_, _, on_none, on_some, option] => {
-            match option.1.match_prim_spine()? {
+            match option.match_prim_spine()? {
                 (Prim::OptionSome, [Elim::FunApp(value)]) => {
                     context.fun_app(on_some.clone(), value.clone())
                 },
@@ -629,13 +631,13 @@ fn prim_step(prim: Prim) -> Option<PrimStep> {
                     for elem in elems {
                         match context.fun_app(pred.clone(), elem.clone()).1.as_ref() {
                             Value::ConstLit(_, Const::Bool(true)) => {
-                                return Some(SpanValue::fixme(Arc::new(Value::prim_with_span(elem.span(), Prim::OptionSome, [elem.clone()]))))
+                                return Some(SpanValue(elem.span(), Arc::new(Value::prim(Prim::OptionSome, [elem.clone()]))))
                             },
                             Value::ConstLit(_, Const::Bool(false)) => {}
                             _ => return None,
                         }
                     }
-                    SpanValue::fixme(Arc::new(Value::prim(Prim::OptionNone, [])))
+                    SpanValue::empty_fixme(Arc::new(Value::prim(Prim::OptionNone, [])))
                 }
                 _ => return None,
             })
@@ -682,7 +684,7 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
     pub fn force(&self, value: &ArcValue<'arena>) -> ArcValue<'arena> {
         let mut forced_value = value.clone();
         // Attempt to force flexible values until we don't see any more.
-        while let Value::Stuck(_span, Head::FlexibleVar(var), spine) = forced_value.1.as_ref() {
+        while let Value::Stuck(Head::FlexibleVar(var), spine) = forced_value.1.as_ref() {
             match self.flexible_exprs.get_global(*var) {
                 // Apply the spine to the solution. This might uncover another
                 // flexible value so we'll continue looping.
@@ -762,8 +764,7 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
             // Beta-reduction
             Value::FunLit(_span, _, output_expr) => self.apply_closure(output_expr, input_expr), // FIXME: use span?
             // The computation is stuck, preventing further reduction
-            Value::Stuck(_span, head, spine) => {
-                // FIXME: use span?
+            Value::Stuck(head, spine) => {
                 spine.push(Elim::FunApp(input_expr));
 
                 match head {
@@ -793,7 +794,7 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
                 .and_then(|expr_index| exprs.get(expr_index).cloned())
                 .unwrap_or_else(|| panic_any(Error::InvalidRecordProj)),
             // The computation is stuck, preventing further reduction
-            Value::Stuck(_span, _, spine) => {
+            Value::Stuck(_, spine) => {
                 spine.push(Elim::RecordProj(label));
                 head_expr
             }
@@ -829,7 +830,7 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
                 }
             }
             // The computation is stuck, preventing further reduction
-            Value::Stuck(_, _, spine) => {
+            Value::Stuck(_, spine) => {
                 spine.push(Elim::ConstMatch(branches));
                 head_expr
             }
@@ -850,96 +851,99 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
     pub fn format_repr(&self, format: &ArcValue<'arena>) -> ArcValue<'arena> {
         match format.1.as_ref() {
             Value::FormatRecord(_, labels, formats) | Value::FormatOverlap(_, labels, formats) => {
-                SpanValue::fixme(Arc::new(Value::RecordType(
-                    Span::Empty,
-                    labels,
-                    formats.clone().apply_repr(),
-                ))) // TODO: Should this copy the span from FormatRecord?
+                SpanValue(
+                    format.span(),
+                    Arc::new(Value::RecordType(
+                        Span::Empty,
+                        labels,
+                        formats.clone().apply_repr(),
+                    )),
+                ) // TODO: Should this copy the span from FormatRecord?
             }
             Value::FormatCond(_, _, format, _) => self.format_repr(format),
-            Value::Stuck(span, Head::Prim(prim), spine) => match (prim, &spine[..]) {
+            Value::Stuck(Head::Prim(prim), spine) => match (prim, &spine[..]) {
                 (Prim::FormatU8, []) => {
-                    SpanValue::fixme(Arc::new(Value::prim_with_span(*span, Prim::U8Type, [])))
+                    SpanValue(format.span(), Arc::new(Value::prim(Prim::U8Type, [])))
                 }
                 (Prim::FormatU16Be, []) => {
-                    SpanValue::fixme(Arc::new(Value::prim_with_span(*span, Prim::U16Type, [])))
+                    SpanValue(format.span(), Arc::new(Value::prim(Prim::U16Type, [])))
                 }
                 (Prim::FormatU16Le, []) => {
-                    SpanValue::fixme(Arc::new(Value::prim_with_span(*span, Prim::U16Type, [])))
+                    SpanValue(format.span(), Arc::new(Value::prim(Prim::U16Type, [])))
                 }
                 (Prim::FormatU32Be, []) => {
-                    SpanValue::fixme(Arc::new(Value::prim_with_span(*span, Prim::U32Type, [])))
+                    SpanValue(format.span(), Arc::new(Value::prim(Prim::U32Type, [])))
                 }
                 (Prim::FormatU32Le, []) => {
-                    SpanValue::fixme(Arc::new(Value::prim_with_span(*span, Prim::U32Type, [])))
+                    SpanValue(format.span(), Arc::new(Value::prim(Prim::U32Type, [])))
                 }
                 (Prim::FormatU64Be, []) => {
-                    SpanValue::fixme(Arc::new(Value::prim_with_span(*span, Prim::U64Type, [])))
+                    SpanValue(format.span(), Arc::new(Value::prim(Prim::U64Type, [])))
                 }
                 (Prim::FormatU64Le, []) => {
-                    SpanValue::fixme(Arc::new(Value::prim_with_span(*span, Prim::U64Type, [])))
+                    SpanValue(format.span(), Arc::new(Value::prim(Prim::U64Type, [])))
                 }
                 (Prim::FormatS8, []) => {
-                    SpanValue::fixme(Arc::new(Value::prim_with_span(*span, Prim::S8Type, [])))
+                    SpanValue(format.span(), Arc::new(Value::prim(Prim::S8Type, [])))
                 }
                 (Prim::FormatS16Be, []) => {
-                    SpanValue::fixme(Arc::new(Value::prim_with_span(*span, Prim::S16Type, [])))
+                    SpanValue(format.span(), Arc::new(Value::prim(Prim::S16Type, [])))
                 }
                 (Prim::FormatS16Le, []) => {
-                    SpanValue::fixme(Arc::new(Value::prim_with_span(*span, Prim::S16Type, [])))
+                    SpanValue(format.span(), Arc::new(Value::prim(Prim::S16Type, [])))
                 }
                 (Prim::FormatS32Be, []) => {
-                    SpanValue::fixme(Arc::new(Value::prim_with_span(*span, Prim::S32Type, [])))
+                    SpanValue(format.span(), Arc::new(Value::prim(Prim::S32Type, [])))
                 }
                 (Prim::FormatS32Le, []) => {
-                    SpanValue::fixme(Arc::new(Value::prim_with_span(*span, Prim::S32Type, [])))
+                    SpanValue(format.span(), Arc::new(Value::prim(Prim::S32Type, [])))
                 }
                 (Prim::FormatS64Be, []) => {
-                    SpanValue::fixme(Arc::new(Value::prim_with_span(*span, Prim::S64Type, [])))
+                    SpanValue(format.span(), Arc::new(Value::prim(Prim::S64Type, [])))
                 }
                 (Prim::FormatS64Le, []) => {
-                    SpanValue::fixme(Arc::new(Value::prim_with_span(*span, Prim::S64Type, [])))
+                    SpanValue(format.span(), Arc::new(Value::prim(Prim::S64Type, [])))
                 }
                 (Prim::FormatF32Be, []) => {
-                    SpanValue::fixme(Arc::new(Value::prim_with_span(*span, Prim::F32Type, [])))
+                    SpanValue(format.span(), Arc::new(Value::prim(Prim::F32Type, [])))
                 }
                 (Prim::FormatF32Le, []) => {
-                    SpanValue::fixme(Arc::new(Value::prim_with_span(*span, Prim::F32Type, [])))
+                    SpanValue(format.span(), Arc::new(Value::prim(Prim::F32Type, [])))
                 }
                 (Prim::FormatF64Be, []) => {
-                    SpanValue::fixme(Arc::new(Value::prim_with_span(*span, Prim::F64Type, [])))
+                    SpanValue(format.span(), Arc::new(Value::prim(Prim::F64Type, [])))
                 }
                 (Prim::FormatF64Le, []) => {
-                    SpanValue::fixme(Arc::new(Value::prim_with_span(*span, Prim::F64Type, [])))
+                    SpanValue(format.span(), Arc::new(Value::prim(Prim::F64Type, [])))
                 }
-                (Prim::FormatArray8, [Elim::FunApp(len), Elim::FunApp(elem)]) => {
-                    SpanValue::fixme(Arc::new(Value::prim_with_span(
-                        *span,
+                (Prim::FormatArray8, [Elim::FunApp(len), Elim::FunApp(elem)]) => SpanValue(
+                    format.span(),
+                    Arc::new(Value::prim(
                         Prim::Array8Type,
                         [len.clone(), self.format_repr(elem)],
-                    )))
-                }
-                (Prim::FormatArray16, [Elim::FunApp(len), Elim::FunApp(elem)]) => {
-                    SpanValue::fixme(Arc::new(Value::prim_with_span(
-                        *span,
+                    )),
+                ),
+                (Prim::FormatArray16, [Elim::FunApp(len), Elim::FunApp(elem)]) => SpanValue(
+                    format.span(),
+                    Arc::new(Value::prim(
                         Prim::Array16Type,
                         [len.clone(), self.format_repr(elem)],
-                    )))
-                }
-                (Prim::FormatArray32, [Elim::FunApp(len), Elim::FunApp(elem)]) => {
-                    SpanValue::fixme(Arc::new(Value::prim_with_span(
-                        *span,
+                    )),
+                ),
+                (Prim::FormatArray32, [Elim::FunApp(len), Elim::FunApp(elem)]) => SpanValue(
+                    format.span(),
+                    Arc::new(Value::prim(
                         Prim::Array32Type,
                         [len.clone(), self.format_repr(elem)],
-                    )))
-                }
-                (Prim::FormatArray64, [Elim::FunApp(len), Elim::FunApp(elem)]) => {
-                    SpanValue::fixme(Arc::new(Value::prim_with_span(
-                        *span,
+                    )),
+                ),
+                (Prim::FormatArray64, [Elim::FunApp(len), Elim::FunApp(elem)]) => SpanValue(
+                    format.span(),
+                    Arc::new(Value::prim(
                         Prim::Array64Type,
                         [len.clone(), self.format_repr(elem)],
-                    )))
-                }
+                    )),
+                ),
                 (Prim::FormatLimit8, [Elim::FunApp(_), Elim::FunApp(elem)]) => {
                     self.format_repr(elem)
                 }
@@ -952,39 +956,38 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
                 (Prim::FormatLimit64, [Elim::FunApp(_), Elim::FunApp(elem)]) => {
                     self.format_repr(elem)
                 }
-                (Prim::FormatRepeatUntilEnd, [Elim::FunApp(elem)]) => SpanValue::fixme(Arc::new(
-                    Value::prim_with_span(*span, Prim::ArrayType, [self.format_repr(elem)]),
-                )),
-                (Prim::FormatLink, [Elim::FunApp(_), Elim::FunApp(elem)]) => SpanValue::fixme(
-                    Arc::new(Value::prim_with_span(*span, Prim::RefType, [elem.clone()])),
+                (Prim::FormatRepeatUntilEnd, [Elim::FunApp(elem)]) => SpanValue(
+                    format.span(),
+                    Arc::new(Value::prim(Prim::ArrayType, [self.format_repr(elem)])),
+                ),
+                (Prim::FormatLink, [Elim::FunApp(_), Elim::FunApp(elem)]) => SpanValue(
+                    format.span(),
+                    Arc::new(Value::prim(Prim::RefType, [elem.clone()])),
                 ),
                 (Prim::FormatDeref, [Elim::FunApp(elem), Elim::FunApp(_)]) => {
                     self.format_repr(elem)
                 }
                 (Prim::FormatStreamPos, []) => {
-                    SpanValue::fixme(Arc::new(Value::prim_with_span(*span, Prim::PosType, [])))
+                    SpanValue(format.span(), Arc::new(Value::prim(Prim::PosType, [])))
                 }
                 (Prim::FormatSucceed, [Elim::FunApp(elem), _]) => elem.clone(),
                 (Prim::FormatFail, []) => {
-                    SpanValue::fixme(Arc::new(Value::prim_with_span(*span, Prim::VoidType, [])))
+                    SpanValue(format.span(), Arc::new(Value::prim(Prim::VoidType, [])))
                 }
                 (Prim::FormatUnwrap, [Elim::FunApp(elem), _]) => elem.clone(),
-                (Prim::ReportedError, []) => SpanValue::fixme(Arc::new(Value::prim_with_span(
-                    *span,
-                    Prim::ReportedError,
-                    [],
-                ))),
-                _ => SpanValue::fixme(Arc::new(Value::prim_with_span(
-                    *span,
-                    Prim::FormatRepr,
-                    [format.clone()],
-                ))),
+                (Prim::ReportedError, []) => SpanValue(
+                    format.span(),
+                    Arc::new(Value::prim(Prim::ReportedError, [])),
+                ),
+                _ => SpanValue(
+                    format.span(),
+                    Arc::new(Value::prim(Prim::FormatRepr, [format.clone()])),
+                ),
             },
-            Value::Stuck(span, _, _) => SpanValue::fixme(Arc::new(Value::prim_with_span(
-                *span,
-                Prim::FormatRepr,
-                [format.clone()],
-            ))),
+            Value::Stuck(_, _) => SpanValue(
+                format.span(),
+                Arc::new(Value::prim(Prim::FormatRepr, [format.clone()])),
+            ),
             _ => panic_any(Error::InvalidFormatRepr),
         }
     }
@@ -1032,25 +1035,26 @@ impl<'in_arena, 'out_arena, 'env> QuoteContext<'in_arena, 'out_arena, 'env> {
     /// Quote a [value][Value] back into a [term][Term].
     pub fn quote(&mut self, value: &ArcValue<'in_arena>) -> Term<'out_arena> {
         let value = self.elim_context().force(value);
+        let span = value.span();
         match value.1.as_ref() {
-            Value::Stuck(span, head, spine) => {
+            Value::Stuck(head, spine) => {
                 let head_expr = match head {
-                    Head::Prim(prim) => Term::Prim(*span, *prim),
+                    Head::Prim(prim) => Term::Prim(span, *prim),
                     Head::RigidVar(var) => {
                         // FIXME: Unwrap
-                        Term::RigidVar(*span, self.rigid_exprs.global_to_local(*var).unwrap())
+                        Term::RigidVar(span, self.rigid_exprs.global_to_local(*var).unwrap())
                     }
-                    Head::FlexibleVar(var) => Term::FlexibleVar(*span, *var),
+                    Head::FlexibleVar(var) => Term::FlexibleVar(span, *var),
                 };
 
                 spine.iter().fold(head_expr, |head_expr, elim| match elim {
                     Elim::FunApp(input_expr) => Term::FunApp(
-                        *span,
+                        span,
                         self.scope.to_scope(head_expr),
                         self.scope.to_scope(self.quote(input_expr)),
                     ),
                     Elim::RecordProj(label) => {
-                        Term::RecordProj(*span, self.scope.to_scope(head_expr), *label)
+                        Term::RecordProj(span, self.scope.to_scope(head_expr), *label)
                     }
                     Elim::ConstMatch(branches) => {
                         let mut branches = branches.clone();
@@ -1071,7 +1075,7 @@ impl<'in_arena, 'out_arena, 'env> QuoteContext<'in_arena, 'out_arena, 'env> {
                         };
 
                         Term::ConstMatch(
-                            *span,
+                            span,
                             self.scope.to_scope(head_expr),
                             pattern_branches.into(),
                             default_expr.map(|expr| self.scope.to_scope(expr) as &_),
@@ -1151,7 +1155,7 @@ impl<'in_arena, 'out_arena, 'env> QuoteContext<'in_arena, 'out_arena, 'env> {
         let var = Arc::new(Value::rigid_var(self.rigid_exprs.next_global()));
         let value = self
             .elim_context()
-            .apply_closure(closure, SpanValue::fixme(var));
+            .apply_closure(closure, SpanValue::empty_fixme(var));
 
         self.push_rigid();
         let term = self.quote(&value);
@@ -1171,7 +1175,7 @@ impl<'in_arena, 'out_arena, 'env> QuoteContext<'in_arena, 'out_arena, 'env> {
 
         while let Some((value, next_telescope)) = self.elim_context().split_telescope(telescope) {
             let var = Arc::new(Value::rigid_var(self.rigid_exprs.next_global()));
-            telescope = next_telescope(SpanValue::fixme(var));
+            telescope = next_telescope(SpanValue::empty_fixme(var));
             terms.push(self.quote(&value));
             self.rigid_exprs.push();
         }
@@ -1232,10 +1236,10 @@ impl<'arena, 'env> ConversionContext<'arena, 'env> {
         match (value0.1.as_ref(), value1.1.as_ref()) {
             // `ReportedError`s result from errors that have already been
             // reported, so we prevent them from triggering more errors.
-            (Value::Stuck(_, Head::Prim(Prim::ReportedError), _), _)
-            | (_, Value::Stuck(_, Head::Prim(Prim::ReportedError), _)) => true,
+            (Value::Stuck(Head::Prim(Prim::ReportedError), _), _)
+            | (_, Value::Stuck(Head::Prim(Prim::ReportedError), _)) => true,
 
-            (Value::Stuck(_, head0, spine0), Value::Stuck(_, head1, spine1)) => {
+            (Value::Stuck(head0, spine0), Value::Stuck(head1, spine1)) => {
                 use Elim::*;
 
                 head0 == head1
@@ -1312,7 +1316,7 @@ impl<'arena, 'env> ConversionContext<'arena, 'env> {
 
     /// Check that two [closures][Closure] are equal.
     pub fn is_equal_closures(&mut self, closure0: &Closure<'_>, closure1: &Closure<'_>) -> bool {
-        let var = SpanValue::fixme(Arc::new(Value::rigid_var(self.rigid_exprs.next_global())));
+        let var = SpanValue::empty(Arc::new(Value::rigid_var(self.rigid_exprs.next_global())));
         let value0 = self.elim_context().apply_closure(closure0, var.clone());
         let value1 = self.elim_context().apply_closure(closure1, var);
 
@@ -1346,7 +1350,7 @@ impl<'arena, 'env> ConversionContext<'arena, 'env> {
                 return false;
             }
 
-            let var = SpanValue::fixme(Arc::new(Value::rigid_var(self.rigid_exprs.next_global())));
+            let var = SpanValue::empty_fixme(Arc::new(Value::rigid_var(self.rigid_exprs.next_global())));
             telescope0 = next_telescope0(var.clone());
             telescope1 = next_telescope1(var);
             self.rigid_exprs.push();
@@ -1441,7 +1445,7 @@ mod tests {
         //
         // NOTE: Only update the match below when you've updated the above functions.
         match value.as_ref() {
-            Value::Stuck(_, _, _) => {}
+            Value::Stuck(_, _) => {}
             Value::Universe(_) => {}
             Value::FunType(_, _, _, _) => {}
             Value::FunLit(_, _, _) => {}

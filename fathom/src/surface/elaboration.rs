@@ -498,7 +498,7 @@ impl<'arena> RigidEnv<'arena> {
     fn push_param(&mut self, name: Option<StringId>, r#type: ArcValue<'arena>) -> ArcValue<'arena> {
         // An expression that refers to itself once it is pushed onto the rigid
         // expression environment.
-        let expr = SpanValue::fixme(Arc::new(Value::rigid_var(self.exprs.len().next_global())));
+        let expr = SpanValue::empty_fixme(Arc::new(Value::rigid_var(self.exprs.len().next_global())));
 
         self.names.push(name);
         self.types.push(r#type);
@@ -557,7 +557,7 @@ impl<'i, 'arena> RigidEnvBuilder<'i, 'arena> {
                 .eval(r#type);
         self.env.push_def(
             name,
-            SpanValue::fixme(Arc::new(Value::prim(prim, []))),
+            SpanValue(Span::Empty, Arc::new(Value::prim(prim, []))),
             r#type,
         );
     }
@@ -1109,7 +1109,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 (CheckedPattern::Placeholder(*range), expected_type.clone())
             }
             Pattern::StringLiteral(range, string) => {
-                let constant = match expected_type.1.match_prim_spine() {
+                let constant = match expected_type.match_prim_spine() {
                     Some((Prim::U8Type, [])) => self
                         .parse_ascii(*range, *string)
                         .map(|num| Const::U8(num, UIntStyle::Ascii)),
@@ -1151,7 +1151,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 }
             }
             Pattern::NumberLiteral(range, number) => {
-                let constant = match expected_type.1.match_prim_spine() {
+                let constant = match expected_type.match_prim_spine() {
                     Some((Prim::U8Type, [])) => self
                         .parse_number_radix(*range, *number)
                         .map(|(num, style)| Const::U8(num, style)),
@@ -1195,7 +1195,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 }
             }
             Pattern::BooleanLiteral(range, boolean) => {
-                let constant = match expected_type.1.match_prim_spine() {
+                let constant = match expected_type.match_prim_spine() {
                     Some((Prim::BoolType, [])) => match *boolean {
                         true => Some(Const::Bool(true)),
                         false => Some(Const::Bool(false)),
@@ -1252,7 +1252,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
             }
             Pattern::BooleanLiteral(range, val) => {
                 let r#const = Const::Bool(*val);
-                let r#type = SpanValue::fixme(Arc::new(Value::prim(Prim::BoolType, [])));
+                let r#type = SpanValue::empty_fixme(Arc::new(Value::prim(Prim::BoolType, [])));
                 (CheckedPattern::Const(*range, r#const), r#type)
             }
         }
@@ -1455,7 +1455,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
             }
             (Term::UnitLiteral(range), _)
                 if matches!(
-                    expected_type.1.match_prim_spine(),
+                    expected_type.match_prim_spine(),
                     Some((Prim::FormatType, [])),
                 ) =>
             {
@@ -1464,7 +1464,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
             (Term::ArrayLiteral(range, elem_exprs), _) => {
                 use crate::core::semantics::Elim::FunApp as App;
 
-                let (len_value, elem_type) = match expected_type.1.match_prim_spine() {
+                let (len_value, elem_type) = match expected_type.match_prim_spine() {
                     Some((Prim::ArrayType, [App(elem_type)])) => (None, elem_type),
                     Some((Prim::Array8Type, [App(len), App(elem_type)])) => (Some(len), elem_type),
                     Some((Prim::Array16Type, [App(len), App(elem_type)])) => (Some(len), elem_type),
@@ -1483,14 +1483,14 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                     }
                 };
 
-                let len = match len_value.map(|val| val.1.as_ref()) {
+                let len = match len_value.map(|val| (val.0, val.1.as_ref())) {
                     None => Some(elem_exprs.len() as u64),
-                    Some(Value::ConstLit(_, Const::U8(len, _))) => Some(*len as u64),
-                    Some(Value::ConstLit(_, Const::U16(len, _))) => Some(*len as u64),
-                    Some(Value::ConstLit(_, Const::U32(len, _))) => Some(*len as u64),
-                    Some(Value::ConstLit(_, Const::U64(len, _))) => Some(*len as u64),
-                    Some(Value::Stuck(span, Head::Prim(Prim::ReportedError), _)) => {
-                        return core::Term::Prim(*span, Prim::ReportedError); // FIXME: should it use span here or range?
+                    Some((_, Value::ConstLit(_, Const::U8(len, _)))) => Some(*len as u64),
+                    Some((_, Value::ConstLit(_, Const::U16(len, _)))) => Some(*len as u64),
+                    Some((_, Value::ConstLit(_, Const::U32(len, _)))) => Some(*len as u64),
+                    Some((_, Value::ConstLit(_, Const::U64(len, _)))) => Some(*len as u64),
+                    Some((span, Value::Stuck(Head::Prim(Prim::ReportedError), _))) => {
+                        return core::Term::Prim(span, Prim::ReportedError); // FIXME: should it use span here or range?
                     }
                     _ => None,
                 };
@@ -1521,7 +1521,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 }
             }
             (Term::StringLiteral(range, string), _) => {
-                let constant = match expected_type.1.match_prim_spine() {
+                let constant = match expected_type.match_prim_spine() {
                     Some((Prim::U8Type, [])) => self
                         .parse_ascii(*range, *string)
                         .map(|num| Const::U8(num, UIntStyle::Ascii)),
@@ -1555,7 +1555,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 }
             }
             (Term::NumberLiteral(range, number), _) => {
-                let constant = match expected_type.1.match_prim_spine() {
+                let constant = match expected_type.match_prim_spine() {
                     Some((Prim::U8Type, [])) => self
                         .parse_number_radix(*range, *number)
                         .map(|(num, style)| Const::U8(num, style)),
@@ -1765,7 +1765,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                     Value::FunType(_, _, input_type, output_type) => {
                         (head_expr, input_type.clone(), output_type.clone())
                     }
-                    Value::Stuck(_, Head::Prim(Prim::ReportedError), _) => {
+                    Value::Stuck(Head::Prim(Prim::ReportedError), _) => {
                         return self.synth_reported_error(*range);
                     }
                     // It's not immediately obvious that the head type is a
@@ -1894,7 +1894,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                             }
                         }
                     }
-                    Value::Stuck(_, Head::Prim(Prim::ReportedError), _) => {
+                    Value::Stuck(Head::Prim(Prim::ReportedError), _) => {
                         return self.synth_reported_error(*range);
                     }
                     _ => {}
@@ -1922,14 +1922,14 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 self.synth_reported_error(*range)
             }
             Term::BooleanLiteral(range, val) => {
-                let bool_type = SpanValue::fixme(Arc::new(Value::prim(Prim::BoolType, [])));
+                let bool_type = SpanValue::empty_fixme(Arc::new(Value::prim(Prim::BoolType, [])));
                 (
                     core::Term::ConstLit(range.into(), Const::Bool(*val)),
                     bool_type,
                 )
             }
             Term::FormatRecord(range, format_fields) => {
-                let format_type = SpanValue::fixme(Arc::new(Value::prim(Prim::FormatType, [])));
+                let format_type = SpanValue::empty_fixme(Arc::new(Value::prim(Prim::FormatType, [])));
                 let (labels, formats) = self.check_format_fields(*range, format_fields);
 
                 (
@@ -1938,12 +1938,12 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 )
             }
             Term::FormatCond(range, (_, name), format, pred) => {
-                let format_type = SpanValue::fixme(Arc::new(Value::prim(Prim::FormatType, [])));
+                let format_type = SpanValue::empty_fixme(Arc::new(Value::prim(Prim::FormatType, [])));
                 let format = self.check(format, &format_type);
                 let format_value = self.eval_context().eval(&format);
                 let repr_type = self.elim_context().format_repr(&format_value);
                 self.rigid_env.push_param(Some(*name), repr_type);
-                let bool_type = SpanValue::fixme(Arc::new(Value::prim(Prim::BoolType, [])));
+                let bool_type = SpanValue::empty_fixme(Arc::new(Value::prim(Prim::BoolType, [])));
                 let pred_expr = self.check(pred, &bool_type);
                 self.rigid_env.pop();
 
@@ -1958,7 +1958,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 )
             }
             Term::FormatOverlap(range, format_fields) => {
-                let format_type = SpanValue::fixme(Arc::new(Value::prim(Prim::FormatType, [])));
+                let format_type = SpanValue::empty_fixme(Arc::new(Value::prim(Prim::FormatType, [])));
                 let (labels, formats) = self.check_format_fields(*range, format_fields);
 
                 (
@@ -1986,8 +1986,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
         let (rhs_expr, rhs_type) = self.synth(rhs);
         let lhs_type = self.elim_context().force(&lhs_type);
         let rhs_type = self.elim_context().force(&rhs_type);
-        let operand_types =
-            Option::zip(lhs_type.1.match_prim_spine(), rhs_type.1.match_prim_spine());
+        let operand_types = Option::zip(lhs_type.match_prim_spine(), rhs_type.match_prim_spine());
 
         let (fun, output_type) = match (op, operand_types) {
             (Mul(_), Some(((U8Type, []), (U8Type, [])))) => {
@@ -2296,7 +2295,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
         // TODO: Maybe it would be good to reuse lhs_type here if output_type is the same
         (
             fun_app,
-            SpanValue::fixme(Arc::new(Value::prim(output_type, []))),
+            SpanValue::empty_fixme(Arc::new(Value::prim(output_type, []))),
         )
     }
 
@@ -2316,8 +2315,8 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
         format_fields: &[FormatField<'_, ByteRange>],
     ) -> (&'arena [StringId], &'arena [core::Term<'arena>]) {
         let universe_type = Value::arc_universe();
-        let format_type = SpanValue::fixme(Arc::new(Value::prim(Prim::FormatType, [])));
-        let bool_type = SpanValue::fixme(Arc::new(Value::prim(Prim::BoolType, [])));
+        let format_type = SpanValue::empty_fixme(Arc::new(Value::prim(Prim::FormatType, [])));
+        let bool_type = SpanValue::empty_fixme(Arc::new(Value::prim(Prim::BoolType, [])));
 
         let initial_rigid_len = self.rigid_env.len();
         let (labels, format_fields) =
@@ -2471,7 +2470,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                     CheckedPattern::Const(range, _) => {
                         // Temporary vector for accumulating branches
                         let mut branches = Vec::new();
-                        let num_constructors = match scrutinee_type.1.match_prim_spine() {
+                        let num_constructors = match scrutinee_type.match_prim_spine() {
                             Some((Prim::BoolType, [])) => Some(2),
                             _ => None,
                         };

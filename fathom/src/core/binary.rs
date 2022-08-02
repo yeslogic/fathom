@@ -303,7 +303,7 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
     ) -> Result<ArcValue<'arena>, ReadError<'arena>> {
         let SpanValue(format_span, val) = self.elim_context().force(format);
         match val.as_ref() {
-            Value::Stuck(span, Head::Prim(prim), slice) => {
+            Value::Stuck(Head::Prim(prim), slice) => {
                 self.read_prim(reader, *prim, slice, format_span)
             }
             Value::FormatRecord(span, labels, formats) => {
@@ -367,9 +367,10 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
                 ))
             }
 
-            Value::Stuck(span, Head::RigidVar(_), _)
-            | Value::Stuck(span, Head::FlexibleVar(_), _)
-            | Value::Universe(span)
+            Value::Stuck(Head::RigidVar(_), _) | Value::Stuck(Head::FlexibleVar(_), _) => {
+                Err(ReadError::InvalidFormat(format_span))
+            }
+            Value::Universe(span)
             | Value::FunType(span, _, _, _)
             | Value::FunLit(span, _, _)
             | Value::RecordType(span, _, _)
@@ -422,7 +423,7 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
             (Prim::FormatStreamPos, []) => read_stream_pos(reader),
             (Prim::FormatSucceed, [_, FunApp(elem)]) => Ok(elem.clone()),
             (Prim::FormatFail, []) => Err(ReadError::ReadFailFormat(span)),
-            (Prim::FormatUnwrap, [_, FunApp(option)]) => match option.1.match_prim_spine() {
+            (Prim::FormatUnwrap, [_, FunApp(option)]) => match option.match_prim_spine() {
                 Some((Prim::OptionSome, [FunApp(elem)])) => Ok(elem.clone()),
                 Some((Prim::OptionNone, [])) => Err(ReadError::UnwrappedNone(span)),
                 _ => Err(ReadError::InvalidValue(span)),

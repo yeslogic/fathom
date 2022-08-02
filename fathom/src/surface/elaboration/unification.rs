@@ -205,24 +205,25 @@ impl<'arena, 'env> Context<'arena, 'env> {
         match (value0.1.as_ref(), value1.1.as_ref()) {
             // `ReportedError`s result from errors that have already been
             // reported, so we prevent them from triggering more errors.
-            (Value::Stuck(_, Head::Prim(Prim::ReportedError), _), _)
-            | (_, Value::Stuck(_, Head::Prim(Prim::ReportedError), _)) => Ok(()),
+            (Value::Stuck(Head::Prim(Prim::ReportedError), _), _)
+            | (_, Value::Stuck(Head::Prim(Prim::ReportedError), _)) => Ok(()),
 
             // Rigid-rigid and flexible-flexible cases
             //
             // Both values have head variables in common, so all we need to do
             // is unify the elimination spines.
+            (Value::Stuck(Head::Prim(prim0), spine0), Value::Stuck(Head::Prim(prim1), spine1))
+                if prim0 == prim1 =>
+            {
+                self.unify_spines(spine0, spine1)
+            }
             (
-                Value::Stuck(_, Head::Prim(prim0), spine0),
-                Value::Stuck(_, Head::Prim(prim1), spine1),
-            ) if prim0 == prim1 => self.unify_spines(spine0, spine1),
-            (
-                Value::Stuck(_, Head::RigidVar(var0), spine0),
-                Value::Stuck(_, Head::RigidVar(var1), spine1),
+                Value::Stuck(Head::RigidVar(var0), spine0),
+                Value::Stuck(Head::RigidVar(var1), spine1),
             ) if var0 == var1 => self.unify_spines(spine0, spine1),
             (
-                Value::Stuck(_, Head::FlexibleVar(var0), spine0),
-                Value::Stuck(_, Head::FlexibleVar(var1), spine1),
+                Value::Stuck(Head::FlexibleVar(var0), spine0),
+                Value::Stuck(Head::FlexibleVar(var1), spine1),
             ) if var0 == var1 => self.unify_spines(spine0, spine1),
 
             (Value::Universe(_), Value::Universe(_)) => Ok(()),
@@ -298,10 +299,10 @@ impl<'arena, 'env> Context<'arena, 'env> {
             //
             // One of the values has a flexible variable at its head, so we
             // attempt to solve it using pattern unification.
-            (Value::Stuck(_, Head::FlexibleVar(var0), spine0), _) => {
+            (Value::Stuck(Head::FlexibleVar(var0), spine0), _) => {
                 self.solve(*var0, spine0, &value1)
             }
-            (_, Value::Stuck(_, Head::FlexibleVar(var1), spine1)) => {
+            (_, Value::Stuck(Head::FlexibleVar(var1), spine1)) => {
                 self.solve(*var1, spine1, &value0)
             }
 
@@ -338,7 +339,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
         closure0: &Closure<'arena>,
         closure1: &Closure<'arena>,
     ) -> Result<(), Error> {
-        let var = SpanValue::fixme(Arc::new(Value::rigid_var(self.rigid_exprs.next_global())));
+        let var = SpanValue::empty_fixme(Arc::new(Value::rigid_var(self.rigid_exprs.next_global())));
         let value0 = self.elim_context().apply_closure(closure0, var.clone());
         let value1 = self.elim_context().apply_closure(closure1, var);
 
@@ -372,7 +373,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
                 return Err(error);
             }
 
-            let var = SpanValue::fixme(Arc::new(Value::rigid_var(self.rigid_exprs.next_global())));
+            let var = SpanValue::empty_fixme(Arc::new(Value::rigid_var(self.rigid_exprs.next_global())));
             telescope0 = next_telescope0(var.clone());
             telescope1 = next_telescope1(var);
             self.rigid_exprs.push();
@@ -392,7 +393,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
         output_expr: &Closure<'arena>,
         value: &ArcValue<'arena>,
     ) -> Result<(), Error> {
-        let var = SpanValue::fixme(Arc::new(Value::rigid_var(self.rigid_exprs.next_global())));
+        let var = SpanValue::empty_fixme(Arc::new(Value::rigid_var(self.rigid_exprs.next_global())));
         let value = self.elim_context().fun_app(value.clone(), var.clone());
         let output_expr = self.elim_context().apply_closure(output_expr, var);
 
@@ -462,9 +463,9 @@ impl<'arena, 'env> Context<'arena, 'env> {
             match elim {
                 Elim::FunApp(input_expr) => {
                     match self.elim_context().force(input_expr).1.as_ref() {
-                        Value::Stuck(_, Head::RigidVar(source_var), spine)
+                        Value::Stuck(Head::RigidVar(source_var), spine)
                             if spine.is_empty() && self.renaming.set_rigid(*source_var) => {}
-                        Value::Stuck(_, Head::RigidVar(source_var), _) => {
+                        Value::Stuck(Head::RigidVar(source_var), _) => {
                             return Err(SpineError::NonLinearSpine(*source_var))
                         }
                         _ => return Err(SpineError::NonRigidFunApp),
@@ -502,29 +503,31 @@ impl<'arena, 'env> Context<'arena, 'env> {
         flexible_var: GlobalVar,
         value: &ArcValue<'arena>,
     ) -> Result<Term<'arena>, RenameError> {
-        match self.elim_context().force(value).1.as_ref() {
-            Value::Stuck(span, head, spine) => {
+        let val = self.elim_context().force(value);
+        let span = val.span();
+        match val.1.as_ref() {
+            Value::Stuck(head, spine) => {
                 let head_expr = match head {
-                    Head::Prim(prim) => Term::Prim(*span, *prim),
+                    Head::Prim(prim) => Term::Prim(span, *prim),
                     Head::RigidVar(source_var) => match self.renaming.get_as_local(*source_var) {
                         None => return Err(RenameError::EscapingRigidVar(*source_var)),
-                        Some(target_var) => Term::RigidVar(*span, target_var),
+                        Some(target_var) => Term::RigidVar(span, target_var),
                     },
                     Head::FlexibleVar(var) => match *var {
                         var if flexible_var == var => return Err(RenameError::InfiniteSolution),
-                        var => Term::FlexibleVar(*span, var),
+                        var => Term::FlexibleVar(span, var),
                     },
                 };
 
                 spine.iter().fold(Ok(head_expr), |head_expr, elim| {
                     Ok(match elim {
                         Elim::FunApp(input_expr) => Term::FunApp(
-                            *span,
+                            span,
                             self.scope.to_scope(head_expr?),
                             self.scope.to_scope(self.rename(flexible_var, input_expr)?),
                         ),
                         Elim::RecordProj(label) => {
-                            Term::RecordProj(*span, self.scope.to_scope(head_expr?), *label)
+                            Term::RecordProj(span, self.scope.to_scope(head_expr?), *label)
                         }
                         Elim::ConstMatch(branches) => {
                             let mut branches = branches.clone();
@@ -552,7 +555,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
                             };
 
                             Term::ConstMatch(
-                                *span,
+                                span,
                                 self.scope.to_scope(head_expr?),
                                 pattern_branches.into(),
                                 default_expr.map(|expr| self.scope.to_scope(expr) as &_),
@@ -667,7 +670,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
             match self.rename(flexible_var, &value) {
                 Ok(term) => {
                     terms.push(term);
-                    let var = SpanValue::fixme(Arc::new(Value::rigid_var(
+                    let var = SpanValue::empty_fixme(Arc::new(Value::rigid_var(
                         self.rigid_exprs.next_global(),
                     )));
                     telescope = next_telescope(var);
@@ -712,7 +715,7 @@ impl PartialRenaming {
     }
 
     fn next_rigid_var<'arena>(&self) -> ArcValue<'arena> {
-        SpanValue::fixme(Arc::new(Value::rigid_var(self.source.len().next_global())))
+        SpanValue::empty_fixme(Arc::new(Value::rigid_var(self.source.len().next_global())))
     }
 
     /// Set a rigid source variable to rigid target variable mapping, ensuring
