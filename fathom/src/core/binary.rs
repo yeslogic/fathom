@@ -226,6 +226,12 @@ pub enum BufferError {
     PositionOverflow,
 }
 
+impl BufferError {
+    fn with_span<'arena>(self, span: Span) -> ReadError<'arena> {
+        ReadError::BufferErrorWithSpan(span, self)
+    }
+}
+
 impl fmt::Display for BufferError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -489,16 +495,20 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
         len: &ArcValue<'arena>,
         elem_format: &ArcValue<'arena>,
     ) -> Result<ArcValue<'arena>, ReadError<'arena>> {
+        let len_span = len.span();
         let len = match self.elim_context().force(len).1.as_ref() {
             Value::ConstLit(Const::U8(len, _)) => Some(usize::from(*len)),
             Value::ConstLit(Const::U16(len, _)) => Some(usize::from(*len)),
             Value::ConstLit(Const::U32(len, _)) => usize::try_from(*len).ok(),
             Value::ConstLit(Const::U64(len, _)) => usize::try_from(*len).ok(),
-            _ => return Err(ReadError::InvalidValue(len.span())),
+            _ => return Err(ReadError::InvalidValue(len_span)),
         }
-        .ok_or(BufferError::PositionOverflow)?;
+        .ok_or_else(|| BufferError::PositionOverflow.with_span(len_span))?;
 
-        let buffer = reader.remaining_buffer()?.with_remaining_len(len)?;
+        let buffer = reader
+            .remaining_buffer()
+            .and_then(|buf| buf.with_remaining_len(len))
+            .map_err(|err| err.with_span(len_span))?;
 
         self.read_format(&mut buffer.reader(), elem_format)
     }
@@ -590,9 +600,7 @@ fn read_stream_pos<'arena, 'data>(
     Ok(SpanValue(
         span,
         Arc::new(Value::ConstLit(Const::Pos(
-            reader
-                .offset()
-                .map_err(|err| ReadError::BufferErrorWithSpan(span, err))?,
+            reader.offset().map_err(|err| err.with_span(span))?,
         ))),
     ))
 }
@@ -603,7 +611,7 @@ fn read_const<'arena, 'data, T>(
     read: fn(&mut BufferReader<'data>) -> Result<T, BufferError>,
     wrap_const: fn(T) -> Const,
 ) -> Result<ArcValue<'arena>, ReadError<'arena>> {
-    let data = read(reader).map_err(|err| ReadError::BufferErrorWithSpan(span, err))?;
+    let data = read(reader).map_err(|err| err.with_span(span))?;
     Ok(SpanValue(span, Arc::new(Value::ConstLit(wrap_const(data)))))
 }
 
