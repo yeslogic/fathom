@@ -23,10 +23,6 @@ impl<'arena> SpanValue<'arena> {
         self.0
     }
 
-    pub fn fixme(val: Arc<Value<'arena>>) -> Self {
-        SpanValue(val.span(), val)
-    }
-
     pub fn empty_fixme(val: Arc<Value<'arena>>) -> Self {
         SpanValue::empty(val)
     }
@@ -102,24 +98,6 @@ impl<'arena> Value<'arena> {
     pub fn arc_universe() -> ArcValue<'arena> {
         // TODO: Can we share a single instance of this?
         SpanValue::empty(Arc::new(Value::Universe))
-    }
-
-    pub fn span(&self) -> Span {
-        match self {
-            Value::Stuck(_, _)
-            | Value::Universe
-            | Value::FunType(_, _, _)
-            | Value::FunLit(_, _)
-            | Value::RecordType(_, _)
-            | Value::RecordLit(_, _)
-            | Value::ArrayLit(_)
-            | Value::FormatRecord(_, _)
-            | Value::FormatCond(_, _, _)
-            | Value::FormatOverlap(_, _)
-            | Value::ConstLit(_) => {
-                unreachable!("value has no span")
-            }
-        }
     }
 }
 
@@ -1384,7 +1362,7 @@ impl<'arena, 'env> ConversionContext<'arena, 'env> {
     /// (fun x => f x) = f
     /// ```
     fn is_equal_fun_lit(&mut self, output_expr: &Closure<'_>, value: &ArcValue<'_>) -> bool {
-        let var = SpanValue::fixme(Arc::new(Value::rigid_var(self.rigid_exprs.next_global())));
+        let var = SpanValue::empty(Arc::new(Value::rigid_var(self.rigid_exprs.next_global())));
         let value = self.elim_context().fun_app(value.clone(), var.clone());
         let output_expr = self.elim_context().apply_closure(output_expr, var);
 

@@ -334,7 +334,7 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
                     }
                     _ => {
                         // This shouldn't happen since we check that the cond type is Bool earlier
-                        Err(ReadError::InvalidValue(cond_res.span()))
+                        Err(ReadError::InvalidValue(Span::Empty))
                     }
                 }
             }
@@ -510,7 +510,7 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
     ) -> Result<ArcValue<'arena>, ReadError<'arena>> {
         let pos = match self.elim_context().force(pos_value).1.as_ref() {
             Value::ConstLit(Const::Pos(pos)) => *pos,
-            value => return Err(ReadError::InvalidValue(value.span())),
+            _ => return Err(ReadError::InvalidValue(pos_value.span())),
         };
 
         self.pending_formats.push((pos, elem_format.clone()));
@@ -528,7 +528,7 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
     ) -> Result<ArcValue<'arena>, ReadError<'arena>> {
         let pos = match self.elim_context().force(r#ref).1.as_ref() {
             Value::ConstLit(Const::Ref(pos)) => *pos,
-            value => return Err(ReadError::InvalidValue(value.span())),
+            _ => return Err(ReadError::InvalidValue(r#ref.span())),
         };
 
         self.lookup_or_read_ref(pos, format)
