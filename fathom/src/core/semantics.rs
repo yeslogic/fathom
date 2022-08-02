@@ -53,7 +53,7 @@ pub enum Value<'arena> {
     Universe,
 
     /// Dependent function types.
-    FunType(Span, Option<StringId>, ArcValue<'arena>, Closure<'arena>),
+    FunType(Option<StringId>, ArcValue<'arena>, Closure<'arena>),
     /// Function literals.
     FunLit(Span, Option<StringId>, Closure<'arena>),
 
@@ -106,9 +106,10 @@ impl<'arena> Value<'arena> {
 
     pub fn span(&self) -> Span {
         match self {
-            Value::Stuck(_, _) | Value::Universe => unreachable!("value has no span"),
-            Value::FunType(span, _, _, _)
-            | Value::FunLit(span, _, _)
+            Value::Stuck(_, _) | Value::Universe | Value::FunType(_, _, _) => {
+                unreachable!("value has no span")
+            }
+            Value::FunLit(span, _, _)
             | Value::RecordType(span, _, _)
             | Value::RecordLit(span, _, _)
             | Value::ArrayLit(span, _)
@@ -368,7 +369,6 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
             Term::FunType(span, input_name, input_type, output_type) => SpanValue(
                 *span,
                 Arc::new(Value::FunType(
-                    *span,
                     *input_name,
                     self.eval(input_type),
                     Closure::new(self.rigid_exprs.clone(), output_type),
@@ -1085,12 +1085,12 @@ impl<'in_arena, 'out_arena, 'env> QuoteContext<'in_arena, 'out_arena, 'env> {
 
             Value::Universe => Term::Universe(span),
 
-            Value::FunType(span, input_name, input_type, output_type) => {
+            Value::FunType(input_name, input_type, output_type) => {
                 let input_type = self.quote(input_type);
                 let output_type = self.quote_closure(output_type);
 
                 Term::FunType(
-                    *span,
+                    span,
                     *input_name,
                     self.scope.to_scope(input_type),
                     self.scope.to_scope(output_type),
@@ -1257,8 +1257,8 @@ impl<'arena, 'env> ConversionContext<'arena, 'env> {
             (Value::Universe, Value::Universe) => true,
 
             (
-                Value::FunType(_, _, input_type0, output_type0),
-                Value::FunType(_, _, input_type1, output_type1),
+                Value::FunType(_, input_type0, output_type0),
+                Value::FunType(_, input_type1, output_type1),
             ) => {
                 self.is_equal(input_type0, input_type1)
                     && self.is_equal_closures(output_type0, output_type1)
@@ -1447,7 +1447,7 @@ mod tests {
         match value.as_ref() {
             Value::Stuck(_, _) => {}
             Value::Universe => {}
-            Value::FunType(_, _, _, _) => {}
+            Value::FunType(_, _, _) => {}
             Value::FunLit(_, _, _) => {}
             Value::RecordType(_, _, _) => {}
             Value::RecordLit(_, _, _) => {}

@@ -1408,7 +1408,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
             }
             (
                 Term::FunLiteral(range, input_pattern, input_type, output_expr),
-                Value::FunType(_, _, expected_input_type, output_type),
+                Value::FunType(_, expected_input_type, output_type),
             ) => {
                 let (input_name, input_type) =
                     self.check_ann_pattern(input_pattern, *input_type, expected_input_type);
@@ -1744,15 +1744,18 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
 
                 (
                     core::Term::FunLit(range.into(), input_name, self.scope.to_scope(output_expr)),
-                    SpanValue::fixme(Arc::new(Value::FunType(
+                    // FIXME: Should this use range too?
+                    SpanValue(
                         Span::Empty,
-                        input_name,
-                        input_type,
-                        Closure::new(
-                            self.rigid_env.exprs.clone(),
-                            self.scope.to_scope(output_type),
-                        ),
-                    ))),
+                        Arc::new(Value::FunType(
+                            input_name,
+                            input_type,
+                            Closure::new(
+                                self.rigid_env.exprs.clone(),
+                                self.scope.to_scope(output_type),
+                            ),
+                        )),
+                    ),
                 )
             }
             Term::App(range, head_expr, input_expr) => {
@@ -1763,7 +1766,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 let head_type = self.elim_context().force(&head_type);
                 let (head_expr, input_type, output_type) = match head_type.1.as_ref() {
                     // The simple case - it's easy to see that it is a function type!
-                    Value::FunType(_, _, input_type, output_type) => {
+                    Value::FunType(_, input_type, output_type) => {
                         (head_expr, input_type.clone(), output_type.clone())
                     }
                     Value::Stuck(Head::Prim(Prim::ReportedError), _) => {
@@ -1791,8 +1794,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                             self.rigid_env.exprs.clone(),
                             self.scope.to_scope(output_type),
                         );
-                        let fun_type = SpanValue::fixme(Arc::new(Value::FunType(
-                            Span::Empty,
+                        let fun_type = SpanValue::empty(Arc::new(Value::FunType(
                             None,
                             input_type.clone(),
                             output_type.clone(),

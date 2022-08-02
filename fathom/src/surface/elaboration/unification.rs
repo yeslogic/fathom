@@ -229,8 +229,8 @@ impl<'arena, 'env> Context<'arena, 'env> {
             (Value::Universe, Value::Universe) => Ok(()),
 
             (
-                Value::FunType(_, _, input_type0, output_type0),
-                Value::FunType(_, _, input_type1, output_type1),
+                Value::FunType(_, input_type0, output_type0),
+                Value::FunType(_, input_type1, output_type1),
             ) => {
                 self.unify(input_type0, input_type1)?;
                 self.unify_closures(output_type0, output_type1)
@@ -570,12 +570,12 @@ impl<'arena, 'env> Context<'arena, 'env> {
 
             Value::Universe => Ok(Term::Universe(span)),
 
-            Value::FunType(span, input_name, input_type, output_type) => {
+            Value::FunType(input_name, input_type, output_type) => {
                 let input_type = self.rename(flexible_var, input_type)?;
                 let output_type = self.rename_closure(flexible_var, output_type)?;
 
                 Ok(Term::FunType(
-                    *span,
+                    span,
                     *input_name,
                     self.scope.to_scope(input_type),
                     self.scope.to_scope(output_type),
