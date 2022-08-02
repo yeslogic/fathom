@@ -625,11 +625,11 @@ impl<'arena, 'env> Context<'arena, 'env> {
                     self.scope.to_scope(cond),
                 ))
             }
-            Value::FormatOverlap(span, labels, formats) => {
+            Value::FormatOverlap(labels, formats) => {
                 let labels = self.scope.to_scope(labels); // FIXME: avoid copy if this is the same arena?
                 let formats = self.rename_telescope(flexible_var, formats)?;
 
-                Ok(Term::FormatOverlap(*span, labels, formats))
+                Ok(Term::FormatOverlap(span, labels, formats))
             }
 
             Value::ConstLit(span, constant) => Ok(Term::ConstLit(*span, *constant)),
