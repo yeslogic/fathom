@@ -286,7 +286,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
                 self.unify_closures(cond0, cond1)
             }
 
-            (Value::ConstLit(_, const0), Value::ConstLit(_, const1)) if const0 == const1 => Ok(()),
+            (Value::ConstLit(const0), Value::ConstLit(const1)) if const0 == const1 => Ok(()),
 
             // Flexible-rigid cases
             //
@@ -632,7 +632,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
                 Ok(Term::FormatOverlap(span, labels, formats))
             }
 
-            Value::ConstLit(span, constant) => Ok(Term::ConstLit(*span, *constant)),
+            Value::ConstLit(constant) => Ok(Term::ConstLit(span, *constant)),
         }
     }
 

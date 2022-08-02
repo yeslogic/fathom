@@ -74,7 +74,7 @@ pub enum Value<'arena> {
     FormatOverlap(&'arena [StringId], Telescope<'arena>),
 
     /// Constant literals.
-    ConstLit(Span, Const),
+    ConstLit(Const),
 }
 
 impl<'arena> Value<'arena> {
@@ -115,10 +115,10 @@ impl<'arena> Value<'arena> {
             | Value::ArrayLit(_)
             | Value::FormatRecord(_, _)
             | Value::FormatCond(_, _, _)
-            | Value::FormatOverlap(_, _) => {
+            | Value::FormatOverlap(_, _)
+            | Value::ConstLit(_) => {
                 unreachable!("value has no span")
             }
-            Value::ConstLit(span, _) => *span,
         }
     }
 }
@@ -427,9 +427,7 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
 
             Term::Prim(span, prim) => SpanValue(*span, Arc::new(Value::prim(*prim, []))),
 
-            Term::ConstLit(span, r#const) => {
-                SpanValue(*span, Arc::new(Value::ConstLit(*span, *r#const)))
-            }
+            Term::ConstLit(span, r#const) => SpanValue(*span, Arc::new(Value::ConstLit(*r#const))),
             Term::ConstMatch(_span, head_expr, branches, default_expr) => {
                 let head_expr = self.eval(head_expr);
                 let branches = Branches::new(self.rigid_exprs.clone(), branches, *default_expr);
@@ -457,13 +455,13 @@ macro_rules! step {
 macro_rules! const_step {
     ([$($input:ident : $Input:ident),*] => $output:expr) => {
         step!(_, [$($input),*] => match ($($input.1.as_ref(),)*) {
-            ($(Value::ConstLit(_, Const::$Input($input, ..)),)*) => SpanValue::fixme(Arc::new(Value::ConstLit(Span::Empty, $output))),
+            ($(Value::ConstLit(Const::$Input($input, ..)),)*) => SpanValue::empty_fixme(Arc::new(Value::ConstLit($output))),
             _ => return None,
         })
     };
     ([$($input:ident , $style:ident : $Input:ident),*] => $output:expr) => {
         step!(_, [$($input),*] => match ($($input.1.as_ref(),)*) {
-            ($(Value::ConstLit(_, Const::$Input($input, $style)),)*) => SpanValue::fixme(Arc::new(Value::ConstLit(Span::Empty, $output))),
+            ($(Value::ConstLit(Const::$Input($input, $style)),)*) => SpanValue::empty_fixme(Arc::new(Value::ConstLit($output))),
             _ => return None,
         })
     };
@@ -624,11 +622,11 @@ fn prim_step(prim: Prim) -> Option<PrimStep> {
                 Value::ArrayLit(elems) => {
                     for elem in elems {
                         match context.fun_app(pred.clone(), elem.clone()).1.as_ref() {
-                            Value::ConstLit(_, Const::Bool(true)) => {
+                            Value::ConstLit(Const::Bool(true)) => {
                                 // TODO: Is elem.span right here?
                                 return Some(SpanValue(elem.span(), Arc::new(Value::prim(Prim::OptionSome, [elem.clone()]))))
                             },
-                            Value::ConstLit(_, Const::Bool(false)) => {}
+                            Value::ConstLit(Const::Bool(false)) => {}
                             _ => return None,
                         }
                     }
@@ -807,7 +805,7 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
         mut branches: Branches<'arena, Const>,
     ) -> ArcValue<'arena> {
         match Arc::make_mut(&mut head_expr.1) {
-            Value::ConstLit(_, r#const) => {
+            Value::ConstLit(r#const) => {
                 // Try each branch
                 for (branch_const, output_expr) in branches.pattern_branches {
                     if r#const == branch_const {
@@ -1137,7 +1135,7 @@ impl<'in_arena, 'out_arena, 'env> QuoteContext<'in_arena, 'out_arena, 'env> {
                 Term::FormatOverlap(span, labels, formats)
             }
 
-            Value::ConstLit(span, r#const) => Term::ConstLit(*span, *r#const),
+            Value::ConstLit(r#const) => Term::ConstLit(span, *r#const),
         }
     }
 
@@ -1295,7 +1293,7 @@ impl<'arena, 'env> ConversionContext<'arena, 'env> {
                     && self.is_equal_closures(cond0, cond1)
             }
 
-            (Value::ConstLit(_, const0), Value::ConstLit(_, const1)) => const0 == const1,
+            (Value::ConstLit(const0), Value::ConstLit(const1)) => const0 == const1,
 
             (_, _) => false,
         }
@@ -1422,7 +1420,7 @@ mod tests {
 
     #[test]
     fn value_has_unify_and_is_equal_impls() {
-        let value = Arc::new(Value::ConstLit(Span::Empty, Const::Bool(false)));
+        let value = Arc::new(Value::ConstLit(Const::Bool(false)));
 
         // This test exists in order to cause a test failure when `Value` is changed. If this test
         // has failed and you have added a new variant to Value it is a prompt to ensure that
@@ -1443,7 +1441,7 @@ mod tests {
             Value::FormatRecord(_, _) => {}
             Value::FormatCond(_, _, _) => {}
             Value::FormatOverlap(_, _) => {}
-            Value::ConstLit(_, _) => {}
+            Value::ConstLit(_) => {}
         }
     }
 }

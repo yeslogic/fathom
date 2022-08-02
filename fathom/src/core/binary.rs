@@ -328,8 +328,8 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
                 let SpanValue(_, cond_res) = self.elim_context().apply_closure(cond, value.clone());
 
                 match *cond_res {
-                    Value::ConstLit(_, Const::Bool(true)) => Ok(value),
-                    Value::ConstLit(_, Const::Bool(false)) => {
+                    Value::ConstLit(Const::Bool(true)) => Ok(value),
+                    Value::ConstLit(Const::Bool(false)) => {
                         Err(ReadError::CondFailure(cond.span(), value))
                     }
                     _ => {
@@ -367,16 +367,15 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
                 ))
             }
 
-            Value::Stuck(Head::RigidVar(_), _) | Value::Stuck(Head::FlexibleVar(_), _) => {
-                Err(ReadError::InvalidFormat(format_span))
-            }
-            Value::Universe
+            Value::Stuck(Head::RigidVar(_), _)
+            | Value::Stuck(Head::FlexibleVar(_), _)
+            | Value::Universe
             | Value::FunType(_, _, _)
             | Value::FunLit(_, _)
             | Value::RecordType(_, _)
             | Value::RecordLit(_, _)
-            | Value::ArrayLit(_) => Err(ReadError::InvalidFormat(format_span)),
-            Value::ConstLit(span, _) => Err(ReadError::InvalidFormat(*span)),
+            | Value::ArrayLit(_)
+            | Value::ConstLit(_) => Err(ReadError::InvalidFormat(format_span)),
         }
     }
 
@@ -439,10 +438,10 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
         elem_format: &ArcValue<'arena>,
     ) -> Result<ArcValue<'arena>, ReadError<'arena>> {
         let len = match self.elim_context().force(len).1.as_ref() {
-            Value::ConstLit(_, Const::U8(len, _)) => u64::from(*len),
-            Value::ConstLit(_, Const::U16(len, _)) => u64::from(*len),
-            Value::ConstLit(_, Const::U32(len, _)) => u64::from(*len),
-            Value::ConstLit(_, Const::U64(len, _)) => u64::from(*len),
+            Value::ConstLit(Const::U8(len, _)) => u64::from(*len),
+            Value::ConstLit(Const::U16(len, _)) => u64::from(*len),
+            Value::ConstLit(Const::U32(len, _)) => u64::from(*len),
+            Value::ConstLit(Const::U64(len, _)) => u64::from(*len),
             _ => return Err(ReadError::InvalidValue(len.span())),
         };
 
@@ -491,10 +490,10 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
         elem_format: &ArcValue<'arena>,
     ) -> Result<ArcValue<'arena>, ReadError<'arena>> {
         let len = match self.elim_context().force(len).1.as_ref() {
-            Value::ConstLit(_, Const::U8(len, _)) => Some(usize::from(*len)),
-            Value::ConstLit(_, Const::U16(len, _)) => Some(usize::from(*len)),
-            Value::ConstLit(_, Const::U32(len, _)) => usize::try_from(*len).ok(),
-            Value::ConstLit(_, Const::U64(len, _)) => usize::try_from(*len).ok(),
+            Value::ConstLit(Const::U8(len, _)) => Some(usize::from(*len)),
+            Value::ConstLit(Const::U16(len, _)) => Some(usize::from(*len)),
+            Value::ConstLit(Const::U32(len, _)) => usize::try_from(*len).ok(),
+            Value::ConstLit(Const::U64(len, _)) => usize::try_from(*len).ok(),
             _ => return Err(ReadError::InvalidValue(len.span())),
         }
         .ok_or(BufferError::PositionOverflow)?;
@@ -510,16 +509,16 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
         elem_format: &ArcValue<'arena>,
     ) -> Result<ArcValue<'arena>, ReadError<'arena>> {
         let pos = match self.elim_context().force(pos_value).1.as_ref() {
-            Value::ConstLit(_, Const::Pos(pos)) => *pos,
+            Value::ConstLit(Const::Pos(pos)) => *pos,
             value => return Err(ReadError::InvalidValue(value.span())),
         };
 
         self.pending_formats.push((pos, elem_format.clone()));
 
-        Ok(SpanValue::fixme(Arc::new(Value::ConstLit(
+        Ok(SpanValue(
             pos_value.span(),
-            Const::Ref(pos),
-        ))))
+            Arc::new(Value::ConstLit(Const::Ref(pos))),
+        ))
     }
 
     fn read_deref(
@@ -528,7 +527,7 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
         r#ref: &ArcValue<'arena>,
     ) -> Result<ArcValue<'arena>, ReadError<'arena>> {
         let pos = match self.elim_context().force(r#ref).1.as_ref() {
-            Value::ConstLit(_, Const::Ref(pos)) => *pos,
+            Value::ConstLit(Const::Ref(pos)) => *pos,
             value => return Err(ReadError::InvalidValue(value.span())),
         };
 
@@ -587,10 +586,9 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
 fn read_stream_pos<'arena, 'data>(
     reader: &mut BufferReader<'data>,
 ) -> Result<ArcValue<'arena>, ReadError<'arena>> {
-    Ok(SpanValue::fixme(Arc::new(Value::ConstLit(
-        Span::Empty,
-        Const::Pos(reader.offset()?),
-    ))))
+    Ok(SpanValue::empty(Arc::new(Value::ConstLit(Const::Pos(
+        reader.offset()?,
+    )))))
 }
 
 fn read_const<'arena, 'data, T>(
@@ -599,10 +597,9 @@ fn read_const<'arena, 'data, T>(
     wrap_const: fn(T) -> Const,
 ) -> Result<ArcValue<'arena>, ReadError<'arena>> {
     let data = read(reader)?;
-    Ok(SpanValue::fixme(Arc::new(Value::ConstLit(
-        Span::Empty,
-        wrap_const(data),
-    ))))
+    Ok(SpanValue::empty(Arc::new(Value::ConstLit(wrap_const(
+        data,
+    )))))
 }
 
 fn read_u8<'data>(reader: &mut BufferReader<'data>) -> Result<u8, BufferError> {
