@@ -68,7 +68,7 @@ pub enum Value<'arena> {
     /// Record formats, consisting of a list of dependent formats.
     FormatRecord(&'arena [StringId], Telescope<'arena>),
     /// Conditional format, consisting of a format and predicate.
-    FormatCond(Span, StringId, ArcValue<'arena>, Closure<'arena>),
+    FormatCond(StringId, ArcValue<'arena>, Closure<'arena>),
     /// Overlap formats, consisting of a list of dependent formats, overlapping
     /// in memory.
     FormatOverlap(Span, &'arena [StringId], Telescope<'arena>),
@@ -113,12 +113,11 @@ impl<'arena> Value<'arena> {
             | Value::RecordType(_, _)
             | Value::RecordLit(_, _)
             | Value::ArrayLit(_)
-            | Value::FormatRecord(_, _) => {
+            | Value::FormatRecord(_, _)
+            | Value::FormatCond(_, _, _) => {
                 unreachable!("value has no span")
             }
-            Value::FormatCond(span, _, _, _)
-            | Value::FormatOverlap(span, _, _)
-            | Value::ConstLit(span, _) => *span,
+            Value::FormatOverlap(span, _, _) | Value::ConstLit(span, _) => *span,
         }
     }
 }
@@ -418,10 +417,7 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
             Term::FormatCond(span, name, format, cond) => {
                 let format = self.eval(format);
                 let cond_expr = Closure::new(self.rigid_exprs.clone(), cond);
-                SpanValue(
-                    *span,
-                    Arc::new(Value::FormatCond(*span, *name, format, cond_expr)),
-                )
+                SpanValue(*span, Arc::new(Value::FormatCond(*name, format, cond_expr)))
             }
             Term::FormatOverlap(span, labels, formats) => {
                 let formats = Telescope::new(self.rigid_exprs.clone(), formats);
@@ -857,7 +853,7 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
                     Arc::new(Value::RecordType(labels, formats.clone().apply_repr())),
                 )
             }
-            Value::FormatCond(_, _, format, _) => self.format_repr(format),
+            Value::FormatCond(_, format, _) => self.format_repr(format),
             Value::Stuck(Head::Prim(prim), spine) => match (prim, &spine[..]) {
                 (Prim::FormatU8, []) => {
                     SpanValue(format.span(), Arc::new(Value::prim(Prim::U8Type, [])))
@@ -1126,11 +1122,11 @@ impl<'in_arena, 'out_arena, 'env> QuoteContext<'in_arena, 'out_arena, 'env> {
 
                 Term::FormatRecord(span, labels, formats)
             }
-            Value::FormatCond(span, label, format, cond) => {
+            Value::FormatCond(label, format, cond) => {
                 let format = self.quote(format);
                 let cond = self.quote_closure(cond);
                 Term::FormatCond(
-                    *span,
+                    span,
                     *label,
                     self.scope.to_scope(format),
                     self.scope.to_scope(cond),
@@ -1294,8 +1290,8 @@ impl<'arena, 'env> ConversionContext<'arena, 'env> {
             ) => labels0 == labels1 && self.is_equal_telescopes(formats0, formats1),
 
             (
-                Value::FormatCond(_, label0, format0, cond0),
-                Value::FormatCond(_, label1, format1, cond1),
+                Value::FormatCond(label0, format0, cond0),
+                Value::FormatCond(label1, format1, cond1),
             ) => {
                 label0 == label1
                     && self.is_equal(format0, format1)
@@ -1448,7 +1444,7 @@ mod tests {
             Value::RecordLit(_, _) => {}
             Value::ArrayLit(_) => {}
             Value::FormatRecord(_, _) => {}
-            Value::FormatCond(_, _, _, _) => {}
+            Value::FormatCond(_, _, _) => {}
             Value::FormatOverlap(_, _, _) => {}
             Value::ConstLit(_, _) => {}
         }

@@ -323,7 +323,7 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
                     Arc::new(Value::RecordLit(labels, exprs)),
                 ))
             }
-            Value::FormatCond(_span, _label, format, cond) => {
+            Value::FormatCond(_label, format, cond) => {
                 let value = self.read_format(reader, &format)?;
                 let SpanValue(_, cond_res) = self.elim_context().apply_closure(cond, value.clone());
 
