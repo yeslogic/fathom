@@ -259,7 +259,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
             (Value::RecordLit(labels, exprs), _) => self.unify_record_lit(labels, exprs, &value1),
             (_, Value::RecordLit(labels, exprs)) => self.unify_record_lit(labels, exprs, &value0),
 
-            (Value::ArrayLit(_, elem_exprs0), Value::ArrayLit(_, elem_exprs1)) => {
+            (Value::ArrayLit(elem_exprs0), Value::ArrayLit(elem_exprs1)) => {
                 for (elem_expr0, elem_expr1) in
                     Iterator::zip(elem_exprs0.iter(), elem_exprs1.iter())
                 {
@@ -603,13 +603,13 @@ impl<'arena, 'env> Context<'arena, 'env> {
                 Ok(Term::RecordLit(span, labels, new_exprs.into()))
             }
 
-            Value::ArrayLit(span, elem_exprs) => {
+            Value::ArrayLit(elem_exprs) => {
                 let mut new_elem_exprs = SliceVec::new(self.scope, elem_exprs.len());
                 for elem_expr in elem_exprs {
                     new_elem_exprs.push(self.rename(flexible_var, elem_expr)?);
                 }
 
-                Ok(Term::ArrayLit(*span, new_elem_exprs.into()))
+                Ok(Term::ArrayLit(span, new_elem_exprs.into()))
             }
 
             Value::FormatRecord(span, labels, formats) => {

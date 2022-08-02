@@ -63,7 +63,7 @@ pub enum Value<'arena> {
     RecordLit(&'arena [StringId], Vec<ArcValue<'arena>>),
 
     /// Array literals.
-    ArrayLit(Span, Vec<ArcValue<'arena>>),
+    ArrayLit(Vec<ArcValue<'arena>>),
 
     /// Record formats, consisting of a list of dependent formats.
     FormatRecord(Span, &'arena [StringId], Telescope<'arena>),
@@ -111,11 +111,11 @@ impl<'arena> Value<'arena> {
             | Value::FunType(_, _, _)
             | Value::FunLit(_, _)
             | Value::RecordType(_, _)
-            | Value::RecordLit(_, _) => {
+            | Value::RecordLit(_, _)
+            | Value::ArrayLit(_) => {
                 unreachable!("value has no span")
             }
-            Value::ArrayLit(span, _)
-            | Value::FormatRecord(span, _, _)
+            Value::FormatRecord(span, _, _)
             | Value::FormatCond(span, _, _, _)
             | Value::FormatOverlap(span, _, _)
             | Value::ConstLit(span, _) => *span,
@@ -408,7 +408,7 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
                 let elem_exprs = (elem_exprs.iter())
                     .map(|elem_expr| self.eval(elem_expr))
                     .collect();
-                SpanValue(*span, Arc::new(Value::ArrayLit(*span, elem_exprs)))
+                SpanValue(*span, Arc::new(Value::ArrayLit(elem_exprs)))
             }
 
             Term::FormatRecord(span, labels, formats) => {
@@ -627,10 +627,11 @@ fn prim_step(prim: Prim) -> Option<PrimStep> {
 
         Prim::Array8Find | Prim::Array16Find | Prim::Array32Find | Prim::Array64Find => {
             step!(context, [_, _, pred, array] => match array.1.as_ref() {
-                Value::ArrayLit(_span, elems) => {
+                Value::ArrayLit(elems) => {
                     for elem in elems {
                         match context.fun_app(pred.clone(), elem.clone()).1.as_ref() {
                             Value::ConstLit(_, Const::Bool(true)) => {
+                                // TODO: Is elem.span right here?
                                 return Some(SpanValue(elem.span(), Arc::new(Value::prim(Prim::OptionSome, [elem.clone()]))))
                             },
                             Value::ConstLit(_, Const::Bool(false)) => {}
@@ -1112,11 +1113,11 @@ impl<'in_arena, 'out_arena, 'env> QuoteContext<'in_arena, 'out_arena, 'env> {
 
                 Term::RecordLit(span, labels, exprs)
             }
-            Value::ArrayLit(span, elem_exprs) => {
+            Value::ArrayLit(elem_exprs) => {
                 let elem_exprs = (self.scope)
                     .to_scope_from_iter(elem_exprs.iter().map(|elem_expr| self.quote(elem_expr)));
 
-                Term::ArrayLit(*span, elem_exprs)
+                Term::ArrayLit(span, elem_exprs)
             }
 
             Value::FormatRecord(span, labels, formats) => {
@@ -1281,7 +1282,7 @@ impl<'arena, 'env> ConversionContext<'arena, 'env> {
                 self.is_equal_record_lit(labels, exprs, &value0)
             }
 
-            (Value::ArrayLit(_, elem_exprs0), Value::ArrayLit(_, elem_exprs1)) => {
+            (Value::ArrayLit(elem_exprs0), Value::ArrayLit(elem_exprs1)) => {
                 Iterator::zip(elem_exprs0.iter(), elem_exprs1.iter())
                     .all(|(elem_expr0, elem_expr1)| self.is_equal(&elem_expr0, &elem_expr1))
             }
@@ -1448,7 +1449,7 @@ mod tests {
             Value::FunLit(_, _) => {}
             Value::RecordType(_, _) => {}
             Value::RecordLit(_, _) => {}
-            Value::ArrayLit(_, _) => {}
+            Value::ArrayLit(_) => {}
             Value::FormatRecord(_, _, _) => {}
             Value::FormatCond(_, _, _, _) => {}
             Value::FormatOverlap(_, _, _) => {}
