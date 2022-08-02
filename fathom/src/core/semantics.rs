@@ -31,6 +31,12 @@ impl<'arena> SpanValue<'arena> {
         SpanValue(Span::Empty, val)
     }
 
+    /// Merge the supplied span and the span of value and return value wrapped in that span.
+    pub fn merge(span: Span, value: ArcValue<'arena>) -> ArcValue<'arena> {
+        let SpanValue(value_span, value) = value;
+        SpanValue(span.merge(&value_span), value)
+    }
+
     pub fn match_prim_spine(&self) -> Option<(Prim, &[Elim<'arena>])> {
         self.1.match_prim_spine()
     }
@@ -335,13 +341,13 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
                 }
                 head_expr
             }
-            Term::Ann(_span, expr, _) => self.eval(expr), // TODO: Should the span be passed down?
-            Term::Let(_span, _, _, def_expr, output_expr) => {
+            Term::Ann(span, expr, _) => SpanValue::merge(*span, self.eval(expr)),
+            Term::Let(span, _, _, def_expr, output_expr) => {
                 let def_expr = self.eval(def_expr);
                 self.rigid_exprs.push(def_expr);
                 let output_expr = self.eval(output_expr);
                 self.rigid_exprs.pop();
-                output_expr // TODO: Wrap output in span?
+                SpanValue::merge(*span, output_expr)
             }
 
             Term::Universe(span) => SpanValue(*span, Arc::new(Value::Universe)),
@@ -361,11 +367,10 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
                     Closure::new(self.rigid_exprs.clone(), output_expr),
                 )),
             ),
-            Term::FunApp(_span, head_expr, input_expr) => {
+            Term::FunApp(span, head_expr, input_expr) => {
                 let head_expr = self.eval(head_expr);
                 let input_expr = self.eval(input_expr);
-                // TODO: set span of Value?
-                self.elim_context().fun_app(head_expr, input_expr)
+                SpanValue::merge(*span, self.elim_context().fun_app(head_expr, input_expr))
             }
 
             Term::RecordType(span, labels, types) => {
@@ -376,10 +381,9 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
                 let exprs = exprs.iter().map(|expr| self.eval(expr)).collect();
                 SpanValue(*span, Arc::new(Value::RecordLit(labels, exprs)))
             }
-            Term::RecordProj(_span, head_expr, label) => {
+            Term::RecordProj(span, head_expr, label) => {
                 let head_expr = self.eval(head_expr);
-                // TODO: set span of Value?
-                self.elim_context().record_proj(head_expr, *label)
+                SpanValue::merge(*span, self.elim_context().record_proj(head_expr, *label))
             }
 
             Term::ArrayLit(span, elem_exprs) => {
@@ -406,11 +410,10 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
             Term::Prim(span, prim) => SpanValue(*span, Arc::new(Value::prim(*prim, []))),
 
             Term::ConstLit(span, r#const) => SpanValue(*span, Arc::new(Value::ConstLit(*r#const))),
-            Term::ConstMatch(_span, head_expr, branches, default_expr) => {
+            Term::ConstMatch(span, head_expr, branches, default_expr) => {
                 let head_expr = self.eval(head_expr);
                 let branches = Branches::new(self.rigid_exprs.clone(), branches, *default_expr);
-                // TODO: set span of Value?
-                self.elim_context().const_match(head_expr, branches)
+                SpanValue::merge(*span, self.elim_context().const_match(head_expr, branches))
             }
         }
     }
