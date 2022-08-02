@@ -235,11 +235,11 @@ impl<'arena, 'env> Context<'arena, 'env> {
                 self.unify(input_type0, input_type1)?;
                 self.unify_closures(output_type0, output_type1)
             }
-            (Value::FunLit(_, _, output_expr0), Value::FunLit(_, _, output_expr1)) => {
+            (Value::FunLit(_, output_expr0), Value::FunLit(_, output_expr1)) => {
                 self.unify_closures(output_expr0, output_expr1)
             }
-            (Value::FunLit(_, _, output_expr), _) => self.unify_fun_lit(output_expr, &value1),
-            (_, Value::FunLit(_, _, output_expr)) => self.unify_fun_lit(output_expr, &value0),
+            (Value::FunLit(_, output_expr), _) => self.unify_fun_lit(output_expr, &value1),
+            (_, Value::FunLit(_, output_expr)) => self.unify_fun_lit(output_expr, &value0),
 
             (Value::RecordType(_, labels0, types0), Value::RecordType(_, labels1, types1)) => {
                 if labels0 != labels1 {
@@ -581,11 +581,11 @@ impl<'arena, 'env> Context<'arena, 'env> {
                     self.scope.to_scope(output_type),
                 ))
             }
-            Value::FunLit(span, input_name, output_expr) => {
+            Value::FunLit(input_name, output_expr) => {
                 let output_expr = self.rename_closure(flexible_var, output_expr)?;
 
                 Ok(Term::FunLit(
-                    *span,
+                    span,
                     *input_name,
                     self.scope.to_scope(output_expr),
                 ))

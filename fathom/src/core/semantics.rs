@@ -55,7 +55,7 @@ pub enum Value<'arena> {
     /// Dependent function types.
     FunType(Option<StringId>, ArcValue<'arena>, Closure<'arena>),
     /// Function literals.
-    FunLit(Span, Option<StringId>, Closure<'arena>),
+    FunLit(Option<StringId>, Closure<'arena>),
 
     /// Record types.
     RecordType(Span, &'arena [StringId], Telescope<'arena>),
@@ -106,11 +106,13 @@ impl<'arena> Value<'arena> {
 
     pub fn span(&self) -> Span {
         match self {
-            Value::Stuck(_, _) | Value::Universe | Value::FunType(_, _, _) => {
+            Value::Stuck(_, _)
+            | Value::Universe
+            | Value::FunType(_, _, _)
+            | Value::FunLit(_, _) => {
                 unreachable!("value has no span")
             }
-            Value::FunLit(span, _, _)
-            | Value::RecordType(span, _, _)
+            Value::RecordType(span, _, _)
             | Value::RecordLit(span, _, _)
             | Value::ArrayLit(span, _)
             | Value::FormatRecord(span, _, _)
@@ -377,7 +379,6 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
             Term::FunLit(span, input_name, output_expr) => SpanValue(
                 *span,
                 Arc::new(Value::FunLit(
-                    *span,
                     *input_name,
                     Closure::new(self.rigid_exprs.clone(), output_expr),
                 )),
@@ -761,7 +762,7 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
     ) -> ArcValue<'arena> {
         match Arc::make_mut(&mut head_expr.1) {
             // Beta-reduction
-            Value::FunLit(_span, _, output_expr) => self.apply_closure(output_expr, input_expr), // FIXME: use span?
+            Value::FunLit(_, output_expr) => self.apply_closure(output_expr, input_expr), // FIXME: use span from head/input exprs?
             // The computation is stuck, preventing further reduction
             Value::Stuck(head, spine) => {
                 spine.push(Elim::FunApp(input_expr));
@@ -1096,10 +1097,10 @@ impl<'in_arena, 'out_arena, 'env> QuoteContext<'in_arena, 'out_arena, 'env> {
                     self.scope.to_scope(output_type),
                 )
             }
-            Value::FunLit(span, input_name, output_expr) => {
+            Value::FunLit(input_name, output_expr) => {
                 let output_expr = self.quote_closure(output_expr);
 
-                Term::FunLit(*span, *input_name, self.scope.to_scope(output_expr))
+                Term::FunLit(span, *input_name, self.scope.to_scope(output_expr))
             }
 
             Value::RecordType(span, labels, types) => {
@@ -1263,11 +1264,11 @@ impl<'arena, 'env> ConversionContext<'arena, 'env> {
                 self.is_equal(input_type0, input_type1)
                     && self.is_equal_closures(output_type0, output_type1)
             }
-            (Value::FunLit(_, _, output_expr0), Value::FunLit(_, _, output_expr1)) => {
+            (Value::FunLit(_, output_expr0), Value::FunLit(_, output_expr1)) => {
                 self.is_equal_closures(output_expr0, output_expr1)
             }
-            (Value::FunLit(_, _, output_expr), _) => self.is_equal_fun_lit(output_expr, &value1),
-            (_, Value::FunLit(_, _, output_expr)) => self.is_equal_fun_lit(output_expr, &value0),
+            (Value::FunLit(_, output_expr), _) => self.is_equal_fun_lit(output_expr, &value1),
+            (_, Value::FunLit(_, output_expr)) => self.is_equal_fun_lit(output_expr, &value0),
 
             (Value::RecordType(_, labels0, types0), Value::RecordType(_, labels1, types1)) => {
                 labels0 == labels1 && self.is_equal_telescopes(types0, types1)
@@ -1448,7 +1449,7 @@ mod tests {
             Value::Stuck(_, _) => {}
             Value::Universe => {}
             Value::FunType(_, _, _) => {}
-            Value::FunLit(_, _, _) => {}
+            Value::FunLit(_, _) => {}
             Value::RecordType(_, _, _) => {}
             Value::RecordLit(_, _, _) => {}
             Value::ArrayLit(_, _) => {}
