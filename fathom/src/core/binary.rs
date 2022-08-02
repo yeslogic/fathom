@@ -410,10 +410,10 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
             (Prim::FormatF32Le, []) => read_const(reader, span, read_f32le, Const::F32),
             (Prim::FormatF64Be, []) => read_const(reader, span, read_f64be, Const::F64),
             (Prim::FormatF64Le, []) => read_const(reader, span, read_f64le, Const::F64),
-            (Prim::FormatArray8, [FunApp(len), FunApp(format)]) => self.read_array(reader, len, format),
-            (Prim::FormatArray16, [FunApp(len), FunApp(format)]) => self.read_array(reader, len, format),
-            (Prim::FormatArray32, [FunApp(len), FunApp(format)]) => self.read_array(reader, len, format),
-            (Prim::FormatArray64, [FunApp(len), FunApp(format)]) => self.read_array(reader, len, format),
+            (Prim::FormatArray8, [FunApp(len), FunApp(format)]) => self.read_array(reader, span, len, format),
+            (Prim::FormatArray16, [FunApp(len), FunApp(format)]) => self.read_array(reader, span, len, format),
+            (Prim::FormatArray32, [FunApp(len), FunApp(format)]) => self.read_array(reader, span, len, format),
+            (Prim::FormatArray64, [FunApp(len), FunApp(format)]) => self.read_array(reader, span, len, format),
             (Prim::FormatRepeatUntilEnd, [FunApp(format)]) => self.read_repeat_until_end(reader, format),
             (Prim::FormatLimit8, [FunApp(limit), FunApp(format)]) => self.read_limit(reader, limit, format),
             (Prim::FormatLimit16, [FunApp(limit), FunApp(format)]) => self.read_limit(reader, limit, format),
@@ -436,6 +436,7 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
     fn read_array(
         &mut self,
         reader: &mut BufferReader<'data>,
+        span: Span,
         len: &ArcValue<'arena>,
         elem_format: &ArcValue<'arena>,
     ) -> Result<ArcValue<'arena>, ReadError<'arena>> {
@@ -451,10 +452,7 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
             .map(|_| self.read_format(reader, elem_format))
             .collect::<Result<_, _>>()?;
 
-        Ok(SpanValue(
-            elem_format.span(),
-            Arc::new(Value::ArrayLit(elem_exprs)),
-        ))
+        Ok(SpanValue(span, Arc::new(Value::ArrayLit(elem_exprs))))
     }
 
     fn read_repeat_until_end(
