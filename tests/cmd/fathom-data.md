@@ -291,3 +291,18 @@ error: mismatched types
 
 
 ```
+
+### Unwrap none
+
+Unwrapping a none value will result in an error
+
+```console
+$ fathom data --module formats/unwrap-none.fathom
+>             formats/data/opentype/aots/cmap0_font1.otf
+? failed
+error: unwrapped none
+ = option_unwrap was called on a none value.
+
+
+```
+
