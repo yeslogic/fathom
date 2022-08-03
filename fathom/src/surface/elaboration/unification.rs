@@ -332,8 +332,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
         closure0: &Closure<'arena>,
         closure1: &Closure<'arena>,
     ) -> Result<(), Error> {
-        let var =
-            SpanValue::empty_fixme(Arc::new(Value::rigid_var(self.rigid_exprs.next_global())));
+        let var = SpanValue::empty(Arc::new(Value::rigid_var(self.rigid_exprs.next_global())));
         let value0 = self.elim_context().apply_closure(closure0, var.clone());
         let value1 = self.elim_context().apply_closure(closure1, var);
 
@@ -367,8 +366,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
                 return Err(error);
             }
 
-            let var =
-                SpanValue::empty_fixme(Arc::new(Value::rigid_var(self.rigid_exprs.next_global())));
+            let var = SpanValue::empty(Arc::new(Value::rigid_var(self.rigid_exprs.next_global())));
             telescope0 = next_telescope0(var.clone());
             telescope1 = next_telescope1(var);
             self.rigid_exprs.push();
@@ -388,8 +386,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
         output_expr: &Closure<'arena>,
         value: &ArcValue<'arena>,
     ) -> Result<(), Error> {
-        let var =
-            SpanValue::empty_fixme(Arc::new(Value::rigid_var(self.rigid_exprs.next_global())));
+        let var = SpanValue::empty(Arc::new(Value::rigid_var(self.rigid_exprs.next_global())));
         let value = self.elim_context().fun_app(value.clone(), var.clone());
         let output_expr = self.elim_context().apply_closure(output_expr, var);
 
@@ -666,7 +663,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
             match self.rename(flexible_var, &value) {
                 Ok(term) => {
                     terms.push(term);
-                    let var = SpanValue::empty_fixme(Arc::new(Value::rigid_var(
+                    let var = SpanValue::empty(Arc::new(Value::rigid_var(
                         self.rigid_exprs.next_global(),
                     )));
                     telescope = next_telescope(var);
@@ -711,7 +708,7 @@ impl PartialRenaming {
     }
 
     fn next_rigid_var<'arena>(&self) -> ArcValue<'arena> {
-        SpanValue::empty_fixme(Arc::new(Value::rigid_var(self.source.len().next_global())))
+        SpanValue::empty(Arc::new(Value::rigid_var(self.source.len().next_global())))
     }
 
     /// Set a rigid source variable to rigid target variable mapping, ensuring

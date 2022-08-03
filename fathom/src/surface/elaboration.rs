@@ -498,8 +498,7 @@ impl<'arena> RigidEnv<'arena> {
     fn push_param(&mut self, name: Option<StringId>, r#type: ArcValue<'arena>) -> ArcValue<'arena> {
         // An expression that refers to itself once it is pushed onto the rigid
         // expression environment.
-        let expr =
-            SpanValue::empty_fixme(Arc::new(Value::rigid_var(self.exprs.len().next_global())));
+        let expr = SpanValue::empty(Arc::new(Value::rigid_var(self.exprs.len().next_global())));
 
         self.names.push(name);
         self.types.push(r#type);
@@ -1253,7 +1252,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
             }
             Pattern::BooleanLiteral(range, val) => {
                 let r#const = Const::Bool(*val);
-                let r#type = SpanValue::empty_fixme(Arc::new(Value::prim(Prim::BoolType, [])));
+                let r#type = SpanValue::empty(Arc::new(Value::prim(Prim::BoolType, [])));
                 (CheckedPattern::Const(*range, r#const), r#type)
             }
         }
@@ -1861,12 +1860,12 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
 
                 (
                     core::Term::RecordLit(range.into(), labels, exprs.into()),
-                    SpanValue::empty_fixme(Arc::new(Value::RecordType(labels, types))),
+                    SpanValue::empty(Arc::new(Value::RecordType(labels, types))),
                 )
             }
             Term::UnitLiteral(range) => (
                 core::Term::RecordLit(range.into(), &[], &[]),
-                SpanValue::empty_fixme(Arc::new(Value::RecordType(
+                SpanValue::empty(Arc::new(Value::RecordType(
                     &[],
                     Telescope::new(SharedEnv::new(), &[]),
                 ))),
@@ -1924,15 +1923,14 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 self.synth_reported_error(*range)
             }
             Term::BooleanLiteral(range, val) => {
-                let bool_type = SpanValue::empty_fixme(Arc::new(Value::prim(Prim::BoolType, [])));
+                let bool_type = SpanValue::empty(Arc::new(Value::prim(Prim::BoolType, [])));
                 (
                     core::Term::ConstLit(range.into(), Const::Bool(*val)),
                     bool_type,
                 )
             }
             Term::FormatRecord(range, format_fields) => {
-                let format_type =
-                    SpanValue::empty_fixme(Arc::new(Value::prim(Prim::FormatType, [])));
+                let format_type = SpanValue::empty(Arc::new(Value::prim(Prim::FormatType, [])));
                 let (labels, formats) = self.check_format_fields(*range, format_fields);
 
                 (
@@ -1941,13 +1939,12 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 )
             }
             Term::FormatCond(range, (_, name), format, pred) => {
-                let format_type =
-                    SpanValue::empty_fixme(Arc::new(Value::prim(Prim::FormatType, [])));
+                let format_type = SpanValue::empty(Arc::new(Value::prim(Prim::FormatType, [])));
                 let format = self.check(format, &format_type);
                 let format_value = self.eval_context().eval(&format);
                 let repr_type = self.elim_context().format_repr(&format_value);
                 self.rigid_env.push_param(Some(*name), repr_type);
-                let bool_type = SpanValue::empty_fixme(Arc::new(Value::prim(Prim::BoolType, [])));
+                let bool_type = SpanValue::empty(Arc::new(Value::prim(Prim::BoolType, [])));
                 let pred_expr = self.check(pred, &bool_type);
                 self.rigid_env.pop();
 
@@ -1962,8 +1959,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 )
             }
             Term::FormatOverlap(range, format_fields) => {
-                let format_type =
-                    SpanValue::empty_fixme(Arc::new(Value::prim(Prim::FormatType, [])));
+                let format_type = SpanValue::empty(Arc::new(Value::prim(Prim::FormatType, [])));
                 let (labels, formats) = self.check_format_fields(*range, format_fields);
 
                 (
@@ -2300,7 +2296,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
         // TODO: Maybe it would be good to reuse lhs_type here if output_type is the same
         (
             fun_app,
-            SpanValue::empty_fixme(Arc::new(Value::prim(output_type, []))),
+            SpanValue::empty(Arc::new(Value::prim(output_type, []))),
         )
     }
 
@@ -2320,8 +2316,8 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
         format_fields: &[FormatField<'_, ByteRange>],
     ) -> (&'arena [StringId], &'arena [core::Term<'arena>]) {
         let universe_type = Value::arc_universe();
-        let format_type = SpanValue::empty_fixme(Arc::new(Value::prim(Prim::FormatType, [])));
-        let bool_type = SpanValue::empty_fixme(Arc::new(Value::prim(Prim::BoolType, [])));
+        let format_type = SpanValue::empty(Arc::new(Value::prim(Prim::FormatType, [])));
+        let bool_type = SpanValue::empty(Arc::new(Value::prim(Prim::BoolType, [])));
 
         let initial_rigid_len = self.rigid_env.len();
         let (labels, format_fields) =

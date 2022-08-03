@@ -23,10 +23,6 @@ impl<'arena> SpanValue<'arena> {
         self.0
     }
 
-    pub fn empty_fixme(val: Arc<Value<'arena>>) -> Self {
-        SpanValue::empty(val)
-    }
-
     pub fn empty(val: Arc<Value<'arena>>) -> Self {
         SpanValue(Span::Empty, val)
     }
@@ -436,13 +432,13 @@ macro_rules! step {
 macro_rules! const_step {
     ([$($input:ident : $Input:ident),*] => $output:expr) => {
         step!(_, [$($input),*] => match ($($input.1.as_ref(),)*) {
-            ($(Value::ConstLit(Const::$Input($input, ..)),)*) => SpanValue::empty_fixme(Arc::new(Value::ConstLit($output))),
+            ($(Value::ConstLit(Const::$Input($input, ..)),)*) => SpanValue::empty(Arc::new(Value::ConstLit($output))),
             _ => return None,
         })
     };
     ([$($input:ident , $style:ident : $Input:ident),*] => $output:expr) => {
         step!(_, [$($input),*] => match ($($input.1.as_ref(),)*) {
-            ($(Value::ConstLit(Const::$Input($input, $style)),)*) => SpanValue::empty_fixme(Arc::new(Value::ConstLit($output))),
+            ($(Value::ConstLit(Const::$Input($input, $style)),)*) => SpanValue::empty(Arc::new(Value::ConstLit($output))),
             _ => return None,
         })
     };
@@ -611,7 +607,7 @@ fn prim_step(prim: Prim) -> Option<PrimStep> {
                             _ => return None,
                         }
                     }
-                    SpanValue::empty_fixme(Arc::new(Value::prim(Prim::OptionNone, [])))
+                    SpanValue::empty(Arc::new(Value::prim(Prim::OptionNone, [])))
                 }
                 _ => return None,
             })
@@ -1125,7 +1121,7 @@ impl<'in_arena, 'out_arena, 'env> QuoteContext<'in_arena, 'out_arena, 'env> {
         let var = Arc::new(Value::rigid_var(self.rigid_exprs.next_global()));
         let value = self
             .elim_context()
-            .apply_closure(closure, SpanValue::empty_fixme(var));
+            .apply_closure(closure, SpanValue::empty(var));
 
         self.push_rigid();
         let term = self.quote(&value);
@@ -1145,7 +1141,7 @@ impl<'in_arena, 'out_arena, 'env> QuoteContext<'in_arena, 'out_arena, 'env> {
 
         while let Some((value, next_telescope)) = self.elim_context().split_telescope(telescope) {
             let var = Arc::new(Value::rigid_var(self.rigid_exprs.next_global()));
-            telescope = next_telescope(SpanValue::empty_fixme(var));
+            telescope = next_telescope(SpanValue::empty(var));
             terms.push(self.quote(&value));
             self.rigid_exprs.push();
         }
@@ -1316,8 +1312,7 @@ impl<'arena, 'env> ConversionContext<'arena, 'env> {
                 return false;
             }
 
-            let var =
-                SpanValue::empty_fixme(Arc::new(Value::rigid_var(self.rigid_exprs.next_global())));
+            let var = SpanValue::empty(Arc::new(Value::rigid_var(self.rigid_exprs.next_global())));
             telescope0 = next_telescope0(var.clone());
             telescope1 = next_telescope1(var);
             self.rigid_exprs.push();
