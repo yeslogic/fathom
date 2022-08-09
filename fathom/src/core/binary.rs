@@ -7,10 +7,10 @@ use std::fmt::Debug;
 use std::slice::SliceIndex;
 use std::sync::Arc;
 
-use crate::core::semantics::{self, ArcValue, Elim, Head, Spanned, Value};
+use crate::core::semantics::{self, ArcValue, Elim, Head, Value};
 use crate::core::{Const, Prim, UIntStyle};
 use crate::env::{EnvLen, SliceEnv};
-use crate::source::Span;
+use crate::source::{Span, Spanned};
 
 #[derive(Clone, Debug)]
 pub enum ReadError<'arena> {

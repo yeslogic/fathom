@@ -1,9 +1,41 @@
+use std::ops::Deref;
+
 ///! Types related to source files.
 
 /// File id.
 pub type FileId = usize; // TODO: use wrapper struct
 
-// TODO: Better name?
+#[derive(Debug, Clone)]
+pub struct Spanned<T> {
+    pub span: Span,
+    pub inner: T,
+}
+
+impl<T> Spanned<T> {
+    pub fn span(&self) -> Span {
+        self.span
+    }
+
+    pub fn empty(inner: T) -> Self {
+        Spanned {
+            span: Span::Empty,
+            inner,
+        }
+    }
+
+    /// Merge the supplied span and the span of value and return value wrapped in that span.
+    pub fn merge(span: Span, other: Spanned<T>) -> Spanned<T> {
+        let Spanned {
+            span: other_span,
+            inner,
+        } = other;
+        Spanned {
+            span: span.merge(&other_span),
+            inner,
+        }
+    }
+}
+
 #[derive(Debug, Copy, Clone)]
 pub enum Span {
     Range(ByteRange),
@@ -13,6 +45,13 @@ pub enum Span {
 impl Span {
     pub const fn fixme() -> Span {
         Span::Empty
+    }
+
+    pub fn merge(&self, other: &Span) -> Span {
+        match (self, other) {
+            (Span::Range(a), Span::Range(b)) => a.merge(b).map(Span::Range).unwrap_or(Span::Empty),
+            (_, _) => Span::Empty,
+        }
     }
 }
 

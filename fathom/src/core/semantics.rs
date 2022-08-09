@@ -8,43 +8,12 @@ use std::sync::Arc;
 use crate::alloc::SliceVec;
 use crate::core::{Const, EntryInfo, Prim, Term, UIntStyle};
 use crate::env::{EnvLen, GlobalVar, SharedEnv, SliceEnv};
-use crate::source::Span;
+use crate::source::{Span, Spanned};
 use crate::StringId;
 
 /// Atomically reference counted values. We use reference counting to increase
 /// the amount of sharing we can achieve during evaluation.
 pub type ArcValue<'arena> = Spanned<Arc<Value<'arena>>>;
-
-#[derive(Debug, Clone)]
-pub struct Spanned<T> {
-    pub span: Span,
-    pub inner: T,
-}
-
-impl<T> Spanned<T> {
-    pub fn span(&self) -> Span {
-        self.span
-    }
-
-    pub fn empty(inner: T) -> Self {
-        Spanned {
-            span: Span::Empty,
-            inner,
-        }
-    }
-
-    /// Merge the supplied span and the span of value and return value wrapped in that span.
-    pub fn merge(span: Span, other: Spanned<T>) -> Spanned<T> {
-        let Spanned {
-            span: other_span,
-            inner,
-        } = other;
-        Spanned {
-            span: span.merge(&other_span),
-            inner,
-        }
-    }
-}
 
 impl<'arena> ArcValue<'arena> {
     pub fn match_prim_spine(&self) -> Option<(Prim, &[Elim<'arena>])> {

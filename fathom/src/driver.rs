@@ -7,8 +7,7 @@ use std::path::Path;
 
 use crate::core::binary;
 use crate::core::binary::{BufferError, ReadError};
-use crate::core::semantics::Spanned;
-use crate::source::{ByteRange, FileId, Span};
+use crate::source::{ByteRange, FileId, Span, Spanned};
 use crate::surface::{self, elaboration};
 use crate::{StringInterner, BUG_REPORT_URL};
 
