@@ -20,7 +20,7 @@ use std::sync::Arc;
 
 use crate::alloc::SliceVec;
 use crate::core::semantics::{
-    self, ArcValue, Closure, Elim, Head, SpanValue, SplitBranches, Telescope, Value,
+    self, ArcValue, Closure, Elim, Head, Spanned, SplitBranches, Telescope, Value,
 };
 use crate::core::{Prim, Term};
 use crate::env::{EnvLen, GlobalVar, LocalVar, SharedEnv, SliceEnv, UniqueEnv};
@@ -195,14 +195,14 @@ impl<'arena, 'env> Context<'arena, 'env> {
         value1: &ArcValue<'arena>,
     ) -> Result<(), Error> {
         // Check for pointer equality before trying to force the values
-        if Arc::ptr_eq(&value0.1, &value1.1) {
+        if Arc::ptr_eq(&value0.inner, &value1.inner) {
             return Ok(());
         }
 
         let value0 = self.elim_context().force(value0);
         let value1 = self.elim_context().force(value1);
 
-        match (value0.1.as_ref(), value1.1.as_ref()) {
+        match (value0.inner.as_ref(), value1.inner.as_ref()) {
             // `ReportedError`s result from errors that have already been
             // reported, so we prevent them from triggering more errors.
             (Value::Stuck(Head::Prim(Prim::ReportedError), _), _)
@@ -332,7 +332,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
         closure0: &Closure<'arena>,
         closure1: &Closure<'arena>,
     ) -> Result<(), Error> {
-        let var = SpanValue::empty(Arc::new(Value::rigid_var(self.rigid_exprs.next_global())));
+        let var = Spanned::empty(Arc::new(Value::rigid_var(self.rigid_exprs.next_global())));
         let value0 = self.elim_context().apply_closure(closure0, var.clone());
         let value1 = self.elim_context().apply_closure(closure1, var);
 
@@ -366,7 +366,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
                 return Err(error);
             }
 
-            let var = SpanValue::empty(Arc::new(Value::rigid_var(self.rigid_exprs.next_global())));
+            let var = Spanned::empty(Arc::new(Value::rigid_var(self.rigid_exprs.next_global())));
             telescope0 = next_telescope0(var.clone());
             telescope1 = next_telescope1(var);
             self.rigid_exprs.push();
@@ -386,7 +386,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
         output_expr: &Closure<'arena>,
         value: &ArcValue<'arena>,
     ) -> Result<(), Error> {
-        let var = SpanValue::empty(Arc::new(Value::rigid_var(self.rigid_exprs.next_global())));
+        let var = Spanned::empty(Arc::new(Value::rigid_var(self.rigid_exprs.next_global())));
         let value = self.elim_context().fun_app(value.clone(), var.clone());
         let output_expr = self.elim_context().apply_closure(output_expr, var);
 
@@ -455,7 +455,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
         for elim in spine {
             match elim {
                 Elim::FunApp(input_expr) => {
-                    match self.elim_context().force(input_expr).1.as_ref() {
+                    match self.elim_context().force(input_expr).inner.as_ref() {
                         Value::Stuck(Head::RigidVar(source_var), spine)
                             if spine.is_empty() && self.renaming.set_rigid(*source_var) => {}
                         Value::Stuck(Head::RigidVar(source_var), _) => {
@@ -498,7 +498,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
     ) -> Result<Term<'arena>, RenameError> {
         let val = self.elim_context().force(value);
         let span = val.span();
-        match val.1.as_ref() {
+        match val.inner.as_ref() {
             Value::Stuck(head, spine) => {
                 let head_expr = match head {
                     Head::Prim(prim) => Term::Prim(span, *prim),
@@ -663,9 +663,8 @@ impl<'arena, 'env> Context<'arena, 'env> {
             match self.rename(flexible_var, &value) {
                 Ok(term) => {
                     terms.push(term);
-                    let var = SpanValue::empty(Arc::new(Value::rigid_var(
-                        self.rigid_exprs.next_global(),
-                    )));
+                    let var =
+                        Spanned::empty(Arc::new(Value::rigid_var(self.rigid_exprs.next_global())));
                     telescope = next_telescope(var);
                     self.rigid_exprs.push();
                 }
@@ -708,7 +707,7 @@ impl PartialRenaming {
     }
 
     fn next_rigid_var<'arena>(&self) -> ArcValue<'arena> {
-        SpanValue::empty(Arc::new(Value::rigid_var(self.source.len().next_global())))
+        Spanned::empty(Arc::new(Value::rigid_var(self.source.len().next_global())))
     }
 
     /// Set a rigid source variable to rigid target variable mapping, ensuring

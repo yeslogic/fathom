@@ -7,7 +7,7 @@ use std::path::Path;
 
 use crate::core::binary;
 use crate::core::binary::{BufferError, ReadError};
-use crate::core::semantics::SpanValue;
+use crate::core::semantics::Spanned;
 use crate::source::{ByteRange, FileId, Span};
 use crate::surface::{self, elaboration};
 use crate::{StringInterner, BUG_REPORT_URL};
@@ -301,7 +301,10 @@ impl<'surface, 'core> Driver<'surface, 'core> {
         let surface_format = self.parse_term(format_file_id);
         let format_term = context.check(
             &surface_format,
-            &SpanValue(Span::Empty, Arc::new(Value::prim(Prim::FormatType, []))),
+            &Spanned {
+                span: Span::Empty,
+                inner: Arc::new(Value::prim(Prim::FormatType, [])),
+            },
         );
 
         // Emit errors we might have found during elaboration

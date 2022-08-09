@@ -26,7 +26,7 @@ use std::str::FromStr;
 use std::sync::Arc;
 
 use crate::alloc::SliceVec;
-use crate::core::semantics::{self, ArcValue, Closure, Head, SpanValue, Telescope, Value};
+use crate::core::semantics::{self, ArcValue, Closure, Head, Spanned, Telescope, Value};
 use crate::core::{self, binary, Const, Prim, UIntStyle};
 use crate::env::{self, EnvLen, GlobalVar, SharedEnv, SliceEnv, UniqueEnv};
 use crate::source::{ByteRange, Span};
@@ -498,7 +498,7 @@ impl<'arena> RigidEnv<'arena> {
     fn push_param(&mut self, name: Option<StringId>, r#type: ArcValue<'arena>) -> ArcValue<'arena> {
         // An expression that refers to itself once it is pushed onto the rigid
         // expression environment.
-        let expr = SpanValue::empty(Arc::new(Value::rigid_var(self.exprs.len().next_global())));
+        let expr = Spanned::empty(Arc::new(Value::rigid_var(self.exprs.len().next_global())));
 
         self.names.push(name);
         self.types.push(r#type);
@@ -557,7 +557,10 @@ impl<'i, 'arena> RigidEnvBuilder<'i, 'arena> {
                 .eval(r#type);
         self.env.push_def(
             name,
-            SpanValue(Span::Empty, Arc::new(Value::prim(prim, []))),
+            Spanned {
+                span: Span::Empty,
+                inner: Arc::new(Value::prim(prim, [])),
+            },
             r#type,
         );
     }
@@ -1252,7 +1255,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
             }
             Pattern::BooleanLiteral(range, val) => {
                 let r#const = Const::Bool(*val);
-                let r#type = SpanValue::empty(Arc::new(Value::prim(Prim::BoolType, [])));
+                let r#type = Spanned::empty(Arc::new(Value::prim(Prim::BoolType, [])));
                 (CheckedPattern::Const(*range, r#const), r#type)
             }
         }
@@ -1372,7 +1375,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
     ) -> core::Term<'arena> {
         let expected_type = self.elim_context().force(expected_type);
 
-        match (surface_term, expected_type.1.as_ref()) {
+        match (surface_term, expected_type.inner.as_ref()) {
             (Term::Let(range, def_pattern, def_type, def_expr, output_expr), _) => {
                 let (def_pattern, def_type_value) = self.synth_ann_pattern(def_pattern, *def_type);
                 let def_type = self.quote_context(self.scope).quote(&def_type_value); // FIXME: avoid requote if possible?
@@ -1483,7 +1486,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                     }
                 };
 
-                let len = match len_value.map(|val| (val.0, val.1.as_ref())) {
+                let len = match len_value.map(|val| (val.span(), val.inner.as_ref())) {
                     None => Some(elem_exprs.len() as u64),
                     Some((_, Value::ConstLit(Const::U8(len, _)))) => Some(*len as u64),
                     Some((_, Value::ConstLit(Const::U16(len, _)))) => Some(*len as u64),
@@ -1744,9 +1747,9 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 (
                     core::Term::FunLit(range.into(), input_name, self.scope.to_scope(output_expr)),
                     // FIXME: Should this use range too?
-                    SpanValue(
-                        Span::Empty,
-                        Arc::new(Value::FunType(
+                    Spanned {
+                        span: Span::Empty,
+                        inner: Arc::new(Value::FunType(
                             input_name,
                             input_type,
                             Closure::new(
@@ -1754,7 +1757,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                                 self.scope.to_scope(output_type),
                             ),
                         )),
-                    ),
+                    },
                 )
             }
             Term::App(range, head_expr, input_expr) => {
@@ -1763,7 +1766,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
 
                 // Ensure that the head type is a function type
                 let head_type = self.elim_context().force(&head_type);
-                let (head_expr, input_type, output_type) = match head_type.1.as_ref() {
+                let (head_expr, input_type, output_type) = match head_type.inner.as_ref() {
                     // The simple case - it's easy to see that it is a function type!
                     Value::FunType(_, input_type, output_type) => {
                         (head_expr, input_type.clone(), output_type.clone())
@@ -1793,7 +1796,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                             self.rigid_env.exprs.clone(),
                             self.scope.to_scope(output_type),
                         );
-                        let fun_type = SpanValue::empty(Arc::new(Value::FunType(
+                        let fun_type = Spanned::empty(Arc::new(Value::FunType(
                             None,
                             input_type.clone(),
                             output_type.clone(),
@@ -1860,12 +1863,12 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
 
                 (
                     core::Term::RecordLit(range.into(), labels, exprs.into()),
-                    SpanValue::empty(Arc::new(Value::RecordType(labels, types))),
+                    Spanned::empty(Arc::new(Value::RecordType(labels, types))),
                 )
             }
             Term::UnitLiteral(range) => (
                 core::Term::RecordLit(range.into(), &[], &[]),
-                SpanValue::empty(Arc::new(Value::RecordType(
+                Spanned::empty(Arc::new(Value::RecordType(
                     &[],
                     Telescope::new(SharedEnv::new(), &[]),
                 ))),
@@ -1876,7 +1879,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 let head_expr_value = self.eval_context().eval(&head_expr);
 
                 let head_type = self.elim_context().force(&head_type);
-                match head_type.1.as_ref() {
+                match head_type.inner.as_ref() {
                     Value::RecordType(labels, types) => {
                         let mut labels = labels.iter();
                         let mut types = types.clone();
@@ -1923,14 +1926,14 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 self.synth_reported_error(*range)
             }
             Term::BooleanLiteral(range, val) => {
-                let bool_type = SpanValue::empty(Arc::new(Value::prim(Prim::BoolType, [])));
+                let bool_type = Spanned::empty(Arc::new(Value::prim(Prim::BoolType, [])));
                 (
                     core::Term::ConstLit(range.into(), Const::Bool(*val)),
                     bool_type,
                 )
             }
             Term::FormatRecord(range, format_fields) => {
-                let format_type = SpanValue::empty(Arc::new(Value::prim(Prim::FormatType, [])));
+                let format_type = Spanned::empty(Arc::new(Value::prim(Prim::FormatType, [])));
                 let (labels, formats) = self.check_format_fields(*range, format_fields);
 
                 (
@@ -1939,12 +1942,12 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 )
             }
             Term::FormatCond(range, (_, name), format, pred) => {
-                let format_type = SpanValue::empty(Arc::new(Value::prim(Prim::FormatType, [])));
+                let format_type = Spanned::empty(Arc::new(Value::prim(Prim::FormatType, [])));
                 let format = self.check(format, &format_type);
                 let format_value = self.eval_context().eval(&format);
                 let repr_type = self.elim_context().format_repr(&format_value);
                 self.rigid_env.push_param(Some(*name), repr_type);
-                let bool_type = SpanValue::empty(Arc::new(Value::prim(Prim::BoolType, [])));
+                let bool_type = Spanned::empty(Arc::new(Value::prim(Prim::BoolType, [])));
                 let pred_expr = self.check(pred, &bool_type);
                 self.rigid_env.pop();
 
@@ -1959,7 +1962,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 )
             }
             Term::FormatOverlap(range, format_fields) => {
-                let format_type = SpanValue::empty(Arc::new(Value::prim(Prim::FormatType, [])));
+                let format_type = Spanned::empty(Arc::new(Value::prim(Prim::FormatType, [])));
                 let (labels, formats) = self.check_format_fields(*range, format_fields);
 
                 (
@@ -2296,7 +2299,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
         // TODO: Maybe it would be good to reuse lhs_type here if output_type is the same
         (
             fun_app,
-            SpanValue::empty(Arc::new(Value::prim(output_type, []))),
+            Spanned::empty(Arc::new(Value::prim(output_type, []))),
         )
     }
 
@@ -2316,8 +2319,8 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
         format_fields: &[FormatField<'_, ByteRange>],
     ) -> (&'arena [StringId], &'arena [core::Term<'arena>]) {
         let universe_type = Value::arc_universe();
-        let format_type = SpanValue::empty(Arc::new(Value::prim(Prim::FormatType, [])));
-        let bool_type = SpanValue::empty(Arc::new(Value::prim(Prim::BoolType, [])));
+        let format_type = Spanned::empty(Arc::new(Value::prim(Prim::FormatType, [])));
+        let bool_type = Spanned::empty(Arc::new(Value::prim(Prim::BoolType, [])));
 
         let initial_rigid_len = self.rigid_env.len();
         let (labels, format_fields) =
