@@ -450,7 +450,7 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
         len: &ArcValue<'arena>,
         elem_format: &ArcValue<'arena>,
     ) -> Result<ArcValue<'arena>, ReadError<'arena>> {
-        let len = match self.elim_context().force(len).inner.as_ref() {
+        let len = match self.elim_context().force(len).as_ref() {
             Value::ConstLit(Const::U8(len, _)) => u64::from(*len),
             Value::ConstLit(Const::U16(len, _)) => u64::from(*len),
             Value::ConstLit(Const::U32(len, _)) => u64::from(*len),
@@ -503,7 +503,7 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
         elem_format: &ArcValue<'arena>,
     ) -> Result<ArcValue<'arena>, ReadError<'arena>> {
         let len_span = len.span();
-        let len = match self.elim_context().force(len).inner.as_ref() {
+        let len = match self.elim_context().force(len).as_ref() {
             Value::ConstLit(Const::U8(len, _)) => Some(usize::from(*len)),
             Value::ConstLit(Const::U16(len, _)) => Some(usize::from(*len)),
             Value::ConstLit(Const::U32(len, _)) => usize::try_from(*len).ok(),
@@ -526,7 +526,7 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
         pos_value: &ArcValue<'arena>,
         elem_format: &ArcValue<'arena>,
     ) -> Result<ArcValue<'arena>, ReadError<'arena>> {
-        let pos = match self.elim_context().force(pos_value).inner.as_ref() {
+        let pos = match self.elim_context().force(pos_value).as_ref() {
             Value::ConstLit(Const::Pos(pos)) => *pos,
             _ => return Err(ReadError::InvalidValue(pos_value.span())),
         };
@@ -544,7 +544,7 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
         format: &ArcValue<'arena>,
         r#ref: &ArcValue<'arena>,
     ) -> Result<ArcValue<'arena>, ReadError<'arena>> {
-        let pos = match self.elim_context().force(r#ref).inner.as_ref() {
+        let pos = match self.elim_context().force(r#ref).as_ref() {
             Value::ConstLit(Const::Ref(pos)) => *pos,
             _ => return Err(ReadError::InvalidValue(r#ref.span())),
         };

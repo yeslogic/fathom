@@ -453,13 +453,13 @@ macro_rules! step {
 // TODO: Should we merge the spans of the input idents to produce the output span?
 macro_rules! const_step {
     ([$($input:ident : $Input:ident),*] => $output:expr) => {
-        step!(_, [$($input),*] => match ($($input.inner.as_ref(),)*) {
+        step!(_, [$($input),*] => match ($($input.as_ref(),)*) {
             ($(Value::ConstLit(Const::$Input($input, ..)),)*) => Spanned::empty(Arc::new(Value::ConstLit($output))),
             _ => return None,
         })
     };
     ([$($input:ident , $style:ident : $Input:ident),*] => $output:expr) => {
-        step!(_, [$($input),*] => match ($($input.inner.as_ref(),)*) {
+        step!(_, [$($input),*] => match ($($input.as_ref(),)*) {
             ($(Value::ConstLit(Const::$Input($input, $style)),)*) => Spanned::empty(Arc::new(Value::ConstLit($output))),
             _ => return None,
         })
@@ -617,10 +617,10 @@ fn prim_step(prim: Prim) -> Option<PrimStep> {
         }),
 
         Prim::Array8Find | Prim::Array16Find | Prim::Array32Find | Prim::Array64Find => {
-            step!(context, [_, _, pred, array] => match array.inner.as_ref() {
+            step!(context, [_, _, pred, array] => match array.as_ref() {
                 Value::ArrayLit(elems) => {
                     for elem in elems {
-                        match context.fun_app(pred.clone(), elem.clone()).inner.as_ref() {
+                        match context.fun_app(pred.clone(), elem.clone()).as_ref() {
                             Value::ConstLit(Const::Bool(true)) => {
                                 // TODO: Is elem.span right here?
                                 return Some(Spanned{ span: elem.span(), inner: Arc::new(Value::prim(Prim::OptionSome, [elem.clone()])) })
@@ -676,7 +676,7 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
     pub fn force(&self, value: &ArcValue<'arena>) -> ArcValue<'arena> {
         let mut forced_value = value.clone();
         // Attempt to force flexible values until we don't see any more.
-        while let Value::Stuck(Head::FlexibleVar(var), spine) = forced_value.inner.as_ref() {
+        while let Value::Stuck(Head::FlexibleVar(var), spine) = forced_value.as_ref() {
             match self.flexible_exprs.get_global(*var) {
                 // Apply the spine to the solution. This might uncover another
                 // flexible value so we'll continue looping.
@@ -841,7 +841,7 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
 
     /// Find the representation type of a format description.
     pub fn format_repr(&self, format: &ArcValue<'arena>) -> ArcValue<'arena> {
-        match format.inner.as_ref() {
+        match format.as_ref() {
             Value::FormatRecord(labels, formats) | Value::FormatOverlap(labels, formats) => {
                 Spanned {
                     span: format.span(),
@@ -1044,7 +1044,7 @@ impl<'in_arena, 'out_arena, 'env> QuoteContext<'in_arena, 'out_arena, 'env> {
     pub fn quote(&mut self, value: &ArcValue<'in_arena>) -> Term<'out_arena> {
         let value = self.elim_context().force(value);
         let span = value.span();
-        match value.inner.as_ref() {
+        match value.as_ref() {
             Value::Stuck(head, spine) => {
                 let head_expr = match head {
                     Head::Prim(prim) => Term::Prim(span, *prim),
@@ -1241,7 +1241,7 @@ impl<'arena, 'env> ConversionContext<'arena, 'env> {
         let value0 = self.elim_context().force(value0);
         let value1 = self.elim_context().force(value1);
 
-        match (value0.inner.as_ref(), value1.inner.as_ref()) {
+        match (value0.as_ref(), value1.as_ref()) {
             // `ReportedError`s result from errors that have already been
             // reported, so we prevent them from triggering more errors.
             (Value::Stuck(Head::Prim(Prim::ReportedError), _), _)

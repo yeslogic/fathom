@@ -1375,7 +1375,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
     ) -> core::Term<'arena> {
         let expected_type = self.elim_context().force(expected_type);
 
-        match (surface_term, expected_type.inner.as_ref()) {
+        match (surface_term, expected_type.as_ref()) {
             (Term::Let(range, def_pattern, def_type, def_expr, output_expr), _) => {
                 let (def_pattern, def_type_value) = self.synth_ann_pattern(def_pattern, *def_type);
                 let def_type = self.quote_context(self.scope).quote(&def_type_value); // FIXME: avoid requote if possible?
@@ -1486,7 +1486,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                     }
                 };
 
-                let len = match len_value.map(|val| (val.span(), val.inner.as_ref())) {
+                let len = match len_value.map(|val| (val.span(), val.as_ref())) {
                     None => Some(elem_exprs.len() as u64),
                     Some((_, Value::ConstLit(Const::U8(len, _)))) => Some(*len as u64),
                     Some((_, Value::ConstLit(Const::U16(len, _)))) => Some(*len as u64),
@@ -1766,7 +1766,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
 
                 // Ensure that the head type is a function type
                 let head_type = self.elim_context().force(&head_type);
-                let (head_expr, input_type, output_type) = match head_type.inner.as_ref() {
+                let (head_expr, input_type, output_type) = match head_type.as_ref() {
                     // The simple case - it's easy to see that it is a function type!
                     Value::FunType(_, input_type, output_type) => {
                         (head_expr, input_type.clone(), output_type.clone())
@@ -1879,7 +1879,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 let head_expr_value = self.eval_context().eval(&head_expr);
 
                 let head_type = self.elim_context().force(&head_type);
-                match head_type.inner.as_ref() {
+                match head_type.as_ref() {
                     Value::RecordType(labels, types) => {
                         let mut labels = labels.iter();
                         let mut types = types.clone();

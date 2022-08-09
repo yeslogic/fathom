@@ -36,6 +36,14 @@ impl<T> Spanned<T> {
     }
 }
 
+impl<T> Deref for Spanned<T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
+}
+
 #[derive(Debug, Copy, Clone)]
 pub enum Span {
     Range(ByteRange),

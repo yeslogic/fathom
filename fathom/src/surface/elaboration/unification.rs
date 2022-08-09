@@ -203,7 +203,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
         let value0 = self.elim_context().force(value0);
         let value1 = self.elim_context().force(value1);
 
-        match (value0.inner.as_ref(), value1.inner.as_ref()) {
+        match (value0.as_ref(), value1.as_ref()) {
             // `ReportedError`s result from errors that have already been
             // reported, so we prevent them from triggering more errors.
             (Value::Stuck(Head::Prim(Prim::ReportedError), _), _)
@@ -455,16 +455,14 @@ impl<'arena, 'env> Context<'arena, 'env> {
 
         for elim in spine {
             match elim {
-                Elim::FunApp(input_expr) => {
-                    match self.elim_context().force(input_expr).inner.as_ref() {
-                        Value::Stuck(Head::RigidVar(source_var), spine)
-                            if spine.is_empty() && self.renaming.set_rigid(*source_var) => {}
-                        Value::Stuck(Head::RigidVar(source_var), _) => {
-                            return Err(SpineError::NonLinearSpine(*source_var))
-                        }
-                        _ => return Err(SpineError::NonRigidFunApp),
+                Elim::FunApp(input_expr) => match self.elim_context().force(input_expr).as_ref() {
+                    Value::Stuck(Head::RigidVar(source_var), spine)
+                        if spine.is_empty() && self.renaming.set_rigid(*source_var) => {}
+                    Value::Stuck(Head::RigidVar(source_var), _) => {
+                        return Err(SpineError::NonLinearSpine(*source_var))
                     }
-                }
+                    _ => return Err(SpineError::NonRigidFunApp),
+                },
                 Elim::RecordProj(label) => return Err(SpineError::RecordProj(*label)),
                 Elim::ConstMatch(_) => return Err(SpineError::ConstMatch),
             }
@@ -499,7 +497,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
     ) -> Result<Term<'arena>, RenameError> {
         let val = self.elim_context().force(value);
         let span = val.span();
-        match val.inner.as_ref() {
+        match val.as_ref() {
             Value::Stuck(head, spine) => {
                 let head_expr = match head {
                     Head::Prim(prim) => Term::Prim(span, *prim),
