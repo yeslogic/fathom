@@ -1,4 +1,4 @@
-use std::ops::Deref;
+use std::ops::{Deref, DerefMut};
 
 ///! Types related to source files.
 
@@ -7,13 +7,13 @@ pub type FileId = usize; // TODO: use wrapper struct
 
 #[derive(Debug, Clone)]
 pub struct Spanned<T> {
-    pub span: Span,
-    pub inner: T,
+    span: Span,
+    inner: T,
 }
 
 impl<T> Spanned<T> {
-    pub fn span(&self) -> Span {
-        self.span
+    pub fn new(span: Span, inner: T) -> Self {
+        Spanned { span, inner }
     }
 
     pub fn empty(inner: T) -> Self {
@@ -23,7 +23,11 @@ impl<T> Spanned<T> {
         }
     }
 
-    /// Merge the supplied span and the span of value and return value wrapped in that span.
+    pub fn span(&self) -> Span {
+        self.span
+    }
+
+    /// Merge the supplied span with the span of `other` and return `other` wrapped in that span.
     pub fn merge(span: Span, other: Spanned<T>) -> Spanned<T> {
         let Spanned {
             span: other_span,
@@ -41,6 +45,12 @@ impl<T> Deref for Spanned<T> {
 
     fn deref(&self) -> &Self::Target {
         &self.inner
+    }
+}
+
+impl<T> DerefMut for Spanned<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.inner
     }
 }
 

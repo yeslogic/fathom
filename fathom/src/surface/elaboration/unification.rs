@@ -196,7 +196,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
         value1: &ArcValue<'arena>,
     ) -> Result<(), Error> {
         // Check for pointer equality before trying to force the values
-        if Arc::ptr_eq(&value0.inner, &value1.inner) {
+        if Arc::ptr_eq(&value0, &value1) {
             return Ok(());
         }
 

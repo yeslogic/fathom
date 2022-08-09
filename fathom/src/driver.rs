@@ -300,10 +300,7 @@ impl<'surface, 'core> Driver<'surface, 'core> {
         let surface_format = self.parse_term(format_file_id);
         let format_term = context.check(
             &surface_format,
-            &Spanned {
-                span: Span::Empty,
-                inner: Arc::new(Value::prim(Prim::FormatType, [])),
-            },
+            &Spanned::new(Span::Empty, Arc::new(Value::prim(Prim::FormatType, []))),
         );
 
         // Emit errors we might have found during elaboration

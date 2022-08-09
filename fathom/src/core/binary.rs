@@ -307,10 +307,8 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
         reader: &mut BufferReader<'data>,
         format: &ArcValue<'arena>,
     ) -> Result<ArcValue<'arena>, ReadError<'arena>> {
-        let Spanned {
-            span: format_span,
-            inner: val,
-        } = self.elim_context().force(format);
+        let val = self.elim_context().force(format);
+        let format_span = val.span();
         match val.as_ref() {
             Value::Stuck(Head::Prim(prim), slice) => {
                 self.read_prim(reader, *prim, slice, format_span)
@@ -327,19 +325,16 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
                     formats = next_formats(expr);
                 }
 
-                Ok(Spanned {
-                    span: format_span,
-                    inner: Arc::new(Value::RecordLit(labels, exprs)),
-                })
+                Ok(Spanned::new(
+                    format_span,
+                    Arc::new(Value::RecordLit(labels, exprs)),
+                ))
             }
             Value::FormatCond(_label, format, cond) => {
                 let value = self.read_format(reader, &format)?;
-                let Spanned {
-                    span: _,
-                    inner: cond_res,
-                } = self.elim_context().apply_closure(cond, value.clone());
+                let cond_res = self.elim_context().apply_closure(cond, value.clone());
 
-                match *cond_res {
+                match cond_res.as_ref() {
                     Value::ConstLit(Const::Bool(true)) => Ok(value),
                     Value::ConstLit(Const::Bool(false)) => {
                         Err(ReadError::CondFailure(cond.span(), value))
@@ -373,10 +368,10 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
                 // reached in loop above.
                 reader.set_relative_offset(max_relative_offset).unwrap();
 
-                Ok(Spanned {
-                    span: format_span,
-                    inner: Arc::new(Value::RecordLit(labels, exprs)),
-                })
+                Ok(Spanned::new(
+                    format_span,
+                    Arc::new(Value::RecordLit(labels, exprs)),
+                ))
             }
 
             Value::Stuck(Head::RigidVar(_), _)
@@ -462,10 +457,7 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
             .map(|_| self.read_format(reader, elem_format))
             .collect::<Result<_, _>>()?;
 
-        Ok(Spanned {
-            span,
-            inner: Arc::new(Value::ArrayLit(elem_exprs)),
-        })
+        Ok(Spanned::new(span, Arc::new(Value::ArrayLit(elem_exprs))))
     }
 
     fn read_repeat_until_end(
@@ -486,10 +478,10 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
                     // unwrap shouldn't panic as we're rewinding to a known good offset
                     // Should this be set to the end of the current buffer?
                     reader.set_relative_offset(current_offset).unwrap();
-                    return Ok(Spanned {
-                        span: elem_format.span(),
-                        inner: Arc::new(Value::ArrayLit(elems)),
-                    });
+                    return Ok(Spanned::new(
+                        elem_format.span(),
+                        Arc::new(Value::ArrayLit(elems)),
+                    ));
                 }
                 Err(err) => return Err(err),
             };
@@ -533,10 +525,10 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
 
         self.pending_formats.push((pos, elem_format.clone()));
 
-        Ok(Spanned {
+        Ok(Spanned::new(
             span,
-            inner: Arc::new(Value::ConstLit(Const::Ref(pos))),
-        })
+            Arc::new(Value::ConstLit(Const::Ref(pos))),
+        ))
     }
 
     fn read_deref(
@@ -605,12 +597,12 @@ fn read_stream_pos<'arena, 'data>(
     reader: &mut BufferReader<'data>,
     span: Span,
 ) -> Result<ArcValue<'arena>, ReadError<'arena>> {
-    Ok(Spanned {
+    Ok(Spanned::new(
         span,
-        inner: Arc::new(Value::ConstLit(Const::Pos(
+        Arc::new(Value::ConstLit(Const::Pos(
             reader.offset().map_err(|err| err.with_span(span))?,
         ))),
-    })
+    ))
 }
 
 fn read_const<'arena, 'data, T>(
@@ -620,10 +612,10 @@ fn read_const<'arena, 'data, T>(
     wrap_const: fn(T) -> Const,
 ) -> Result<ArcValue<'arena>, ReadError<'arena>> {
     let data = read(reader).map_err(|err| err.with_span(span))?;
-    Ok(Spanned {
+    Ok(Spanned::new(
         span,
-        inner: Arc::new(Value::ConstLit(wrap_const(data))),
-    })
+        Arc::new(Value::ConstLit(wrap_const(data))),
+    ))
 }
 
 fn read_u8<'data>(reader: &mut BufferReader<'data>) -> Result<u8, BufferError> {

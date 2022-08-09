@@ -17,7 +17,7 @@ pub type ArcValue<'arena> = Spanned<Arc<Value<'arena>>>;
 
 impl<'arena> ArcValue<'arena> {
     pub fn match_prim_spine(&self) -> Option<(Prim, &[Elim<'arena>])> {
-        self.inner.match_prim_spine()
+        self.as_ref().match_prim_spine()
     }
 }
 
@@ -296,28 +296,16 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
     pub fn eval(&mut self, term: &Term<'arena>) -> ArcValue<'arena> {
         match term {
             Term::ItemVar(span, var) => match self.item_exprs.get_global(*var) {
-                Some(value) => Spanned {
-                    span: *span,
-                    inner: value.inner.clone(),
-                },
+                Some(value) => Spanned::new(*span, Arc::clone(value)),
                 None => panic_any(Error::InvalidItemVar),
             },
             Term::RigidVar(span, var) => match self.rigid_exprs.get_local(*var) {
-                Some(value) => Spanned {
-                    span: *span,
-                    inner: value.inner.clone(),
-                },
+                Some(value) => Spanned::new(*span, Arc::clone(value)),
                 None => panic_any(Error::InvalidRigidVar),
             },
             Term::FlexibleVar(span, var) => match self.flexible_exprs.get_global(*var) {
-                Some(Some(value)) => Spanned {
-                    span: *span,
-                    inner: value.inner.clone(),
-                },
-                Some(None) => Spanned {
-                    span: *span,
-                    inner: Arc::new(Value::flexible_var(*var)),
-                },
+                Some(Some(value)) => Spanned::new(*span, Arc::clone(value)),
+                Some(None) => Spanned::new(*span, Arc::new(Value::flexible_var(*var))),
                 None => panic_any(Error::InvalidFlexibleVar),
             },
             Term::FlexibleInsertion(span, var, rigid_infos) => {
@@ -341,26 +329,23 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
                 Spanned::merge(*span, output_expr)
             }
 
-            Term::Universe(span) => Spanned {
-                span: *span,
-                inner: Arc::new(Value::Universe),
-            },
+            Term::Universe(span) => Spanned::new(*span, Arc::new(Value::Universe)),
 
-            Term::FunType(span, input_name, input_type, output_type) => Spanned {
-                span: *span,
-                inner: Arc::new(Value::FunType(
+            Term::FunType(span, input_name, input_type, output_type) => Spanned::new(
+                *span,
+                Arc::new(Value::FunType(
                     *input_name,
                     self.eval(input_type),
                     Closure::new(self.rigid_exprs.clone(), output_type),
                 )),
-            },
-            Term::FunLit(span, input_name, output_expr) => Spanned {
-                span: *span,
-                inner: Arc::new(Value::FunLit(
+            ),
+            Term::FunLit(span, input_name, output_expr) => Spanned::new(
+                *span,
+                Arc::new(Value::FunLit(
                     *input_name,
                     Closure::new(self.rigid_exprs.clone(), output_expr),
                 )),
-            },
+            ),
             Term::FunApp(span, head_expr, input_expr) => {
                 let head_expr = self.eval(head_expr);
                 let input_expr = self.eval(input_expr);
@@ -369,17 +354,11 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
 
             Term::RecordType(span, labels, types) => {
                 let types = Telescope::new(self.rigid_exprs.clone(), types);
-                Spanned {
-                    span: *span,
-                    inner: Arc::new(Value::RecordType(labels, types)),
-                }
+                Spanned::new(*span, Arc::new(Value::RecordType(labels, types)))
             }
             Term::RecordLit(span, labels, exprs) => {
                 let exprs = exprs.iter().map(|expr| self.eval(expr)).collect();
-                Spanned {
-                    span: *span,
-                    inner: Arc::new(Value::RecordLit(labels, exprs)),
-                }
+                Spanned::new(*span, Arc::new(Value::RecordLit(labels, exprs)))
             }
             Term::RecordProj(span, head_expr, label) => {
                 let head_expr = self.eval(head_expr);
@@ -390,44 +369,28 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
                 let elem_exprs = (elem_exprs.iter())
                     .map(|elem_expr| self.eval(elem_expr))
                     .collect();
-                Spanned {
-                    span: *span,
-                    inner: Arc::new(Value::ArrayLit(elem_exprs)),
-                }
+                Spanned::new(*span, Arc::new(Value::ArrayLit(elem_exprs)))
             }
 
             Term::FormatRecord(span, labels, formats) => {
                 let formats = Telescope::new(self.rigid_exprs.clone(), formats);
-                Spanned {
-                    span: *span,
-                    inner: Arc::new(Value::FormatRecord(labels, formats)),
-                }
+                Spanned::new(*span, Arc::new(Value::FormatRecord(labels, formats)))
             }
             Term::FormatCond(span, name, format, cond) => {
                 let format = self.eval(format);
                 let cond_expr = Closure::new(self.rigid_exprs.clone(), cond);
-                Spanned {
-                    span: *span,
-                    inner: Arc::new(Value::FormatCond(*name, format, cond_expr)),
-                }
+                Spanned::new(*span, Arc::new(Value::FormatCond(*name, format, cond_expr)))
             }
             Term::FormatOverlap(span, labels, formats) => {
                 let formats = Telescope::new(self.rigid_exprs.clone(), formats);
-                Spanned {
-                    span: *span,
-                    inner: Arc::new(Value::FormatOverlap(labels, formats)),
-                }
+                Spanned::new(*span, Arc::new(Value::FormatOverlap(labels, formats)))
             }
 
-            Term::Prim(span, prim) => Spanned {
-                span: *span,
-                inner: Arc::new(Value::prim(*prim, [])),
-            },
+            Term::Prim(span, prim) => Spanned::new(*span, Arc::new(Value::prim(*prim, []))),
 
-            Term::ConstLit(span, r#const) => Spanned {
-                span: *span,
-                inner: Arc::new(Value::ConstLit(*r#const)),
-            },
+            Term::ConstLit(span, r#const) => {
+                Spanned::new(*span, Arc::new(Value::ConstLit(*r#const)))
+            }
             Term::ConstMatch(span, head_expr, branches, default_expr) => {
                 let head_expr = self.eval(head_expr);
                 let branches = Branches::new(self.rigid_exprs.clone(), branches, *default_expr);
@@ -623,7 +586,7 @@ fn prim_step(prim: Prim) -> Option<PrimStep> {
                         match context.fun_app(pred.clone(), elem.clone()).as_ref() {
                             Value::ConstLit(Const::Bool(true)) => {
                                 // TODO: Is elem.span right here?
-                                return Some(Spanned{ span: elem.span(), inner: Arc::new(Value::prim(Prim::OptionSome, [elem.clone()])) })
+                                return Some(Spanned::new( elem.span(), Arc::new(Value::prim(Prim::OptionSome, [elem.clone()])) ))
                             },
                             Value::ConstLit(Const::Bool(false)) => {}
                             _ => return None,
@@ -752,7 +715,7 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
         mut head_expr: ArcValue<'arena>,
         input_expr: ArcValue<'arena>,
     ) -> ArcValue<'arena> {
-        match Arc::make_mut(&mut head_expr.inner) {
+        match Arc::make_mut(&mut head_expr) {
             // Beta-reduction
             Value::FunLit(_, output_expr) => self.apply_closure(output_expr, input_expr), // FIXME: use span from head/input exprs?
             // The computation is stuck, preventing further reduction
@@ -779,7 +742,7 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
         mut head_expr: ArcValue<'arena>,
         label: StringId,
     ) -> ArcValue<'arena> {
-        match Arc::make_mut(&mut head_expr.inner) {
+        match Arc::make_mut(&mut head_expr) {
             // Beta-reduction
             Value::RecordLit(labels, exprs) => (labels.iter())
                 .position(|current_label| *current_label == label)
@@ -803,7 +766,7 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
         mut head_expr: ArcValue<'arena>,
         mut branches: Branches<'arena, Const>,
     ) -> ArcValue<'arena> {
-        match Arc::make_mut(&mut head_expr.inner) {
+        match Arc::make_mut(&mut head_expr) {
             Value::ConstLit(r#const) => {
                 // Try each branch
                 for (branch_const, output_expr) in branches.pattern_branches {
@@ -843,113 +806,95 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
     pub fn format_repr(&self, format: &ArcValue<'arena>) -> ArcValue<'arena> {
         match format.as_ref() {
             Value::FormatRecord(labels, formats) | Value::FormatOverlap(labels, formats) => {
-                Spanned {
-                    span: format.span(),
-                    inner: Arc::new(Value::RecordType(labels, formats.clone().apply_repr())),
-                }
+                Spanned::new(
+                    format.span(),
+                    Arc::new(Value::RecordType(labels, formats.clone().apply_repr())),
+                )
             }
             Value::FormatCond(_, format, _) => self.format_repr(format),
             Value::Stuck(Head::Prim(prim), spine) => match (prim, &spine[..]) {
-                (Prim::FormatU8, []) => Spanned {
-                    span: format.span(),
-                    inner: Arc::new(Value::prim(Prim::U8Type, [])),
-                },
-                (Prim::FormatU16Be, []) => Spanned {
-                    span: format.span(),
-                    inner: Arc::new(Value::prim(Prim::U16Type, [])),
-                },
-                (Prim::FormatU16Le, []) => Spanned {
-                    span: format.span(),
-                    inner: Arc::new(Value::prim(Prim::U16Type, [])),
-                },
-                (Prim::FormatU32Be, []) => Spanned {
-                    span: format.span(),
-                    inner: Arc::new(Value::prim(Prim::U32Type, [])),
-                },
-                (Prim::FormatU32Le, []) => Spanned {
-                    span: format.span(),
-                    inner: Arc::new(Value::prim(Prim::U32Type, [])),
-                },
-                (Prim::FormatU64Be, []) => Spanned {
-                    span: format.span(),
-                    inner: Arc::new(Value::prim(Prim::U64Type, [])),
-                },
-                (Prim::FormatU64Le, []) => Spanned {
-                    span: format.span(),
-                    inner: Arc::new(Value::prim(Prim::U64Type, [])),
-                },
-                (Prim::FormatS8, []) => Spanned {
-                    span: format.span(),
-                    inner: Arc::new(Value::prim(Prim::S8Type, [])),
-                },
-                (Prim::FormatS16Be, []) => Spanned {
-                    span: format.span(),
-                    inner: Arc::new(Value::prim(Prim::S16Type, [])),
-                },
-                (Prim::FormatS16Le, []) => Spanned {
-                    span: format.span(),
-                    inner: Arc::new(Value::prim(Prim::S16Type, [])),
-                },
-                (Prim::FormatS32Be, []) => Spanned {
-                    span: format.span(),
-                    inner: Arc::new(Value::prim(Prim::S32Type, [])),
-                },
-                (Prim::FormatS32Le, []) => Spanned {
-                    span: format.span(),
-                    inner: Arc::new(Value::prim(Prim::S32Type, [])),
-                },
-                (Prim::FormatS64Be, []) => Spanned {
-                    span: format.span(),
-                    inner: Arc::new(Value::prim(Prim::S64Type, [])),
-                },
-                (Prim::FormatS64Le, []) => Spanned {
-                    span: format.span(),
-                    inner: Arc::new(Value::prim(Prim::S64Type, [])),
-                },
-                (Prim::FormatF32Be, []) => Spanned {
-                    span: format.span(),
-                    inner: Arc::new(Value::prim(Prim::F32Type, [])),
-                },
-                (Prim::FormatF32Le, []) => Spanned {
-                    span: format.span(),
-                    inner: Arc::new(Value::prim(Prim::F32Type, [])),
-                },
-                (Prim::FormatF64Be, []) => Spanned {
-                    span: format.span(),
-                    inner: Arc::new(Value::prim(Prim::F64Type, [])),
-                },
-                (Prim::FormatF64Le, []) => Spanned {
-                    span: format.span(),
-                    inner: Arc::new(Value::prim(Prim::F64Type, [])),
-                },
-                (Prim::FormatArray8, [Elim::FunApp(len), Elim::FunApp(elem)]) => Spanned {
-                    span: format.span(),
-                    inner: Arc::new(Value::prim(
+                (Prim::FormatU8, []) => {
+                    Spanned::new(format.span(), Arc::new(Value::prim(Prim::U8Type, [])))
+                }
+                (Prim::FormatU16Be, []) => {
+                    Spanned::new(format.span(), Arc::new(Value::prim(Prim::U16Type, [])))
+                }
+                (Prim::FormatU16Le, []) => {
+                    Spanned::new(format.span(), Arc::new(Value::prim(Prim::U16Type, [])))
+                }
+                (Prim::FormatU32Be, []) => {
+                    Spanned::new(format.span(), Arc::new(Value::prim(Prim::U32Type, [])))
+                }
+                (Prim::FormatU32Le, []) => {
+                    Spanned::new(format.span(), Arc::new(Value::prim(Prim::U32Type, [])))
+                }
+                (Prim::FormatU64Be, []) => {
+                    Spanned::new(format.span(), Arc::new(Value::prim(Prim::U64Type, [])))
+                }
+                (Prim::FormatU64Le, []) => {
+                    Spanned::new(format.span(), Arc::new(Value::prim(Prim::U64Type, [])))
+                }
+                (Prim::FormatS8, []) => {
+                    Spanned::new(format.span(), Arc::new(Value::prim(Prim::S8Type, [])))
+                }
+                (Prim::FormatS16Be, []) => {
+                    Spanned::new(format.span(), Arc::new(Value::prim(Prim::S16Type, [])))
+                }
+                (Prim::FormatS16Le, []) => {
+                    Spanned::new(format.span(), Arc::new(Value::prim(Prim::S16Type, [])))
+                }
+                (Prim::FormatS32Be, []) => {
+                    Spanned::new(format.span(), Arc::new(Value::prim(Prim::S32Type, [])))
+                }
+                (Prim::FormatS32Le, []) => {
+                    Spanned::new(format.span(), Arc::new(Value::prim(Prim::S32Type, [])))
+                }
+                (Prim::FormatS64Be, []) => {
+                    Spanned::new(format.span(), Arc::new(Value::prim(Prim::S64Type, [])))
+                }
+                (Prim::FormatS64Le, []) => {
+                    Spanned::new(format.span(), Arc::new(Value::prim(Prim::S64Type, [])))
+                }
+                (Prim::FormatF32Be, []) => {
+                    Spanned::new(format.span(), Arc::new(Value::prim(Prim::F32Type, [])))
+                }
+                (Prim::FormatF32Le, []) => {
+                    Spanned::new(format.span(), Arc::new(Value::prim(Prim::F32Type, [])))
+                }
+                (Prim::FormatF64Be, []) => {
+                    Spanned::new(format.span(), Arc::new(Value::prim(Prim::F64Type, [])))
+                }
+                (Prim::FormatF64Le, []) => {
+                    Spanned::new(format.span(), Arc::new(Value::prim(Prim::F64Type, [])))
+                }
+                (Prim::FormatArray8, [Elim::FunApp(len), Elim::FunApp(elem)]) => Spanned::new(
+                    format.span(),
+                    Arc::new(Value::prim(
                         Prim::Array8Type,
                         [len.clone(), self.format_repr(elem)],
                     )),
-                },
-                (Prim::FormatArray16, [Elim::FunApp(len), Elim::FunApp(elem)]) => Spanned {
-                    span: format.span(),
-                    inner: Arc::new(Value::prim(
+                ),
+                (Prim::FormatArray16, [Elim::FunApp(len), Elim::FunApp(elem)]) => Spanned::new(
+                    format.span(),
+                    Arc::new(Value::prim(
                         Prim::Array16Type,
                         [len.clone(), self.format_repr(elem)],
                     )),
-                },
-                (Prim::FormatArray32, [Elim::FunApp(len), Elim::FunApp(elem)]) => Spanned {
-                    span: format.span(),
-                    inner: Arc::new(Value::prim(
+                ),
+                (Prim::FormatArray32, [Elim::FunApp(len), Elim::FunApp(elem)]) => Spanned::new(
+                    format.span(),
+                    Arc::new(Value::prim(
                         Prim::Array32Type,
                         [len.clone(), self.format_repr(elem)],
                     )),
-                },
-                (Prim::FormatArray64, [Elim::FunApp(len), Elim::FunApp(elem)]) => Spanned {
-                    span: format.span(),
-                    inner: Arc::new(Value::prim(
+                ),
+                (Prim::FormatArray64, [Elim::FunApp(len), Elim::FunApp(elem)]) => Spanned::new(
+                    format.span(),
+                    Arc::new(Value::prim(
                         Prim::Array64Type,
                         [len.clone(), self.format_repr(elem)],
                     )),
-                },
+                ),
                 (Prim::FormatLimit8, [Elim::FunApp(_), Elim::FunApp(elem)]) => {
                     self.format_repr(elem)
                 }
@@ -962,40 +907,38 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
                 (Prim::FormatLimit64, [Elim::FunApp(_), Elim::FunApp(elem)]) => {
                     self.format_repr(elem)
                 }
-                (Prim::FormatRepeatUntilEnd, [Elim::FunApp(elem)]) => Spanned {
-                    span: format.span(),
-                    inner: Arc::new(Value::prim(Prim::ArrayType, [self.format_repr(elem)])),
-                },
-                (Prim::FormatLink, [Elim::FunApp(_), Elim::FunApp(elem)]) => Spanned {
-                    span: format.span(),
-                    inner: Arc::new(Value::prim(Prim::RefType, [elem.clone()])),
-                },
+                (Prim::FormatRepeatUntilEnd, [Elim::FunApp(elem)]) => Spanned::new(
+                    format.span(),
+                    Arc::new(Value::prim(Prim::ArrayType, [self.format_repr(elem)])),
+                ),
+                (Prim::FormatLink, [Elim::FunApp(_), Elim::FunApp(elem)]) => Spanned::new(
+                    format.span(),
+                    Arc::new(Value::prim(Prim::RefType, [elem.clone()])),
+                ),
                 (Prim::FormatDeref, [Elim::FunApp(elem), Elim::FunApp(_)]) => {
                     self.format_repr(elem)
                 }
-                (Prim::FormatStreamPos, []) => Spanned {
-                    span: format.span(),
-                    inner: Arc::new(Value::prim(Prim::PosType, [])),
-                },
+                (Prim::FormatStreamPos, []) => {
+                    Spanned::new(format.span(), Arc::new(Value::prim(Prim::PosType, [])))
+                }
                 (Prim::FormatSucceed, [Elim::FunApp(elem), _]) => elem.clone(),
-                (Prim::FormatFail, []) => Spanned {
-                    span: format.span(),
-                    inner: Arc::new(Value::prim(Prim::VoidType, [])),
-                },
+                (Prim::FormatFail, []) => {
+                    Spanned::new(format.span(), Arc::new(Value::prim(Prim::VoidType, [])))
+                }
                 (Prim::FormatUnwrap, [Elim::FunApp(elem), _]) => elem.clone(),
-                (Prim::ReportedError, []) => Spanned {
-                    span: format.span(),
-                    inner: Arc::new(Value::prim(Prim::ReportedError, [])),
-                },
-                _ => Spanned {
-                    span: format.span(),
-                    inner: Arc::new(Value::prim(Prim::FormatRepr, [format.clone()])),
-                },
+                (Prim::ReportedError, []) => Spanned::new(
+                    format.span(),
+                    Arc::new(Value::prim(Prim::ReportedError, [])),
+                ),
+                _ => Spanned::new(
+                    format.span(),
+                    Arc::new(Value::prim(Prim::FormatRepr, [format.clone()])),
+                ),
             },
-            Value::Stuck(_, _) => Spanned {
-                span: format.span(),
-                inner: Arc::new(Value::prim(Prim::FormatRepr, [format.clone()])),
-            },
+            Value::Stuck(_, _) => Spanned::new(
+                format.span(),
+                Arc::new(Value::prim(Prim::FormatRepr, [format.clone()])),
+            ),
             _ => panic_any(Error::InvalidFormatRepr),
         }
     }

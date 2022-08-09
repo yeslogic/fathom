@@ -557,10 +557,7 @@ impl<'i, 'arena> RigidEnvBuilder<'i, 'arena> {
                 .eval(r#type);
         self.env.push_def(
             name,
-            Spanned {
-                span: Span::Empty,
-                inner: Arc::new(Value::prim(prim, [])),
-            },
+            Spanned::new(Span::Empty, Arc::new(Value::prim(prim, []))),
             r#type,
         );
     }
@@ -1747,9 +1744,9 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 (
                     core::Term::FunLit(range.into(), input_name, self.scope.to_scope(output_expr)),
                     // FIXME: Should this use range too?
-                    Spanned {
-                        span: Span::Empty,
-                        inner: Arc::new(Value::FunType(
+                    Spanned::new(
+                        Span::Empty,
+                        Arc::new(Value::FunType(
                             input_name,
                             input_type,
                             Closure::new(
@@ -1757,7 +1754,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                                 self.scope.to_scope(output_type),
                             ),
                         )),
-                    },
+                    ),
                 )
             }
             Term::App(range, head_expr, input_expr) => {
