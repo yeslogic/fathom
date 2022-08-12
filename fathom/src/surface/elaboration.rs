@@ -468,6 +468,45 @@ impl<'arena> RigidEnv<'arena> {
         env.define_prim(Array32Find, array32_find_type);
         env.define_prim(Array64Find, array64_find_type);
 
+        // fun (len : UN) -> (A : Type) -> (index : UN) -> ArrayN len   A   -> A
+        // fun (len : UN) -> (A : Type) -> (index : UN) -> ArrayN len@2 A@1 -> A@2
+        let array_index_type = |index_type, array_type| {
+            scope.to_scope(core::Term::FunType(
+                Span::Empty,
+                env.name("len"),
+                index_type,
+                scope.to_scope(core::Term::FunType(
+                    Span::Empty,
+                    env.name("A"),
+                    &UNIVERSE,
+                    scope.to_scope(core::Term::FunType(
+                        Span::Empty,
+                        env.name("index"),
+                        &index_type,
+                        scope.to_scope(core::Term::FunType(
+                            Span::Empty,
+                            None,
+                            // ArrayN len@2 A@1
+                            scope.to_scope(Term::FunApp(
+                                Span::Empty,
+                                scope.to_scope(Term::FunApp(Span::Empty, array_type, &VAR2)),
+                                &VAR1,
+                            )),
+                            &VAR2, // A@2
+                        )),
+                    )),
+                )),
+            ))
+        };
+        let array8_index_type = array_index_type(&U8_TYPE, &ARRAY8_TYPE);
+        let array16_index_type = array_index_type(&U16_TYPE, &ARRAY16_TYPE);
+        let array32_index_type = array_index_type(&U32_TYPE, &ARRAY32_TYPE);
+        let array64_index_type = array_index_type(&U64_TYPE, &ARRAY64_TYPE);
+        env.define_prim(Array8Index, array8_index_type);
+        env.define_prim(Array16Index, array16_index_type);
+        env.define_prim(Array32Index, array32_index_type);
+        env.define_prim(Array64Index, array64_index_type);
+
         env.define_prim_fun(PosAddU8, [&POS_TYPE, &U8_TYPE], &POS_TYPE);
         env.define_prim_fun(PosAddU16, [&POS_TYPE, &U16_TYPE], &POS_TYPE);
         env.define_prim_fun(PosAddU32, [&POS_TYPE, &U32_TYPE], &POS_TYPE);

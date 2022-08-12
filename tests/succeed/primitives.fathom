@@ -208,6 +208,11 @@ let _ = array16_find : fun (len : U16) -> fun (A : Type) -> (A -> Bool) -> Array
 let _ = array32_find : fun (len : U32) -> fun (A : Type) -> (A -> Bool) -> Array32 len A -> Option A;
 let _ = array64_find : fun (len : U64) -> fun (A : Type) -> (A -> Bool) -> Array64 len A -> Option A;
 
+let _ = array8_index : fun (len : U8) -> fun (A : Type) -> U8 -> Array8 len A -> A;
+let _ = array16_index : fun (len : U16) -> fun (A : Type) -> U16 -> Array16 len A -> A;
+let _ = array32_index : fun (len : U32) -> fun (A : Type) -> U32 -> Array32 len A -> A;
+let _ = array64_index : fun (len : U64) -> fun (A : Type) -> U64 -> Array64 len A -> A;
+
 let _ = pos_add_u8 : Pos -> U8 -> Pos;
 let _ = pos_add_u16 : Pos -> U16 -> Pos;
 let _ = pos_add_u32 : Pos -> U32 -> Pos;

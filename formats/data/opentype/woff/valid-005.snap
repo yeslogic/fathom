@@ -756,6 +756,8 @@ stdout = '''
                         end_pts_of_contours = [ 7, 17, 23, 27, 30 ],
                         instruction_length = 0,
                         instructions = [],
+                        last_end_point_index = 30,
+                        number_of_coords = 31,
                     },
                 },
             ],

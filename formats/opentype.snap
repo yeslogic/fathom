@@ -384,6 +384,9 @@ def simple_glyph : U16 -> Format = fun number_of_contours => {
     end_pts_of_contours <- array16 number_of_contours u16be,
     instruction_length <- u16be,
     instructions <- array16 instruction_length u8,
+    let last_end_point_index : U16 = array16_index (_ number_of_contours end_pts_of_contours instruction_length instructions) (_ number_of_contours end_pts_of_contours instruction_length instructions) (number_of_contours - (1 :
+    U16)) end_pts_of_contours,
+    let number_of_coords : U16 = last_end_point_index + (1 : U16),
 };
 def glyph : Format = {
     header <- glyph_header,

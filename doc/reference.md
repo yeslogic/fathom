@@ -994,10 +994,28 @@ fixed-length array type.
 
 The following operations are defined on arrays:
 
+#### find
+
+`array*_find` takes a function that returns true or false. It applies this
+function to each element of the array. If the function returns true, then
+`array*_find` returns `some element`. If they all return false, it returns
+`none`.
+
 - `array8_find : fun (len : U8) -> fun (A : Type) -> (A -> Bool) -> Array8 len A -> Option A`
 - `array16_find : fun (len : U16) -> fun (A : Type) -> (A -> Bool) -> Array16 len A -> Option A`
 - `array32_find : fun (len : U32) -> fun (A : Type) -> (A -> Bool) -> Array32 len A -> Option A`
 - `array64_find : fun (len : U64) -> fun (A : Type) -> (A -> Bool) -> Array64 len A -> Option A`
+
+#### index
+
+`array*_index` returns the item at the supplied index in the array. The
+operation will not evaluate fully if the index is out of bounds. If this
+happens when parsing a binary format, a parse failure will be triggered.
+
+- `array8_index : fun (len : U8) -> fun (A : Type) -> fun (index : U8) -> Array8 len A -> A`
+- `array16_index : fun (len : U16) -> fun (A : Type) -> fun (index : U16) -> Array16 len A -> A`
+- `array32_index : fun (len : U32) -> fun (A : Type) -> fun (index : U32) -> Array32 len A -> A`
+- `array64_index : fun (len : U64) -> fun (A : Type) -> fun (index : U64) -> Array64 len A -> A`
 
 ## Positions
 
