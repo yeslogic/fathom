@@ -88,10 +88,15 @@
           default = self.devShells.${system}.stable;
         } // (
           # Map over the `rustToolchains` defined above, creating a shell
-          # environment for each. This is useful for testing regressions against
-          # the minimum supported Rust version. For example:
+          # environment for each.
           #
-          #     $ nix develop .#minimum --command cargo check
+          # This is useful for testing regressions against the minimum
+          # supported Rust version, and to select the apropriate Rust toolchain
+          # on CI.
+          #
+          # For example, to run the tests using the `minimum` Rust toolchain:
+          #
+          #     $ nix develop .#minimum --command cargo test
           #
           pkgs.lib.mapAttrs
             (name: rustToolchain:
