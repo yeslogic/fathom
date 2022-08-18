@@ -44,6 +44,9 @@
         # Library functions from nixpkgs
         lib = pkgs.lib;
 
+        # Load the minimum supported Rust version (MSRV) from the manifest
+        fathomManifest = lib.importTOML ./fathom/Cargo.toml;
+        minimumRustVersion = fathomManifest.package.rust-version;
 
         # Setup Rust toolchains to build and test against
         #
@@ -53,7 +56,7 @@
         rustToolchains = {
           nightly = pkgs.rust-bin.nightly.latest.minimal;
           stable = pkgs.rust-bin.stable.latest.minimal;
-          minimum = pkgs.rust-bin.stable."1.56.0".minimal;
+          minimum = pkgs.rust-bin.stable.${minimumRustVersion}.minimal;
         };
       in
       {
