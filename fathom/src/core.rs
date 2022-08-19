@@ -493,6 +493,11 @@ def_prims! {
     Array32Find => "array32_find",
     Array64Find => "array64_find",
 
+    Array8Index => "array8_index",
+    Array16Index => "array16_index",
+    Array32Index => "array32_index",
+    Array64Index => "array64_index",
+
     PosAddU8  => "pos_add_u8",
     PosAddU16 => "pos_add_u16",
     PosAddU32 => "pos_add_u32",

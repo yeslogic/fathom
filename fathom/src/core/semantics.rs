@@ -598,6 +598,22 @@ fn prim_step(prim: Prim) -> Option<PrimStep> {
             })
         }
 
+        Prim::Array8Index | Prim::Array16Index | Prim::Array32Index | Prim::Array64Index => {
+            step!(_context, [_, _, index, array] => match array.as_ref() {
+                Value::ArrayLit(elems) => {
+                    let index = match (index).as_ref() {
+                        Value::ConstLit(Const::U8(index, _)) => Some(usize::from(*index)),
+                        Value::ConstLit(Const::U16(index, _)) => Some(usize::from(*index)),
+                        Value::ConstLit(Const::U32(index, _)) => usize::try_from(*index).ok(),
+                        Value::ConstLit(Const::U64(index, _)) => usize::try_from(*index).ok(),
+                        _ => return None,
+                    }?;
+                    elems.get(index).cloned()?
+                }
+                _ => return None,
+            })
+        }
+
         Prim::PosAddU8 => const_step!([x: Pos, y: U8] => Const::Pos(usize::checked_add(*x, usize::from(*y))?)),
         Prim::PosAddU16 => const_step!([x: Pos, y: U16] => Const::Pos(usize::checked_add(*x, usize::from(*y))?)),
         Prim::PosAddU32 => const_step!([x: Pos, y: U32] => Const::Pos(usize::checked_add(*x, usize::try_from(*y).ok()?)?)),

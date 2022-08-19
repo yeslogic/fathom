@@ -2801,6 +2801,8 @@ def simple_glyph = fun (number_of_contours : U16) => {
     instruction_length <- u16be,
     /// Array of instruction byte code for the glyph.
     instructions <- array16 instruction_length u8,
+    let last_end_point_index = array16_index _ _ (number_of_contours - (1 : U16)) end_pts_of_contours,
+    let number_of_coords = last_end_point_index + (1 : U16),
     /// Array of flag elements.
     // flags[variable] <- uint8,
     /// xCoordinates[variable] 	Contour point x-coordinates. Coordinate for the first point is relative to (0,0);
