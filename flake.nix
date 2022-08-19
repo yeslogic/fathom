@@ -1,23 +1,25 @@
+# A Nix flake that initialises a development environment for Fathom
+#
+# NOTE: A Nix environment is not required to work on Fathom, but this Flake is
+# provided for your convinience if you already are.
+
 {
   # Flake dependency specification
   #
-  # To update individual inputs use:
+  # To update all flake inputs:
   #
-  # ```
-  # nix flake lock --update-input <input>
-  # ```
+  #     $ nix flake update --commit-lockfile
+  #
+  # To update individual flake inputs:
+  #
+  #     $ nix flake lock --update-input <input> ... --commit-lockfile
+  #
   inputs = {
     # Nix package repository
     nixpkgs.url = "github:nixos/nixpkgs/nixpkgs-unstable";
 
     # Convenience functions for writing flakes
     flake-utils.url = "github:numtide/flake-utils";
-    # Precisely filter files copied to the nix store
-    nix-filter.url = "github:numtide/nix-filter";
-
-    # Build rust crates from `Cargo.lock` dependencies
-    naersk.url = "github:nmattia/naersk";
-    naersk.inputs.nixpkgs.follows = "nixpkgs";
 
     # Rust toolchain
     rust-overlay.url = "github:oxalica/rust-overlay";
@@ -25,153 +27,116 @@
     rust-overlay.inputs.flake-utils.follows = "flake-utils";
   };
 
-  outputs = { self, nixpkgs, flake-utils, nix-filter, naersk, rust-overlay }:
+  outputs = inputs@{ self, nixpkgs, flake-utils, ... }:
     # Build the output set for each default system and map system sets into
     # attributes, resulting in paths such as:
     #
-    #     nix build .#packages.<system>.<name>
+    #     $ nix build .#packages.<system>.<name>
+    #
     flake-utils.lib.eachDefaultSystem (system:
       let
         # Package set with the rust overlay included added
         pkgs = import nixpkgs {
           inherit system;
-          overlays = [ (import rust-overlay) ];
+          overlays = [ (import inputs.rust-overlay) ];
         };
 
-        # Crate containing the `fathom` binary
-        crateName = "fathom";
-        minimumRustVersion = "1.56.0";
+        # Library functions from nixpkgs
+        lib = pkgs.lib;
 
-        # TODO: detect the above variables dynamically using the `Cargo.toml` file.
-        # NOTE: using a workspace complicates this
-
-        # manifest = builtins.fromTOML (builtins.readFile ./Cargo.toml);
-        #
-        # crateName = manifest.package.name;
-        # minimumRustVersion = manifest.package.rust-version;
+        # Load the minimum supported Rust version (MSRV) from the manifest
+        fathomManifest = lib.importTOML ./fathom/Cargo.toml;
+        minimumRustVersion = fathomManifest.package.rust-version;
 
         # Setup Rust toolchains to build and test against
-        rust = {
+        #
+        # The names of the toolchains will be used as the names of the
+        # development shells loaded by the `nix develop .#<name>` command (see
+        # the `devShells` flake output defined below).
+        rustToolchains = {
           nightly = pkgs.rust-bin.nightly.latest.minimal;
           stable = pkgs.rust-bin.stable.latest.minimal;
           minimum = pkgs.rust-bin.stable.${minimumRustVersion}.minimal;
         };
-
-        # Override Naersk for each Rust toolchain
-        naersk-lib = {
-          # nightly = naersk.lib."${system}".override { cargo = rust.nightly; rustc = rust.nightly; };
-          # stable = naersk.lib."${system}".override { cargo = rust.stable; rustc = rust.stable; };
-          minimum = naersk.lib."${system}".override { cargo = rust.minimum; rustc = rust.minimum; };
-        };
-
-        # Restrict sources copied to the nix store
-        crate-sources = nix-filter.lib.filter {
-          name = "fathom";
-          root = ./.;
-          include = [
-            ./Cargo.toml
-            ./Cargo.lock
-            (nix-filter.lib.inDirectory "fathom")
-          ];
-          exclude = [
-            (nix-filter.lib.inDirectory "examples")
-            (nix-filter.lib.inDirectory "test")
-          ];
-        };
-        crate-check-sources = nix-filter.lib.filter {
-          name = "fathom";
-          root = ./.;
-          include = [
-            ./Cargo.toml
-            ./Cargo.lock
-            (nix-filter.lib.inDirectory "fathom")
-          ];
-        };
-        nix-sources = nix-filter.lib.filter {
-          name = "fathom";
-          root = ./.;
-          include = [
-            (nix-filter.lib.matchExt "nix")
-          ];
-        };
       in
       {
-        # Executed by `nix flake check`
-        checks = {
-          # Check Rust crate tests
-          # TODO: test using `rust.nightly`, `rust.stable`, and `rust.minimum`
-          ${crateName} = naersk-lib.minimum.buildPackage {
-            pname = crateName;
-            root = crate-check-sources;
-            doCheck = true;
-          };
+        # Development shells
+        #
+        #    $ nix develop .#<name>
+        #    $ nix develop .#<name> --command cargo check
+        #
+        # [Direnv](https://direnv.net/) is recommended for automatically loading the
+        # development environemnts provided in your current shell. For example:
+        #
+        #    $ echo "use flake" > .envrc && direnv allow
+        #    $ cargo check
+        #
+        # If you want to live on the bleeding edge, you could also try using the
+        # nightly shell with the following `.envrc` file:
+        #
+        #    use flake .#nightly
+        #
+        # If you choose to use Direnv, note that `.envrc` should be added to
+        # your local git excludes, or added to to your global gitignore.
+        devShells = {
+          # Use the stable toolchain by default for development, to get the
+          # latest diagnostics and compiler improvements.
+          #
+          #    $ nix develop
+          #    $ nix develop --command cargo check
+          #
+          default = self.devShells.${system}.stable;
+        } // (
+          # Map over the `rustToolchains` defined above, creating a shell
+          # environment for each.
+          #
+          # This is useful for testing regressions against the minimum
+          # supported Rust version, and to select the apropriate Rust toolchain
+          # on CI.
+          #
+          # For example, to run the tests using the `minimum` Rust toolchain:
+          #
+          #     $ nix develop .#minimum --command cargo test
+          #
+          pkgs.lib.mapAttrs
+            (name: rustToolchain:
+              let
+                rustWithExtensions = rustToolchain.override {
+                  extensions = [ "rust-src" "rustfmt" "clippy" ];
+                };
+              in
+              pkgs.mkShell {
+                name = "${name}-shell";
 
-          # Check Rust formatting
-          rustfmt = pkgs.runCommand "check-rustfmt"
-            {
-              buildInputs = [
-                (rust.stable.override { extensions = [ "rustfmt" ]; })
-              ];
-            }
-            ''
-              mkdir $out
-              cargo fmt --manifest-path ${crate-check-sources}/Cargo.toml -- --check
-            '';
+                packages = [
+                  rustWithExtensions
+                  pkgs.nixpkgs-fmt
+                ];
 
-          # Check Nix formatting
-          nixpkgs-fmt = pkgs.runCommand "check-nixpkgs-fmt"
-            {
-              buildInputs = [ pkgs.nixpkgs-fmt ];
-            }
-            ''
-              mkdir $out
-              nixpkgs-fmt --check ${nix-sources}
-            '';
-        };
+                # Print backtraces on panics
+                RUST_BACKTRACE = 1;
 
-        # Executed by `nix build .#<name>`
-        packages.${crateName} = naersk-lib.minimum.buildPackage {
-          pname = crateName;
-          root = crate-sources;
-        };
-
-        # Executed by `nix build`
-        defaultPackage = self.packages.${system}.${crateName};
-
-
-        # Executed by `nix run .#<name>`
-        apps.${crateName} = flake-utils.lib.mkApp {
-          drv = self.packages.${system}.${crateName};
-        };
-
-        # Executed by `nix run . -- <args?>`
-        defaultApp = self.apps.${system}.${crateName};
-
-
-        # Used by `nix develop .#<name>`
-        devShells = (
-          let
-            # Creates a development shell using a specific Rust toolchain
-            createShell = { rust }: pkgs.mkShell {
-              packages = [
-                (rust.override { extensions = [ "rust-src" "rustfmt" ]; })
-                pkgs.nixpkgs-fmt
-              ];
-              # Print backtraces on panics
-              RUST_BACKTRACE = 1;
-              # Certain tools like `rust-analyzer` won't work without this
-              RUST_SRC_PATH = "${rust}/lib/rustlib/src/rust/library";
-            };
-          in
-          {
-            nightly = createShell { rust = rust.nightly; };
-            stable = createShell { rust = rust.stable; };
-            minimum = createShell { rust = rust.minimum; };
-          }
+                # Certain tools like `rust-analyzer` won't work without this
+                RUST_SRC_PATH = "${rustWithExtensions}/lib/rustlib/src/rust/library";
+              })
+            rustToolchains
         );
 
-        # Used by `nix develop`
-        devShell = self.devShells.${system}.stable;
+
+        # Flake checks
+        #
+        #     $ nix flake check
+        #
+        checks = {
+          # Check Nix formatting
+          nixpkgs-fmt = pkgs.runCommand "check-nixpkgs-fmt"
+            { buildInputs = [ pkgs.nixpkgs-fmt ]; }
+            ''
+              echo "checking nix formatting"
+              nixpkgs-fmt --check ${./flake.nix}
+              touch $out
+            '';
+        };
       }
     );
 }

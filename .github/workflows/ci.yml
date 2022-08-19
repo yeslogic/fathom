@@ -10,94 +10,63 @@ on:
       - main
 
 jobs:
-  spec:
-    runs-on: ubuntu-20.04
-    name: Check Makam Specification
-    steps:
-      - uses: actions/checkout@v2
-      - name: Install specification dependencies
-        run: yarn install
-        working-directory: ./experiments/makam-spec
-      - name: Check specification
-        run: yarn test
-        working-directory: ./experiments/makam-spec
-
-  check:
-    runs-on: ubuntu-20.04
+  cargo-test:
+    runs-on: ubuntu-latest
     strategy:
       matrix:
-        rust: ["1.56.0", "stable", "beta", "nightly"]
-    name: Check (${{ matrix.rust }})
+        rust-toolchain: ["stable", "minimum"]
+    name: Rust Tests (${{ matrix.rust-toolchain }})
     steps:
-      - uses: actions/checkout@v2
-      - name: Install minimal ${{ matrix.rust }}
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: ${{ matrix.rust }}
-          override: true
-      - name: Run cargo check
-        uses: actions-rs/cargo@v1
-        with:
-          command: check
+      - name: Checkout repository
+        uses: actions/checkout@v3
+      - name: Install Nix
+        uses: cachix/install-nix-action@v17
 
-  test:
-    runs-on: ubuntu-20.04
+      - name: cargo check
+        run: nix develop .#${{ matrix.rust-toolchain }} --command cargo check
+      - name: cargo build
+        run: nix develop .#${{ matrix.rust-toolchain }} --command cargo build
+      - name: cargo test
+        run: nix develop .#${{ matrix.rust-toolchain }} --command cargo test
+
+  cargo-fmt:
+    runs-on: ubuntu-latest
     strategy:
       matrix:
-        rust: ["1.56.0", "stable", "beta", "nightly"]
-    name: Test Suite (${{ matrix.rust }})
+        rust-toolchain: ["stable"]
+    name: Rust Formatting (${{ matrix.rust-toolchain }})
     steps:
-      - uses: actions/checkout@v2
-      - name: Install minimal ${{ matrix.rust }}
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: ${{ matrix.rust }}
-          override: true
-      - name: Run cargo test
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
+      - name: Checkout repository
+        uses: actions/checkout@v3
+      - name: Install Nix
+        uses: cachix/install-nix-action@v17
 
-  fmt:
-    runs-on: ubuntu-20.04
-    strategy:
-      matrix:
-        rust: ["stable"]
-    name: Rustfmt (${{ matrix.rust }})
-    steps:
-      - uses: actions/checkout@v2
-      - name: Install minimal ${{ matrix.rust }} with rustfmt
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: ${{ matrix.rust }}
-          override: true
-          components: rustfmt
       - name: Run cargo fmt
-        uses: actions-rs/cargo@v1
-        with:
-          command: fmt
-          args: --all -- --check
+        run: nix develop .#${{ matrix.rust-toolchain }} --command cargo fmt
 
-#   clippy:
-#     runs-on: ubuntu-20.04
-#     strategy:
-#       matrix:
-#         rust: ["1.56.0", "stable", "beta", "nightly"]
-#     name: Clippy (${{ matrix.rust }})
-#     steps:
-#       - uses: actions/checkout@v2
-#       - name: Install minimal ${{ matrix.rust }} with clippy
-#         uses: actions-rs/toolchain@v1
-#         with:
-#           profile: minimal
-#           toolchain: ${{ matrix.rust }}
-#           override: true
-#           components: clippy
-#       - name: Run cargo clippy
-#         uses: actions-rs/cargo@v1
-#         with:
-#           command: clippy
-#           args: -- -D warnings
+  # cargo-clippy:
+  #   runs-on: ubuntu-latest
+  #   strategy:
+  #     matrix:
+  #       rust-toolchain: ["stable", "minimum"]
+  #   name: Clippy (${{ matrix.rust }})
+  #   steps:
+  #     - name: Checkout repository
+  #       uses: actions/checkout@v3
+  #     - name: Install Nix
+  #       uses: cachix/install-nix-action@v17
+  #
+  #     - name: Run cargo clippy
+  #       run: nix develop .#${{ matrix.rust }} --command cargo clippy --deny warnings
+
+  nixpkgs-fmt:
+    runs-on: ubuntu-latest
+    name: Nix Formatting
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+      - name: Install Nix
+        uses: cachix/install-nix-action@v17
+
+      - name: Run nixpkgs-fmt
+        run: nix develop --command nixpkgs-fmt --check .
