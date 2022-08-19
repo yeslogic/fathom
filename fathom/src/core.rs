@@ -651,11 +651,11 @@ impl<'arena> Term<'arena> {
             }),
             Term::RecordProj(_, term, _) => term.contains_free(var),
             Term::ArrayLit(_, terms) => terms.iter().any(|term| term.contains_free(var)),
-            Term::FormatCond(_, _, t1, t2) => t1.contains_free(var) || t2.contains_free(var),
+            Term::FormatCond(_, _, t1, t2) => t1.contains_free(var) || t2.contains_free(var.prev()),
             Term::ConstMatch(_, scrut, branches, default) => {
                 scrut.contains_free(var)
                     || branches.iter().any(|(_, term)| term.contains_free(var))
-                    || default.map(|term| term.contains_free(var)).unwrap_or(false)
+                    || default.map_or(false, |term| term.contains_free(var.prev()))
             }
         }
     }
