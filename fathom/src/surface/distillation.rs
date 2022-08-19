@@ -5,6 +5,7 @@ use std::cell::RefCell;
 
 use crate::core::UIntStyle;
 use crate::env::{self, EnvLen, GlobalVar, LocalVar, UniqueEnv};
+use crate::source::Span;
 use crate::surface::elaboration::FlexSource;
 use crate::surface::{BinOp, ExprField, FormatField, Item, Module, Pattern, Term, TypeField};
 use crate::{core, StringId, StringInterner};
@@ -197,11 +198,11 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
     /// Distill a core term into a surface term, in a 'checkable' context.
     pub fn check(&mut self, core_term: &core::Term<'_>) -> Term<'arena, ()> {
         match core_term {
-            core::Term::Ann(expr, _) => {
+            core::Term::Ann(_span, expr, _) => {
                 // Avoid adding extraneous type annotations!
                 self.check(expr)
             }
-            core::Term::Let(def_name, def_type, def_expr, output_expr) => {
+            core::Term::Let(_span, def_name, def_type, def_expr, output_expr) => {
                 let def_type = self.synth(def_type);
                 let def_expr = self.check(def_expr);
 
@@ -217,7 +218,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                     self.scope.to_scope(output_expr),
                 )
             }
-            core::Term::FunLit(input_name, output_expr) => {
+            core::Term::FunLit(_span, input_name, output_expr) => {
                 let input_name = self.push_rigid(*input_name);
                 let output_expr = self.check(output_expr);
                 self.pop_rigid();
@@ -229,9 +230,9 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                     self.scope.to_scope(output_expr),
                 )
             }
-            core::Term::RecordType(labels, _) if labels.is_empty() => Term::UnitLiteral(()),
-            core::Term::RecordLit(labels, _) if labels.is_empty() => Term::UnitLiteral(()),
-            core::Term::RecordLit(labels, exprs) => {
+            core::Term::RecordType(_span, labels, _) if labels.is_empty() => Term::UnitLiteral(()),
+            core::Term::RecordLit(_span, labels, _) if labels.is_empty() => Term::UnitLiteral(()),
+            core::Term::RecordLit(_span, labels, exprs) => {
                 let scope = self.scope;
                 let expr_fields =
                     Iterator::zip(labels.iter(), exprs.iter()).map(|(label, expr)| ExprField {
@@ -241,14 +242,16 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
 
                 Term::RecordLiteral((), scope.to_scope_from_iter(expr_fields))
             }
-            core::Term::ArrayLit(elem_exprs) => {
+            core::Term::ArrayLit(_span, elem_exprs) => {
                 let scope = self.scope;
                 let elem_exprs = elem_exprs.iter().map(|elem_exprs| self.check(elem_exprs));
 
                 Term::ArrayLiteral((), scope.to_scope_from_iter(elem_exprs))
             }
-            core::Term::FormatRecord(labels, _) if labels.is_empty() => Term::UnitLiteral(()),
-            core::Term::ConstLit(r#const) => match r#const {
+            core::Term::FormatRecord(_span, labels, _) if labels.is_empty() => {
+                Term::UnitLiteral(())
+            }
+            core::Term::ConstLit(_span, r#const) => match r#const {
                 core::Const::Bool(boolean) => Term::BooleanLiteral((), *boolean),
                 core::Const::U8(number, style) => self.check_number_literal_styled(number, *style),
                 core::Const::U16(number, style) => self.check_number_literal_styled(number, *style),
@@ -263,7 +266,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 core::Const::Pos(number) => self.check_number_literal(number),
                 core::Const::Ref(number) => self.check_number_literal(number),
             },
-            core::Term::ConstMatch(head_expr, branches, default_expr) => {
+            core::Term::ConstMatch(_span, head_expr, branches, default_expr) => {
                 let head_expr = self.synth(head_expr);
                 match default_expr {
                     Some(default_expr) => {
@@ -311,27 +314,27 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
     /// Distill a core term into a surface term, in a 'synthesizable' context.
     pub fn synth(&mut self, core_term: &core::Term<'_>) -> Term<'arena, ()> {
         match core_term {
-            core::Term::ItemVar(var) => match self.get_item_name(*var) {
+            core::Term::ItemVar(_span, var) => match self.get_item_name(*var) {
                 Some(name) => Term::Name((), name),
                 None => todo!("misbound variable"), // TODO: error?
             },
-            core::Term::RigidVar(var) => match self.get_rigid_name(*var) {
+            core::Term::RigidVar(_span, var) => match self.get_rigid_name(*var) {
                 Some(name) => Term::Name((), name),
                 None => todo!("misbound variable"), // TODO: error?
             },
-            core::Term::FlexibleVar(var) => match self.get_flexible_name(*var) {
+            core::Term::FlexibleVar(_span, var) => match self.get_flexible_name(*var) {
                 Some(name) => Term::Hole((), name),
                 None => Term::Placeholder(()),
             },
-            core::Term::FlexibleInsertion(var, rigid_infos) => {
-                let mut head_expr = self.synth(&core::Term::FlexibleVar(*var));
+            core::Term::FlexibleInsertion(span, var, rigid_infos) => {
+                let mut head_expr = self.synth(&core::Term::FlexibleVar(*span, *var));
 
                 for (var, info) in Iterator::zip(env::global_vars(), rigid_infos.iter()) {
                     match info {
                         core::EntryInfo::Definition => {}
                         core::EntryInfo::Parameter => {
                             let var = self.rigid_len().global_to_local(var).unwrap();
-                            let input_expr = self.check(&core::Term::RigidVar(var));
+                            let input_expr = self.check(&core::Term::RigidVar(Span::fixme(), var)); // FIXME: What span should be used here?
                             head_expr = Term::App(
                                 (),
                                 self.scope.to_scope(head_expr),
@@ -343,13 +346,13 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
 
                 head_expr
             }
-            core::Term::Ann(expr, r#type) => {
+            core::Term::Ann(_span, expr, r#type) => {
                 let r#type = self.check(r#type);
                 let expr = self.check(expr);
 
                 Term::Ann((), self.scope.to_scope(expr), self.scope.to_scope(r#type))
             }
-            core::Term::Let(def_name, def_type, def_expr, output_expr) => {
+            core::Term::Let(_span, def_name, def_type, def_expr, output_expr) => {
                 let def_type = self.synth(def_type);
                 let def_expr = self.check(def_expr);
 
@@ -365,8 +368,8 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                     self.scope.to_scope(output_expr),
                 )
             }
-            core::Term::Universe => Term::Universe(()),
-            core::Term::FunType(_, input_type, output_type)
+            core::Term::Universe(_span) => Term::Universe(()),
+            core::Term::FunType(_span, _, input_type, output_type)
                 if !output_type.contains_free(LocalVar::last()) =>
             {
                 let input_type = self.check(input_type);
@@ -381,7 +384,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                     self.scope.to_scope(output_type),
                 )
             }
-            core::Term::FunType(input_name, input_type, output_type) => {
+            core::Term::FunType(_span, input_name, input_type, output_type) => {
                 let input_type = self.check(input_type);
 
                 let input_name = self.push_rigid(*input_name);
@@ -395,7 +398,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                     self.scope.to_scope(output_type),
                 )
             }
-            core::Term::FunLit(input_name, output_expr) => {
+            core::Term::FunLit(_span, input_name, output_expr) => {
                 let input_name = self.push_rigid(*input_name);
                 let output_expr = self.synth(output_expr);
                 self.pop_rigid();
@@ -407,8 +410,8 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                     self.scope.to_scope(output_expr),
                 )
             }
-            core::Term::FunApp(head_expr, input_expr) => match head_expr {
-                core::Term::FunApp(core::Term::Prim(prim), lhs)
+            core::Term::FunApp(_span, head_expr, input_expr) => match head_expr {
+                core::Term::FunApp(_span, core::Term::Prim(_span2, prim), lhs)
                     if prim_to_bin_op(prim).is_some() =>
                 {
                     // unwrap is safe due to is_some check above
@@ -425,17 +428,17 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                     )
                 }
             },
-            core::Term::RecordType(labels, _) if labels.is_empty() => {
+            core::Term::RecordType(_span, labels, _) if labels.is_empty() => {
                 Term::Ann((), &Term::UnitLiteral(()), &Term::Universe(()))
             }
-            core::Term::RecordType(labels, types) => {
+            core::Term::RecordType(_span, labels, types) => {
                 let initial_rigid_len = self.rigid_len();
                 let type_fields = (self.scope).to_scope_from_iter(
                     Iterator::zip(labels.iter(), types.iter()).map(|(label, r#type)| {
                         let r#type = self.check(r#type);
                         self.push_rigid(Some(*label));
                         TypeField {
-                            label: ((), *label),
+                            label: ((), *label), // TODO: range from span
                             type_: r#type,
                         }
                     }),
@@ -444,8 +447,8 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
 
                 Term::RecordType((), type_fields)
             }
-            core::Term::RecordLit(labels, _) if labels.is_empty() => Term::UnitLiteral(()),
-            core::Term::RecordLit(labels, exprs) => {
+            core::Term::RecordLit(_span, labels, _) if labels.is_empty() => Term::UnitLiteral(()),
+            core::Term::RecordLit(_span, labels, exprs) => {
                 let scope = self.scope;
                 let expr_fields =
                     Iterator::zip(labels.iter(), exprs.iter()).map(|(label, expr)| ExprField {
@@ -456,26 +459,26 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 // TODO: type annotations?
                 Term::RecordLiteral((), scope.to_scope_from_iter(expr_fields))
             }
-            core::Term::RecordProj(head_expr, label) => {
+            core::Term::RecordProj(_span, head_expr, label) => {
                 let head_expr = self.synth(head_expr);
 
                 Term::Proj((), self.scope.to_scope(head_expr), ((), *label))
             }
-            core::Term::ArrayLit(elem_exprs) => {
+            core::Term::ArrayLit(_span, elem_exprs) => {
                 let scope = self.scope;
                 let elem_exprs = elem_exprs.iter().map(|elem_exprs| self.check(elem_exprs));
 
                 // FIXME: Type annotations
                 Term::ArrayLiteral((), scope.to_scope_from_iter(elem_exprs))
             }
-            core::Term::FormatRecord(labels, _) if labels.is_empty() => {
+            core::Term::FormatRecord(_span, labels, _) if labels.is_empty() => {
                 let format_type = self.synth_prim(core::Prim::FormatType);
                 Term::Ann((), &Term::UnitLiteral(()), self.scope.to_scope(format_type))
             }
-            core::Term::FormatRecord(labels, formats) => {
+            core::Term::FormatRecord(_span, labels, formats) => {
                 Term::FormatRecord((), self.synth_format_fields(labels, formats))
             }
-            core::Term::FormatCond(label, format, cond) => {
+            core::Term::FormatCond(_span, label, format, cond) => {
                 let format = self.check(format);
                 self.push_rigid(Some(*label));
                 let cond = self.check(cond);
@@ -487,11 +490,11 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                     self.scope.to_scope(cond),
                 )
             }
-            core::Term::FormatOverlap(labels, formats) => {
+            core::Term::FormatOverlap(_span, labels, formats) => {
                 Term::FormatOverlap((), self.synth_format_fields(labels, formats))
             }
-            core::Term::Prim(prim) => self.synth_prim(*prim),
-            core::Term::ConstLit(r#const) => match r#const {
+            core::Term::Prim(_span, prim) => self.synth_prim(*prim),
+            core::Term::ConstLit(_span, r#const) => match r#const {
                 core::Const::Bool(boolean) => Term::BooleanLiteral((), *boolean),
                 core::Const::U8(number, style) => {
                     self.synth_number_literal_styled(number, *style, core::Prim::U8Type)
@@ -514,7 +517,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 core::Const::Pos(number) => self.synth_number_literal(number, core::Prim::PosType),
                 core::Const::Ref(number) => self.synth_number_literal(number, core::Prim::RefType),
             },
-            core::Term::ConstMatch(head_expr, branches, default_expr) => {
+            core::Term::ConstMatch(_span, head_expr, branches, default_expr) => {
                 let head_expr = self.synth(head_expr);
                 match default_expr {
                     Some(default_expr) => {
@@ -586,7 +589,8 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
             (self.scope).to_scope_from_iter(core_fields.map(|(label, format)| match format {
                 // Distill succeed formats back to computed formats
                 core::Term::FunApp(
-                    core::Term::FunApp(core::Term::Prim(FormatSucceed), r#type),
+                    _,
+                    core::Term::FunApp(_span, core::Term::Prim(_prim_span, FormatSucceed), r#type),
                     expr,
                 ) => {
                     let r#type = self.check(r#type);
@@ -601,7 +605,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 }
                 // Use field refinements when `format` is a conditional format
                 // that binds the same name as the current field label.
-                core::Term::FormatCond(name, format, pred) if label == *name => {
+                core::Term::FormatCond(_span, name, format, pred) if label == *name => {
                     let format = self.check(format);
                     self.push_rigid(Some(label));
                     let pred = self.check(pred);

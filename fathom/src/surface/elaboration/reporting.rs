@@ -5,7 +5,7 @@ use std::cell::RefCell;
 use crate::source::{ByteRange, FileId};
 use crate::surface::elaboration::{unification, FlexSource};
 use crate::surface::BinOp;
-use crate::{StringId, StringInterner};
+use crate::{StringId, StringInterner, BUG_REPORT_URL};
 
 /// Elaboration diagnostic messages.
 #[derive(Debug, Clone)]
@@ -115,6 +115,10 @@ pub enum Message {
     /// A cycle between module items was detected.
     CycleDetected {
         names: Vec<StringId>,
+    },
+    /// Core term lacked span information
+    MissingSpan {
+        range: ByteRange,
     },
 }
 
@@ -437,6 +441,13 @@ impl Message {
                     .with_message("cycle detected")
                     .with_notes(vec![cycle])
             }
+            Message::MissingSpan { range } => Diagnostic::bug()
+                .with_message("produced core term without span")
+                .with_labels(vec![primary_label(range)])
+                .with_notes(vec![format!(
+                    "please file a bug report at: {}",
+                    BUG_REPORT_URL
+                )]),
         }
     }
 }

@@ -1,6 +1,7 @@
 //! Core language.
 
 use crate::env::{GlobalVar, LocalVar};
+use crate::source::Span;
 use crate::StringId;
 
 pub mod binary;
@@ -43,7 +44,7 @@ pub enum Term<'arena> {
     /// Item variable occurrences.
     ///
     /// These refer to [items][Item] bound at the top-level of a [module][Module].
-    ItemVar(GlobalVar),
+    ItemVar(Span, GlobalVar),
     /// Rigid variable occurrences.
     ///
     /// These correspond to variables that were most likely bound as a result of
@@ -58,7 +59,7 @@ pub enum Term<'arena> {
     ///
     /// - [A unification algorithm for typed λ-calculus](https://doi.org/10.1016/0304-3975(75)90011-0)
     /// - [Type Classes: Rigid type variables](https://typeclasses.com/rigid-type-variables)
-    RigidVar(LocalVar),
+    RigidVar(Span, LocalVar),
     /// Flexible variable occurrences.
     ///
     /// These are inserted during [elaboration] when we have something we want
@@ -69,7 +70,7 @@ pub enum Term<'arena> {
     /// Also known as: metavariables.
     ///
     /// [elaboration]: crate::surface::elaboration
-    FlexibleVar(GlobalVar),
+    FlexibleVar(Span, GlobalVar),
     /// A flexible variable that has been inserted during elaboration, along
     /// with the [entry information] in the rigid environment at the time of
     /// insertion.
@@ -123,11 +124,12 @@ pub enum Term<'arena> {
     //
     // - https://lib.rs/crates/smallbitvec
     // - https://lib.rs/crates/bit-vec
-    FlexibleInsertion(GlobalVar, &'arena [EntryInfo]),
+    FlexibleInsertion(Span, GlobalVar, &'arena [EntryInfo]),
     /// Annotated expressions.
-    Ann(&'arena Term<'arena>, &'arena Term<'arena>),
+    Ann(Span, &'arena Term<'arena>, &'arena Term<'arena>),
     /// Let expressions.
     Let(
+        Span,
         Option<StringId>,
         &'arena Term<'arena>,
         &'arena Term<'arena>,
@@ -135,50 +137,84 @@ pub enum Term<'arena> {
     ),
 
     /// The type of types.
-    Universe,
+    Universe(Span),
 
     /// Dependent function types.
     ///
     /// Also known as: pi types, dependent product types.
-    FunType(Option<StringId>, &'arena Term<'arena>, &'arena Term<'arena>),
+    FunType(
+        Span,
+        Option<StringId>,
+        &'arena Term<'arena>,
+        &'arena Term<'arena>,
+    ),
     /// Function literals.
     ///
     /// Also known as: lambda expressions, anonymous functions.
-    FunLit(Option<StringId>, &'arena Term<'arena>),
+    FunLit(Span, Option<StringId>, &'arena Term<'arena>),
     /// Function applications.
-    FunApp(&'arena Term<'arena>, &'arena Term<'arena>),
+    FunApp(Span, &'arena Term<'arena>, &'arena Term<'arena>),
 
     /// Dependent record types.
-    RecordType(&'arena [StringId], &'arena [Term<'arena>]),
+    RecordType(Span, &'arena [StringId], &'arena [Term<'arena>]),
     /// Record literals.
-    RecordLit(&'arena [StringId], &'arena [Term<'arena>]),
+    RecordLit(Span, &'arena [StringId], &'arena [Term<'arena>]),
     /// Record projections.
-    RecordProj(&'arena Term<'arena>, StringId),
+    RecordProj(Span, &'arena Term<'arena>, StringId),
 
     /// Array literals.
-    ArrayLit(&'arena [Term<'arena>]),
+    ArrayLit(Span, &'arena [Term<'arena>]),
 
     /// Record formats, consisting of a list of dependent formats.
-    FormatRecord(&'arena [StringId], &'arena [Term<'arena>]),
+    FormatRecord(Span, &'arena [StringId], &'arena [Term<'arena>]),
     /// Conditional format, consisting of a format and predicate.
-    FormatCond(StringId, &'arena Term<'arena>, &'arena Term<'arena>),
+    FormatCond(Span, StringId, &'arena Term<'arena>, &'arena Term<'arena>),
     /// Overlap formats, consisting of a list of dependent formats, overlapping
     /// in memory.
-    FormatOverlap(&'arena [StringId], &'arena [Term<'arena>]),
+    FormatOverlap(Span, &'arena [StringId], &'arena [Term<'arena>]),
 
     /// Primitives.
-    Prim(Prim),
+    Prim(Span, Prim),
 
     /// Constant literals.
-    ConstLit(Const),
+    ConstLit(Span, Const),
     /// Match on a constant.
     ///
     /// (head_expr, pattern_branches, default_expr)
     ConstMatch(
+        Span,
         &'arena Term<'arena>,
         &'arena [(Const, Term<'arena>)],
         Option<&'arena Term<'arena>>,
     ),
+}
+
+impl<'arena> Term<'arena> {
+    /// Get the source span of the term.
+    pub fn span(&self) -> Span {
+        match self {
+            Term::ItemVar(span, _)
+            | Term::RigidVar(span, _)
+            | Term::FlexibleVar(span, _)
+            | Term::FlexibleInsertion(span, _, _)
+            | Term::Ann(span, _, _)
+            | Term::Let(span, _, _, _, _)
+            | Term::Universe(span)
+            | Term::FunType(span, _, _, _)
+            | Term::FunLit(span, _, _)
+            | Term::FunApp(span, _, _)
+            | Term::RecordType(span, _, _)
+            | Term::RecordLit(span, _, _)
+            | Term::RecordProj(span, _, _)
+            | Term::ArrayLit(span, _)
+            | Term::FormatRecord(span, _, _)
+            | Term::FormatCond(span, _, _, _)
+            | Term::FormatOverlap(span, _, _)
+            | Term::Prim(span, _)
+            | Term::ConstLit(span, _)
+            | Term::ConstMatch(span, _, _, _) => *span,
+        }
+    }
 }
 
 macro_rules! def_prims {
@@ -586,37 +622,37 @@ mod tests {
 impl<'arena> Term<'arena> {
     pub fn contains_free(&self, mut var: LocalVar) -> bool {
         match self {
-            Term::RigidVar(v) => *v == var,
-            Term::ItemVar(_)
-            | Term::FlexibleVar(_)
-            | Term::FlexibleInsertion(_, _)
-            | Term::Universe
-            | Term::Prim(_)
-            | Term::ConstLit(_) => false,
+            Term::RigidVar(_, v) => *v == var,
+            Term::ItemVar(_, _)
+            | Term::FlexibleVar(_, _)
+            | Term::FlexibleInsertion(_, _, _)
+            | Term::Universe(_)
+            | Term::Prim(_, _)
+            | Term::ConstLit(_, _) => false,
 
-            Term::Ann(term, r#type) => term.contains_free(var) || r#type.contains_free(var),
-            Term::Let(_, r#type, def, body) => {
+            Term::Ann(_, term, r#type) => term.contains_free(var) || r#type.contains_free(var),
+            Term::Let(_, _, r#type, def, body) => {
                 r#type.contains_free(var)
                     || def.contains_free(var)
                     || body.contains_free(var.prev())
             }
-            Term::FunType(_, input_type, output_type) => {
+            Term::FunType(_, _, input_type, output_type) => {
                 input_type.contains_free(var) || output_type.contains_free(var.prev())
             }
-            Term::FunLit(_, body) => body.contains_free(var.prev()),
-            Term::FunApp(head, arg) => head.contains_free(var) || arg.contains_free(var),
-            Term::RecordType(_, terms)
-            | Term::RecordLit(_, terms)
-            | Term::FormatRecord(_, terms)
-            | Term::FormatOverlap(_, terms) => terms.iter().any(|term| {
+            Term::FunLit(_, _, body) => body.contains_free(var.prev()),
+            Term::FunApp(_, head, arg) => head.contains_free(var) || arg.contains_free(var),
+            Term::RecordType(_, _, terms)
+            | Term::RecordLit(_, _, terms)
+            | Term::FormatRecord(_, _, terms)
+            | Term::FormatOverlap(_, _, terms) => terms.iter().any(|term| {
                 let result = term.contains_free(var);
                 var = var.prev();
                 result
             }),
-            Term::RecordProj(term, _) => term.contains_free(var),
-            Term::ArrayLit(terms) => terms.iter().any(|term| term.contains_free(var)),
-            Term::FormatCond(_, t1, t2) => t1.contains_free(var) || t2.contains_free(var),
-            Term::ConstMatch(scrut, branches, default) => {
+            Term::RecordProj(_, term, _) => term.contains_free(var),
+            Term::ArrayLit(_, terms) => terms.iter().any(|term| term.contains_free(var)),
+            Term::FormatCond(_, _, t1, t2) => t1.contains_free(var) || t2.contains_free(var),
+            Term::ConstMatch(_, scrut, branches, default) => {
                 scrut.contains_free(var)
                     || branches.iter().any(|(_, term)| term.contains_free(var))
                     || default.map(|term| term.contains_free(var)).unwrap_or(false)

@@ -1,4 +1,4 @@
-use codespan_reporting::diagnostic::{Diagnostic, Severity};
+use codespan_reporting::diagnostic::{Diagnostic, Label, Severity};
 use codespan_reporting::files::SimpleFiles;
 use codespan_reporting::term::termcolor::{BufferedStandardStream, ColorChoice, WriteColor};
 use std::cell::RefCell;
@@ -6,12 +6,10 @@ use std::io::Read;
 use std::path::Path;
 
 use crate::core::binary;
-use crate::core::binary::ReadError;
-use crate::source::{ByteRange, FileId};
+use crate::core::binary::{BufferError, ReadError};
+use crate::source::{ByteRange, FileId, Span, Spanned};
 use crate::surface::{self, elaboration};
-use crate::StringInterner;
-
-const BUG_REPORT_URL: &str = concat!(env!("CARGO_PKG_REPOSITORY"), "/issues/new");
+use crate::{StringInterner, BUG_REPORT_URL};
 
 #[derive(Debug, Copy, Clone)]
 pub enum Status {
@@ -302,7 +300,7 @@ impl<'surface, 'core> Driver<'surface, 'core> {
         let surface_format = self.parse_term(format_file_id);
         let format_term = context.check(
             &surface_format,
-            &Arc::new(Value::prim(Prim::FormatType, [])),
+            &Spanned::new(Span::Empty, Arc::new(Value::prim(Prim::FormatType, []))),
         );
 
         // Emit errors we might have found during elaboration
@@ -319,7 +317,7 @@ impl<'surface, 'core> Driver<'surface, 'core> {
         let refs = match context.binary_context(buffer).read_entrypoint(format) {
             Ok(refs) => refs,
             Err(err) => {
-                self.emit_diagnostic(Diagnostic::from(err));
+                self.emit_diagnostic(self.read_error_to_diagnostic(err, &mut context));
                 return Status::Error;
             }
         };
@@ -421,57 +419,139 @@ impl<'surface, 'core> Driver<'surface, 'core> {
             Diagnostic::error().with_message(format!("couldn't read `{}`: {}", name, error));
         self.emit_diagnostic(diagnostic);
     }
-}
 
-impl From<ReadError> for Diagnostic<usize> {
-    fn from(err: ReadError) -> Diagnostic<usize> {
+    fn read_error_to_diagnostic(
+        &self,
+        err: ReadError<'_>,
+        context: &mut elaboration::Context,
+    ) -> Diagnostic<FileId> {
         match err {
-            ReadError::ReadFailFormat => Diagnostic::error()
+            ReadError::ReadFailFormat(span) => Diagnostic::error()
                 .with_message(err.to_string())
+                .with_labels(
+                    IntoIterator::into_iter([label_for_span(&span)])
+                        .into_iter()
+                        .flatten()
+                        .collect(),
+                )
                 .with_notes(vec![format!(
                     "A fail format was encountered when reading this file."
                 )]),
-            ReadError::CondFailure => Diagnostic::error()
-                .with_message(err.to_string())
-                .with_notes(vec![format!(
-                    "The predicate on a conditional format did not succeed."
-                )]),
-            ReadError::UnwrappedNone => Diagnostic::error()
+            ReadError::CondFailure(span, ref value) => {
+                let core_scope = &self.core_scope;
+                let surface_scope = &self.surface_scope;
+                let expr = context.quote_context(core_scope).quote(value);
+                let surface_term = context.distillation_context(surface_scope).check(&expr);
+                let pretty_context = surface::pretty::Context::new(&self.interner, surface_scope);
+                let doc = pretty_context.term(&surface_term).into_doc();
+
+                Diagnostic::error()
+                    .with_message(err.to_string())
+                    .with_labels(
+                        IntoIterator::into_iter([label_for_span(&span)])
+                            .into_iter()
+                            .flatten()
+                            .collect(),
+                    )
+                    .with_notes(vec![
+                        "The predicate on a conditional format did not succeed.".to_string(),
+                        format!("failed value: {}", doc.pretty(self.emit_width).to_string()),
+                    ])
+            }
+            ReadError::UnwrappedNone(_) => Diagnostic::error()
                 .with_message(err.to_string())
                 .with_notes(vec![format!("option_unwrap was called on a none value.")]),
-            ReadError::UnexpectedEndOfBuffer => Diagnostic::error()
-                .with_message(err.to_string())
+            ReadError::BufferError(span, err) => self.buffer_error_to_diagnostic(err, span),
+            ReadError::InvalidFormat(span) | ReadError::InvalidValue(span) => Diagnostic::bug()
+                .with_message(format!("unexpected error '{}'", err))
+                .with_labels(
+                    IntoIterator::into_iter([label_for_span(&span)])
+                        .into_iter()
+                        .flatten()
+                        .collect(),
+                )
                 .with_notes(vec![format!(
-                    "The end of the buffer was reached before all data could be read."
+                    "please file a bug report at: {}",
+                    BUG_REPORT_URL
                 )]),
-            ReadError::SetOffsetBeforeStartOfBuffer { offset } => Diagnostic::error()
-                .with_message(err.to_string())
-                .with_notes(vec![format!(
-                    "The offset {} is before the start of the buffer.",
-                    offset
-                )]),
-            ReadError::SetOffsetAfterEndOfBuffer {
-                offset: Some(offset),
-            } => Diagnostic::error()
-                .with_message(err.to_string())
-                .with_notes(vec![format!(
-                    "The offset {} is beyond the end of the buffer.",
-                    offset
-                )]),
-            ReadError::SetOffsetAfterEndOfBuffer { offset: None } => Diagnostic::error()
-                .with_message(err.to_string())
-                .with_notes(vec![format!(
-                    "The offset is beyond the end of the buffer (overflow).",
-                )]),
-            ReadError::InvalidFormat
-            | ReadError::InvalidValue
-            | ReadError::UnknownItem
-            | ReadError::PositionOverflow => Diagnostic::bug()
+            ReadError::UnknownItem => Diagnostic::bug()
                 .with_message(format!("unexpected error '{}'", err))
                 .with_notes(vec![format!(
                     "please file a bug report at: {}",
                     BUG_REPORT_URL
                 )]),
         }
+    }
+
+    fn buffer_error_to_diagnostic(&self, err: BufferError, span: Span) -> Diagnostic<FileId> {
+        match err {
+            BufferError::UnexpectedEndOfBuffer => Diagnostic::error()
+                .with_message(err.to_string())
+                .with_labels(
+                    IntoIterator::into_iter([label_for_span(&span)])
+                        .into_iter()
+                        .flatten()
+                        .collect(),
+                )
+                .with_notes(vec![format!(
+                    "The end of the buffer was reached before all data could be read."
+                )]),
+            BufferError::SetOffsetBeforeStartOfBuffer { offset } => Diagnostic::error()
+                .with_message(err.to_string())
+                .with_labels(
+                    IntoIterator::into_iter([label_for_span(&span)])
+                        .into_iter()
+                        .flatten()
+                        .collect(),
+                )
+                .with_notes(vec![format!(
+                    "The offset {} is before the start of the buffer.",
+                    offset
+                )]),
+            BufferError::SetOffsetAfterEndOfBuffer {
+                offset: Some(offset),
+            } => Diagnostic::error()
+                .with_message(err.to_string())
+                .with_labels(
+                    IntoIterator::into_iter([label_for_span(&span)])
+                        .into_iter()
+                        .flatten()
+                        .collect(),
+                )
+                .with_notes(vec![format!(
+                    "The offset {} is beyond the end of the buffer.",
+                    offset
+                )]),
+            BufferError::SetOffsetAfterEndOfBuffer { offset: None } => Diagnostic::error()
+                .with_message(err.to_string())
+                .with_labels(
+                    IntoIterator::into_iter([label_for_span(&span)])
+                        .into_iter()
+                        .flatten()
+                        .collect(),
+                )
+                .with_notes(vec![format!(
+                    "The offset is beyond the end of the buffer (overflow).",
+                )]),
+            BufferError::PositionOverflow => Diagnostic::bug()
+                .with_message(format!("unexpected error '{}'", err))
+                .with_labels(
+                    IntoIterator::into_iter([label_for_span(&span)])
+                        .into_iter()
+                        .flatten()
+                        .collect(),
+                )
+                .with_notes(vec![format!(
+                    "please file a bug report at: {}",
+                    BUG_REPORT_URL
+                )]),
+        }
+    }
+}
+
+fn label_for_span(span: &Span) -> Option<Label<FileId>> {
+    match span {
+        Span::Range(range) => Some(Label::primary(range.file_id(), *range)),
+        Span::Empty => None,
     }
 }

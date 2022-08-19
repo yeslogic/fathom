@@ -1,0 +1,4 @@
+def main = {
+    let ary : Array16 3 U16 = [1, 2, 3],
+    x <- unwrap U16 (array16_find _ U16 (fun el => el == (4 : U16)) ary),
+};

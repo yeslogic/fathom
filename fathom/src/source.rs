@@ -1,7 +1,83 @@
+use std::ops::{Deref, DerefMut};
+
 ///! Types related to source files.
 
 /// File id.
 pub type FileId = usize; // TODO: use wrapper struct
+
+#[derive(Debug, Clone)]
+pub struct Spanned<T> {
+    span: Span,
+    inner: T,
+}
+
+impl<T> Spanned<T> {
+    pub fn new(span: Span, inner: T) -> Self {
+        Spanned { span, inner }
+    }
+
+    pub fn empty(inner: T) -> Self {
+        Spanned {
+            span: Span::Empty,
+            inner,
+        }
+    }
+
+    pub fn span(&self) -> Span {
+        self.span
+    }
+
+    /// Merge the supplied span with the span of `other` and return `other` wrapped in that span.
+    pub fn merge(span: Span, other: Spanned<T>) -> Spanned<T> {
+        let Spanned {
+            span: other_span,
+            inner,
+        } = other;
+        Spanned {
+            span: span.merge(&other_span),
+            inner,
+        }
+    }
+}
+
+impl<T> Deref for Spanned<T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
+}
+
+impl<T> DerefMut for Spanned<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.inner
+    }
+}
+
+#[derive(Debug, Copy, Clone)]
+pub enum Span {
+    Range(ByteRange),
+    Empty,
+}
+
+impl Span {
+    pub const fn fixme() -> Span {
+        Span::Empty
+    }
+
+    pub fn merge(&self, other: &Span) -> Span {
+        match (self, other) {
+            (Span::Range(a), Span::Range(b)) => a.merge(b).map(Span::Range).unwrap_or(Span::Empty),
+            (_, _) => Span::Empty,
+        }
+    }
+}
+
+impl From<&ByteRange> for Span {
+    fn from(range: &ByteRange) -> Self {
+        Span::Range(*range)
+    }
+}
 
 /// Byte offsets into source files.
 pub type BytePos = usize;
@@ -33,6 +109,18 @@ impl ByteRange {
 
     pub const fn end(&self) -> BytePos {
         self.end
+    }
+
+    pub fn merge(&self, other: &ByteRange) -> Option<ByteRange> {
+        if self.file_id == other.file_id {
+            Some(ByteRange::new(
+                self.file_id,
+                self.start.min(other.start),
+                self.end.max(other.end),
+            ))
+        } else {
+            None
+        }
     }
 }
 

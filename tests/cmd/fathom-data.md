@@ -244,7 +244,13 @@ Unexpected data in the binary file will result in an error
 $ fathom data --module formats/edid.fathom formats/data/edid/invalid/wrong-magic.edid
 ? failed
 error: conditional format failed
- = The predicate on a conditional format did not succeed.
+   ┌─ formats/edid.fathom:18:26
+   │
+18 │     magic <- u64le where u64_eq magic 0x00ffffffffffff00,
+   │                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   │
+   = The predicate on a conditional format did not succeed.
+   = failed value: 18374686479671623935
 
 
 ```
@@ -285,3 +291,18 @@ error: mismatched types
 
 
 ```
+
+### Unwrap none
+
+Unwrapping a none value will result in an error
+
+```console
+$ fathom data --module formats/unwrap-none.fathom
+>             formats/data/opentype/aots/cmap0_font1.otf
+? failed
+error: unwrapped none
+ = option_unwrap was called on a none value.
+
+
+```
+

@@ -29,7 +29,7 @@ use crate::alloc::SliceVec;
 use crate::core::semantics::{self, ArcValue, Closure, Head, Telescope, Value};
 use crate::core::{self, binary, Const, Prim, UIntStyle};
 use crate::env::{self, EnvLen, GlobalVar, SharedEnv, SliceEnv, UniqueEnv};
-use crate::source::ByteRange;
+use crate::source::{ByteRange, Span, Spanned};
 use crate::surface::elaboration::reporting::Message;
 use crate::surface::{distillation, pretty, BinOp, FormatField, Item, Module, Pattern, Term};
 use crate::{StringId, StringInterner};
@@ -118,27 +118,27 @@ impl<'arena> RigidEnv<'arena> {
         use crate::core::Prim::*;
         use crate::core::Term;
 
-        const VAR0: core::Term<'_> = core::Term::RigidVar(env::LocalVar::last());
-        const VAR1: core::Term<'_> = core::Term::RigidVar(env::LocalVar::last().prev());
-        const VAR2: core::Term<'_> = core::Term::RigidVar(env::LocalVar::last().prev().prev());
-        const VAR3: core::Term<'_> =
-            core::Term::RigidVar(env::LocalVar::last().prev().prev().prev());
-        const UNIVERSE: core::Term<'_> = core::Term::Universe;
-        const FORMAT_TYPE: core::Term<'_> = core::Term::Prim(Prim::FormatType);
-        const BOOL_TYPE: core::Term<'_> = core::Term::Prim(Prim::BoolType);
-        const U8_TYPE: core::Term<'_> = core::Term::Prim(Prim::U8Type);
-        const U16_TYPE: core::Term<'_> = core::Term::Prim(Prim::U16Type);
-        const U32_TYPE: core::Term<'_> = core::Term::Prim(Prim::U32Type);
-        const U64_TYPE: core::Term<'_> = core::Term::Prim(Prim::U64Type);
-        const S8_TYPE: core::Term<'_> = core::Term::Prim(Prim::S8Type);
-        const S16_TYPE: core::Term<'_> = core::Term::Prim(Prim::S16Type);
-        const S32_TYPE: core::Term<'_> = core::Term::Prim(Prim::S32Type);
-        const S64_TYPE: core::Term<'_> = core::Term::Prim(Prim::S64Type);
-        const ARRAY8_TYPE: core::Term<'_> = core::Term::Prim(Array8Type);
-        const ARRAY16_TYPE: core::Term<'_> = core::Term::Prim(Array16Type);
-        const ARRAY32_TYPE: core::Term<'_> = core::Term::Prim(Array32Type);
-        const ARRAY64_TYPE: core::Term<'_> = core::Term::Prim(Array64Type);
-        const POS_TYPE: core::Term<'_> = core::Term::Prim(Prim::PosType);
+        const VAR0: Term<'_> = Term::RigidVar(Span::Empty, env::LocalVar::last());
+        const VAR1: Term<'_> = Term::RigidVar(Span::Empty, env::LocalVar::last().prev());
+        const VAR2: Term<'_> = Term::RigidVar(Span::Empty, env::LocalVar::last().prev().prev());
+        const VAR3: Term<'_> =
+            Term::RigidVar(Span::Empty, env::LocalVar::last().prev().prev().prev());
+        const UNIVERSE: Term<'_> = Term::Universe(Span::Empty);
+        const FORMAT_TYPE: Term<'_> = Term::Prim(Span::Empty, FormatType);
+        const BOOL_TYPE: Term<'_> = Term::Prim(Span::Empty, BoolType);
+        const U8_TYPE: Term<'_> = Term::Prim(Span::Empty, U8Type);
+        const U16_TYPE: Term<'_> = Term::Prim(Span::Empty, U16Type);
+        const U32_TYPE: Term<'_> = Term::Prim(Span::Empty, U32Type);
+        const U64_TYPE: Term<'_> = Term::Prim(Span::Empty, U64Type);
+        const S8_TYPE: Term<'_> = Term::Prim(Span::Empty, S8Type);
+        const S16_TYPE: Term<'_> = Term::Prim(Span::Empty, S16Type);
+        const S32_TYPE: Term<'_> = Term::Prim(Span::Empty, S32Type);
+        const S64_TYPE: Term<'_> = Term::Prim(Span::Empty, S64Type);
+        const ARRAY8_TYPE: Term<'_> = Term::Prim(Span::Empty, Array8Type);
+        const ARRAY16_TYPE: Term<'_> = Term::Prim(Span::Empty, Array16Type);
+        const ARRAY32_TYPE: Term<'_> = Term::Prim(Span::Empty, Array32Type);
+        const ARRAY64_TYPE: Term<'_> = Term::Prim(Span::Empty, Array64Type);
+        const POS_TYPE: Term<'_> = Term::Prim(Span::Empty, PosType);
 
         let mut env = RigidEnvBuilder::new(interner, scope);
 
@@ -195,11 +195,13 @@ impl<'arena> RigidEnv<'arena> {
         env.define_prim(
             FormatDeref,
             &core::Term::FunType(
+                Span::Empty,
                 env.name("A"),
                 &FORMAT_TYPE,
                 &Term::FunType(
+                    Span::Empty,
                     None,
-                    &Term::FunApp(&Term::Prim(RefType), &VAR0),
+                    &Term::FunApp(Span::Empty, &Term::Prim(Span::Empty, RefType), &VAR0),
                     &FORMAT_TYPE,
                 ),
             ),
@@ -208,9 +210,10 @@ impl<'arena> RigidEnv<'arena> {
         env.define_prim(
             FormatSucceed,
             &core::Term::FunType(
+                Span::Empty,
                 env.name("A"),
                 &UNIVERSE,
-                &Term::FunType(None, &VAR0, &FORMAT_TYPE),
+                &Term::FunType(Span::Empty, None, &VAR0, &FORMAT_TYPE),
             ),
         );
         env.define_prim(FormatFail, &FORMAT_TYPE);
@@ -219,11 +222,13 @@ impl<'arena> RigidEnv<'arena> {
             // fun (A : Type) -> Option A   -> Format
             // fun (A : Type) -> Option A@0 -> Format
             &core::Term::FunType(
+                Span::Empty,
                 env.name("A"),
                 &UNIVERSE,
                 &Term::FunType(
+                    Span::Empty,
                     None,
-                    &Term::FunApp(&Term::Prim(OptionType), &VAR0),
+                    &Term::FunApp(Span::Empty, &Term::Prim(Span::Empty, OptionType), &VAR0),
                     &FORMAT_TYPE,
                 ),
             ),
@@ -366,9 +371,15 @@ impl<'arena> RigidEnv<'arena> {
             // fun (A : Type) -> A   -> Option A
             // fun (A : Type) -> A@0 -> Option A@1
             &core::Term::FunType(
+                Span::Empty,
                 env.name("A"),
                 &UNIVERSE,
-                &Term::FunType(None, &VAR0, &Term::FunApp(&Term::Prim(OptionType), &VAR1)),
+                &Term::FunType(
+                    Span::Empty,
+                    None,
+                    &VAR0,
+                    &Term::FunApp(Span::Empty, &Term::Prim(Span::Empty, OptionType), &VAR1),
+                ),
             ),
         );
         env.define_prim(
@@ -376,9 +387,10 @@ impl<'arena> RigidEnv<'arena> {
             // fun (A : Type) -> Option A
             // fun (A : Type) -> Option A@0
             &core::Term::FunType(
+                Span::Empty,
                 env.name("A"),
                 &UNIVERSE,
-                &Term::FunApp(&Term::Prim(OptionType), &VAR0),
+                &Term::FunApp(Span::Empty, &Term::Prim(Span::Empty, OptionType), &VAR0),
             ),
         );
         env.define_prim(
@@ -386,21 +398,30 @@ impl<'arena> RigidEnv<'arena> {
             // fun (A : Type) (B : Type) -> B   -> (A   -> B  ) -> Option A   -> B
             // fun (A : Type) (B : Type) -> B@0 -> (A@2 -> B@2) -> Option A@3 -> B@3
             scope.to_scope(core::Term::FunType(
+                Span::Empty,
                 env.name("A"),
                 &UNIVERSE,
                 scope.to_scope(core::Term::FunType(
+                    Span::Empty,
                     env.name("B"),
                     &UNIVERSE,
                     scope.to_scope(core::Term::FunType(
+                        Span::Empty,
                         None,
                         &VAR0, // B@0
                         scope.to_scope(core::Term::FunType(
+                            Span::Empty,
                             None,
-                            &Term::FunType(None, &VAR2, &VAR2), // A@2 -> B@2
+                            &Term::FunType(Span::Empty, None, &VAR2, &VAR2), // A@2 -> B@2
                             scope.to_scope(core::Term::FunType(
+                                Span::Empty,
                                 None,
-                                &Term::FunApp(&Term::Prim(OptionType), &VAR3), // Option A@3
-                                &VAR3,                                         // B@3
+                                &Term::FunApp(
+                                    Span::Empty,
+                                    &Term::Prim(Span::Empty, OptionType),
+                                    &VAR3,
+                                ), // Option A@3
+                                &VAR3, // B@3
                             )),
                         )),
                     )),
@@ -412,22 +433,27 @@ impl<'arena> RigidEnv<'arena> {
         // fun (len : UN) (A : Type) -> (A@0 -> Bool) -> ArrayN len@2 A@1 -> Option A@2
         let find_type = |index_type, array_type| {
             scope.to_scope(core::Term::FunType(
+                Span::Empty,
                 env.name("len"),
                 index_type,
                 scope.to_scope(core::Term::FunType(
+                    Span::Empty,
                     env.name("A"),
                     &UNIVERSE,
                     scope.to_scope(core::Term::FunType(
+                        Span::Empty,
                         None,
-                        &Term::FunType(None, &VAR0, &BOOL_TYPE), // (A@0 -> Bool)
+                        &Term::FunType(Span::Empty, None, &VAR0, &BOOL_TYPE), // (A@0 -> Bool)
                         scope.to_scope(core::Term::FunType(
+                            Span::Empty,
                             None,
                             // ArrayN len@2 A@1
                             scope.to_scope(Term::FunApp(
-                                scope.to_scope(Term::FunApp(array_type, &VAR2)),
+                                Span::Empty,
+                                scope.to_scope(Term::FunApp(Span::Empty, array_type, &VAR2)),
                                 &VAR1,
                             )),
-                            &Term::FunApp(&Term::Prim(OptionType), &VAR2), // Option A@2
+                            &Term::FunApp(Span::Empty, &Term::Prim(Span::Empty, OptionType), &VAR2), // Option A@2
                         )),
                     )),
                 )),
@@ -472,7 +498,7 @@ impl<'arena> RigidEnv<'arena> {
     fn push_param(&mut self, name: Option<StringId>, r#type: ArcValue<'arena>) -> ArcValue<'arena> {
         // An expression that refers to itself once it is pushed onto the rigid
         // expression environment.
-        let expr = Arc::new(Value::rigid_var(self.exprs.len().next_global()));
+        let expr = Spanned::empty(Arc::new(Value::rigid_var(self.exprs.len().next_global())));
 
         self.names.push(name);
         self.types.push(r#type);
@@ -529,8 +555,11 @@ impl<'i, 'arena> RigidEnvBuilder<'i, 'arena> {
         let r#type =
             semantics::EvalContext::new(&item_exprs, &mut SharedEnv::new(), &flexible_exprs)
                 .eval(r#type);
-        self.env
-            .push_def(name, Arc::new(Value::prim(prim, [])), r#type);
+        self.env.push_def(
+            name,
+            Spanned::new(Span::Empty, Arc::new(Value::prim(prim, []))),
+            r#type,
+        );
     }
 
     fn define_prim_fun<const ARITY: usize>(
@@ -543,7 +572,7 @@ impl<'i, 'arena> RigidEnvBuilder<'i, 'arena> {
             prim,
             (input_tys.iter().rev()).fold(output_ty, |output_ty, input_ty| {
                 self.scope
-                    .to_scope(core::Term::FunType(None, input_ty, output_ty))
+                    .to_scope(core::Term::FunType(Span::Empty, None, input_ty, output_ty))
             }),
         );
     }
@@ -576,6 +605,23 @@ pub enum FlexSource {
     FunOutputType(ByteRange),
     /// The type of a reported error.
     ReportedErrorType(ByteRange),
+}
+
+impl FlexSource {
+    pub fn range(&self) -> ByteRange {
+        match self {
+            FlexSource::HoleType(range, _)
+            | FlexSource::HoleExpr(range, _)
+            | FlexSource::PlaceholderType(range)
+            | FlexSource::PlaceholderExpr(range)
+            | FlexSource::PlaceholderPatternType(range)
+            | FlexSource::NamedPatternType(range, _)
+            | FlexSource::MatchOutputType(range)
+            | FlexSource::FunInputType(range)
+            | FlexSource::FunOutputType(range)
+            | FlexSource::ReportedErrorType(range) => *range,
+        }
+    }
 }
 
 /// Flexible environment.
@@ -739,7 +785,11 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
         r#type: ArcValue<'arena>,
     ) -> core::Term<'arena> {
         let rigid_infos = (self.scope).to_scope_from_iter(self.rigid_env.infos.iter().copied());
-        core::Term::FlexibleInsertion(self.flexible_env.push(source, r#type), rigid_infos)
+        core::Term::FlexibleInsertion(
+            (&source.range()).into(),
+            self.flexible_env.push(source, r#type),
+            rigid_infos,
+        )
     }
 
     /// Push an unsolved flexible binder onto the context.
@@ -960,11 +1010,21 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
     //       coercions to the core language.
     fn convert(
         &mut self,
-        range: ByteRange, // NOTE: could be removed if source info is added to `core::Term`
+        surface_range: ByteRange, // TODO: could be removed if we never encounter empty spans in the core term
         expr: core::Term<'arena>,
         type0: &ArcValue<'arena>,
         type1: &ArcValue<'arena>,
     ) -> core::Term<'arena> {
+        let span = expr.span();
+        let range = match span {
+            Span::Range(range) => range,
+            Span::Empty => {
+                self.push_message(Message::MissingSpan {
+                    range: surface_range,
+                });
+                surface_range
+            }
+        };
         match self.unification_context().unify(type0, type1) {
             Ok(()) => expr,
             Err(error) => {
@@ -976,7 +1036,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                     rhs,
                     error,
                 });
-                core::Term::Prim(Prim::ReportedError)
+                core::Term::Prim(span, Prim::ReportedError)
             }
         }
     }
@@ -984,7 +1044,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
     /// Elaborate a module
     pub fn elab_module(&mut self, surface_module: &Module<'_, ByteRange>) -> core::Module<'arena> {
         let elab_order = order::elaboration_order(self, surface_module);
-        let universe = Arc::new(Value::Universe);
+        let universe = Value::arc_universe();
         let mut items = SliceVec::new(self.scope, elab_order.len());
 
         for item in elab_order.iter().copied().map(|i| &surface_module.items[i]) {
@@ -1084,7 +1144,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                     ),
                     None => {
                         let source = FlexSource::ReportedErrorType(*range);
-                        let r#type = self.push_flexible_value(source, Arc::new(Value::Universe));
+                        let r#type = self.push_flexible_value(source, Value::arc_universe());
 
                         (CheckedPattern::ReportedError(*range), r#type)
                     }
@@ -1128,7 +1188,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                     ),
                     None => {
                         let source = FlexSource::ReportedErrorType(*range);
-                        let r#type = self.push_flexible_value(source, Arc::new(Value::Universe));
+                        let r#type = self.push_flexible_value(source, Value::arc_universe());
 
                         (CheckedPattern::ReportedError(*range), r#type)
                     }
@@ -1153,7 +1213,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                     ),
                     None => {
                         let source = FlexSource::ReportedErrorType(*range);
-                        let r#type = self.push_flexible_value(source, Arc::new(Value::Universe));
+                        let r#type = self.push_flexible_value(source, Value::arc_universe());
 
                         (CheckedPattern::ReportedError(*range), r#type)
                     }
@@ -1170,29 +1230,29 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
         match pattern {
             Pattern::Name(range, name) => {
                 let source = FlexSource::NamedPatternType(*range, *name);
-                let r#type = self.push_flexible_value(source, Arc::new(Value::Universe));
+                let r#type = self.push_flexible_value(source, Value::arc_universe());
                 (CheckedPattern::Name(*range, *name), r#type)
             }
             Pattern::Placeholder(range) => {
                 let source = FlexSource::PlaceholderPatternType(*range);
-                let r#type = self.push_flexible_value(source, Arc::new(Value::Universe));
+                let r#type = self.push_flexible_value(source, Value::arc_universe());
                 (CheckedPattern::Placeholder(*range), r#type)
             }
             Pattern::StringLiteral(range, _) => {
                 self.push_message(Message::AmbiguousStringLiteral { range: *range });
                 let source = FlexSource::ReportedErrorType(*range);
-                let r#type = self.push_flexible_value(source, Arc::new(Value::Universe));
+                let r#type = self.push_flexible_value(source, Value::arc_universe());
                 (CheckedPattern::ReportedError(*range), r#type)
             }
             Pattern::NumberLiteral(range, _) => {
                 self.push_message(Message::AmbiguousNumericLiteral { range: *range });
                 let source = FlexSource::ReportedErrorType(*range);
-                let r#type = self.push_flexible_value(source, Arc::new(Value::Universe));
+                let r#type = self.push_flexible_value(source, Value::arc_universe());
                 (CheckedPattern::ReportedError(*range), r#type)
             }
             Pattern::BooleanLiteral(range, val) => {
                 let r#const = Const::Bool(*val);
-                let r#type = Arc::new(Value::prim(Prim::BoolType, []));
+                let r#type = Spanned::empty(Arc::new(Value::prim(Prim::BoolType, [])));
                 (CheckedPattern::Const(*range, r#const), r#type)
             }
         }
@@ -1208,7 +1268,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
         match r#type {
             None => self.check_pattern(pattern, &expected_type),
             Some(r#type) => {
-                let universe = Arc::new(Value::Universe);
+                let universe = Value::arc_universe();
                 let range = r#type.range();
                 let r#type = self.check(r#type, &universe);
                 let r#type = self.eval_context().eval(&r#type);
@@ -1244,7 +1304,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
         match r#type {
             None => self.synth_pattern(pattern),
             Some(r#type) => {
-                let r#type = self.check(r#type, &Arc::new(Value::Universe));
+                let r#type = self.check(r#type, &Value::arc_universe());
                 let type_value = self.eval_context().eval(&r#type);
                 self.check_pattern(pattern, &type_value)
             }
@@ -1313,7 +1373,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
         let expected_type = self.elim_context().force(expected_type);
 
         match (surface_term, expected_type.as_ref()) {
-            (Term::Let(_, def_pattern, def_type, def_expr, output_expr), _) => {
+            (Term::Let(range, def_pattern, def_type, def_expr, output_expr), _) => {
                 let (def_pattern, def_type_value) = self.synth_ann_pattern(def_pattern, *def_type);
                 let def_type = self.quote_context(self.scope).quote(&def_type_value); // FIXME: avoid requote if possible?
                 let def_expr = self.check(def_expr, &def_type_value);
@@ -1324,6 +1384,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 self.rigid_env.pop();
 
                 core::Term::Let(
+                    range.into(),
                     def_name,
                     self.scope.to_scope(def_type),
                     self.scope.to_scope(def_expr),
@@ -1345,7 +1406,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 )
             }
             (
-                Term::FunLiteral(_, input_pattern, input_type, output_expr),
+                Term::FunLiteral(range, input_pattern, input_type, output_expr),
                 Value::FunType(_, expected_input_type, output_type),
             ) => {
                 let (input_name, input_type) =
@@ -1356,7 +1417,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
 
                 self.rigid_env.pop();
 
-                core::Term::FunLit(input_name, self.scope.to_scope(output_expr))
+                core::Term::FunLit(range.into(), input_name, self.scope.to_scope(output_expr))
             }
             (Term::RecordLiteral(range, expr_fields), Value::RecordType(labels, types)) => {
                 // TODO: improve handling of duplicate labels
@@ -1371,7 +1432,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                             .collect(),
                         type_labels: labels.iter().copied().collect(),
                     });
-                    return core::Term::Prim(Prim::ReportedError);
+                    return core::Term::Prim(range.into(), Prim::ReportedError);
                 }
 
                 let mut types = types.clone();
@@ -1387,16 +1448,18 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                     exprs.push(expr);
                 }
 
-                core::Term::RecordLit(labels, exprs.into())
+                core::Term::RecordLit(range.into(), labels, exprs.into())
             }
-            (Term::UnitLiteral(_), Value::Universe) => core::Term::RecordType(&[], &[]),
-            (Term::UnitLiteral(_), _)
+            (Term::UnitLiteral(range), Value::Universe) => {
+                core::Term::RecordType(range.into(), &[], &[])
+            }
+            (Term::UnitLiteral(range), _)
                 if matches!(
                     expected_type.match_prim_spine(),
                     Some((Prim::FormatType, [])),
                 ) =>
             {
-                core::Term::FormatRecord(&[], &[])
+                core::Term::FormatRecord(range.into(), &[], &[])
             }
             (Term::ArrayLiteral(range, elem_exprs), _) => {
                 use crate::core::semantics::Elim::FunApp as App;
@@ -1407,35 +1470,38 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                     Some((Prim::Array16Type, [App(len), App(elem_type)])) => (Some(len), elem_type),
                     Some((Prim::Array32Type, [App(len), App(elem_type)])) => (Some(len), elem_type),
                     Some((Prim::Array64Type, [App(len), App(elem_type)])) => (Some(len), elem_type),
-                    Some((Prim::ReportedError, _)) => return core::Term::Prim(Prim::ReportedError),
+                    Some((Prim::ReportedError, _)) => {
+                        return core::Term::Prim(range.into(), Prim::ReportedError)
+                    }
                     _ => {
                         let expected_type = self.pretty_print_value(&expected_type);
                         self.push_message(Message::ArrayLiteralNotSupported {
                             range: *range,
                             expected_type,
                         });
-                        return core::Term::Prim(Prim::ReportedError);
+                        return core::Term::Prim(range.into(), Prim::ReportedError);
                     }
                 };
 
-                let len = match len_value.map(<_>::as_ref) {
+                let len = match len_value.map(|val| (val.span(), val.as_ref())) {
                     None => Some(elem_exprs.len() as u64),
-                    Some(Value::ConstLit(Const::U8(len, _))) => Some(*len as u64),
-                    Some(Value::ConstLit(Const::U16(len, _))) => Some(*len as u64),
-                    Some(Value::ConstLit(Const::U32(len, _))) => Some(*len as u64),
-                    Some(Value::ConstLit(Const::U64(len, _))) => Some(*len as u64),
-                    Some(Value::Stuck(Head::Prim(Prim::ReportedError), _)) => {
-                        return core::Term::Prim(Prim::ReportedError);
+                    Some((_, Value::ConstLit(Const::U8(len, _)))) => Some(*len as u64),
+                    Some((_, Value::ConstLit(Const::U16(len, _)))) => Some(*len as u64),
+                    Some((_, Value::ConstLit(Const::U32(len, _)))) => Some(*len as u64),
+                    Some((_, Value::ConstLit(Const::U64(len, _)))) => Some(*len as u64),
+                    Some((span, Value::Stuck(Head::Prim(Prim::ReportedError), _))) => {
+                        return core::Term::Prim(span, Prim::ReportedError); // FIXME: should it use span here or range?
                     }
                     _ => None,
                 };
 
                 match len {
-                    Some(len) if elem_exprs.len() as u64 == len => {
-                        core::Term::ArrayLit(self.scope.to_scope_from_iter(
+                    Some(len) if elem_exprs.len() as u64 == len => core::Term::ArrayLit(
+                        range.into(),
+                        self.scope.to_scope_from_iter(
                             (elem_exprs.iter()).map(|elem_expr| self.check(elem_expr, elem_type)),
-                        ))
-                    }
+                        ),
+                    ),
                     _ => {
                         // Check the array elements anyway in order to report
                         // any errors inside the literal as well.
@@ -1450,7 +1516,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                             expected_len,
                         });
 
-                        core::Term::Prim(Prim::ReportedError)
+                        core::Term::Prim(range.into(), Prim::ReportedError)
                     }
                 }
             }
@@ -1484,8 +1550,8 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 };
 
                 match constant {
-                    Some(constant) => core::Term::ConstLit(constant),
-                    None => core::Term::Prim(Prim::ReportedError),
+                    Some(constant) => core::Term::ConstLit(range.into(), constant),
+                    None => core::Term::Prim(range.into(), Prim::ReportedError),
                 }
             }
             (Term::NumberLiteral(range, number), _) => {
@@ -1515,16 +1581,16 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                             range: *range,
                             expected_type,
                         });
-                        return core::Term::Prim(Prim::ReportedError);
+                        return core::Term::Prim(range.into(), Prim::ReportedError);
                     }
                 };
 
                 match constant {
-                    Some(constant) => core::Term::ConstLit(constant),
-                    None => core::Term::Prim(Prim::ReportedError),
+                    Some(constant) => core::Term::ConstLit(range.into(), constant),
+                    None => core::Term::Prim(range.into(), Prim::ReportedError),
                 }
             }
-            (Term::ReportedError(_), _) => core::Term::Prim(Prim::ReportedError),
+            (Term::ReportedError(range), _) => core::Term::Prim(range.into(), Prim::ReportedError),
             (_, _) => {
                 let (core_term, synth_type) = self.synth(surface_term);
                 self.convert(surface_term.range(), core_term, &synth_type, &expected_type)
@@ -1542,10 +1608,10 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
         match surface_term {
             Term::Name(range, name) => {
                 if let Some((term, r#type)) = self.get_rigid_name(*name) {
-                    return (core::Term::RigidVar(term), r#type.clone());
+                    return (core::Term::RigidVar(range.into(), term), r#type.clone());
                 }
                 if let Some((term, r#type)) = self.get_item_name(*name) {
-                    return (core::Term::ItemVar(term), r#type.clone());
+                    return (core::Term::ItemVar(range.into(), term), r#type.clone());
                 }
 
                 self.push_message(Message::UnboundName {
@@ -1558,7 +1624,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 let type_source = FlexSource::HoleType(*range, *name);
                 let expr_source = FlexSource::HoleExpr(*range, *name);
 
-                let r#type = self.push_flexible_value(type_source, Arc::new(Value::Universe));
+                let r#type = self.push_flexible_value(type_source, Value::arc_universe());
                 let expr = self.push_flexible_term(expr_source, r#type.clone());
 
                 (expr, r#type)
@@ -1567,22 +1633,25 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 let type_source = FlexSource::PlaceholderType(*range);
                 let expr_source = FlexSource::PlaceholderExpr(*range);
 
-                let r#type = self.push_flexible_value(type_source, Arc::new(Value::Universe));
+                let r#type = self.push_flexible_value(type_source, Value::arc_universe());
                 let expr = self.push_flexible_term(expr_source, r#type.clone());
 
                 (expr, r#type)
             }
-            Term::Ann(_, expr, r#type) => {
-                let r#type = self.check(r#type, &Arc::new(Value::Universe)); // FIXME: avoid temporary Arc
+            Term::Ann(range, expr, r#type) => {
+                let r#type = self.check(r#type, &Value::arc_universe()); // FIXME: avoid temporary Arc
                 let type_value = self.eval_context().eval(&r#type);
                 let expr = self.check(expr, &type_value);
 
-                let ann_expr =
-                    core::Term::Ann(self.scope.to_scope(expr), self.scope.to_scope(r#type));
+                let ann_expr = core::Term::Ann(
+                    range.into(),
+                    self.scope.to_scope(expr),
+                    self.scope.to_scope(r#type),
+                );
 
                 (ann_expr, type_value)
             }
-            Term::Let(_, def_pattern, def_type, def_expr, output_expr) => {
+            Term::Let(range, def_pattern, def_type, def_expr, output_expr) => {
                 let (def_pattern, def_type_value) = self.synth_ann_pattern(def_pattern, *def_type);
                 let def_type = self.quote_context(self.scope).quote(&def_type_value); // FIXME: avoid requote if possible?
                 let def_expr = self.check(def_expr, &def_type_value);
@@ -1593,6 +1662,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 self.rigid_env.pop();
 
                 let let_expr = core::Term::Let(
+                    range.into(),
                     def_name,
                     self.scope.to_scope(def_type),
                     self.scope.to_scope(def_expr),
@@ -1609,7 +1679,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 // the match expression's output expressions, allowing us to
                 // unify them together.
                 let source = FlexSource::MatchOutputType(*range);
-                let universe = Arc::new(Value::Universe);
+                let universe = Value::arc_universe();
                 let output_type = self.push_flexible_value(source, universe);
 
                 let match_expr = self.check_match(
@@ -1624,9 +1694,9 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
 
                 (match_expr, output_type)
             }
-            Term::Universe(_) => (core::Term::Universe, Arc::new(Value::Universe)),
-            Term::Arrow(_, input_type, output_type) => {
-                let universe = Arc::new(Value::Universe); // FIXME: avoid temporary Arc
+            Term::Universe(range) => (core::Term::Universe(range.into()), Value::arc_universe()),
+            Term::Arrow(range, input_type, output_type) => {
+                let universe = Value::arc_universe(); // FIXME: avoid temporary Arc
                 let input_type = self.check(input_type, &universe);
                 let input_type_value = self.eval_context().eval(&input_type);
 
@@ -1635,6 +1705,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 self.rigid_env.pop();
 
                 let fun_type = core::Term::FunType(
+                    range.into(),
                     None,
                     self.scope.to_scope(input_type),
                     self.scope.to_scope(output_type),
@@ -1642,8 +1713,8 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
 
                 (fun_type, universe)
             }
-            Term::FunType(_, input_pattern, input_type, output_type) => {
-                let universe = Arc::new(Value::Universe); // FIXME: avoid temporary Arc
+            Term::FunType(range, input_pattern, input_type, output_type) => {
+                let universe = Value::arc_universe(); // FIXME: avoid temporary Arc
                 let (input_pattern, input_type_value) =
                     self.synth_ann_pattern(input_pattern, *input_type);
                 let input_type = self.quote_context(self.scope).quote(&input_type_value); // FIXME: avoid requote if possible?
@@ -1653,6 +1724,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 self.rigid_env.pop();
 
                 let fun_type = core::Term::FunType(
+                    range.into(),
                     input_name,
                     self.scope.to_scope(input_type),
                     self.scope.to_scope(output_type),
@@ -1660,7 +1732,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
 
                 (fun_type, universe)
             }
-            Term::FunLiteral(_, input_pattern, input_type, output_expr) => {
+            Term::FunLiteral(range, input_pattern, input_type, output_expr) => {
                 let (input_pattern, input_type) =
                     self.synth_ann_pattern(input_pattern, *input_type);
 
@@ -1670,15 +1742,19 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 self.rigid_env.pop();
 
                 (
-                    core::Term::FunLit(input_name, self.scope.to_scope(output_expr)),
-                    Arc::new(Value::FunType(
-                        input_name,
-                        input_type,
-                        Closure::new(
-                            self.rigid_env.exprs.clone(),
-                            self.scope.to_scope(output_type),
-                        ),
-                    )),
+                    core::Term::FunLit(range.into(), input_name, self.scope.to_scope(output_expr)),
+                    // FIXME: Should this use range too?
+                    Spanned::new(
+                        Span::Empty,
+                        Arc::new(Value::FunType(
+                            input_name,
+                            input_type,
+                            Closure::new(
+                                self.rigid_env.exprs.clone(),
+                                self.scope.to_scope(output_type),
+                            ),
+                        )),
+                    ),
                 )
             }
             Term::App(range, head_expr, input_expr) => {
@@ -1701,7 +1777,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                     // output types, and then we attempt to unify the head type
                     // against it.
                     _ => {
-                        let universe = Arc::new(Value::Universe);
+                        let universe = Value::arc_universe();
                         // Create a flexible input type
                         let input_source = FlexSource::FunInputType(head_range);
                         let input_type = self.push_flexible_value(input_source, universe.clone());
@@ -1717,11 +1793,11 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                             self.rigid_env.exprs.clone(),
                             self.scope.to_scope(output_type),
                         );
-                        let fun_type = Arc::new(Value::FunType(
+                        let fun_type = Spanned::empty(Arc::new(Value::FunType(
                             None,
                             input_type.clone(),
                             output_type.clone(),
-                        ));
+                        )));
 
                         // Unify the type of the head expression with the function type
                         let head_expr = self.convert(head_range, head_expr, &head_type, &fun_type);
@@ -1739,6 +1815,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
 
                 // Construct the final function application
                 let fun_app = core::Term::FunApp(
+                    range.into(),
                     self.scope.to_scope(head_expr),
                     self.scope.to_scope(input_expr),
                 );
@@ -1746,7 +1823,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 (fun_app, output_type)
             }
             Term::RecordType(range, type_fields) => {
-                let universe = Arc::new(Value::Universe);
+                let universe = Value::arc_universe();
                 let initial_rigid_len = self.rigid_env.len();
                 let (labels, type_fields) =
                     self.report_duplicate_labels(*range, type_fields, |f| f.label);
@@ -1762,7 +1839,10 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
 
                 self.rigid_env.truncate(initial_rigid_len);
 
-                (core::Term::RecordType(labels, types.into()), universe)
+                (
+                    core::Term::RecordType(range.into(), labels, types.into()),
+                    universe,
+                )
             }
             Term::RecordLiteral(range, expr_fields) => {
                 let (labels, expr_fields) =
@@ -1779,16 +1859,16 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 let types = Telescope::new(self.rigid_env.exprs.clone(), types.into());
 
                 (
-                    core::Term::RecordLit(labels, exprs.into()),
-                    Arc::new(Value::RecordType(labels, types)),
+                    core::Term::RecordLit(range.into(), labels, exprs.into()),
+                    Spanned::empty(Arc::new(Value::RecordType(labels, types))),
                 )
             }
-            Term::UnitLiteral(_) => (
-                core::Term::RecordLit(&[], &[]),
-                Arc::new(Value::RecordType(
+            Term::UnitLiteral(range) => (
+                core::Term::RecordLit(range.into(), &[], &[]),
+                Spanned::empty(Arc::new(Value::RecordType(
                     &[],
                     Telescope::new(SharedEnv::new(), &[]),
-                )),
+                ))),
             ),
             Term::Proj(range, head_expr, (label_range, label)) => {
                 let head_range = head_expr.range();
@@ -1806,7 +1886,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                         {
                             if label == type_label {
                                 let head_expr = self.scope.to_scope(head_expr);
-                                let expr = core::Term::RecordProj(head_expr, *label);
+                                let expr = core::Term::RecordProj(range.into(), head_expr, *label);
                                 return (expr, r#type);
                             } else {
                                 let head_expr = head_expr_value.clone();
@@ -1842,28 +1922,35 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 self.push_message(Message::AmbiguousNumericLiteral { range: *range });
                 self.synth_reported_error(*range)
             }
-            Term::BooleanLiteral(_range, val) => {
-                let bool_type = Arc::new(Value::prim(Prim::BoolType, []));
-                (core::Term::ConstLit(Const::Bool(*val)), bool_type)
+            Term::BooleanLiteral(range, val) => {
+                let bool_type = Spanned::empty(Arc::new(Value::prim(Prim::BoolType, [])));
+                (
+                    core::Term::ConstLit(range.into(), Const::Bool(*val)),
+                    bool_type,
+                )
             }
             Term::FormatRecord(range, format_fields) => {
-                let format_type = Arc::new(Value::prim(Prim::FormatType, []));
+                let format_type = Spanned::empty(Arc::new(Value::prim(Prim::FormatType, [])));
                 let (labels, formats) = self.check_format_fields(*range, format_fields);
 
-                (core::Term::FormatRecord(labels, formats), format_type)
+                (
+                    core::Term::FormatRecord(range.into(), labels, formats),
+                    format_type,
+                )
             }
-            Term::FormatCond(_range, (_, name), format, pred) => {
-                let format_type = Arc::new(Value::prim(Prim::FormatType, []));
+            Term::FormatCond(range, (_, name), format, pred) => {
+                let format_type = Spanned::empty(Arc::new(Value::prim(Prim::FormatType, [])));
                 let format = self.check(format, &format_type);
                 let format_value = self.eval_context().eval(&format);
                 let repr_type = self.elim_context().format_repr(&format_value);
                 self.rigid_env.push_param(Some(*name), repr_type);
-                let bool_type = Arc::new(Value::prim(Prim::BoolType, []));
+                let bool_type = Spanned::empty(Arc::new(Value::prim(Prim::BoolType, [])));
                 let pred_expr = self.check(pred, &bool_type);
                 self.rigid_env.pop();
 
                 (
                     core::Term::FormatCond(
+                        range.into(),
                         *name,
                         self.scope.to_scope(format),
                         self.scope.to_scope(pred_expr),
@@ -1872,10 +1959,13 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 )
             }
             Term::FormatOverlap(range, format_fields) => {
-                let format_type = Arc::new(Value::prim(Prim::FormatType, []));
+                let format_type = Spanned::empty(Arc::new(Value::prim(Prim::FormatType, [])));
                 let (labels, formats) = self.check_format_fields(*range, format_fields);
 
-                (core::Term::FormatOverlap(labels, formats), format_type)
+                (
+                    core::Term::FormatOverlap(range.into(), labels, formats),
+                    format_type,
+                )
             }
             Term::BinOp(range, lhs, op, rhs) => self.synth_bin_op(*range, lhs, *op, rhs),
             Term::ReportedError(range) => self.synth_reported_error(*range),
@@ -1900,118 +1990,284 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
         let operand_types = Option::zip(lhs_type.match_prim_spine(), rhs_type.match_prim_spine());
 
         let (fun, output_type) = match (op, operand_types) {
-            (Mul(_), Some(((U8Type, []), (U8Type, [])))) => (core::Term::Prim(U8Mul), U8Type),
-            (Mul(_), Some(((U16Type, []), (U16Type, [])))) => (core::Term::Prim(U16Mul), U16Type),
-            (Mul(_), Some(((U32Type, []), (U32Type, [])))) => (core::Term::Prim(U32Mul), U32Type),
-            (Mul(_), Some(((U64Type, []), (U64Type, [])))) => (core::Term::Prim(U64Mul), U64Type),
+            (Mul(_), Some(((U8Type, []), (U8Type, [])))) => {
+                (core::Term::Prim(Span::Empty, U8Mul), U8Type)
+            }
+            (Mul(_), Some(((U16Type, []), (U16Type, [])))) => {
+                (core::Term::Prim(Span::Empty, U16Mul), U16Type)
+            }
+            (Mul(_), Some(((U32Type, []), (U32Type, [])))) => {
+                (core::Term::Prim(Span::Empty, U32Mul), U32Type)
+            }
+            (Mul(_), Some(((U64Type, []), (U64Type, [])))) => {
+                (core::Term::Prim(Span::Empty, U64Mul), U64Type)
+            }
 
-            (Mul(_), Some(((S8Type, []), (S8Type, [])))) => (core::Term::Prim(S8Mul), S8Type),
-            (Mul(_), Some(((S16Type, []), (S16Type, [])))) => (core::Term::Prim(S16Mul), S16Type),
-            (Mul(_), Some(((S32Type, []), (S32Type, [])))) => (core::Term::Prim(S32Mul), S32Type),
-            (Mul(_), Some(((S64Type, []), (S64Type, [])))) => (core::Term::Prim(S64Mul), S64Type),
+            (Mul(_), Some(((S8Type, []), (S8Type, [])))) => {
+                (core::Term::Prim(Span::Empty, S8Mul), S8Type)
+            }
+            (Mul(_), Some(((S16Type, []), (S16Type, [])))) => {
+                (core::Term::Prim(Span::Empty, S16Mul), S16Type)
+            }
+            (Mul(_), Some(((S32Type, []), (S32Type, [])))) => {
+                (core::Term::Prim(Span::Empty, S32Mul), S32Type)
+            }
+            (Mul(_), Some(((S64Type, []), (S64Type, [])))) => {
+                (core::Term::Prim(Span::Empty, S64Mul), S64Type)
+            }
 
-            (Div(_), Some(((U8Type, []), (U8Type, [])))) => (core::Term::Prim(U8Div), U8Type),
-            (Div(_), Some(((U16Type, []), (U16Type, [])))) => (core::Term::Prim(U16Div), U16Type),
-            (Div(_), Some(((U32Type, []), (U32Type, [])))) => (core::Term::Prim(U32Div), U32Type),
-            (Div(_), Some(((U64Type, []), (U64Type, [])))) => (core::Term::Prim(U64Div), U64Type),
+            (Div(_), Some(((U8Type, []), (U8Type, [])))) => {
+                (core::Term::Prim(Span::Empty, U8Div), U8Type)
+            }
+            (Div(_), Some(((U16Type, []), (U16Type, [])))) => {
+                (core::Term::Prim(Span::Empty, U16Div), U16Type)
+            }
+            (Div(_), Some(((U32Type, []), (U32Type, [])))) => {
+                (core::Term::Prim(Span::Empty, U32Div), U32Type)
+            }
+            (Div(_), Some(((U64Type, []), (U64Type, [])))) => {
+                (core::Term::Prim(Span::Empty, U64Div), U64Type)
+            }
 
-            (Div(_), Some(((S8Type, []), (S8Type, [])))) => (core::Term::Prim(S8Div), S8Type),
-            (Div(_), Some(((S16Type, []), (S16Type, [])))) => (core::Term::Prim(S16Div), S16Type),
-            (Div(_), Some(((S32Type, []), (S32Type, [])))) => (core::Term::Prim(S32Div), S32Type),
-            (Div(_), Some(((S64Type, []), (S64Type, [])))) => (core::Term::Prim(S64Div), S64Type),
+            (Div(_), Some(((S8Type, []), (S8Type, [])))) => {
+                (core::Term::Prim(Span::Empty, S8Div), S8Type)
+            }
+            (Div(_), Some(((S16Type, []), (S16Type, [])))) => {
+                (core::Term::Prim(Span::Empty, S16Div), S16Type)
+            }
+            (Div(_), Some(((S32Type, []), (S32Type, [])))) => {
+                (core::Term::Prim(Span::Empty, S32Div), S32Type)
+            }
+            (Div(_), Some(((S64Type, []), (S64Type, [])))) => {
+                (core::Term::Prim(Span::Empty, S64Div), S64Type)
+            }
 
-            (Add(_), Some(((U8Type, []), (U8Type, [])))) => (core::Term::Prim(U8Add), U8Type),
-            (Add(_), Some(((U16Type, []), (U16Type, [])))) => (core::Term::Prim(U16Add), U16Type),
-            (Add(_), Some(((U32Type, []), (U32Type, [])))) => (core::Term::Prim(U32Add), U32Type),
-            (Add(_), Some(((U64Type, []), (U64Type, [])))) => (core::Term::Prim(U64Add), U64Type),
+            (Add(_), Some(((U8Type, []), (U8Type, [])))) => {
+                (core::Term::Prim(Span::Empty, U8Add), U8Type)
+            }
+            (Add(_), Some(((U16Type, []), (U16Type, [])))) => {
+                (core::Term::Prim(Span::Empty, U16Add), U16Type)
+            }
+            (Add(_), Some(((U32Type, []), (U32Type, [])))) => {
+                (core::Term::Prim(Span::Empty, U32Add), U32Type)
+            }
+            (Add(_), Some(((U64Type, []), (U64Type, [])))) => {
+                (core::Term::Prim(Span::Empty, U64Add), U64Type)
+            }
 
-            (Add(_), Some(((S8Type, []), (S8Type, [])))) => (core::Term::Prim(S8Add), S8Type),
-            (Add(_), Some(((S16Type, []), (S16Type, [])))) => (core::Term::Prim(S16Add), S16Type),
-            (Add(_), Some(((S32Type, []), (S32Type, [])))) => (core::Term::Prim(S32Add), S32Type),
-            (Add(_), Some(((S64Type, []), (S64Type, [])))) => (core::Term::Prim(S64Add), S64Type),
+            (Add(_), Some(((S8Type, []), (S8Type, [])))) => {
+                (core::Term::Prim(Span::Empty, S8Add), S8Type)
+            }
+            (Add(_), Some(((S16Type, []), (S16Type, [])))) => {
+                (core::Term::Prim(Span::Empty, S16Add), S16Type)
+            }
+            (Add(_), Some(((S32Type, []), (S32Type, [])))) => {
+                (core::Term::Prim(Span::Empty, S32Add), S32Type)
+            }
+            (Add(_), Some(((S64Type, []), (S64Type, [])))) => {
+                (core::Term::Prim(Span::Empty, S64Add), S64Type)
+            }
 
-            (Add(_), Some(((PosType, []), (U8Type, [])))) => (core::Term::Prim(PosAddU8), PosType),
+            (Add(_), Some(((PosType, []), (U8Type, [])))) => {
+                (core::Term::Prim(Span::Empty, PosAddU8), PosType)
+            }
             (Add(_), Some(((PosType, []), (U16Type, [])))) => {
-                (core::Term::Prim(PosAddU16), PosType)
+                (core::Term::Prim(Span::Empty, PosAddU16), PosType)
             }
             (Add(_), Some(((PosType, []), (U32Type, [])))) => {
-                (core::Term::Prim(PosAddU32), PosType)
+                (core::Term::Prim(Span::Empty, PosAddU32), PosType)
             }
             (Add(_), Some(((PosType, []), (U64Type, [])))) => {
-                (core::Term::Prim(PosAddU64), PosType)
+                (core::Term::Prim(Span::Empty, PosAddU64), PosType)
             }
 
-            (Sub(_), Some(((U8Type, []), (U8Type, [])))) => (core::Term::Prim(U8Sub), U8Type),
-            (Sub(_), Some(((U16Type, []), (U16Type, [])))) => (core::Term::Prim(U16Sub), U16Type),
-            (Sub(_), Some(((U32Type, []), (U32Type, [])))) => (core::Term::Prim(U32Sub), U32Type),
-            (Sub(_), Some(((U64Type, []), (U64Type, [])))) => (core::Term::Prim(U64Sub), U64Type),
+            (Sub(_), Some(((U8Type, []), (U8Type, [])))) => {
+                (core::Term::Prim(Span::Empty, U8Sub), U8Type)
+            }
+            (Sub(_), Some(((U16Type, []), (U16Type, [])))) => {
+                (core::Term::Prim(Span::Empty, U16Sub), U16Type)
+            }
+            (Sub(_), Some(((U32Type, []), (U32Type, [])))) => {
+                (core::Term::Prim(Span::Empty, U32Sub), U32Type)
+            }
+            (Sub(_), Some(((U64Type, []), (U64Type, [])))) => {
+                (core::Term::Prim(Span::Empty, U64Sub), U64Type)
+            }
 
-            (Sub(_), Some(((S8Type, []), (S8Type, [])))) => (core::Term::Prim(S8Sub), S8Type),
-            (Sub(_), Some(((S16Type, []), (S16Type, [])))) => (core::Term::Prim(S16Sub), S16Type),
-            (Sub(_), Some(((S32Type, []), (S32Type, [])))) => (core::Term::Prim(S32Sub), S32Type),
-            (Sub(_), Some(((S64Type, []), (S64Type, [])))) => (core::Term::Prim(S64Sub), S64Type),
+            (Sub(_), Some(((S8Type, []), (S8Type, [])))) => {
+                (core::Term::Prim(Span::Empty, S8Sub), S8Type)
+            }
+            (Sub(_), Some(((S16Type, []), (S16Type, [])))) => {
+                (core::Term::Prim(Span::Empty, S16Sub), S16Type)
+            }
+            (Sub(_), Some(((S32Type, []), (S32Type, [])))) => {
+                (core::Term::Prim(Span::Empty, S32Sub), S32Type)
+            }
+            (Sub(_), Some(((S64Type, []), (S64Type, [])))) => {
+                (core::Term::Prim(Span::Empty, S64Sub), S64Type)
+            }
 
-            (Eq(_), Some(((BoolType, []), (BoolType, [])))) => (core::Term::Prim(U8Eq), BoolType),
-            (Eq(_), Some(((U8Type, []), (U8Type, [])))) => (core::Term::Prim(U8Eq), BoolType),
-            (Eq(_), Some(((U16Type, []), (U16Type, [])))) => (core::Term::Prim(U16Eq), BoolType),
-            (Eq(_), Some(((U32Type, []), (U32Type, [])))) => (core::Term::Prim(U32Eq), BoolType),
-            (Eq(_), Some(((U64Type, []), (U64Type, [])))) => (core::Term::Prim(U64Eq), BoolType),
+            (Eq(_), Some(((BoolType, []), (BoolType, [])))) => {
+                (core::Term::Prim(Span::Empty, U8Eq), BoolType)
+            }
+            (Eq(_), Some(((U8Type, []), (U8Type, [])))) => {
+                (core::Term::Prim(Span::Empty, U8Eq), BoolType)
+            }
+            (Eq(_), Some(((U16Type, []), (U16Type, [])))) => {
+                (core::Term::Prim(Span::Empty, U16Eq), BoolType)
+            }
+            (Eq(_), Some(((U32Type, []), (U32Type, [])))) => {
+                (core::Term::Prim(Span::Empty, U32Eq), BoolType)
+            }
+            (Eq(_), Some(((U64Type, []), (U64Type, [])))) => {
+                (core::Term::Prim(Span::Empty, U64Eq), BoolType)
+            }
 
-            (Eq(_), Some(((S8Type, []), (S8Type, [])))) => (core::Term::Prim(S8Eq), BoolType),
-            (Eq(_), Some(((S16Type, []), (S16Type, [])))) => (core::Term::Prim(S16Eq), BoolType),
-            (Eq(_), Some(((S32Type, []), (S32Type, [])))) => (core::Term::Prim(S32Eq), BoolType),
-            (Eq(_), Some(((S64Type, []), (S64Type, [])))) => (core::Term::Prim(S64Eq), BoolType),
+            (Eq(_), Some(((S8Type, []), (S8Type, [])))) => {
+                (core::Term::Prim(Span::Empty, S8Eq), BoolType)
+            }
+            (Eq(_), Some(((S16Type, []), (S16Type, [])))) => {
+                (core::Term::Prim(Span::Empty, S16Eq), BoolType)
+            }
+            (Eq(_), Some(((S32Type, []), (S32Type, [])))) => {
+                (core::Term::Prim(Span::Empty, S32Eq), BoolType)
+            }
+            (Eq(_), Some(((S64Type, []), (S64Type, [])))) => {
+                (core::Term::Prim(Span::Empty, S64Eq), BoolType)
+            }
 
-            (Neq(_), Some(((BoolType, []), (BoolType, [])))) => (core::Term::Prim(U8Neq), BoolType),
-            (Neq(_), Some(((U8Type, []), (U8Type, [])))) => (core::Term::Prim(U8Neq), BoolType),
-            (Neq(_), Some(((U16Type, []), (U16Type, [])))) => (core::Term::Prim(U16Neq), BoolType),
-            (Neq(_), Some(((U32Type, []), (U32Type, [])))) => (core::Term::Prim(U32Neq), BoolType),
-            (Neq(_), Some(((U64Type, []), (U64Type, [])))) => (core::Term::Prim(U64Neq), BoolType),
+            (Neq(_), Some(((BoolType, []), (BoolType, [])))) => {
+                (core::Term::Prim(Span::Empty, U8Neq), BoolType)
+            }
+            (Neq(_), Some(((U8Type, []), (U8Type, [])))) => {
+                (core::Term::Prim(Span::Empty, U8Neq), BoolType)
+            }
+            (Neq(_), Some(((U16Type, []), (U16Type, [])))) => {
+                (core::Term::Prim(Span::Empty, U16Neq), BoolType)
+            }
+            (Neq(_), Some(((U32Type, []), (U32Type, [])))) => {
+                (core::Term::Prim(Span::Empty, U32Neq), BoolType)
+            }
+            (Neq(_), Some(((U64Type, []), (U64Type, [])))) => {
+                (core::Term::Prim(Span::Empty, U64Neq), BoolType)
+            }
 
-            (Neq(_), Some(((S8Type, []), (S8Type, [])))) => (core::Term::Prim(S8Neq), BoolType),
-            (Neq(_), Some(((S16Type, []), (S16Type, [])))) => (core::Term::Prim(S16Neq), BoolType),
-            (Neq(_), Some(((S32Type, []), (S32Type, [])))) => (core::Term::Prim(S32Neq), BoolType),
-            (Neq(_), Some(((S64Type, []), (S64Type, [])))) => (core::Term::Prim(S64Neq), BoolType),
+            (Neq(_), Some(((S8Type, []), (S8Type, [])))) => {
+                (core::Term::Prim(Span::Empty, S8Neq), BoolType)
+            }
+            (Neq(_), Some(((S16Type, []), (S16Type, [])))) => {
+                (core::Term::Prim(Span::Empty, S16Neq), BoolType)
+            }
+            (Neq(_), Some(((S32Type, []), (S32Type, [])))) => {
+                (core::Term::Prim(Span::Empty, S32Neq), BoolType)
+            }
+            (Neq(_), Some(((S64Type, []), (S64Type, [])))) => {
+                (core::Term::Prim(Span::Empty, S64Neq), BoolType)
+            }
 
-            (Lt(_), Some(((U8Type, []), (U8Type, [])))) => (core::Term::Prim(U8Lt), BoolType),
-            (Lt(_), Some(((U16Type, []), (U16Type, [])))) => (core::Term::Prim(U16Lt), BoolType),
-            (Lt(_), Some(((U32Type, []), (U32Type, [])))) => (core::Term::Prim(U32Lt), BoolType),
-            (Lt(_), Some(((U64Type, []), (U64Type, [])))) => (core::Term::Prim(U64Lt), BoolType),
+            (Lt(_), Some(((U8Type, []), (U8Type, [])))) => {
+                (core::Term::Prim(Span::Empty, U8Lt), BoolType)
+            }
+            (Lt(_), Some(((U16Type, []), (U16Type, [])))) => {
+                (core::Term::Prim(Span::Empty, U16Lt), BoolType)
+            }
+            (Lt(_), Some(((U32Type, []), (U32Type, [])))) => {
+                (core::Term::Prim(Span::Empty, U32Lt), BoolType)
+            }
+            (Lt(_), Some(((U64Type, []), (U64Type, [])))) => {
+                (core::Term::Prim(Span::Empty, U64Lt), BoolType)
+            }
 
-            (Lt(_), Some(((S8Type, []), (S8Type, [])))) => (core::Term::Prim(S8Lt), BoolType),
-            (Lt(_), Some(((S16Type, []), (S16Type, [])))) => (core::Term::Prim(S16Lt), BoolType),
-            (Lt(_), Some(((S32Type, []), (S32Type, [])))) => (core::Term::Prim(S32Lt), BoolType),
-            (Lt(_), Some(((S64Type, []), (S64Type, [])))) => (core::Term::Prim(S64Lt), BoolType),
+            (Lt(_), Some(((S8Type, []), (S8Type, [])))) => {
+                (core::Term::Prim(Span::Empty, S8Lt), BoolType)
+            }
+            (Lt(_), Some(((S16Type, []), (S16Type, [])))) => {
+                (core::Term::Prim(Span::Empty, S16Lt), BoolType)
+            }
+            (Lt(_), Some(((S32Type, []), (S32Type, [])))) => {
+                (core::Term::Prim(Span::Empty, S32Lt), BoolType)
+            }
+            (Lt(_), Some(((S64Type, []), (S64Type, [])))) => {
+                (core::Term::Prim(Span::Empty, S64Lt), BoolType)
+            }
 
-            (Lte(_), Some(((U8Type, []), (U8Type, [])))) => (core::Term::Prim(U8Lte), BoolType),
-            (Lte(_), Some(((U16Type, []), (U16Type, [])))) => (core::Term::Prim(U16Lte), BoolType),
-            (Lte(_), Some(((U32Type, []), (U32Type, [])))) => (core::Term::Prim(U32Lte), BoolType),
-            (Lte(_), Some(((U64Type, []), (U64Type, [])))) => (core::Term::Prim(U64Lte), BoolType),
+            (Lte(_), Some(((U8Type, []), (U8Type, [])))) => {
+                (core::Term::Prim(Span::Empty, U8Lte), BoolType)
+            }
+            (Lte(_), Some(((U16Type, []), (U16Type, [])))) => {
+                (core::Term::Prim(Span::Empty, U16Lte), BoolType)
+            }
+            (Lte(_), Some(((U32Type, []), (U32Type, [])))) => {
+                (core::Term::Prim(Span::Empty, U32Lte), BoolType)
+            }
+            (Lte(_), Some(((U64Type, []), (U64Type, [])))) => {
+                (core::Term::Prim(Span::Empty, U64Lte), BoolType)
+            }
 
-            (Lte(_), Some(((S8Type, []), (S8Type, [])))) => (core::Term::Prim(S8Lte), BoolType),
-            (Lte(_), Some(((S16Type, []), (S16Type, [])))) => (core::Term::Prim(S16Lte), BoolType),
-            (Lte(_), Some(((S32Type, []), (S32Type, [])))) => (core::Term::Prim(S32Lte), BoolType),
-            (Lte(_), Some(((S64Type, []), (S64Type, [])))) => (core::Term::Prim(S64Lte), BoolType),
+            (Lte(_), Some(((S8Type, []), (S8Type, [])))) => {
+                (core::Term::Prim(Span::Empty, S8Lte), BoolType)
+            }
+            (Lte(_), Some(((S16Type, []), (S16Type, [])))) => {
+                (core::Term::Prim(Span::Empty, S16Lte), BoolType)
+            }
+            (Lte(_), Some(((S32Type, []), (S32Type, [])))) => {
+                (core::Term::Prim(Span::Empty, S32Lte), BoolType)
+            }
+            (Lte(_), Some(((S64Type, []), (S64Type, [])))) => {
+                (core::Term::Prim(Span::Empty, S64Lte), BoolType)
+            }
 
-            (Gt(_), Some(((U8Type, []), (U8Type, [])))) => (core::Term::Prim(U8Gt), BoolType),
-            (Gt(_), Some(((U16Type, []), (U16Type, [])))) => (core::Term::Prim(U16Gt), BoolType),
-            (Gt(_), Some(((U32Type, []), (U32Type, [])))) => (core::Term::Prim(U32Gt), BoolType),
-            (Gt(_), Some(((U64Type, []), (U64Type, [])))) => (core::Term::Prim(U64Gt), BoolType),
+            (Gt(_), Some(((U8Type, []), (U8Type, [])))) => {
+                (core::Term::Prim(Span::Empty, U8Gt), BoolType)
+            }
+            (Gt(_), Some(((U16Type, []), (U16Type, [])))) => {
+                (core::Term::Prim(Span::Empty, U16Gt), BoolType)
+            }
+            (Gt(_), Some(((U32Type, []), (U32Type, [])))) => {
+                (core::Term::Prim(Span::Empty, U32Gt), BoolType)
+            }
+            (Gt(_), Some(((U64Type, []), (U64Type, [])))) => {
+                (core::Term::Prim(Span::Empty, U64Gt), BoolType)
+            }
 
-            (Gt(_), Some(((S8Type, []), (S8Type, [])))) => (core::Term::Prim(S8Gt), BoolType),
-            (Gt(_), Some(((S16Type, []), (S16Type, [])))) => (core::Term::Prim(S16Gt), BoolType),
-            (Gt(_), Some(((S32Type, []), (S32Type, [])))) => (core::Term::Prim(S32Gt), BoolType),
-            (Gt(_), Some(((S64Type, []), (S64Type, [])))) => (core::Term::Prim(S64Gt), BoolType),
+            (Gt(_), Some(((S8Type, []), (S8Type, [])))) => {
+                (core::Term::Prim(Span::Empty, S8Gt), BoolType)
+            }
+            (Gt(_), Some(((S16Type, []), (S16Type, [])))) => {
+                (core::Term::Prim(Span::Empty, S16Gt), BoolType)
+            }
+            (Gt(_), Some(((S32Type, []), (S32Type, [])))) => {
+                (core::Term::Prim(Span::Empty, S32Gt), BoolType)
+            }
+            (Gt(_), Some(((S64Type, []), (S64Type, [])))) => {
+                (core::Term::Prim(Span::Empty, S64Gt), BoolType)
+            }
 
-            (Gte(_), Some(((U8Type, []), (U8Type, [])))) => (core::Term::Prim(U8Gte), BoolType),
-            (Gte(_), Some(((U16Type, []), (U16Type, [])))) => (core::Term::Prim(U16Gte), BoolType),
-            (Gte(_), Some(((U32Type, []), (U32Type, [])))) => (core::Term::Prim(U32Gte), BoolType),
-            (Gte(_), Some(((U64Type, []), (U64Type, [])))) => (core::Term::Prim(U64Gte), BoolType),
+            (Gte(_), Some(((U8Type, []), (U8Type, [])))) => {
+                (core::Term::Prim(Span::Empty, U8Gte), BoolType)
+            }
+            (Gte(_), Some(((U16Type, []), (U16Type, [])))) => {
+                (core::Term::Prim(Span::Empty, U16Gte), BoolType)
+            }
+            (Gte(_), Some(((U32Type, []), (U32Type, [])))) => {
+                (core::Term::Prim(Span::Empty, U32Gte), BoolType)
+            }
+            (Gte(_), Some(((U64Type, []), (U64Type, [])))) => {
+                (core::Term::Prim(Span::Empty, U64Gte), BoolType)
+            }
 
-            (Gte(_), Some(((S8Type, []), (S8Type, [])))) => (core::Term::Prim(S8Gte), BoolType),
-            (Gte(_), Some(((S16Type, []), (S16Type, [])))) => (core::Term::Prim(S16Gte), BoolType),
-            (Gte(_), Some(((S32Type, []), (S32Type, [])))) => (core::Term::Prim(S32Gte), BoolType),
-            (Gte(_), Some(((S64Type, []), (S64Type, [])))) => (core::Term::Prim(S64Gte), BoolType),
+            (Gte(_), Some(((S8Type, []), (S8Type, [])))) => {
+                (core::Term::Prim(Span::Empty, S8Gte), BoolType)
+            }
+            (Gte(_), Some(((S16Type, []), (S16Type, [])))) => {
+                (core::Term::Prim(Span::Empty, S16Gte), BoolType)
+            }
+            (Gte(_), Some(((S32Type, []), (S32Type, [])))) => {
+                (core::Term::Prim(Span::Empty, S32Gte), BoolType)
+            }
+            (Gte(_), Some(((S64Type, []), (S64Type, [])))) => {
+                (core::Term::Prim(Span::Empty, S64Gte), BoolType)
+            }
             _ => {
                 let lhs_pretty = self.pretty_print_value(&lhs_type);
                 let rhs_pretty = self.pretty_print_value(&rhs_type);
@@ -2028,7 +2284,9 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
         };
 
         let fun_app = core::Term::FunApp(
+            (&range).into(),
             self.scope.to_scope(core::Term::FunApp(
+                (&range).into(), // FIXME: Should this be a sub-range of range (from one of the terms)?
                 self.scope.to_scope(fun),
                 self.scope.to_scope(lhs_expr),
             )),
@@ -2036,13 +2294,19 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
         );
 
         // TODO: Maybe it would be good to reuse lhs_type here if output_type is the same
-        (fun_app, Arc::new(Value::prim(output_type, [])))
+        (
+            fun_app,
+            Spanned::empty(Arc::new(Value::prim(output_type, []))),
+        )
     }
 
     fn synth_reported_error(&mut self, range: ByteRange) -> (core::Term<'arena>, ArcValue<'arena>) {
         let type_source = FlexSource::ReportedErrorType(range);
-        let r#type = self.push_flexible_value(type_source, Arc::new(Value::Universe));
-        (core::Term::Prim(Prim::ReportedError), r#type)
+        let r#type = self.push_flexible_value(type_source, Value::arc_universe());
+        (
+            core::Term::Prim((&range).into(), Prim::ReportedError),
+            r#type,
+        )
     }
 
     /// Check a series of format fields
@@ -2051,9 +2315,9 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
         range: ByteRange,
         format_fields: &[FormatField<'_, ByteRange>],
     ) -> (&'arena [StringId], &'arena [core::Term<'arena>]) {
-        let universe_type = Arc::new(Value::Universe);
-        let format_type = Arc::new(Value::prim(Prim::FormatType, []));
-        let bool_type = Arc::new(Value::prim(Prim::BoolType, []));
+        let universe_type = Value::arc_universe();
+        let format_type = Spanned::empty(Arc::new(Value::prim(Prim::FormatType, [])));
+        let bool_type = Spanned::empty(Arc::new(Value::prim(Prim::BoolType, [])));
 
         let initial_rigid_len = self.rigid_env.len();
         let (labels, format_fields) =
@@ -2084,6 +2348,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                             let cond_expr = self.check(pred, &bool_type);
 
                             formats.push(core::Term::FormatCond(
+                                (&range).into(), // FIXME: Is this range of all the fields? If so we need to merge ranges of the field only
                                 *label,
                                 self.scope.to_scope(format),
                                 self.scope.to_scope(cond_expr),
@@ -2110,8 +2375,11 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                     };
 
                     let format = core::Term::FunApp(
+                        (&range).into(),
                         self.scope.to_scope(core::Term::FunApp(
-                            self.scope.to_scope(core::Term::Prim(Prim::FormatSucceed)),
+                            Span::Empty, // FIXME: sub-range?
+                            self.scope
+                                .to_scope(core::Term::Prim(Span::Empty, Prim::FormatSucceed)), // FIXME: sub-range?
                             self.scope.to_scope(r#type),
                         )),
                         self.scope.to_scope(expr),
@@ -2158,7 +2426,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 }
 
                 match def_pattern {
-                    CheckedPattern::Name(_, name) => {
+                    CheckedPattern::Name(range, name) => {
                         let def_name = Some(name);
                         let def_expr = self.eval_context().eval(&scrutinee_expr);
                         self.rigid_env.push_def(def_name, def_expr, def_type_value);
@@ -2177,6 +2445,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                         );
 
                         core::Term::Let(
+                            (&range).into(), // FIXME: is this the right range to use here?
                             def_name,
                             self.scope.to_scope(def_type),
                             scrutinee_expr,
@@ -2199,7 +2468,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
 
                         output_expr
                     }
-                    CheckedPattern::Const(_, _) => {
+                    CheckedPattern::Const(range, _) => {
                         // Temporary vector for accumulating branches
                         let mut branches = Vec::new();
                         let num_constructors = match scrutinee_type.match_prim_spine() {
@@ -2261,6 +2530,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                                     self.rigid_env.pop();
 
                                     return core::Term::ConstMatch(
+                                        (&range).into(),
                                         scrutinee_expr,
                                         self.scope.to_scope_from_iter(branches.into_iter()),
                                         Some(self.scope.to_scope(default_expr)),
@@ -2272,6 +2542,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                         if num_constructors == Some(branches.len()) {
                             // The absence of a default constructor is ok as the match was exhaustive.
                             return core::Term::ConstMatch(
+                                (&range).into(),
                                 scrutinee_expr,
                                 self.scope.to_scope_from_iter(branches.into_iter()),
                                 None,
@@ -2285,9 +2556,9 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                                 scrutinee_expr_range: scrutinee_range,
                             });
                         }
-                        core::Term::Prim(Prim::ReportedError)
+                        core::Term::Prim((&range).into(), Prim::ReportedError)
                     }
-                    CheckedPattern::ReportedError(_) => {
+                    CheckedPattern::ReportedError(range) => {
                         // Check for any further errors in the first equation's output expression.
                         self.check(output_expr, expected_type);
                         self.check_match(
@@ -2300,7 +2571,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                             expected_type,
                         );
 
-                        core::Term::Prim(Prim::ReportedError)
+                        core::Term::Prim((&range).into(), Prim::ReportedError)
                     }
                 }
             }
@@ -2312,7 +2583,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                         scrutinee_expr_range: scrutinee_range,
                     });
                 }
-                core::Term::Prim(Prim::ReportedError)
+                core::Term::Prim((&match_range).into(), Prim::ReportedError)
             }
         }
     }

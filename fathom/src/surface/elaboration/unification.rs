@@ -24,6 +24,7 @@ use crate::core::semantics::{
 };
 use crate::core::{Prim, Term};
 use crate::env::{EnvLen, GlobalVar, LocalVar, SharedEnv, SliceEnv, UniqueEnv};
+use crate::source::Spanned;
 use crate::StringId;
 
 /// Errors encountered during unification.
@@ -195,7 +196,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
         value1: &ArcValue<'arena>,
     ) -> Result<(), Error> {
         // Check for pointer equality before trying to force the values
-        if Arc::ptr_eq(value0, value1) {
+        if Arc::ptr_eq(&value0, &value1) {
             return Ok(());
         }
 
@@ -332,7 +333,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
         closure0: &Closure<'arena>,
         closure1: &Closure<'arena>,
     ) -> Result<(), Error> {
-        let var = Arc::new(Value::rigid_var(self.rigid_exprs.next_global()));
+        let var = Spanned::empty(Arc::new(Value::rigid_var(self.rigid_exprs.next_global())));
         let value0 = self.elim_context().apply_closure(closure0, var.clone());
         let value1 = self.elim_context().apply_closure(closure1, var);
 
@@ -366,7 +367,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
                 return Err(error);
             }
 
-            let var = Arc::new(Value::rigid_var(self.rigid_exprs.next_global()));
+            let var = Spanned::empty(Arc::new(Value::rigid_var(self.rigid_exprs.next_global())));
             telescope0 = next_telescope0(var.clone());
             telescope1 = next_telescope1(var);
             self.rigid_exprs.push();
@@ -386,7 +387,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
         output_expr: &Closure<'arena>,
         value: &ArcValue<'arena>,
     ) -> Result<(), Error> {
-        let var = Arc::new(Value::rigid_var(self.rigid_exprs.next_global()));
+        let var = Spanned::empty(Arc::new(Value::rigid_var(self.rigid_exprs.next_global())));
         let value = self.elim_context().fun_app(value.clone(), var.clone());
         let output_expr = self.elim_context().apply_closure(output_expr, var);
 
@@ -474,7 +475,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
     /// correspond to the given `spine`.
     fn fun_intros(&self, spine: &[Elim<'arena>], term: Term<'arena>) -> Term<'arena> {
         spine.iter().fold(term, |term, elim| match elim {
-            Elim::FunApp(_) => Term::FunLit(None, self.scope.to_scope(term)),
+            Elim::FunApp(_) => Term::FunLit(term.span(), None, self.scope.to_scope(term)),
             Elim::RecordProj(_) | Elim::ConstMatch(_) => {
                 unreachable!("should have been caught by `init_renaming`")
             }
@@ -494,28 +495,31 @@ impl<'arena, 'env> Context<'arena, 'env> {
         flexible_var: GlobalVar,
         value: &ArcValue<'arena>,
     ) -> Result<Term<'arena>, RenameError> {
-        match self.elim_context().force(value).as_ref() {
+        let val = self.elim_context().force(value);
+        let span = val.span();
+        match val.as_ref() {
             Value::Stuck(head, spine) => {
                 let head_expr = match head {
-                    Head::Prim(prim) => Term::Prim(*prim),
+                    Head::Prim(prim) => Term::Prim(span, *prim),
                     Head::RigidVar(source_var) => match self.renaming.get_as_local(*source_var) {
                         None => return Err(RenameError::EscapingRigidVar(*source_var)),
-                        Some(target_var) => Term::RigidVar(target_var),
+                        Some(target_var) => Term::RigidVar(span, target_var),
                     },
                     Head::FlexibleVar(var) => match *var {
                         var if flexible_var == var => return Err(RenameError::InfiniteSolution),
-                        var => Term::FlexibleVar(var),
+                        var => Term::FlexibleVar(span, var),
                     },
                 };
 
                 spine.iter().fold(Ok(head_expr), |head_expr, elim| {
                     Ok(match elim {
                         Elim::FunApp(input_expr) => Term::FunApp(
+                            span,
                             self.scope.to_scope(head_expr?),
                             self.scope.to_scope(self.rename(flexible_var, input_expr)?),
                         ),
                         Elim::RecordProj(label) => {
-                            Term::RecordProj(self.scope.to_scope(head_expr?), *label)
+                            Term::RecordProj(span, self.scope.to_scope(head_expr?), *label)
                         }
                         Elim::ConstMatch(branches) => {
                             let mut branches = branches.clone();
@@ -543,6 +547,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
                             };
 
                             Term::ConstMatch(
+                                span,
                                 self.scope.to_scope(head_expr?),
                                 pattern_branches.into(),
                                 default_expr.map(|expr| self.scope.to_scope(expr) as &_),
@@ -552,13 +557,14 @@ impl<'arena, 'env> Context<'arena, 'env> {
                 })
             }
 
-            Value::Universe => Ok(Term::Universe),
+            Value::Universe => Ok(Term::Universe(span)),
 
             Value::FunType(input_name, input_type, output_type) => {
                 let input_type = self.rename(flexible_var, input_type)?;
                 let output_type = self.rename_closure(flexible_var, output_type)?;
 
                 Ok(Term::FunType(
+                    span,
                     *input_name,
                     self.scope.to_scope(input_type),
                     self.scope.to_scope(output_type),
@@ -567,14 +573,18 @@ impl<'arena, 'env> Context<'arena, 'env> {
             Value::FunLit(input_name, output_expr) => {
                 let output_expr = self.rename_closure(flexible_var, output_expr)?;
 
-                Ok(Term::FunLit(*input_name, self.scope.to_scope(output_expr)))
+                Ok(Term::FunLit(
+                    span,
+                    *input_name,
+                    self.scope.to_scope(output_expr),
+                ))
             }
 
             Value::RecordType(labels, types) => {
                 let labels = self.scope.to_scope(labels); // FIXME: avoid copy if this is the same arena?
                 let types = self.rename_telescope(flexible_var, types)?;
 
-                Ok(Term::RecordType(labels, types))
+                Ok(Term::RecordType(span, labels, types))
             }
             Value::RecordLit(labels, exprs) => {
                 let labels = self.scope.to_scope(labels); // FIXME: avoid copy if this is the same arena?
@@ -583,7 +593,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
                     new_exprs.push(self.rename(flexible_var, expr)?);
                 }
 
-                Ok(Term::RecordLit(labels, new_exprs.into()))
+                Ok(Term::RecordLit(span, labels, new_exprs.into()))
             }
 
             Value::ArrayLit(elem_exprs) => {
@@ -592,19 +602,20 @@ impl<'arena, 'env> Context<'arena, 'env> {
                     new_elem_exprs.push(self.rename(flexible_var, elem_expr)?);
                 }
 
-                Ok(Term::ArrayLit(new_elem_exprs.into()))
+                Ok(Term::ArrayLit(span, new_elem_exprs.into()))
             }
 
             Value::FormatRecord(labels, formats) => {
                 let labels = self.scope.to_scope(labels); // FIXME: avoid copy if this is the same arena?
                 let formats = self.rename_telescope(flexible_var, formats)?;
 
-                Ok(Term::FormatRecord(labels, formats))
+                Ok(Term::FormatRecord(span, labels, formats))
             }
             Value::FormatCond(label, format, cond) => {
                 let format = self.rename(flexible_var, format)?;
                 let cond = self.rename_closure(flexible_var, cond)?;
                 Ok(Term::FormatCond(
+                    span,
                     *label,
                     self.scope.to_scope(format),
                     self.scope.to_scope(cond),
@@ -614,10 +625,10 @@ impl<'arena, 'env> Context<'arena, 'env> {
                 let labels = self.scope.to_scope(labels); // FIXME: avoid copy if this is the same arena?
                 let formats = self.rename_telescope(flexible_var, formats)?;
 
-                Ok(Term::FormatOverlap(labels, formats))
+                Ok(Term::FormatOverlap(span, labels, formats))
             }
 
-            Value::ConstLit(constant) => Ok(Term::ConstLit(*constant)),
+            Value::ConstLit(constant) => Ok(Term::ConstLit(span, *constant)),
         }
     }
 
@@ -651,7 +662,8 @@ impl<'arena, 'env> Context<'arena, 'env> {
             match self.rename(flexible_var, &value) {
                 Ok(term) => {
                     terms.push(term);
-                    let var = Arc::new(Value::rigid_var(self.rigid_exprs.next_global()));
+                    let var =
+                        Spanned::empty(Arc::new(Value::rigid_var(self.rigid_exprs.next_global())));
                     telescope = next_telescope(var);
                     self.rigid_exprs.push();
                 }
@@ -694,7 +706,7 @@ impl PartialRenaming {
     }
 
     fn next_rigid_var<'arena>(&self) -> ArcValue<'arena> {
-        Arc::new(Value::rigid_var(self.source.len().next_global()))
+        Spanned::empty(Arc::new(Value::rigid_var(self.source.len().next_global())))
     }
 
     /// Set a rigid source variable to rigid target variable mapping, ensuring
