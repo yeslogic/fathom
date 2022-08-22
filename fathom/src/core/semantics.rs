@@ -820,143 +820,65 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
 
     /// Find the representation type of a format description.
     pub fn format_repr(&self, format: &ArcValue<'arena>) -> ArcValue<'arena> {
-        match format.as_ref() {
+        let value = match format.as_ref() {
             Value::FormatRecord(labels, formats) | Value::FormatOverlap(labels, formats) => {
-                Spanned::new(
-                    format.span(),
-                    Arc::new(Value::RecordType(labels, formats.clone().apply_repr())),
-                )
+                Value::RecordType(labels, formats.clone().apply_repr())
             }
-            Value::FormatCond(_, format, _) => self.format_repr(format),
+            Value::FormatCond(_, format, _) => return self.format_repr(format),
             Value::Stuck(Head::Prim(prim), spine) => match (prim, &spine[..]) {
-                (Prim::FormatU8, []) => {
-                    Spanned::new(format.span(), Arc::new(Value::prim(Prim::U8Type, [])))
+                (Prim::FormatU8, []) => Value::prim(Prim::U8Type, []),
+                (Prim::FormatU16Be, []) => Value::prim(Prim::U16Type, []),
+                (Prim::FormatU16Le, []) => Value::prim(Prim::U16Type, []),
+                (Prim::FormatU32Be, []) => Value::prim(Prim::U32Type, []),
+                (Prim::FormatU32Le, []) => Value::prim(Prim::U32Type, []),
+                (Prim::FormatU64Be, []) => Value::prim(Prim::U64Type, []),
+                (Prim::FormatU64Le, []) => Value::prim(Prim::U64Type, []),
+                (Prim::FormatS8, []) => Value::prim(Prim::S8Type, []),
+                (Prim::FormatS16Be, []) => Value::prim(Prim::S16Type, []),
+                (Prim::FormatS16Le, []) => Value::prim(Prim::S16Type, []),
+                (Prim::FormatS32Be, []) => Value::prim(Prim::S32Type, []),
+                (Prim::FormatS32Le, []) => Value::prim(Prim::S32Type, []),
+                (Prim::FormatS64Be, []) => Value::prim(Prim::S64Type, []),
+                (Prim::FormatS64Le, []) => Value::prim(Prim::S64Type, []),
+                (Prim::FormatF32Be, []) => Value::prim(Prim::F32Type, []),
+                (Prim::FormatF32Le, []) => Value::prim(Prim::F32Type, []),
+                (Prim::FormatF64Be, []) => Value::prim(Prim::F64Type, []),
+                (Prim::FormatF64Le, []) => Value::prim(Prim::F64Type, []),
+                (Prim::FormatArray8, [Elim::FunApp(len), Elim::FunApp(elem)]) => {
+                    Value::prim(Prim::Array8Type, [len.clone(), self.format_repr(elem)])
                 }
-                (Prim::FormatU16Be, []) => {
-                    Spanned::new(format.span(), Arc::new(Value::prim(Prim::U16Type, [])))
+                (Prim::FormatArray16, [Elim::FunApp(len), Elim::FunApp(elem)]) => {
+                    Value::prim(Prim::Array16Type, [len.clone(), self.format_repr(elem)])
                 }
-                (Prim::FormatU16Le, []) => {
-                    Spanned::new(format.span(), Arc::new(Value::prim(Prim::U16Type, [])))
+                (Prim::FormatArray32, [Elim::FunApp(len), Elim::FunApp(elem)]) => {
+                    Value::prim(Prim::Array32Type, [len.clone(), self.format_repr(elem)])
                 }
-                (Prim::FormatU32Be, []) => {
-                    Spanned::new(format.span(), Arc::new(Value::prim(Prim::U32Type, [])))
+                (Prim::FormatArray64, [Elim::FunApp(len), Elim::FunApp(elem)]) => {
+                    Value::prim(Prim::Array64Type, [len.clone(), self.format_repr(elem)])
                 }
-                (Prim::FormatU32Le, []) => {
-                    Spanned::new(format.span(), Arc::new(Value::prim(Prim::U32Type, [])))
+                (Prim::FormatLimit8, [_, Elim::FunApp(elem)]) => return self.format_repr(elem),
+                (Prim::FormatLimit16, [_, Elim::FunApp(elem)]) => return self.format_repr(elem),
+                (Prim::FormatLimit32, [_, Elim::FunApp(elem)]) => return self.format_repr(elem),
+                (Prim::FormatLimit64, [_, Elim::FunApp(elem)]) => return self.format_repr(elem),
+                (Prim::FormatRepeatUntilEnd, [Elim::FunApp(elem)]) => {
+                    Value::prim(Prim::ArrayType, [self.format_repr(elem)])
                 }
-                (Prim::FormatU64Be, []) => {
-                    Spanned::new(format.span(), Arc::new(Value::prim(Prim::U64Type, [])))
+                (Prim::FormatLink, [_, Elim::FunApp(elem)]) => {
+                    Value::prim(Prim::RefType, [elem.clone()])
                 }
-                (Prim::FormatU64Le, []) => {
-                    Spanned::new(format.span(), Arc::new(Value::prim(Prim::U64Type, [])))
-                }
-                (Prim::FormatS8, []) => {
-                    Spanned::new(format.span(), Arc::new(Value::prim(Prim::S8Type, [])))
-                }
-                (Prim::FormatS16Be, []) => {
-                    Spanned::new(format.span(), Arc::new(Value::prim(Prim::S16Type, [])))
-                }
-                (Prim::FormatS16Le, []) => {
-                    Spanned::new(format.span(), Arc::new(Value::prim(Prim::S16Type, [])))
-                }
-                (Prim::FormatS32Be, []) => {
-                    Spanned::new(format.span(), Arc::new(Value::prim(Prim::S32Type, [])))
-                }
-                (Prim::FormatS32Le, []) => {
-                    Spanned::new(format.span(), Arc::new(Value::prim(Prim::S32Type, [])))
-                }
-                (Prim::FormatS64Be, []) => {
-                    Spanned::new(format.span(), Arc::new(Value::prim(Prim::S64Type, [])))
-                }
-                (Prim::FormatS64Le, []) => {
-                    Spanned::new(format.span(), Arc::new(Value::prim(Prim::S64Type, [])))
-                }
-                (Prim::FormatF32Be, []) => {
-                    Spanned::new(format.span(), Arc::new(Value::prim(Prim::F32Type, [])))
-                }
-                (Prim::FormatF32Le, []) => {
-                    Spanned::new(format.span(), Arc::new(Value::prim(Prim::F32Type, [])))
-                }
-                (Prim::FormatF64Be, []) => {
-                    Spanned::new(format.span(), Arc::new(Value::prim(Prim::F64Type, [])))
-                }
-                (Prim::FormatF64Le, []) => {
-                    Spanned::new(format.span(), Arc::new(Value::prim(Prim::F64Type, [])))
-                }
-                (Prim::FormatArray8, [Elim::FunApp(len), Elim::FunApp(elem)]) => Spanned::new(
-                    format.span(),
-                    Arc::new(Value::prim(
-                        Prim::Array8Type,
-                        [len.clone(), self.format_repr(elem)],
-                    )),
-                ),
-                (Prim::FormatArray16, [Elim::FunApp(len), Elim::FunApp(elem)]) => Spanned::new(
-                    format.span(),
-                    Arc::new(Value::prim(
-                        Prim::Array16Type,
-                        [len.clone(), self.format_repr(elem)],
-                    )),
-                ),
-                (Prim::FormatArray32, [Elim::FunApp(len), Elim::FunApp(elem)]) => Spanned::new(
-                    format.span(),
-                    Arc::new(Value::prim(
-                        Prim::Array32Type,
-                        [len.clone(), self.format_repr(elem)],
-                    )),
-                ),
-                (Prim::FormatArray64, [Elim::FunApp(len), Elim::FunApp(elem)]) => Spanned::new(
-                    format.span(),
-                    Arc::new(Value::prim(
-                        Prim::Array64Type,
-                        [len.clone(), self.format_repr(elem)],
-                    )),
-                ),
-                (Prim::FormatLimit8, [Elim::FunApp(_), Elim::FunApp(elem)]) => {
-                    self.format_repr(elem)
-                }
-                (Prim::FormatLimit16, [Elim::FunApp(_), Elim::FunApp(elem)]) => {
-                    self.format_repr(elem)
-                }
-                (Prim::FormatLimit32, [Elim::FunApp(_), Elim::FunApp(elem)]) => {
-                    self.format_repr(elem)
-                }
-                (Prim::FormatLimit64, [Elim::FunApp(_), Elim::FunApp(elem)]) => {
-                    self.format_repr(elem)
-                }
-                (Prim::FormatRepeatUntilEnd, [Elim::FunApp(elem)]) => Spanned::new(
-                    format.span(),
-                    Arc::new(Value::prim(Prim::ArrayType, [self.format_repr(elem)])),
-                ),
-                (Prim::FormatLink, [Elim::FunApp(_), Elim::FunApp(elem)]) => Spanned::new(
-                    format.span(),
-                    Arc::new(Value::prim(Prim::RefType, [elem.clone()])),
-                ),
-                (Prim::FormatDeref, [Elim::FunApp(elem), Elim::FunApp(_)]) => {
-                    self.format_repr(elem)
-                }
-                (Prim::FormatStreamPos, []) => {
-                    Spanned::new(format.span(), Arc::new(Value::prim(Prim::PosType, [])))
-                }
-                (Prim::FormatSucceed, [Elim::FunApp(elem), _]) => elem.clone(),
-                (Prim::FormatFail, []) => {
-                    Spanned::new(format.span(), Arc::new(Value::prim(Prim::VoidType, [])))
-                }
-                (Prim::FormatUnwrap, [Elim::FunApp(elem), _]) => elem.clone(),
-                (Prim::ReportedError, []) => Spanned::new(
-                    format.span(),
-                    Arc::new(Value::prim(Prim::ReportedError, [])),
-                ),
-                _ => Spanned::new(
-                    format.span(),
-                    Arc::new(Value::prim(Prim::FormatRepr, [format.clone()])),
-                ),
+                (Prim::FormatDeref, [Elim::FunApp(elem), _]) => return self.format_repr(elem),
+                (Prim::FormatStreamPos, []) => Value::prim(Prim::PosType, []),
+                (Prim::FormatSucceed, [Elim::FunApp(elem), _]) => return elem.clone(),
+                (Prim::FormatFail, []) => Value::prim(Prim::VoidType, []),
+                (Prim::FormatUnwrap, [Elim::FunApp(elem), _]) => return elem.clone(),
+                (Prim::ReportedError, []) => Value::prim(Prim::ReportedError, []),
+                _ => Value::prim(Prim::FormatRepr, [format.clone()]),
             },
-            Value::Stuck(_, _) => Spanned::new(
-                format.span(),
-                Arc::new(Value::prim(Prim::FormatRepr, [format.clone()])),
-            ),
+            Value::Stuck(_, _) => Value::prim(Prim::FormatRepr, [format.clone()]),
             _ => panic_any(Error::InvalidFormatRepr),
-        }
+        };
+
+        Spanned::new(format.span(), Arc::new(value))
     }
 }
 
