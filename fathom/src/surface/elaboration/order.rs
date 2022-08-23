@@ -37,7 +37,7 @@ pub fn elaboration_order(
     let item_deps = collect_item_dependencies(surface_module, &item_names);
 
     let context = ModuleOrderContext::new(elab_context);
-    context.determine_order(&surface_module.items, &item_names, &item_deps)
+    context.determine_order(surface_module.items, &item_names, &item_deps)
 }
 
 fn item_names(surface_module: &Module<'_, ByteRange>) -> FxHashMap<StringId, usize> {
@@ -62,7 +62,7 @@ fn collect_item_dependencies(
     surface_module
         .items
         .iter()
-        .map(|item| item_dependencies(item, &item_names, &mut local_names))
+        .map(|item| item_dependencies(item, item_names, &mut local_names))
         .collect()
 }
 
@@ -131,10 +131,8 @@ impl<'a, 'interner, 'arena, 'error> ModuleOrderContext<'a, 'interner, 'arena, 'e
             Some(index) => {
                 let index = *index;
                 self.stack.push(name);
-                dependencies[index]
-                    .iter()
-                    .map(|dep| self.visit_item(*dep, item_names, dependencies))
-                    .collect::<Result<(), _>>()?;
+                (dependencies[index].iter())
+                    .try_for_each(|dep| self.visit_item(*dep, item_names, dependencies))?;
                 self.stack.pop();
                 self.visited.insert(name);
                 self.output.push(index);
@@ -178,12 +176,10 @@ fn term_deps(
         Term::Name(_, name) => {
             if local_names.iter().rev().any(|local| name == local) {
                 // local binding, do nothing
-            } else if item_names.contains_key(name) {
-                if deps.last() != Some(name) {
-                    // Only push if it's not a duplicate of the last item. This is a basic way
-                    // to reduce the number of duplicate dependencies that are pushed.
-                    deps.push(*name);
-                }
+            } else if item_names.contains_key(name) && deps.last() != Some(name) {
+                // Only push if it's not a duplicate of the last item. This is a basic way
+                // to reduce the number of duplicate dependencies that are pushed.
+                deps.push(*name);
             }
         }
         Term::Ann(_, expr, r#type) => {

@@ -250,7 +250,7 @@ impl<Entry> SliceEnv<Entry> {
     }
 
     /// Iterate over the elements in the environment.
-    pub fn iter<'this>(&'this self) -> impl 'this + DoubleEndedIterator<Item = &'this Entry> {
+    pub fn iter(&self) -> impl DoubleEndedIterator<Item = &Entry> {
         self.entries.iter()
     }
 }
@@ -326,7 +326,7 @@ impl<Entry> SharedEnv<Entry> {
     }
 
     /// Iterate over the elements in the environment.
-    pub fn iter<'this>(&'this self) -> impl 'this + DoubleEndedIterator<Item = &'this Entry> {
+    pub fn iter(&self) -> impl DoubleEndedIterator<Item = &Entry> {
         self.entries.iter()
     }
 }

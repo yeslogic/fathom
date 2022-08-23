@@ -60,7 +60,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                             self.concat([self.string_id(label.1), self.space(), self.text(":")])
                                 .group(),
                             self.softline(),
-                            self.term_prec(Prec::Top, &r#type),
+                            self.term_prec(Prec::Top, r#type),
                         ]),
                     },
                     self.space(),
@@ -98,10 +98,10 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
             Some(r#type) => self.paren(
                 prec > Prec::Top,
                 self.concat([
-                    self.concat([self.pattern(&pattern), self.space(), self.text(":")])
+                    self.concat([self.pattern(pattern), self.space(), self.text(":")])
                         .group(),
                     self.softline(),
-                    self.term_prec(Prec::Top, &r#type),
+                    self.term_prec(Prec::Top, r#type),
                 ]),
             ),
         }
@@ -126,13 +126,13 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 prec > Prec::Top,
                 self.concat([
                     self.concat([
-                        self.term_prec(Prec::Let, &expr),
+                        self.term_prec(Prec::Let, expr),
                         self.space(),
                         self.text(":"),
                     ])
                     .group(),
                     self.softline(),
-                    self.term_prec(Prec::Top, &r#type),
+                    self.term_prec(Prec::Top, r#type),
                 ]),
             ),
             Term::Let(_, def_pattern, def_type, def_expr, output_expr) => self.paren(

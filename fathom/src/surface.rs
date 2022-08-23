@@ -10,7 +10,11 @@ use scoped_arena::Scope;
 use crate::source::{ByteRange, FileId};
 use crate::{StringId, StringInterner};
 
-lalrpop_mod!(grammar, "/surface/grammar.rs");
+lalrpop_mod!(
+    #[allow(clippy::all)]
+    grammar,
+    "/surface/grammar.rs"
+);
 mod lexer;
 pub mod pretty;
 

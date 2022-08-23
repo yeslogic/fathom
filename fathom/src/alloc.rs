@@ -69,8 +69,8 @@ impl<'a, Elem> Deref for SliceVec<'a, Elem> {
     }
 }
 
-impl<'a, Elem> Into<&'a [Elem]> for SliceVec<'a, Elem> {
-    fn into(self) -> &'a [Elem] {
+impl<'a, Elem> From<SliceVec<'a, Elem>> for &'a [Elem] {
+    fn from(slice: SliceVec<'a, Elem>) -> Self {
         // SAFETY: This is safe because we know that `self.elems[..self.next_index]`
         // only ever contains elements initialized with `MaybeUninit::new`.
         // We know this because:
@@ -79,12 +79,13 @@ impl<'a, Elem> Into<&'a [Elem]> for SliceVec<'a, Elem> {
         // - `self.next_index` is only incremented in `SliceBuilder::push`,
         //    and in that case we make sure `self.elems[self.next_index]`
         //    has been initialized before hand.
-        unsafe { slice_assume_init_ref(&self.elems[..self.next_index]) }
+        unsafe { slice_assume_init_ref(&slice.elems[..slice.next_index]) }
     }
 }
 
 // NOTE: This is the same implementation as `MaybeUninit::slice_assume_init_ref`,
 // which is currently unstable (see https://github.com/rust-lang/rust/issues/63569).
+#[allow(clippy::needless_lifetimes)] // These serve as important documentation
 pub unsafe fn slice_assume_init_ref<'a, T>(slice: &'a [MaybeUninit<T>]) -> &'a [T] {
     // SAFETY: casting slice to a `*const [T]` is safe since the caller guarantees that
     // `slice` is initialized, and`MaybeUninit` is guaranteed to have the same layout as `T`.
