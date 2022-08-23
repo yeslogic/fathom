@@ -219,6 +219,7 @@ pub enum SplitBranches<'arena, P> {
 // TODO: include stack trace(??)
 #[derive(Clone, Debug)]
 pub enum Error {
+    IndexOutOfBounds,
     InvalidItemVar,
     InvalidRigidVar,
     InvalidFlexibleVar,
@@ -232,6 +233,7 @@ pub enum Error {
 impl Error {
     pub fn description(&self) -> &str {
         match &self {
+            Error::IndexOutOfBounds => "array index out of bounds",
             Error::InvalidItemVar => "invalid item variable",
             Error::InvalidRigidVar => "invalid rigid variable",
             Error::InvalidFlexibleVar => "invalid flexible variable",
@@ -401,14 +403,22 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
 }
 
 /// Primitive evaluation step.
-type PrimStep =
-    for<'arena> fn(&ElimContext<'arena, '_>, &[Elim<'arena>]) -> Option<ArcValue<'arena>>;
+type PrimStep = for<'arena> fn(
+    &ElimContext<'arena, '_>,
+    &[Elim<'arena>],
+) -> Result<ArcValue<'arena>, PrimStepError>;
+
+// TODO: It's not really an error, it's a result but that word is overloaded too. Make better
+enum PrimStepError {
+    Stuck,
+    Error(Error),
+}
 
 macro_rules! step {
     ($context:pat, [$($input:pat),*] => $output:expr) => {
-        Some(|$context, spine| match spine {
-            [$(Elim::FunApp($input)),*] => Some($output),
-            _ => return None,
+        Ok(|$context, spine| match spine {
+            [$(Elim::FunApp($input)),*] => Ok($output),
+            _ => return Err(PrimStepError::Stuck),
         })
     };
 }
@@ -418,20 +428,20 @@ macro_rules! const_step {
     ([$($input:ident : $Input:ident),*] => $output:expr) => {
         step!(_, [$($input),*] => match ($($input.as_ref(),)*) {
             ($(Value::ConstLit(Const::$Input($input, ..)),)*) => Spanned::empty(Arc::new(Value::ConstLit($output))),
-            _ => return None,
+            _ => return Err(PrimStepError::Stuck),
         })
     };
     ([$($input:ident , $style:ident : $Input:ident),*] => $output:expr) => {
         step!(_, [$($input),*] => match ($($input.as_ref(),)*) {
             ($(Value::ConstLit(Const::$Input($input, $style)),)*) => Spanned::empty(Arc::new(Value::ConstLit($output))),
-            _ => return None,
+            _ => return Err(PrimStepError::Stuck),
         })
     };
 }
 
 /// Returns an evaluation step for a primitive, if there is one defined.
 #[rustfmt::skip]
-fn prim_step(prim: Prim) -> Option<PrimStep> {
+fn prim_step(prim: Prim) -> Result<PrimStep, PrimStepError> {
     use std::ops::{BitAnd, BitOr, BitXor, Not};
     use std::convert::TryFrom;
 
@@ -451,13 +461,13 @@ fn prim_step(prim: Prim) -> Option<PrimStep> {
         Prim::U8Lt => const_step!([x: U8, y: U8] => Const::Bool(x < y)),
         Prim::U8Gte => const_step!([x: U8, y: U8] => Const::Bool(x >= y)),
         Prim::U8Lte => const_step!([x: U8, y: U8] => Const::Bool(x <= y)),
-        Prim::U8Add => const_step!([x, xst: U8, y, yst: U8] => Const::U8(u8::checked_add(*x, *y)?, UIntStyle::merge(*xst, *yst))),
-        Prim::U8Sub => const_step!([x, xst: U8, y, yst: U8] => Const::U8(u8::checked_sub(*x, *y)?, UIntStyle::merge(*xst, *yst))),
-        Prim::U8Mul => const_step!([x, xst: U8, y, yst: U8] => Const::U8(u8::checked_mul(*x, *y)?, UIntStyle::merge(*xst, *yst))),
-        Prim::U8Div => const_step!([x, xst: U8, y, yst: U8] => Const::U8(u8::checked_div(*x, *y)?, UIntStyle::merge(*xst, *yst))),
+        Prim::U8Add => const_step!([x, xst: U8, y, yst: U8] => Const::U8(u8::checked_add(*x, *y).ok_or(PrimStepError::Stuck)?, UIntStyle::merge(*xst, *yst))),
+        Prim::U8Sub => const_step!([x, xst: U8, y, yst: U8] => Const::U8(u8::checked_sub(*x, *y).ok_or(PrimStepError::Stuck)?, UIntStyle::merge(*xst, *yst))),
+        Prim::U8Mul => const_step!([x, xst: U8, y, yst: U8] => Const::U8(u8::checked_mul(*x, *y).ok_or(PrimStepError::Stuck)?, UIntStyle::merge(*xst, *yst))),
+        Prim::U8Div => const_step!([x, xst: U8, y, yst: U8] => Const::U8(u8::checked_div(*x, *y).ok_or(PrimStepError::Stuck)?, UIntStyle::merge(*xst, *yst))),
         Prim::U8Not => const_step!([x, style: U8] => Const::U8(u8::not(*x), *style)),
-        Prim::U8Shl => const_step!([x, xst: U8, y, _yst: U8] => Const::U8(u8::checked_shl(*x, u32::from(*y))?, *xst)),
-        Prim::U8Shr => const_step!([x, xst: U8, y, _yst: U8] => Const::U8(u8::checked_shr(*x, u32::from(*y))?, *xst)),
+        Prim::U8Shl => const_step!([x, xst: U8, y, _yst: U8] => Const::U8(u8::checked_shl(*x, u32::from(*y)).ok_or(PrimStepError::Stuck)?, *xst)),
+        Prim::U8Shr => const_step!([x, xst: U8, y, _yst: U8] => Const::U8(u8::checked_shr(*x, u32::from(*y)).ok_or(PrimStepError::Stuck)?, *xst)),
         Prim::U8And => const_step!([x, xst: U8, y, yst: U8] => Const::U8(u8::bitand(*x, *y), UIntStyle::merge(*xst, *yst))),
         Prim::U8Or => const_step!([x, xst: U8, y, yst: U8] => Const::U8(u8::bitor(*x, *y), UIntStyle::merge(*xst, *yst))),
         Prim::U8Xor => const_step!([x, xst: U8, y, yst: U8] => Const::U8(u8::bitxor(*x, *y), UIntStyle::merge(*xst, *yst))),
@@ -468,13 +478,13 @@ fn prim_step(prim: Prim) -> Option<PrimStep> {
         Prim::U16Lt => const_step!([x: U16, y: U16] => Const::Bool(x < y)),
         Prim::U16Gte => const_step!([x: U16, y: U16] => Const::Bool(x >= y)),
         Prim::U16Lte => const_step!([x: U16, y: U16] => Const::Bool(x <= y)),
-        Prim::U16Add => const_step!([x, xst: U16, y, yst: U16] => Const::U16(u16::checked_add(*x, *y)?, UIntStyle::merge(*xst, *yst))),
-        Prim::U16Sub => const_step!([x, xst: U16, y, yst: U16] => Const::U16(u16::checked_sub(*x, *y)?, UIntStyle::merge(*xst, *yst))),
-        Prim::U16Mul => const_step!([x, xst: U16, y, yst: U16] => Const::U16(u16::checked_mul(*x, *y)?, UIntStyle::merge(*xst, *yst))),
-        Prim::U16Div => const_step!([x, xst: U16, y, yst: U16] => Const::U16(u16::checked_div(*x, *y)?, UIntStyle::merge(*xst, *yst))),
+        Prim::U16Add => const_step!([x, xst: U16, y, yst: U16] => Const::U16(u16::checked_add(*x, *y).ok_or(PrimStepError::Stuck)?, UIntStyle::merge(*xst, *yst))),
+        Prim::U16Sub => const_step!([x, xst: U16, y, yst: U16] => Const::U16(u16::checked_sub(*x, *y).ok_or(PrimStepError::Stuck)?, UIntStyle::merge(*xst, *yst))),
+        Prim::U16Mul => const_step!([x, xst: U16, y, yst: U16] => Const::U16(u16::checked_mul(*x, *y).ok_or(PrimStepError::Stuck)?, UIntStyle::merge(*xst, *yst))),
+        Prim::U16Div => const_step!([x, xst: U16, y, yst: U16] => Const::U16(u16::checked_div(*x, *y).ok_or(PrimStepError::Stuck)?, UIntStyle::merge(*xst, *yst))),
         Prim::U16Not => const_step!([x: U16] => Const::U16(u16::not(*x), UIntStyle::Decimal)),
-        Prim::U16Shl => const_step!([x, xst: U16, y, _yst: U8] => Const::U16(u16::checked_shl(*x, u32::from(*y))?, *xst)),
-        Prim::U16Shr => const_step!([x, xst: U16, y, _yst: U8] => Const::U16(u16::checked_shr(*x, u32::from(*y))?, *xst)),
+        Prim::U16Shl => const_step!([x, xst: U16, y, _yst: U8] => Const::U16(u16::checked_shl(*x, u32::from(*y)).ok_or(PrimStepError::Stuck)?, *xst)),
+        Prim::U16Shr => const_step!([x, xst: U16, y, _yst: U8] => Const::U16(u16::checked_shr(*x, u32::from(*y)).ok_or(PrimStepError::Stuck)?, *xst)),
         Prim::U16And => const_step!([x, xst: U16, y, yst: U16] => Const::U16(u16::bitand(*x, *y), UIntStyle::merge(*xst, *yst))),
         Prim::U16Or => const_step!([x, xst: U16, y, yst: U16] => Const::U16(u16::bitor(*x, *y), UIntStyle::merge(*xst, *yst))),
         Prim::U16Xor => const_step!([x, xst: U16, y, yst: U16] => Const::U16(u16::bitxor(*x, *y), UIntStyle::merge(*xst, *yst))),
@@ -485,13 +495,13 @@ fn prim_step(prim: Prim) -> Option<PrimStep> {
         Prim::U32Lt => const_step!([x: U32, y: U32] => Const::Bool(x < y)),
         Prim::U32Gte => const_step!([x: U32, y: U32] => Const::Bool(x >= y)),
         Prim::U32Lte => const_step!([x: U32, y: U32] => Const::Bool(x <= y)),
-        Prim::U32Add => const_step!([x, xst: U32, y, yst: U32] => Const::U32(u32::checked_add(*x, *y)?, UIntStyle::merge(*xst, *yst))),
-        Prim::U32Sub => const_step!([x, xst: U32, y, yst: U32] => Const::U32(u32::checked_sub(*x, *y)?, UIntStyle::merge(*xst, *yst))),
-        Prim::U32Mul => const_step!([x, xst: U32, y, yst: U32] => Const::U32(u32::checked_mul(*x, *y)?, UIntStyle::merge(*xst, *yst))),
-        Prim::U32Div => const_step!([x, xst: U32, y, yst: U32] => Const::U32(u32::checked_div(*x, *y)?, UIntStyle::merge(*xst, *yst))),
+        Prim::U32Add => const_step!([x, xst: U32, y, yst: U32] => Const::U32(u32::checked_add(*x, *y).ok_or(PrimStepError::Stuck)?, UIntStyle::merge(*xst, *yst))),
+        Prim::U32Sub => const_step!([x, xst: U32, y, yst: U32] => Const::U32(u32::checked_sub(*x, *y).ok_or(PrimStepError::Stuck)?, UIntStyle::merge(*xst, *yst))),
+        Prim::U32Mul => const_step!([x, xst: U32, y, yst: U32] => Const::U32(u32::checked_mul(*x, *y).ok_or(PrimStepError::Stuck)?, UIntStyle::merge(*xst, *yst))),
+        Prim::U32Div => const_step!([x, xst: U32, y, yst: U32] => Const::U32(u32::checked_div(*x, *y).ok_or(PrimStepError::Stuck)?, UIntStyle::merge(*xst, *yst))),
         Prim::U32Not => const_step!([x: U32] => Const::U32(u32::not(*x), UIntStyle::Decimal)),
-        Prim::U32Shl => const_step!([x, xst: U32, y, _yst: U8] => Const::U32(u32::checked_shl(*x, u32::from(*y))?, *xst)),
-        Prim::U32Shr => const_step!([x, xst: U32, y, _yst: U8] => Const::U32(u32::checked_shr(*x, u32::from(*y))?, *xst)),
+        Prim::U32Shl => const_step!([x, xst: U32, y, _yst: U8] => Const::U32(u32::checked_shl(*x, u32::from(*y)).ok_or(PrimStepError::Stuck)?, *xst)),
+        Prim::U32Shr => const_step!([x, xst: U32, y, _yst: U8] => Const::U32(u32::checked_shr(*x, u32::from(*y)).ok_or(PrimStepError::Stuck)?, *xst)),
         Prim::U32And => const_step!([x, xst: U32, y, yst: U32] => Const::U32(u32::bitand(*x, *y), UIntStyle::merge(*xst, *yst))),
         Prim::U32Or => const_step!([x, xst: U32, y, yst: U32] => Const::U32(u32::bitor(*x, *y), UIntStyle::merge(*xst, *yst))),
         Prim::U32Xor => const_step!([x, xst: U32, y, yst: U32] => Const::U32(u32::bitxor(*x, *y), UIntStyle::merge(*xst, *yst))),
@@ -502,13 +512,13 @@ fn prim_step(prim: Prim) -> Option<PrimStep> {
         Prim::U64Lt => const_step!([x: U64, y: U64] => Const::Bool(x < y)),
         Prim::U64Gte => const_step!([x: U64, y: U64] => Const::Bool(x >= y)),
         Prim::U64Lte => const_step!([x: U64, y: U64] => Const::Bool(x <= y)),
-        Prim::U64Add => const_step!([x, xst: U64, y, yst: U64] => Const::U64(u64::checked_add(*x, *y)?, UIntStyle::merge(*xst, *yst))),
-        Prim::U64Sub => const_step!([x, xst: U64, y, yst: U64] => Const::U64(u64::checked_sub(*x, *y)?, UIntStyle::merge(*xst, *yst))),
-        Prim::U64Mul => const_step!([x, xst: U64, y, yst: U64] => Const::U64(u64::checked_mul(*x, *y)?, UIntStyle::merge(*xst, *yst))),
-        Prim::U64Div => const_step!([x, xst: U64, y, yst: U64] => Const::U64(u64::checked_div(*x, *y)?, UIntStyle::merge(*xst, *yst))),
+        Prim::U64Add => const_step!([x, xst: U64, y, yst: U64] => Const::U64(u64::checked_add(*x, *y).ok_or(PrimStepError::Stuck)?, UIntStyle::merge(*xst, *yst))),
+        Prim::U64Sub => const_step!([x, xst: U64, y, yst: U64] => Const::U64(u64::checked_sub(*x, *y).ok_or(PrimStepError::Stuck)?, UIntStyle::merge(*xst, *yst))),
+        Prim::U64Mul => const_step!([x, xst: U64, y, yst: U64] => Const::U64(u64::checked_mul(*x, *y).ok_or(PrimStepError::Stuck)?, UIntStyle::merge(*xst, *yst))),
+        Prim::U64Div => const_step!([x, xst: U64, y, yst: U64] => Const::U64(u64::checked_div(*x, *y).ok_or(PrimStepError::Stuck)?, UIntStyle::merge(*xst, *yst))),
         Prim::U64Not => const_step!([x: U64] => Const::U64(u64::not(*x), UIntStyle::Decimal)),
-        Prim::U64Shl => const_step!([x, xst: U64, y, _yst: U8] => Const::U64(u64::checked_shl(*x, u32::from(*y))?, *xst)),
-        Prim::U64Shr => const_step!([x, xst: U64, y, _yst: U8] => Const::U64(u64::checked_shr(*x, u32::from(*y))?, *xst)),
+        Prim::U64Shl => const_step!([x, xst: U64, y, _yst: U8] => Const::U64(u64::checked_shl(*x, u32::from(*y)).ok_or(PrimStepError::Stuck)?, *xst)),
+        Prim::U64Shr => const_step!([x, xst: U64, y, _yst: U8] => Const::U64(u64::checked_shr(*x, u32::from(*y)).ok_or(PrimStepError::Stuck)?, *xst)),
         Prim::U64And => const_step!([x, xst: U64, y, yst: U64] => Const::U64(u64::bitand(*x, *y), UIntStyle::merge(*xst, *yst))),
         Prim::U64Or => const_step!([x, xst: U64, y, yst: U64] => Const::U64(u64::bitor(*x, *y), UIntStyle::merge(*xst, *yst))),
         Prim::U64Xor => const_step!([x, xst: U64, y, yst: U64] => Const::U64(u64::bitxor(*x, *y), UIntStyle::merge(*xst, *yst))),
@@ -519,11 +529,11 @@ fn prim_step(prim: Prim) -> Option<PrimStep> {
         Prim::S8Lt => const_step!([x: S8, y: S8] => Const::Bool(x < y)),
         Prim::S8Gte => const_step!([x: S8, y: S8] => Const::Bool(x >= y)),
         Prim::S8Lte => const_step!([x: S8, y: S8] => Const::Bool(x <= y)),
-        Prim::S8Neg => const_step!([x: S8] => Const::S8(i8::checked_neg(*x)?)),
-        Prim::S8Add => const_step!([x: S8, y: S8] => Const::S8(i8::checked_add(*x, *y)?)),
-        Prim::S8Sub => const_step!([x: S8, y: S8] => Const::S8(i8::checked_sub(*x, *y)?)),
-        Prim::S8Mul => const_step!([x: S8, y: S8] => Const::S8(i8::checked_mul(*x, *y)?)),
-        Prim::S8Div => const_step!([x: S8, y: S8] => Const::S8(i8::checked_div(*x, *y)?)),
+        Prim::S8Neg => const_step!([x: S8] => Const::S8(i8::checked_neg(*x).ok_or(PrimStepError::Stuck)?)),
+        Prim::S8Add => const_step!([x: S8, y: S8] => Const::S8(i8::checked_add(*x, *y).ok_or(PrimStepError::Stuck)?)),
+        Prim::S8Sub => const_step!([x: S8, y: S8] => Const::S8(i8::checked_sub(*x, *y).ok_or(PrimStepError::Stuck)?)),
+        Prim::S8Mul => const_step!([x: S8, y: S8] => Const::S8(i8::checked_mul(*x, *y).ok_or(PrimStepError::Stuck)?)),
+        Prim::S8Div => const_step!([x: S8, y: S8] => Const::S8(i8::checked_div(*x, *y).ok_or(PrimStepError::Stuck)?)),
         Prim::S8Abs => const_step!([x: S8] => Const::S8(i8::abs(*x))),
         Prim::S8UAbs => const_step!([x: S8] => Const::U8(i8::unsigned_abs(*x), UIntStyle::Decimal)),
 
@@ -533,11 +543,11 @@ fn prim_step(prim: Prim) -> Option<PrimStep> {
         Prim::S16Lt => const_step!([x: S16, y: S16] => Const::Bool(x < y)),
         Prim::S16Gte => const_step!([x: S16, y: S16] => Const::Bool(x >= y)),
         Prim::S16Lte => const_step!([x: S16, y: S16] => Const::Bool(x <= y)),
-        Prim::S16Neg => const_step!([x: S16] => Const::S16(i16::checked_neg(*x)?)),
-        Prim::S16Add => const_step!([x: S16, y: S16] => Const::S16(i16::checked_add(*x, *y)?)),
-        Prim::S16Sub => const_step!([x: S16, y: S16] => Const::S16(i16::checked_sub(*x, *y)?)),
-        Prim::S16Mul => const_step!([x: S16, y: S16] => Const::S16(i16::checked_mul(*x, *y)?)),
-        Prim::S16Div => const_step!([x: S16, y: S16] => Const::S16(i16::checked_div(*x, *y)?)),
+        Prim::S16Neg => const_step!([x: S16] => Const::S16(i16::checked_neg(*x).ok_or(PrimStepError::Stuck)?)),
+        Prim::S16Add => const_step!([x: S16, y: S16] => Const::S16(i16::checked_add(*x, *y).ok_or(PrimStepError::Stuck)?)),
+        Prim::S16Sub => const_step!([x: S16, y: S16] => Const::S16(i16::checked_sub(*x, *y).ok_or(PrimStepError::Stuck)?)),
+        Prim::S16Mul => const_step!([x: S16, y: S16] => Const::S16(i16::checked_mul(*x, *y).ok_or(PrimStepError::Stuck)?)),
+        Prim::S16Div => const_step!([x: S16, y: S16] => Const::S16(i16::checked_div(*x, *y).ok_or(PrimStepError::Stuck)?)),
         Prim::S16Abs => const_step!([x: S16] => Const::S16(i16::abs(*x))),
         Prim::S16UAbs => const_step!([x: S16] => Const::U16(i16::unsigned_abs(*x), UIntStyle::Decimal)),
 
@@ -547,11 +557,11 @@ fn prim_step(prim: Prim) -> Option<PrimStep> {
         Prim::S32Lt => const_step!([x: S32, y: S32] => Const::Bool(x < y)),
         Prim::S32Gte => const_step!([x: S32, y: S32] => Const::Bool(x >= y)),
         Prim::S32Lte => const_step!([x: S32, y: S32] => Const::Bool(x <= y)),
-        Prim::S32Neg => const_step!([x: S32] => Const::S32(i32::checked_neg(*x)?)),
-        Prim::S32Add => const_step!([x: S32, y: S32] => Const::S32(i32::checked_add(*x, *y)?)),
-        Prim::S32Sub => const_step!([x: S32, y: S32] => Const::S32(i32::checked_sub(*x, *y)?)),
-        Prim::S32Mul => const_step!([x: S32, y: S32] => Const::S32(i32::checked_mul(*x, *y)?)),
-        Prim::S32Div => const_step!([x: S32, y: S32] => Const::S32(i32::checked_div(*x, *y)?)),
+        Prim::S32Neg => const_step!([x: S32] => Const::S32(i32::checked_neg(*x).ok_or(PrimStepError::Stuck)?)),
+        Prim::S32Add => const_step!([x: S32, y: S32] => Const::S32(i32::checked_add(*x, *y).ok_or(PrimStepError::Stuck)?)),
+        Prim::S32Sub => const_step!([x: S32, y: S32] => Const::S32(i32::checked_sub(*x, *y).ok_or(PrimStepError::Stuck)?)),
+        Prim::S32Mul => const_step!([x: S32, y: S32] => Const::S32(i32::checked_mul(*x, *y).ok_or(PrimStepError::Stuck)?)),
+        Prim::S32Div => const_step!([x: S32, y: S32] => Const::S32(i32::checked_div(*x, *y).ok_or(PrimStepError::Stuck)?)),
         Prim::S32Abs => const_step!([x: S32] => Const::S32(i32::abs(*x))),
         Prim::S32UAbs => const_step!([x: S32] => Const::U32(i32::unsigned_abs(*x), UIntStyle::Decimal)),
 
@@ -561,21 +571,21 @@ fn prim_step(prim: Prim) -> Option<PrimStep> {
         Prim::S64Lt => const_step!([x: S64, y: S64] => Const::Bool(x < y)),
         Prim::S64Gte => const_step!([x: S64, y: S64] => Const::Bool(x >= y)),
         Prim::S64Lte => const_step!([x: S64, y: S64] => Const::Bool(x <= y)),
-        Prim::S64Neg => const_step!([x: S64] => Const::S64(i64::checked_neg(*x)?)),
-        Prim::S64Add => const_step!([x: S64, y: S64] => Const::S64(i64::checked_add(*x, *y)?)),
-        Prim::S64Sub => const_step!([x: S64, y: S64] => Const::S64(i64::checked_sub(*x, *y)?)),
-        Prim::S64Mul => const_step!([x: S64, y: S64] => Const::S64(i64::checked_mul(*x, *y)?)),
-        Prim::S64Div => const_step!([x: S64, y: S64] => Const::S64(i64::checked_div(*x, *y)?)),
+        Prim::S64Neg => const_step!([x: S64] => Const::S64(i64::checked_neg(*x).ok_or(PrimStepError::Stuck)?)),
+        Prim::S64Add => const_step!([x: S64, y: S64] => Const::S64(i64::checked_add(*x, *y).ok_or(PrimStepError::Stuck)?)),
+        Prim::S64Sub => const_step!([x: S64, y: S64] => Const::S64(i64::checked_sub(*x, *y).ok_or(PrimStepError::Stuck)?)),
+        Prim::S64Mul => const_step!([x: S64, y: S64] => Const::S64(i64::checked_mul(*x, *y).ok_or(PrimStepError::Stuck)?)),
+        Prim::S64Div => const_step!([x: S64, y: S64] => Const::S64(i64::checked_div(*x, *y).ok_or(PrimStepError::Stuck)?)),
         Prim::S64Abs => const_step!([x: S64] => Const::S64(i64::abs(*x))),
         Prim::S64UAbs => const_step!([x: S64] => Const::U64(i64::unsigned_abs(*x), UIntStyle::Decimal)),
 
         Prim::OptionFold => step!(context, [_, _, on_none, on_some, option] => {
-            match option.match_prim_spine()? {
+            match option.match_prim_spine().ok_or(PrimStepError::Stuck)? {
                 (Prim::OptionSome, [Elim::FunApp(value)]) => {
                     context.fun_app(on_some.clone(), value.clone())
                 },
                 (Prim::OptionNone, []) => on_none.clone(),
-                _ => return None,
+                _ => return Err(PrimStepError::Stuck),
             }
         }),
 
@@ -586,15 +596,15 @@ fn prim_step(prim: Prim) -> Option<PrimStep> {
                         match context.fun_app(pred.clone(), elem.clone()).as_ref() {
                             Value::ConstLit(Const::Bool(true)) => {
                                 // TODO: Is elem.span right here?
-                                return Some(Spanned::new( elem.span(), Arc::new(Value::prim(Prim::OptionSome, [elem.clone()])) ))
+                                return Ok(Spanned::new( elem.span(), Arc::new(Value::prim(Prim::OptionSome, [elem.clone()])) ))
                             },
                             Value::ConstLit(Const::Bool(false)) => {}
-                            _ => return None,
+                            _ => return Err(PrimStepError::Stuck),
                         }
                     }
                     Spanned::empty(Arc::new(Value::prim(Prim::OptionNone, [])))
                 }
-                _ => return None,
+                _ => return Err(PrimStepError::Stuck),
             })
         }
 
@@ -602,24 +612,24 @@ fn prim_step(prim: Prim) -> Option<PrimStep> {
             step!(_context, [_, _, index, array] => match array.as_ref() {
                 Value::ArrayLit(elems) => {
                     let index = match (index).as_ref() {
-                        Value::ConstLit(Const::U8(index, _)) => Some(usize::from(*index)),
-                        Value::ConstLit(Const::U16(index, _)) => Some(usize::from(*index)),
-                        Value::ConstLit(Const::U32(index, _)) => usize::try_from(*index).ok(),
-                        Value::ConstLit(Const::U64(index, _)) => usize::try_from(*index).ok(),
-                        _ => return None,
+                        Value::ConstLit(Const::U8(index, _)) => Ok(usize::from(*index)),
+                        Value::ConstLit(Const::U16(index, _)) => Ok(usize::from(*index)),
+                        Value::ConstLit(Const::U32(index, _)) => usize::try_from(*index).ok().ok_or(PrimStepError::Stuck), // FIXME
+                        Value::ConstLit(Const::U64(index, _)) => usize::try_from(*index).ok().ok_or(PrimStepError::Stuck), // FIXME
+                        _ => return Err(PrimStepError::Stuck),
                     }?;
-                    elems.get(index).cloned()?
+                    elems.get(index).cloned().ok_or(PrimStepError::Error(Error::IndexOutOfBounds))?
                 }
-                _ => return None,
+                _ => return Err(PrimStepError::Stuck),
             })
         }
 
-        Prim::PosAddU8 => const_step!([x: Pos, y: U8] => Const::Pos(usize::checked_add(*x, usize::from(*y))?)),
-        Prim::PosAddU16 => const_step!([x: Pos, y: U16] => Const::Pos(usize::checked_add(*x, usize::from(*y))?)),
-        Prim::PosAddU32 => const_step!([x: Pos, y: U32] => Const::Pos(usize::checked_add(*x, usize::try_from(*y).ok()?)?)),
-        Prim::PosAddU64 => const_step!([x: Pos, y: U64] => Const::Pos(usize::checked_add(*x, usize::try_from(*y).ok()?)?)),
+        Prim::PosAddU8 => const_step!([x: Pos, y: U8] => Const::Pos(usize::checked_add(*x, usize::from(*y)).ok_or(PrimStepError::Stuck)?)),
+        Prim::PosAddU16 => const_step!([x: Pos, y: U16] => Const::Pos(usize::checked_add(*x, usize::from(*y)).ok_or(PrimStepError::Stuck)?)),
+        Prim::PosAddU32 => const_step!([x: Pos, y: U32] => Const::Pos(usize::checked_add(*x, usize::try_from(*y).ok().ok_or(PrimStepError::Stuck)?).ok_or(PrimStepError::Stuck)?)),
+        Prim::PosAddU64 => const_step!([x: Pos, y: U64] => Const::Pos(usize::checked_add(*x, usize::try_from(*y).ok().ok_or(PrimStepError::Stuck)?).ok_or(PrimStepError::Stuck)?)),
 
-        _ => None,
+        _ => Err(PrimStepError::Stuck),
     }
 }
 
@@ -739,9 +749,11 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
                 spine.push(Elim::FunApp(input_expr));
 
                 match head {
-                    Head::Prim(prim) => prim_step(*prim)
-                        .and_then(|step| step(self, spine))
-                        .unwrap_or(head_expr),
+                    Head::Prim(prim) => match prim_step(*prim).and_then(|step| step(self, spine)) {
+                        Ok(val) => val,
+                        Err(PrimStepError::Stuck) => head_expr,
+                        Err(PrimStepError::Error(err)) => panic_any(err),
+                    },
                     _ => head_expr,
                 }
             }
