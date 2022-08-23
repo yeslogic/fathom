@@ -98,7 +98,7 @@
           #
           #     $ nix develop .#minimum --command cargo test
           #
-          pkgs.lib.mapAttrs
+          lib.mapAttrs
             (name: rustToolchain:
               let
                 rustWithExtensions = rustToolchain.override {
