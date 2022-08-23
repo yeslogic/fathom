@@ -216,7 +216,8 @@ impl<'arena> Term<'arena> {
         }
     }
 
-    pub fn contains_free(&self, mut var: LocalVar) -> bool {
+    /// Returns `true` if the term contains an occurrence of the rigid variable.
+    pub fn binds_rigid_var(&self, mut var: LocalVar) -> bool {
         match self {
             Term::RigidVar(_, v) => *v == var,
             Term::ItemVar(_, _)
@@ -226,32 +227,34 @@ impl<'arena> Term<'arena> {
             | Term::Prim(_, _)
             | Term::ConstLit(_, _) => false,
 
-            Term::Ann(_, term, r#type) => term.contains_free(var) || r#type.contains_free(var),
+            Term::Ann(_, term, r#type) => term.binds_rigid_var(var) || r#type.binds_rigid_var(var),
             Term::Let(_, _, r#type, def, body) => {
-                r#type.contains_free(var)
-                    || def.contains_free(var)
-                    || body.contains_free(var.prev())
+                r#type.binds_rigid_var(var)
+                    || def.binds_rigid_var(var)
+                    || body.binds_rigid_var(var.prev())
             }
             Term::FunType(_, _, input_type, output_type) => {
-                input_type.contains_free(var) || output_type.contains_free(var.prev())
+                input_type.binds_rigid_var(var) || output_type.binds_rigid_var(var.prev())
             }
-            Term::FunLit(_, _, body) => body.contains_free(var.prev()),
-            Term::FunApp(_, head, arg) => head.contains_free(var) || arg.contains_free(var),
+            Term::FunLit(_, _, body) => body.binds_rigid_var(var.prev()),
+            Term::FunApp(_, head, arg) => head.binds_rigid_var(var) || arg.binds_rigid_var(var),
             Term::RecordType(_, _, terms)
             | Term::RecordLit(_, _, terms)
             | Term::FormatRecord(_, _, terms)
             | Term::FormatOverlap(_, _, terms) => terms.iter().any(|term| {
-                let result = term.contains_free(var);
+                let result = term.binds_rigid_var(var);
                 var = var.prev();
                 result
             }),
-            Term::RecordProj(_, term, _) => term.contains_free(var),
-            Term::ArrayLit(_, terms) => terms.iter().any(|term| term.contains_free(var)),
-            Term::FormatCond(_, _, t1, t2) => t1.contains_free(var) || t2.contains_free(var.prev()),
+            Term::RecordProj(_, term, _) => term.binds_rigid_var(var),
+            Term::ArrayLit(_, terms) => terms.iter().any(|term| term.binds_rigid_var(var)),
+            Term::FormatCond(_, _, t1, t2) => {
+                t1.binds_rigid_var(var) || t2.binds_rigid_var(var.prev())
+            }
             Term::ConstMatch(_, scrut, branches, default) => {
-                scrut.contains_free(var)
-                    || branches.iter().any(|(_, term)| term.contains_free(var))
-                    || default.map_or(false, |term| term.contains_free(var.prev()))
+                scrut.binds_rigid_var(var)
+                    || branches.iter().any(|(_, term)| term.binds_rigid_var(var))
+                    || default.map_or(false, |term| term.binds_rigid_var(var.prev()))
             }
         }
     }

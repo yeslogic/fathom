@@ -370,7 +370,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
             }
             core::Term::Universe(_span) => Term::Universe(()),
             core::Term::FunType(_span, _, input_type, output_type)
-                if !output_type.contains_free(LocalVar::last()) =>
+                if !output_type.binds_rigid_var(LocalVar::last()) =>
             {
                 let input_type = self.check(input_type);
 
