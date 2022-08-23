@@ -56,6 +56,11 @@ jobs:
       - name: Install Nix
         uses: cachix/install-nix-action@v17
 
+      # This is a workaround for https://github.com/oxalica/rust-overlay/issues/54,
+      # avoiding link errors when running cargo commands with `nix develop`.
+      - name: Remove binaries installed in ~/.cargo/bin
+        run: rm --recursive --force --verbose ~/.cargo/bin
+
       - name: Run cargo clippy
         run: nix develop .#${{ matrix.rust-toolchain }} --command cargo clippy -- --deny warnings
 
