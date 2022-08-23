@@ -227,17 +227,19 @@ impl<'arena> Term<'arena> {
             | Term::Prim(_, _)
             | Term::ConstLit(_, _) => false,
 
-            Term::Ann(_, term, r#type) => term.binds_rigid_var(var) || r#type.binds_rigid_var(var),
-            Term::Let(_, _, r#type, def, body) => {
-                r#type.binds_rigid_var(var)
-                    || def.binds_rigid_var(var)
-                    || body.binds_rigid_var(var.prev())
+            Term::Ann(_, expr, r#type) => expr.binds_rigid_var(var) || r#type.binds_rigid_var(var),
+            Term::Let(_, _, def_type, def_expr, output_expr) => {
+                def_type.binds_rigid_var(var)
+                    || def_expr.binds_rigid_var(var)
+                    || output_expr.binds_rigid_var(var.prev())
             }
             Term::FunType(_, _, input_type, output_type) => {
                 input_type.binds_rigid_var(var) || output_type.binds_rigid_var(var.prev())
             }
-            Term::FunLit(_, _, body) => body.binds_rigid_var(var.prev()),
-            Term::FunApp(_, head, arg) => head.binds_rigid_var(var) || arg.binds_rigid_var(var),
+            Term::FunLit(_, _, output_expr) => output_expr.binds_rigid_var(var.prev()),
+            Term::FunApp(_, head_expr, input_expr) => {
+                head_expr.binds_rigid_var(var) || input_expr.binds_rigid_var(var)
+            }
             Term::RecordType(_, _, terms)
             | Term::RecordLit(_, _, terms)
             | Term::FormatRecord(_, _, terms)
@@ -246,15 +248,17 @@ impl<'arena> Term<'arena> {
                 var = var.prev();
                 result
             }),
-            Term::RecordProj(_, term, _) => term.binds_rigid_var(var),
-            Term::ArrayLit(_, terms) => terms.iter().any(|term| term.binds_rigid_var(var)),
-            Term::FormatCond(_, _, t1, t2) => {
-                t1.binds_rigid_var(var) || t2.binds_rigid_var(var.prev())
+            Term::RecordProj(_, head_expr, _) => head_expr.binds_rigid_var(var),
+            Term::ArrayLit(_, elem_exprs) => {
+                elem_exprs.iter().any(|term| term.binds_rigid_var(var))
             }
-            Term::ConstMatch(_, scrut, branches, default) => {
+            Term::FormatCond(_, _, format, pred) => {
+                format.binds_rigid_var(var) || pred.binds_rigid_var(var.prev())
+            }
+            Term::ConstMatch(_, scrut, branches, default_expr) => {
                 scrut.binds_rigid_var(var)
                     || branches.iter().any(|(_, term)| term.binds_rigid_var(var))
-                    || default.map_or(false, |term| term.binds_rigid_var(var.prev()))
+                    || default_expr.map_or(false, |term| term.binds_rigid_var(var.prev()))
             }
         }
     }
