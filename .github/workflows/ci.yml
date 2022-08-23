@@ -44,20 +44,25 @@ jobs:
       - name: Run cargo fmt
         run: nix develop .#${{ matrix.rust-toolchain }} --command cargo fmt
 
-  # cargo-clippy:
-  #   runs-on: ubuntu-latest
-  #   strategy:
-  #     matrix:
-  #       rust-toolchain: ["stable"]
-  #   name: Clippy (${{ matrix.rust-toolchain }})
-  #   steps:
-  #     - name: Checkout repository
-  #       uses: actions/checkout@v3
-  #     - name: Install Nix
-  #       uses: cachix/install-nix-action@v17
+  cargo-clippy:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        rust-toolchain: ["stable"]
+    name: Clippy (${{ matrix.rust-toolchain }})
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+      - name: Install Nix
+        uses: cachix/install-nix-action@v17
 
-  #     - name: Run cargo clippy
-  #       run: nix develop .#${{ matrix.rust-toolchain }} --command cargo clippy -- --deny warnings
+      # This is a workaround for https://github.com/oxalica/rust-overlay/issues/54,
+      # avoiding link errors when running cargo commands with `nix develop`.
+      - name: Remove binaries installed in ~/.cargo/bin
+        run: rm --recursive --force --verbose ~/.cargo/bin
+
+      - name: Run cargo clippy
+        run: nix develop .#${{ matrix.rust-toolchain }} --command cargo clippy -- --deny warnings
 
   nixpkgs-fmt:
     runs-on: ubuntu-latest
