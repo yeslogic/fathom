@@ -185,8 +185,8 @@ impl<'arena, 'env> Context<'arena, 'env> {
         }
     }
 
-    fn elim_context(&self) -> semantics::ElimContext<'arena, '_> {
-        semantics::ElimContext::new(self.item_exprs, self.flexible_exprs)
+    fn elim_env(&self) -> semantics::ElimEnv<'arena, '_> {
+        semantics::ElimEnv::new(self.item_exprs, self.flexible_exprs)
     }
 
     /// Unify two values, updating the solution environment if necessary.
@@ -200,8 +200,8 @@ impl<'arena, 'env> Context<'arena, 'env> {
             return Ok(());
         }
 
-        let value0 = self.elim_context().force(value0);
-        let value1 = self.elim_context().force(value1);
+        let value0 = self.elim_env().force(value0);
+        let value1 = self.elim_env().force(value1);
 
         match (value0.as_ref(), value1.as_ref()) {
             // `ReportedError`s result from errors that have already been
@@ -334,8 +334,8 @@ impl<'arena, 'env> Context<'arena, 'env> {
         closure1: &Closure<'arena>,
     ) -> Result<(), Error> {
         let var = Spanned::empty(Arc::new(Value::rigid_var(self.rigid_exprs.next_global())));
-        let value0 = self.elim_context().apply_closure(closure0, var.clone());
-        let value1 = self.elim_context().apply_closure(closure1, var);
+        let value0 = self.elim_env().apply_closure(closure0, var.clone());
+        let value1 = self.elim_env().apply_closure(closure1, var);
 
         self.rigid_exprs.push();
         let result = self.unify(&value0, &value1);
@@ -359,8 +359,8 @@ impl<'arena, 'env> Context<'arena, 'env> {
         let mut telescope1 = telescope1.clone();
 
         while let Some(((value0, next_telescope0), (value1, next_telescope1))) = Option::zip(
-            self.elim_context().split_telescope(telescope0),
-            self.elim_context().split_telescope(telescope1),
+            self.elim_env().split_telescope(telescope0),
+            self.elim_env().split_telescope(telescope1),
         ) {
             if let Err(error) = self.unify(&value0, &value1) {
                 self.rigid_exprs.truncate(initial_rigid_len);
@@ -388,8 +388,8 @@ impl<'arena, 'env> Context<'arena, 'env> {
         value: &ArcValue<'arena>,
     ) -> Result<(), Error> {
         let var = Spanned::empty(Arc::new(Value::rigid_var(self.rigid_exprs.next_global())));
-        let value = self.elim_context().fun_app(value.clone(), var.clone());
-        let output_expr = self.elim_context().apply_closure(output_expr, var);
+        let value = self.elim_env().fun_app(value.clone(), var.clone());
+        let output_expr = self.elim_env().apply_closure(output_expr, var);
 
         self.rigid_exprs.push();
         let result = self.unify(&output_expr, &value);
@@ -410,7 +410,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
         value: &ArcValue<'arena>,
     ) -> Result<(), Error> {
         for (label, expr) in Iterator::zip(labels.iter(), exprs.iter()) {
-            let field_value = self.elim_context().record_proj(value.clone(), *label);
+            let field_value = self.elim_env().record_proj(value.clone(), *label);
             self.unify(expr, &field_value)?;
         }
         Ok(())
@@ -437,10 +437,8 @@ impl<'arena, 'env> Context<'arena, 'env> {
         self.init_renaming(spine)?;
         let term = self.rename(flexible_var, value)?;
         let fun_term = self.fun_intros(spine, term);
-        let solution = self
-            .elim_context()
-            .eval_context(&mut SharedEnv::new())
-            .eval(&fun_term);
+        let mut rigid_exprs = SharedEnv::new();
+        let solution = self.elim_env().eval_env(&mut rigid_exprs).eval(&fun_term);
 
         self.flexible_exprs.set_global(flexible_var, Some(solution));
 
@@ -455,7 +453,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
 
         for elim in spine {
             match elim {
-                Elim::FunApp(input_expr) => match self.elim_context().force(input_expr).as_ref() {
+                Elim::FunApp(input_expr) => match self.elim_env().force(input_expr).as_ref() {
                     Value::Stuck(Head::RigidVar(source_var), spine)
                         if spine.is_empty() && self.renaming.set_rigid(*source_var) => {}
                     Value::Stuck(Head::RigidVar(source_var), _) => {
@@ -495,7 +493,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
         flexible_var: GlobalVar,
         value: &ArcValue<'arena>,
     ) -> Result<Term<'arena>, RenameError> {
-        let val = self.elim_context().force(value);
+        let val = self.elim_env().force(value);
         let span = val.span();
         match val.as_ref() {
             Value::Stuck(head, spine) => {
@@ -527,7 +525,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
                                 SliceVec::new(self.scope, branches.num_patterns());
 
                             let default_expr = loop {
-                                match self.elim_context().split_branches(branches) {
+                                match self.elim_env().split_branches(branches) {
                                     SplitBranches::Branch((r#const, output_expr), next_branch) => {
                                         pattern_branches.push((
                                             r#const,
@@ -538,11 +536,9 @@ impl<'arena, 'env> Context<'arena, 'env> {
                                     SplitBranches::Default(default_expr) => {
                                         break Some(
                                             self.rename_closure(flexible_var, &default_expr)?,
-                                        );
+                                        )
                                     }
-                                    SplitBranches::None => {
-                                        break None;
-                                    }
+                                    SplitBranches::None => break None,
                                 }
                             };
 
@@ -639,7 +635,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
         closure: &Closure<'arena>,
     ) -> Result<Term<'arena>, RenameError> {
         let source_var = self.renaming.next_rigid_var();
-        let value = self.elim_context().apply_closure(closure, source_var);
+        let value = self.elim_env().apply_closure(closure, source_var);
 
         self.renaming.push_rigid();
         let term = self.rename(flexible_var, &value);
@@ -658,7 +654,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
         let mut telescope = telescope.clone();
         let mut terms = SliceVec::new(self.scope, telescope.len());
 
-        while let Some((value, next_telescope)) = self.elim_context().split_telescope(telescope) {
+        while let Some((value, next_telescope)) = self.elim_env().split_telescope(telescope) {
             match self.rename(flexible_var, &value) {
                 Ok(term) => {
                     terms.push(term);

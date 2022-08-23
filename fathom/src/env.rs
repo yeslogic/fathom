@@ -81,7 +81,7 @@ pub fn local_vars() -> impl Iterator<Item = LocalVar> {
 /// Levels are used in [values][crate::core::semantics::Value] because they
 /// are not tied to a specific binding depth, unlike [indices][LocalVar].
 /// Because of this, we're able to sidestep the need for expensive variable
-/// shifting during [normalisation][crate::core::semantics::EvalContext::normalise].
+/// shifting during [normalisation][crate::core::semantics::EvalEnv::normalise].
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct GlobalVar(RawVar);
 

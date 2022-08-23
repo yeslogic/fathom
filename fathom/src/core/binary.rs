@@ -279,12 +279,12 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
         }
     }
 
-    fn elim_context(&self) -> semantics::ElimContext<'arena, 'env> {
-        semantics::ElimContext::new(self.item_exprs, self.flexible_exprs)
+    fn elim_env(&self) -> semantics::ElimEnv<'arena, 'env> {
+        semantics::ElimEnv::new(self.item_exprs, self.flexible_exprs)
     }
 
-    fn conversion_context(&self) -> semantics::ConversionContext<'arena, 'env> {
-        semantics::ConversionContext::new(self.item_exprs, EnvLen::new(), self.flexible_exprs)
+    fn conversion_env(&self) -> semantics::ConversionEnv<'arena, 'env> {
+        semantics::ConversionEnv::new(self.item_exprs, EnvLen::new(), self.flexible_exprs)
     }
 
     pub fn read_entrypoint(
@@ -307,7 +307,7 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
         reader: &mut BufferReader<'data>,
         format: &ArcValue<'arena>,
     ) -> Result<ArcValue<'arena>, ReadError<'arena>> {
-        let val = self.elim_context().force(format);
+        let val = self.elim_env().force(format);
         let format_span = val.span();
         match val.as_ref() {
             Value::Stuck(Head::Prim(prim), slice) => {
@@ -317,9 +317,7 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
                 let mut formats = formats.clone();
                 let mut exprs = Vec::with_capacity(formats.len());
 
-                while let Some((format, next_formats)) =
-                    self.elim_context().split_telescope(formats)
-                {
+                while let Some((format, next_formats)) = self.elim_env().split_telescope(formats) {
                     let expr = self.read_format(reader, &format)?;
                     exprs.push(expr.clone());
                     formats = next_formats(expr);
@@ -332,7 +330,7 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
             }
             Value::FormatCond(_label, format, cond) => {
                 let value = self.read_format(reader, &format)?;
-                let cond_res = self.elim_context().apply_closure(cond, value.clone());
+                let cond_res = self.elim_env().apply_closure(cond, value.clone());
 
                 match cond_res.as_ref() {
                     Value::ConstLit(Const::Bool(true)) => Ok(value),
@@ -351,9 +349,7 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
                 let mut formats = formats.clone();
                 let mut exprs = Vec::with_capacity(formats.len());
 
-                while let Some((format, next_formats)) =
-                    self.elim_context().split_telescope(formats)
-                {
+                while let Some((format, next_formats)) = self.elim_env().split_telescope(formats) {
                     let mut reader = reader.clone();
 
                     let expr = self.read_format(&mut reader, &format)?;
@@ -445,7 +441,7 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
         len: &ArcValue<'arena>,
         elem_format: &ArcValue<'arena>,
     ) -> Result<ArcValue<'arena>, ReadError<'arena>> {
-        let len = match self.elim_context().force(len).as_ref() {
+        let len = match self.elim_env().force(len).as_ref() {
             Value::ConstLit(Const::U8(len, _)) => u64::from(*len),
             Value::ConstLit(Const::U16(len, _)) => u64::from(*len),
             Value::ConstLit(Const::U32(len, _)) => u64::from(*len),
@@ -495,7 +491,7 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
         elem_format: &ArcValue<'arena>,
     ) -> Result<ArcValue<'arena>, ReadError<'arena>> {
         let len_span = len.span();
-        let len = match self.elim_context().force(len).as_ref() {
+        let len = match self.elim_env().force(len).as_ref() {
             Value::ConstLit(Const::U8(len, _)) => Some(usize::from(*len)),
             Value::ConstLit(Const::U16(len, _)) => Some(usize::from(*len)),
             Value::ConstLit(Const::U32(len, _)) => usize::try_from(*len).ok(),
@@ -518,7 +514,7 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
         pos_value: &ArcValue<'arena>,
         elem_format: &ArcValue<'arena>,
     ) -> Result<ArcValue<'arena>, ReadError<'arena>> {
-        let pos = match self.elim_context().force(pos_value).as_ref() {
+        let pos = match self.elim_env().force(pos_value).as_ref() {
             Value::ConstLit(Const::Pos(pos)) => *pos,
             _ => return Err(ReadError::InvalidValue(pos_value.span())),
         };
@@ -536,7 +532,7 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
         format: &ArcValue<'arena>,
         r#ref: &ArcValue<'arena>,
     ) -> Result<ArcValue<'arena>, ReadError<'arena>> {
-        let pos = match self.elim_context().force(r#ref).as_ref() {
+        let pos = match self.elim_env().force(r#ref).as_ref() {
             Value::ConstLit(Const::Ref(pos)) => *pos,
             _ => return Err(ReadError::InvalidValue(r#ref.span())),
         };
@@ -549,14 +545,14 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
         pos: usize,
         format: &ArcValue<'_>,
     ) -> Option<&'context ParsedRef<'arena>> {
-        // NOTE: The number of calls to `semantics::ConversionContext::is_equal`
+        // NOTE: The number of calls to `semantics::ConversionEnv::is_equal`
         // when looking up cached references is a bit of a pain. If this ever
         // becomes a problem we could improve performance by pre-allocating a
         // `ParsedRef` in the cache during `read_link`, and storing the index of
         // that parsed reference alongside the position in `Const::Ref`.
 
         (self.cached_refs.get(&pos)?.iter())
-            .find(|r| self.conversion_context().is_equal(&r.format, &format))
+            .find(|r| self.conversion_env().is_equal(&r.format, &format))
     }
 
     fn lookup_or_read_ref(

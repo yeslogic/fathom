@@ -93,10 +93,10 @@ pub struct RigidEnv<'arena> {
     /// Types of rigid variables.
     types: UniqueEnv<ArcValue<'arena>>,
     /// Information about the binders. Used when inserting new flexible
-    /// variables during [evaluation][semantics::EvalContext::eval].
+    /// variables during [evaluation][semantics::EvalEnv::eval].
     infos: UniqueEnv<core::EntryInfo>,
     /// Expressions that will be substituted for rigid variables during
-    /// [evaluation][semantics::EvalContext::eval].
+    /// [evaluation][semantics::EvalEnv::eval].
     exprs: SharedEnv<ArcValue<'arena>>,
 }
 
@@ -591,9 +591,8 @@ impl<'i, 'arena> RigidEnvBuilder<'i, 'arena> {
         let name = self.name(prim.name());
         let flexible_exprs = UniqueEnv::new();
         let item_exprs = UniqueEnv::new();
-        let r#type =
-            semantics::EvalContext::new(&item_exprs, &mut SharedEnv::new(), &flexible_exprs)
-                .eval(r#type);
+        let r#type = semantics::EvalEnv::new(&item_exprs, &mut SharedEnv::new(), &flexible_exprs)
+            .eval(r#type);
         self.env.push_def(
             name,
             Spanned::new(Span::Empty, Arc::new(Value::prim(prim, []))),
@@ -676,7 +675,7 @@ pub struct FlexibleEnv<'arena> {
     /// Types of flexible variables.
     types: UniqueEnv</* TODO: lazy value */ ArcValue<'arena>>,
     /// Expressions that will be substituted for flexible variables during
-    /// [evaluation][semantics::EvalContext::eval].
+    /// [evaluation][semantics::EvalEnv::eval].
     ///
     /// These will be set to [`None`] when a flexible variable is first
     /// [inserted][Context::push_flexible_term], then will be set to [`Some`]
@@ -727,7 +726,7 @@ impl<'arena> FlexibleEnv<'arena> {
             // Yield messages of solved named holes
             (Some(expr), FlexSource::HoleExpr(range, name)) => {
                 let term =
-                    semantics::QuoteContext::new(scope, item_exprs, rigid_names.len(), &self.exprs)
+                    semantics::QuoteEnv::new(scope, item_exprs, rigid_names.len(), &self.exprs)
                         .quote(&expr);
                 let surface_term = distillation::Context::new(
                     interner,
@@ -838,7 +837,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
         r#type: ArcValue<'arena>,
     ) -> ArcValue<'arena> {
         let term = self.push_flexible_term(source, r#type); // TODO: Could avoid allocating the rigid infos
-        self.eval_context().eval(&term)
+        self.eval_env().eval(&term)
     }
 
     fn push_message(&mut self, message: Message) {
@@ -857,23 +856,23 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
         self.messages.drain(..).chain(report_messages)
     }
 
-    pub fn eval_context(&mut self) -> semantics::EvalContext<'arena, '_> {
-        semantics::EvalContext::new(
+    pub fn eval_env(&mut self) -> semantics::EvalEnv<'arena, '_> {
+        semantics::EvalEnv::new(
             &self.item_env.exprs,
             &mut self.rigid_env.exprs,
             &self.flexible_env.exprs,
         )
     }
 
-    pub fn elim_context(&self) -> semantics::ElimContext<'arena, '_> {
-        semantics::ElimContext::new(&self.item_env.exprs, &self.flexible_env.exprs)
+    pub fn elim_env(&self) -> semantics::ElimEnv<'arena, '_> {
+        semantics::ElimEnv::new(&self.item_env.exprs, &self.flexible_env.exprs)
     }
 
-    pub fn quote_context<'out_arena>(
+    pub fn quote_env<'out_arena>(
         &self,
         scope: &'out_arena Scope<'out_arena>,
-    ) -> semantics::QuoteContext<'arena, 'out_arena, '_> {
-        semantics::QuoteContext::new(
+    ) -> semantics::QuoteEnv<'arena, 'out_arena, '_> {
+        semantics::QuoteEnv::new(
             scope,
             &self.item_env.exprs,
             self.rigid_env.len(),
@@ -912,7 +911,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
     }
 
     fn pretty_print_value(&mut self, value: &ArcValue<'_>) -> String {
-        let term = self.quote_context(&self.error_scope).quote(&value);
+        let term = self.quote_env(&self.error_scope).quote(&value);
         let surface_term = self.distillation_context(&self.error_scope).check(&term);
         let pretty_context = pretty::Context::new(self.interner, self.error_scope);
         let doc = pretty_context.term(&surface_term).into_doc();
@@ -1094,8 +1093,8 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                     expr,
                 } => {
                     let (expr, type_value) = self.synth(expr);
-                    let r#type = self.quote_context(self.scope).quote(&type_value);
-                    let expr_value = self.eval_context().eval(&expr);
+                    let r#type = self.quote_env(self.scope).quote(&type_value);
+                    let expr_value = self.eval_env().eval(&expr);
 
                     self.item_env
                         .push_definition(*label, type_value, expr_value);
@@ -1112,9 +1111,9 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                     expr,
                 } => {
                     let r#type = self.check(r#type, &universe);
-                    let type_value = self.eval_context().eval(&r#type);
+                    let type_value = self.eval_env().eval(&r#type);
                     let expr = self.check(expr, &type_value);
-                    let expr_value = self.eval_context().eval(&expr);
+                    let expr_value = self.eval_env().eval(&expr);
 
                     self.item_env
                         .push_definition(*label, type_value, expr_value);
@@ -1310,7 +1309,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 let universe = Value::arc_universe();
                 let range = r#type.range();
                 let r#type = self.check(r#type, &universe);
-                let r#type = self.eval_context().eval(&r#type);
+                let r#type = self.eval_env().eval(&r#type);
 
                 match self.unification_context().unify(&r#type, expected_type) {
                     Ok(()) => self.check_pattern(pattern, &r#type),
@@ -1344,7 +1343,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
             None => self.synth_pattern(pattern),
             Some(r#type) => {
                 let r#type = self.check(r#type, &Value::arc_universe());
-                let type_value = self.eval_context().eval(&r#type);
+                let type_value = self.eval_env().eval(&r#type);
                 self.check_pattern(pattern, &type_value)
             }
         }
@@ -1409,14 +1408,14 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
         surface_term: &Term<'_, ByteRange>,
         expected_type: &ArcValue<'arena>,
     ) -> core::Term<'arena> {
-        let expected_type = self.elim_context().force(expected_type);
+        let expected_type = self.elim_env().force(expected_type);
 
         match (surface_term, expected_type.as_ref()) {
             (Term::Let(range, def_pattern, def_type, def_expr, output_expr), _) => {
                 let (def_pattern, def_type_value) = self.synth_ann_pattern(def_pattern, *def_type);
-                let def_type = self.quote_context(self.scope).quote(&def_type_value); // FIXME: avoid requote if possible?
+                let def_type = self.quote_env(self.scope).quote(&def_type_value); // FIXME: avoid requote if possible?
                 let def_expr = self.check(def_expr, &def_type_value);
-                let def_expr_value = self.eval_context().eval(&def_expr);
+                let def_expr_value = self.eval_env().eval(&def_expr);
 
                 let def_name = self.push_rigid_def(def_pattern, def_expr_value, def_type_value); // TODO: split on constants
                 let output_expr = self.check(output_expr, &expected_type);
@@ -1451,7 +1450,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 let (input_name, input_type) =
                     self.check_ann_pattern(input_pattern, *input_type, expected_input_type);
                 let (input_name, input_expr) = self.push_rigid_param(input_name, input_type);
-                let output_type = self.elim_context().apply_closure(output_type, input_expr);
+                let output_type = self.elim_env().apply_closure(output_type, input_expr);
                 let output_expr = self.check(output_expr, &output_type);
 
                 self.rigid_env.pop();
@@ -1478,12 +1477,11 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 let mut expr_fields = expr_fields.iter();
                 let mut exprs = SliceVec::new(self.scope, types.len());
 
-                while let Some((expr_field, (r#type, next_types))) = Option::zip(
-                    expr_fields.next(),
-                    self.elim_context().split_telescope(types),
-                ) {
+                while let Some((expr_field, (r#type, next_types))) =
+                    Option::zip(expr_fields.next(), self.elim_env().split_telescope(types))
+                {
                     let expr = self.check(&expr_field.expr, &r#type);
-                    types = next_types(self.eval_context().eval(&expr));
+                    types = next_types(self.eval_env().eval(&expr));
                     exprs.push(expr);
                 }
 
@@ -1679,7 +1677,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
             }
             Term::Ann(range, expr, r#type) => {
                 let r#type = self.check(r#type, &Value::arc_universe()); // FIXME: avoid temporary Arc
-                let type_value = self.eval_context().eval(&r#type);
+                let type_value = self.eval_env().eval(&r#type);
                 let expr = self.check(expr, &type_value);
 
                 let ann_expr = core::Term::Ann(
@@ -1692,9 +1690,9 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
             }
             Term::Let(range, def_pattern, def_type, def_expr, output_expr) => {
                 let (def_pattern, def_type_value) = self.synth_ann_pattern(def_pattern, *def_type);
-                let def_type = self.quote_context(self.scope).quote(&def_type_value); // FIXME: avoid requote if possible?
+                let def_type = self.quote_env(self.scope).quote(&def_type_value); // FIXME: avoid requote if possible?
                 let def_expr = self.check(def_expr, &def_type_value);
-                let def_expr_value = self.eval_context().eval(&def_expr);
+                let def_expr_value = self.eval_env().eval(&def_expr);
 
                 let def_name = self.push_rigid_def(def_pattern, def_expr_value, def_type_value);
                 let (output_expr, output_type) = self.synth(output_expr);
@@ -1737,7 +1735,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
             Term::Arrow(range, input_type, output_type) => {
                 let universe = Value::arc_universe(); // FIXME: avoid temporary Arc
                 let input_type = self.check(input_type, &universe);
-                let input_type_value = self.eval_context().eval(&input_type);
+                let input_type_value = self.eval_env().eval(&input_type);
 
                 self.rigid_env.push_param(None, input_type_value);
                 let output_type = self.check(output_type, &universe);
@@ -1756,7 +1754,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 let universe = Value::arc_universe(); // FIXME: avoid temporary Arc
                 let (input_pattern, input_type_value) =
                     self.synth_ann_pattern(input_pattern, *input_type);
-                let input_type = self.quote_context(self.scope).quote(&input_type_value); // FIXME: avoid requote if possible?
+                let input_type = self.quote_env(self.scope).quote(&input_type_value); // FIXME: avoid requote if possible?
 
                 let (input_name, _) = self.push_rigid_param(input_pattern, input_type_value);
                 let output_type = self.check(output_type, &universe);
@@ -1777,7 +1775,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
 
                 let (input_name, _) = self.push_rigid_param(input_pattern, input_type.clone());
                 let (output_expr, output_type) = self.synth(output_expr);
-                let output_type = self.quote_context(self.scope).quote(&output_type);
+                let output_type = self.quote_env(self.scope).quote(&output_type);
                 self.rigid_env.pop();
 
                 (
@@ -1801,7 +1799,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 let (head_expr, head_type) = self.synth(head_expr);
 
                 // Ensure that the head type is a function type
-                let head_type = self.elim_context().force(&head_type);
+                let head_type = self.elim_env().force(&head_type);
                 let (head_expr, input_type, output_type) = match head_type.as_ref() {
                     // The simple case - it's easy to see that it is a function type!
                     Value::FunType(_, input_type, output_type) => {
@@ -1847,9 +1845,9 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
 
                 // Check the input expression and apply it to the output type
                 let input_expr = self.check(input_expr, &input_type);
-                let input_expr_value = self.eval_context().eval(&input_expr);
+                let input_expr_value = self.eval_env().eval(&input_expr);
                 let output_type = self
-                    .elim_context()
+                    .elim_env()
                     .apply_closure(&output_type, input_expr_value);
 
                 // Construct the final function application
@@ -1870,7 +1868,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
 
                 for type_field in type_fields {
                     let r#type = self.check(&type_field.type_, &universe);
-                    let type_value = self.eval_context().eval(&r#type);
+                    let type_value = self.eval_env().eval(&r#type);
                     self.rigid_env
                         .push_param(Some(type_field.label.1), type_value);
                     types.push(r#type);
@@ -1891,7 +1889,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
 
                 for expr_field in expr_fields {
                     let (expr, r#type) = self.synth(&expr_field.expr);
-                    types.push(self.quote_context(self.scope).quote(&r#type)); // NOTE: Unsure if these are correctly bound!
+                    types.push(self.quote_env(self.scope).quote(&r#type)); // NOTE: Unsure if these are correctly bound!
                     exprs.push(expr);
                 }
 
@@ -1912,16 +1910,16 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
             Term::Proj(range, head_expr, (label_range, label)) => {
                 let head_range = head_expr.range();
                 let (head_expr, head_type) = self.synth(head_expr);
-                let head_expr_value = self.eval_context().eval(&head_expr);
+                let head_expr_value = self.eval_env().eval(&head_expr);
 
-                let head_type = self.elim_context().force(&head_type);
+                let head_type = self.elim_env().force(&head_type);
                 match head_type.as_ref() {
                     Value::RecordType(labels, types) => {
                         let mut labels = labels.iter();
                         let mut types = types.clone();
 
                         while let Some((type_label, (r#type, next_types))) =
-                            Option::zip(labels.next(), self.elim_context().split_telescope(types))
+                            Option::zip(labels.next(), self.elim_env().split_telescope(types))
                         {
                             if label == type_label {
                                 let head_expr = self.scope.to_scope(head_expr);
@@ -1929,7 +1927,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                                 return (expr, r#type);
                             } else {
                                 let head_expr = head_expr_value.clone();
-                                let expr = self.elim_context().record_proj(head_expr, *type_label);
+                                let expr = self.elim_env().record_proj(head_expr, *type_label);
                                 types = next_types(expr);
                             }
                         }
@@ -1980,8 +1978,8 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
             Term::FormatCond(range, (_, name), format, pred) => {
                 let format_type = Spanned::empty(Arc::new(Value::prim(Prim::FormatType, [])));
                 let format = self.check(format, &format_type);
-                let format_value = self.eval_context().eval(&format);
-                let repr_type = self.elim_context().format_repr(&format_value);
+                let format_value = self.eval_env().eval(&format);
+                let repr_type = self.elim_env().format_repr(&format_value);
                 self.rigid_env.push_param(Some(*name), repr_type);
                 let bool_type = Spanned::empty(Arc::new(Value::prim(Prim::BoolType, [])));
                 let pred_expr = self.check(pred, &bool_type);
@@ -2024,8 +2022,8 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
         // de-sugar into function application
         let (lhs_expr, lhs_type) = self.synth(lhs);
         let (rhs_expr, rhs_type) = self.synth(rhs);
-        let lhs_type = self.elim_context().force(&lhs_type);
-        let rhs_type = self.elim_context().force(&rhs_type);
+        let lhs_type = self.elim_env().force(&lhs_type);
+        let rhs_type = self.elim_env().force(&rhs_type);
         let operand_types = Option::zip(lhs_type.match_prim_spine(), rhs_type.match_prim_spine());
 
         #[rustfmt::skip]
@@ -2203,8 +2201,8 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                     pred,
                 } => {
                     let format = self.check(format, &format_type);
-                    let format_value = self.eval_context().eval(&format);
-                    let r#type = self.elim_context().format_repr(&format_value);
+                    let format_value = self.eval_env().eval(&format);
+                    let r#type = self.elim_env().format_repr(&format_value);
 
                     self.rigid_env.push_param(Some(*label), r#type);
 
@@ -2233,12 +2231,12 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                     let (expr, r#type, type_value) = match r#type {
                         Some(r#type) => {
                             let r#type = self.check(r#type, &universe_type);
-                            let type_value = self.eval_context().eval(&r#type);
+                            let type_value = self.eval_env().eval(&r#type);
                             (self.check(expr, &type_value), r#type, type_value)
                         }
                         None => {
                             let (expr, type_value) = self.synth(&expr);
-                            let r#type = self.quote_context(self.scope).quote(&type_value);
+                            let r#type = self.quote_env(self.scope).quote(&type_value);
                             (expr, r#type, type_value)
                         }
                     };
@@ -2285,7 +2283,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
         match equations.split_first() {
             Some(((pattern, output_expr), next_equations)) => {
                 let (def_pattern, def_type_value) = self.check_pattern(pattern, &scrutinee_type);
-                let def_type = self.quote_context(self.scope).quote(&def_type_value); // FIXME: avoid requote if possible?
+                let def_type = self.quote_env(self.scope).quote(&def_type_value); // FIXME: avoid requote if possible?
 
                 // Warn about unreachable patterns, only when checking the pattern was a success
                 if !is_reachable && !matches!(def_pattern, CheckedPattern::ReportedError(_)) {
@@ -2297,7 +2295,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 match def_pattern {
                     CheckedPattern::Name(range, name) => {
                         let def_name = Some(name);
-                        let def_expr = self.eval_context().eval(&scrutinee_expr);
+                        let def_expr = self.eval_env().eval(&scrutinee_expr);
                         self.rigid_env.push_def(def_name, def_expr, def_type_value);
                         let output_expr = self.check(output_expr, &expected_type);
                         self.rigid_env.pop();

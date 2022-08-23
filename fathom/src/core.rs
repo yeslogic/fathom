@@ -116,8 +116,8 @@ pub enum Term<'arena> {
     /// [entry information]: EntryInfo
     /// [function literals]: Term::FunLit
     /// [function applications]: Term::FunApp
-    /// [evaluation]: semantics::EvalContext::eval
-    /// [quoting]: semantics::QuoteContext::quote
+    /// [evaluation]: semantics::EvalEnv::eval
+    /// [quoting]: semantics::QuoteEnv::quote
     //
     // TODO: Bit-vectors might make this a bit more compact and cheaper to
     //       construct. For example:

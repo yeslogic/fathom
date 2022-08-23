@@ -25,7 +25,7 @@ impl<'arena> ArcValue<'arena> {
 #[derive(Debug, Clone)]
 pub enum Value<'arena> {
     /// A value whose computation has been blocked as a result of trying to
-    /// [evaluate][EvalContext::eval] an open [term][Term], along with a spine
+    /// [evaluate][EvalEnv::eval] an open [term][Term], along with a spine
     /// of eliminations. Subsequent eliminations applied to this value are
     /// accumulated in the spine.
     Stuck(Head, Vec<Elim<'arena>>),
@@ -244,42 +244,42 @@ impl Error {
     }
 }
 
-/// Evaluation context.
+/// Evaluation environment.
 ///
-/// Like the [`ElimContext`], this allows for the running of computations, but
+/// Like the [`ElimEnv`], this allows for the running of computations, but
 /// also maintains a rigid environment, allowing for evaluation.
-pub struct EvalContext<'arena, 'env> {
+pub struct EvalEnv<'arena, 'env> {
     item_exprs: &'env SliceEnv<ArcValue<'arena>>,
     rigid_exprs: &'env mut SharedEnv<ArcValue<'arena>>,
     flexible_exprs: &'env SliceEnv<Option<ArcValue<'arena>>>,
 }
 
-impl<'arena, 'env> EvalContext<'arena, 'env> {
+impl<'arena, 'env> EvalEnv<'arena, 'env> {
     pub fn new(
         item_exprs: &'env SliceEnv<ArcValue<'arena>>,
         rigid_exprs: &'env mut SharedEnv<ArcValue<'arena>>,
         flexible_exprs: &'env SliceEnv<Option<ArcValue<'arena>>>,
-    ) -> EvalContext<'arena, 'env> {
-        EvalContext {
+    ) -> EvalEnv<'arena, 'env> {
+        EvalEnv {
             item_exprs,
             rigid_exprs,
             flexible_exprs,
         }
     }
 
-    fn elim_context(&self) -> ElimContext<'arena, 'env> {
-        ElimContext::new(self.item_exprs, self.flexible_exprs)
+    fn elim_env(&self) -> ElimEnv<'arena, 'env> {
+        ElimEnv::new(self.item_exprs, self.flexible_exprs)
     }
 
-    /// Fully normalise a term by first [evaluating][EvalContext::eval] it into
-    /// a [value][Value], then [quoting it back][QuoteContext::quote] into a
+    /// Fully normalise a term by first [evaluating][EvalEnv::eval] it into
+    /// a [value][Value], then [quoting it back][QuoteEnv::quote] into a
     /// [term][Term].
     pub fn normalise<'out_arena>(
         &mut self,
         scope: &'out_arena Scope<'out_arena>,
         term: &Term<'arena>,
     ) -> Term<'out_arena> {
-        QuoteContext::new(
+        QuoteEnv::new(
             scope,
             self.item_exprs,
             self.rigid_exprs.len(),
@@ -313,9 +313,7 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
                 for (info, expr) in Iterator::zip(rigid_infos.iter(), self.rigid_exprs.iter()) {
                     head_expr = match info {
                         EntryInfo::Definition => head_expr,
-                        EntryInfo::Parameter => {
-                            self.elim_context().fun_app(head_expr, expr.clone())
-                        }
+                        EntryInfo::Parameter => self.elim_env().fun_app(head_expr, expr.clone()),
                     };
                 }
                 head_expr
@@ -349,7 +347,7 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
             Term::FunApp(span, head_expr, input_expr) => {
                 let head_expr = self.eval(head_expr);
                 let input_expr = self.eval(input_expr);
-                Spanned::merge(*span, self.elim_context().fun_app(head_expr, input_expr))
+                Spanned::merge(*span, self.elim_env().fun_app(head_expr, input_expr))
             }
 
             Term::RecordType(span, labels, types) => {
@@ -362,7 +360,7 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
             }
             Term::RecordProj(span, head_expr, label) => {
                 let head_expr = self.eval(head_expr);
-                Spanned::merge(*span, self.elim_context().record_proj(head_expr, *label))
+                Spanned::merge(*span, self.elim_env().record_proj(head_expr, *label))
             }
 
             Term::ArrayLit(span, elem_exprs) => {
@@ -394,19 +392,18 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
             Term::ConstMatch(span, head_expr, branches, default_expr) => {
                 let head_expr = self.eval(head_expr);
                 let branches = Branches::new(self.rigid_exprs.clone(), branches, *default_expr);
-                Spanned::merge(*span, self.elim_context().const_match(head_expr, branches))
+                Spanned::merge(*span, self.elim_env().const_match(head_expr, branches))
             }
         }
     }
 }
 
 /// Primitive evaluation step.
-type PrimStep =
-    for<'arena> fn(&ElimContext<'arena, '_>, &[Elim<'arena>]) -> Option<ArcValue<'arena>>;
+type PrimStep = for<'arena> fn(&ElimEnv<'arena, '_>, &[Elim<'arena>]) -> Option<ArcValue<'arena>>;
 
 macro_rules! step {
-    ($context:pat, [$($input:pat),*] => $output:expr) => {
-        Some(|$context, spine| match spine {
+    ($env:pat, [$($input:pat),*] => $output:expr) => {
+        Some(|$env, spine| match spine {
             [$(Elim::FunApp($input)),*] => Some($output),
             _ => return None,
         })
@@ -436,7 +433,7 @@ fn prim_step(prim: Prim) -> Option<PrimStep> {
     use std::convert::TryFrom;
 
     match prim {
-        Prim::FormatRepr => step!(context, [format] => context.format_repr(format)),
+        Prim::FormatRepr => step!(env, [format] => env.format_repr(format)),
 
         Prim::BoolEq => const_step!([x: Bool, y: Bool] => Const::Bool(x == y)),
         Prim::BoolNeq => const_step!([x: Bool, y: Bool] => Const::Bool(x != y)),
@@ -569,24 +566,22 @@ fn prim_step(prim: Prim) -> Option<PrimStep> {
         Prim::S64Abs => const_step!([x: S64] => Const::S64(i64::abs(*x))),
         Prim::S64UAbs => const_step!([x: S64] => Const::U64(i64::unsigned_abs(*x), UIntStyle::Decimal)),
 
-        Prim::OptionFold => step!(context, [_, _, on_none, on_some, option] => {
+        Prim::OptionFold => step!(env, [_, _, on_none, on_some, option] => {
             match option.match_prim_spine()? {
-                (Prim::OptionSome, [Elim::FunApp(value)]) => {
-                    context.fun_app(on_some.clone(), value.clone())
-                },
+                (Prim::OptionSome, [Elim::FunApp(value)]) => env.fun_app(on_some.clone(), value.clone()),
                 (Prim::OptionNone, []) => on_none.clone(),
                 _ => return None,
             }
         }),
 
         Prim::Array8Find | Prim::Array16Find | Prim::Array32Find | Prim::Array64Find => {
-            step!(context, [_, _, pred, array] => match array.as_ref() {
+            step!(env, [_, _, pred, array] => match array.as_ref() {
                 Value::ArrayLit(elems) => {
                     for elem in elems {
-                        match context.fun_app(pred.clone(), elem.clone()).as_ref() {
+                        match env.fun_app(pred.clone(), elem.clone()).as_ref() {
                             Value::ConstLit(Const::Bool(true)) => {
                                 // TODO: Is elem.span right here?
-                                return Some(Spanned::new( elem.span(), Arc::new(Value::prim(Prim::OptionSome, [elem.clone()])) ))
+                                return Some(Spanned::new(elem.span(), Arc::new(Value::prim(Prim::OptionSome, [elem.clone()]))))
                             },
                             Value::ConstLit(Const::Bool(false)) => {}
                             _ => return None,
@@ -599,7 +594,7 @@ fn prim_step(prim: Prim) -> Option<PrimStep> {
         }
 
         Prim::Array8Index | Prim::Array16Index | Prim::Array32Index | Prim::Array64Index => {
-            step!(_context, [_, _, index, array] => match array.as_ref() {
+            step!(_, [_, _, index, array] => match array.as_ref() {
                 Value::ArrayLit(elems) => {
                     let index = match (index).as_ref() {
                         Value::ConstLit(Const::U8(index, _)) => Some(usize::from(*index)),
@@ -623,31 +618,31 @@ fn prim_step(prim: Prim) -> Option<PrimStep> {
     }
 }
 
-/// Elimination context.
+/// Elimination environment.
 ///
 /// Contains enough state to run computations, but does not contain a rigid
 /// environment that would be needed for full evaluation.
-pub struct ElimContext<'arena, 'env> {
+pub struct ElimEnv<'arena, 'env> {
     item_exprs: &'env SliceEnv<ArcValue<'arena>>,
     flexible_exprs: &'env SliceEnv<Option<ArcValue<'arena>>>,
 }
 
-impl<'arena, 'env> ElimContext<'arena, 'env> {
+impl<'arena, 'env> ElimEnv<'arena, 'env> {
     pub fn new(
         item_exprs: &'env SliceEnv<ArcValue<'arena>>,
         flexible_exprs: &'env SliceEnv<Option<ArcValue<'arena>>>,
-    ) -> ElimContext<'arena, 'env> {
-        ElimContext {
+    ) -> ElimEnv<'arena, 'env> {
+        ElimEnv {
             item_exprs,
             flexible_exprs,
         }
     }
 
-    pub fn eval_context(
+    pub fn eval_env(
         &self,
         rigid_exprs: &'env mut SharedEnv<ArcValue<'arena>>,
-    ) -> EvalContext<'arena, 'env> {
-        EvalContext::new(self.item_exprs, rigid_exprs, self.flexible_exprs)
+    ) -> EvalEnv<'arena, 'env> {
+        EvalEnv::new(self.item_exprs, rigid_exprs, self.flexible_exprs)
     }
 
     /// Bring a value up-to-date with any new unification solutions that
@@ -677,7 +672,7 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
     ) -> ArcValue<'arena> {
         let mut rigid_exprs = closure.rigid_exprs.clone();
         rigid_exprs.push(value);
-        self.eval_context(&mut rigid_exprs).eval(closure.term)
+        self.eval_env(&mut rigid_exprs).eval(closure.term)
     }
 
     /// Split a telescope into the first value, and a continuation that returns
@@ -690,9 +685,9 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
         impl FnOnce(ArcValue<'arena>) -> Telescope<'arena>,
     )> {
         let (term, terms) = telescope.terms.split_first()?;
-        let mut context = self.eval_context(&mut telescope.rigid_exprs);
+        let mut context = self.eval_env(&mut telescope.rigid_exprs);
         let value = match telescope.apply_repr {
-            true => context.elim_context().format_repr(&context.eval(term)),
+            true => context.elim_env().format_repr(&context.eval(term)),
             false => context.eval(term),
         };
 
@@ -710,7 +705,7 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
         match branches.pattern_branches.split_first() {
             Some(((pattern, output_expr), pattern_branches)) => {
                 branches.pattern_branches = pattern_branches;
-                let mut context = self.eval_context(&mut branches.rigid_exprs);
+                let mut context = self.eval_env(&mut branches.rigid_exprs);
                 SplitBranches::Branch((*pattern, context.eval(output_expr)), branches)
             }
             None => match branches.default_expr {
@@ -787,16 +782,14 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
                 // Try each branch
                 for (branch_const, output_expr) in branches.pattern_branches {
                     if r#const == branch_const {
-                        return self
-                            .eval_context(&mut branches.rigid_exprs)
-                            .eval(output_expr);
+                        return self.eval_env(&mut branches.rigid_exprs).eval(output_expr);
                     }
                 }
                 // Otherwise call default with `head_expr`
                 let mut rigid_exprs = branches.rigid_exprs.clone();
                 rigid_exprs.push(head_expr);
                 match branches.default_expr {
-                    Some(default_expr) => self.eval_context(&mut rigid_exprs).eval(default_expr),
+                    Some(default_expr) => self.eval_env(&mut rigid_exprs).eval(default_expr),
                     None => panic_any(Error::MissingConstDefault),
                 }
             }
@@ -882,26 +875,26 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
     }
 }
 
-/// Quotation context.
+/// Quotation environment.
 ///
-/// This context keeps track of the length of the environment, allowing for
-/// quotation.
+/// This environment keeps track of the length of the rigid environment,
+/// and the values of flexible variable expressions, allowing for quotation.
 #[derive(Clone)]
-pub struct QuoteContext<'in_arena, 'out_arena, 'env> {
+pub struct QuoteEnv<'in_arena, 'out_arena, 'env> {
     scope: &'out_arena Scope<'out_arena>,
     item_exprs: &'env SliceEnv<ArcValue<'in_arena>>,
     rigid_exprs: EnvLen,
     flexible_exprs: &'env SliceEnv<Option<ArcValue<'in_arena>>>,
 }
 
-impl<'in_arena, 'out_arena, 'env> QuoteContext<'in_arena, 'out_arena, 'env> {
+impl<'in_arena, 'out_arena, 'env> QuoteEnv<'in_arena, 'out_arena, 'env> {
     pub fn new(
         scope: &'out_arena Scope<'out_arena>,
         item_exprs: &'env SliceEnv<ArcValue<'in_arena>>,
         rigid_exprs: EnvLen,
         flexible_exprs: &'env SliceEnv<Option<ArcValue<'in_arena>>>,
-    ) -> QuoteContext<'in_arena, 'out_arena, 'env> {
-        QuoteContext {
+    ) -> QuoteEnv<'in_arena, 'out_arena, 'env> {
+        QuoteEnv {
             scope,
             item_exprs,
             rigid_exprs,
@@ -909,8 +902,8 @@ impl<'in_arena, 'out_arena, 'env> QuoteContext<'in_arena, 'out_arena, 'env> {
         }
     }
 
-    fn elim_context<'this>(&'this self) -> ElimContext<'in_arena, 'env> {
-        ElimContext::new(self.item_exprs, self.flexible_exprs)
+    fn elim_env<'this>(&'this self) -> ElimEnv<'in_arena, 'env> {
+        ElimEnv::new(self.item_exprs, self.flexible_exprs)
     }
 
     fn push_rigid(&mut self) {
@@ -923,7 +916,7 @@ impl<'in_arena, 'out_arena, 'env> QuoteContext<'in_arena, 'out_arena, 'env> {
 
     /// Quote a [value][Value] back into a [term][Term].
     pub fn quote(&mut self, value: &ArcValue<'in_arena>) -> Term<'out_arena> {
-        let value = self.elim_context().force(value);
+        let value = self.elim_env().force(value);
         let span = value.span();
         match value.as_ref() {
             Value::Stuck(head, spine) => {
@@ -951,7 +944,7 @@ impl<'in_arena, 'out_arena, 'env> QuoteContext<'in_arena, 'out_arena, 'env> {
                             SliceVec::new(self.scope, branches.num_patterns());
 
                         let default_expr = loop {
-                            match self.elim_context().split_branches(branches) {
+                            match self.elim_env().split_branches(branches) {
                                 SplitBranches::Branch((r#const, output_expr), next_branches) => {
                                     pattern_branches.push((r#const, self.quote(&output_expr)));
                                     branches = next_branches;
@@ -1042,9 +1035,7 @@ impl<'in_arena, 'out_arena, 'env> QuoteContext<'in_arena, 'out_arena, 'env> {
     /// Quote a [closure][Closure] back into a [term][Term].
     fn quote_closure(&mut self, closure: &Closure<'in_arena>) -> Term<'out_arena> {
         let var = Arc::new(Value::rigid_var(self.rigid_exprs.next_global()));
-        let value = self
-            .elim_context()
-            .apply_closure(closure, Spanned::empty(var));
+        let value = self.elim_env().apply_closure(closure, Spanned::empty(var));
 
         self.push_rigid();
         let term = self.quote(&value);
@@ -1062,7 +1053,7 @@ impl<'in_arena, 'out_arena, 'env> QuoteContext<'in_arena, 'out_arena, 'env> {
         let mut telescope = telescope.clone();
         let mut terms = SliceVec::new(self.scope, telescope.len());
 
-        while let Some((value, next_telescope)) = self.elim_context().split_telescope(telescope) {
+        while let Some((value, next_telescope)) = self.elim_env().split_telescope(telescope) {
             let var = Arc::new(Value::rigid_var(self.rigid_exprs.next_global()));
             telescope = next_telescope(Spanned::empty(var));
             terms.push(self.quote(&value));
@@ -1074,31 +1065,31 @@ impl<'in_arena, 'out_arena, 'env> QuoteContext<'in_arena, 'out_arena, 'env> {
     }
 }
 
-/// Conversion context.
+/// Conversion environment.
 ///
-/// This context keeps track of the length of the environment, for use in
-/// conversion checking.
-pub struct ConversionContext<'arena, 'env> {
+/// This environment keeps track of the length of the rigid environment,
+/// and the values of flexible variable expressions, allowing for conversion.
+pub struct ConversionEnv<'arena, 'env> {
     item_exprs: &'env SliceEnv<ArcValue<'arena>>,
     rigid_exprs: EnvLen,
     flexible_exprs: &'env SliceEnv<Option<ArcValue<'arena>>>,
 }
 
-impl<'arena, 'env> ConversionContext<'arena, 'env> {
+impl<'arena, 'env> ConversionEnv<'arena, 'env> {
     pub fn new(
         item_exprs: &'env SliceEnv<ArcValue<'arena>>,
         rigid_exprs: EnvLen,
         flexible_exprs: &'env SliceEnv<Option<ArcValue<'arena>>>,
-    ) -> ConversionContext<'arena, 'env> {
-        ConversionContext {
+    ) -> ConversionEnv<'arena, 'env> {
+        ConversionEnv {
             item_exprs,
             rigid_exprs,
             flexible_exprs,
         }
     }
 
-    fn elim_context(&self) -> ElimContext<'arena, 'env> {
-        ElimContext::new(self.item_exprs, self.flexible_exprs)
+    fn elim_env(&self) -> ElimEnv<'arena, 'env> {
+        ElimEnv::new(self.item_exprs, self.flexible_exprs)
     }
 
     fn push_rigid(&mut self) {
@@ -1119,8 +1110,8 @@ impl<'arena, 'env> ConversionContext<'arena, 'env> {
     /// [computationally equal]: https://ncatlab.org/nlab/show/equality#computational_equality
     /// [eta-conversion]: https://ncatlab.org/nlab/show/eta-conversion
     pub fn is_equal(&mut self, value0: &ArcValue<'_>, value1: &ArcValue<'_>) -> bool {
-        let value0 = self.elim_context().force(value0);
-        let value1 = self.elim_context().force(value1);
+        let value0 = self.elim_env().force(value0);
+        let value1 = self.elim_env().force(value1);
 
         match (value0.as_ref(), value1.as_ref()) {
             // `ReportedError`s result from errors that have already been
@@ -1202,8 +1193,8 @@ impl<'arena, 'env> ConversionContext<'arena, 'env> {
     /// Check that two [closures][Closure] are equal.
     pub fn is_equal_closures(&mut self, closure0: &Closure<'_>, closure1: &Closure<'_>) -> bool {
         let var = Spanned::empty(Arc::new(Value::rigid_var(self.rigid_exprs.next_global())));
-        let value0 = self.elim_context().apply_closure(closure0, var.clone());
-        let value1 = self.elim_context().apply_closure(closure1, var);
+        let value0 = self.elim_env().apply_closure(closure0, var.clone());
+        let value1 = self.elim_env().apply_closure(closure1, var);
 
         self.push_rigid();
         let result = self.is_equal(&value0, &value1);
@@ -1227,8 +1218,8 @@ impl<'arena, 'env> ConversionContext<'arena, 'env> {
         let mut telescope1 = telescope1.clone();
 
         while let Some(((value0, next_telescope0), (value1, next_telescope1))) = Option::zip(
-            self.elim_context().split_telescope(telescope0),
-            self.elim_context().split_telescope(telescope1),
+            self.elim_env().split_telescope(telescope0),
+            self.elim_env().split_telescope(telescope1),
         ) {
             if !self.is_equal(&value0, &value1) {
                 self.rigid_exprs.truncate(initial_rigid_len);
@@ -1258,8 +1249,8 @@ impl<'arena, 'env> ConversionContext<'arena, 'env> {
 
         loop {
             match (
-                self.elim_context().split_branches(branches0),
-                self.elim_context().split_branches(branches1),
+                self.elim_env().split_branches(branches0),
+                self.elim_env().split_branches(branches1),
             ) {
                 (
                     Branch((const0, output_expr0), next_branches0),
@@ -1284,8 +1275,8 @@ impl<'arena, 'env> ConversionContext<'arena, 'env> {
     /// ```
     fn is_equal_fun_lit(&mut self, output_expr: &Closure<'_>, value: &ArcValue<'_>) -> bool {
         let var = Spanned::empty(Arc::new(Value::rigid_var(self.rigid_exprs.next_global())));
-        let value = self.elim_context().fun_app(value.clone(), var.clone());
-        let output_expr = self.elim_context().apply_closure(output_expr, var);
+        let value = self.elim_env().fun_app(value.clone(), var.clone());
+        let output_expr = self.elim_env().apply_closure(output_expr, var);
 
         self.push_rigid();
         let result = self.is_equal(&output_expr, &value);
@@ -1306,7 +1297,7 @@ impl<'arena, 'env> ConversionContext<'arena, 'env> {
         value: &ArcValue<'_>,
     ) -> bool {
         Iterator::zip(labels.iter(), exprs.iter()).all(|(label, expr)| {
-            let field_value = self.elim_context().record_proj(value.clone(), *label);
+            let field_value = self.elim_env().record_proj(value.clone(), *label);
             self.is_equal(expr, &field_value)
         })
     }
@@ -1325,7 +1316,7 @@ mod tests {
         // has failed and you have added a new variant to Value it is a prompt to ensure that
         // variant is handled in:
         //
-        // - surface::elaboration::Context::unify
+        // - surface::elaboration::Env::unify
         // - core::semantics::is_equal
         //
         // NOTE: Only update the match below when you've updated the above functions.
