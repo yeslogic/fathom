@@ -124,8 +124,8 @@ impl ByteRange {
     }
 }
 
-impl Into<std::ops::Range<usize>> for ByteRange {
-    fn into(self) -> std::ops::Range<usize> {
-        self.start..self.end
+impl From<ByteRange> for std::ops::Range<usize> {
+    fn from(range: ByteRange) -> Self {
+        range.start..range.end
     }
 }

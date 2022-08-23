@@ -167,7 +167,7 @@ impl Message {
                     .with_message(format!("cannot find `{}` in projection head", label))
                     .with_labels(vec![
                         primary_label(label_range).with_message("unknown label"),
-                        secondary_label(head_range).with_message(format!("head expression")),
+                        secondary_label(head_range).with_message("head expression"),
                     ])
                 // TODO: list suggestions
             }
@@ -179,10 +179,9 @@ impl Message {
                 let interner = interner.borrow();
                 let mut diagnostic_labels = Vec::new();
                 {
-                    let mut expr_labels = expr_labels.iter().peekable();
                     let mut type_labels = type_labels.iter().peekable();
 
-                    'expr_labels: while let Some((range, expr_label)) = expr_labels.next() {
+                    'expr_labels: for (range, expr_label) in expr_labels.iter() {
                         'type_labels: loop {
                             match type_labels.next() {
                                 None => {
@@ -230,7 +229,7 @@ impl Message {
                     .format_with(", ", |label, f| f(&format_args!("`{}`", label)));
 
                 Diagnostic::error()
-                    .with_message(format!("mismatched field labels in record literal"))
+                    .with_message("mismatched field labels in record literal")
                     .with_labels(diagnostic_labels)
                     .with_notes(vec![
                         format!("expected fields {}", expected_labels),
@@ -247,7 +246,7 @@ impl Message {
                     .collect();
 
                 Diagnostic::error()
-                    .with_message(format!("duplicate labels found in record"))
+                    .with_message("duplicate labels found in record")
                     .with_labels(diagnostic_labels)
                     .with_notes(vec![format!(
                         "duplicate fields {}",

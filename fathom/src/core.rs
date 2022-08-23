@@ -552,7 +552,7 @@ def_prims! {
 }
 
 /// Formatting style for integers
-#[derive(Debug, Copy, Clone, PartialEq, PartialOrd)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd)]
 pub enum UIntStyle {
     Binary,
     Decimal,

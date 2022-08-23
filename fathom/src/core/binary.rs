@@ -180,7 +180,7 @@ impl<'data> BufferReader<'data> {
     /// Set the offset of the reader relative to the start position.
     pub fn set_offset(&mut self, offset: usize) -> Result<(), BufferError> {
         usize::checked_sub(offset, self.buffer.start_offset)
-            .ok_or_else(|| BufferError::SetOffsetBeforeStartOfBuffer { offset })
+            .ok_or(BufferError::SetOffsetBeforeStartOfBuffer { offset })
             .and_then(|relative_offset| self.set_relative_offset(relative_offset))
     }
 
@@ -329,7 +329,7 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
                 ))
             }
             Value::FormatCond(_label, format, cond) => {
-                let value = self.read_format(reader, &format)?;
+                let value = self.read_format(reader, format)?;
                 let cond_res = self.elim_env().apply_closure(cond, value.clone());
 
                 match cond_res.as_ref() {
@@ -392,7 +392,7 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
     ) -> Result<ArcValue<'arena>, ReadError<'arena>> {
         use crate::core::semantics::Elim::FunApp;
 
-        match (prim, &slice[..]) {
+        match (prim, slice) {
             (Prim::FormatU8, []) => read_const(reader, span, read_u8, |num| Const::U8(num, UIntStyle::Decimal)),
             (Prim::FormatU16Be, []) => read_const(reader, span, read_u16be, |num| Const::U16(num, UIntStyle::Decimal)),
             (Prim::FormatU16Le, []) => read_const(reader, span, read_u16le, |num| Const::U16(num, UIntStyle::Decimal)),
@@ -445,7 +445,7 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
             Value::ConstLit(Const::U8(len, _)) => u64::from(*len),
             Value::ConstLit(Const::U16(len, _)) => u64::from(*len),
             Value::ConstLit(Const::U32(len, _)) => u64::from(*len),
-            Value::ConstLit(Const::U64(len, _)) => u64::from(*len),
+            Value::ConstLit(Const::U64(len, _)) => *len,
             _ => return Err(ReadError::InvalidValue(len.span())),
         };
 
@@ -552,7 +552,7 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
         // that parsed reference alongside the position in `Const::Ref`.
 
         (self.cached_refs.get(&pos)?.iter())
-            .find(|r| self.conversion_env().is_equal(&r.format, &format))
+            .find(|r| self.conversion_env().is_equal(&r.format, format))
     }
 
     fn lookup_or_read_ref(
@@ -560,19 +560,19 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
         pos: usize,
         format: &ArcValue<'arena>,
     ) -> Result<ArcValue<'arena>, ReadError<'arena>> {
-        if let Some(parsed_ref) = self.lookup_ref(pos, &format) {
+        if let Some(parsed_ref) = self.lookup_ref(pos, format) {
             return Ok(parsed_ref.expr.clone());
         }
 
         // Read the data at the ref location
         let mut reader = self.initial_buffer.reader_with_offset(pos)?;
-        let expr = self.read_format(&mut reader, &format)?;
+        let expr = self.read_format(&mut reader, format)?;
 
         // We might have parsed the current reference during the above call to
         // `read_format`. It's unclear if this could ever happen in practice,
         // especially without succumbing to non-termination, but we'll panic
         // here just in case.
-        if let Some(_) = self.lookup_ref(pos, &format) {
+        if self.lookup_ref(pos, format).is_some() {
             panic!("recursion found when storing cached reference {}", pos);
         }
 
@@ -614,11 +614,11 @@ fn read_const<'arena, 'data, T>(
     ))
 }
 
-fn read_u8<'data>(reader: &mut BufferReader<'data>) -> Result<u8, BufferError> {
+fn read_u8(reader: &mut BufferReader<'_>) -> Result<u8, BufferError> {
     reader.read_byte()
 }
 
-fn read_s8<'data>(reader: &mut BufferReader<'data>) -> Result<i8, BufferError> {
+fn read_s8(reader: &mut BufferReader<'_>) -> Result<i8, BufferError> {
     reader.read_byte().map(|b| b as i8)
 }
 

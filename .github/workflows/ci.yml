@@ -48,16 +48,16 @@ jobs:
   #   runs-on: ubuntu-latest
   #   strategy:
   #     matrix:
-  #       rust-toolchain: ["stable", "minimum"]
-  #   name: Clippy (${{ matrix.rust }})
+  #       rust-toolchain: ["stable"]
+  #   name: Clippy (${{ matrix.rust-toolchain }})
   #   steps:
   #     - name: Checkout repository
   #       uses: actions/checkout@v3
   #     - name: Install Nix
   #       uses: cachix/install-nix-action@v17
-  #
+
   #     - name: Run cargo clippy
-  #       run: nix develop .#${{ matrix.rust }} --command cargo clippy --deny warnings
+  #       run: nix develop .#${{ matrix.rust-toolchain }} --command cargo clippy -- --deny warnings
 
   nixpkgs-fmt:
     runs-on: ubuntu-latest

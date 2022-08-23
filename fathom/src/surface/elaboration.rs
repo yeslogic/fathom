@@ -482,7 +482,7 @@ impl<'arena> RigidEnv<'arena> {
                     scope.to_scope(core::Term::FunType(
                         Span::Empty,
                         env.name("index"),
-                        &index_type,
+                        index_type,
                         scope.to_scope(core::Term::FunType(
                             Span::Empty,
                             None,
@@ -727,7 +727,7 @@ impl<'arena> FlexibleEnv<'arena> {
             (Some(expr), FlexSource::HoleExpr(range, name)) => {
                 let term =
                     semantics::QuoteEnv::new(scope, item_exprs, rigid_names.len(), &self.exprs)
-                        .quote(&expr);
+                        .quote(expr);
                 let surface_term = distillation::Context::new(
                     interner,
                     scope,
@@ -844,7 +844,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
         self.messages.push(message);
     }
 
-    pub fn drain_messages<'this>(&'this mut self) -> impl 'this + Iterator<Item = Message> {
+    pub fn drain_messages(&mut self) -> impl '_ + Iterator<Item = Message> {
         let report_messages = self.flexible_env.report(
             self.interner,
             self.error_scope,
@@ -882,7 +882,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
 
     fn unification_context(&mut self) -> unification::Context<'arena, '_> {
         unification::Context::new(
-            &self.scope,
+            self.scope,
             &mut self.renaming,
             &self.item_env.exprs,
             self.rigid_env.len(),
@@ -911,8 +911,8 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
     }
 
     fn pretty_print_value(&mut self, value: &ArcValue<'_>) -> String {
-        let term = self.quote_env(&self.error_scope).quote(&value);
-        let surface_term = self.distillation_context(&self.error_scope).check(&term);
+        let term = self.quote_env(self.error_scope).quote(value);
+        let surface_term = self.distillation_context(self.error_scope).check(&term);
         let pretty_context = pretty::Context::new(self.interner, self.error_scope);
         let doc = pretty_context.term(&surface_term).into_doc();
         doc.pretty(usize::MAX).to_string()
@@ -1024,10 +1024,10 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
         // TODO: Custom parsing and improved errors
         let s = self.interner.borrow();
         let s = s.resolve(string_id).unwrap();
-        let (s, radix, style) = if s.starts_with("0x") {
-            (&s[2..], 16, UIntStyle::Hexadecimal)
-        } else if s.starts_with("0b") {
-            (&s[2..], 2, UIntStyle::Binary)
+        let (s, radix, style) = if let Some(s) = s.strip_prefix("0x") {
+            (s, 16, UIntStyle::Hexadecimal)
+        } else if let Some(s) = s.strip_prefix("0b") {
+            (s, 2, UIntStyle::Binary)
         } else {
             (s, 10, UIntStyle::Decimal)
         };
@@ -1304,7 +1304,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
         expected_type: &ArcValue<'arena>,
     ) -> (CheckedPattern, ArcValue<'arena>) {
         match r#type {
-            None => self.check_pattern(pattern, &expected_type),
+            None => self.check_pattern(pattern, expected_type),
             Some(r#type) => {
                 let universe = Value::arc_universe();
                 let range = r#type.range();
@@ -1468,7 +1468,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                         expr_labels: (expr_fields.iter())
                             .map(|expr_field| expr_field.label)
                             .collect(),
-                        type_labels: labels.iter().copied().collect(),
+                        type_labels: labels.to_vec(),
                     });
                     return core::Term::Prim(range.into(), Prim::ReportedError);
                 }
@@ -2235,7 +2235,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                             (self.check(expr, &type_value), r#type, type_value)
                         }
                         None => {
-                            let (expr, type_value) = self.synth(&expr);
+                            let (expr, type_value) = self.synth(expr);
                             let r#type = self.quote_env(self.scope).quote(&type_value);
                             (expr, r#type, type_value)
                         }
@@ -2270,6 +2270,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
     /// [“The Implementation of Functional Programming Languages”].
     ///
     /// [“The Implementation of Functional Programming Languages”]: https://www.microsoft.com/en-us/research/publication/the-implementation-of-functional-programming-languages/
+    #[allow(clippy::too_many_arguments)] // TODO: Clean this up!
     fn check_match(
         &mut self,
         is_reachable: bool,
@@ -2282,7 +2283,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
     ) -> core::Term<'arena> {
         match equations.split_first() {
             Some(((pattern, output_expr), next_equations)) => {
-                let (def_pattern, def_type_value) = self.check_pattern(pattern, &scrutinee_type);
+                let (def_pattern, def_type_value) = self.check_pattern(pattern, scrutinee_type);
                 let def_type = self.quote_env(self.scope).quote(&def_type_value); // FIXME: avoid requote if possible?
 
                 // Warn about unreachable patterns, only when checking the pattern was a success
@@ -2295,9 +2296,10 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 match def_pattern {
                     CheckedPattern::Name(range, name) => {
                         let def_name = Some(name);
-                        let def_expr = self.eval_env().eval(&scrutinee_expr);
+                        let def_expr = self.eval_env().eval(scrutinee_expr);
+
                         self.rigid_env.push_def(def_name, def_expr, def_type_value);
-                        let output_expr = self.check(output_expr, &expected_type);
+                        let output_expr = self.check(output_expr, expected_type);
                         self.rigid_env.pop();
 
                         // These patterns are unreachable, but check them anyway!
@@ -2320,7 +2322,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                         )
                     }
                     CheckedPattern::Placeholder(_) => {
-                        let output_expr = self.check(output_expr, &expected_type);
+                        let output_expr = self.check(output_expr, expected_type);
 
                         // These patterns are unreachable, but check them anyway!
                         self.check_match(
@@ -2347,7 +2349,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                         while let Some(((pattern, output_expr), next_equations)) =
                             equations.split_first()
                         {
-                            let (def_pattern, _) = self.check_pattern(pattern, &scrutinee_type);
+                            let (def_pattern, _) = self.check_pattern(pattern, scrutinee_type);
                             match def_pattern {
                                 // Accumulate constant pattern
                                 CheckedPattern::Const(_, r#const) => {

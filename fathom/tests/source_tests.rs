@@ -48,7 +48,7 @@ struct Config {
 
 const DEFAULT_IGNORE: fn() -> bool = || false;
 const DEFAULT_EXIT_CODE: fn() -> i32 = || 0;
-const DEFAULT_EXAMPLE_DATA: fn() -> Vec<String> = || Vec::new();
+const DEFAULT_EXAMPLE_DATA: fn() -> Vec<String> = Vec::new;
 const DEFAULT_TEST_NORMALISATION: fn() -> bool = || false;
 
 struct TestFailure {
@@ -280,7 +280,7 @@ fn failures_to_outcome(failures: &[TestFailure]) -> libtest_mimic::Outcome {
             writeln!(msg, "        {}", failure.name).unwrap();
         }
 
-        return libtest_mimic::Outcome::Failed { msg: Some(msg) };
+        libtest_mimic::Outcome::Failed { msg: Some(msg) }
     }
 }
 

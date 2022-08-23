@@ -74,7 +74,7 @@ impl<'arena> Value<'arena> {
 
     pub fn match_prim_spine(&self) -> Option<(Prim, &[Elim<'arena>])> {
         match self {
-            Value::Stuck(Head::Prim(prim), spine) => Some((*prim, &spine)),
+            Value::Stuck(Head::Prim(prim), spine) => Some((*prim, spine)),
             _ => None,
         }
     }
@@ -1156,7 +1156,7 @@ impl<'arena, 'env> ConversionEnv<'arena, 'env> {
             (Value::RecordLit(labels0, exprs0), Value::RecordLit(labels1, exprs1)) => {
                 labels0 == labels1
                     && Iterator::zip(exprs0.iter(), exprs1.iter())
-                        .all(|(expr0, expr1)| self.is_equal(&expr0, &expr1))
+                        .all(|(expr0, expr1)| self.is_equal(expr0, expr1))
             }
             (Value::RecordLit(labels, exprs), _) => {
                 self.is_equal_record_lit(labels, exprs, &value1)
@@ -1167,7 +1167,7 @@ impl<'arena, 'env> ConversionEnv<'arena, 'env> {
 
             (Value::ArrayLit(elem_exprs0), Value::ArrayLit(elem_exprs1)) => {
                 Iterator::zip(elem_exprs0.iter(), elem_exprs1.iter())
-                    .all(|(elem_expr0, elem_expr1)| self.is_equal(&elem_expr0, &elem_expr1))
+                    .all(|(elem_expr0, elem_expr1)| self.is_equal(elem_expr0, elem_expr1))
             }
 
             (Value::FormatRecord(labels0, formats0), Value::FormatRecord(labels1, formats1))

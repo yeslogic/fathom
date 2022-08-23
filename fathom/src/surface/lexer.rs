@@ -115,10 +115,10 @@ impl Error {
     }
 }
 
-pub fn tokens<'source>(
+pub fn tokens(
     file_id: FileId,
-    source: &'source str,
-) -> impl 'source + Iterator<Item = Result<Spanned<Token<'source>, usize>, Error>> {
+    source: &str,
+) -> impl Iterator<Item = Result<Spanned<Token<'_>, usize>, Error>> {
     Token::lexer(source)
         .spanned()
         .map(move |(token, range)| match token {

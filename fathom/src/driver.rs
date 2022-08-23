@@ -97,7 +97,7 @@ impl<'surface, 'core> Driver<'surface, 'core> {
                 .with_notes(vec![
                     match location {
                         Some(location) => format!("panicked at: {}", location),
-                        None => format!("panicked at: unknown location"),
+                        None => "panicked at: unknown location".to_owned(),
                     },
                     format!("please file a bug report at: {}", BUG_REPORT_URL),
                     // TODO: print rust backtrace
@@ -140,7 +140,7 @@ impl<'surface, 'core> Driver<'surface, 'core> {
 
     /// Load a source string into the file database.
     pub fn load_source_string(&mut self, name: String, source: String) -> FileId {
-        self.files.add(name.to_owned(), source)
+        self.files.add(name, source)
     }
 
     /// Load a source file into the file database using a reader.
@@ -272,7 +272,7 @@ impl<'surface, 'core> Driver<'surface, 'core> {
         Status::Ok
     }
 
-    pub fn read_and_emit_format<'data>(
+    pub fn read_and_emit_format(
         &mut self,
         module_file_id: Option<FileId>,
         format_file_id: FileId,
@@ -380,7 +380,7 @@ impl<'surface, 'core> Driver<'surface, 'core> {
                 context.space(),
                 context.sequence(
                     context.text("["),
-                    exprs.iter().map(|expr| context.term(&expr)),
+                    exprs.iter().map(|expr| context.term(expr)),
                     context.text(","),
                     context.text("]"),
                 ),
@@ -455,7 +455,7 @@ impl<'surface, 'core> Driver<'surface, 'core> {
                     )
                     .with_notes(vec![
                         "The predicate on a conditional format did not succeed.".to_string(),
-                        format!("failed value: {}", doc.pretty(self.emit_width).to_string()),
+                        format!("failed value: {}", doc.pretty(self.emit_width)),
                     ])
             }
             ReadError::UnwrappedNone(_) => Diagnostic::error()

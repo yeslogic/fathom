@@ -196,7 +196,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
         value1: &ArcValue<'arena>,
     ) -> Result<(), Error> {
         // Check for pointer equality before trying to force the values
-        if Arc::ptr_eq(&value0, &value1) {
+        if Arc::ptr_eq(value0, value1) {
             return Ok(());
         }
 
@@ -253,7 +253,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
                     return Err(Error::Mismatch);
                 }
                 for (expr0, expr1) in Iterator::zip(exprs0.iter(), exprs1.iter()) {
-                    self.unify(&expr0, &expr1)?;
+                    self.unify(expr0, expr1)?;
                 }
                 Ok(())
             }
@@ -264,7 +264,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
                 for (elem_expr0, elem_expr1) in
                     Iterator::zip(elem_exprs0.iter(), elem_exprs1.iter())
                 {
-                    self.unify(&elem_expr0, &elem_expr1)?;
+                    self.unify(elem_expr0, elem_expr1)?;
                 }
                 Ok(())
             }
