@@ -2028,285 +2028,115 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
         let rhs_type = self.elim_context().force(&rhs_type);
         let operand_types = Option::zip(lhs_type.match_prim_spine(), rhs_type.match_prim_spine());
 
+        #[rustfmt::skip]
         let (fun, output_type) = match (op, operand_types) {
-            (Mul(_), Some(((U8Type, []), (U8Type, [])))) => {
-                (core::Term::Prim(Span::Empty, U8Mul), U8Type)
-            }
-            (Mul(_), Some(((U16Type, []), (U16Type, [])))) => {
-                (core::Term::Prim(Span::Empty, U16Mul), U16Type)
-            }
-            (Mul(_), Some(((U32Type, []), (U32Type, [])))) => {
-                (core::Term::Prim(Span::Empty, U32Mul), U32Type)
-            }
-            (Mul(_), Some(((U64Type, []), (U64Type, [])))) => {
-                (core::Term::Prim(Span::Empty, U64Mul), U64Type)
-            }
+            (Mul(_), Some(((U8Type, []), (U8Type, [])))) => (core::Term::Prim(Span::Empty, U8Mul), U8Type),
+            (Mul(_), Some(((U16Type, []), (U16Type, [])))) => (core::Term::Prim(Span::Empty, U16Mul), U16Type),
+            (Mul(_), Some(((U32Type, []), (U32Type, [])))) => (core::Term::Prim(Span::Empty, U32Mul), U32Type),
+            (Mul(_), Some(((U64Type, []), (U64Type, [])))) => (core::Term::Prim(Span::Empty, U64Mul), U64Type),
 
-            (Mul(_), Some(((S8Type, []), (S8Type, [])))) => {
-                (core::Term::Prim(Span::Empty, S8Mul), S8Type)
-            }
-            (Mul(_), Some(((S16Type, []), (S16Type, [])))) => {
-                (core::Term::Prim(Span::Empty, S16Mul), S16Type)
-            }
-            (Mul(_), Some(((S32Type, []), (S32Type, [])))) => {
-                (core::Term::Prim(Span::Empty, S32Mul), S32Type)
-            }
-            (Mul(_), Some(((S64Type, []), (S64Type, [])))) => {
-                (core::Term::Prim(Span::Empty, S64Mul), S64Type)
-            }
+            (Mul(_), Some(((S8Type, []), (S8Type, [])))) => (core::Term::Prim(Span::Empty, S8Mul), S8Type),
+            (Mul(_), Some(((S16Type, []), (S16Type, [])))) => (core::Term::Prim(Span::Empty, S16Mul), S16Type),
+            (Mul(_), Some(((S32Type, []), (S32Type, [])))) => (core::Term::Prim(Span::Empty, S32Mul), S32Type),
+            (Mul(_), Some(((S64Type, []), (S64Type, [])))) => (core::Term::Prim(Span::Empty, S64Mul), S64Type),
 
-            (Div(_), Some(((U8Type, []), (U8Type, [])))) => {
-                (core::Term::Prim(Span::Empty, U8Div), U8Type)
-            }
-            (Div(_), Some(((U16Type, []), (U16Type, [])))) => {
-                (core::Term::Prim(Span::Empty, U16Div), U16Type)
-            }
-            (Div(_), Some(((U32Type, []), (U32Type, [])))) => {
-                (core::Term::Prim(Span::Empty, U32Div), U32Type)
-            }
-            (Div(_), Some(((U64Type, []), (U64Type, [])))) => {
-                (core::Term::Prim(Span::Empty, U64Div), U64Type)
-            }
+            (Div(_), Some(((U8Type, []), (U8Type, [])))) => (core::Term::Prim(Span::Empty, U8Div), U8Type),
+            (Div(_), Some(((U16Type, []), (U16Type, [])))) => (core::Term::Prim(Span::Empty, U16Div), U16Type),
+            (Div(_), Some(((U32Type, []), (U32Type, [])))) => (core::Term::Prim(Span::Empty, U32Div), U32Type),
+            (Div(_), Some(((U64Type, []), (U64Type, [])))) => (core::Term::Prim(Span::Empty, U64Div), U64Type),
 
-            (Div(_), Some(((S8Type, []), (S8Type, [])))) => {
-                (core::Term::Prim(Span::Empty, S8Div), S8Type)
-            }
-            (Div(_), Some(((S16Type, []), (S16Type, [])))) => {
-                (core::Term::Prim(Span::Empty, S16Div), S16Type)
-            }
-            (Div(_), Some(((S32Type, []), (S32Type, [])))) => {
-                (core::Term::Prim(Span::Empty, S32Div), S32Type)
-            }
-            (Div(_), Some(((S64Type, []), (S64Type, [])))) => {
-                (core::Term::Prim(Span::Empty, S64Div), S64Type)
-            }
+            (Div(_), Some(((S8Type, []), (S8Type, [])))) => (core::Term::Prim(Span::Empty, S8Div), S8Type),
+            (Div(_), Some(((S16Type, []), (S16Type, [])))) => (core::Term::Prim(Span::Empty, S16Div), S16Type),
+            (Div(_), Some(((S32Type, []), (S32Type, [])))) => (core::Term::Prim(Span::Empty, S32Div), S32Type),
+            (Div(_), Some(((S64Type, []), (S64Type, [])))) => (core::Term::Prim(Span::Empty, S64Div), S64Type),
 
-            (Add(_), Some(((U8Type, []), (U8Type, [])))) => {
-                (core::Term::Prim(Span::Empty, U8Add), U8Type)
-            }
-            (Add(_), Some(((U16Type, []), (U16Type, [])))) => {
-                (core::Term::Prim(Span::Empty, U16Add), U16Type)
-            }
-            (Add(_), Some(((U32Type, []), (U32Type, [])))) => {
-                (core::Term::Prim(Span::Empty, U32Add), U32Type)
-            }
-            (Add(_), Some(((U64Type, []), (U64Type, [])))) => {
-                (core::Term::Prim(Span::Empty, U64Add), U64Type)
-            }
+            (Add(_), Some(((U8Type, []), (U8Type, [])))) => (core::Term::Prim(Span::Empty, U8Add), U8Type),
+            (Add(_), Some(((U16Type, []), (U16Type, [])))) => (core::Term::Prim(Span::Empty, U16Add), U16Type),
+            (Add(_), Some(((U32Type, []), (U32Type, [])))) => (core::Term::Prim(Span::Empty, U32Add), U32Type),
+            (Add(_), Some(((U64Type, []), (U64Type, [])))) => (core::Term::Prim(Span::Empty, U64Add), U64Type),
 
-            (Add(_), Some(((S8Type, []), (S8Type, [])))) => {
-                (core::Term::Prim(Span::Empty, S8Add), S8Type)
-            }
-            (Add(_), Some(((S16Type, []), (S16Type, [])))) => {
-                (core::Term::Prim(Span::Empty, S16Add), S16Type)
-            }
-            (Add(_), Some(((S32Type, []), (S32Type, [])))) => {
-                (core::Term::Prim(Span::Empty, S32Add), S32Type)
-            }
-            (Add(_), Some(((S64Type, []), (S64Type, [])))) => {
-                (core::Term::Prim(Span::Empty, S64Add), S64Type)
-            }
+            (Add(_), Some(((S8Type, []), (S8Type, [])))) => (core::Term::Prim(Span::Empty, S8Add), S8Type),
+            (Add(_), Some(((S16Type, []), (S16Type, [])))) => (core::Term::Prim(Span::Empty, S16Add), S16Type),
+            (Add(_), Some(((S32Type, []), (S32Type, [])))) => (core::Term::Prim(Span::Empty, S32Add), S32Type),
+            (Add(_), Some(((S64Type, []), (S64Type, [])))) => (core::Term::Prim(Span::Empty, S64Add), S64Type),
 
-            (Add(_), Some(((PosType, []), (U8Type, [])))) => {
-                (core::Term::Prim(Span::Empty, PosAddU8), PosType)
-            }
-            (Add(_), Some(((PosType, []), (U16Type, [])))) => {
-                (core::Term::Prim(Span::Empty, PosAddU16), PosType)
-            }
-            (Add(_), Some(((PosType, []), (U32Type, [])))) => {
-                (core::Term::Prim(Span::Empty, PosAddU32), PosType)
-            }
-            (Add(_), Some(((PosType, []), (U64Type, [])))) => {
-                (core::Term::Prim(Span::Empty, PosAddU64), PosType)
-            }
+            (Add(_), Some(((PosType, []), (U8Type, [])))) => (core::Term::Prim(Span::Empty, PosAddU8), PosType),
+            (Add(_), Some(((PosType, []), (U16Type, [])))) => (core::Term::Prim(Span::Empty, PosAddU16), PosType),
+            (Add(_), Some(((PosType, []), (U32Type, [])))) => (core::Term::Prim(Span::Empty, PosAddU32), PosType),
+            (Add(_), Some(((PosType, []), (U64Type, [])))) => (core::Term::Prim(Span::Empty, PosAddU64), PosType),
 
-            (Sub(_), Some(((U8Type, []), (U8Type, [])))) => {
-                (core::Term::Prim(Span::Empty, U8Sub), U8Type)
-            }
-            (Sub(_), Some(((U16Type, []), (U16Type, [])))) => {
-                (core::Term::Prim(Span::Empty, U16Sub), U16Type)
-            }
-            (Sub(_), Some(((U32Type, []), (U32Type, [])))) => {
-                (core::Term::Prim(Span::Empty, U32Sub), U32Type)
-            }
-            (Sub(_), Some(((U64Type, []), (U64Type, [])))) => {
-                (core::Term::Prim(Span::Empty, U64Sub), U64Type)
-            }
+            (Sub(_), Some(((U8Type, []), (U8Type, [])))) => (core::Term::Prim(Span::Empty, U8Sub), U8Type),
+            (Sub(_), Some(((U16Type, []), (U16Type, [])))) => (core::Term::Prim(Span::Empty, U16Sub), U16Type),
+            (Sub(_), Some(((U32Type, []), (U32Type, [])))) => (core::Term::Prim(Span::Empty, U32Sub), U32Type),
+            (Sub(_), Some(((U64Type, []), (U64Type, [])))) => (core::Term::Prim(Span::Empty, U64Sub), U64Type),
 
-            (Sub(_), Some(((S8Type, []), (S8Type, [])))) => {
-                (core::Term::Prim(Span::Empty, S8Sub), S8Type)
-            }
-            (Sub(_), Some(((S16Type, []), (S16Type, [])))) => {
-                (core::Term::Prim(Span::Empty, S16Sub), S16Type)
-            }
-            (Sub(_), Some(((S32Type, []), (S32Type, [])))) => {
-                (core::Term::Prim(Span::Empty, S32Sub), S32Type)
-            }
-            (Sub(_), Some(((S64Type, []), (S64Type, [])))) => {
-                (core::Term::Prim(Span::Empty, S64Sub), S64Type)
-            }
+            (Sub(_), Some(((S8Type, []), (S8Type, [])))) => (core::Term::Prim(Span::Empty, S8Sub), S8Type),
+            (Sub(_), Some(((S16Type, []), (S16Type, [])))) => (core::Term::Prim(Span::Empty, S16Sub), S16Type),
+            (Sub(_), Some(((S32Type, []), (S32Type, [])))) => (core::Term::Prim(Span::Empty, S32Sub), S32Type),
+            (Sub(_), Some(((S64Type, []), (S64Type, [])))) => (core::Term::Prim(Span::Empty, S64Sub), S64Type),
 
-            (Eq(_), Some(((BoolType, []), (BoolType, [])))) => {
-                (core::Term::Prim(Span::Empty, U8Eq), BoolType)
-            }
-            (Eq(_), Some(((U8Type, []), (U8Type, [])))) => {
-                (core::Term::Prim(Span::Empty, U8Eq), BoolType)
-            }
-            (Eq(_), Some(((U16Type, []), (U16Type, [])))) => {
-                (core::Term::Prim(Span::Empty, U16Eq), BoolType)
-            }
-            (Eq(_), Some(((U32Type, []), (U32Type, [])))) => {
-                (core::Term::Prim(Span::Empty, U32Eq), BoolType)
-            }
-            (Eq(_), Some(((U64Type, []), (U64Type, [])))) => {
-                (core::Term::Prim(Span::Empty, U64Eq), BoolType)
-            }
+            (Eq(_), Some(((BoolType, []), (BoolType, [])))) => (core::Term::Prim(Span::Empty, U8Eq), BoolType),
+            (Eq(_), Some(((U8Type, []), (U8Type, [])))) => (core::Term::Prim(Span::Empty, U8Eq), BoolType),
+            (Eq(_), Some(((U16Type, []), (U16Type, [])))) => (core::Term::Prim(Span::Empty, U16Eq), BoolType),
+            (Eq(_), Some(((U32Type, []), (U32Type, [])))) => (core::Term::Prim(Span::Empty, U32Eq), BoolType),
+            (Eq(_), Some(((U64Type, []), (U64Type, [])))) => (core::Term::Prim(Span::Empty, U64Eq), BoolType),
 
-            (Eq(_), Some(((S8Type, []), (S8Type, [])))) => {
-                (core::Term::Prim(Span::Empty, S8Eq), BoolType)
-            }
-            (Eq(_), Some(((S16Type, []), (S16Type, [])))) => {
-                (core::Term::Prim(Span::Empty, S16Eq), BoolType)
-            }
-            (Eq(_), Some(((S32Type, []), (S32Type, [])))) => {
-                (core::Term::Prim(Span::Empty, S32Eq), BoolType)
-            }
-            (Eq(_), Some(((S64Type, []), (S64Type, [])))) => {
-                (core::Term::Prim(Span::Empty, S64Eq), BoolType)
-            }
+            (Eq(_), Some(((S8Type, []), (S8Type, [])))) => (core::Term::Prim(Span::Empty, S8Eq), BoolType),
+            (Eq(_), Some(((S16Type, []), (S16Type, [])))) => (core::Term::Prim(Span::Empty, S16Eq), BoolType),
+            (Eq(_), Some(((S32Type, []), (S32Type, [])))) => (core::Term::Prim(Span::Empty, S32Eq), BoolType),
+            (Eq(_), Some(((S64Type, []), (S64Type, [])))) => (core::Term::Prim(Span::Empty, S64Eq), BoolType),
 
-            (Neq(_), Some(((BoolType, []), (BoolType, [])))) => {
-                (core::Term::Prim(Span::Empty, U8Neq), BoolType)
-            }
-            (Neq(_), Some(((U8Type, []), (U8Type, [])))) => {
-                (core::Term::Prim(Span::Empty, U8Neq), BoolType)
-            }
-            (Neq(_), Some(((U16Type, []), (U16Type, [])))) => {
-                (core::Term::Prim(Span::Empty, U16Neq), BoolType)
-            }
-            (Neq(_), Some(((U32Type, []), (U32Type, [])))) => {
-                (core::Term::Prim(Span::Empty, U32Neq), BoolType)
-            }
-            (Neq(_), Some(((U64Type, []), (U64Type, [])))) => {
-                (core::Term::Prim(Span::Empty, U64Neq), BoolType)
-            }
+            (Neq(_), Some(((BoolType, []), (BoolType, [])))) => (core::Term::Prim(Span::Empty, U8Neq), BoolType),
+            (Neq(_), Some(((U8Type, []), (U8Type, [])))) => (core::Term::Prim(Span::Empty, U8Neq), BoolType),
+            (Neq(_), Some(((U16Type, []), (U16Type, [])))) => (core::Term::Prim(Span::Empty, U16Neq), BoolType),
+            (Neq(_), Some(((U32Type, []), (U32Type, [])))) => (core::Term::Prim(Span::Empty, U32Neq), BoolType),
+            (Neq(_), Some(((U64Type, []), (U64Type, [])))) => (core::Term::Prim(Span::Empty, U64Neq), BoolType),
 
-            (Neq(_), Some(((S8Type, []), (S8Type, [])))) => {
-                (core::Term::Prim(Span::Empty, S8Neq), BoolType)
-            }
-            (Neq(_), Some(((S16Type, []), (S16Type, [])))) => {
-                (core::Term::Prim(Span::Empty, S16Neq), BoolType)
-            }
-            (Neq(_), Some(((S32Type, []), (S32Type, [])))) => {
-                (core::Term::Prim(Span::Empty, S32Neq), BoolType)
-            }
-            (Neq(_), Some(((S64Type, []), (S64Type, [])))) => {
-                (core::Term::Prim(Span::Empty, S64Neq), BoolType)
-            }
+            (Neq(_), Some(((S8Type, []), (S8Type, [])))) => (core::Term::Prim(Span::Empty, S8Neq), BoolType),
+            (Neq(_), Some(((S16Type, []), (S16Type, [])))) => (core::Term::Prim(Span::Empty, S16Neq), BoolType),
+            (Neq(_), Some(((S32Type, []), (S32Type, [])))) => (core::Term::Prim(Span::Empty, S32Neq), BoolType),
+            (Neq(_), Some(((S64Type, []), (S64Type, [])))) => (core::Term::Prim(Span::Empty, S64Neq), BoolType),
 
-            (Lt(_), Some(((U8Type, []), (U8Type, [])))) => {
-                (core::Term::Prim(Span::Empty, U8Lt), BoolType)
-            }
-            (Lt(_), Some(((U16Type, []), (U16Type, [])))) => {
-                (core::Term::Prim(Span::Empty, U16Lt), BoolType)
-            }
-            (Lt(_), Some(((U32Type, []), (U32Type, [])))) => {
-                (core::Term::Prim(Span::Empty, U32Lt), BoolType)
-            }
-            (Lt(_), Some(((U64Type, []), (U64Type, [])))) => {
-                (core::Term::Prim(Span::Empty, U64Lt), BoolType)
-            }
+            (Lt(_), Some(((U8Type, []), (U8Type, [])))) => (core::Term::Prim(Span::Empty, U8Lt), BoolType),
+            (Lt(_), Some(((U16Type, []), (U16Type, [])))) => (core::Term::Prim(Span::Empty, U16Lt), BoolType),
+            (Lt(_), Some(((U32Type, []), (U32Type, [])))) => (core::Term::Prim(Span::Empty, U32Lt), BoolType),
+            (Lt(_), Some(((U64Type, []), (U64Type, [])))) => (core::Term::Prim(Span::Empty, U64Lt), BoolType),
 
-            (Lt(_), Some(((S8Type, []), (S8Type, [])))) => {
-                (core::Term::Prim(Span::Empty, S8Lt), BoolType)
-            }
-            (Lt(_), Some(((S16Type, []), (S16Type, [])))) => {
-                (core::Term::Prim(Span::Empty, S16Lt), BoolType)
-            }
-            (Lt(_), Some(((S32Type, []), (S32Type, [])))) => {
-                (core::Term::Prim(Span::Empty, S32Lt), BoolType)
-            }
-            (Lt(_), Some(((S64Type, []), (S64Type, [])))) => {
-                (core::Term::Prim(Span::Empty, S64Lt), BoolType)
-            }
+            (Lt(_), Some(((S8Type, []), (S8Type, [])))) => (core::Term::Prim(Span::Empty, S8Lt), BoolType),
+            (Lt(_), Some(((S16Type, []), (S16Type, [])))) => (core::Term::Prim(Span::Empty, S16Lt), BoolType),
+            (Lt(_), Some(((S32Type, []), (S32Type, [])))) => (core::Term::Prim(Span::Empty, S32Lt), BoolType),
+            (Lt(_), Some(((S64Type, []), (S64Type, [])))) => (core::Term::Prim(Span::Empty, S64Lt), BoolType),
 
-            (Lte(_), Some(((U8Type, []), (U8Type, [])))) => {
-                (core::Term::Prim(Span::Empty, U8Lte), BoolType)
-            }
-            (Lte(_), Some(((U16Type, []), (U16Type, [])))) => {
-                (core::Term::Prim(Span::Empty, U16Lte), BoolType)
-            }
-            (Lte(_), Some(((U32Type, []), (U32Type, [])))) => {
-                (core::Term::Prim(Span::Empty, U32Lte), BoolType)
-            }
-            (Lte(_), Some(((U64Type, []), (U64Type, [])))) => {
-                (core::Term::Prim(Span::Empty, U64Lte), BoolType)
-            }
+            (Lte(_), Some(((U8Type, []), (U8Type, [])))) => (core::Term::Prim(Span::Empty, U8Lte), BoolType),
+            (Lte(_), Some(((U16Type, []), (U16Type, [])))) => (core::Term::Prim(Span::Empty, U16Lte), BoolType),
+            (Lte(_), Some(((U32Type, []), (U32Type, [])))) => (core::Term::Prim(Span::Empty, U32Lte), BoolType),
+            (Lte(_), Some(((U64Type, []), (U64Type, [])))) => (core::Term::Prim(Span::Empty, U64Lte), BoolType),
 
-            (Lte(_), Some(((S8Type, []), (S8Type, [])))) => {
-                (core::Term::Prim(Span::Empty, S8Lte), BoolType)
-            }
-            (Lte(_), Some(((S16Type, []), (S16Type, [])))) => {
-                (core::Term::Prim(Span::Empty, S16Lte), BoolType)
-            }
-            (Lte(_), Some(((S32Type, []), (S32Type, [])))) => {
-                (core::Term::Prim(Span::Empty, S32Lte), BoolType)
-            }
-            (Lte(_), Some(((S64Type, []), (S64Type, [])))) => {
-                (core::Term::Prim(Span::Empty, S64Lte), BoolType)
-            }
+            (Lte(_), Some(((S8Type, []), (S8Type, [])))) => (core::Term::Prim(Span::Empty, S8Lte), BoolType),
+            (Lte(_), Some(((S16Type, []), (S16Type, [])))) => (core::Term::Prim(Span::Empty, S16Lte), BoolType),
+            (Lte(_), Some(((S32Type, []), (S32Type, [])))) => (core::Term::Prim(Span::Empty, S32Lte), BoolType),
+            (Lte(_), Some(((S64Type, []), (S64Type, [])))) => (core::Term::Prim(Span::Empty, S64Lte), BoolType),
 
-            (Gt(_), Some(((U8Type, []), (U8Type, [])))) => {
-                (core::Term::Prim(Span::Empty, U8Gt), BoolType)
-            }
-            (Gt(_), Some(((U16Type, []), (U16Type, [])))) => {
-                (core::Term::Prim(Span::Empty, U16Gt), BoolType)
-            }
-            (Gt(_), Some(((U32Type, []), (U32Type, [])))) => {
-                (core::Term::Prim(Span::Empty, U32Gt), BoolType)
-            }
-            (Gt(_), Some(((U64Type, []), (U64Type, [])))) => {
-                (core::Term::Prim(Span::Empty, U64Gt), BoolType)
-            }
+            (Gt(_), Some(((U8Type, []), (U8Type, [])))) => (core::Term::Prim(Span::Empty, U8Gt), BoolType),
+            (Gt(_), Some(((U16Type, []), (U16Type, [])))) => (core::Term::Prim(Span::Empty, U16Gt), BoolType),
+            (Gt(_), Some(((U32Type, []), (U32Type, [])))) => (core::Term::Prim(Span::Empty, U32Gt), BoolType),
+            (Gt(_), Some(((U64Type, []), (U64Type, [])))) => (core::Term::Prim(Span::Empty, U64Gt), BoolType),
 
-            (Gt(_), Some(((S8Type, []), (S8Type, [])))) => {
-                (core::Term::Prim(Span::Empty, S8Gt), BoolType)
-            }
-            (Gt(_), Some(((S16Type, []), (S16Type, [])))) => {
-                (core::Term::Prim(Span::Empty, S16Gt), BoolType)
-            }
-            (Gt(_), Some(((S32Type, []), (S32Type, [])))) => {
-                (core::Term::Prim(Span::Empty, S32Gt), BoolType)
-            }
-            (Gt(_), Some(((S64Type, []), (S64Type, [])))) => {
-                (core::Term::Prim(Span::Empty, S64Gt), BoolType)
-            }
+            (Gt(_), Some(((S8Type, []), (S8Type, [])))) => (core::Term::Prim(Span::Empty, S8Gt), BoolType),
+            (Gt(_), Some(((S16Type, []), (S16Type, [])))) => (core::Term::Prim(Span::Empty, S16Gt), BoolType),
+            (Gt(_), Some(((S32Type, []), (S32Type, [])))) => (core::Term::Prim(Span::Empty, S32Gt), BoolType),
+            (Gt(_), Some(((S64Type, []), (S64Type, [])))) => (core::Term::Prim(Span::Empty, S64Gt), BoolType),
 
-            (Gte(_), Some(((U8Type, []), (U8Type, [])))) => {
-                (core::Term::Prim(Span::Empty, U8Gte), BoolType)
-            }
-            (Gte(_), Some(((U16Type, []), (U16Type, [])))) => {
-                (core::Term::Prim(Span::Empty, U16Gte), BoolType)
-            }
-            (Gte(_), Some(((U32Type, []), (U32Type, [])))) => {
-                (core::Term::Prim(Span::Empty, U32Gte), BoolType)
-            }
-            (Gte(_), Some(((U64Type, []), (U64Type, [])))) => {
-                (core::Term::Prim(Span::Empty, U64Gte), BoolType)
-            }
+            (Gte(_), Some(((U8Type, []), (U8Type, [])))) => (core::Term::Prim(Span::Empty, U8Gte), BoolType),
+            (Gte(_), Some(((U16Type, []), (U16Type, [])))) => (core::Term::Prim(Span::Empty, U16Gte), BoolType),
+            (Gte(_), Some(((U32Type, []), (U32Type, [])))) => (core::Term::Prim(Span::Empty, U32Gte), BoolType),
+            (Gte(_), Some(((U64Type, []), (U64Type, [])))) => (core::Term::Prim(Span::Empty, U64Gte), BoolType),
 
-            (Gte(_), Some(((S8Type, []), (S8Type, [])))) => {
-                (core::Term::Prim(Span::Empty, S8Gte), BoolType)
-            }
-            (Gte(_), Some(((S16Type, []), (S16Type, [])))) => {
-                (core::Term::Prim(Span::Empty, S16Gte), BoolType)
-            }
-            (Gte(_), Some(((S32Type, []), (S32Type, [])))) => {
-                (core::Term::Prim(Span::Empty, S32Gte), BoolType)
-            }
-            (Gte(_), Some(((S64Type, []), (S64Type, [])))) => {
-                (core::Term::Prim(Span::Empty, S64Gte), BoolType)
-            }
+            (Gte(_), Some(((S8Type, []), (S8Type, [])))) => (core::Term::Prim(Span::Empty, S8Gte), BoolType),
+            (Gte(_), Some(((S16Type, []), (S16Type, [])))) => (core::Term::Prim(Span::Empty, S16Gte), BoolType),
+            (Gte(_), Some(((S32Type, []), (S32Type, [])))) => (core::Term::Prim(Span::Empty, S32Gte), BoolType),
+            (Gte(_), Some(((S64Type, []), (S64Type, [])))) => (core::Term::Prim(Span::Empty, S64Gte), BoolType),
+
             _ => {
                 let lhs_pretty = self.pretty_print_value(&lhs_type);
                 let rhs_pretty = self.pretty_print_value(&rhs_type);
