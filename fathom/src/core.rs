@@ -215,6 +215,46 @@ impl<'arena> Term<'arena> {
             | Term::ConstMatch(span, _, _, _) => *span,
         }
     }
+
+    pub fn contains_free(&self, mut var: LocalVar) -> bool {
+        match self {
+            Term::RigidVar(_, v) => *v == var,
+            Term::ItemVar(_, _)
+            | Term::FlexibleVar(_, _)
+            | Term::FlexibleInsertion(_, _, _)
+            | Term::Universe(_)
+            | Term::Prim(_, _)
+            | Term::ConstLit(_, _) => false,
+
+            Term::Ann(_, term, r#type) => term.contains_free(var) || r#type.contains_free(var),
+            Term::Let(_, _, r#type, def, body) => {
+                r#type.contains_free(var)
+                    || def.contains_free(var)
+                    || body.contains_free(var.prev())
+            }
+            Term::FunType(_, _, input_type, output_type) => {
+                input_type.contains_free(var) || output_type.contains_free(var.prev())
+            }
+            Term::FunLit(_, _, body) => body.contains_free(var.prev()),
+            Term::FunApp(_, head, arg) => head.contains_free(var) || arg.contains_free(var),
+            Term::RecordType(_, _, terms)
+            | Term::RecordLit(_, _, terms)
+            | Term::FormatRecord(_, _, terms)
+            | Term::FormatOverlap(_, _, terms) => terms.iter().any(|term| {
+                let result = term.contains_free(var);
+                var = var.prev();
+                result
+            }),
+            Term::RecordProj(_, term, _) => term.contains_free(var),
+            Term::ArrayLit(_, terms) => terms.iter().any(|term| term.contains_free(var)),
+            Term::FormatCond(_, _, t1, t2) => t1.contains_free(var) || t2.contains_free(var.prev()),
+            Term::ConstMatch(_, scrut, branches, default) => {
+                scrut.contains_free(var)
+                    || branches.iter().any(|(_, term)| term.contains_free(var))
+                    || default.map_or(false, |term| term.contains_free(var.prev()))
+            }
+        }
+    }
 }
 
 macro_rules! def_prims {
@@ -621,47 +661,5 @@ mod tests {
     fn no_drop() {
         assert!(!std::mem::needs_drop::<Term<'_>>());
         assert!(!std::mem::needs_drop::<Term<'_>>());
-    }
-}
-
-impl<'arena> Term<'arena> {
-    pub fn contains_free(&self, mut var: LocalVar) -> bool {
-        match self {
-            Term::RigidVar(_, v) => *v == var,
-            Term::ItemVar(_, _)
-            | Term::FlexibleVar(_, _)
-            | Term::FlexibleInsertion(_, _, _)
-            | Term::Universe(_)
-            | Term::Prim(_, _)
-            | Term::ConstLit(_, _) => false,
-
-            Term::Ann(_, term, r#type) => term.contains_free(var) || r#type.contains_free(var),
-            Term::Let(_, _, r#type, def, body) => {
-                r#type.contains_free(var)
-                    || def.contains_free(var)
-                    || body.contains_free(var.prev())
-            }
-            Term::FunType(_, _, input_type, output_type) => {
-                input_type.contains_free(var) || output_type.contains_free(var.prev())
-            }
-            Term::FunLit(_, _, body) => body.contains_free(var.prev()),
-            Term::FunApp(_, head, arg) => head.contains_free(var) || arg.contains_free(var),
-            Term::RecordType(_, _, terms)
-            | Term::RecordLit(_, _, terms)
-            | Term::FormatRecord(_, _, terms)
-            | Term::FormatOverlap(_, _, terms) => terms.iter().any(|term| {
-                let result = term.contains_free(var);
-                var = var.prev();
-                result
-            }),
-            Term::RecordProj(_, term, _) => term.contains_free(var),
-            Term::ArrayLit(_, terms) => terms.iter().any(|term| term.contains_free(var)),
-            Term::FormatCond(_, _, t1, t2) => t1.contains_free(var) || t2.contains_free(var.prev()),
-            Term::ConstMatch(_, scrut, branches, default) => {
-                scrut.contains_free(var)
-                    || branches.iter().any(|(_, term)| term.contains_free(var))
-                    || default.map_or(false, |term| term.contains_free(var.prev()))
-            }
-        }
     }
 }
