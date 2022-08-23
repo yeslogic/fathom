@@ -316,7 +316,7 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
                     head_expr = match info {
                         EntryInfo::Definition => head_expr,
                         EntryInfo::Parameter => {
-                            self.elim_context().fun_app(head_expr, expr.clone())
+                            self.elim_context().fun_app(head_expr, expr.clone()).expect("FIXME")
                         }
                     };
                 }
@@ -351,7 +351,7 @@ impl<'arena, 'env> EvalContext<'arena, 'env> {
             Term::FunApp(span, head_expr, input_expr) => {
                 let head_expr = self.eval(head_expr);
                 let input_expr = self.eval(input_expr);
-                Spanned::merge(*span, self.elim_context().fun_app(head_expr, input_expr))
+                Spanned::merge(*span, self.elim_context().fun_app(head_expr, input_expr).expect("FIXME"))
             }
 
             Term::RecordType(span, labels, types) => {
@@ -409,9 +409,16 @@ type PrimStep = for<'arena> fn(
 ) -> Result<ArcValue<'arena>, PrimStepError>;
 
 // TODO: It's not really an error, it's a result but that word is overloaded too. Make better
+// PrimStepFailed?
 enum PrimStepError {
     Stuck,
     Error(Error),
+}
+
+impl From<Error> for PrimStepError {
+    fn from(error: Error) -> PrimStepError {
+        PrimStepError::Error(error)
+    }
 }
 
 macro_rules! step {
@@ -582,7 +589,7 @@ fn prim_step(prim: Prim) -> Result<PrimStep, PrimStepError> {
         Prim::OptionFold => step!(context, [_, _, on_none, on_some, option] => {
             match option.match_prim_spine().ok_or(PrimStepError::Stuck)? {
                 (Prim::OptionSome, [Elim::FunApp(value)]) => {
-                    context.fun_app(on_some.clone(), value.clone())
+                    context.fun_app(on_some.clone(), value.clone())?
                 },
                 (Prim::OptionNone, []) => on_none.clone(),
                 _ => return Err(PrimStepError::Stuck),
@@ -593,7 +600,7 @@ fn prim_step(prim: Prim) -> Result<PrimStep, PrimStepError> {
             step!(context, [_, _, pred, array] => match array.as_ref() {
                 Value::ArrayLit(elems) => {
                     for elem in elems {
-                        match context.fun_app(pred.clone(), elem.clone()).as_ref() {
+                        match context.fun_app(pred.clone(), elem.clone())?.as_ref() {
                             Value::ConstLit(Const::Bool(true)) => {
                                 // TODO: Is elem.span right here?
                                 return Ok(Spanned::new( elem.span(), Arc::new(Value::prim(Prim::OptionSome, [elem.clone()])) ))
@@ -740,21 +747,21 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
         &self,
         mut head_expr: ArcValue<'arena>,
         input_expr: ArcValue<'arena>,
-    ) -> ArcValue<'arena> {
+    ) -> Result<ArcValue<'arena>, Error> {
         match Arc::make_mut(&mut head_expr) {
             // Beta-reduction
-            Value::FunLit(_, output_expr) => self.apply_closure(output_expr, input_expr), // FIXME: use span from head/input exprs?
+            Value::FunLit(_, output_expr) => Ok(self.apply_closure(output_expr, input_expr)), // FIXME: use span from head/input exprs?
             // The computation is stuck, preventing further reduction
             Value::Stuck(head, spine) => {
                 spine.push(Elim::FunApp(input_expr));
 
                 match head {
                     Head::Prim(prim) => match prim_step(*prim).and_then(|step| step(self, spine)) {
-                        Ok(val) => val,
-                        Err(PrimStepError::Stuck) => head_expr,
-                        Err(PrimStepError::Error(err)) => panic_any(err),
+                        Ok(val) => Ok(val),
+                        Err(PrimStepError::Stuck) => Ok(head_expr),
+                        Err(PrimStepError::Error(err)) => Err(err)
                     },
-                    _ => head_expr,
+                    _ => Ok(head_expr),
                 }
             }
             _ => panic_any(Error::InvalidFunctionApp),
@@ -824,7 +831,7 @@ impl<'arena, 'env> ElimContext<'arena, 'env> {
     /// Apply an expression to an elimination spine.
     fn apply_spine(&self, head_expr: ArcValue<'arena>, spine: &[Elim<'arena>]) -> ArcValue<'arena> {
         spine.iter().fold(head_expr, |head_expr, elim| match elim {
-            Elim::FunApp(input_expr) => self.fun_app(head_expr, input_expr.clone()),
+            Elim::FunApp(input_expr) => self.fun_app(head_expr, input_expr.clone()).expect("FIXME"),
             Elim::RecordProj(label) => self.record_proj(head_expr, *label),
             Elim::ConstMatch(split) => self.const_match(head_expr, split.clone()),
         })
@@ -1374,7 +1381,7 @@ impl<'arena, 'env> ConversionContext<'arena, 'env> {
     /// ```
     fn is_equal_fun_lit(&mut self, output_expr: &Closure<'_>, value: &ArcValue<'_>) -> bool {
         let var = Spanned::empty(Arc::new(Value::rigid_var(self.rigid_exprs.next_global())));
-        let value = self.elim_context().fun_app(value.clone(), var.clone());
+        let value = self.elim_context().fun_app(value.clone(), var.clone()).expect("FIXME");
         let output_expr = self.elim_context().apply_closure(output_expr, var);
 
         self.push_rigid();

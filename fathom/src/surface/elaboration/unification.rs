@@ -388,7 +388,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
         value: &ArcValue<'arena>,
     ) -> Result<(), Error> {
         let var = Spanned::empty(Arc::new(Value::rigid_var(self.rigid_exprs.next_global())));
-        let value = self.elim_context().fun_app(value.clone(), var.clone());
+        let value = self.elim_context().fun_app(value.clone(), var.clone()).expect("FIXME");
         let output_expr = self.elim_context().apply_closure(output_expr, var);
 
         self.rigid_exprs.push();
