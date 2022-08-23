@@ -369,8 +369,11 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 )
             }
             core::Term::Universe(_span) => Term::Universe(()),
+
+            // Use arrow sugar if the the input binding is not referenced in the
+            // output type.
             core::Term::FunType(_span, _, input_type, output_type)
-                if !output_type.contains_free(LocalVar::last()) =>
+                if !output_type.binds_rigid_var(LocalVar::last()) =>
             {
                 let input_type = self.check(input_type);
 
@@ -384,6 +387,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                     self.scope.to_scope(output_type),
                 )
             }
+            // Otherwise distill to a function type with an explicit parameter.
             core::Term::FunType(_span, input_name, input_type, output_type) => {
                 let input_type = self.check(input_type);
 
@@ -398,6 +402,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                     self.scope.to_scope(output_type),
                 )
             }
+
             core::Term::FunLit(_span, input_name, output_expr) => {
                 let input_name = self.push_rigid(*input_name);
                 let output_expr = self.synth(output_expr);
