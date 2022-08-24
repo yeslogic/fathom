@@ -23,11 +23,11 @@ jobs:
         uses: cachix/install-nix-action@v17
 
       - name: cargo check
-        run: nix develop .#${{ matrix.rust-toolchain }} --command cargo check
+        run: nix develop .#rust-${{ matrix.rust-toolchain }} --command cargo check
       - name: cargo build
-        run: nix develop .#${{ matrix.rust-toolchain }} --command cargo build
+        run: nix develop .#rust-${{ matrix.rust-toolchain }} --command cargo build
       - name: cargo test
-        run: nix develop .#${{ matrix.rust-toolchain }} --command cargo test
+        run: nix develop .#rust-${{ matrix.rust-toolchain }} --command cargo test
 
   cargo-fmt:
     runs-on: ubuntu-latest
@@ -42,7 +42,7 @@ jobs:
         uses: cachix/install-nix-action@v17
 
       - name: Run cargo fmt
-        run: nix develop .#${{ matrix.rust-toolchain }} --command cargo fmt
+        run: nix develop .#rust-${{ matrix.rust-toolchain }} --command cargo fmt
 
   cargo-clippy:
     runs-on: ubuntu-latest
@@ -62,7 +62,7 @@ jobs:
         run: rm --recursive --force --verbose ~/.cargo/bin
 
       - name: Run cargo clippy
-        run: nix develop .#${{ matrix.rust-toolchain }} --command cargo clippy -- --deny warnings
+        run: nix develop .#rust-${{ matrix.rust-toolchain }} --command cargo clippy -- --deny warnings
 
   nixpkgs-fmt:
     runs-on: ubuntu-latest
@@ -74,4 +74,4 @@ jobs:
         uses: cachix/install-nix-action@v17
 
       - name: Run nixpkgs-fmt
-        run: nix develop --command nixpkgs-fmt --check .
+        run: nix develop .#nix --command nixpkgs-fmt --check .
