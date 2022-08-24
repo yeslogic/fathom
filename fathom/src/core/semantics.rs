@@ -403,10 +403,10 @@ type PrimStep = for<'arena> fn(&ElimEnv<'arena, '_>, &[Elim<'arena>]) -> Option<
 
 macro_rules! step {
     ($env:pat, [$($input:pat),*] => $output:expr) => {
-        Some(|$env, spine| match spine {
+        |$env, spine| match spine {
             [$(Elim::FunApp($input)),*] => Some($output),
             _ => return None,
-        })
+        }
     };
 }
 
@@ -428,7 +428,7 @@ macro_rules! const_step {
 
 /// Returns an evaluation step for a primitive, if there is one defined.
 #[rustfmt::skip]
-fn prim_step(prim: Prim) -> Option<PrimStep> {
+fn prim_step(prim: Prim) -> PrimStep {
     use std::ops::{BitAnd, BitOr, BitXor, Not};
     use std::convert::TryFrom;
 
@@ -614,7 +614,7 @@ fn prim_step(prim: Prim) -> Option<PrimStep> {
         Prim::PosAddU32 => const_step!([x: Pos, y: U32] => Const::Pos(usize::checked_add(*x, usize::try_from(*y).ok()?)?)),
         Prim::PosAddU64 => const_step!([x: Pos, y: U64] => Const::Pos(usize::checked_add(*x, usize::try_from(*y).ok()?)?)),
 
-        _ => None,
+        _ => |_, _| None,
     }
 }
 
@@ -734,9 +734,7 @@ impl<'arena, 'env> ElimEnv<'arena, 'env> {
                 spine.push(Elim::FunApp(input_expr));
 
                 match head {
-                    Head::Prim(prim) => prim_step(*prim)
-                        .and_then(|step| step(self, spine))
-                        .unwrap_or(head_expr),
+                    Head::Prim(prim) => prim_step(*prim)(self, spine).unwrap_or(head_expr),
                     _ => head_expr,
                 }
             }
