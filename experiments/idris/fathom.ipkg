@@ -15,8 +15,9 @@ package fathom
 -- modules to install
 modules = Fathom
         , Fathom.Base
-        , Fathom.Closed.InductiveRecursive
         , Fathom.Closed.IndexedInductive
+        , Fathom.Closed.InductiveRecursive
+        , Fathom.Closed.InductiveRecursiveCustom
         , Fathom.Open.Record
 
 -- main file (i.e. file to load at REPL)
