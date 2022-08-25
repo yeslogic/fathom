@@ -110,6 +110,13 @@
                 nixpkgs.legacyPackages.x86_64-darwin.idris2
               else
                 pkgs.idris2)
+              # Keyboard input is currently broken on the version of Idris 2
+              # on nixPkgs (v0.5.1). To work around this, run Idris shells with:
+              #
+              #     $ rlwrap [options] idris2 ...
+              #
+              # See: https://github.com/idris-lang/Idris2/issues/54
+              pkgs.rlwrap
             ];
           };
 
