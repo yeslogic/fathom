@@ -1,4 +1,4 @@
-||| Experimenting with an approach to extending inductive-recusive format
+||| Experimenting with an approach to extending inductive-recursive format
 ||| descriptions with custom formats.
 
 module Fathom.Closed.InductiveRecursiveCustom
@@ -18,7 +18,7 @@ import Fathom.Base
 ||| A custom format description.
 |||
 ||| We’d prefer to just import `Fathom.Open.Record`, but Idris’ imports are a
-||| bit tempramental and result in ambiguities when importing modules that
+||| bit temperamental and result in ambiguities when importing modules that
 ||| contain types of the same name as those defined in the current module.
 public export
 record CustomFormat where

@@ -13,7 +13,7 @@ import Fathom.Open.Record as Record
 -- Experiment with converting between the different styles of format universes
 
 
-||| Convert an inductive-recusive format universe into a record format
+||| Convert an inductive-recursive format universe into a record format
 public export
 format : IndRec.Format -> Record.Format
 format f = Record.MkFormat
@@ -23,7 +23,7 @@ format f = Record.MkFormat
   }
 
 
-||| Conver an indexed-inductive format universe into a record format
+||| Convert an indexed-inductive format universe into a record format
 public export
 formatOf : {Rep : Type} -> Indexed.FormatOf Rep -> Record.Format
 formatOf f = Record.MkFormat

@@ -1,11 +1,11 @@
 ||| Open format universe
 |||
 ||| This module defines an open universe of binary format descriptions using
-||| records to define an inderface. By defining formats in this way, the
+||| records to define an interface. By defining formats in this way, the
 ||| universe of formats is open to extension.
 |||
-||| I’m not sure, but this reminds me a little of the ‘coinductive universes’
-||| that [some type theorists were proposing for HoTT](https://www.cmu.edu/dietrich/philosophy/hott/slides/shulman-2022-05-12.pdf#page=79),
+||| I’m not sure, but this reminds me a little of the ‘coinductively defined
+||| universes’ that [some type theorists were proposing](https://www.cmu.edu/dietrich/philosophy/hott/slides/shulman-2022-05-12.pdf#page=79),
 ||| but I may be mistaken.
 
 module Fathom.Open.Record

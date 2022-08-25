@@ -2,7 +2,7 @@
 ||| the descriptions and their in-memory representation. This closely matches
 ||| the current implementation of format descriptions in Fathom.
 |||
-||| [Induction recusion](https://en.wikipedia.org/wiki/Induction-recursion) is
+||| [Induction recursion](https://en.wikipedia.org/wiki/Induction-recursion) is
 ||| where an inductive datatype is defined simultaneously with a function that
 ||| operates on that type (see the @Format and @Rep definitions below).
 |||
@@ -10,7 +10,7 @@
 ||| added to the type theory, although they can be composed out of other formats)
 |||
 ||| This is similar to the approach used when defining type theories with
-||| Tarski-style universes. In-fact inductive-recusrive datatypes as a language
+||| Tarski-style universes. In-fact inductive-recursive datatypes as a language
 ||| feature were apparently originally motivated by this use case (see: [“A
 ||| General Formulation of Simultaneous Inductive-Recursive Definitions in Type
 ||| Theory”](https://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.6.4575) by
