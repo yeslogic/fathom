@@ -19,12 +19,12 @@ record Refine (0 A : Type) (0 P : A -> Type) where
   ||| The wrapped value
   value : A
   ||| The proof of the proposition
-  0 prf : P value
+  {auto 0 prf : P value}
 
 ||| Refine a value with a proposition
 public export
 refine : {0 A : Type} -> {0 P : A -> Type} -> (value : A) -> {auto 0 prf : P value} -> Refine A P
-refine value {prf} = MkRefine { value, prf }
+refine value = MkRefine { value }
 
 
 ||| Singleton types
@@ -32,8 +32,16 @@ refine value {prf} = MkRefine { value, prf }
 ||| Inspired by [this type](https://agda.readthedocs.io/en/v2.5.4.1/language/with-abstraction.html#the-inspect-idiom)
 ||| from the Agda docs.
 public export
-data Sing : {0 A : Type} -> (x : A) -> Type where
-  MkSing : {0 A : Type} -> {0 x : A} -> (0 y : A) -> {auto 0 prf : x = y} -> Sing x
+record Sing {0 A : Type} (x : A) where
+  constructor MkSing
+  0 value : A
+  {auto 0 prf : x = value}
+
+
+||| Convert a singleton back to its underlying value
+public export
+sing : {0 A : Type} -> {0 x : A} -> (0 value : A) -> {auto 0 prf : x = value} -> Sing x
+sing value = MkSing { value }
 
 ||| Convert a singleton back to its underlying value
 public export

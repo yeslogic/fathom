@@ -87,7 +87,7 @@ decode End [] = Just ((), [])
 decode End (_::_) = Nothing
 decode Fail _ = Nothing
 decode (Pure x) buffer =
-  Just (MkSing x, buffer)
+  Just (sing x, buffer)
 decode (Skip f _) buffer = do
   (x, buffer') <- decode f buffer
   Just ((), buffer')
@@ -173,7 +173,7 @@ orPure' False _ def = refine (Pure def)
 
 foo : (cond : Bool) -> (f : Format) -> Rep f -> Format
 foo cond f def = case orPure cond (toFormatOf f) def of
-  MkRefine f' prf =>
+  MkRefine f' {prf} =>
     Bind f' (\x => case cond of
       True => ?todo1
       False => ?todo2)
