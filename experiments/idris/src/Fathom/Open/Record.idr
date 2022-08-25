@@ -15,6 +15,7 @@ import Data.Colist
 import Data.Vect
 
 import Fathom.Base
+import Fathom.Data.Sing
 
 
 public export
@@ -57,7 +58,7 @@ pure x = MkFormat { Rep, decode, encode } where
   Rep = Sing x
 
   decode : Decode Rep BitStream
-  decode buffer = Just (sing x, buffer)
+  decode buffer = Just (MkSing x, buffer)
 
   encode : Encode Rep BitStream
   encode (MkSing _) buffer = Just buffer

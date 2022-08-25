@@ -8,6 +8,7 @@ import Data.Colist
 import Data.Vect
 
 import Fathom.Base
+import Fathom.Data.Sing
 
 
 -------------------------
@@ -37,7 +38,7 @@ decode End [] = Just ((), [])
 decode End (_::_) = Nothing
 decode Fail _ = Nothing
 decode (Pure x) buffer =
-  Just (sing x, buffer)
+  Just (MkSing x, buffer)
 decode (Skip f _) buffer = do
   (x, buffer') <- decode f buffer
   Just ((), buffer')

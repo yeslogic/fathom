@@ -8,6 +8,8 @@ import Data.Colist
 import Data.Vect
 
 import Fathom.Base
+import Fathom.Data.Sing
+import Fathom.Data.Refine
 
 
 -------------------------
@@ -64,7 +66,7 @@ decode End [] = Just ((), [])
 decode End (_::_) = Nothing
 decode Fail _ = Nothing
 decode (Pure x) buffer =
-  Just (sing x, buffer)
+  Just (MkSing x, buffer)
 decode (Skip f _) buffer = do
   (x, buffer') <- decode f buffer
   Just ((), buffer')
@@ -127,25 +129,25 @@ FormatOf rep = Refine Format (\f => Rep f = rep)
 
 
 toFormatOf : (f : Format) -> FormatOf (Rep f)
-toFormatOf f = refine f
+toFormatOf f = MkRefine f
 
 
 export
 either : (cond : Bool) -> (f1 : Format) -> (f2 : Format) -> FormatOf (if cond then Rep f1 else Rep f2)
-either True f1 _ = refine f1
-either False _ f2 = refine f2
+either True f1 _ = MkRefine f1
+either False _ f2 = MkRefine f2
 
 
 export
 orPure : (cond : Bool) -> FormatOf a -> (def : a) -> FormatOf (if cond then a else Sing def)
 orPure True f _ = f
-orPure False _ def = refine (Pure def)
+orPure False _ def = MkRefine (Pure def)
 
 
 export
 orPure' : (cond : Bool) -> FormatOf a -> (def : a) -> FormatOf (if cond then a else Sing def)
 orPure' True f _ = f
-orPure' False _ def = refine (Pure def)
+orPure' False _ def = MkRefine (Pure def)
 
 
 foo : (cond : Bool) -> (f : Format) -> Rep f -> Format

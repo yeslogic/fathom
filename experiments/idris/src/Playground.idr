@@ -5,6 +5,7 @@ import Data.Colist
 import Data.Vect
 
 import Fathom.Base
+import Fathom.Data.Sing
 import Fathom.Closed.InductiveRecursive as IndRec
 import Fathom.Closed.IndexedInductive as Indexed
 import Fathom.Open.Record as Record
