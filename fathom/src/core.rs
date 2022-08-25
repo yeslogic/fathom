@@ -373,6 +373,10 @@ def_prims! {
     FormatArray64 => "array64",
     /// Repeat a format until the length of the given parse scope is reached.
     FormatRepeatUntilEnd => "repeat_until_end",
+    /// Repeat a format until the array is filled.
+    ///
+    /// The value read by the format is replicated according to a supplied function.
+    FormatRepeatUntilFull => "repeat_until_full",
     /// Limit the format to an unsigned 8-bit byte length.
     FormatLimit8 => "limit8",
     /// Limit the format to an unsigned 16-bit byte length.
@@ -442,6 +446,7 @@ def_prims! {
     U16And => "u16_and",
     U16Or  => "u16_or",
     U16Xor => "u16_xor",
+    U16FromU8 => "u16_from_u8",
 
     U32Eq  => "u32_eq",
     U32Neq => "u32_neq",

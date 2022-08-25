@@ -187,6 +187,35 @@ impl<'arena> RigidEnv<'arena> {
         env.define_prim_fun(FormatArray32, [&U32_TYPE, &FORMAT_TYPE], &FORMAT_TYPE);
         env.define_prim_fun(FormatArray64, [&U64_TYPE, &FORMAT_TYPE], &FORMAT_TYPE);
         env.define_prim_fun(FormatRepeatUntilEnd, [&FORMAT_TYPE], &FORMAT_TYPE);
+        // repeat_until_full16 : U16 -> fun (A : Format) -> (Repr A -> U16) -> Format
+        env.define_prim(
+            FormatRepeatUntilFull,
+            scope.to_scope(core::Term::FunType(
+                Span::Empty,
+                None,
+                &U16_TYPE,
+                scope.to_scope(core::Term::FunType(
+                    Span::Empty,
+                    env.name("A"),
+                    &FORMAT_TYPE,
+                    scope.to_scope(core::Term::FunType(
+                        Span::Empty,
+                        None,
+                        scope.to_scope(Term::FunType(
+                            Span::Empty,
+                            None,
+                            scope.to_scope(Term::FunApp(
+                                Span::Empty,
+                                &Term::Prim(Span::Empty, FormatRepr),
+                                &VAR0,
+                            )),
+                            &U16_TYPE,
+                        )),
+                        &FORMAT_TYPE,
+                    )),
+                )),
+            )),
+        );
         env.define_prim_fun(FormatLimit8, [&U8_TYPE, &FORMAT_TYPE], &FORMAT_TYPE);
         env.define_prim_fun(FormatLimit16, [&U16_TYPE, &FORMAT_TYPE], &FORMAT_TYPE);
         env.define_prim_fun(FormatLimit32, [&U32_TYPE, &FORMAT_TYPE], &FORMAT_TYPE);
@@ -294,6 +323,7 @@ impl<'arena> RigidEnv<'arena> {
         env.define_prim_fun(U16And, [&U16_TYPE, &U16_TYPE], &U16_TYPE);
         env.define_prim_fun(U16Or, [&U16_TYPE, &U16_TYPE], &U16_TYPE);
         env.define_prim_fun(U16Xor, [&U16_TYPE, &U16_TYPE], &U16_TYPE);
+        env.define_prim_fun(U16FromU8, [&U8_TYPE], &U16_TYPE);
 
         env.define_prim_fun(U32Eq, [&U32_TYPE, &U32_TYPE], &BOOL_TYPE);
         env.define_prim_fun(U32Neq, [&U32_TYPE, &U32_TYPE], &BOOL_TYPE);

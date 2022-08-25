@@ -416,6 +416,7 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
             (Prim::FormatArray32, [FunApp(len), FunApp(format)]) => self.read_array(reader, span, len, format),
             (Prim::FormatArray64, [FunApp(len), FunApp(format)]) => self.read_array(reader, span, len, format),
             (Prim::FormatRepeatUntilEnd, [FunApp(format)]) => self.read_repeat_until_end(reader, format),
+            (Prim::FormatRepeatUntilFull, [FunApp(len), FunApp(format), FunApp(replicate)]) => self.read_repeat_until_full(reader, len, replicate, format),
             (Prim::FormatLimit8, [FunApp(limit), FunApp(format)]) => self.read_limit(reader, limit, format),
             (Prim::FormatLimit16, [FunApp(limit), FunApp(format)]) => self.read_limit(reader, limit, format),
             (Prim::FormatLimit32, [FunApp(limit), FunApp(format)]) => self.read_limit(reader, limit, format),
@@ -483,6 +484,50 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
                 Err(err) => return Err(err),
             };
         }
+    }
+
+    fn read_repeat_until_full(
+        &mut self,
+        reader: &mut BufferReader<'data>,
+        len: &ArcValue<'arena>,
+        replicate: &ArcValue<'arena>,
+        elem_format: &ArcValue<'arena>,
+    ) -> Result<ArcValue<'arena>, ReadError<'arena>> {
+        let len = match self.elim_env().force(len).as_ref() {
+            Value::ConstLit(Const::U8(len, _)) => Some(usize::from(*len)),
+            Value::ConstLit(Const::U16(len, _)) => Some(usize::from(*len)),
+            Value::ConstLit(Const::U32(len, _)) => usize::try_from(*len).ok(),
+            Value::ConstLit(Const::U64(len, _)) => usize::try_from(*len).ok(),
+            _ => return Err(ReadError::InvalidValue(len.span())),
+        }
+        .ok_or_else(|| ReadError::InvalidValue(len.span()))?;
+
+        // TODO: Do we need to force replicate as well?
+        // let replicate = self.elim_env().force(replicate);
+
+        let mut elems = Vec::with_capacity(len);
+        while elems.len() < len {
+            match self.read_format(reader, elem_format) {
+                Ok(elem) => {
+                    // Call the function to determine how many items this represents
+                    let closure_res = self.elim_env().fun_app(replicate.clone(), elem.clone());
+                    let repeat = match closure_res.as_ref() {
+                        Value::ConstLit(Const::U16(n, _)) => *n,
+                        _ => return Err(ReadError::InvalidValue(replicate.span())),
+                    };
+
+                    // Push it that many times onto the array
+                    // TODO: Error/limit if this exceeds len?
+                    elems.extend(std::iter::repeat(elem).take(usize::from(repeat)));
+                }
+                Err(err) => return Err(err),
+            };
+        }
+
+        Ok(Spanned::new(
+            elem_format.span(),
+            Arc::new(Value::ArrayLit(elems)),
+        ))
     }
 
     fn read_limit(

@@ -475,6 +475,7 @@ fn prim_step(prim: Prim) -> PrimStep {
         Prim::U16And => const_step!([x, xst: U16, y, yst: U16] => Const::U16(u16::bitand(*x, *y), UIntStyle::merge(*xst, *yst))),
         Prim::U16Or => const_step!([x, xst: U16, y, yst: U16] => Const::U16(u16::bitor(*x, *y), UIntStyle::merge(*xst, *yst))),
         Prim::U16Xor => const_step!([x, xst: U16, y, yst: U16] => Const::U16(u16::bitxor(*x, *y), UIntStyle::merge(*xst, *yst))),
+        Prim::U16FromU8 => const_step!([x, xst: U8] => Const::U16(u16::from(*x), *xst)),
 
         Prim::U32Eq => const_step!([x: U32, y: U32] => Const::Bool(x == y)),
         Prim::U32Neq => const_step!([x: U32, y: U32] => Const::Bool(x != y)),
@@ -854,13 +855,18 @@ impl<'arena, 'env> ElimEnv<'arena, 'env> {
                 (Prim::FormatRepeatUntilEnd, [Elim::FunApp(elem)]) => {
                     Value::prim(Prim::ArrayType, [self.format_repr(elem)])
                 }
+                (Prim::FormatRepeatUntilFull, [Elim::FunApp(len), Elim::FunApp(elem), _]) => {
+                    Value::prim(Prim::Array16Type, [len.clone(), self.format_repr(elem)])
+                }
                 (Prim::FormatLink, [_, Elim::FunApp(elem)]) => {
                     Value::prim(Prim::RefType, [elem.clone()])
                 }
                 (Prim::FormatDeref, [Elim::FunApp(elem), _]) => return self.format_repr(elem),
                 (Prim::FormatStreamPos, []) => Value::prim(Prim::PosType, []),
                 (Prim::FormatSucceed, [Elim::FunApp(elem), _]) => return elem.clone(),
-                (Prim::FormatOrSucceed, [_, Elim::FunApp(elem), _]) => return self.format_repr(elem),
+                (Prim::FormatOrSucceed, [_, Elim::FunApp(elem), _]) => {
+                    return self.format_repr(elem)
+                }
                 (Prim::FormatFail, []) => Value::prim(Prim::VoidType, []),
                 (Prim::FormatUnwrap, [Elim::FunApp(elem), _]) => return elem.clone(),
                 (Prim::ReportedError, []) => Value::prim(Prim::ReportedError, []),

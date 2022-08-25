@@ -56,6 +56,7 @@ let _ = array16 : U16 -> Format -> Format;
 let _ = array32 : U32 -> Format -> Format;
 let _ = array64 : U64 -> Format -> Format;
 let _ = repeat_until_end : Format -> Format;
+let _ = repeat_until_full : U16 -> fun (A : Format) -> (Repr A -> U16) -> Format;
 let _ = array8 : U8 -> Format -> Format;
 let _ = array16 : U16 -> Format -> Format;
 let _ = array32 : U32 -> Format -> Format;
@@ -109,6 +110,7 @@ let _ = u16_shr : U16 -> U8 -> U16;
 let _ = u16_and : U16 -> U16 -> U16;
 let _ = u16_or : U16 -> U16 -> U16;
 let _ = u16_xor : U16 -> U16 -> U16;
+let _ = u16_from_u8 : U8 -> U16;
 
 let _ = u32_eq : U32 -> U32 -> Bool;
 let _ = u32_neq : U32 -> U32 -> Bool;
