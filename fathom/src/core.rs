@@ -390,6 +390,8 @@ def_prims! {
     FormatDeref => "deref",
     /// A format that always succeeds with some data.
     FormatSucceed => "succeed",
+    /// A format that always succeeds with a default value if a supplied condition is false.
+    FormatOrSucceed => "or_succeed",
     /// A format that always fails to parse.
     FormatFail => "fail",
     /// Unwrap an option, or fail to parse.

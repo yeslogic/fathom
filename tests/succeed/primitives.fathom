@@ -64,6 +64,7 @@ let _ = link : Pos -> Format -> Format;
 let _ = deref : fun (f : Format) -> Ref f -> Format;
 let _ = stream_pos : Format;
 let _ = succeed : fun (Elem : Type) -> Elem -> Format;
+let _ = or_succeed : Bool -> fun (A : Format) -> Repr A -> Format;
 let _ = fail : Format;
 let _ = unwrap : fun (A : Type) -> Option A -> Format;
 let _ = Repr : Format -> Type;

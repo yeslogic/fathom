@@ -216,6 +216,25 @@ impl<'arena> RigidEnv<'arena> {
                 &Term::FunType(Span::Empty, None, &VAR0, &FORMAT_TYPE),
             ),
         );
+        env.define_prim(
+            FormatOrSucceed,
+            scope.to_scope(Term::FunType(
+                Span::Empty,
+                env.name("cond"),
+                &BOOL_TYPE,
+                scope.to_scope(Term::FunType(
+                    Span::Empty,
+                    env.name("A"),
+                    &FORMAT_TYPE,
+                    &Term::FunType(
+                        Span::Empty,
+                        None,
+                        &Term::FunApp(Span::Empty, &Term::Prim(Span::Empty, FormatRepr), &VAR0),
+                        &FORMAT_TYPE,
+                    ),
+                )),
+            )),
+        );
         env.define_prim(FormatFail, &FORMAT_TYPE);
         env.define_prim(
             FormatUnwrap,

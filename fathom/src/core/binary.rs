@@ -424,6 +424,7 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
             (Prim::FormatDeref, [FunApp(format), FunApp(r#ref)]) => self.read_deref(format, r#ref),
             (Prim::FormatStreamPos, []) => read_stream_pos(reader, span),
             (Prim::FormatSucceed, [_, FunApp(elem)]) => Ok(elem.clone()),
+            (Prim::FormatOrSucceed, [FunApp(cond), FunApp(format), FunApp(default)]) => self.read_or_succeed(reader, cond, format, default),
             (Prim::FormatFail, []) => Err(ReadError::ReadFailFormat(span)),
             (Prim::FormatUnwrap, [_, FunApp(option)]) => match option.match_prim_spine() {
                 Some((Prim::OptionSome, [FunApp(elem)])) => Ok(elem.clone()),
@@ -538,6 +539,20 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
         };
 
         self.lookup_or_read_ref(pos, format)
+    }
+
+    fn read_or_succeed(
+        &mut self,
+        reader: &mut BufferReader<'data>,
+        cond: &ArcValue<'arena>,
+        format: &ArcValue<'arena>,
+        default: &ArcValue<'arena>,
+    ) -> Result<ArcValue<'arena>, ReadError<'arena>> {
+        match cond.as_ref() {
+            Value::ConstLit(Const::Bool(true)) => self.read_format(reader, format),
+            Value::ConstLit(Const::Bool(false)) => Ok(default.clone()),
+            _ => Err(ReadError::InvalidValue(Span::Empty)),
+        }
     }
 
     fn lookup_ref<'context>(

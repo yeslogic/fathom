@@ -61,6 +61,7 @@ let _ : _ = link;
 let _ : _ = deref;
 let _ : _ = stream_pos;
 let _ : _ = succeed;
+let _ : _ = or_succeed;
 let _ : _ = fail;
 let _ : _ = unwrap;
 let _ : _ = Repr;

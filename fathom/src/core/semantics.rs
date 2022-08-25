@@ -860,6 +860,7 @@ impl<'arena, 'env> ElimEnv<'arena, 'env> {
                 (Prim::FormatDeref, [Elim::FunApp(elem), _]) => return self.format_repr(elem),
                 (Prim::FormatStreamPos, []) => Value::prim(Prim::PosType, []),
                 (Prim::FormatSucceed, [Elim::FunApp(elem), _]) => return elem.clone(),
+                (Prim::FormatOrSucceed, [_, Elim::FunApp(elem), _]) => return self.format_repr(elem),
                 (Prim::FormatFail, []) => Value::prim(Prim::VoidType, []),
                 (Prim::FormatUnwrap, [Elim::FunApp(elem), _]) => return elem.clone(),
                 (Prim::ReportedError, []) => Value::prim(Prim::ReportedError, []),
