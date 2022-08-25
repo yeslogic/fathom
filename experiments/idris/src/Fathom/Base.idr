@@ -33,12 +33,12 @@ refine value {prf} = MkRefine { value, prf }
 ||| from the Agda docs.
 public export
 data Sing : {0 A : Type} -> (x : A) -> Type where
-  MkSing : {0 A : Type} -> {0 x : A} -> (y : A) -> {auto prf : x = y} -> Sing x
+  MkSing : {0 A : Type} -> {0 x : A} -> (0 y : A) -> {auto 0 prf : x = y} -> Sing x
 
 ||| Convert a singleton back to its underlying value
 public export
-value : {0 Val : Type} -> {0 x : Val} -> Sing x -> Val
-value (MkSing y) = y
+value : {0 Val : Type} -> {x : Val} -> Sing x -> Val
+value (MkSing _) = x
 
 
 ---------------------------
