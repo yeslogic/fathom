@@ -102,6 +102,7 @@ encode (Custom f) x buffer = f.encode x buffer
 --------------------
 
 
+public export
 u8 : Format
 u8 = Custom (MkCustomFormat
   { Rep = Bits8
@@ -153,3 +154,45 @@ foo cond f def = case orPure cond (toFormatOf f) def of
     Bind f' (\x => case cond of
       True => ?todo1
       False => ?todo2)
+
+
+-- Reproduction of difficulties in OpenType format
+
+-- def flag = {
+--     flag <- u8,
+--     repeat <- match ((u8_and flag 8) != (0 : U8)) {
+--       true => u8,
+--       false => succeed U8 0,
+--     },
+-- };
+flag : Format
+flag =
+  Bind u8 (\flag =>
+    if flag == 0 then u8 else Pure {A = Bits8} 0)
+
+-- def simple_glyph = fun (number_of_contours : U16) => {
+--     ...
+--     let flag_repeat = fun (f : Repr flag) => f.repeat + (1 : U8),
+--     ...
+-- };
+simple_glyph : Format
+simple_glyph =
+  -- ...
+  Bind flag (\(flag ** repeat) =>
+    let
+      repeat' : Bits8
+      repeat' = case flag of
+        0 => repeat
+        x => ?todo4
+
+      -- repeat' : Bits8
+      -- repeat' with (MkSing flag)
+      --   repeat' | MkSing 0 {prf} = rewrite sym prf in repeat
+      --   repeat' | MkSing x {prf} = ?todo4
+
+      -- repeat' : Bits8
+      -- repeat' = case MkSing flag of
+      --   MkSing 0 {prf} => ?todo3
+      --   MkSing x {prf} => ?todo4
+    in
+      Pure (repeat' + 1))
