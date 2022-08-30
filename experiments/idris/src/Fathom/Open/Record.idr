@@ -15,7 +15,6 @@ import Data.Colist
 import Data.Vect
 
 import Fathom.Base
-import Fathom.Data.Refine
 import Fathom.Data.Sing
 
 
@@ -147,9 +146,5 @@ public export
 
 ||| A format description refined with a fixed representation
 public export
-FormatOf : (0 Rep : Type) -> Type
-FormatOf rep = Refine Format (\f => f.Rep = rep)
-
-
-toFormatOf : (f : Format) -> FormatOf f.Rep
-toFormatOf f = MkRefine f
+data FormatOf : (0 A : Type) -> Type where
+  MkFormatOf : (f : Format) -> FormatOf f.Rep

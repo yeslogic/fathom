@@ -135,38 +135,30 @@ u8 = Custom (MkCustomFormat
 
 ||| A format description refined with a fixed representation
 public export
-FormatOf : (0 Rep : Type) -> Type
-FormatOf rep = Refine Format (\f => Rep f = rep)
+data FormatOf : (0 Rep : Type) -> Type where
+  MkFormatOf : (f : Format) -> FormatOf (Rep f)
 
 
 toFormatOf : (f : Format) -> FormatOf (Rep f)
-toFormatOf f = MkRefine f
+toFormatOf f = MkFormatOf f
 
 
 export
 either : (cond : Bool) -> (f1 : Format) -> (f2 : Format) -> FormatOf (if cond then Rep f1 else Rep f2)
-either True f1 _ = MkRefine f1
-either False _ f2 = MkRefine f2
+either True f1 _ = MkFormatOf f1
+either False _ f2 = MkFormatOf f2
 
 
 export
 orPure : (cond : Bool) -> FormatOf a -> (def : a) -> FormatOf (if cond then a else Sing def)
 orPure True f _ = f
-orPure False _ def = MkRefine (Pure def)
+orPure False _ def = MkFormatOf (Pure def)
 
 
 export
 orPure' : (cond : Bool) -> FormatOf a -> (def : a) -> FormatOf (if cond then a else Sing def)
 orPure' True f _ = f
-orPure' False _ def = MkRefine (Pure def)
-
-
-foo : (cond : Bool) -> (f : Format) -> Rep f -> Format
-foo cond f def = case orPure cond (toFormatOf f) def of
-  MkRefine f' {prf} =>
-    Bind f' (\x => case cond of
-      True => ?todo1
-      False => ?todo2)
+orPure' False _ def = MkFormatOf (Pure def)
 
 
 -- Reproduction of difficulties in OpenType format

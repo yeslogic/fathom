@@ -71,50 +71,22 @@ indRecToIndexed (Pure x) = Indexed.Pure x
 indRecToIndexed (Skip f def) = Indexed.Skip (indRecToIndexed f) def
 indRecToIndexed (Repeat len f) = Indexed.Repeat len (indRecToIndexed f)
 indRecToIndexed (Bind f g) = Indexed.Bind (indRecToIndexed f) (\x => indRecToIndexed (g x))
--- indRecToIndexed (OfSing f (MkSing _ {prf})) = rewrite sym prf in indRecToIndexed f
--- indRecToIndexed (OfEq f _ {prf}) = rewrite sym prf in indRecToIndexed f
 
-
--- ||| Convert an indexed format description to an inductive-recursive format
--- indexedToIndRec : {0 Rep : Type} -> (f : Indexed.FormatOf Rep) -> IndRec.FormatOf Rep
--- indexedToIndRec End = MkRefine { value = IndRec.End, prf = Refl }
--- indexedToIndRec Fail = MkRefine { value = IndRec.Fail, prf = Refl }
--- indexedToIndRec (Pure x) = MkRefine { value = IndRec.Pure x, prf = Refl }
--- indexedToIndRec (Skip {a} f def) =
---   let
---     MkRefine f' prf = indexedToIndRec f
---     symPrf = sym prf
---     def' = rewrite prf in def
---   in
---     MkRefine { value = IndRec.Skip f' ?todoDef, prf = ?todoSkip }
--- indexedToIndRec (Repeat len f) = MkRefine { value = IndRec.Repeat _ _, prf = ?todoRepeat }
--- indexedToIndRec (Bind f g) = MkRefine { value = IndRec.Bind _ _, prf = ?todoBind }
 
 ||| Convert an indexed format description to an inductive-recursive format
-indexedToIndRec : {0 Rep : Type} -> (f : Indexed.FormatOf Rep) -> IndRec.Format
-indexedToIndRec End = IndRec.End
-indexedToIndRec Fail = IndRec.Fail
-indexedToIndRec (Pure x) = IndRec.Pure x
-indexedToIndRec (Skip f def) =
-  IndRec.Skip (indexedToIndRec f) ?todo_def
---                                ^^^^^^^^^
--- Error: While processing right hand side of indexedToIndRec. Can't solve constraint between: a and Rep (indexedToIndRec f).
---
---    def : a
---    f : FormatOf a
---  0 Rep : Type
--- ------------------------------
--- todo_def : Rep (indexedToIndRec f)
---
-indexedToIndRec (Repeat len f) = IndRec.Repeat len (indexedToIndRec f)
-indexedToIndRec (Bind f1 f2) = IndRec.Bind (indexedToIndRec f1) (\x => indexedToIndRec ?todo_f2)
---                                                                                     ^^^^^^^^
--- Error: While processing right hand side of indexedToIndRec. Can't solve constraint
--- between: Rep (indexedToIndRec f1) and a (implicitly bound at Fathom.Test:86:1--86:95).
---
---    f2 : (x : a) -> FormatOf (b x)
---    f1 : FormatOf a
---  0 Rep : Type
---    x : Rep (indexedToIndRec f1)
--- ------------------------------
--- todo_f2 : FormatOf ?Rep
+indexedToIndRec : {0 A : Type} -> (f : Indexed.FormatOf A) -> IndRec.FormatOf A
+indexedToIndRec End = MkFormatOf IndRec.End
+indexedToIndRec Fail = MkFormatOf IndRec.Fail
+indexedToIndRec (Pure x) = MkFormatOf (IndRec.Pure x)
+indexedToIndRec (Skip f def) with (indexedToIndRec f)
+  indexedToIndRec (Skip _ def) | MkFormatOf f = MkFormatOf (IndRec.Skip f def)
+indexedToIndRec (Repeat len f) with (indexedToIndRec f)
+  indexedToIndRec (Repeat len _) | MkFormatOf f = MkFormatOf (IndRec.Repeat len f)
+indexedToIndRec (Bind f1 f2) with (indexedToIndRec f1)
+  indexedToIndRec (Bind _ f2) | MkFormatOf f1 =
+    --    f1 : Format
+    --  0 A : Type
+    --    f2 : (x : Rep f1) -> FormatOf (B x)
+    -- ------------------------------
+    -- todo_indexedToIndRec : FormatOf (DPair (Rep f1) (\x => B x))
+    ?todo_indexedToIndRec

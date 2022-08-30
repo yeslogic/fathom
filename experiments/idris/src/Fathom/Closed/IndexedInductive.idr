@@ -18,7 +18,7 @@ import Fathom.Data.Sing
 
 ||| Universe of format descriptions indexed by their machine representations
 public export
-data FormatOf : (0 Rep : Type) -> Type where
+data FormatOf : (0 A : Type) -> Type where
   End : FormatOf Unit
   Fail : FormatOf Void
   Pure : {0 A : Type} -> (x : A) -> FormatOf (Sing x)
@@ -42,8 +42,9 @@ public export
 -- ENCODER/DECODER PAIRS --
 ---------------------------
 
+
 export
-decode : {0 Rep : Type} -> (f : FormatOf Rep) -> Decode (Rep, Colist a) (Colist a)
+decode : {0 A, S : Type} -> (f : FormatOf A) -> Decode (A, Colist S) (Colist S)
 decode End [] = Just ((), [])
 decode End (_::_) = Nothing
 decode Fail _ = Nothing
@@ -65,7 +66,7 @@ decode (Bind f1 f2) buffer = do
 
 
 export
-encode : {0 Rep : Type} -> (f : FormatOf Rep) -> Encode Rep (Colist a)
+encode : {0 A, S : Type} -> (f : FormatOf A) -> Encode A (Colist S)
 encode End () = Just []
 encode (Pure x) (MkSing _) = Just []
 encode (Skip f def) () = encode f def
@@ -79,6 +80,12 @@ encode (Bind f1 f2) (x ** y) =
 -----------------
 -- EXPERIMENTS --
 -----------------
+
+
+record Format where
+  constructor MkFormat
+  0 Repr : Type
+  Format : FormatOf Repr
 
 
 either : (cond : Bool) -> FormatOf a -> FormatOf b -> FormatOf (if cond then a else b)
