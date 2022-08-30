@@ -30,16 +30,16 @@ parameters (Source : Type, Target : Type)
   Decode : Type
   Decode = Target -> Maybe (Source, Target)
 
-  ||| Encoders take a _source value_ and _remaining target value_ and produce either:
+  ||| Encoders take a _source value_ and produce either:
   |||
-  ||| - an _updated target value_
+  ||| - a _target value_
   ||| - or nothing if in error occurred
   |||
   ||| @ Source  The type of source values (usually an in-memory data structure)
   ||| @ Target  The type of target values (usually a byte-stream)
   public export
   Encode : Type
-  Encode = Source -> Target -> Maybe Target
+  Encode = Source -> Maybe Target
 
 
 ----------------------

@@ -37,7 +37,7 @@ end = MkFormat { Rep, decode, encode } where
   decode (_::_) = Nothing
 
   encode : Encode Rep BitStream
-  encode () _ = Just []
+  encode () = Just []
 
 public export
 fail : Format
@@ -61,7 +61,7 @@ pure x = MkFormat { Rep, decode, encode } where
   decode buffer = Just (MkSing x, buffer)
 
   encode : Encode Rep BitStream
-  encode (MkSing _) buffer = Just buffer
+  encode (MkSing _) = Just []
 
 public export
 skip : (f : Format) -> (def : f.Rep) -> Format
@@ -75,8 +75,7 @@ skip f def = MkFormat { Rep, decode, encode } where
     Just ((), buffer')
 
   encode : Encode Rep BitStream
-  encode () buffer = do
-    f.encode def buffer
+  encode () = f.encode def
 
 
 public export
@@ -97,10 +96,9 @@ repeat len f = MkFormat { Rep, decode, encode } where
   encode : Encode Rep BitStream
   encode = go len where
     go : (len : Nat) -> Encode (Vect len f.Rep) BitStream
-    go 0 [] buffer = Just buffer
-    go (S len) (x :: xs) buffer = do
-      buffer' <- go len xs buffer
-      f.encode x buffer'
+    go 0 [] = Just []
+    go (S len) (x :: xs) =
+      [| f.encode x <+> go len xs |]
 
 
 public export
@@ -116,6 +114,5 @@ bind f1 f2 = MkFormat { Rep, decode, encode } where
     Just ((x ** y), buffer'')
 
   encode : Encode Rep BitStream
-  encode (x ** y) buffer = do
-    buffer' <- (f2 x).encode y buffer
-    f1.encode x buffer'
+  encode (x ** y) =
+    [| f1.encode x <+> (f2 x).encode y |]

@@ -85,18 +85,15 @@ decode (Custom f) buffer = f.decode buffer
 
 export
 encode : (f : Format) -> Encode (Rep f) ByteStream
-encode End () _ = Just []
-encode (Pure x) (MkSing _) buffer = Just buffer
-encode (Skip f def) () buffer = do
-  encode f def buffer
-encode (Repeat Z f) [] buffer = Just buffer
-encode (Repeat (S len) f) (x :: xs) buffer = do
-  buffer' <- encode (Repeat len f) xs buffer
-  encode f x buffer'
-encode (Bind f1 f2) (x ** y) buffer = do
-  buffer' <- encode (f2 x) y buffer
-  encode f1 x buffer'
-encode (Custom f) x buffer = f.encode x buffer
+encode End () = Just []
+encode (Pure x) (MkSing _) = Just []
+encode (Skip f def) () = encode f def
+encode (Repeat Z f) [] = Just []
+encode (Repeat (S len) f) (x :: xs) =
+  [| encode f x <+> encode (Repeat len f) xs |]
+encode (Bind f1 f2) (x ** y) =
+  [| encode f1 x <+> encode (f2 x) y |]
+encode (Custom f) x = f.encode x
 
 
 --------------------
@@ -112,8 +109,7 @@ u8 = Custom (MkCustomFormat
     case buffer of
       [] => Nothing
       x :: buffer => Just (x, buffer)
-  , encode = \x, buffer =>
-    Just (x :: buffer)
+  , encode = \x => Just [x]
   })
 
 

@@ -119,25 +119,22 @@ decode (Bind f1 f2) buffer = do
 
 export
 encode : (f : Format) -> Encode (Rep f) (Colist a)
-encode End () _ = Just []
-encode (Pure x) (MkSing _) buffer = Just buffer
-encode (Skip f def) () buffer = do
-  encode f def buffer
-encode (Repeat Z f) [] buffer = Just buffer
-encode (Repeat (S len) f) (x :: xs) buffer = do
-  buffer' <- encode (Repeat len f) xs buffer
-  encode f x buffer'
-encode (Bind f1 f2) (x ** y) buffer = do
-  buffer' <- encode (f2 x) y buffer
-  encode f1 x buffer'
+encode End () = Just []
+encode (Pure x) (MkSing _) = Just []
+encode (Skip f def) () = encode f def
+encode (Repeat Z f) [] = Just []
+encode (Repeat (S len) f) (x :: xs) = do
+  [| encode f x <+> encode (Repeat len f) xs |]
+encode (Bind f1 f2) (x ** y) = do
+  [| encode f1 x <+> encode (f2 x) y |]
 -- Questionable format descriptions
--- encode (OrPure True f _) x buffer = encode f x buffer
--- encode (OrPure False _ def) x buffer = Just buffer
--- encode (OfSing f r) x buffer = do
---   buffer' <- encode f ?todo_x buffer
+-- encode (OrPure True f _) x = encode f x
+-- encode (OrPure False _ def) x = Just []
+-- encode (OfSing f r) x = do
+--   buffer' <- encode f ?todo_x
 --   ?todo_encode
--- encode (OfEq f _ {prf}) x buffer = do
---   encode f (rewrite prf in x) buffer
+-- encode (OfEq f _ {prf}) x = do
+--   encode f (rewrite prf in x)
 
 
 -----------------

@@ -56,17 +56,14 @@ decode (Bind f1 f2) buffer = do
 
 export
 encode : {0 Rep : Type} -> (f : FormatOf Rep) -> Encode Rep (Colist a)
-encode End () _ = Just []
-encode (Pure x) (MkSing _) buffer = Just buffer
-encode (Skip f def) () buffer = do
-  encode f def buffer
-encode (Repeat Z f) [] buffer = Just buffer
-encode (Repeat (S len) f) (x :: xs) buffer = do
-  buffer' <- encode (Repeat len f) xs buffer
-  encode f x buffer'
-encode (Bind f1 f2) (x ** y) buffer = do
-  buffer' <- encode (f2 x) y buffer
-  encode f1 x buffer'
+encode End () = Just []
+encode (Pure x) (MkSing _) = Just []
+encode (Skip f def) () = encode f def
+encode (Repeat Z f) [] = Just []
+encode (Repeat (S len) f) (x :: xs) =
+  [| encode f x <+> encode (Repeat len f) xs |]
+encode (Bind f1 f2) (x ** y) =
+  [| encode f1 x <+> encode (f2 x) y |]
 
 
 -----------------
