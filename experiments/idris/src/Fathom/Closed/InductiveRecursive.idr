@@ -95,7 +95,7 @@ public export
 
 
 export
-decode : (f : Format) -> Decode (Rep f) (Colist a)
+decode : (f : Format) -> Decode (Rep f, Colist a) (Colist a)
 decode End [] = Just ((), [])
 decode End (_::_) = Nothing
 decode Fail _ = Nothing

@@ -28,7 +28,7 @@ public export
 record Format where
   constructor MkFormat
   Rep : Type
-  decode : Decode Rep BitStream
+  decode : Decode (Rep, BitStream) BitStream
   encode : Encode Rep BitStream
 
 
@@ -43,7 +43,7 @@ end = MkFormat { Rep, decode, encode } where
   Rep : Type
   Rep = Unit
 
-  decode : Decode Rep BitStream
+  decode : Decode (Rep, BitStream) BitStream
   decode [] = Just ((), [])
   decode (_::_) = Nothing
 
@@ -57,7 +57,7 @@ fail = MkFormat { Rep, decode, encode } where
   Rep : Type
   Rep = Void
 
-  decode : Decode Rep BitStream
+  decode : Decode (Rep, BitStream) BitStream
   decode _ = Nothing
 
   encode : Encode Rep BitStream
@@ -70,7 +70,7 @@ pure x = MkFormat { Rep, decode, encode } where
   Rep : Type
   Rep = Sing x
 
-  decode : Decode Rep BitStream
+  decode : Decode (Rep, BitStream) BitStream
   decode buffer = Just (MkSing x, buffer)
 
   encode : Encode Rep BitStream
@@ -83,7 +83,7 @@ skip f def = MkFormat { Rep, decode, encode } where
   Rep : Type
   Rep = ()
 
-  decode : Decode Rep BitStream
+  decode : Decode (Rep, BitStream) BitStream
   decode buffer = do
     (x, buffer') <- f.decode buffer
     Just ((), buffer')
@@ -98,9 +98,9 @@ repeat len f = MkFormat { Rep, decode, encode } where
   Rep : Type
   Rep = Vect len f.Rep
 
-  decode : Decode Rep BitStream
+  decode : Decode (Rep, BitStream) BitStream
   decode = go len where
-    go : (len : Nat) -> Decode (Vect len f.Rep) BitStream
+    go : (len : Nat) -> Decode (Vect len f.Rep, BitStream) BitStream
     go 0 buffer = Just ([], buffer)
     go (S len) buffer = do
       (x, buffer') <- f.decode buffer
@@ -121,7 +121,7 @@ bind f1 f2 = MkFormat { Rep, decode, encode } where
   Rep : Type
   Rep = (x : f1.Rep ** (f2 x).Rep)
 
-  decode : Decode Rep BitStream
+  decode : Decode (Rep, BitStream) BitStream
   decode buffer = do
     (x, buffer') <- f1.decode buffer
     (y, buffer'') <- (f2 x).decode buffer'

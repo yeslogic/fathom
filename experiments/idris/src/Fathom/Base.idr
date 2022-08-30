@@ -21,14 +21,13 @@ parameters (Source : Type, Target : Type)
 
   ||| Decoders consume a _target value_ and produce either:
   |||
-  ||| - a _source value_ and _remaining target value_
+  ||| - a _source value_
   ||| - or nothing if in error occurred
   |||
   ||| @ Source  The type of source values (usually an in-memory data structure)
-  ||| @ Target  The type of target values (usually a byte-stream)
   public export
   Decode : Type
-  Decode = Target -> Maybe (Source, Target)
+  Decode = Target -> Maybe Source
 
   ||| Encoders take a _source value_ and produce either:
   |||

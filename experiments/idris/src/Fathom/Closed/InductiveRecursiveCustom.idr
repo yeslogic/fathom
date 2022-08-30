@@ -26,7 +26,7 @@ public export
 record CustomFormat where
   constructor MkCustomFormat
   Rep : Type
-  decode : Decode Rep ByteStream
+  decode : Decode (Rep, ByteStream) ByteStream
   encode : Encode Rep ByteStream
 
 
@@ -61,7 +61,7 @@ mutual
 
 
 export
-decode : (f : Format) -> Decode (Rep f) ByteStream
+decode : (f : Format) -> Decode (Rep f, ByteStream) ByteStream
 decode End [] = Just ((), [])
 decode End (_::_) = Nothing
 decode Fail _ = Nothing

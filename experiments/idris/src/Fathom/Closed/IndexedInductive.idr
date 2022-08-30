@@ -43,7 +43,7 @@ public export
 ---------------------------
 
 export
-decode : {0 Rep : Type} -> (f : FormatOf Rep) -> Decode Rep (Colist a)
+decode : {0 Rep : Type} -> (f : FormatOf Rep) -> Decode (Rep, Colist a) (Colist a)
 decode End [] = Just ((), [])
 decode End (_::_) = Nothing
 decode Fail _ = Nothing
