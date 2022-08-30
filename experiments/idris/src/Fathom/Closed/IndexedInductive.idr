@@ -27,6 +27,16 @@ data FormatOf : (0 Rep : Type) -> Type where
   Bind : {0 A : Type} -> {0 B : A -> Type} -> (f : FormatOf A) -> ((x : A) -> FormatOf (B x)) -> FormatOf (x : A ** B x)
 
 
+-- Support for do notation
+
+public export
+pure : {0 A : Type} -> (x : A) -> FormatOf (Sing x)
+pure = Pure
+
+public export
+(>>=) : {0 A : Type} -> {0 B : A -> Type} -> (f : FormatOf A) -> ((x : A) -> FormatOf (B x)) -> FormatOf (x : A ** B x)
+(>>=) = Bind
+
 
 ---------------------------
 -- ENCODER/DECODER PAIRS --

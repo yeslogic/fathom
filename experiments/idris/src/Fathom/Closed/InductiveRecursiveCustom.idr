@@ -96,6 +96,21 @@ encode (Bind f1 f2) (x ** y) =
 encode (Custom f) x = f.encode x
 
 
+--------------
+-- NOTATION --
+--------------
+
+-- Support for do notation
+
+public export
+pure : {0 A : Type} -> A -> Format
+pure = Pure
+
+public export
+(>>=) : (f : Format) -> (Rep f -> Format) -> Format
+(>>=) = Bind
+
+
 --------------------
 -- CUSTOM FORMATS --
 --------------------
@@ -164,9 +179,10 @@ foo cond f def = case orPure cond (toFormatOf f) def of
 --     },
 -- };
 flag : Format
-flag =
-  Bind u8 (\flag =>
-    if flag == 0 then u8 else Pure {A = Bits8} 0)
+flag = do
+  flag <- u8
+  if flag == 0 then u8 else
+    Pure {A = Bits8} 0
 
 -- def simple_glyph = fun (number_of_contours : U16) => {
 --     ...
@@ -174,23 +190,26 @@ flag =
 --     ...
 -- };
 simple_glyph : Format
-simple_glyph =
-  -- ...
-  Bind flag (\(flag ** repeat) =>
-    let
-      repeat' : Bits8
-      repeat' = case flag of
-        0 => repeat
-        x => ?todo4
+simple_glyph = do
+  (flag ** repeat) <- flag
+  let
+    repeat' : Bits8
+    repeat' = case flag of
+      0 => repeat
+      x => ?todo4
 
-      -- repeat' : Bits8
-      -- repeat' with (MkSingEq flag)
-      --   repeat' | MkSingEq 0 {prf} = rewrite sym prf in repeat
-      --   repeat' | MkSingEq x {prf} = ?todo4
+    -- repeat' : Bits8
+    -- repeat' with (flag)
+    --   repeat' | 0 = ?todo3
+    --   repeat' | x = ?todo4
 
-      -- repeat' : Bits8
-      -- repeat' = case MkSingEq flag of
-      --   MkSingEq 0 {prf} => ?todo3
-      --   MkSingEq x {prf} => ?todo4
-    in
-      Pure (repeat' + 1))
+    -- repeat' : Bits8
+    -- repeat' with (MkSingEq flag)
+    --   repeat' | MkSingEq 0 {prf} = ?help
+    --   repeat' | MkSingEq x {prf} = ?todo4
+
+    -- repeat' : Bits8
+    -- repeat' = case MkSingEq flag of
+    --   MkSingEq 0 {prf} => ?todo3
+    --   MkSingEq x {prf} => ?todo4
+  Pure (repeat' + 1)

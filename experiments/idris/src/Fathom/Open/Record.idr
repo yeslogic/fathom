@@ -15,7 +15,13 @@ import Data.Colist
 import Data.Vect
 
 import Fathom.Base
+import Fathom.Data.Refine
 import Fathom.Data.Sing
+
+
+-------------------------
+-- FORMAT DESCRIPTIONS --
+-------------------------
 
 
 public export
@@ -24,6 +30,11 @@ record Format where
   Rep : Type
   decode : Decode Rep BitStream
   encode : Encode Rep BitStream
+
+
+--------------
+-- FORMATS --
+--------------
 
 
 public export
@@ -39,6 +50,7 @@ end = MkFormat { Rep, decode, encode } where
   encode : Encode Rep BitStream
   encode () = Just []
 
+
 public export
 fail : Format
 fail = MkFormat { Rep, decode, encode } where
@@ -51,6 +63,7 @@ fail = MkFormat { Rep, decode, encode } where
   encode : Encode Rep BitStream
   encode x = void x
 
+
 public export
 pure : {0 A : Type} -> A -> Format
 pure x = MkFormat { Rep, decode, encode } where
@@ -62,6 +75,7 @@ pure x = MkFormat { Rep, decode, encode } where
 
   encode : Encode Rep BitStream
   encode (MkSing _) = Just []
+
 
 public export
 skip : (f : Format) -> (def : f.Rep) -> Format
@@ -116,3 +130,26 @@ bind f1 f2 = MkFormat { Rep, decode, encode } where
   encode : Encode Rep BitStream
   encode (x ** y) =
     [| f1.encode x <+> (f2 x).encode y |]
+
+
+-- Support for do notation
+
+public export
+(>>=) : (f : Format) -> (Rep f -> Format) -> Format
+(>>=) = bind
+
+
+
+-----------------
+-- EXPERIMENTS --
+-----------------
+
+
+||| A format description refined with a fixed representation
+public export
+FormatOf : (0 Rep : Type) -> Type
+FormatOf rep = Refine Format (\f => f.Rep = rep)
+
+
+toFormatOf : (f : Format) -> FormatOf f.Rep
+toFormatOf f = MkRefine f

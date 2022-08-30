@@ -78,6 +78,17 @@ mutual
   -- Rep (Custom f) = f.Rep
 
 
+-- Support for do notation
+
+public export
+pure : {0 A : Type} -> A -> Format
+pure = Pure
+
+public export
+(>>=) : (f : Format) -> (Rep f -> Format) -> Format
+(>>=) = Bind
+
+
 ---------------------------
 -- ENCODER/DECODER PAIRS --
 ---------------------------
