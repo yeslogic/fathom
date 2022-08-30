@@ -188,13 +188,13 @@ simple_glyph =
         x => ?todo4
 
       -- repeat' : Bits8
-      -- repeat' with (MkSing flag)
-      --   repeat' | MkSing 0 {prf} = rewrite sym prf in repeat
-      --   repeat' | MkSing x {prf} = ?todo4
+      -- repeat' with (MkSingEq flag)
+      --   repeat' | MkSingEq 0 {prf} = rewrite sym prf in repeat
+      --   repeat' | MkSingEq x {prf} = ?todo4
 
       -- repeat' : Bits8
-      -- repeat' = case MkSing flag of
-      --   MkSing 0 {prf} => ?todo3
-      --   MkSing x {prf} => ?todo4
+      -- repeat' = case MkSingEq flag of
+      --   MkSingEq 0 {prf} => ?todo3
+      --   MkSingEq x {prf} => ?todo4
     in
       Pure (repeat' + 1))
