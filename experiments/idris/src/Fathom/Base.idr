@@ -52,11 +52,15 @@ public export
 BitStream : Type
 BitStream = Colist Bool
 
+%name BitStream stream
+
 
 ||| A possibly infinite stream of bytes
 public export
 ByteStream : Type
 ByteStream = Colist Bits8
+
+%name ByteStream stream
 
 
 ||| A finite bit buffer
@@ -64,8 +68,12 @@ public export
 BitBuffer : Type
 BitBuffer = List Bool
 
+%name BitBuffer buffer
+
 
 ||| A finite byte buffer
 public export
 ByteBuffer : Type
 ByteBuffer = List Bits8
+
+%name ByteBuffer buffer
