@@ -85,8 +85,13 @@ encode (Bind f1 f2) (x ** y) =
 public export
 record Format where
   constructor MkFormat
-  0 Repr : Type
-  Format : FormatOf Repr
+  0 Rep : Type
+  Format : FormatOf Rep
+
+
+public export
+toFormatOf : (f : Format) -> FormatOf f.Rep
+toFormatOf (MkFormat _ f) = f
 
 
 either : (cond : Bool) -> FormatOf a -> FormatOf b -> FormatOf (if cond then a else b)

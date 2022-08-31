@@ -20,6 +20,7 @@ modules = Fathom
         , Fathom.Data.Refine
         , Fathom.Data.Word
         , Fathom.Closed.IndexedInductive
+        , Fathom.Closed.IndexedInductiveCustom
         , Fathom.Closed.InductiveRecursive
         , Fathom.Closed.InductiveRecursiveCustom
         , Fathom.Open.Record

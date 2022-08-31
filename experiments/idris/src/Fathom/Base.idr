@@ -67,6 +67,18 @@ parameters (Source, Target : Type)
   EncodePart = Encode (Source, Target) Target
 
 
+namespace DecodePart
+
+  public export
+  pure : {0 S, T : Type} -> S -> DecodePart S T
+  pure source target = Just (source, target)
+
+  public export
+  map : {0 S1, S2, T : Type} -> (S1 -> S2) -> DecodePart S1 T -> DecodePart S2 T
+  map f decode target =
+    Prelude.map (\(source, target') => (f source, target)) (decode target)
+
+
 parameters {0 Source, Target : Type}
 
   public export
@@ -151,7 +163,7 @@ namespace ByteStream
   splitLen : (n : Nat) -> Colist a -> Maybe (Vect n a, Colist a)
   splitLen 0 _ = Nothing
   splitLen (S k) [] = Nothing
-  splitLen (S k) (x :: rest) = map (\(xs, rest') => (x :: xs, rest')) (splitLen k rest)
+  splitLen (S k) (x :: rest) = Prelude.map (\(xs, rest') => (x :: xs, rest')) (splitLen k rest)
 
 
   export
