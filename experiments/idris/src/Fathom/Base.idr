@@ -89,20 +89,20 @@ parameters {0 Source, Target : Type}
 ----------------------
 
 
-||| A possibly infinite stream of bits
+||| A potentially infinite stream of bits
 public export
 BitStream : Type
 BitStream = Colist Bool
 
-%name BitStream stream
+%name BitStream bits
 
 
-||| A possibly infinite stream of bytes
+||| A potentially infinite stream of bytes
 public export
 ByteStream : Type
 ByteStream = Colist Bits8
 
-%name ByteStream stream
+%name ByteStream bytes
 
 
 ||| A finite bit buffer
@@ -110,7 +110,7 @@ public export
 BitBuffer : Type
 BitBuffer = List Bool
 
-%name BitBuffer buffer
+%name BitBuffer bits
 
 
 ||| A finite byte buffer
@@ -118,4 +118,20 @@ public export
 ByteBuffer : Type
 ByteBuffer = List Bits8
 
-%name ByteBuffer buffer
+%name ByteBuffer bytes
+
+
+||| An array of bits of a known size
+public export
+BitArray : Nat -> Type
+BitArray len = Vect len Bool
+
+%name BitArray bits
+
+
+||| An array of bytes of a known size
+public export
+ByteArray : Nat -> Type
+ByteArray len = Vect len Bits8
+
+%name ByteArray bytes
