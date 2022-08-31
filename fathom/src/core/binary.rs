@@ -415,6 +415,7 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
             (Prim::FormatArray16, [FunApp(len), FunApp(format)]) => self.read_array(reader, span, len, format),
             (Prim::FormatArray32, [FunApp(len), FunApp(format)]) => self.read_array(reader, span, len, format),
             (Prim::FormatArray64, [FunApp(len), FunApp(format)]) => self.read_array(reader, span, len, format),
+            (Prim::FormatArray16Map, [_, _, FunApp(map_fn), FunApp(array)]) => self.array_map(reader, span, map_fn, array),
             (Prim::FormatRepeatUntilEnd, [FunApp(format)]) => self.read_repeat_until_end(reader, format),
             (Prim::FormatRepeatUntilFull, [FunApp(len), FunApp(format), FunApp(replicate)]) => self.read_repeat_until_full(reader, len, replicate, format),
             (Prim::FormatLimit8, [FunApp(limit), FunApp(format)]) => self.read_limit(reader, limit, format),
@@ -453,6 +454,30 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
 
         let elem_exprs = (0..len)
             .map(|_| self.read_format(reader, elem_format))
+            .collect::<Result<_, _>>()?;
+
+        Ok(Spanned::new(span, Arc::new(Value::ArrayLit(elem_exprs))))
+    }
+
+    fn array_map(
+        &mut self,
+        reader: &mut BufferReader<'data>,
+        span: Span,
+        map_fn: &ArcValue<'arena>,
+        array: &ArcValue<'arena>,
+    ) -> Result<ArcValue<'arena>, ReadError<'arena>> {
+        let array = self.elim_env().force(array);
+        let array = match array.as_ref() {
+            Value::ArrayLit(ary) => ary,
+            _ => return Err(ReadError::InvalidValue(array.span())),
+        };
+
+        let elem_exprs = array
+            .iter()
+            .map(|elem| {
+                let elem_format = self.elim_env().fun_app(map_fn.clone(), elem.clone());
+                self.read_format(reader, &elem_format)
+            })
             .collect::<Result<_, _>>()?;
 
         Ok(Spanned::new(span, Arc::new(Value::ArrayLit(elem_exprs))))

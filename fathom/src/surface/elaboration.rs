@@ -186,6 +186,39 @@ impl<'arena> RigidEnv<'arena> {
         env.define_prim_fun(FormatArray16, [&U16_TYPE, &FORMAT_TYPE], &FORMAT_TYPE);
         env.define_prim_fun(FormatArray32, [&U32_TYPE, &FORMAT_TYPE], &FORMAT_TYPE);
         env.define_prim_fun(FormatArray64, [&U64_TYPE, &FORMAT_TYPE], &FORMAT_TYPE);
+        // (A@0 -> Format)
+        let map_fn = Term::FunType(Span::Empty, None, &VAR0, &FORMAT_TYPE);
+        // Array16 len@2 A@1
+        let array_ty = Term::FunApp(
+            Span::Empty,
+            scope.to_scope(Term::FunApp(Span::Empty, &ARRAY16_TYPE, &VAR2)),
+            &VAR1,
+        );
+        // array16_map : fun (len : U16) -> fun (A : Type) -> (A -> Format) -> Array16 len A -> Format;
+        env.define_prim(
+            FormatArray16Map,
+            scope.to_scope(Term::FunType(
+                Span::Empty,
+                env.name("len"),
+                &U16_TYPE,
+                scope.to_scope(Term::FunType(
+                    Span::Empty,
+                    env.name("A"),
+                    &UNIVERSE,
+                    scope.to_scope(Term::FunType(
+                        Span::Empty,
+                        None,
+                        scope.to_scope(map_fn),
+                        scope.to_scope(Term::FunType(
+                            Span::Empty,
+                            None,
+                            scope.to_scope(array_ty),
+                            &FORMAT_TYPE,
+                        )),
+                    )),
+                )),
+            )),
+        );
         env.define_prim_fun(FormatRepeatUntilEnd, [&FORMAT_TYPE], &FORMAT_TYPE);
         // repeat_until_full16 : U16 -> fun (A : Format) -> (Repr A -> U16) -> Format
         env.define_prim(

@@ -61,6 +61,7 @@ let _ = array8 : U8 -> Format -> Format;
 let _ = array16 : U16 -> Format -> Format;
 let _ = array32 : U32 -> Format -> Format;
 let _ = array64 : U64 -> Format -> Format;
+let _ = array16_map : fun (len : U16) -> fun (A : Type) -> (A -> Format) -> Array16 len A -> Format;
 let _ = link : Pos -> Format -> Format;
 let _ = deref : fun (f : Format) -> Ref f -> Format;
 let _ = stream_pos : Format;

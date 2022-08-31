@@ -842,6 +842,9 @@ impl<'arena, 'env> ElimEnv<'arena, 'env> {
                 (Prim::FormatArray16, [Elim::FunApp(len), Elim::FunApp(elem)]) => {
                     Value::prim(Prim::Array16Type, [len.clone(), self.format_repr(elem)])
                 }
+                (Prim::FormatArray16Map, [Elim::FunApp(len), _, Elim::FunApp(map_fn), _]) => {
+                    Value::prim(Prim::Array16Type, [len.clone(), self.format_repr(map_fn)])
+                }
                 (Prim::FormatArray32, [Elim::FunApp(len), Elim::FunApp(elem)]) => {
                     Value::prim(Prim::Array32Type, [len.clone(), self.format_repr(elem)])
                 }

@@ -367,6 +367,8 @@ def_prims! {
     FormatArray8 => "array8",
     /// Array formats, with unsigned 16-bit indices.
     FormatArray16 => "array16",
+    /// Map a function over an Array16
+    FormatArray16Map => "array16_map",
     /// Array formats, with unsigned 32-bit indices.
     FormatArray32 => "array32",
     /// Array formats, with unsigned 64-bit indices.
