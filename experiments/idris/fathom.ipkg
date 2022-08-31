@@ -15,8 +15,10 @@ package fathom
 -- modules to install
 modules = Fathom
         , Fathom.Base
+        , Fathom.Data.Bit
         , Fathom.Data.Sing
         , Fathom.Data.Refine
+        , Fathom.Data.Word
         , Fathom.Closed.IndexedInductive
         , Fathom.Closed.InductiveRecursive
         , Fathom.Closed.InductiveRecursiveCustom
