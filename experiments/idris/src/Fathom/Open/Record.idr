@@ -27,8 +27,8 @@ public export
 record Format where
   constructor MkFormat
   Rep : Type
-  decode : Decode (Rep, BitStream) BitStream
-  encode : Encode Rep BitStream
+  decode : Decode (Rep, ByteStream) ByteStream
+  encode : Encode Rep ByteStream
 
 
 --------------
@@ -42,11 +42,11 @@ end = MkFormat { Rep, decode, encode } where
   Rep : Type
   Rep = Unit
 
-  decode : Decode (Rep, BitStream) BitStream
+  decode : Decode (Rep, ByteStream) ByteStream
   decode [] = Just ((), [])
   decode (_::_) = Nothing
 
-  encode : Encode Rep BitStream
+  encode : Encode Rep ByteStream
   encode () = Just []
 
 
@@ -56,10 +56,10 @@ fail = MkFormat { Rep, decode, encode } where
   Rep : Type
   Rep = Void
 
-  decode : Decode (Rep, BitStream) BitStream
+  decode : Decode (Rep, ByteStream) ByteStream
   decode _ = Nothing
 
-  encode : Encode Rep BitStream
+  encode : Encode Rep ByteStream
   encode x = void x
 
 
@@ -69,10 +69,10 @@ pure x = MkFormat { Rep, decode, encode } where
   Rep : Type
   Rep = Sing x
 
-  decode : Decode (Rep, BitStream) BitStream
+  decode : Decode (Rep, ByteStream) ByteStream
   decode buffer = Just (MkSing x, buffer)
 
-  encode : Encode Rep BitStream
+  encode : Encode Rep ByteStream
   encode (MkSing _) = Just []
 
 
@@ -82,12 +82,12 @@ skip f def = MkFormat { Rep, decode, encode } where
   Rep : Type
   Rep = ()
 
-  decode : Decode (Rep, BitStream) BitStream
+  decode : Decode (Rep, ByteStream) ByteStream
   decode buffer = do
     (x, buffer') <- f.decode buffer
     Just ((), buffer')
 
-  encode : Encode Rep BitStream
+  encode : Encode Rep ByteStream
   encode () = f.encode def
 
 
@@ -97,18 +97,18 @@ repeat len f = MkFormat { Rep, decode, encode } where
   Rep : Type
   Rep = Vect len f.Rep
 
-  decode : Decode (Rep, BitStream) BitStream
+  decode : Decode (Rep, ByteStream) ByteStream
   decode = go len where
-    go : (len : Nat) -> Decode (Vect len f.Rep, BitStream) BitStream
+    go : (len : Nat) -> Decode (Vect len f.Rep, ByteStream) ByteStream
     go 0 buffer = Just ([], buffer)
     go (S len) buffer = do
       (x, buffer') <- f.decode buffer
       (xs, buffer'') <- go len buffer'
       Just (x :: xs, buffer'')
 
-  encode : Encode Rep BitStream
+  encode : Encode Rep ByteStream
   encode = go len where
-    go : (len : Nat) -> Encode (Vect len f.Rep) BitStream
+    go : (len : Nat) -> Encode (Vect len f.Rep) ByteStream
     go 0 [] = Just []
     go (S len) (x :: xs) =
       [| f.encode x <+> go len xs |]
@@ -120,13 +120,13 @@ bind f1 f2 = MkFormat { Rep, decode, encode } where
   Rep : Type
   Rep = (x : f1.Rep ** (f2 x).Rep)
 
-  decode : Decode (Rep, BitStream) BitStream
+  decode : Decode (Rep, ByteStream) ByteStream
   decode buffer = do
     (x, buffer') <- f1.decode buffer
     (y, buffer'') <- (f2 x).decode buffer'
     Just ((x ** y), buffer'')
 
-  encode : Encode Rep BitStream
+  encode : Encode Rep ByteStream
   encode (x ** y) =
     [| f1.encode x <+> (f2 x).encode y |]
 
@@ -136,6 +136,38 @@ bind f1 f2 = MkFormat { Rep, decode, encode } where
 public export
 (>>=) : (f : Format) -> (Rep f -> Format) -> Format
 (>>=) = bind
+
+
+--------------------
+-- CUSTOM FORMATS --
+--------------------
+
+
+public export
+u8 : Format
+u8 = MkFormat
+  { Rep = Bits8
+  , decode = decodeU8
+  , encode = encodeU8
+  }
+
+
+public export
+u16Le : Format
+u16Le = MkFormat
+  { Rep = Bits16
+  , decode = decodeU16 LE
+  , encode = encodeU16 LE
+  }
+
+
+public export
+u16Be : Format
+u16Be = MkFormat
+  { Rep = Bits16
+  , decode = decodeU16 BE
+  , encode = encodeU16 BE
+  }
 
 
 

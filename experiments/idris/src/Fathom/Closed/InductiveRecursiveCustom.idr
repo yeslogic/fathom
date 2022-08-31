@@ -4,8 +4,10 @@
 module Fathom.Closed.InductiveRecursiveCustom
 
 
+import Data.Bits
 import Data.Colist
 import Data.Vect
+import Data.DPair
 
 import Fathom.Base
 import Fathom.Data.Sing
@@ -120,11 +122,26 @@ public export
 u8 : Format
 u8 = Custom (MkCustomFormat
   { Rep = Bits8
-  , decode = \buffer =>
-    case buffer of
-      [] => Nothing
-      x :: buffer => Just (x, buffer)
-  , encode = \x => Just [x]
+  , decode = decodeU8
+  , encode = encodeU8
+  })
+
+
+public export
+u16Le : Format
+u16Le = Custom (MkCustomFormat
+  { Rep = Bits16
+  , decode = decodeU16 LE
+  , encode = encodeU16 LE
+  })
+
+
+public export
+u16Be : Format
+u16Be = Custom (MkCustomFormat
+  { Rep = Bits16
+  , decode = decodeU16 BE
+  , encode = encodeU16 BE
   })
 
 
@@ -173,8 +190,9 @@ orPure' False _ def = MkFormatOf (Pure def)
 flag : Format
 flag = do
   flag <- u8
-  if flag == 0 then u8 else
+  repeat <- if flag == 0 then u8 else
     Pure {A = Bits8} 0
+  Pure ()
 
 -- def simple_glyph = fun (number_of_contours : U16) => {
 --     ...
@@ -183,7 +201,7 @@ flag = do
 -- };
 simple_glyph : Format
 simple_glyph = do
-  (flag ** repeat) <- flag
+  (flag ** repeat ** MkSing ()) <- flag
   let
     repeat' : Bits8
     repeat' = case flag of

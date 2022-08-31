@@ -1,8 +1,10 @@
 module Fathom.Base
 
 
+import Data.Bits
 import Data.Colist
 import Data.List
+import Data.Vect
 
 
 ---------------------------
@@ -135,3 +137,65 @@ ByteArray : Nat -> Type
 ByteArray len = Vect len Bits8
 
 %name ByteArray bytes
+
+
+||| The byte order of some encoded data, usually a number.
+public export
+data ByteOrder : Type where
+  LE : ByteOrder
+  BE : ByteOrder
+
+
+namespace ByteStream
+
+  splitLen : (n : Nat) -> Colist a -> Maybe (Vect n a, Colist a)
+  splitLen 0 _ = Nothing
+  splitLen (S k) [] = Nothing
+  splitLen (S k) (x :: rest) = map (\(xs, rest') => (x :: xs, rest')) (splitLen k rest)
+
+
+  export
+  decodeU8 : Decode (Bits8, ByteStream) ByteStream
+  decodeU8 [] = Nothing
+  decodeU8 (x :: bytes) =  Just (x, bytes)
+
+
+  export
+  encodeU8 : Encode Bits8 ByteStream
+  encodeU8 x = Just [x]
+
+
+  export
+  decodeU16 : ByteOrder -> Decode (Bits16, ByteStream) ByteStream
+  decodeU16 LE bytes = do
+    (bs, bytes') <- splitLen 2 bytes
+    let [b0, b1] = map (cast {to = Bits16}) bs
+    Just (b0 .|. b1 `shiftL` fromNat 8, bytes')
+  decodeU16 BE bytes = do
+    (bs, bytes') <- splitLen 2 bytes
+    let [b0, b1] = map (cast {to = Bits16}) bs
+    Just (b0 `shiftL` fromNat 8 .|. b1, bytes')
+
+
+  export
+  encodeU16 : ByteOrder -> Encode Bits16 ByteStream
+  encodeU16 LE x = Just [cast x, cast (x `shiftR` fromNat 8)]
+  encodeU16 BE x = Just [cast (x `shiftR` fromNat 8), cast x]
+
+
+  export
+  decodeU32 : ByteOrder -> Decode (Bits32, ByteStream) ByteStream
+  decodeU32 LE bytes = do
+    (bs, bytes') <- splitLen 4 bytes
+    let [b0, b1, b2, b3] = map (cast {to = Bits32}) bs
+    Just (b0 .|. b1 `shiftL` fromNat 8 .|. b2 `shiftL` fromNat 16 .|. b2 `shiftL` fromNat 24, bytes')
+  decodeU32 BE bytes = do
+    (bs, bytes') <- splitLen 4 bytes
+    let [b0, b1, b2, b3] = map (cast {to = Bits32}) bs
+    Just (b0 `shiftL` fromNat 24 .|. b1 `shiftL` fromNat 16 .|. b2 `shiftL` fromNat 8 .|. b3, bytes')
+
+
+  export
+  encodeU32 : ByteOrder -> Encode Bits32 ByteStream
+  encodeU32 LE x = Just [cast x, cast (x `shiftR` fromNat 8), cast (x `shiftR` fromNat 16), cast (x `shiftR` fromNat 24)]
+  encodeU32 BE x = Just [cast (x `shiftR` fromNat 24), cast (x `shiftR` fromNat 16), cast (x `shiftR` fromNat 8), cast x]
