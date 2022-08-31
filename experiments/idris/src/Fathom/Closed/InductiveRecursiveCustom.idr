@@ -45,7 +45,7 @@ mutual
     Custom :  (f : CustomFormat) -> Format
 
 
-  ||| In-memory representation of format descriptions
+  ||| The in-memory representation of format descriptions
   public export
   Rep : Format -> Type
   Rep End = Unit
@@ -145,19 +145,45 @@ u16Be = Custom (MkCustomFormat
   })
 
 
------------------
--- EXPERIMENTS --
------------------
+---------------------------------
+-- INDEXED FORMAT DESCRIPTIONS --
+---------------------------------
 
 
-||| A format description refined with a fixed representation
+||| A format description indexed with a fixed representation
 public export
 data FormatOf : (0 Rep : Type) -> Type where
   MkFormatOf : (f : Format) -> FormatOf (Rep f)
 
 
+------------------------------------
+-- FORMAT DESCRIPTION CONVERSIONS --
+------------------------------------
+
+
+public export
 toFormatOf : (f : Format) -> FormatOf (Rep f)
 toFormatOf f = MkFormatOf f
+
+
+public export
+toFormat : {0 A : Type} -> FormatOf A -> Format
+toFormat (MkFormatOf f) = f
+
+
+public export
+toFormatOfEq : {0 A : Type} -> (f : Format ** Rep f = A) -> FormatOf A
+toFormatOfEq (f ** prf) = rewrite sym prf in MkFormatOf f
+
+
+public export
+toFormatEq : {0 A : Type} -> FormatOf A -> (f : Format ** Rep f = A)
+toFormatEq (MkFormatOf f) = (f ** Refl)
+
+
+-----------------
+-- EXPERIMENTS --
+-----------------
 
 
 export

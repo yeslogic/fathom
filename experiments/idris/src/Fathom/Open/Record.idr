@@ -31,6 +31,42 @@ record Format where
   encode : Encode Rep ByteStream
 
 
+---------------------------------
+-- INDEXED FORMAT DESCRIPTIONS --
+---------------------------------
+
+
+||| A format description refined with a fixed representation
+public export
+data FormatOf : (0 A : Type) -> Type where
+  MkFormatOf : (f : Format) -> FormatOf f.Rep
+
+
+------------------------------------
+-- FORMAT DESCRIPTION CONVERSIONS --
+------------------------------------
+
+
+public export
+toFormatOf : (f : Format) -> FormatOf f.Rep
+toFormatOf f = MkFormatOf f
+
+
+public export
+toFormat : {0 A : Type} -> FormatOf A -> Format
+toFormat (MkFormatOf f) = f
+
+
+public export
+toFormatOfEq : {0 A : Type} -> (f : Format ** f.Rep = A) -> FormatOf A
+toFormatOfEq (f ** prf) = rewrite sym prf in MkFormatOf f
+
+
+public export
+toFormatEq : {0 A : Type} -> FormatOf A -> (f : Format ** f.Rep = A)
+toFormatEq (MkFormatOf f) = (f ** Refl)
+
+
 --------------
 -- FORMATS --
 --------------
@@ -168,15 +204,3 @@ u16Be = MkFormat
   , decode = decodeU16 BE
   , encode = encodeU16 BE
   }
-
-
-
------------------
--- EXPERIMENTS --
------------------
-
-
-||| A format description refined with a fixed representation
-public export
-data FormatOf : (0 A : Type) -> Type where
-  MkFormatOf : (f : Format) -> FormatOf f.Rep

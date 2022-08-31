@@ -11,9 +11,9 @@ import Fathom.Base
 import Fathom.Data.Sing
 
 
--------------------------
--- FORMAT DESCRIPTIONS --
--------------------------
+---------------------------------
+-- INDEXED FORMAT DESCRIPTIONS --
+---------------------------------
 
 
 ||| Universe of format descriptions indexed by their machine representations
@@ -77,21 +77,49 @@ encode (Bind f1 f2) (x ** y) =
   [| encode f1 x <+> encode (f2 x) y |]
 
 
------------------
--- EXPERIMENTS --
------------------
+-------------------------
+-- FORMAT DESCRIPTIONS --
+-------------------------
 
 
+||| A format description of an arbitrary representation
 public export
 record Format where
   constructor MkFormat
+  ||| The in-memory representation of the format description
   0 Rep : Type
-  Format : FormatOf Rep
+  ||| The underlying format description
+  format : FormatOf Rep
+
+
+------------------------------------
+-- FORMAT DESCRIPTION CONVERSIONS --
+------------------------------------
 
 
 public export
 toFormatOf : (f : Format) -> FormatOf f.Rep
 toFormatOf (MkFormat _ f) = f
+
+
+public export
+toFormat : {0 A : Type} -> FormatOf A -> Format
+toFormat f = MkFormat A f
+
+
+public export
+toFormatOfEq : {0 A : Type} -> (f : Format ** f.Rep = A) -> FormatOf A
+toFormatOfEq (f ** prf) = rewrite sym prf in f.format
+
+
+public export
+toFormatEq : {0 A : Type} -> FormatOf A -> (f : Format ** f.Rep = A)
+toFormatEq f = (MkFormat A f ** Refl)
+
+
+-----------------
+-- EXPERIMENTS --
+-----------------
 
 
 either : (cond : Bool) -> FormatOf a -> FormatOf b -> FormatOf (if cond then a else b)

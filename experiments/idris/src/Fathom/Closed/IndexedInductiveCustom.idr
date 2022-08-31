@@ -10,9 +10,9 @@ import Data.Vect
 import Fathom.Base
 
 
--------------------------
--- FORMAT DESCRIPTIONS --
--------------------------
+---------------------------------
+-- INDEXED FORMAT DESCRIPTIONS --
+---------------------------------
 
 
 ||| A custom format description.
@@ -92,6 +92,46 @@ encode (Bind f1 f2) (x ** y) =
 encode (Custom f) x = f.encode x
 
 
+-------------------------
+-- FORMAT DESCRIPTIONS --
+-------------------------
+
+
+||| A format description of an arbitrary representation
+public export
+record Format where
+  constructor MkFormat
+  ||| The in-memory representation of the format description
+  0 Rep : Type
+  ||| The underlying format description
+  format : FormatOf Rep
+
+
+------------------------------------
+-- FORMAT DESCRIPTION CONVERSIONS --
+------------------------------------
+
+
+public export
+toFormatOf : (f : Format) -> FormatOf f.Rep
+toFormatOf (MkFormat _ f) = f
+
+
+public export
+toFormat : {0 A : Type} -> FormatOf A -> Format
+toFormat f = MkFormat A f
+
+
+public export
+toFormatOfEq : {0 A : Type} -> (f : Format ** f.Rep = A) -> FormatOf A
+toFormatOfEq (f ** prf) = rewrite sym prf in f.format
+
+
+public export
+toFormatEq : {0 A : Type} -> FormatOf A -> (f : Format ** f.Rep = A)
+toFormatEq f = (MkFormat A f ** Refl)
+
+
 --------------------
 -- CUSTOM FORMATS --
 --------------------
@@ -127,18 +167,6 @@ u16Be = Custom (MkCustomFormat
 -----------------
 -- EXPERIMENTS --
 -----------------
-
-
-public export
-record Format where
-  constructor MkFormat
-  0 Rep : Type
-  Format : FormatOf Rep
-
-
-public export
-toFormatOf : (f : Format) -> FormatOf f.Rep
-toFormatOf (MkFormat _ f) = f
 
 
 either : (cond : Bool) -> FormatOf a -> FormatOf b -> FormatOf (if cond then a else b)

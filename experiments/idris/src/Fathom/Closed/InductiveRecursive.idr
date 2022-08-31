@@ -57,7 +57,7 @@ mutual
     -- Custom : (f : Record.Format) -> Format
 
 
-  ||| In-memory representation of format descriptions
+  ||| The in-memory representation of format descriptions
   public export
   Rep : Format -> Type
   Rep End = Unit
@@ -127,15 +127,40 @@ encode (Bind f1 f2) (x ** y) = do
   [| encode f1 x <+> encode (f2 x) y |]
 
 
------------------
--- EXPERIMENTS --
------------------
+---------------------------------
+-- INDEXED FORMAT DESCRIPTIONS --
+---------------------------------
 
 
 ||| A format description refined with a fixed representation
 public export
 data FormatOf : (0 A : Type) -> Type where
   MkFormatOf : (f : Format) -> FormatOf (Rep f)
+
+
+------------------------------------
+-- FORMAT DESCRIPTION CONVERSIONS --
+------------------------------------
+
+
+public export
+toFormatOf : (f : Format) -> FormatOf (Rep f)
+toFormatOf f = MkFormatOf f
+
+
+public export
+toFormat : {0 A : Type} -> FormatOf A -> Format
+toFormat (MkFormatOf f) = f
+
+
+public export
+toFormatOfEq : {0 A : Type} -> (f : Format ** Rep f = A) -> FormatOf A
+toFormatOfEq (f ** prf) = rewrite sym prf in MkFormatOf f
+
+
+public export
+toFormatEq : {0 A : Type} -> FormatOf A -> (f : Format ** Rep f = A)
+toFormatEq (MkFormatOf f) = (f ** Refl)
 
 
 export

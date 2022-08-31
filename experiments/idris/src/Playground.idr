@@ -73,15 +73,31 @@ indRecToIndexed (Repeat len f) = Indexed.Repeat len (indRecToIndexed f)
 indRecToIndexed (Bind f g) = Indexed.Bind (indRecToIndexed f) (\x => indRecToIndexed (g x))
 
 
-||| Convert an indexed format description to an inductive-recursive format
-indexedToIndRec : {0 A : Type} -> (f : Indexed.FormatOf A) -> IndRec.FormatOf A
-indexedToIndRec End = MkFormatOf IndRec.End
-indexedToIndRec Fail = MkFormatOf IndRec.Fail
-indexedToIndRec (Pure x) = MkFormatOf (IndRec.Pure x)
-indexedToIndRec (Skip f def) with (indexedToIndRec f)
-  indexedToIndRec (Skip _ def) | MkFormatOf f = MkFormatOf (IndRec.Skip f def)
-indexedToIndRec (Repeat len f) with (indexedToIndRec f)
-  indexedToIndRec (Repeat len _) | MkFormatOf f = MkFormatOf (IndRec.Repeat len f)
-indexedToIndRec (Bind f1 f2) with (indexedToIndRec f1)
-  indexedToIndRec (Bind _ f2) | MkFormatOf f1 =
-    ?todo_indexedToIndRec
+mutual
+
+  ||| Convert an indexed format description to an inductive-recursive format
+  indexedToIndRecFormat : (f : Indexed.Format) -> (f' : IndRec.Format ** Rep f = Rep f')
+  indexedToIndRecFormat (MkFormat () End) = (End ** Refl)
+  indexedToIndRecFormat (MkFormat Void Fail) = (Fail ** Refl)
+  indexedToIndRecFormat (MkFormat (Sing x) (Pure x)) = (Pure x ** Refl)
+  indexedToIndRecFormat (MkFormat () (Skip f def)) with (indexedToIndRecFormatOf f)
+    _ | MkFormatOf f' = (Skip f' def ** Refl)
+  indexedToIndRecFormat (MkFormat (Vect len _) (Repeat len f)) with (indexedToIndRecFormatOf f)
+    _ | MkFormatOf f' = (Repeat len f' ** Refl)
+  indexedToIndRecFormat (MkFormat (x : _ ** _) (Bind f1 f2)) with (indexedToIndRecFormatOf f1)
+    _ | MkFormatOf f1' =
+      (Bind f1' (\x => ?indexedToIndRecFormatBind_f2) ** ?todoBindPrf)
+
+
+  ||| Convert an indexed format description to an inductive-recursive format
+  indexedToIndRecFormatOf : {0 A : Type} -> (f : Indexed.FormatOf A) -> IndRec.FormatOf A
+  indexedToIndRecFormatOf End = MkFormatOf End
+  indexedToIndRecFormatOf Fail = MkFormatOf Fail
+  indexedToIndRecFormatOf (Pure x) = MkFormatOf (Pure x)
+  indexedToIndRecFormatOf (Skip f def) with (indexedToIndRecFormatOf f)
+    _ | MkFormatOf f' = MkFormatOf (Skip f' def)
+  indexedToIndRecFormatOf (Repeat len f) with (indexedToIndRecFormatOf f)
+    _ | MkFormatOf f' = MkFormatOf (Repeat len f')
+  indexedToIndRecFormatOf (Bind f1 f2) with (indexedToIndRecFormatOf f1)
+    _ | MkFormatOf f1' =
+      ?indexedToIndRecFormatOfBind
