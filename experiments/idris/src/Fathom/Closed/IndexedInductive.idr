@@ -82,6 +82,7 @@ encode (Bind f1 f2) (x ** y) =
 -----------------
 
 
+public export
 record Format where
   constructor MkFormat
   0 Repr : Type

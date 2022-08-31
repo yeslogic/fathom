@@ -84,9 +84,4 @@ indexedToIndRec (Repeat len f) with (indexedToIndRec f)
   indexedToIndRec (Repeat len _) | MkFormatOf f = MkFormatOf (IndRec.Repeat len f)
 indexedToIndRec (Bind f1 f2) with (indexedToIndRec f1)
   indexedToIndRec (Bind _ f2) | MkFormatOf f1 =
-    --    f1 : Format
-    --  0 A : Type
-    --    f2 : (x : Rep f1) -> FormatOf (B x)
-    -- ------------------------------
-    -- todo_indexedToIndRec : FormatOf (DPair (Rep f1) (\x => B x))
     ?todo_indexedToIndRec

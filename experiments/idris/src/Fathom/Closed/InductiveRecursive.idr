@@ -114,18 +114,6 @@ decode (Bind f1 f2) buffer = do
   (y, buffer'') <- decode (f2 x) buffer'
   Just ((x ** y), buffer'')
 
--- Questionable format descriptions
--- decode (OrPure True f _) buffer = decode f buffer
--- decode (OrPure False _ def) buffer = Just (def, buffer)
--- decode (OfSing f (MkSing r {prf})) buffer = do
---   (x, buffer') <- decode f buffer
---   Just (rewrite sym prf in x, buffer')
--- decode (OfEq f _ {prf}) buffer = do
---   (x, buffer') <- decode f buffer
---   Just (rewrite sym prf in x, buffer')
-
--- Broken stuff
-
 
 export
 encode : (f : Format) -> Encode (Rep f) (Colist a)
@@ -137,14 +125,6 @@ encode (Repeat (S len) f) (x :: xs) = do
   [| encode f x <+> encode (Repeat len f) xs |]
 encode (Bind f1 f2) (x ** y) = do
   [| encode f1 x <+> encode (f2 x) y |]
--- Questionable format descriptions
--- encode (OrPure True f _) x = encode f x
--- encode (OrPure False _ def) x = Just []
--- encode (OfSing f r) x = do
---   buffer' <- encode f ?todo_x
---   ?todo_encode
--- encode (OfEq f _ {prf}) x = do
---   encode f (rewrite prf in x)
 
 
 -----------------
