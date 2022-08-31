@@ -186,21 +186,20 @@ impl<'arena> RigidEnv<'arena> {
         env.define_prim_fun(FormatArray16, [&U16_TYPE, &FORMAT_TYPE], &FORMAT_TYPE);
         env.define_prim_fun(FormatArray32, [&U32_TYPE, &FORMAT_TYPE], &FORMAT_TYPE);
         env.define_prim_fun(FormatArray64, [&U64_TYPE, &FORMAT_TYPE], &FORMAT_TYPE);
-        // (A@0 -> Format)
-        let map_fn = Term::FunType(Span::Empty, None, &VAR0, &FORMAT_TYPE);
-        // Array16 len@2 A@1
-        let array_ty = Term::FunApp(
-            Span::Empty,
-            scope.to_scope(Term::FunApp(Span::Empty, &ARRAY16_TYPE, &VAR2)),
-            &VAR1,
-        );
-        // array16_map : fun (len : U16) -> fun (A : Type) -> (A -> Format) -> Array16 len A -> Format;
-        env.define_prim(
-            FormatArray16Map,
+        let format_array_map = |index_type, array_type| {
+            // (A@0 -> Format)
+            let map_fn = Term::FunType(Span::Empty, None, &VAR0, &FORMAT_TYPE);
+            // Array16 len@2 A@1
+            let array_ty = Term::FunApp(
+                Span::Empty,
+                scope.to_scope(Term::FunApp(Span::Empty, array_type, &VAR2)),
+                &VAR1,
+            );
+            // array16_map : fun (len : U16) -> fun (A : Type) -> (A -> Format) -> Array16 len A -> Format;
             scope.to_scope(Term::FunType(
                 Span::Empty,
                 env.name("len"),
-                &U16_TYPE,
+                index_type,
                 scope.to_scope(Term::FunType(
                     Span::Empty,
                     env.name("A"),
@@ -217,9 +216,19 @@ impl<'arena> RigidEnv<'arena> {
                         )),
                     )),
                 )),
-            )),
-        );
+            ))
+        };
+
+        let format_array8_map = format_array_map(&U8_TYPE, &ARRAY8_TYPE);
+        let format_array16_map = format_array_map(&U16_TYPE, &ARRAY16_TYPE);
+        let format_array32_map = format_array_map(&U32_TYPE, &ARRAY32_TYPE);
+        let format_array64_map = format_array_map(&U64_TYPE, &ARRAY64_TYPE);
+        env.define_prim(FormatArray8Map, format_array8_map);
+        env.define_prim(FormatArray16Map, format_array16_map);
+        env.define_prim(FormatArray32Map, format_array32_map);
+        env.define_prim(FormatArray64Map, format_array64_map);
         env.define_prim_fun(FormatRepeatUntilEnd, [&FORMAT_TYPE], &FORMAT_TYPE);
+
         // repeat_until_full16 : U16 -> fun (A : Format) -> (Repr A -> U16) -> Format
         env.define_prim(
             FormatRepeatUntilFull,

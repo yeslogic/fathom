@@ -842,14 +842,23 @@ impl<'arena, 'env> ElimEnv<'arena, 'env> {
                 (Prim::FormatArray16, [Elim::FunApp(len), Elim::FunApp(elem)]) => {
                     Value::prim(Prim::Array16Type, [len.clone(), self.format_repr(elem)])
                 }
-                (Prim::FormatArray16Map, [Elim::FunApp(len), _, Elim::FunApp(map_fn), _]) => {
-                    Value::prim(Prim::Array16Type, [len.clone(), self.format_repr(map_fn)])
-                }
                 (Prim::FormatArray32, [Elim::FunApp(len), Elim::FunApp(elem)]) => {
                     Value::prim(Prim::Array32Type, [len.clone(), self.format_repr(elem)])
                 }
                 (Prim::FormatArray64, [Elim::FunApp(len), Elim::FunApp(elem)]) => {
                     Value::prim(Prim::Array64Type, [len.clone(), self.format_repr(elem)])
+                }
+                (Prim::FormatArray8Map, [Elim::FunApp(len), _, Elim::FunApp(map_fn), _]) => {
+                    Value::prim(Prim::Array8Type, [len.clone(), self.format_repr(map_fn)])
+                }
+                (Prim::FormatArray16Map, [Elim::FunApp(len), _, Elim::FunApp(map_fn), _]) => {
+                    Value::prim(Prim::Array16Type, [len.clone(), self.format_repr(map_fn)])
+                }
+                (Prim::FormatArray32Map, [Elim::FunApp(len), _, Elim::FunApp(map_fn), _]) => {
+                    Value::prim(Prim::Array32Type, [len.clone(), self.format_repr(map_fn)])
+                }
+                (Prim::FormatArray64Map, [Elim::FunApp(len), _, Elim::FunApp(map_fn), _]) => {
+                    Value::prim(Prim::Array64Type, [len.clone(), self.format_repr(map_fn)])
                 }
                 (Prim::FormatLimit8, [_, Elim::FunApp(elem)]) => return self.format_repr(elem),
                 (Prim::FormatLimit16, [_, Elim::FunApp(elem)]) => return self.format_repr(elem),

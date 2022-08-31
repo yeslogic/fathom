@@ -367,12 +367,18 @@ def_prims! {
     FormatArray8 => "array8",
     /// Array formats, with unsigned 16-bit indices.
     FormatArray16 => "array16",
-    /// Map a function over an Array16
-    FormatArray16Map => "array16_map",
     /// Array formats, with unsigned 32-bit indices.
     FormatArray32 => "array32",
     /// Array formats, with unsigned 64-bit indices.
     FormatArray64 => "array64",
+    /// Map a function over an Array8
+    FormatArray8Map => "array8_map",
+    /// Map a function over an Array16
+    FormatArray16Map => "array16_map",
+    /// Map a function over an Array32
+    FormatArray32Map => "array32_map",
+    /// Map a function over an Array64
+    FormatArray64Map => "array64_map",
     /// Repeat a format until the length of the given parse scope is reached.
     FormatRepeatUntilEnd => "repeat_until_end",
     /// Repeat a format until the array is filled.
