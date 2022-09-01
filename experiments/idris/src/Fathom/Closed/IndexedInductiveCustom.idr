@@ -138,24 +138,24 @@ toFormatOfIso = MkIso
 ||| Convert a format description into an indexed format description with an
 ||| equality proof that the representation is the same as the index.
 public export
-toFormatOfEq : {0 A : Type} -> (f : Format ** f.Rep = A) -> FormatOf A
-toFormatOfEq (f ** prf) = rewrite sym prf in f.format
+toFormatOfEq : {0 A : Type} -> (Subset Format (\f => f.Rep = A)) -> FormatOf A
+toFormatOfEq (Element f prf) = rewrite sym prf in f.format
 
 
 ||| Convert an indexed format description to a existential format description,
 ||| along with a proof that the representation is the same as the index.
 public export
-toFormatEq : {0 A : Type} -> FormatOf A -> (f : Format ** f.Rep = A)
-toFormatEq f = (MkFormat A f ** Refl)
+toFormatEq : {0 A : Type} -> FormatOf A -> (Subset Format (\f => f.Rep = A))
+toFormatEq f = Element (MkFormat A f) Refl
 
 
 public export
-toFormatOfEqIso : Iso (Exists (\a => (f : Format ** f.Rep = a))) (Exists FormatOf)
+toFormatOfEqIso : Iso (Exists (\a => (Subset Format (\f => f.Rep = a)))) (Exists FormatOf)
 toFormatOfEqIso = MkIso
-  { to = \(Evidence _f) => Evidence _ (toFormatOfEq f)
+  { to = \(Evidence _ f) => Evidence _ (toFormatOfEq f)
   , from = \(Evidence _ f) => Evidence _ (toFormatEq f)
   , toFrom = \(Evidence _ _) => Refl
-  , fromTo = \(Evidence _ ((MkFormat _ _) ** Refl)) => Refl
+  , fromTo = \(Evidence _ (Element (MkFormat _ _) Refl)) => Refl
   }
 
 

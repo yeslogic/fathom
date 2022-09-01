@@ -18,7 +18,6 @@ modules = Fathom
         , Fathom.Data.Bit
         , Fathom.Data.Iso
         , Fathom.Data.Sing
-        , Fathom.Data.Refine
         , Fathom.Data.Word
         , Fathom.Closed.IndexedInductive
         , Fathom.Closed.IndexedInductiveCustom
