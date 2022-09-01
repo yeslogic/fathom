@@ -215,3 +215,8 @@ namespace FormatOf
   bind f1 f2 with (toFormatEq f1)
     bind _ f2 | (Element f1 prf) =
       ?todoFormatOf_bind
+
+
+  public export
+  (>>=) : {0 A : Type} -> {0 B : A -> Type} -> (f : FormatOf A) -> ((x : A) -> FormatOf (B x)) -> FormatOf (x : A ** B x)
+  (>>=) = bind

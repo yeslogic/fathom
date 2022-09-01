@@ -14,16 +14,23 @@ package fathom
 
 -- modules to install
 modules = Fathom
+
         , Fathom.Base
         , Fathom.Data.Bit
         , Fathom.Data.Iso
         , Fathom.Data.Sing
         , Fathom.Data.Word
+
         , Fathom.Closed.IndexedInductive
         , Fathom.Closed.IndexedInductiveCustom
         , Fathom.Closed.InductiveRecursive
         , Fathom.Closed.InductiveRecursiveCustom
         , Fathom.Open.Record
+
+        , Playground
+        , Playground.OpenType.IndexedInductive
+        , Playground.OpenType.InductiveRecursive
+        , Playground.OpenType.Record
 
 -- main file (i.e. file to load at REPL)
 -- main =
