@@ -371,8 +371,32 @@ def_prims! {
     FormatArray32 => "array32",
     /// Array formats, with unsigned 64-bit indices.
     FormatArray64 => "array64",
+    /// Map a function over an Array8
+    FormatArray8Map => "array8_map",
+    /// Map a function over an Array16
+    FormatArray16Map => "array16_map",
+    /// Map a function over an Array32
+    FormatArray32Map => "array32_map",
+    /// Map a function over an Array64
+    FormatArray64Map => "array64_map",
     /// Repeat a format until the length of the given parse scope is reached.
     FormatRepeatUntilEnd => "repeat_until_end",
+    /// Repeat a format until the array with 8-bit indices is filled.
+    ///
+    /// The value read by the format is replicated according to a supplied function.
+    FormatRepeatUntilFull8 => "repeat_until_full8",
+    /// Repeat a format until the array with 16-bit indices is filled.
+    ///
+    /// The value read by the format is replicated according to a supplied function.
+    FormatRepeatUntilFull16 => "repeat_until_full16",
+    /// Repeat a format until the array with 32-bit indices is filled.
+    ///
+    /// The value read by the format is replicated according to a supplied function.
+    FormatRepeatUntilFull32 => "repeat_until_full32",
+    /// Repeat a format until the array with 64-bit indices is filled.
+    ///
+    /// The value read by the format is replicated according to a supplied function.
+    FormatRepeatUntilFull64 => "repeat_until_full64",
     /// Limit the format to an unsigned 8-bit byte length.
     FormatLimit8 => "limit8",
     /// Limit the format to an unsigned 16-bit byte length.
@@ -390,6 +414,8 @@ def_prims! {
     FormatDeref => "deref",
     /// A format that always succeeds with some data.
     FormatSucceed => "succeed",
+    /// A format that always succeeds with a default value if a supplied condition is false.
+    FormatOrSucceed => "or_succeed",
     /// A format that always fails to parse.
     FormatFail => "fail",
     /// Unwrap an option, or fail to parse.
@@ -440,6 +466,7 @@ def_prims! {
     U16And => "u16_and",
     U16Or  => "u16_or",
     U16Xor => "u16_xor",
+    U16FromU8 => "u16_from_u8",
 
     U32Eq  => "u32_eq",
     U32Neq => "u32_neq",

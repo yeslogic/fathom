@@ -411,19 +411,28 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
             (Prim::FormatF32Le, []) => read_const(reader, span, read_f32le, Const::F32),
             (Prim::FormatF64Be, []) => read_const(reader, span, read_f64be, Const::F64),
             (Prim::FormatF64Le, []) => read_const(reader, span, read_f64le, Const::F64),
-            (Prim::FormatArray8, [FunApp(len), FunApp(format)]) => self.read_array(reader, span, len, format),
-            (Prim::FormatArray16, [FunApp(len), FunApp(format)]) => self.read_array(reader, span, len, format),
-            (Prim::FormatArray32, [FunApp(len), FunApp(format)]) => self.read_array(reader, span, len, format),
+            (Prim::FormatArray8, [FunApp(len), FunApp(format)]) |
+            (Prim::FormatArray16, [FunApp(len), FunApp(format)]) |
+            (Prim::FormatArray32, [FunApp(len), FunApp(format)]) |
             (Prim::FormatArray64, [FunApp(len), FunApp(format)]) => self.read_array(reader, span, len, format),
+            (Prim::FormatArray8Map, [_, _, FunApp(map_fn), FunApp(array)]) |
+            (Prim::FormatArray16Map, [_, _, FunApp(map_fn), FunApp(array)]) |
+            (Prim::FormatArray32Map, [_, _, FunApp(map_fn), FunApp(array)]) |
+            (Prim::FormatArray64Map, [_, _, FunApp(map_fn), FunApp(array)]) => self.array_map(reader, span, map_fn, array),
             (Prim::FormatRepeatUntilEnd, [FunApp(format)]) => self.read_repeat_until_end(reader, format),
-            (Prim::FormatLimit8, [FunApp(limit), FunApp(format)]) => self.read_limit(reader, limit, format),
-            (Prim::FormatLimit16, [FunApp(limit), FunApp(format)]) => self.read_limit(reader, limit, format),
-            (Prim::FormatLimit32, [FunApp(limit), FunApp(format)]) => self.read_limit(reader, limit, format),
+            (Prim::FormatRepeatUntilFull8, [FunApp(len), FunApp(format), FunApp(replicate)]) |
+            (Prim::FormatRepeatUntilFull16, [FunApp(len), FunApp(format), FunApp(replicate)]) |
+            (Prim::FormatRepeatUntilFull32, [FunApp(len), FunApp(format), FunApp(replicate)]) |
+            (Prim::FormatRepeatUntilFull64, [FunApp(len), FunApp(format), FunApp(replicate)]) => self.read_repeat_until_full(reader, len, replicate, format),
+            (Prim::FormatLimit8, [FunApp(limit), FunApp(format)]) |
+            (Prim::FormatLimit16, [FunApp(limit), FunApp(format)]) |
+            (Prim::FormatLimit32, [FunApp(limit), FunApp(format)]) |
             (Prim::FormatLimit64, [FunApp(limit), FunApp(format)]) => self.read_limit(reader, limit, format),
             (Prim::FormatLink, [FunApp(pos), FunApp(format)]) => self.read_link(span, pos, format),
             (Prim::FormatDeref, [FunApp(format), FunApp(r#ref)]) => self.read_deref(format, r#ref),
             (Prim::FormatStreamPos, []) => read_stream_pos(reader, span),
             (Prim::FormatSucceed, [_, FunApp(elem)]) => Ok(elem.clone()),
+            (Prim::FormatOrSucceed, [FunApp(cond), FunApp(format), FunApp(default)]) => self.read_or_succeed(reader, cond, format, default),
             (Prim::FormatFail, []) => Err(ReadError::ReadFailFormat(span)),
             (Prim::FormatUnwrap, [_, FunApp(option)]) => match option.match_prim_spine() {
                 Some((Prim::OptionSome, [FunApp(elem)])) => Ok(elem.clone()),
@@ -456,6 +465,30 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
         Ok(Spanned::new(span, Arc::new(Value::ArrayLit(elem_exprs))))
     }
 
+    fn array_map(
+        &mut self,
+        reader: &mut BufferReader<'data>,
+        span: Span,
+        map_fn: &ArcValue<'arena>,
+        array: &ArcValue<'arena>,
+    ) -> Result<ArcValue<'arena>, ReadError<'arena>> {
+        let array = self.elim_env().force(array);
+        let array = match array.as_ref() {
+            Value::ArrayLit(ary) => ary,
+            _ => return Err(ReadError::InvalidValue(array.span())),
+        };
+
+        let elem_exprs = array
+            .iter()
+            .map(|elem| {
+                let elem_format = self.elim_env().fun_app(map_fn.clone(), elem.clone());
+                self.read_format(reader, &elem_format)
+            })
+            .collect::<Result<_, _>>()?;
+
+        Ok(Spanned::new(span, Arc::new(Value::ArrayLit(elem_exprs))))
+    }
+
     fn read_repeat_until_end(
         &mut self,
         reader: &mut BufferReader<'data>,
@@ -482,6 +515,50 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
                 Err(err) => return Err(err),
             };
         }
+    }
+
+    fn read_repeat_until_full(
+        &mut self,
+        reader: &mut BufferReader<'data>,
+        len: &ArcValue<'arena>,
+        replicate: &ArcValue<'arena>,
+        elem_format: &ArcValue<'arena>,
+    ) -> Result<ArcValue<'arena>, ReadError<'arena>> {
+        let len = match self.elim_env().force(len).as_ref() {
+            Value::ConstLit(Const::U8(len, _)) => Some(usize::from(*len)),
+            Value::ConstLit(Const::U16(len, _)) => Some(usize::from(*len)),
+            Value::ConstLit(Const::U32(len, _)) => usize::try_from(*len).ok(),
+            Value::ConstLit(Const::U64(len, _)) => usize::try_from(*len).ok(),
+            _ => return Err(ReadError::InvalidValue(len.span())),
+        }
+        .ok_or_else(|| ReadError::InvalidValue(len.span()))?;
+        let replicate = self.elim_env().force(replicate);
+
+        let mut elems = Vec::with_capacity(len);
+        while elems.len() < len {
+            match self.read_format(reader, elem_format) {
+                Ok(elem) => {
+                    // Call the function to determine how many items this represents
+                    let closure_res = self.elim_env().fun_app(replicate.clone(), elem.clone());
+                    let repeat = match closure_res.as_ref() {
+                        Value::ConstLit(Const::U16(n, _)) => *n,
+                        _ => return Err(ReadError::InvalidValue(replicate.span())),
+                    };
+
+                    // Push it that many times onto the array, limiting to the length of the
+                    // output array.
+                    elems.extend(
+                        std::iter::repeat(elem).take(usize::from(repeat).min(len - elems.len())),
+                    );
+                }
+                Err(err) => return Err(err),
+            };
+        }
+
+        Ok(Spanned::new(
+            elem_format.span(),
+            Arc::new(Value::ArrayLit(elems)),
+        ))
     }
 
     fn read_limit(
@@ -538,6 +615,20 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
         };
 
         self.lookup_or_read_ref(pos, format)
+    }
+
+    fn read_or_succeed(
+        &mut self,
+        reader: &mut BufferReader<'data>,
+        cond: &ArcValue<'arena>,
+        format: &ArcValue<'arena>,
+        default: &ArcValue<'arena>,
+    ) -> Result<ArcValue<'arena>, ReadError<'arena>> {
+        match cond.as_ref() {
+            Value::ConstLit(Const::Bool(true)) => self.read_format(reader, format),
+            Value::ConstLit(Const::Bool(false)) => Ok(default.clone()),
+            _ => Err(ReadError::InvalidValue(Span::Empty)),
+        }
     }
 
     fn lookup_ref<'context>(
