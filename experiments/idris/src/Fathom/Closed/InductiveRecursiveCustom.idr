@@ -12,6 +12,7 @@ import Data.Vect
 import Fathom.Base
 import Fathom.Data.Iso
 import Fathom.Data.Refine
+import Fathom.Data.Sing
 
 
 public export
@@ -43,7 +44,7 @@ mutual
   data Format : Type where
     End : Format
     Fail : Format
-    Pure : {A : Type} -> A -> Format
+    Pure : {0 A : Type} -> A -> Format
     Skip : (f : Format) -> (def : Rep f) -> Format
     Repeat : Nat -> Format -> Format
     Bind : (f : Format) -> (Rep f -> Format) -> Format
@@ -57,7 +58,7 @@ mutual
   Rep Fail = Void
   Rep (Skip _ _) = Unit
   Rep (Repeat len f) = Vect len (Rep f)
-  Rep (Pure x) = typeOf x
+  Rep (Pure x) = Sing x
   Rep (Bind f1 f2) = (x : Rep f1 ** Rep (f2 x))
   Rep (Custom f) = f.Rep
 
@@ -73,7 +74,7 @@ decode End [] = Just ((), [])
 decode End (_::_) = Nothing
 decode Fail _ = Nothing
 decode (Pure x) buffer =
-  Just (x, buffer)
+  Just (MkSing x, buffer)
 decode (Skip f _) buffer = do
   (x, buffer') <- decode f buffer
   Just ((), buffer')
@@ -93,7 +94,7 @@ decode (Custom f) buffer = f.decode buffer
 export
 encode : (f : Format) -> Encode (Rep f) ByteStream
 encode End () = Just []
-encode (Pure x) _ = Just []
+encode (Pure x) (MkSing _) = Just []
 encode (Skip f def) () = encode f def
 encode (Repeat Z f) [] = Just []
 encode (Repeat (S len) f) (x :: xs) =
@@ -110,7 +111,7 @@ encode (Custom f) x = f.encode x
 -- Support for do notation
 
 public export
-pure : {A : Type} -> A -> Format
+pure : {0 A : Type} -> A -> Format
 pure = Pure
 
 public export
@@ -214,25 +215,6 @@ toFormatOfEqIso = MkIso
 -- EXPERIMENTS --
 -----------------
 
-
-export
-either : (cond : Bool) -> (f1 : Format) -> (f2 : Format) -> FormatOf (if cond then Rep f1 else Rep f2)
-either True f1 _ = MkFormatOf f1
-either False _ f2 = MkFormatOf f2
-
-
-export
-orPure : {A : Type} -> (cond : Bool) -> FormatOf A -> (def : A) -> FormatOf A
-orPure True f _ = f
-orPure False _ def = MkFormatOf (Pure def)
-
-
-export
-orPure' : {A : Type} -> (cond : Bool) -> FormatOf A -> (def : A) -> FormatOf A
-orPure' True f _ = f
-orPure' False _ def = MkFormatOf (Pure def)
-
-
 -- Reproduction of difficulties in OpenType format
 
 -- def flag = {
@@ -244,11 +226,12 @@ orPure' False _ def = MkFormatOf (Pure def)
 -- };
 flag : Format
 flag = do
-  flag <- u8
-  repeat <- case flag of
+  id <- u8
+  repeat <- case id of
     0 => u8
-    _ => Pure {A = Nat} 0
+    S n => Pure {A = Nat} 0
   Pure ()
+
 
 -- def simple_glyph = fun (number_of_contours : U16) => {
 --     ...
@@ -257,10 +240,10 @@ flag = do
 -- };
 simple_glyph : Format
 simple_glyph = do
-  (flag ** repeat ** ()) <- flag
+  flag <- flag
   let
-    repeat' : Nat
-    repeat' = case flag of
-      0 => repeat
-      repeat => ?todo_repeat
-  Pure (repeat' + 1)
+    repeat : Nat
+    repeat = case flag of
+      (0 ** repeat ** MkSing ()) => repeat
+      (S n ** repeat ** MkSing ()) => repeat
+  Pure (repeat + 1)

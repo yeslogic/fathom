@@ -164,17 +164,3 @@ toFormatOfEqIso = MkIso
   , toFrom = \(Evidence _ _) => Refl
   , fromTo = \(Evidence _ ((MkFormat _ _) ** Refl)) => Refl
   }
-
-
------------------
--- EXPERIMENTS --
------------------
-
-
-either : (cond : Bool) -> FormatOf a -> FormatOf b -> FormatOf (if cond then a else b)
-either True f1 _ = f1
-either False _ f2 = f2
-
-orPure : (cond : Bool) -> FormatOf a -> (def : a) -> FormatOf (if cond then a else Sing def)
-orPure True f _ = f
-orPure False _ def = Pure def

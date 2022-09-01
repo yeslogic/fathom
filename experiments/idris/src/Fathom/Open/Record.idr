@@ -182,25 +182,65 @@ public export
 public export
 u8 : Format
 u8 = MkFormat
-  { Rep = Bits8
-  , decode = decodeU8
-  , encode = encodeU8
+  { Rep = Nat
+  , decode = map cast decodeU8
+  , encode = encodeU8 . cast {to = Bits8}
   }
 
 
 public export
 u16Le : Format
 u16Le = MkFormat
-  { Rep = Bits16
-  , decode = decodeU16 LE
-  , encode = encodeU16 LE
+  { Rep = Nat
+  , decode = map cast (decodeU16 LE)
+  , encode = encodeU16 LE . cast {to = Bits16}
   }
 
 
 public export
 u16Be : Format
 u16Be = MkFormat
-  { Rep = Bits16
-  , decode = decodeU16 BE
-  , encode = encodeU16 BE
+  { Rep = Nat
+  , decode = map cast (decodeU16 BE)
+  , encode = encodeU16 BE . cast {to = Bits16}
   }
+
+
+-----------------
+-- EXPERIMENTS --
+-----------------
+
+
+-- Reproduction of difficulties in OpenType format
+
+
+-- def flag = {
+--     flag <- u8,
+--     repeat <- match ((u8_and flag 8) != (0 : U8)) {
+--       true => u8,
+--       false => succeed U8 0,
+--     },
+-- };
+flag : Format
+flag = do
+  id <- u8
+  repeat <- case id of
+    0 => u8
+    S _ => pure {A = Nat} 0
+  pure ()
+
+
+(.repeat) : Record.flag.Rep -> Nat
+(.repeat) (0 ** repeat ** _) = repeat
+(.repeat) (S _ ** repeat ** _) = val repeat
+
+
+-- def simple_glyph = fun (number_of_contours : U16) => {
+--     ...
+--     let flag_repeat = fun (f : Repr flag) => f.repeat + (1 : U8),
+--     ...
+-- };
+simple_glyph : Format
+simple_glyph = do
+  flag <- flag
+  pure (flag.repeat + 1)

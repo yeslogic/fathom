@@ -10,6 +10,7 @@ import Data.Vect
 
 import Fathom.Base
 import Fathom.Data.Iso
+import Fathom.Data.Sing
 
 
 ---------------------------------
@@ -35,7 +36,7 @@ public export
 data FormatOf : (A : Type) -> Type where
   End : FormatOf Unit
   Fail : FormatOf Void
-  Pure : {0 A : Type} -> (x : A) -> FormatOf A
+  Pure : {0 A : Type} -> (x : A) -> FormatOf (Sing x)
   Skip : {0 A : Type} -> (f : FormatOf A) -> (def : A) -> FormatOf Unit
   Repeat : {0 A : Type} -> (len : Nat) -> FormatOf A -> FormatOf (Vect len A)
   Bind : {0 A : Type} -> {0 B : A -> Type} -> (f : FormatOf A) -> ((x : A) -> FormatOf (B x)) -> FormatOf (x : A ** B x)
@@ -45,7 +46,7 @@ data FormatOf : (A : Type) -> Type where
 -- Support for do notation
 
 public export
-pure : {0 A : Type} -> (x : A) -> FormatOf A
+pure : {0 A : Type} -> (x : A) -> FormatOf (Sing x)
 pure = Pure
 
 public export
@@ -64,7 +65,7 @@ decode End [] = Just ((), [])
 decode End (_::_) = Nothing
 decode Fail _ = Nothing
 decode (Pure x) buffer =
-  Just (x, buffer)
+  Just (MkSing x, buffer)
 decode (Skip f _) buffer = do
   (x, buffer') <- decode f buffer
   Just ((), buffer')
@@ -84,7 +85,7 @@ decode (Custom f) buffer = f.decode buffer
 export
 encode : {0 A : Type} -> (f : FormatOf A) -> Encode A (ByteStream)
 encode End () = Just []
-encode (Pure x) _ = Just []
+encode (Pure x) (MkSing _) = Just []
 encode (Skip f def) () = encode f def
 encode (Repeat Z f) [] = Just []
 encode (Repeat (S len) f) (x :: xs) =
@@ -194,24 +195,22 @@ u16Be = Custom (MkCustomFormat
 -- EXPERIMENTS --
 -----------------
 
-
-either : (cond : Bool) -> FormatOf a -> FormatOf b -> FormatOf (if cond then a else b)
-either True f1 _ = f1
-either False _ f2 = f2
-
-orPure : (cond : Bool) -> FormatOf a -> (def : a) -> FormatOf a
-orPure True f _ = f
-orPure False _ def = Pure def
-
-
 -- Reproduction of difficulties in OpenType format
 
 
 Flag : Type
-Flag = (flag : Nat ** repeat : Nat ** ())
+Flag =
+  (  id : Nat
+  ** repeat :
+    case id of
+      0 => Nat
+      S n => Sing {A = Nat} 0
+  ** Sing ()
+  )
 
 (.repeat) : Flag -> Nat
-(.repeat) (_ ** repeat ** _) = repeat
+(.repeat) (0 ** repeat ** _) = repeat
+(.repeat) (S _ ** repeat ** _) = val repeat
 
 
 -- def flag = {
@@ -226,12 +225,15 @@ flag = do
   flag <- u8
   repeat <- case flag of
     0 => u8
-    _ => Pure {A = Nat} 0
+    S _ => Pure {A = Nat} 0
   Pure ()
 
 
 SimpleGlyph : Type
-SimpleGlyph = (flag : Flag ** Nat)
+SimpleGlyph =
+  (  flag : Flag
+  ** Sing (flag.repeat + 1)
+  )
 
 
 -- def simple_glyph = fun (number_of_contours : U16) => {

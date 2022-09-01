@@ -49,15 +49,6 @@ mutual
     Repeat : Nat -> Format -> Format
     Bind : (f : Format) -> (Rep f -> Format) -> Format
 
-    -- Questionable format descriptions
-    -- OrPure : (cond : Bool) -> (f : Format) -> (def : Rep f) -> Format
-    -- OfSing : (f : Format) -> Sing (Rep f) -> Format
-    -- OfEq : (f : Format) -> (r : Type) -> {auto 0 prf : Rep f = r} -> Format
-
-    -- Broken stuff
-    -- Let : (f : Format) -> (Rep f -> Format) -> Format
-    -- Custom : (f : Record.Format) -> Format
-
 
   ||| The in-memory representation of format descriptions
   public export
@@ -68,15 +59,6 @@ mutual
   Rep (Repeat len f) = Vect len (Rep f)
   Rep (Pure x) = Sing x
   Rep (Bind f1 f2) = (x : Rep f1 ** Rep (f2 x))
-
-  -- Questionable format descriptions
-  -- Rep (OrPure _ f _) = Rep f
-  -- Rep (OfSing f r) = value r
-  -- Rep (OfEq f r) = r
-
-  -- Broken stuff
-  -- Rep (Let f1 f2) = Rep (f2 ?halp)
-  -- Rep (Custom f) = f.Rep
 
 
 -- Support for do notation
@@ -187,19 +169,3 @@ toFormatOfEqIso = MkIso
   , toFrom = \(Evidence _ (MkFormatOf _)) => Refl
   , fromTo = \(Evidence _ (f ** Refl)) => Refl
   }
-export
-either : (cond : Bool) -> (f1 : Format) -> (f2 : Format) -> FormatOf (if cond then Rep f1 else Rep f2)
-either True f1 _ = MkFormatOf f1
-either False _ f2 = MkFormatOf f2
-
-
-public export
-orPure : (cond : Bool) -> FormatOf a -> (def : a) -> FormatOf (if cond then a else Sing def)
-orPure True f _ = f
-orPure False _ def = MkFormatOf (Pure def)
-
-
-public export
-orPure' : (cond : Bool) -> FormatOf a -> (def : a) -> FormatOf (if cond then a else Sing def)
-orPure' True f _ = f
-orPure' False _ def = MkFormatOf (Pure def)

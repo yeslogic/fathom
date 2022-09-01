@@ -101,3 +101,25 @@ mutual
   indexedToIndRecFormatOf (Bind f1 f2) with (indexedToIndRecFormatOf f1)
     _ | MkFormatOf f1' =
       ?indexedToIndRecFormatOfBind
+
+
+-- Reproduction of difficulties in OpenType format, drawing parallels to
+-- Tarski-style universes.
+
+repeatWithId : Nat -> Type
+repeatWithId 0 = Nat
+repeatWithId (S _) = Sing {A = Nat} 0
+
+record Flag where
+  constructor MkFlag
+  id : Nat
+  repeat : case id of
+    0 => Nat
+    (S n) => Sing {A = Nat} 0
+
+record SimpleGlyph where
+  constructor MkSimpleGlyph
+  flag : Flag
+  flag_repeat : Sing {A = Nat} (case flag of
+    MkFlag 0 repeat => repeat
+    MkFlag (S n) repeat => val repeat)
