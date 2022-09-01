@@ -159,6 +159,47 @@ toFormatOfEqIso = MkIso
   }
 
 
+-------------------------
+-- FORMAT CONSTRUCTORS --
+-------------------------
+
+-- Helpful constructors for building non-indexed format descriptions.
+-- This also tests if we can actually meaningfully use the `Format` type.
+
+namespace Format
+
+  public export
+  end : Format
+  end = MkFormat () End
+
+
+  public export
+  fail : Format
+  fail = MkFormat Void Fail
+
+
+  public export
+  pure : {0 A : Type} -> (x : A) -> Format
+  pure x = MkFormat (Sing x) (Pure x)
+
+
+  public export
+  skip : (f : Format) -> (def : f.Rep) -> Format
+  skip f def = MkFormat Unit (Skip (toFormatOf f) def)
+
+
+  public export
+  repeat : (len : Nat) -> Format -> Format
+  repeat len f = MkFormat (Vect len f.Rep) (Repeat len (toFormatOf f))
+
+
+  public export
+  bind : (f : Format) -> (Rep f -> Format) -> Format
+  bind f1 f2 =
+      MkFormat (x : f1.Rep ** (f2 x).Rep)
+        (Bind (toFormatOf f1) (\x => toFormatOf (f2 x)))
+
+
 --------------------
 -- CUSTOM FORMATS --
 --------------------
