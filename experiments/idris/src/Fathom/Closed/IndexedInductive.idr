@@ -205,3 +205,8 @@ namespace Format
   bind f1 f2 =
       MkFormat (x : f1.Rep ** (f2 x).Rep)
         (Bind (toFormatOf f1) (\x => toFormatOf (f2 x)))
+
+
+  public export
+  (>>=) : (f : Format) -> (Rep f -> Format) -> Format
+  (>>=) = bind
