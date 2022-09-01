@@ -27,6 +27,7 @@ elaboration, and core language is forthcoming.
   - [Overlap formats](#overlap-formats)
   - [Number formats](#number-formats)
   - [Array formats](#array-formats)
+  - [Map formats](#map-formats)
   - [Repeat formats](#repeat-formats)
   - [Limit formats](#limit-formats)
   - [Stream position formats](#stream-position-formats)
@@ -505,6 +506,30 @@ of the host [array types](#array-types).
 | `array32 len format`   | `Array32 len (Repr format)`         |
 | `array64 len format`   | `Array64 len (Repr format)`         |
 
+### Map formats
+
+There are four array map formats, corresponding to the four [array types](#arrays).
+These allow mapping a supplied function over the elements of an array in order
+to parse another array:
+
+- `array8_map : fun (len : U8) -> fun (A : Type) -> (A -> Format) -> Array8 len A -> Format`
+- `array16_map : fun (len : U16) -> fun (A : Type) -> (A -> Format) -> Array16 len A -> Format`
+- `array32_map : fun (len : U32) -> fun (A : Type) -> (A -> Format) -> Array32 len A -> Format`
+- `array64_map : fun (len : U64) -> fun (A : Type) -> (A -> Format) -> Array64 len A -> Format`
+
+#### Representation of map formats
+
+The [representation](#format-representations) of the array map formats preserve the
+lengths, and use the representation of the map function as the element types
+of the host [array types](#array-types).
+
+| format                           | `Repr` format               |
+|----------------------------------|-----------------------------|
+| `array8_map len A map_fn array`  | `Array8 len (Repr map_fn)`  |
+| `array16_map len A map_fn array` | `Array16 len (Repr map_fn)` |
+| `array32_map len A map_fn array` | `Array32 len (Repr map_fn)` |
+| `array64_map len A map_fn array` | `Array64 len (Repr map_fn)` |
+
 ### Repeat formats
 
 The `repeat_until_end` format repeats parsing the given format until the end of
@@ -512,15 +537,31 @@ the current binary stream is reached:
 
 - `repeat_until_end : Format -> Format`
 
+There are four repeat until full formats that parse and replicate a format until
+a given length is reached:
+
+- `repeat_until_full8 : U8 -> fun (A : Format) -> (Repr A -> U8) -> Format`
+- `repeat_until_full16 : U16 -> fun (A : Format) -> (Repr A -> U16) -> Format`
+- `repeat_until_full32 : U32 -> fun (A : Format) -> (Repr A -> U32) -> Format`
+- `repeat_until_full64 : U64 -> fun (A : Format) -> (Repr A -> U64) -> Format`
+
+The supplied function can be used to replicate a single parsed format multiple
+times into the final array.
+
 #### Representation of repeat formats
 
-Because the repeat format does not have a predefined length, it is
+Because the repeat until end format does not have a predefined length, it is
 [represented](#format-representations) as a dynamically sized
-[array type](#array-types):
+[array type](#array-types). The repeat until full format preserves the length
+in its [representation](#format-representations):
 
-| format                    | `Repr` format         |
-| ------------------------- | --------------------- |
-| `repeat_until_end format` | `Array (Repr format)` |
+| format                              | `Repr` format               |
+|-------------------------------------|-----------------------------|
+| `repeat_until_end format`           | `Array (Repr format)`       |
+| `repeat_until_full8 len replicate`  | `Array8 len (Repr format)`  |
+| `repeat_until_full16 len replicate` | `Array16 len (Repr format)` |
+| `repeat_until_full32 len replicate` | `Array32 len (Repr format)` |
+| `repeat_until_full64 len replicate` | `Array64 len (Repr format)` |
 
 ### Limit formats
 
@@ -595,11 +636,18 @@ embedded in the resulting parsed output.
 
 - `succeed : fun (A : Type) -> A -> Format`
 
+The `or_succeed` accepts a boolean condition value. If the condition value is
+`true` then the format is used, otherwise the default value is used, consuming
+no input:
+
+- `or_succeed : Bool -> fun (A : Format) -> Repr A -> Format`
+
 #### Representation of succeed formats
 
-| format        | `Repr` format |
-| ------------- | ------------- |
-| `succeed A a` | `A`           |
+| format                           | `Repr` format |
+|----------------------------------|---------------|
+| `succeed A a`                    | `A`           |
+| `or_succeed cond format default` | `Repr format` |
 
 ### Fail format
 
@@ -845,6 +893,7 @@ A number of operations are defined for the numeric types:
 - `u16_and : U16 -> U16 -> U16`
 - `u16_or : U16 -> U16 -> U16`
 - `u16_xor : U16 -> U16 -> U16`
+- `u16_from_u8 : U8 -> U16`
 
 - `u32_eq : U32 -> U32 -> Bool`
 - `u32_neq : U32 -> U32 -> Bool`
