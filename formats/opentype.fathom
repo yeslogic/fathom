@@ -2793,25 +2793,54 @@ def glyph_header = {
 ///
 /// - [Microsoft's OpenType Spec: Glyph Headers](https://docs.microsoft.com/en-us/typography/opentype/spec/glyf#simple-glyph-description)
 /// - [Apple's TrueType Reference Manual: The `'loca'` table](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6glyf.html)
-def simple_glyph = fun (number_of_contours : U16) => {
-    /// Array of point indices for the last point of each contour, in increasing numeric order.
-    end_pts_of_contours <- array16 number_of_contours u16be,
-    /// Total number of bytes for instructions. If instructionLength is zero, no instructions are
-    /// present for this glyph, and this field is followed directly by the flags field.
-    instruction_length <- u16be,
-    /// Array of instruction byte code for the glyph.
-    instructions <- array16 instruction_length u8,
-    let last_end_point_index = array16_index _ _ (number_of_contours - (1 : U16)) end_pts_of_contours,
-    let number_of_coords = last_end_point_index + (1 : U16),
-    /// Array of flag elements.
-    // flags[variable] <- uint8,
-    /// xCoordinates[variable] 	Contour point x-coordinates. Coordinate for the first point is relative to (0,0);
-    /// others are relative to previous point.
-    // or int16 <- uint8,
-    /// yCoordinates[variable] 	Contour point y-coordinates. Coordinate for the first point is relative to (0,0);
-    /// others are relative to previous point.
-    // or int16 <- uint8,
-};
+def simple_glyph = fun (number_of_contours : U16) => (
+    let flag = {
+        flag <- u8,
+        repeat <- or_succeed ((u8_and flag 8) != (0 : U8)) u8 0,
+    };
+
+    let flag_repeat = fun (f : Repr flag) => u16_from_u8 f.repeat + (1 : U16);
+    let flag_is_set = fun (bit : U8) => fun (f : Repr flag) => u8_and f.flag bit != (0 : U8);
+    let x_is_short = flag_is_set 2;
+    let x_is_same = flag_is_set 0x10;
+    let y_is_short = flag_is_set 4;
+    let y_is_same = flag_is_set 0x20;
+
+    {
+        /// Array of point indices for the last point of each contour, in increasing numeric order.
+        end_pts_of_contours <- array16 number_of_contours u16be,
+        /// Total number of bytes for instructions. If instructionLength is zero, no instructions are
+        /// present for this glyph, and this field is followed directly by the flags field.
+        instruction_length <- u16be,
+        /// Array of instruction byte code for the glyph.
+        instructions <- array16 instruction_length u8,
+
+        let number_of_coords = match (u16_gt number_of_contours (0 : U16)) {
+            true => array16_index _ _ (number_of_contours - (1 : U16)) end_pts_of_contours + (1 : U16),
+            false => 0
+        },
+
+        /// Array of flag elements.
+        flags <- repeat_until_full number_of_coords flag flag_repeat,
+
+        let read_coord = fun (is_short : Repr flag -> Bool) => fun (is_same : Repr flag -> Bool) => fun (f : Repr flag) => {
+            coord <- match (is_short f) {
+                true => u8,
+                false => match (is_same f) {
+                    true => succeed S16 0,
+                    false => s16be,
+                }
+            }
+        },
+
+        /// Contour point x-coordinates. Coordinate for the first point is relative to (0,0);
+        /// others are relative to previous point.
+        x_coordinates <- array16_map number_of_coords _ (read_coord x_is_short x_is_same) flags,
+        /// Contour point y-coordinates. Coordinate for the first point is relative to (0,0);
+        /// others are relative to previous point.
+        y_coordinates <- array16_map number_of_coords _ (read_coord y_is_short y_is_same) flags,
+    }
+);
 
 def args_are_signed = fun (flags : U16) =>
     u16_and flags 0x0002 != (0 : U16);
