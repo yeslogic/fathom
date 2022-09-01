@@ -61,15 +61,17 @@ mutual
   Rep (Bind f1 f2) = (x : Rep f1 ** Rep (f2 x))
 
 
--- Support for do notation
+namespace Format
 
-public export
-pure : {0 A : Type} -> A -> Format
-pure = Pure
+  -- Support for do notation
 
-public export
-(>>=) : (f : Format) -> (Rep f -> Format) -> Format
-(>>=) = Bind
+  public export
+  pure : {0 A : Type} -> A -> Format
+  pure = Pure
+
+  public export
+  (>>=) : (f : Format) -> (Rep f -> Format) -> Format
+  (>>=) = Bind
 
 
 ---------------------------
@@ -169,3 +171,47 @@ toFormatOfEqIso = MkIso
   , toFrom = \(Evidence _ (MkFormatOf _)) => Refl
   , fromTo = \(Evidence _ (Element _ Refl)) => Refl
   }
+
+
+---------------------------------
+-- INDEXED FORMAT CONSTRUCTORS --
+---------------------------------
+
+-- Helpful constructors for building index format descriptions.
+-- This also tests if we can actually meaningfully use the `FormatOf` type.
+
+namespace FormatOf
+
+  public export
+  end : FormatOf Unit
+  end = MkFormatOf End
+
+
+  public export
+  fail : FormatOf Void
+  fail = MkFormatOf Fail
+
+
+  public export
+  pure : {0 A : Type} -> (x : A) -> FormatOf (Sing x)
+  pure x = MkFormatOf (Pure x)
+
+
+  public export
+  skip : {0 A : Type} -> (f : FormatOf A) -> (def : A) -> FormatOf Unit
+  skip f def with (toFormatEq f)
+    skip _ def | (Element f prf) = MkFormatOf (Skip f (rewrite prf in def))
+
+
+  public export
+  repeat : {0 A : Type} -> (len : Nat) -> FormatOf A -> FormatOf (Vect len A)
+  repeat len f with (toFormatEq f)
+    repeat len _ | (Element f prf) =
+      toFormatOfEq (Element (Repeat len f) (cong (Vect len) prf))
+
+
+  public export
+  bind : {0 A : Type} -> {0 B : A -> Type} -> (f : FormatOf A) -> ((x : A) -> FormatOf (B x)) -> FormatOf (x : A ** B x)
+  bind f1 f2 with (toFormatEq f1)
+    bind _ f2 | (Element f1 prf) =
+      ?todoFormatOf_bind
