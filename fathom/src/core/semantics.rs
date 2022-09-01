@@ -867,8 +867,17 @@ impl<'arena, 'env> ElimEnv<'arena, 'env> {
                 (Prim::FormatRepeatUntilEnd, [Elim::FunApp(elem)]) => {
                     Value::prim(Prim::ArrayType, [self.format_repr(elem)])
                 }
-                (Prim::FormatRepeatUntilFull, [Elim::FunApp(len), Elim::FunApp(elem), _]) => {
+                (Prim::FormatRepeatUntilFull8, [Elim::FunApp(len), Elim::FunApp(elem), _]) => {
+                    Value::prim(Prim::Array8Type, [len.clone(), self.format_repr(elem)])
+                }
+                (Prim::FormatRepeatUntilFull16, [Elim::FunApp(len), Elim::FunApp(elem), _]) => {
                     Value::prim(Prim::Array16Type, [len.clone(), self.format_repr(elem)])
+                }
+                (Prim::FormatRepeatUntilFull32, [Elim::FunApp(len), Elim::FunApp(elem), _]) => {
+                    Value::prim(Prim::Array32Type, [len.clone(), self.format_repr(elem)])
+                }
+                (Prim::FormatRepeatUntilFull64, [Elim::FunApp(len), Elim::FunApp(elem), _]) => {
+                    Value::prim(Prim::Array64Type, [len.clone(), self.format_repr(elem)])
                 }
                 (Prim::FormatLink, [_, Elim::FunApp(elem)]) => {
                     Value::prim(Prim::RefType, [elem.clone()])

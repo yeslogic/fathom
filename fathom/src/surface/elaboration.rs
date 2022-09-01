@@ -230,12 +230,11 @@ impl<'arena> RigidEnv<'arena> {
         env.define_prim_fun(FormatRepeatUntilEnd, [&FORMAT_TYPE], &FORMAT_TYPE);
 
         // repeat_until_full16 : U16 -> fun (A : Format) -> (Repr A -> U16) -> Format
-        env.define_prim(
-            FormatRepeatUntilFull,
+        let repeat_until_full = |index_type| {
             scope.to_scope(core::Term::FunType(
                 Span::Empty,
-                None,
-                &U16_TYPE,
+                env.name("len"),
+                index_type,
                 scope.to_scope(core::Term::FunType(
                     Span::Empty,
                     env.name("A"),
@@ -251,13 +250,23 @@ impl<'arena> RigidEnv<'arena> {
                                 &Term::Prim(Span::Empty, FormatRepr),
                                 &VAR0,
                             )),
-                            &U16_TYPE,
+                            index_type,
                         )),
                         &FORMAT_TYPE,
                     )),
                 )),
-            )),
-        );
+            ))
+        };
+
+        let repeat_until_full8 = repeat_until_full(&U8_TYPE);
+        let repeat_until_full16 = repeat_until_full(&U16_TYPE);
+        let repeat_until_full32 = repeat_until_full(&U32_TYPE);
+        let repeat_until_full64 = repeat_until_full(&U64_TYPE);
+        env.define_prim(FormatRepeatUntilFull8, repeat_until_full8);
+        env.define_prim(FormatRepeatUntilFull16, repeat_until_full16);
+        env.define_prim(FormatRepeatUntilFull32, repeat_until_full32);
+        env.define_prim(FormatRepeatUntilFull64, repeat_until_full64);
+
         env.define_prim_fun(FormatLimit8, [&U8_TYPE, &FORMAT_TYPE], &FORMAT_TYPE);
         env.define_prim_fun(FormatLimit16, [&U16_TYPE, &FORMAT_TYPE], &FORMAT_TYPE);
         env.define_prim_fun(FormatLimit32, [&U32_TYPE, &FORMAT_TYPE], &FORMAT_TYPE);

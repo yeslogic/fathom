@@ -2821,7 +2821,7 @@ def simple_glyph = fun (number_of_contours : U16) => (
         },
 
         /// Array of flag elements.
-        flags <- repeat_until_full number_of_coords flag flag_repeat,
+        flags <- repeat_until_full16 number_of_coords flag flag_repeat,
 
         let read_coord = fun (is_short : Repr flag -> Bool) => fun (is_same : Repr flag -> Bool) => fun (f : Repr flag) => {
             coord <- match (is_short f) {

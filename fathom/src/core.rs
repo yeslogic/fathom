@@ -381,10 +381,22 @@ def_prims! {
     FormatArray64Map => "array64_map",
     /// Repeat a format until the length of the given parse scope is reached.
     FormatRepeatUntilEnd => "repeat_until_end",
-    /// Repeat a format until the array is filled.
+    /// Repeat a format until the array with 8-bit indices is filled.
     ///
     /// The value read by the format is replicated according to a supplied function.
-    FormatRepeatUntilFull => "repeat_until_full",
+    FormatRepeatUntilFull8 => "repeat_until_full8",
+    /// Repeat a format until the array with 16-bit indices is filled.
+    ///
+    /// The value read by the format is replicated according to a supplied function.
+    FormatRepeatUntilFull16 => "repeat_until_full16",
+    /// Repeat a format until the array with 32-bit indices is filled.
+    ///
+    /// The value read by the format is replicated according to a supplied function.
+    FormatRepeatUntilFull32 => "repeat_until_full32",
+    /// Repeat a format until the array with 64-bit indices is filled.
+    ///
+    /// The value read by the format is replicated according to a supplied function.
+    FormatRepeatUntilFull64 => "repeat_until_full64",
     /// Limit the format to an unsigned 8-bit byte length.
     FormatLimit8 => "limit8",
     /// Limit the format to an unsigned 16-bit byte length.

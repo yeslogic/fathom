@@ -411,19 +411,22 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
             (Prim::FormatF32Le, []) => read_const(reader, span, read_f32le, Const::F32),
             (Prim::FormatF64Be, []) => read_const(reader, span, read_f64be, Const::F64),
             (Prim::FormatF64Le, []) => read_const(reader, span, read_f64le, Const::F64),
-            (Prim::FormatArray8, [FunApp(len), FunApp(format)]) => self.read_array(reader, span, len, format),
-            (Prim::FormatArray16, [FunApp(len), FunApp(format)]) => self.read_array(reader, span, len, format),
-            (Prim::FormatArray32, [FunApp(len), FunApp(format)]) => self.read_array(reader, span, len, format),
+            (Prim::FormatArray8, [FunApp(len), FunApp(format)]) |
+            (Prim::FormatArray16, [FunApp(len), FunApp(format)]) |
+            (Prim::FormatArray32, [FunApp(len), FunApp(format)]) |
             (Prim::FormatArray64, [FunApp(len), FunApp(format)]) => self.read_array(reader, span, len, format),
-            (Prim::FormatArray8Map, [_, _, FunApp(map_fn), FunApp(array)]) => self.array_map(reader, span, map_fn, array),
-            (Prim::FormatArray16Map, [_, _, FunApp(map_fn), FunApp(array)]) => self.array_map(reader, span, map_fn, array),
-            (Prim::FormatArray32Map, [_, _, FunApp(map_fn), FunApp(array)]) => self.array_map(reader, span, map_fn, array),
+            (Prim::FormatArray8Map, [_, _, FunApp(map_fn), FunApp(array)]) |
+            (Prim::FormatArray16Map, [_, _, FunApp(map_fn), FunApp(array)]) |
+            (Prim::FormatArray32Map, [_, _, FunApp(map_fn), FunApp(array)]) |
             (Prim::FormatArray64Map, [_, _, FunApp(map_fn), FunApp(array)]) => self.array_map(reader, span, map_fn, array),
             (Prim::FormatRepeatUntilEnd, [FunApp(format)]) => self.read_repeat_until_end(reader, format),
-            (Prim::FormatRepeatUntilFull, [FunApp(len), FunApp(format), FunApp(replicate)]) => self.read_repeat_until_full(reader, len, replicate, format),
-            (Prim::FormatLimit8, [FunApp(limit), FunApp(format)]) => self.read_limit(reader, limit, format),
-            (Prim::FormatLimit16, [FunApp(limit), FunApp(format)]) => self.read_limit(reader, limit, format),
-            (Prim::FormatLimit32, [FunApp(limit), FunApp(format)]) => self.read_limit(reader, limit, format),
+            (Prim::FormatRepeatUntilFull8, [FunApp(len), FunApp(format), FunApp(replicate)]) |
+            (Prim::FormatRepeatUntilFull16, [FunApp(len), FunApp(format), FunApp(replicate)]) |
+            (Prim::FormatRepeatUntilFull32, [FunApp(len), FunApp(format), FunApp(replicate)]) |
+            (Prim::FormatRepeatUntilFull64, [FunApp(len), FunApp(format), FunApp(replicate)]) => self.read_repeat_until_full(reader, len, replicate, format),
+            (Prim::FormatLimit8, [FunApp(limit), FunApp(format)]) |
+            (Prim::FormatLimit16, [FunApp(limit), FunApp(format)]) |
+            (Prim::FormatLimit32, [FunApp(limit), FunApp(format)]) |
             (Prim::FormatLimit64, [FunApp(limit), FunApp(format)]) => self.read_limit(reader, limit, format),
             (Prim::FormatLink, [FunApp(pos), FunApp(format)]) => self.read_link(span, pos, format),
             (Prim::FormatDeref, [FunApp(format), FunApp(r#ref)]) => self.read_deref(format, r#ref),
@@ -529,9 +532,7 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
             _ => return Err(ReadError::InvalidValue(len.span())),
         }
         .ok_or_else(|| ReadError::InvalidValue(len.span()))?;
-
-        // TODO: Do we need to force replicate as well?
-        // let replicate = self.elim_env().force(replicate);
+        let replicate = self.elim_env().force(replicate);
 
         let mut elems = Vec::with_capacity(len);
         while elems.len() < len {
@@ -544,9 +545,11 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
                         _ => return Err(ReadError::InvalidValue(replicate.span())),
                     };
 
-                    // Push it that many times onto the array
-                    // TODO: Error/limit if this exceeds len?
-                    elems.extend(std::iter::repeat(elem).take(usize::from(repeat)));
+                    // Push it that many times onto the array, limiting to the length of the
+                    // output array.
+                    elems.extend(
+                        std::iter::repeat(elem).take(usize::from(repeat).min(len - elems.len())),
+                    );
                 }
                 Err(err) => return Err(err),
             };

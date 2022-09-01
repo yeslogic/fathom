@@ -402,7 +402,7 @@ let y_is_same : _ number_of_contours = flag_is_set 0x20;
         true => array16_index (_ number_of_contours end_pts_of_contours instruction_length instructions) (_ number_of_contours end_pts_of_contours instruction_length instructions) (number_of_contours - (1 :
         U16)) end_pts_of_contours + (1 : U16),
     },
-    flags <- repeat_until_full number_of_coords flag flag_repeat,
+    flags <- repeat_until_full16 number_of_coords flag flag_repeat,
     let read_coord : ({ flag : U8, repeat : U8 } -> Bool) -> ({
         flag : U8,
         repeat : U8,
