@@ -16,6 +16,7 @@ package fathom
 modules = Fathom
         , Fathom.Base
         , Fathom.Data.Bit
+        , Fathom.Data.Iso
         , Fathom.Data.Sing
         , Fathom.Data.Refine
         , Fathom.Data.Word

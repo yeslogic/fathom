@@ -5,9 +5,11 @@ module Fathom.Closed.IndexedInductive
 
 
 import Data.Colist
+import Data.DPair
 import Data.Vect
 
 import Fathom.Base
+import Fathom.Data.Iso
 import Fathom.Data.Sing
 
 
@@ -18,7 +20,7 @@ import Fathom.Data.Sing
 
 ||| Universe of format descriptions indexed by their machine representations
 public export
-data FormatOf : (0 A : Type) -> Type where
+data FormatOf : Type -> Type where
   End : FormatOf Unit
   Fail : FormatOf Void
   Pure : {0 A : Type} -> (x : A) -> FormatOf (Sing x)
@@ -64,6 +66,29 @@ decode (Bind f1 f2) buffer = do
   (y, buffer'') <- decode (f2 x) buffer'
   Just ((x ** y), buffer'')
 
+-- export
+-- decode : {0 A, S : Type} -> (f : FormatOf A) -> Decode (A, Colist S) (Colist S)
+-- decode End
+--   = \buffer => case buffer of
+--       [] => Just ((), [])
+--       _::_ => Nothing
+-- decode Fail
+--   = const Nothing
+-- decode (Pure x)
+--   = pure (MkSing x)
+-- decode (Skip f _)
+--   = do  _ <- decode f
+--         pure ()
+-- decode (Repeat 0 f) = pure []
+-- decode (Repeat (S len) f)
+--   = do  x <- decode f
+--         xs <- decode (Repeat len f)
+--         pure (x :: xs)
+-- decode (Bind f1 f2)
+--   = do  x <- decode f1
+--         y <- decode (f2 x)
+--         pure (x ** y)
+
 
 export
 encode : {0 A, S : Type} -> (f : FormatOf A) -> Encode A (Colist S)
@@ -108,13 +133,37 @@ toFormat f = MkFormat A f
 
 
 public export
+toFormatOfIso : Iso Format (Exists FormatOf)
+toFormatOfIso = MkIso
+  { to = \f => Evidence _ (toFormatOf f)
+  , from = \(Evidence _ f) => toFormat f
+  , toFrom = \(Evidence _ _) => Refl
+  , fromTo = \(MkFormat _ _) => Refl
+  }
+
+
+||| Convert a format description into an indexed format description with an
+||| equality proof that the representation is the same as the index.
+public export
 toFormatOfEq : {0 A : Type} -> (f : Format ** f.Rep = A) -> FormatOf A
 toFormatOfEq (f ** prf) = rewrite sym prf in f.format
 
 
+||| Convert an indexed format description to a existential format description,
+||| along with a proof that the representation is the same as the index.
 public export
 toFormatEq : {0 A : Type} -> FormatOf A -> (f : Format ** f.Rep = A)
 toFormatEq f = (MkFormat A f ** Refl)
+
+
+public export
+toFormatOfEqIso : Iso (Exists (\a => (f : Format ** f.Rep = a))) (Exists FormatOf)
+toFormatOfEqIso = MkIso
+  { to = \(Evidence _f) => Evidence _ (toFormatOfEq f)
+  , from = \(Evidence _ f) => Evidence _ (toFormatEq f)
+  , toFrom = \(Evidence _ _) => Refl
+  , fromTo = \(Evidence _ ((MkFormat _ _) ** Refl)) => Refl
+  }
 
 
 -----------------

@@ -6,12 +6,17 @@ module Fathom.Closed.InductiveRecursiveCustom
 
 import Data.Bits
 import Data.Colist
-import Data.Vect
 import Data.DPair
+import Data.Vect
 
 import Fathom.Base
-import Fathom.Data.Sing
+import Fathom.Data.Iso
 import Fathom.Data.Refine
+
+
+public export
+typeOf : {1 A : Type} -> (0 x : A) -> Type
+typeOf _ = A
 
 
 -------------------------
@@ -38,7 +43,7 @@ mutual
   data Format : Type where
     End : Format
     Fail : Format
-    Pure : {0 A : Type} -> A -> Format
+    Pure : {A : Type} -> A -> Format
     Skip : (f : Format) -> (def : Rep f) -> Format
     Repeat : Nat -> Format -> Format
     Bind : (f : Format) -> (Rep f -> Format) -> Format
@@ -52,7 +57,7 @@ mutual
   Rep Fail = Void
   Rep (Skip _ _) = Unit
   Rep (Repeat len f) = Vect len (Rep f)
-  Rep (Pure x) = Sing x
+  Rep (Pure x) = typeOf x
   Rep (Bind f1 f2) = (x : Rep f1 ** Rep (f2 x))
   Rep (Custom f) = f.Rep
 
@@ -68,7 +73,7 @@ decode End [] = Just ((), [])
 decode End (_::_) = Nothing
 decode Fail _ = Nothing
 decode (Pure x) buffer =
-  Just (MkSing x, buffer)
+  Just (x, buffer)
 decode (Skip f _) buffer = do
   (x, buffer') <- decode f buffer
   Just ((), buffer')
@@ -88,7 +93,7 @@ decode (Custom f) buffer = f.decode buffer
 export
 encode : (f : Format) -> Encode (Rep f) ByteStream
 encode End () = Just []
-encode (Pure x) (MkSing _) = Just []
+encode (Pure x) _ = Just []
 encode (Skip f def) () = encode f def
 encode (Repeat Z f) [] = Just []
 encode (Repeat (S len) f) (x :: xs) =
@@ -105,7 +110,7 @@ encode (Custom f) x = f.encode x
 -- Support for do notation
 
 public export
-pure : {0 A : Type} -> A -> Format
+pure : {A : Type} -> A -> Format
 pure = Pure
 
 public export
@@ -121,27 +126,27 @@ public export
 public export
 u8 : Format
 u8 = Custom (MkCustomFormat
-  { Rep = Bits8
-  , decode = decodeU8
-  , encode = encodeU8
+  { Rep = Nat
+  , decode = map cast decodeU8
+  , encode = encodeU8 . cast {to = Bits8}
   })
 
 
 public export
 u16Le : Format
 u16Le = Custom (MkCustomFormat
-  { Rep = Bits16
-  , decode = decodeU16 LE
-  , encode = encodeU16 LE
+  { Rep = Nat
+  , decode = map cast (decodeU16 LE)
+  , encode = encodeU16 LE . cast {to = Bits16}
   })
 
 
 public export
 u16Be : Format
 u16Be = Custom (MkCustomFormat
-  { Rep = Bits16
-  , decode = decodeU16 BE
-  , encode = encodeU16 BE
+  { Rep = Nat
+  , decode = map cast (decodeU16 BE)
+  , encode = encodeU16 BE . cast {to = Bits16}
   })
 
 
@@ -152,7 +157,7 @@ u16Be = Custom (MkCustomFormat
 
 ||| A format description indexed with a fixed representation
 public export
-data FormatOf : (0 Rep : Type) -> Type where
+data FormatOf : (Rep : Type) -> Type where
   MkFormatOf : (f : Format) -> FormatOf (Rep f)
 
 
@@ -172,13 +177,37 @@ toFormat (MkFormatOf f) = f
 
 
 public export
+toFormatOfIso : Iso Format (Exists FormatOf)
+toFormatOfIso = MkIso
+  { to = \f => Evidence _ (toFormatOf f)
+  , from = \(Evidence _ f) => toFormat f
+  , toFrom = \(Evidence _ (MkFormatOf _)) => Refl
+  , fromTo = \_ => Refl
+  }
+
+
+||| Convert a format description into an indexed format description with an
+||| equality proof that the representation is the same as the index.
+public export
 toFormatOfEq : {0 A : Type} -> (f : Format ** Rep f = A) -> FormatOf A
 toFormatOfEq (f ** prf) = rewrite sym prf in MkFormatOf f
 
 
+||| Convert an indexed format description to a existential format description,
+||| along with a proof that the representation is the same as the index.
 public export
 toFormatEq : {0 A : Type} -> FormatOf A -> (f : Format ** Rep f = A)
 toFormatEq (MkFormatOf f) = (f ** Refl)
+
+
+public export
+toFormatOfEqIso : Iso (Exists (\a => (f : Format ** Rep f = a))) (Exists FormatOf)
+toFormatOfEqIso = MkIso
+  { to = \(Evidence _f) => Evidence _ (toFormatOfEq f)
+  , from = \(Evidence _ f) => Evidence _ (toFormatEq f)
+  , toFrom = \(Evidence _ (MkFormatOf _)) => Refl
+  , fromTo = \(Evidence _ (_ ** Refl)) => Refl
+  }
 
 
 -----------------
@@ -193,13 +222,13 @@ either False _ f2 = MkFormatOf f2
 
 
 export
-orPure : (cond : Bool) -> FormatOf a -> (def : a) -> FormatOf (if cond then a else Sing def)
+orPure : {A : Type} -> (cond : Bool) -> FormatOf A -> (def : A) -> FormatOf A
 orPure True f _ = f
 orPure False _ def = MkFormatOf (Pure def)
 
 
 export
-orPure' : (cond : Bool) -> FormatOf a -> (def : a) -> FormatOf (if cond then a else Sing def)
+orPure' : {A : Type} -> (cond : Bool) -> FormatOf A -> (def : A) -> FormatOf A
 orPure' True f _ = f
 orPure' False _ def = MkFormatOf (Pure def)
 
@@ -216,8 +245,9 @@ orPure' False _ def = MkFormatOf (Pure def)
 flag : Format
 flag = do
   flag <- u8
-  repeat <- if flag == 0 then u8 else
-    Pure {A = Bits8} 0
+  repeat <- case flag of
+    0 => u8
+    _ => Pure {A = Nat} 0
   Pure ()
 
 -- def simple_glyph = fun (number_of_contours : U16) => {
@@ -227,25 +257,10 @@ flag = do
 -- };
 simple_glyph : Format
 simple_glyph = do
-  (flag ** repeat ** MkSing ()) <- flag
+  (flag ** repeat ** ()) <- flag
   let
-    repeat' : Bits8
+    repeat' : Nat
     repeat' = case flag of
       0 => repeat
-      x => ?todo4
-
-    -- repeat' : Bits8
-    -- repeat' with (flag)
-    --   repeat' | 0 = ?todo3
-    --   repeat' | x = ?todo4
-
-    -- repeat' : Bits8
-    -- repeat' with (MkSingEq flag)
-    --   repeat' | MkSingEq 0 {prf} = ?help
-    --   repeat' | MkSingEq x {prf} = ?todo4
-
-    -- repeat' : Bits8
-    -- repeat' = case MkSingEq flag of
-    --   MkSingEq 0 {prf} => ?todo3
-    --   MkSingEq x {prf} => ?todo4
+      repeat => ?todo_repeat
   Pure (repeat' + 1)

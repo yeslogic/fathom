@@ -23,9 +23,11 @@ module Fathom.Closed.InductiveRecursive
 
 
 import Data.Colist
+import Data.DPair
 import Data.Vect
 
 import Fathom.Base
+import Fathom.Data.Iso
 import Fathom.Data.Sing
 
 -- import Fathom.Open.Record
@@ -134,7 +136,7 @@ encode (Bind f1 f2) (x ** y) = do
 
 ||| A format description refined with a fixed representation
 public export
-data FormatOf : (0 A : Type) -> Type where
+data FormatOf : (A : Type) -> Type where
   MkFormatOf : (f : Format) -> FormatOf (Rep f)
 
 
@@ -154,15 +156,37 @@ toFormat (MkFormatOf f) = f
 
 
 public export
+toFormatOfIso : Iso Format (Exists FormatOf)
+toFormatOfIso = MkIso
+  { to = \f => Evidence _ (toFormatOf f)
+  , from = \(Evidence _ f) => toFormat f
+  , toFrom = \(Evidence _ (MkFormatOf _)) => Refl
+  , fromTo = \_ => Refl
+  }
+
+
+||| Convert a format description into an indexed format description with an
+||| equality proof that the representation is the same as the index.
+public export
 toFormatOfEq : {0 A : Type} -> (f : Format ** Rep f = A) -> FormatOf A
 toFormatOfEq (f ** prf) = rewrite sym prf in MkFormatOf f
 
 
+||| Convert an indexed format description to a existential format description,
+||| along with a proof that the representation is the same as the index.
 public export
 toFormatEq : {0 A : Type} -> FormatOf A -> (f : Format ** Rep f = A)
 toFormatEq (MkFormatOf f) = (f ** Refl)
 
 
+public export
+toFormatOfEqIso : Iso (Exists (\a => (f : Format ** Rep f = a))) (Exists FormatOf)
+toFormatOfEqIso = MkIso
+  { to = \(Evidence _ f) => Evidence _ (toFormatOfEq f)
+  , from = \(Evidence _ f) => Evidence _ (toFormatEq f)
+  , toFrom = \(Evidence _ (MkFormatOf _)) => Refl
+  , fromTo = \(Evidence _ (f ** Refl)) => Refl
+  }
 export
 either : (cond : Bool) -> (f1 : Format) -> (f2 : Format) -> FormatOf (if cond then Rep f1 else Rep f2)
 either True f1 _ = MkFormatOf f1
