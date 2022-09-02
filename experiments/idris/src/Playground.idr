@@ -18,9 +18,9 @@ import Fathom.Open.Record as Record
 public export
 format : IndRec.Format -> Record.Format
 format f = Record.MkFormat
-  { Rep = IndRec.Rep f
-  , decode = IndRec.decode f
-  , encode = IndRec.encode f
+  { Rep = Rep f
+  , decode = decode f
+  , encode = encode f
   }
 
 
@@ -29,8 +29,8 @@ public export
 formatOf : {Rep : Type} -> Indexed.FormatOf Rep -> Record.Format
 formatOf f = Record.MkFormat
   { Rep = Rep
-  , decode = Indexed.decode f
-  , encode = Indexed.encode f
+  , decode = decode f
+  , encode = encode f
   }
 
 
@@ -100,22 +100,136 @@ mutual
     _ | MkFormatOf f' = MkFormatOf (Repeat len f')
   indexedToIndRecFormatOf (Bind f1 f2) with (indexedToIndRecFormatOf f1)
     _ | MkFormatOf f1' =
+  --     -- let
+  --     --   bindF1F2 = Bind f1' (\x =>
+  --     --     let
+  --     --       (f2' ** _) = toFormat (indexedToIndRecFormatOf (f2 x))
+  --     --     in
+  --     --       ?indexedToIndRecFormatOfBind_f2)
+  --     -- in
+  --     -- ?indexedToIndRecFormatOfBind
+  --     MkFormatOf (Bind f1' (\x =>
+  --         let
+  --           (f2' ** prf) = toFormat (indexedToIndRecFormatOf (f2 x))
+  --         in
+  --           ?indexedToIndRecFormatOfBind_f2))
+  -- indexedToIndRecFormatOf (Bind f1 f2) with (indexedToIndRecFormat (MkFormat _ f1))
+  --   _ | (f1' ** prf) =
       ?indexedToIndRecFormatOfBind
+
+
+-- ||| Convert an indexed format description to an inductive-recursive format
+-- indexedToIndRec : {0 A : Type} -> (f : Indexed.FormatOf A) -> IndRec.FormatOf A
+-- indexedToIndRec End = MkFormatOf IndRec.End
+-- indexedToIndRec Fail = MkFormatOf IndRec.Fail
+-- indexedToIndRec (Pure x) = MkFormatOf (IndRec.Pure x)
+-- indexedToIndRec (Skip f def) with (indexedToIndRec f)
+--   indexedToIndRec (Skip _ def) | MkFormatOf f = MkFormatOf (IndRec.Skip f def)
+-- indexedToIndRec (Repeat len f) with (indexedToIndRec f)
+--   indexedToIndRec (Repeat len _) | MkFormatOf f = MkFormatOf (IndRec.Repeat len f)
+-- indexedToIndRec (Bind f1 f2) with (indexedToIndRec f1)
+--   indexedToIndRec (Bind _ f2) | MkFormatOf f1 =
+--     ?todo_indexedToIndRec
+
+-- indexedToIndRec (Bind f1 f2) with (indexedToIndRec f1)
+  -- _ | (MkFormatOf End) = MkFormatOf (Bind End ?todo_indexedToIndRec_2)
+  -- _ | (MkFormatOf Fail) = MkFormatOf (Bind Fail absurd)
+  -- _ | (MkFormatOf (Pure f)) = MkFormatOf (Bind ?todo_indexedToIndRec_4)
+  -- _ | (MkFormatOf (Skip f def)) = MkFormatOf (Bind ?todo_indexedToIndRec_5)
+  -- _ | (MkFormatOf (Repeat k x)) = MkFormatOf (Bind ?todo_indexedToIndRec_6)
+  -- _ | (MkFormatOf (Bind f g)) = MkFormatOf (Bind ?todo_indexedToIndRec_7)
+
+-- indexedToIndRec (Bind f1 f2) with (sameRep (indexedToIndRec f1))
+--   indexedToIndRec (Bind _ f2) | (f1' ** prf) =
+--     rewrite sym prf in MkFormatOf (Bind f1' (\x => ?todo_indexedToIndRec))
+--     where
+--       indexedToIndRecF2 : {0 A : Type} -> {0 B : A -> Type} -> ((x : A) -> Indexed.FormatOf (B x)) -> ((x : A) -> IndRec.FormatOf (B x))
+--       indexedToIndRecF2 x = ?todofF2
+
+-- indexedToIndRec (Bind f1 f2) with (indexedToIndRec f1)
+--   indexedToIndRec (Bind _ f2) | MkFormatOf f1 =
+--     let
+--       bindF1 = Bind f1
+--       bodyF2 : x : Rep f1 -> FormatOf ()
+--       bodyF2 = x : Rep f1 =>
+--         case sameRep (indexedToIndRec (f2 x)) of
+--           (f2' ** prf) => f2')
+--     in
+--     ?todo_indexedToIndRec
+--     where
+--       indexedToIndRecF2 : {0 A : Type} -> {0 B : A -> Type} -> ((x : A) -> Indexed.FormatOf (B x)) -> ((x : A) -> IndRec.FormatOf (B x))
+--       indexedToIndRecF2 x = ?todofF2
+
+-- indexedToIndRec (Bind f1 f2) with (sameRep (indexedToIndRec f1))
+--   _ | (End ** prf) = let bindF1 = Bind f1 in ?todo_indexedToIndRec_2
+--   _ | (Fail ** prf) = let bindF1 = Bind f1 in ?todo_indexedToIndRec_3
+--   _ | ((Pure f) ** prf) = let bindF1 = Bind f1 in ?todo_indexedToIndRec_4
+--   _ | ((Skip f def) ** prf) = let bindF1 = Bind f1 in ?todo_indexedToIndRec_5
+--   _ | ((Repeat k x) ** prf) = let bindF1 = Bind f1 in ?todo_indexedToIndRec_6
+--   _ | ((Bind f g) ** prf) = let bindF1 = Bind f1 in ?todo_indexedToIndRec_7
+
+-- indexedToIndRec (Bind f1 f2) with (sameRep (indexedToIndRec f1))
+--   indexedToIndRec (Bind _ f2) | (f1' ** prf) =
+--     let bindF1 = Bind f1' in
+    -- MkFormatOf (Bind f1' (\x =>
+    --   let
+    --     f2' = f2 x
+    --     -- f2'' = sameRep f2'
+    --   in
+    --     ?help))
+  -- let f1' = indexedToIndRec f1
+  --     (f1'', fromRep) = sameRep' f1'
+  -- in
+
+-- indexedToIndRec (Bind f1 f2) = indexedToIndRecBind f1 f2
+-- indexedToIndRec (Bind f1 f2) with (sameRep (indexedToIndRec f1))
+--   indexedToIndRec (Bind _ f2) | (f1 ** prf) =
+--     let hmm = Bind f1
+--     in
+--     --    f1 : Format
+--     --  0 A : Type
+--     --    f2 : (x : Rep f1) -> FormatOf (B x)
+--     -- ------------------------------
+--     -- todo_indexedToIndRec : FormatOf (DPair (Rep f1) (\x => B x))
+    -- ?todo_indexedToIndRec
+    -- MkFormatOf (Bind f1 (\x => ?help))
+--     --   let
+--     --   --   x' : A
+--     --   --   x' = x
+--     --     f2' = f2 x
+--     --     MkFormatOf f2'' = indexedToIndRec f2'
+--     --   in
+--     --   f2''))
+
+-- indexedToIndRec' : {0 A : Type} -> (f : Indexed.FormatOf A) -> IndRec.Format
+-- indexedToIndRec' End = IndRec.End
+-- indexedToIndRec' Fail = IndRec.Fail
+-- indexedToIndRec' (Pure x) = IndRec.Pure x
+-- indexedToIndRec' (Skip f def) with (MkFormatOf (indexedToIndRec' f))
+--   _ | f' = IndRec.Skip (indexedToIndRec' f) ?todo1
+-- indexedToIndRec' (Repeat len f) = IndRec.Repeat len (indexedToIndRec' f)
+-- indexedToIndRec' (Bind f1 f2) = IndRec.Bind (indexedToIndRec' f1) ?todo2
+
+
+-- indexedToIndRec'' : (f : Indexed.Format) -> IndRec.Format
+-- indexedToIndRec'' (MkFormat () End) = IndRec.End
+-- indexedToIndRec'' (MkFormat Void Fail) = IndRec.Fail
+-- indexedToIndRec'' (MkFormat (Sing x) (Pure x)) = IndRec.Pure x
+-- indexedToIndRec'' (MkFormat () (Skip f def)) with (indexedToIndRec'' (MkFormat _ f))
+--   _ | f'' = IndRec.Skip f'' ?tododef
+-- indexedToIndRec'' (MkFormat rep (Repeat len f)) = IndRec.Repeat len (indexedToIndRec'' f)
+-- indexedToIndRec'' (MkFormat rep (Bind f1 f2)) = IndRec.Bind (indexedToIndRec'' f1) ?todo2
 
 
 -- Reproduction of difficulties in OpenType format, drawing parallels to
 -- Tarski-style universes.
-
-repeatWithId : Nat -> Type
-repeatWithId 0 = Nat
-repeatWithId (S _) = Sing {A = Nat} 0
 
 record Flag where
   constructor MkFlag
   id : Nat
   repeat : case id of
     0 => Nat
-    (S n) => Sing {A = Nat} 0
+    S n => Sing {A = Nat} 0
 
 record SimpleGlyph where
   constructor MkSimpleGlyph

@@ -29,77 +29,56 @@ data FormatOf : Type -> Type where
   Bind : {0 A : Type} -> {0 B : A -> Type} -> (f : FormatOf A) -> ((x : A) -> FormatOf (B x)) -> FormatOf (x : A ** B x)
 
 
--- Support for do notation
+namespace FormatOf
 
-public export
-pure : {0 A : Type} -> (x : A) -> FormatOf (Sing x)
-pure = Pure
+  -- Support for do notation
 
-public export
-(>>=) : {0 A : Type} -> {0 B : A -> Type} -> (f : FormatOf A) -> ((x : A) -> FormatOf (B x)) -> FormatOf (x : A ** B x)
-(>>=) = Bind
+  public export
+  pure : {0 A : Type} -> (x : A) -> FormatOf (Sing x)
+  pure = Pure
 
-
----------------------------
--- ENCODER/DECODER PAIRS --
----------------------------
+  public export
+  (>>=) : {0 A : Type} -> {0 B : A -> Type} -> (f : FormatOf A) -> ((x : A) -> FormatOf (B x)) -> FormatOf (x : A ** B x)
+  (>>=) = Bind
 
 
-export
-decode : {0 A, S : Type} -> (f : FormatOf A) -> Decode (A, Colist S) (Colist S)
-decode End [] = Just ((), [])
-decode End (_::_) = Nothing
-decode Fail _ = Nothing
-decode (Pure x) buffer =
-  Just (MkSing x, buffer)
-decode (Skip f _) buffer = do
-  (x, buffer') <- decode f buffer
-  Just ((), buffer')
-decode (Repeat 0 f) buffer =
-  Just ([], buffer)
-decode (Repeat (S len) f) buffer = do
-  (x, buffer') <- decode f buffer
-  (xs, buffer'') <- decode (Repeat len f) buffer'
-  Just (x :: xs, buffer'')
-decode (Bind f1 f2) buffer = do
-  (x, buffer') <- decode f1 buffer
-  (y, buffer'') <- decode (f2 x) buffer'
-  Just ((x ** y), buffer'')
-
--- export
--- decode : {0 A, S : Type} -> (f : FormatOf A) -> Decode (A, Colist S) (Colist S)
--- decode End
---   = \buffer => case buffer of
---       [] => Just ((), [])
---       _::_ => Nothing
--- decode Fail
---   = const Nothing
--- decode (Pure x)
---   = pure (MkSing x)
--- decode (Skip f _)
---   = do  _ <- decode f
---         pure ()
--- decode (Repeat 0 f) = pure []
--- decode (Repeat (S len) f)
---   = do  x <- decode f
---         xs <- decode (Repeat len f)
---         pure (x :: xs)
--- decode (Bind f1 f2)
---   = do  x <- decode f1
---         y <- decode (f2 x)
---         pure (x ** y)
+  ---------------------------
+  -- ENCODER/DECODER PAIRS --
+  ---------------------------
 
 
-export
-encode : {0 A, S : Type} -> (f : FormatOf A) -> Encode A (Colist S)
-encode End () = Just []
-encode (Pure x) (MkSing _) = Just []
-encode (Skip f def) () = encode f def
-encode (Repeat Z f) [] = Just []
-encode (Repeat (S len) f) (x :: xs) =
-  [| encode f x <+> encode (Repeat len f) xs |]
-encode (Bind f1 f2) (x ** y) =
-  [| encode f1 x <+> encode (f2 x) y |]
+  export
+  decode : {0 A, S : Type} -> (f : FormatOf A) -> Decode (A, Colist S) (Colist S)
+  decode End [] = Just ((), [])
+  decode End (_::_) = Nothing
+  decode Fail _ = Nothing
+  decode (Pure x) buffer =
+    Just (MkSing x, buffer)
+  decode (Skip f _) buffer = do
+    (x, buffer') <- decode f buffer
+    Just ((), buffer')
+  decode (Repeat 0 f) buffer =
+    Just ([], buffer)
+  decode (Repeat (S len) f) buffer = do
+    (x, buffer') <- decode f buffer
+    (xs, buffer'') <- decode (Repeat len f) buffer'
+    Just (x :: xs, buffer'')
+  decode (Bind f1 f2) buffer = do
+    (x, buffer') <- decode f1 buffer
+    (y, buffer'') <- decode (f2 x) buffer'
+    Just ((x ** y), buffer'')
+
+
+  export
+  encode : {0 A, S : Type} -> (f : FormatOf A) -> Encode A (Colist S)
+  encode End () = Just []
+  encode (Pure x) (MkSing _) = Just []
+  encode (Skip f def) () = encode f def
+  encode (Repeat Z f) [] = Just []
+  encode (Repeat (S len) f) (x :: xs) =
+    [| encode f x <+> encode (Repeat len f) xs |]
+  encode (Bind f1 f2) (x ** y) =
+    [| encode f1 x <+> encode (f2 x) y |]
 
 
 -------------------------
@@ -122,14 +101,32 @@ record Format where
 ------------------------------------
 
 
-public export
-toFormatOf : (f : Format) -> FormatOf f.Rep
-toFormatOf (MkFormat _ f) = f
+namespace Format
+
+  public export
+  toFormatOf : (f : Format) -> FormatOf f.Rep
+  toFormatOf (MkFormat _ f) = f
 
 
-public export
-toFormat : {0 A : Type} -> FormatOf A -> Format
-toFormat f = MkFormat A f
+  ||| Convert a format description into an indexed format description with an
+  ||| equality proof that the representation is the same as the index.
+  public export
+  toFormatOfEq : {0 A : Type} -> (Subset Format (\f => f.Rep = A)) -> FormatOf A
+  toFormatOfEq (Element f prf) = rewrite sym prf in f.format
+
+
+namespace FormatOf
+
+  public export
+  toFormat : {0 A : Type} -> FormatOf A -> Format
+  toFormat f = MkFormat A f
+
+
+  ||| Convert an indexed format description to a existential format description,
+  ||| along with a proof that the representation is the same as the index.
+  public export
+  toFormatEq : {0 A : Type} -> FormatOf A -> (Subset Format (\f => f.Rep = A))
+  toFormatEq f = Element (MkFormat A f) Refl
 
 
 public export
@@ -140,20 +137,6 @@ toFormatOfIso = MkIso
   , toFrom = \(Evidence _ _) => Refl
   , fromTo = \(MkFormat _ _) => Refl
   }
-
-
-||| Convert a format description into an indexed format description with an
-||| equality proof that the representation is the same as the index.
-public export
-toFormatOfEq : {0 A : Type} -> (Subset Format (\f => f.Rep = A)) -> FormatOf A
-toFormatOfEq (Element f prf) = rewrite sym prf in f.format
-
-
-||| Convert an indexed format description to a existential format description,
-||| along with a proof that the representation is the same as the index.
-public export
-toFormatEq : {0 A : Type} -> FormatOf A -> (Subset Format (\f => f.Rep = A))
-toFormatEq f = Element (MkFormat A f) Refl
 
 
 public export

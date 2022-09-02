@@ -33,10 +33,6 @@ record Format where
   encode : Encode Rep ByteStream
 
 
---------------
--- FORMATS --
---------------
-
 namespace Format
 
   public export
@@ -146,31 +142,33 @@ namespace Format
 --------------------
 
 
-public export
-u8 : Format
-u8 = MkFormat
-  { Rep = Nat
-  , decode = map cast decodeU8
-  , encode = encodeU8 . cast {to = Bits8}
-  }
+namespace Format
+
+  public export
+  u8 : Format
+  u8 = MkFormat
+    { Rep = Nat
+    , decode = map cast decodeU8
+    , encode = encodeU8 . cast {to = Bits8}
+    }
 
 
-public export
-u16Le : Format
-u16Le = MkFormat
-  { Rep = Nat
-  , decode = map cast (decodeU16 LE)
-  , encode = encodeU16 LE . cast {to = Bits16}
-  }
+  public export
+  u16Le : Format
+  u16Le = MkFormat
+    { Rep = Nat
+    , decode = map cast (decodeU16 LE)
+    , encode = encodeU16 LE . cast {to = Bits16}
+    }
 
 
-public export
-u16Be : Format
-u16Be = MkFormat
-  { Rep = Nat
-  , decode = map cast (decodeU16 BE)
-  , encode = encodeU16 BE . cast {to = Bits16}
-  }
+  public export
+  u16Be : Format
+  u16Be = MkFormat
+    { Rep = Nat
+    , decode = map cast (decodeU16 BE)
+    , encode = encodeU16 BE . cast {to = Bits16}
+    }
 
 
 ---------------------------------
@@ -189,14 +187,32 @@ data FormatOf : (A : Type) -> Type where
 ------------------------------------
 
 
-public export
-toFormatOf : (f : Format) -> FormatOf f.Rep
-toFormatOf f = MkFormatOf f
+namespace Format
+
+  public export
+  toFormatOf : (f : Format) -> FormatOf f.Rep
+  toFormatOf f = MkFormatOf f
 
 
-public export
-toFormat : {0 A : Type} -> FormatOf A -> Format
-toFormat (MkFormatOf f) = f
+  ||| Convert a format description into an indexed format description with an
+  ||| equality proof that the representation is the same as the index.
+  public export
+  toFormatOfEq : {0 A : Type} -> (Subset Format (\f => f.Rep = A)) -> FormatOf A
+  toFormatOfEq (Element f prf) = rewrite sym prf in MkFormatOf f
+
+
+namespace FormatOf
+
+  public export
+  toFormat : {0 A : Type} -> FormatOf A -> Format
+  toFormat (MkFormatOf f) = f
+
+
+  ||| Convert an indexed format description to a existential format description,
+  ||| along with a proof that the representation is the same as the index.
+  public export
+  toFormatEq : {0 A : Type} -> FormatOf A -> (Subset Format (\f => f.Rep = A))
+  toFormatEq (MkFormatOf f) = Element f Refl
 
 
 public export
@@ -207,20 +223,6 @@ toFormatOfIso = MkIso
   , toFrom = \(Evidence _ (MkFormatOf _)) => Refl
   , fromTo = \_ => Refl
   }
-
-
-||| Convert a format description into an indexed format description with an
-||| equality proof that the representation is the same as the index.
-public export
-toFormatOfEq : {0 A : Type} -> (Subset Format (\f => f.Rep = A)) -> FormatOf A
-toFormatOfEq (Element f prf) = rewrite sym prf in MkFormatOf f
-
-
-||| Convert an indexed format description to a existential format description,
-||| along with a proof that the representation is the same as the index.
-public export
-toFormatEq : {0 A : Type} -> FormatOf A -> (Subset Format (\f => f.Rep = A))
-toFormatEq (MkFormatOf f) = (Element f Refl)
 
 
 public export
