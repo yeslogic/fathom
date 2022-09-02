@@ -96,6 +96,16 @@ record Format where
   format : FormatOf Rep
 
 
+namespace Format
+
+  decode : (f : Format) -> Decode (Rep f, Colist a) (Colist a)
+  decode f = FormatOf.decode f.format
+
+
+  encode : (f : Format) -> Encode (Rep f) (Colist a)
+  encode f = FormatOf.encode f.format
+
+
 ------------------------------------
 -- FORMAT DESCRIPTION CONVERSIONS --
 ------------------------------------

@@ -62,7 +62,7 @@ namespace FormatOf
 
 
   export
-  decode : {0 A : Type} -> (f : FormatOf A) -> Decode (A, ByteStream) (ByteStream)
+  decode : {0 A : Type} -> (f : FormatOf A) -> Decode (A, ByteStream) ByteStream
   decode End [] = Just ((), [])
   decode End (_::_) = Nothing
   decode Fail _ = Nothing
@@ -85,7 +85,7 @@ namespace FormatOf
 
 
   export
-  encode : {0 A : Type} -> (f : FormatOf A) -> Encode A (ByteStream)
+  encode : {0 A : Type} -> (f : FormatOf A) -> Encode A ByteStream
   encode End () = Just []
   encode (Pure x) (MkSing _) = Just []
   encode (Skip f def) () = encode f def
@@ -110,6 +110,16 @@ record Format where
   0 Rep : Type
   ||| The underlying format description
   format : FormatOf Rep
+
+
+namespace Format
+
+  decode : (f : Format) -> Decode (Rep f, ByteStream) ByteStream
+  decode f = FormatOf.decode f.format
+
+
+  encode : (f : Format) -> Encode (Rep f) ByteStream
+  encode f = FormatOf.encode f.format
 
 
 ------------------------------------

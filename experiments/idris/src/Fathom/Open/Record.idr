@@ -182,6 +182,16 @@ data FormatOf : (A : Type) -> Type where
   MkFormatOf : (f : Format) -> FormatOf f.Rep
 
 
+namespace FormatOf
+
+  decode : {0 A : Type} -> (f : FormatOf A) -> Decode (A, ByteStream) ByteStream
+  decode  (MkFormatOf f) = Format.decode f
+
+
+  encode : {0 A : Type} -> (f : FormatOf A) -> Encode A ByteStream
+  encode  (MkFormatOf f) = Format.encode f
+
+
 ------------------------------------
 -- FORMAT DESCRIPTION CONVERSIONS --
 ------------------------------------
