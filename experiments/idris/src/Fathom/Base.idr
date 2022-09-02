@@ -69,9 +69,13 @@ parameters (Source, Target : Type)
 
 namespace DecodePart
 
+  -- TODO: Should probably implement functor, applicative, or monad here. or use
+  -- the reader, writer or state monad transformers
+
   public export
   pure : {0 S, T : Type} -> S -> DecodePart S T
   pure source target = Just (source, target)
+
 
   public export
   map : {0 S1, S2, T : Type} -> (S1 -> S2) -> DecodePart S1 T -> DecodePart S2 T
@@ -79,11 +83,23 @@ namespace DecodePart
     Prelude.map (\(source, target') => (f source, target)) (decode target)
 
 
+  public export
+  bind : {0 S1, S2, T : Type} -> DecodePart S1 T -> (S1 -> DecodePart S2 T) -> DecodePart S2 T
+  bind decode1 decode2 target = do
+    (source1, target') <- decode1 target
+    decode2 source1 target'
+
+
+  public export
+  (>>=) : {0 S1, S2, T : Type} -> DecodePart S1 T -> (S1 -> DecodePart S2 T) -> DecodePart S2 T
+  (>>=) = bind
+
+
 parameters {0 Source, Target : Type}
 
   public export
   toDecodeFull : (Monoid Target, Eq Target) => DecodePart Source Target -> Decode Source Target
-  toDecodeFull decode target = do
+  toDecodeFull decode target = Prelude.do
     (source, target') <- decode target
     if target == neutral then Just source else Nothing
 
@@ -160,14 +176,8 @@ data ByteOrder : Type where
 
 namespace ByteStream
 
-  splitLen : (n : Nat) -> Colist a -> Maybe (Vect n a, Colist a)
-  splitLen 0 _ = Nothing
-  splitLen (S k) [] = Nothing
-  splitLen (S k) (x :: rest) = Prelude.map (\(xs, rest') => (x :: xs, rest')) (splitLen k rest)
-
-
   export
-  decodeU8 : Decode (Bits8, ByteStream) ByteStream
+  decodeU8 : DecodePart Bits8 ByteStream
   decodeU8 [] = Nothing
   decodeU8 (x :: bytes) =  Just (x, bytes)
 
@@ -178,15 +188,15 @@ namespace ByteStream
 
 
   export
-  decodeU16 : ByteOrder -> Decode (Bits16, ByteStream) ByteStream
-  decodeU16 LE bytes = do
-    (bs, bytes') <- splitLen 2 bytes
-    let [b0, b1] = map (cast {to = Bits16}) bs
-    Just (b0 .|. b1 `shiftL` fromNat 8, bytes')
-  decodeU16 BE bytes = do
-    (bs, bytes') <- splitLen 2 bytes
-    let [b0, b1] = map (cast {to = Bits16}) bs
-    Just (b0 `shiftL` fromNat 8 .|. b1, bytes')
+  decodeU16 : ByteOrder -> DecodePart Bits16 ByteStream
+  decodeU16 LE = DecodePart.do
+    b0 <- map (cast {to = Bits16}) decodeU8
+    b1 <- map (cast {to = Bits16}) decodeU8
+    pure (b0 .|. b1 `shiftL` fromNat 8)
+  decodeU16 BE = DecodePart.do
+    b0 <- map (cast {to = Bits16}) decodeU8
+    b1 <- map (cast {to = Bits16}) decodeU8
+    pure (b0 `shiftL` fromNat 8 .|. b1)
 
 
   export
@@ -196,18 +206,26 @@ namespace ByteStream
 
 
   export
-  decodeU32 : ByteOrder -> Decode (Bits32, ByteStream) ByteStream
-  decodeU32 LE bytes = do
-    (bs, bytes') <- splitLen 4 bytes
-    let [b0, b1, b2, b3] = map (cast {to = Bits32}) bs
-    Just (b0 .|. b1 `shiftL` fromNat 8 .|. b2 `shiftL` fromNat 16 .|. b2 `shiftL` fromNat 24, bytes')
-  decodeU32 BE bytes = do
-    (bs, bytes') <- splitLen 4 bytes
-    let [b0, b1, b2, b3] = map (cast {to = Bits32}) bs
-    Just (b0 `shiftL` fromNat 24 .|. b1 `shiftL` fromNat 16 .|. b2 `shiftL` fromNat 8 .|. b3, bytes')
+  decodeU32 : ByteOrder -> DecodePart Bits32 ByteStream
+  decodeU32 LE = DecodePart.do
+    b0 <- map (cast {to = Bits32}) decodeU8
+    b1 <- map (cast {to = Bits32}) decodeU8
+    b2 <- map (cast {to = Bits32}) decodeU8
+    b3 <- map (cast {to = Bits32}) decodeU8
+    pure (b0 .|. b1 `shiftL` fromNat 8 .|. b2 `shiftL` fromNat 16 .|. b2 `shiftL` fromNat 24)
+  decodeU32 BE = DecodePart.do
+    b0 <- map (cast {to = Bits32}) decodeU8
+    b1 <- map (cast {to = Bits32}) decodeU8
+    b2 <- map (cast {to = Bits32}) decodeU8
+    b3 <- map (cast {to = Bits32}) decodeU8
+    pure (b0 `shiftL` fromNat 24 .|. b1 `shiftL` fromNat 16 .|. b2 `shiftL` fromNat 8 .|. b3)
 
 
   export
   encodeU32 : ByteOrder -> Encode Bits32 ByteStream
   encodeU32 LE x = Just [cast x, cast (x `shiftR` fromNat 8), cast (x `shiftR` fromNat 16), cast (x `shiftR` fromNat 24)]
   encodeU32 BE x = Just [cast (x `shiftR` fromNat 24), cast (x `shiftR` fromNat 16), cast (x `shiftR` fromNat 8), cast x]
+
+
+  -- decodeU : Bits a => ByteOrder -> DecodePart a ByteStream
+  -- encodeU : Bits a => ByteOrder -> Encode a ByteStream

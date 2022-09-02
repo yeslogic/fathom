@@ -29,7 +29,7 @@ public export
 record Format where
   constructor MkFormat
   Rep : Type
-  decode : Decode (Rep, ByteStream) ByteStream
+  decode : DecodePart Rep ByteStream
   encode : Encode Rep ByteStream
 
 
@@ -41,7 +41,7 @@ namespace Format
     Rep : Type
     Rep = Unit
 
-    decode : Decode (Rep, ByteStream) ByteStream
+    decode : DecodePart Rep ByteStream
     decode [] = Just ((), [])
     decode (_::_) = Nothing
 
@@ -55,8 +55,8 @@ namespace Format
     Rep : Type
     Rep = Void
 
-    decode : Decode (Rep, ByteStream) ByteStream
-    decode _ = Nothing
+    decode : DecodePart Rep ByteStream
+    decode = const Nothing
 
     encode : Encode Rep ByteStream
     encode x = void x
@@ -68,8 +68,8 @@ namespace Format
     Rep : Type
     Rep = Sing x
 
-    decode : Decode (Rep, ByteStream) ByteStream
-    decode buffer = Just (MkSing x, buffer)
+    decode : DecodePart Rep ByteStream
+    decode = pure (MkSing x)
 
     encode : Encode Rep ByteStream
     encode (MkSing _) = Just []
@@ -81,10 +81,8 @@ namespace Format
     Rep : Type
     Rep = ()
 
-    decode : Decode (Rep, ByteStream) ByteStream
-    decode buffer = do
-      (x, buffer') <- f.decode buffer
-      Just ((), buffer')
+    decode : DecodePart Rep ByteStream
+    decode = map (const ()) f.decode
 
     encode : Encode Rep ByteStream
     encode () = f.encode def
@@ -96,14 +94,14 @@ namespace Format
     Rep : Type
     Rep = Vect len f.Rep
 
-    decode : Decode (Rep, ByteStream) ByteStream
+    decode : DecodePart Rep ByteStream
     decode = go len where
-      go : (len : Nat) -> Decode (Vect len f.Rep, ByteStream) ByteStream
-      go 0 buffer = Just ([], buffer)
-      go (S len) buffer = do
-        (x, buffer') <- f.decode buffer
-        (xs, buffer'') <- go len buffer'
-        Just (x :: xs, buffer'')
+      go : (len : Nat) -> DecodePart (Vect len f.Rep) ByteStream
+      go 0 = pure []
+      go (S len) = do
+        x <- f.decode
+        xs <- go len
+        pure (x :: xs)
 
     encode : Encode Rep ByteStream
     encode = go len where
@@ -119,11 +117,11 @@ namespace Format
     Rep : Type
     Rep = (x : f1.Rep ** (f2 x).Rep)
 
-    decode : Decode (Rep, ByteStream) ByteStream
-    decode buffer = do
-      (x, buffer') <- f1.decode buffer
-      (y, buffer'') <- (f2 x).decode buffer'
-      Just ((x ** y), buffer'')
+    decode : DecodePart Rep ByteStream
+    decode = do
+      x <- f1.decode
+      y <- (f2 x).decode
+      pure (x ** y)
 
     encode : Encode Rep ByteStream
     encode (x ** y) =
@@ -184,7 +182,7 @@ data FormatOf : (A : Type) -> Type where
 
 namespace FormatOf
 
-  decode : {0 A : Type} -> (f : FormatOf A) -> Decode (A, ByteStream) ByteStream
+  decode : {0 A : Type} -> (f : FormatOf A) -> DecodePart (A) ByteStream
   decode  (MkFormatOf f) = Format.decode f
 
 

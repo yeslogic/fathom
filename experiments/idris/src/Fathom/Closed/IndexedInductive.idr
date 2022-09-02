@@ -49,24 +49,21 @@ namespace FormatOf
 
   export
   decode : {0 A, S : Type} -> (f : FormatOf A) -> Decode (A, Colist S) (Colist S)
-  decode End [] = Just ((), [])
-  decode End (_::_) = Nothing
-  decode Fail _ = Nothing
-  decode (Pure x) buffer =
-    Just (MkSing x, buffer)
-  decode (Skip f _) buffer = do
-    (x, buffer') <- decode f buffer
-    Just ((), buffer')
-  decode (Repeat 0 f) buffer =
-    Just ([], buffer)
-  decode (Repeat (S len) f) buffer = do
-    (x, buffer') <- decode f buffer
-    (xs, buffer'') <- decode (Repeat len f) buffer'
-    Just (x :: xs, buffer'')
-  decode (Bind f1 f2) buffer = do
-    (x, buffer') <- decode f1 buffer
-    (y, buffer'') <- decode (f2 x) buffer'
-    Just ((x ** y), buffer'')
+  decode End =
+    \case [] => Just ((), [])
+          (_::_) => Nothing
+  decode Fail = const Nothing
+  decode (Pure x) = pure (MkSing x)
+  decode (Skip f _) = map (const ()) (decode f)
+  decode (Repeat 0 f) = pure []
+  decode (Repeat (S len) f) = do
+    x <- decode f
+    xs <- decode (Repeat len f)
+    pure (x :: xs)
+  decode (Bind f1 f2) = do
+    x <- decode f1
+    y <- decode (f2 x)
+    pure (x ** y)
 
 
   export
