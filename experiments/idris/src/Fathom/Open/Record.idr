@@ -76,13 +76,13 @@ namespace Format
 
 
   public export
-  skip : (f : Format) -> (def : f.Rep) -> Format
-  skip f def = MkFormat { Rep, decode, encode } where
+  ignore : (f : Format) -> (def : f.Rep) -> Format
+  ignore f def = MkFormat { Rep, decode, encode } where
     Rep : Type
     Rep = ()
 
     decode : DecodePart Rep ByteStream
-    decode = map (const ()) f.decode
+    decode = ignore f.decode
 
     encode : Encode Rep ByteStream
     encode () = f.encode def
@@ -268,9 +268,9 @@ namespace FormatOf
 
 
   public export
-  skip : {0 A : Type} -> (f : FormatOf A) -> (def : A) -> FormatOf Unit
-  skip f def with (toFormatEq f)
-    skip _ def | (Element f prf) = MkFormatOf (skip f (rewrite prf in def))
+  ignore : {0 A : Type} -> (f : FormatOf A) -> (def : A) -> FormatOf Unit
+  ignore f def with (toFormatEq f)
+    ignore _ def | (Element f prf) = MkFormatOf (ignore f (rewrite prf in def))
 
 
   public export

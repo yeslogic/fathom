@@ -45,7 +45,7 @@ formatOf f = Record.MkFormat
 --     End => end.decode
 --     Fail => fail.decode
 --     Pure x => (pure x).decode
---     Skip f def => (skip (format' f) def).decode
+--     Ignore f def => (skip (format' f) def).decode
 --     Repeat len f => (repeat len (format' f)).decode
 --     Bind f1 f2 => (bind (format' f1) (\x => format' (f2 x))).decode
 --     OfSing f r => (format' f).decode
@@ -56,7 +56,7 @@ formatOf f = Record.MkFormat
 --     End => end.encode
 --     Fail => fail.encode
 --     Pure x => (pure x).encode
---     Skip f def => (skip (format' f) def).encode
+--     Ignore f def => (skip (format' f) def).encode
 --     Repeat len f => (repeat len (format' f)).encode
 --     Bind f1 f2 => (bind (format' f1) (\x => format' (f2 x))).encode
 --     OfSing f r => (format' f).encode
@@ -68,7 +68,7 @@ indRecToIndexed : (f : IndRec.Format) -> Indexed.FormatOf (Rep f)
 indRecToIndexed End = Indexed.End
 indRecToIndexed Fail = Indexed.Fail
 indRecToIndexed (Pure x) = Indexed.Pure x
-indRecToIndexed (Skip f def) = Indexed.Skip (indRecToIndexed f) def
+indRecToIndexed (Ignore f def) = Indexed.Ignore (indRecToIndexed f) def
 indRecToIndexed (Repeat len f) = Indexed.Repeat len (indRecToIndexed f)
 indRecToIndexed (Bind f g) = Indexed.Bind (indRecToIndexed f) (\x => indRecToIndexed (g x))
 
@@ -80,8 +80,8 @@ mutual
   indexedToIndRecFormat (MkFormat () End) = (End ** Refl)
   indexedToIndRecFormat (MkFormat Void Fail) = (Fail ** Refl)
   indexedToIndRecFormat (MkFormat (Sing x) (Pure x)) = (Pure x ** Refl)
-  indexedToIndRecFormat (MkFormat () (Skip f def)) with (indexedToIndRecFormatOf f)
-    _ | MkFormatOf f' = (Skip f' def ** Refl)
+  indexedToIndRecFormat (MkFormat () (Ignore f def)) with (indexedToIndRecFormatOf f)
+    _ | MkFormatOf f' = (Ignore f' def ** Refl)
   indexedToIndRecFormat (MkFormat (Vect len _) (Repeat len f)) with (indexedToIndRecFormatOf f)
     _ | MkFormatOf f' = (Repeat len f' ** Refl)
   indexedToIndRecFormat (MkFormat (x : _ ** _) (Bind f1 f2)) with (indexedToIndRecFormatOf f1)
@@ -94,8 +94,8 @@ mutual
   indexedToIndRecFormatOf End = MkFormatOf End
   indexedToIndRecFormatOf Fail = MkFormatOf Fail
   indexedToIndRecFormatOf (Pure x) = MkFormatOf (Pure x)
-  indexedToIndRecFormatOf (Skip f def) with (indexedToIndRecFormatOf f)
-    _ | MkFormatOf f' = MkFormatOf (Skip f' def)
+  indexedToIndRecFormatOf (Ignore f def) with (indexedToIndRecFormatOf f)
+    _ | MkFormatOf f' = MkFormatOf (Ignore f' def)
   indexedToIndRecFormatOf (Repeat len f) with (indexedToIndRecFormatOf f)
     _ | MkFormatOf f' = MkFormatOf (Repeat len f')
   indexedToIndRecFormatOf (Bind f1 f2) with (indexedToIndRecFormatOf f1)
@@ -123,8 +123,8 @@ mutual
 -- indexedToIndRec End = MkFormatOf IndRec.End
 -- indexedToIndRec Fail = MkFormatOf IndRec.Fail
 -- indexedToIndRec (Pure x) = MkFormatOf (IndRec.Pure x)
--- indexedToIndRec (Skip f def) with (indexedToIndRec f)
---   indexedToIndRec (Skip _ def) | MkFormatOf f = MkFormatOf (IndRec.Skip f def)
+-- indexedToIndRec (Ignore f def) with (indexedToIndRec f)
+--   indexedToIndRec (Ignore _ def) | MkFormatOf f = MkFormatOf (IndRec.Ignore f def)
 -- indexedToIndRec (Repeat len f) with (indexedToIndRec f)
 --   indexedToIndRec (Repeat len _) | MkFormatOf f = MkFormatOf (IndRec.Repeat len f)
 -- indexedToIndRec (Bind f1 f2) with (indexedToIndRec f1)
@@ -135,7 +135,7 @@ mutual
   -- _ | (MkFormatOf End) = MkFormatOf (Bind End ?todo_indexedToIndRec_2)
   -- _ | (MkFormatOf Fail) = MkFormatOf (Bind Fail absurd)
   -- _ | (MkFormatOf (Pure f)) = MkFormatOf (Bind ?todo_indexedToIndRec_4)
-  -- _ | (MkFormatOf (Skip f def)) = MkFormatOf (Bind ?todo_indexedToIndRec_5)
+  -- _ | (MkFormatOf (Ignore f def)) = MkFormatOf (Bind ?todo_indexedToIndRec_5)
   -- _ | (MkFormatOf (Repeat k x)) = MkFormatOf (Bind ?todo_indexedToIndRec_6)
   -- _ | (MkFormatOf (Bind f g)) = MkFormatOf (Bind ?todo_indexedToIndRec_7)
 
@@ -164,7 +164,7 @@ mutual
 --   _ | (End ** prf) = let bindF1 = Bind f1 in ?todo_indexedToIndRec_2
 --   _ | (Fail ** prf) = let bindF1 = Bind f1 in ?todo_indexedToIndRec_3
 --   _ | ((Pure f) ** prf) = let bindF1 = Bind f1 in ?todo_indexedToIndRec_4
---   _ | ((Skip f def) ** prf) = let bindF1 = Bind f1 in ?todo_indexedToIndRec_5
+--   _ | ((Ignore f def) ** prf) = let bindF1 = Bind f1 in ?todo_indexedToIndRec_5
 --   _ | ((Repeat k x) ** prf) = let bindF1 = Bind f1 in ?todo_indexedToIndRec_6
 --   _ | ((Bind f g) ** prf) = let bindF1 = Bind f1 in ?todo_indexedToIndRec_7
 
@@ -205,8 +205,8 @@ mutual
 -- indexedToIndRec' End = IndRec.End
 -- indexedToIndRec' Fail = IndRec.Fail
 -- indexedToIndRec' (Pure x) = IndRec.Pure x
--- indexedToIndRec' (Skip f def) with (MkFormatOf (indexedToIndRec' f))
---   _ | f' = IndRec.Skip (indexedToIndRec' f) ?todo1
+-- indexedToIndRec' (Ignore f def) with (MkFormatOf (indexedToIndRec' f))
+--   _ | f' = IndRec.Ignore (indexedToIndRec' f) ?todo1
 -- indexedToIndRec' (Repeat len f) = IndRec.Repeat len (indexedToIndRec' f)
 -- indexedToIndRec' (Bind f1 f2) = IndRec.Bind (indexedToIndRec' f1) ?todo2
 
@@ -215,8 +215,8 @@ mutual
 -- indexedToIndRec'' (MkFormat () End) = IndRec.End
 -- indexedToIndRec'' (MkFormat Void Fail) = IndRec.Fail
 -- indexedToIndRec'' (MkFormat (Sing x) (Pure x)) = IndRec.Pure x
--- indexedToIndRec'' (MkFormat () (Skip f def)) with (indexedToIndRec'' (MkFormat _ f))
---   _ | f'' = IndRec.Skip f'' ?tododef
+-- indexedToIndRec'' (MkFormat () (Ignore f def)) with (indexedToIndRec'' (MkFormat _ f))
+--   _ | f'' = IndRec.Ignore f'' ?tododef
 -- indexedToIndRec'' (MkFormat rep (Repeat len f)) = IndRec.Repeat len (indexedToIndRec'' f)
 -- indexedToIndRec'' (MkFormat rep (Bind f1 f2)) = IndRec.Bind (indexedToIndRec'' f1) ?todo2
 

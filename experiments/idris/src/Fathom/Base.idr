@@ -84,6 +84,11 @@ namespace DecodePart
 
 
   public export
+  ignore :{0 S, T : Type} -> DecodePart S T -> DecodePart () T
+  ignore = map (const ())
+
+
+  public export
   bind : {0 S1, S2, T : Type} -> DecodePart S1 T -> (S1 -> DecodePart S2 T) -> DecodePart S2 T
   bind decode1 decode2 target = do
     (source1, target') <- decode1 target

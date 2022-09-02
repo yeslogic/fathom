@@ -24,7 +24,7 @@ data FormatOf : Type -> Type where
   End : FormatOf Unit
   Fail : FormatOf Void
   Pure : {0 A : Type} -> (x : A) -> FormatOf (Sing x)
-  Skip : {0 A : Type} -> (f : FormatOf A) -> (def : A) -> FormatOf Unit
+  Ignore : {0 A : Type} -> (f : FormatOf A) -> (def : A) -> FormatOf Unit
   Repeat : {0 A : Type} -> (len : Nat) -> FormatOf A -> FormatOf (Vect len A)
   Bind : {0 A : Type} -> {0 B : A -> Type} -> (f : FormatOf A) -> ((x : A) -> FormatOf (B x)) -> FormatOf (x : A ** B x)
 
@@ -54,7 +54,7 @@ namespace FormatOf
           (_::_) => Nothing
   decode Fail = const Nothing
   decode (Pure x) = pure (MkSing x)
-  decode (Skip f _) = map (const ()) (decode f)
+  decode (Ignore f _) = ignore (decode f)
   decode (Repeat 0 f) = pure []
   decode (Repeat (S len) f) = do
     x <- decode f
@@ -70,7 +70,7 @@ namespace FormatOf
   encode : {0 A, S : Type} -> (f : FormatOf A) -> Encode A (Colist S)
   encode End () = Just []
   encode (Pure x) (MkSing _) = Just []
-  encode (Skip f def) () = encode f def
+  encode (Ignore f def) () = encode f def
   encode (Repeat Z f) [] = Just []
   encode (Repeat (S len) f) (x :: xs) =
     [| encode f x <+> encode (Repeat len f) xs |]
@@ -182,7 +182,7 @@ namespace Format
 
   public export
   skip : (f : Format) -> (def : f.Rep) -> Format
-  skip f def = MkFormat Unit (Skip (toFormatOf f) def)
+  skip f def = MkFormat Unit (Ignore (toFormatOf f) def)
 
 
   public export

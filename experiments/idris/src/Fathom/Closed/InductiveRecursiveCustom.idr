@@ -44,7 +44,7 @@ mutual
     End : Format
     Fail : Format
     Pure : {0 A : Type} -> A -> Format
-    Skip : (f : Format) -> (def : Rep f) -> Format
+    Ignore : (f : Format) -> (def : Rep f) -> Format
     Repeat : Nat -> Format -> Format
     Bind : (f : Format) -> (Rep f -> Format) -> Format
     Custom :  (f : CustomFormat) -> Format
@@ -55,7 +55,7 @@ mutual
   Rep : Format -> Type
   Rep End = Unit
   Rep Fail = Void
-  Rep (Skip _ _) = Unit
+  Rep (Ignore _ _) = Unit
   Rep (Repeat len f) = Vect len (Rep f)
   Rep (Pure x) = Sing x
   Rep (Bind f1 f2) = (x : Rep f1 ** Rep (f2 x))
@@ -87,7 +87,7 @@ namespace Format
           (_::_) => Nothing
   decode Fail = const Nothing
   decode (Pure x) = pure (MkSing x)
-  decode (Skip f _) = map (const ()) (decode f)
+  decode (Ignore f _) = ignore (decode f)
   decode (Repeat 0 f) = pure []
   decode (Repeat (S len) f) = do
     x <- decode f
@@ -104,7 +104,7 @@ namespace Format
   encode : (f : Format) -> Encode (Rep f) ByteStream
   encode End () = Just []
   encode (Pure x) (MkSing _) = Just []
-  encode (Skip f def) () = encode f def
+  encode (Ignore f def) () = encode f def
   encode (Repeat Z f) [] = Just []
   encode (Repeat (S len) f) (x :: xs) =
     [| encode f x <+> encode (Repeat len f) xs |]
@@ -244,9 +244,9 @@ namespace FormatOf
 
 
   public export
-  skip : {0 A : Type} -> (f : FormatOf A) -> (def : A) -> FormatOf Unit
-  skip f def with (toFormatEq f)
-    skip _ def | (Element f prf) = MkFormatOf (Skip f (rewrite prf in def))
+  ignore : {0 A : Type} -> (f : FormatOf A) -> (def : A) -> FormatOf Unit
+  ignore f def with (toFormatEq f)
+    ignore _ def | (Element f prf) = MkFormatOf (Ignore f (rewrite prf in def))
 
 
   public export
