@@ -71,14 +71,10 @@ namespace FormatOf
   decode (Pure x) = pure (MkSing x)
   decode (Ignore f _) = ignore (decode f)
   decode (Repeat 0 f) = pure []
-  decode (Repeat (S len) f) = do
-    x <- decode f
-    xs <- decode (Repeat len f)
-    pure (x :: xs)
-  decode (Pair f1 f2) = do
-    x <- decode f1
-    y <- decode f2
-    pure (x, y)
+  decode (Repeat (S len) f) =
+    [| decode f :: decode (Repeat len f) |]
+  decode (Pair f1 f2) =
+    [| (,) (decode f1) (decode f2) |]
   decode (Bind f1 f2) = do
     x <- decode f1
     y <- decode (f2 x)

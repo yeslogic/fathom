@@ -98,17 +98,13 @@ namespace Format
     decode = go len where
       go : (len : Nat) -> DecodePart (Vect len f.Rep) ByteStream
       go 0 = pure []
-      go (S len) = do
-        x <- f.decode
-        xs <- go len
-        pure (x :: xs)
+      go (S len) = [| f.decode :: go len |]
 
     encode : Encode Rep ByteStream
     encode = go len where
       go : (len : Nat) -> Encode (Vect len f.Rep) ByteStream
       go 0 [] = pure []
-      go (S len) (x :: xs) =
-        [| f.encode x <+> go len xs |]
+      go (S len) (x :: xs) = [| f.encode x <+> go len xs |]
 
 
   public export
@@ -118,10 +114,8 @@ namespace Format
     Rep = (f1.Rep, f2.Rep)
 
     decode : DecodePart Rep ByteStream
-    decode = do
-      x <- f1.decode
-      y <- f2.decode
-      pure (x, y)
+    decode =
+      [| (,) f1.decode f2.decode |]
 
     encode : Encode Rep ByteStream
     encode (x, y) =

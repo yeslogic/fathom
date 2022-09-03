@@ -73,39 +73,6 @@ parameters (Source, Target : Type)
   EncodePart = Encode (Source, Target) Target
 
 
-namespace DecodePart
-
-  -- TODO: Should probably implement functor, applicative, or monad here. or use
-  -- the reader, writer or state monad transformers
-
-  public export
-  pure : {0 S, T : Type} -> S -> DecodePart S T
-  pure source target = Just (source, target)
-
-
-  public export
-  map : {0 S1, S2, T : Type} -> (S1 -> S2) -> DecodePart S1 T -> DecodePart S2 T
-  map f decode target =
-    Prelude.map (\(source, target') => (f source, target)) (decode target)
-
-
-  public export
-  ignore :{0 S, T : Type} -> DecodePart S T -> DecodePart () T
-  ignore = map (const ())
-
-
-  public export
-  bind : {0 S1, S2, T : Type} -> DecodePart S1 T -> (S1 -> DecodePart S2 T) -> DecodePart S2 T
-  bind decode1 decode2 target = do
-    (source1, target') <- decode1 target
-    decode2 source1 target'
-
-
-  public export
-  (>>=) : {0 S1, S2, T : Type} -> DecodePart S1 T -> (S1 -> DecodePart S2 T) -> DecodePart S2 T
-  (>>=) = bind
-
-
 parameters {0 Source, Target : Type}
 
   public export
@@ -123,6 +90,47 @@ parameters {0 Source, Target : Type}
   public export
   toEncodePart : Monoid Target => Encode Source Target -> EncodePart Source Target
   toEncodePart encode (source, target) = [| encode source <+> Just target |]
+
+
+namespace DecodePart
+
+  -- TODO: Should probably implement functor, applicative, or monad here. or use
+  -- the reader, writer or state monad transformers
+
+  public export
+  map : {0 S1, S2, T : Type} -> (S1 -> S2) -> DecodePart S1 T -> DecodePart S2 T
+  map f decode target =
+    Prelude.map (\(source, target') => (f source, target)) (decode target)
+
+
+  public export
+  pure : {0 S, T : Type} -> S -> DecodePart S T
+  pure source target = Just (source, target)
+
+
+  public export
+  (<*>) : {0 S1, S2, T : Type} -> DecodePart (S1 -> S2) T -> DecodePart S1 T -> DecodePart S2 T
+  (<*>) decodeFun decode target = do
+    (fun, target1) <- decodeFun target
+    (source, target2) <- decode target1
+    Just (fun source, target2)
+
+
+  public export
+  ignore : {0 S, T : Type} -> DecodePart S T -> DecodePart () T
+  ignore = map (const ())
+
+
+  public export
+  bind : {0 S1, S2, T : Type} -> DecodePart S1 T -> (S1 -> DecodePart S2 T) -> DecodePart S2 T
+  bind decode1 decode2 target = do
+    (source1, target') <- decode1 target
+    decode2 source1 target'
+
+
+  public export
+  (>>=) : {0 S1, S2, T : Type} -> DecodePart S1 T -> (S1 -> DecodePart S2 T) -> DecodePart S2 T
+  (>>=) = bind
 
 
 ----------------------
