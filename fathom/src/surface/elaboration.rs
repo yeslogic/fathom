@@ -816,28 +816,23 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
         Some((rigid_var, rigid_type))
     }
 
-    /// Push an unsolved flexible binder onto the context.
+    /// Push an unsolved term onto the context, to be updated later during unification.
     fn push_flexible_term(
         &mut self,
         source: FlexSource,
         r#type: ArcValue<'arena>,
     ) -> core::Term<'arena> {
-        let rigid_infos = (self.scope).to_scope_from_iter(self.rigid_env.infos.iter().copied());
         core::Term::FlexibleInsertion(
             source.range().into(),
             self.flexible_env.push(source, r#type),
-            rigid_infos,
+            (self.scope).to_scope_from_iter(self.rigid_env.infos.iter().copied()),
         )
     }
 
-    /// Push an unsolved flexible binder onto the context.
-    fn push_flexible_value(
-        &mut self,
-        source: FlexSource,
-        r#type: ArcValue<'arena>,
-    ) -> ArcValue<'arena> {
-        let term = self.push_flexible_term(source, r#type); // TODO: Could avoid allocating the rigid infos
-        self.eval_env().eval(&term)
+    /// Push an unsolved type onto the context, to be updated later during unification.
+    fn push_flexible_type(&mut self, source: FlexSource) -> ArcValue<'arena> {
+        let r#type = self.push_flexible_term(source, Value::arc_universe()); // TODO: Cache this
+        self.eval_env().eval(&r#type)
     }
 
     fn push_message(&mut self, message: Message) {
@@ -1182,7 +1177,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                     ),
                     None => {
                         let source = FlexSource::ReportedErrorType(*range);
-                        let r#type = self.push_flexible_value(source, Value::arc_universe());
+                        let r#type = self.push_flexible_type(source);
 
                         (CheckedPattern::ReportedError(*range), r#type)
                     }
@@ -1226,7 +1221,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                     ),
                     None => {
                         let source = FlexSource::ReportedErrorType(*range);
-                        let r#type = self.push_flexible_value(source, Value::arc_universe());
+                        let r#type = self.push_flexible_type(source);
 
                         (CheckedPattern::ReportedError(*range), r#type)
                     }
@@ -1251,7 +1246,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                     ),
                     None => {
                         let source = FlexSource::ReportedErrorType(*range);
-                        let r#type = self.push_flexible_value(source, Value::arc_universe());
+                        let r#type = self.push_flexible_type(source);
 
                         (CheckedPattern::ReportedError(*range), r#type)
                     }
@@ -1268,24 +1263,24 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
         match pattern {
             Pattern::Name(range, name) => {
                 let source = FlexSource::NamedPatternType(*range, *name);
-                let r#type = self.push_flexible_value(source, Value::arc_universe());
+                let r#type = self.push_flexible_type(source);
                 (CheckedPattern::Name(*range, *name), r#type)
             }
             Pattern::Placeholder(range) => {
                 let source = FlexSource::PlaceholderPatternType(*range);
-                let r#type = self.push_flexible_value(source, Value::arc_universe());
+                let r#type = self.push_flexible_type(source);
                 (CheckedPattern::Placeholder(*range), r#type)
             }
             Pattern::StringLiteral(range, _) => {
                 self.push_message(Message::AmbiguousStringLiteral { range: *range });
                 let source = FlexSource::ReportedErrorType(*range);
-                let r#type = self.push_flexible_value(source, Value::arc_universe());
+                let r#type = self.push_flexible_type(source);
                 (CheckedPattern::ReportedError(*range), r#type)
             }
             Pattern::NumberLiteral(range, _) => {
                 self.push_message(Message::AmbiguousNumericLiteral { range: *range });
                 let source = FlexSource::ReportedErrorType(*range);
-                let r#type = self.push_flexible_value(source, Value::arc_universe());
+                let r#type = self.push_flexible_type(source);
                 (CheckedPattern::ReportedError(*range), r#type)
             }
             Pattern::BooleanLiteral(range, val) => {
@@ -1324,7 +1319,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                         });
 
                         let source = FlexSource::ReportedErrorType(range);
-                        let input_type = self.push_flexible_value(source, universe);
+                        let input_type = self.push_flexible_type(source);
 
                         (CheckedPattern::ReportedError(range), input_type)
                     }
@@ -1661,7 +1656,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 let type_source = FlexSource::HoleType(*range, *name);
                 let expr_source = FlexSource::HoleExpr(*range, *name);
 
-                let r#type = self.push_flexible_value(type_source, Value::arc_universe());
+                let r#type = self.push_flexible_type(type_source);
                 let expr = self.push_flexible_term(expr_source, r#type.clone());
 
                 (expr, r#type)
@@ -1670,7 +1665,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 let type_source = FlexSource::PlaceholderType(*range);
                 let expr_source = FlexSource::PlaceholderExpr(*range);
 
-                let r#type = self.push_flexible_value(type_source, Value::arc_universe());
+                let r#type = self.push_flexible_type(type_source);
                 let expr = self.push_flexible_term(expr_source, r#type.clone());
 
                 (expr, r#type)
@@ -1716,8 +1711,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 // the match expression's output expressions, allowing us to
                 // unify them together.
                 let source = FlexSource::MatchOutputType(*range);
-                let universe = Value::arc_universe();
-                let output_type = self.push_flexible_value(source, universe);
+                let output_type = self.push_flexible_type(source);
 
                 let match_expr = self.check_match(
                     true,
@@ -1814,13 +1808,13 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                     // output types, and then we attempt to unify the head type
                     // against it.
                     _ => {
-                        let universe = Value::arc_universe();
                         // Create a flexible input type
                         let input_source = FlexSource::FunInputType(head_range);
-                        let input_type = self.push_flexible_value(input_source, universe.clone());
+                        let input_type = self.push_flexible_type(input_source);
 
                         // Create a flexible output type, with the input bound
                         self.rigid_env.push_param(None, input_type.clone());
+                        let universe = Value::arc_universe();
                         let output_source = FlexSource::FunOutputType(head_range);
                         let output_type = self.push_flexible_term(output_source, universe);
                         self.rigid_env.pop();
@@ -2169,7 +2163,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
     fn synth_reported_error(&mut self, range: ByteRange) -> (core::Term<'arena>, ArcValue<'arena>) {
         let expr = core::Term::Prim(range.into(), Prim::ReportedError);
         let type_source = FlexSource::ReportedErrorType(range);
-        let r#type = self.push_flexible_value(type_source, Value::arc_universe());
+        let r#type = self.push_flexible_type(type_source);
         (expr, r#type)
     }
 
