@@ -2243,27 +2243,20 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
         match_range: ByteRange,
         scrutinee: &Scrutinee<'arena>,
         mut equations: &[(Pattern<ByteRange>, Term<'_, ByteRange>)],
-        expected_type: &ArcValue<'arena>,
+        output_type: &ArcValue<'arena>,
     ) -> core::Term<'arena> {
         match equations.split_first() {
             Some(((pattern, output_expr), next_equations)) => {
-                let (def_pattern, def_type_value) = self.check_pattern(pattern, &scrutinee.r#type);
-                let def_type = self.quote_env(self.scope).quote(&def_type_value); // FIXME: avoid requote if possible?
+                match self.check_pattern(pattern, &scrutinee.r#type) {
+                    (CheckedPattern::Name(range, name), def_type_value) => {
+                        self.check_match_reachable(is_reachable, range);
 
-                // Warn about unreachable patterns, only when checking the pattern was a success
-                if !is_reachable && !matches!(def_pattern, CheckedPattern::ReportedError(_)) {
-                    self.push_message(Message::UnreachablePattern {
-                        range: pattern.range(),
-                    });
-                }
-
-                match def_pattern {
-                    CheckedPattern::Name(range, name) => {
                         let def_name = Some(name);
                         let def_expr = self.eval_env().eval(scrutinee.expr);
+                        let def_type = self.quote_env(self.scope).quote(&def_type_value); // FIXME: avoid requote if possible?
 
                         self.rigid_env.push_def(def_name, def_expr, def_type_value);
-                        let output_expr = self.check(output_expr, expected_type);
+                        let output_expr = self.check(output_expr, output_type);
                         self.rigid_env.pop();
 
                         // These patterns are unreachable, but check them anyway!
@@ -2272,7 +2265,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                             match_range,
                             scrutinee,
                             next_equations,
-                            expected_type,
+                            output_type,
                         );
 
                         core::Term::Let(
@@ -2283,8 +2276,10 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                             self.scope.to_scope(output_expr),
                         )
                     }
-                    CheckedPattern::Placeholder(_) => {
-                        let output_expr = self.check(output_expr, expected_type);
+                    (CheckedPattern::Placeholder(range), _) => {
+                        self.check_match_reachable(is_reachable, range);
+
+                        let output_expr = self.check(output_expr, output_type);
 
                         // These patterns are unreachable, but check them anyway!
                         self.check_match(
@@ -2292,12 +2287,14 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                             match_range,
                             scrutinee,
                             next_equations,
-                            expected_type,
+                            output_type,
                         );
 
                         output_expr
                     }
-                    CheckedPattern::Const(range, _) => {
+                    (CheckedPattern::Const(range, _), _) => {
+                        self.check_match_reachable(is_reachable, range);
+
                         // Temporary vector for accumulating branches
                         let mut branches = Vec::new();
                         let num_constructors = match scrutinee.r#type.match_prim_spine() {
@@ -2309,24 +2306,20 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                         while let Some(((pattern, output_expr), next_equations)) =
                             equations.split_first()
                         {
-                            let (def_pattern, _) = self.check_pattern(pattern, &scrutinee.r#type);
-                            match def_pattern {
+                            match self.check_pattern(pattern, &scrutinee.r#type) {
                                 // Accumulate constant pattern
-                                CheckedPattern::Const(_, r#const) => {
-                                    let output_term = self.check(output_expr, expected_type);
+                                (CheckedPattern::Const(range, r#const), _) => {
+                                    let output_term = self.check(output_expr, output_type);
                                     // Find insertion index
-                                    let res = branches.binary_search_by(
-                                        |(probe_const, _term): &(Const, _)| {
-                                            probe_const
-                                                .partial_cmp(&r#const)
-                                                .expect("attempt to compare non-ordered value")
-                                        },
-                                    );
+                                    let res = branches.binary_search_by(|(probe_const, _)| {
+                                        Const::partial_cmp(probe_const, &r#const)
+                                            .expect("attempt to compare non-ordered value")
+                                    });
                                     match res {
-                                        Ok(_index) => {
+                                        Ok(_) => {
                                             // this is a duplicate branch
                                             self.push_message(Message::UnreachablePattern {
-                                                range: pattern.range(),
+                                                range,
                                             });
                                         }
                                         Err(index) => {
@@ -2336,13 +2329,12 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
 
                                     equations = next_equations;
                                 }
-
                                 // Time for the default pattern
-                                CheckedPattern::Name(_, _)
-                                | CheckedPattern::Placeholder(_)
-                                | CheckedPattern::ReportedError(_) => {
+                                (pattern @ CheckedPattern::Name(_, _), pattern_type)
+                                | (pattern @ CheckedPattern::Placeholder(_), pattern_type)
+                                | (pattern @ CheckedPattern::ReportedError(_), pattern_type) => {
                                     // Push the default parameter of the constant match
-                                    self.push_rigid_param(def_pattern, scrutinee.r#type.clone());
+                                    self.push_rigid_param(pattern, pattern_type);
 
                                     // Check the default expression and any other
                                     // unreachable equations following that.
@@ -2351,7 +2343,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                                         match_range,
                                         scrutinee,
                                         equations,
-                                        expected_type,
+                                        output_type,
                                     );
 
                                     self.rigid_env.pop();
@@ -2378,15 +2370,15 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
 
                         self.check_match_absurd(is_reachable, match_range, scrutinee)
                     }
-                    CheckedPattern::ReportedError(range) => {
+                    (CheckedPattern::ReportedError(range), _) => {
                         // Check for any further errors in the first equation's output expression.
-                        self.check(output_expr, expected_type);
+                        self.check(output_expr, output_type);
                         self.check_match(
                             false,
                             match_range,
                             scrutinee,
                             next_equations,
-                            expected_type,
+                            output_type,
                         );
 
                         core::Term::Prim(range.into(), Prim::ReportedError)
@@ -2394,6 +2386,12 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 }
             }
             None => self.check_match_absurd(is_reachable, match_range, scrutinee),
+        }
+    }
+
+    fn check_match_reachable(&mut self, is_reachable: bool, range: ByteRange) {
+        if !is_reachable {
+            self.push_message(Message::UnreachablePattern { range });
         }
     }
 
