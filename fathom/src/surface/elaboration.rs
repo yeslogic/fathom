@@ -2268,9 +2268,8 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                         let output_expr = self.check(output_expr, &match_info.expected_type);
                         self.rigid_env.pop();
 
-                        // Named patterns match with everything, so anything
-                        // afterwards is unreachable. We still check
-                        // them, however.
+                        // Named patterns match with everything, so subsequent
+                        // patterns will be unreachable.
                         self.elab_match_unreachable(match_info, next_equations);
 
                         core::Term::Let(
@@ -2285,16 +2284,20 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                         // Placeholder patterns should always match
                         self.check_match_reachable(is_reachable, range);
 
-                        // Check the output expression and unreachable cases for errors
+                        // No need to bind anything when checking the output.
                         let output_expr = self.check(output_expr, &match_info.expected_type);
                         // Placeholder patterns match with everything, so
-                        // anything afterwards is unreachable. We still check
-                        // them, however.
+                        // subsequent patterns will be unreachable.
                         self.elab_match_unreachable(match_info, next_equations);
 
                         output_expr
                     }
                     (CheckedPattern::Const(range, _), _) => {
+                        // A constant pattern has been seen. Elaborate it again
+                        // using the original equations.
+                        // FIXME: This elaborates the first constant pattern
+                        //        twice, which is rather unfortunate (could
+                        //        result in duplicated error messages).
                         self.elab_match_const(match_info, is_reachable, range, equations)
                     }
                     (CheckedPattern::ReportedError(range), _) => {
@@ -2310,6 +2313,8 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
         }
     }
 
+    /// Ensure that this part of a match expression is reachable, reporting
+    /// a message if it is not.
     fn check_match_reachable(&mut self, is_reachable: bool, range: ByteRange) {
         if !is_reachable {
             self.push_message(Message::UnreachablePattern { range });
@@ -2360,17 +2365,19 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                     equations = next_equations;
                 }
                 // Time for the default pattern
-                (pattern @ CheckedPattern::Name(_, _), pattern_type)
-                | (pattern @ CheckedPattern::Placeholder(_), pattern_type)
-                | (pattern @ CheckedPattern::ReportedError(_), pattern_type) => {
-                    // Push the default parameter of the constant match
-                    self.push_rigid_param(pattern, pattern_type);
+                // FIXME: avoid duplication with the cases in `elab_match`
+                (CheckedPattern::Name(range, name), pattern_type) => {
+                    // Named patterns should always match
+                    self.check_match_reachable(is_reachable, range);
 
-                    // Check the default expression and other unreachable
-                    // equations that may be following it.
-                    let default_expr = self.elab_match(match_info, is_reachable, equations);
-
+                    // The default case always binds a variable
+                    self.rigid_env.push_param(Some(name), pattern_type);
+                    let default_expr = self.check(output_expr, &match_info.expected_type);
                     self.rigid_env.pop();
+
+                    // Named patterns match with everything, so subsequent
+                    // patterns will be unreachable.
+                    self.elab_match_unreachable(match_info, next_equations);
 
                     return core::Term::ConstMatch(
                         full_span,
@@ -2378,6 +2385,32 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                         self.scope.to_scope_from_iter(branches.into_iter()),
                         Some(self.scope.to_scope(default_expr)),
                     );
+                }
+                (CheckedPattern::Placeholder(range), pattern_type) => {
+                    // Placeholder patterns should always match
+                    self.check_match_reachable(is_reachable, range);
+
+                    // The default case always binds a variable
+                    self.rigid_env.push_param(None, pattern_type);
+                    let default_expr = self.check(output_expr, &match_info.expected_type);
+                    self.rigid_env.pop();
+
+                    // Placeholder patterns match with everything, so subsequent
+                    // patterns will be unreachable.
+                    self.elab_match_unreachable(match_info, next_equations);
+
+                    return core::Term::ConstMatch(
+                        full_span,
+                        match_info.scrutinee.expr,
+                        self.scope.to_scope_from_iter(branches.into_iter()),
+                        Some(self.scope.to_scope(default_expr)),
+                    );
+                }
+                (CheckedPattern::ReportedError(range), _) => {
+                    // Check the output expression and unreachable cases for errors
+                    self.check(output_expr, &match_info.expected_type);
+                    self.elab_match_unreachable(match_info, next_equations);
+                    return core::Term::Prim(range.into(), Prim::ReportedError);
                 }
             }
         }
