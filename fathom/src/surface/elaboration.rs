@@ -2376,14 +2376,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                             );
                         }
 
-                        if is_reachable {
-                            // TODO: this should be admitted if the scrutinee type is uninhabited
-                            self.push_message(Message::NonExhaustiveMatchExpr {
-                                match_expr_range: match_range,
-                                scrutinee_expr_range: scrutinee.range,
-                            });
-                        }
-                        core::Term::Prim(range.into(), Prim::ReportedError)
+                        self.check_match_absurd(is_reachable, match_range, scrutinee)
                     }
                     CheckedPattern::ReportedError(range) => {
                         // Check for any further errors in the first equation's output expression.
@@ -2400,17 +2393,24 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                     }
                 }
             }
-            None => {
-                if is_reachable {
-                    // TODO: this should be admitted if the scrutinee type is uninhabited
-                    self.push_message(Message::NonExhaustiveMatchExpr {
-                        match_expr_range: match_range,
-                        scrutinee_expr_range: scrutinee.range,
-                    });
-                }
-                core::Term::Prim(match_range.into(), Prim::ReportedError)
-            }
+            None => self.check_match_absurd(is_reachable, match_range, scrutinee),
         }
+    }
+
+    fn check_match_absurd(
+        &mut self,
+        is_reachable: bool,
+        match_range: ByteRange,
+        scrutinee: &Scrutinee<'arena>,
+    ) -> core::Term<'arena> {
+        if is_reachable {
+            // TODO: this should be admitted if the scrutinee type is uninhabited
+            self.push_message(Message::NonExhaustiveMatchExpr {
+                match_expr_range: match_range,
+                scrutinee_expr_range: scrutinee.range,
+            });
+        }
+        core::Term::Prim(match_range.into(), Prim::ReportedError)
     }
 }
 
