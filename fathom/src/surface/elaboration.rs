@@ -1427,13 +1427,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 )
             }
             (Term::Match(range, scrutinee_expr, equations), _) => {
-                let scrutinee = {
-                    let range = scrutinee_expr.range();
-                    let (expr, r#type) = self.synth(scrutinee_expr);
-                    Scrutinee::new(range, self.scope.to_scope(expr), r#type)
-                };
-
-                self.check_match(true, *range, &scrutinee, equations, &expected_type)
+                self.check_match(*range, scrutinee_expr, equations, &expected_type)
             }
             (
                 Term::FunLiteral(range, input_pattern, input_type, output_expr),
@@ -1701,21 +1695,11 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 (let_expr, output_type)
             }
             Term::Match(range, scrutinee_expr, equations) => {
-                let scrutinee = {
-                    let range = scrutinee_expr.range();
-                    let (expr, r#type) = self.synth(scrutinee_expr);
-                    Scrutinee::new(range, self.scope.to_scope(expr), r#type)
-                };
-
-                // Create a single flexible variable representing the type of
-                // the match expression's output expressions, allowing us to
-                // unify them together.
-                let source = FlexSource::MatchOutputType(*range);
-                let r#type = self.push_flexible_type(source);
-
-                let match_expr = self.check_match(true, *range, &scrutinee, equations, &r#type);
-
-                (match_expr, r#type)
+                // Create a single flexible variable representing the type of the match
+                // expression's output expressions, allowing us to unify them together.
+                let r#type = self.push_flexible_type(FlexSource::MatchOutputType(*range));
+                let expr = self.check_match(*range, scrutinee_expr, equations, &r#type);
+                (expr, r#type)
             }
             Term::Universe(range) => (core::Term::Universe(range.into()), self.universe.clone()),
             Term::Arrow(range, input_type, output_type) => {
@@ -2231,64 +2215,76 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
         (labels, formats.into())
     }
 
+    /// Elaborate a match expression in checking mode
+    fn check_match(
+        &mut self,
+        match_range: ByteRange,
+        scrutinee_expr: &Term<'_, ByteRange>,
+        equations: &[(Pattern<ByteRange>, Term<'_, ByteRange>)],
+        expected_type: &ArcValue<'arena>,
+    ) -> core::Term<'arena> {
+        let match_info = MatchInfo {
+            range: match_range,
+            scrutinee: self.synth_scrutinee(scrutinee_expr),
+            expected_type: self.elim_env().force(expected_type),
+        };
+
+        self.elab_match(&match_info, true, equations)
+    }
+
+    fn synth_scrutinee(&mut self, scrutinee_expr: &Term<'_, ByteRange>) -> Scrutinee<'arena> {
+        let (expr, r#type) = self.synth(scrutinee_expr);
+        Scrutinee {
+            range: scrutinee_expr.range(),
+            expr: self.scope.to_scope(expr),
+            r#type,
+        }
+    }
+
     /// Elaborate a pattern match into a case tree in the core language.
     ///
     /// The implementation is based on the algorithm described in Section 5 of
     /// [“The Implementation of Functional Programming Languages”].
     ///
     /// [“The Implementation of Functional Programming Languages”]: https://www.microsoft.com/en-us/research/publication/the-implementation-of-functional-programming-languages/
-    fn check_match(
+    fn elab_match(
         &mut self,
+        match_info: &MatchInfo<'arena>,
         is_reachable: bool,
-        match_range: ByteRange,
-        scrutinee: &Scrutinee<'arena>,
         mut equations: &[(Pattern<ByteRange>, Term<'_, ByteRange>)],
-        output_type: &ArcValue<'arena>,
     ) -> core::Term<'arena> {
         match equations.split_first() {
             Some(((pattern, output_expr), next_equations)) => {
-                match self.check_pattern(pattern, &scrutinee.r#type) {
+                match self.check_pattern(pattern, &match_info.scrutinee.r#type) {
                     (CheckedPattern::Name(range, name), def_type_value) => {
                         self.check_match_reachable(is_reachable, range);
 
                         let def_name = Some(name);
-                        let def_expr = self.eval_env().eval(scrutinee.expr);
+                        let def_expr = self.eval_env().eval(match_info.scrutinee.expr);
                         let def_type = self.quote_env(self.scope).quote(&def_type_value); // FIXME: avoid requote if possible?
 
                         self.rigid_env.push_def(def_name, def_expr, def_type_value);
-                        let output_expr = self.check(output_expr, output_type);
+                        let output_expr = self.check(output_expr, &match_info.expected_type);
                         self.rigid_env.pop();
 
                         // These patterns are unreachable, but check them anyway!
-                        self.check_match(
-                            false,
-                            match_range,
-                            scrutinee,
-                            next_equations,
-                            output_type,
-                        );
+                        self.elab_match(match_info, false, next_equations);
 
                         core::Term::Let(
                             range.into(), // FIXME: is this the right range to use here?
                             def_name,
                             self.scope.to_scope(def_type),
-                            scrutinee.expr,
+                            match_info.scrutinee.expr,
                             self.scope.to_scope(output_expr),
                         )
                     }
                     (CheckedPattern::Placeholder(range), _) => {
                         self.check_match_reachable(is_reachable, range);
 
-                        let output_expr = self.check(output_expr, output_type);
+                        let output_expr = self.check(output_expr, &match_info.expected_type);
 
                         // These patterns are unreachable, but check them anyway!
-                        self.check_match(
-                            false,
-                            match_range,
-                            scrutinee,
-                            next_equations,
-                            output_type,
-                        );
+                        self.elab_match(match_info, false, next_equations);
 
                         output_expr
                     }
@@ -2297,7 +2293,8 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
 
                         // Temporary vector for accumulating branches
                         let mut branches = Vec::new();
-                        let num_constructors = match scrutinee.r#type.match_prim_spine() {
+                        let num_constructors = match match_info.scrutinee.r#type.match_prim_spine()
+                        {
                             Some((Prim::BoolType, [])) => Some(2),
                             _ => None,
                         };
@@ -2306,10 +2303,11 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                         while let Some(((pattern, output_expr), next_equations)) =
                             equations.split_first()
                         {
-                            match self.check_pattern(pattern, &scrutinee.r#type) {
+                            match self.check_pattern(pattern, &match_info.scrutinee.r#type) {
                                 // Accumulate constant pattern
                                 (CheckedPattern::Const(range, r#const), _) => {
-                                    let output_term = self.check(output_expr, output_type);
+                                    let output_term =
+                                        self.check(output_expr, &match_info.expected_type);
                                     // Find insertion index
                                     let res = branches.binary_search_by(|(probe_const, _)| {
                                         Const::partial_cmp(probe_const, &r#const)
@@ -2338,19 +2336,13 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
 
                                     // Check the default expression and any other
                                     // unreachable equations following that.
-                                    let default_expr = self.check_match(
-                                        true,
-                                        match_range,
-                                        scrutinee,
-                                        equations,
-                                        output_type,
-                                    );
+                                    let default_expr = self.elab_match(match_info, true, equations);
 
                                     self.rigid_env.pop();
 
                                     return core::Term::ConstMatch(
                                         range.into(),
-                                        scrutinee.expr,
+                                        match_info.scrutinee.expr,
                                         self.scope.to_scope_from_iter(branches.into_iter()),
                                         Some(self.scope.to_scope(default_expr)),
                                     );
@@ -2362,30 +2354,23 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                             // The absence of a default constructor is ok as the match was exhaustive.
                             return core::Term::ConstMatch(
                                 range.into(),
-                                scrutinee.expr,
+                                match_info.scrutinee.expr,
                                 self.scope.to_scope_from_iter(branches.into_iter()),
                                 None,
                             );
                         }
 
-                        self.check_match_absurd(is_reachable, match_range, scrutinee)
+                        self.elab_match_absurd(is_reachable, match_info)
                     }
                     (CheckedPattern::ReportedError(range), _) => {
                         // Check for any further errors in the first equation's output expression.
-                        self.check(output_expr, output_type);
-                        self.check_match(
-                            false,
-                            match_range,
-                            scrutinee,
-                            next_equations,
-                            output_type,
-                        );
-
+                        self.check(output_expr, &match_info.expected_type);
+                        self.elab_match(match_info, false, next_equations);
                         core::Term::Prim(range.into(), Prim::ReportedError)
                     }
                 }
             }
-            None => self.check_match_absurd(is_reachable, match_range, scrutinee),
+            None => self.elab_match_absurd(is_reachable, match_info),
         }
     }
 
@@ -2395,20 +2380,19 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
         }
     }
 
-    fn check_match_absurd(
+    fn elab_match_absurd(
         &mut self,
         is_reachable: bool,
-        match_range: ByteRange,
-        scrutinee: &Scrutinee<'arena>,
+        match_info: &MatchInfo<'arena>,
     ) -> core::Term<'arena> {
         if is_reachable {
             // TODO: this should be admitted if the scrutinee type is uninhabited
             self.push_message(Message::NonExhaustiveMatchExpr {
-                match_expr_range: match_range,
-                scrutinee_expr_range: scrutinee.range,
+                match_expr_range: match_info.range,
+                scrutinee_expr_range: match_info.scrutinee.range,
             });
         }
-        core::Term::Prim(match_range.into(), Prim::ReportedError)
+        core::Term::Prim(match_info.range.into(), Prim::ReportedError)
     }
 }
 
@@ -2447,16 +2431,11 @@ struct Scrutinee<'arena> {
     r#type: ArcValue<'arena>,
 }
 
-impl<'arena> Scrutinee<'arena> {
-    fn new(
-        range: ByteRange,
-        expr: &'arena core::Term<'arena>,
-        r#type: ArcValue<'arena>,
-    ) -> Scrutinee<'arena> {
-        Scrutinee {
-            range,
-            expr,
-            r#type,
-        }
-    }
+struct MatchInfo<'arena> {
+    /// The full range of the match expression
+    range: ByteRange,
+    /// The expression being matched on
+    scrutinee: Scrutinee<'arena>,
+    /// The expected type of the match arms
+    expected_type: ArcValue<'arena>,
 }
