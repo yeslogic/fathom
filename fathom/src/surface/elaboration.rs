@@ -2257,6 +2257,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
             Some(((pattern, output_expr), next_equations)) => {
                 match self.check_pattern(pattern, &match_info.scrutinee.r#type) {
                     (CheckedPattern::Name(range, name), def_type_value) => {
+                        // Named patterns should always match
                         self.check_match_reachable(is_reachable, range);
 
                         let def_name = Some(name);
@@ -2267,8 +2268,10 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                         let output_expr = self.check(output_expr, &match_info.expected_type);
                         self.rigid_env.pop();
 
-                        // These patterns are unreachable, but check them anyway!
-                        self.elab_match(match_info, false, next_equations);
+                        // Named patterns match with everything, so anything
+                        // afterwards is unreachable. We still check
+                        // them, however.
+                        self.elab_match_unreachable(match_info, next_equations);
 
                         core::Term::Let(
                             Span::merge(&range.into(), &output_expr.span()),
@@ -2279,12 +2282,15 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                         )
                     }
                     (CheckedPattern::Placeholder(range), _) => {
+                        // Placeholder patterns should always match
                         self.check_match_reachable(is_reachable, range);
 
+                        // Check the output expression and unreachable cases for errors
                         let output_expr = self.check(output_expr, &match_info.expected_type);
-
-                        // These patterns are unreachable, but check them anyway!
-                        self.elab_match(match_info, false, next_equations);
+                        // Placeholder patterns match with everything, so
+                        // anything afterwards is unreachable. We still check
+                        // them, however.
+                        self.elab_match_unreachable(match_info, next_equations);
 
                         output_expr
                     }
@@ -2292,9 +2298,10 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                         self.elab_match_const(match_info, is_reachable, range, equations)
                     }
                     (CheckedPattern::ReportedError(range), _) => {
-                        // Check for any further errors in the first equation's output expression.
+                        // Check the output expression and unreachable cases for errors
                         self.check(output_expr, &match_info.expected_type);
-                        self.elab_match(match_info, false, next_equations);
+                        self.elab_match_unreachable(match_info, next_equations);
+
                         core::Term::Prim(range.into(), Prim::ReportedError)
                     }
                 }
@@ -2343,6 +2350,8 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                     match result {
                         Ok(_) => self.push_message(Message::UnreachablePattern { range }),
                         Err(index) => {
+                            // This pattern has not yet been covered, so it
+                            // should be reachable.
                             self.check_match_reachable(is_reachable, range);
                             branches.insert(index, (r#const, output_term));
                         }
@@ -2388,6 +2397,16 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
             self.scope.to_scope_from_iter(branches.into_iter()),
             default_expr,
         )
+    }
+
+    /// Elaborate unreachable match cases. This is useful for that these cases
+    /// are correctly typed, even if they are never actually needed.
+    fn elab_match_unreachable(
+        &mut self,
+        match_info: &MatchInfo<'arena>,
+        equations: &[(Pattern<ByteRange>, Term<'_, ByteRange>)],
+    ) {
+        self.elab_match(match_info, false, equations);
     }
 
     /// All the equations have been consumed.
