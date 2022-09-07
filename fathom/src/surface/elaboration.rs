@@ -2262,7 +2262,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
 
                         let def_name = Some(name);
                         let def_expr = self.eval_env().eval(match_info.scrutinee.expr);
-                        let def_type = self.quote_env(self.scope).quote(&def_type_value); // FIXME: avoid requote if possible?
+                        let def_type = self.quote_env(self.scope).quote(&def_type_value);
 
                         self.rigid_env.push_def(def_name, def_expr, def_type_value);
                         let output_expr = self.check(output_expr, &match_info.expected_type);
@@ -2292,19 +2292,23 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
 
                         output_expr
                     }
-                    (CheckedPattern::Const(range, _), _) => {
-                        // A constant pattern has been seen. Elaborate it again
-                        // using the original equations.
-                        // FIXME: This elaborates the first constant pattern
-                        //        twice, which is rather unfortunate (could
-                        //        result in duplicated error messages).
-                        self.elab_match_const(match_info, is_reachable, range, equations)
+                    (CheckedPattern::Const(range, r#const), _) => {
+                        // Placeholder patterns should always match
+                        self.check_match_reachable(is_reachable, range);
+                        let output_expr = self.check(output_expr, &match_info.expected_type);
+
+                        // Continue elaborating constant patterns
+                        self.elab_match_const(
+                            match_info,
+                            is_reachable,
+                            (range, r#const, output_expr),
+                            next_equations,
+                        )
                     }
                     (CheckedPattern::ReportedError(range), _) => {
                         // Check the output expression and unreachable cases for errors
                         self.check(output_expr, &match_info.expected_type);
                         self.elab_match_unreachable(match_info, next_equations);
-
                         core::Term::Prim(range.into(), Prim::ReportedError)
                     }
                 }
@@ -2326,13 +2330,13 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
         &mut self,
         match_info: &MatchInfo<'arena>,
         is_reachable: bool,
-        initial_range: ByteRange,
+        (const_range, r#const, output_expr): (ByteRange, Const, core::Term<'arena>),
         mut equations: &[(Pattern<ByteRange>, Term<'_, ByteRange>)],
     ) -> core::Term<'arena> {
         // The full range of this series of patterns
-        let mut full_span = Span::from(initial_range);
+        let mut full_span = Span::merge(&const_range.into(), &output_expr.span());
         // Temporary vector for accumulating branches
-        let mut branches = Vec::new();
+        let mut branches = vec![(r#const, output_expr)];
 
         // Collect a run of constant patterns
         while let Some(((pattern, output_expr), next_equations)) = equations.split_first() {
