@@ -1784,17 +1784,14 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 (
                     core::Term::FunLit(range.into(), input_name, self.scope.to_scope(output_expr)),
                     // FIXME: Should this use range too?
-                    Spanned::new(
-                        Span::Empty,
-                        Arc::new(Value::FunType(
-                            input_name,
-                            input_type,
-                            Closure::new(
-                                self.rigid_env.exprs.clone(),
-                                self.scope.to_scope(output_type),
-                            ),
-                        )),
-                    ),
+                    Spanned::empty(Arc::new(Value::FunType(
+                        input_name,
+                        input_type,
+                        Closure::new(
+                            self.rigid_env.exprs.clone(),
+                            self.scope.to_scope(output_type),
+                        ),
+                    ))),
                 )
             }
             Term::App(range, head_expr, input_expr) => {
@@ -1876,13 +1873,11 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                         .push_param(Some(type_field.label.1), type_value);
                     types.push(r#type);
                 }
-
                 self.rigid_env.truncate(initial_rigid_len);
 
-                (
-                    core::Term::RecordType(range.into(), labels, types.into()),
-                    universe,
-                )
+                let record_type = core::Term::RecordType(range.into(), labels, types.into());
+
+                (record_type, universe)
             }
             Term::RecordLiteral(range, expr_fields) => {
                 let (labels, expr_fields) =
@@ -1982,23 +1977,20 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 let pred_expr = self.check(pred, &bool_type);
                 self.rigid_env.pop();
 
-                (
-                    core::Term::FormatCond(
-                        range.into(),
-                        *name,
-                        self.scope.to_scope(format),
-                        self.scope.to_scope(pred_expr),
-                    ),
-                    format_type,
-                )
+                let cond_format = core::Term::FormatCond(
+                    range.into(),
+                    *name,
+                    self.scope.to_scope(format),
+                    self.scope.to_scope(pred_expr),
+                );
+
+                (cond_format, format_type)
             }
             Term::FormatOverlap(range, format_fields) => {
                 let (labels, formats) = self.check_format_fields(*range, format_fields);
+                let overlap_format = core::Term::FormatOverlap(range.into(), labels, formats);
 
-                (
-                    core::Term::FormatOverlap(range.into(), labels, formats),
-                    self.format_type.clone(),
-                )
+                (overlap_format, self.format_type.clone())
             }
             Term::BinOp(range, lhs, op, rhs) => self.synth_bin_op(*range, lhs, *op, rhs),
             Term::ReportedError(range) => self.synth_reported_error(*range),
