@@ -810,131 +810,164 @@ The following operations are defined for booleans:
 
 ### Number operations
 
-A number of operations are defined for the numeric types:
+A number of operations are defined for the numeric types. Some also have
+infix operators as noted.
 
-- `u8_eq : U8 -> U8 -> Bool`
-- `u8_neq : U8 -> U8 -> Bool`
-- `u8_gt : U8 -> U8 -> Bool`
-- `u8_lt : U8 -> U8 -> Bool`
-- `u8_gte : U8 -> U8 -> Bool`
-- `u8_lte : U8 -> U8 -> Bool`
-- `u8_add : U8 -> U8 -> U8`
-- `u8_sub : U8 -> U8 -> U8`
-- `u8_mul : U8 -> U8 -> U8`
-- `u8_div : U8 -> U8 -> U8`
-- `u8_not : U8 -> U8`
-- `u8_shl : U8 -> U8 -> U8`
-- `u8_shr : U8 -> U8 -> U8`
-- `u8_and : U8 -> U8 -> U8`
-- `u8_or : U8 -> U8 -> U8`
-- `u8_xor : U8 -> U8 -> U8`
+#### U8
 
-- `u16_eq : U16 -> U16 -> Bool`
-- `u16_neq : U16 -> U16 -> Bool`
-- `u16_gt : U16 -> U16 -> Bool`
-- `u16_lt : U16 -> U16 -> Bool`
-- `u16_gte : U16 -> U16 -> Bool`
-- `u16_lte : U16 -> U16 -> Bool`
-- `u16_add : U16 -> U16 -> U16`
-- `u16_sub : U16 -> U16 -> U16`
-- `u16_mul : U16 -> U16 -> U16`
-- `u16_div : U16 -> U16 -> U16`
-- `u16_not : U16 -> U16`
-- `u16_shl : U16 -> U8 -> U16`
-- `u16_shr : U16 -> U8 -> U16`
-- `u16_and : U16 -> U16 -> U16`
-- `u16_or : U16 -> U16 -> U16`
-- `u16_xor : U16 -> U16 -> U16`
+| Operation                   | Operator |
+|-----------------------------|:--------:|
+| `u8_eq : U8 -> U8 -> Bool`  |   `==`   |
+| `u8_neq : U8 -> U8 -> Bool` |   `!=`   |
+| `u8_gt : U8 -> U8 -> Bool`  |   `>`    |
+| `u8_lt : U8 -> U8 -> Bool`  |   `<`    |
+| `u8_gte : U8 -> U8 -> Bool` |   `>=`   |
+| `u8_lte : U8 -> U8 -> Bool` |   `<=`   |
+| `u8_add : U8 -> U8 -> U8`   |   `+`    |
+| `u8_sub : U8 -> U8 -> U8`   |   `-`    |
+| `u8_mul : U8 -> U8 -> U8`   |   `*`    |
+| `u8_div : U8 -> U8 -> U8`   |   `/`    |
+| `u8_not : U8 -> U8`         |          |
+| `u8_shl : U8 -> U8 -> U8`   |          |
+| `u8_shr : U8 -> U8 -> U8`   |          |
+| `u8_and : U8 -> U8 -> U8`   |          |
+| `u8_or : U8 -> U8 -> U8`    |          |
+| `u8_xor : U8 -> U8 -> U8`   |          |
 
-- `u32_eq : U32 -> U32 -> Bool`
-- `u32_neq : U32 -> U32 -> Bool`
-- `u32_gt : U32 -> U32 -> Bool`
-- `u32_lt : U32 -> U32 -> Bool`
-- `u32_gte : U32 -> U32 -> Bool`
-- `u32_lte : U32 -> U32 -> Bool`
-- `u32_add : U32 -> U32 -> U32`
-- `u32_sub : U32 -> U32 -> U32`
-- `u32_mul : U32 -> U32 -> U32`
-- `u32_div : U32 -> U32 -> U32`
-- `u32_not : U32 -> U32`
-- `u32_shl : U32 -> U8 -> U32`
-- `u32_shr : U32 -> U8 -> U32`
-- `u32_and : U32 -> U32 -> U32`
-- `u32_or : U32 -> U32 -> U32`
-- `u32_xor : U32 -> U32 -> U32`
+#### U16
 
-- `u64_eq : U64 -> U64 -> Bool`
-- `u64_neq : U64 -> U64 -> Bool`
-- `u64_gt : U64 -> U64 -> Bool`
-- `u64_lt : U64 -> U64 -> Bool`
-- `u64_gte : U64 -> U64 -> Bool`
-- `u64_lte : U64 -> U64 -> Bool`
-- `u64_add : U64 -> U64 -> U64`
-- `u64_sub : U64 -> U64 -> U64`
-- `u64_mul : U64 -> U64 -> U64`
-- `u64_div : U64 -> U64 -> U64`
-- `u64_not : U64 -> U64`
-- `u64_shl : U64 -> U8 -> U64`
-- `u64_shr : U64 -> U8 -> U64`
-- `u64_and : U64 -> U64 -> U64`
-- `u64_or : U64 -> U64 -> U64`
-- `u64_xor : U64 -> U64 -> U64`
+| Operation                      | Operator |
+|--------------------------------|:--------:|
+| `u16_eq : U16 -> U16 -> Bool`  |   `==`   |
+| `u16_neq : U16 -> U16 -> Bool` |   `!=`   |
+| `u16_gt : U16 -> U16 -> Bool`  |   `>`    |
+| `u16_lt : U16 -> U16 -> Bool`  |   `<`    |
+| `u16_gte : U16 -> U16 -> Bool` |   `>=`   |
+| `u16_lte : U16 -> U16 -> Bool` |   `<=`   |
+| `u16_add : U16 -> U16 -> U16`  |   `+`    |
+| `u16_sub : U16 -> U16 -> U16`  |   `-`    |
+| `u16_mul : U16 -> U16 -> U16`  |   `*`    |
+| `u16_div : U16 -> U16 -> U16`  |   `/`    |
+| `u16_not : U16 -> U16`         |          |
+| `u16_shl : U16 -> U8 -> U16`   |          |
+| `u16_shr : U16 -> U8 -> U16`   |          |
+| `u16_and : U16 -> U16 -> U16`  |          |
+| `u16_or : U16 -> U16 -> U16`   |          |
+| `u16_xor : U16 -> U16 -> U16`  |          |
 
-- `s8_eq : S8 -> S8 -> Bool`
-- `s8_neq : S8 -> S8 -> Bool`
-- `s8_gt : S8 -> S8 -> Bool`
-- `s8_lt : S8 -> S8 -> Bool`
-- `s8_gte : S8 -> S8 -> Bool`
-- `s8_lte : S8 -> S8 -> Bool`
-- `s8_neg : S8 -> S8`
-- `s8_add : S8 -> S8 -> S8`
-- `s8_sub : S8 -> S8 -> S8`
-- `s8_mul : S8 -> S8 -> S8`
-- `s8_div : S8 -> S8 -> S8`
-- `s8_abs : S8 -> S8`
-- `s8_unsigned_abs : S8 -> U8`
+#### U32
 
-- `s16_eq : S16 -> S16 -> Bool`
-- `s16_neq : S16 -> S16 -> Bool`
-- `s16_gt : S16 -> S16 -> Bool`
-- `s16_lt : S16 -> S16 -> Bool`
-- `s16_gte : S16 -> S16 -> Bool`
-- `s16_lte : S16 -> S16 -> Bool`
-- `s16_neg : S16 -> S16`
-- `s16_add : S16 -> S16 -> S16`
-- `s16_sub : S16 -> S16 -> S16`
-- `s16_mul : S16 -> S16 -> S16`
-- `s16_div : S16 -> S16 -> S16`
-- `s16_abs : S16 -> S16`
-- `s16_unsigned_abs : S16 -> U16`
+| Operation                      | Operator |
+|--------------------------------|:--------:|
+| `u32_eq : U32 -> U32 -> Bool`  |   `==`   |
+| `u32_neq : U32 -> U32 -> Bool` |   `!=`   |
+| `u32_gt : U32 -> U32 -> Bool`  |   `>`    |
+| `u32_lt : U32 -> U32 -> Bool`  |   `<`    |
+| `u32_gte : U32 -> U32 -> Bool` |   `>=`   |
+| `u32_lte : U32 -> U32 -> Bool` |   `<=`   |
+| `u32_add : U32 -> U32 -> U32`  |   `+`    |
+| `u32_sub : U32 -> U32 -> U32`  |   `-`    |
+| `u32_mul : U32 -> U32 -> U32`  |   `*`    |
+| `u32_div : U32 -> U32 -> U32`  |   `/`    |
+| `u32_not : U32 -> U32`         |          |
+| `u32_shl : U32 -> U8 -> U32`   |          |
+| `u32_shr : U32 -> U8 -> U32`   |          |
+| `u32_and : U32 -> U32 -> U32`  |          |
+| `u32_or : U32 -> U32 -> U32`   |          |
+| `u32_xor : U32 -> U32 -> U32`  |          |
 
-- `s32_eq : S32 -> S32 -> Bool`
-- `s32_neq : S32 -> S32 -> Bool`
-- `s32_gt : S32 -> S32 -> Bool`
-- `s32_lt : S32 -> S32 -> Bool`
-- `s32_gte : S32 -> S32 -> Bool`
-- `s32_lte : S32 -> S32 -> Bool`
-- `s32_neg : S32 -> S32`
-- `s32_add : S32 -> S32 -> S32`
-- `s32_sub : S32 -> S32 -> S32`
-- `s32_mul : S32 -> S32 -> S32`
-- `s32_div : S32 -> S32 -> S32`
-- `s32_abs : S32 -> S32`
-- `s32_unsigned_abs : S32 -> U32`
+#### U64
 
-- `s64_eq : S64 -> S64 -> Bool`
-- `s64_neq : S64 -> S64 -> Bool`
-- `s64_gt : S64 -> S64 -> Bool`
-- `s64_lt : S64 -> S64 -> Bool`
-- `s64_gte : S64 -> S64 -> Bool`
-- `s64_lte : S64 -> S64 -> Bool`
-- `s64_neg : S64 -> S64`
-- `s64_add : S64 -> S64 -> S64`
-- `s64_sub : S64 -> S64 -> S64`
-- `s64_mul : S64 -> S64 -> S64`
-- `s64_div : S64 -> S64 -> S64`
-- `s64_abs : S64 -> S64`
-- `s64_unsigned_abs : S64 -> U64`
+| Operation                      | Operator |
+|--------------------------------|:--------:|
+| `u64_eq : U64 -> U64 -> Bool`  |   `==`   |
+| `u64_neq : U64 -> U64 -> Bool` |   `!=`   |
+| `u64_gt : U64 -> U64 -> Bool`  |   `>`    |
+| `u64_lt : U64 -> U64 -> Bool`  |   `<`    |
+| `u64_gte : U64 -> U64 -> Bool` |   `>=`   |
+| `u64_lte : U64 -> U64 -> Bool` |   `<=`   |
+| `u64_add : U64 -> U64 -> U64`  |   `+`    |
+| `u64_sub : U64 -> U64 -> U64`  |   `-`    |
+| `u64_mul : U64 -> U64 -> U64`  |   `*`    |
+| `u64_div : U64 -> U64 -> U64`  |   `/`    |
+| `u64_not : U64 -> U64`         |          |
+| `u64_shl : U64 -> U8 -> U64`   |          |
+| `u64_shr : U64 -> U8 -> U64`   |          |
+| `u64_and : U64 -> U64 -> U64`  |          |
+| `u64_or : U64 -> U64 -> U64`   |          |
+| `u64_xor : U64 -> U64 -> U64`  |          |
+
+#### S8
+
+| Operation                    | Operator |
+|------------------------------|:--------:|
+| `s8_eq : S8 -> S8 -> Bool`   |   `==`   |
+| `s8_neq : S8 -> S8 -> Bool`  |   `!=`   |
+| `s8_gt : S8 -> S8 -> Bool`   |   `>`    |
+| `s8_lt : S8 -> S8 -> Bool`   |   `<`    |
+| `s8_gte : S8 -> S8 -> Bool`  |   `>=`   |
+| `s8_lte : S8 -> S8 -> Bool`  |   `<=`   |
+| `s8_neg : S8 -> S8`          |          |
+| `s8_add : S8 -> S8 -> S8`    |   `+`    |
+| `s8_sub : S8 -> S8 -> S8`    |   `-`    |
+| `s8_mul : S8 -> S8 -> S8`    |   `*`    |
+| `s8_div : S8 -> S8 -> S8`    |   `/`    |
+| `s8_abs : S8 -> S8`          |          |
+| `s8_unsigned_abs : S8 -> U8` |          |
+
+#### S16
+
+| Operation                       | Operator |
+|---------------------------------|:--------:|
+| `s16_eq : S16 -> S16 -> Bool`   |   `==`   |
+| `s16_neq : S16 -> S16 -> Bool`  |   `!=`   |
+| `s16_gt : S16 -> S16 -> Bool`   |   `>`    |
+| `s16_lt : S16 -> S16 -> Bool`   |   `<`    |
+| `s16_gte : S16 -> S16 -> Bool`  |   `>=`   |
+| `s16_lte : S16 -> S16 -> Bool`  |   `<=`   |
+| `s16_neg : S16 -> S16`          |          |
+| `s16_add : S16 -> S16 -> S16`   |   `+`    |
+| `s16_sub : S16 -> S16 -> S16`   |   `-`    |
+| `s16_mul : S16 -> S16 -> S16`   |   `*`    |
+| `s16_div : S16 -> S16 -> S16`   |   `/`    |
+| `s16_abs : S16 -> S16`          |          |
+| `s16_unsigned_abs : S16 -> U16` |          |
+
+#### S32
+
+| Operation                       | Operator |
+|---------------------------------|:--------:|
+| `s32_eq : S32 -> S32 -> Bool`   |   `==`   |
+| `s32_neq : S32 -> S32 -> Bool`  |   `!=`   |
+| `s32_gt : S32 -> S32 -> Bool`   |   `>`    |
+| `s32_lt : S32 -> S32 -> Bool`   |   `<`    |
+| `s32_gte : S32 -> S32 -> Bool`  |   `>=`   |
+| `s32_lte : S32 -> S32 -> Bool`  |   `<=`   |
+| `s32_neg : S32 -> S32`          |          |
+| `s32_add : S32 -> S32 -> S32`   |   `+`    |
+| `s32_sub : S32 -> S32 -> S32`   |   `-`    |
+| `s32_mul : S32 -> S32 -> S32`   |   `*`    |
+| `s32_div : S32 -> S32 -> S32`   |   `/`    |
+| `s32_abs : S32 -> S32`          |          |
+| `s32_unsigned_abs : S32 -> U32` |          |
+
+#### S64
+
+| Operation                       | Operator |
+|---------------------------------|:--------:|
+| `s64_eq : S64 -> S64 -> Bool`   |   `==`   |
+| `s64_neq : S64 -> S64 -> Bool`  |   `!=`   |
+| `s64_gt : S64 -> S64 -> Bool`   |   `>`    |
+| `s64_lt : S64 -> S64 -> Bool`   |   `<`    |
+| `s64_gte : S64 -> S64 -> Bool`  |   `>=`   |
+| `s64_lte : S64 -> S64 -> Bool`  |   `<=`   |
+| `s64_neg : S64 -> S64`          |          |
+| `s64_add : S64 -> S64 -> S64`   |   `+`    |
+| `s64_sub : S64 -> S64 -> S64`   |   `-`    |
+| `s64_mul : S64 -> S64 -> S64`   |   `*`    |
+| `s64_div : S64 -> S64 -> S64`   |   `/`    |
+| `s64_abs : S64 -> S64`          |          |
+| `s64_unsigned_abs : S64 -> U64` |          |
 
 ## Options
 
