@@ -2229,7 +2229,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
             expected_type: self.elim_env().force(expected_type),
         };
 
-        self.elab_match(&match_info, true, equations)
+        self.elab_match(&match_info, true, equations.iter())
     }
 
     fn synth_scrutinee(&mut self, scrutinee_expr: &Term<'_, ByteRange>) -> Scrutinee<'arena> {
@@ -2244,20 +2244,22 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
     /// Elaborate a pattern match into a case tree in the core language.
     ///
     /// The implementation is based on the algorithm described in Section 5 of
-    /// [“The Implementation of Functional Programming Languages”].
+    /// [“The Implementation of Functional Programming Languages”][impl-fpl].
     ///
-    /// [“The Implementation of Functional Programming Languages”]: https://www.microsoft.com/en-us/research/publication/the-implementation-of-functional-programming-languages/
-    fn elab_match(
+    /// [impl-fpl]: https://www.microsoft.com/en-us/research/publication/the-implementation-of-functional-programming-languages/
+    fn elab_match<'a>(
         &mut self,
         match_info: &MatchInfo<'arena>,
         is_reachable: bool,
-        equations: &[(Pattern<ByteRange>, Term<'_, ByteRange>)],
+        mut equations: impl Iterator<Item = &'a (Pattern<ByteRange>, Term<'a, ByteRange>)>,
     ) -> core::Term<'arena> {
-        match equations.split_first() {
-            Some(((pattern, output_expr), next_equations)) => {
+        match equations.next() {
+            Some((pattern, output_expr)) => {
                 match self.check_pattern(pattern, &match_info.scrutinee.r#type) {
+                    // Named patterns are elaborated to let bindings, where the
+                    // scrutinee is bound as a definition in the output
+                    // expression. Subsequent patterns are unreachable.
                     (CheckedPattern::Name(range, name), def_type_value) => {
-                        // Named patterns should always match
                         self.check_match_reachable(is_reachable, range);
 
                         let def_name = Some(name);
@@ -2268,9 +2270,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                         let output_expr = self.check(output_expr, &match_info.expected_type);
                         self.rigid_env.pop();
 
-                        // Named patterns match with everything, so subsequent
-                        // patterns will be unreachable.
-                        self.elab_match_unreachable(match_info, next_equations);
+                        self.elab_match_unreachable(match_info, equations);
 
                         core::Term::Let(
                             Span::merge(&range.into(), &output_expr.span()),
@@ -2280,35 +2280,31 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                             self.scope.to_scope(output_expr),
                         )
                     }
+                    // Placeholder patterns just elaborate to the output
+                    // expression. Subsequent patterns are unreachable.
                     (CheckedPattern::Placeholder(range), _) => {
-                        // Placeholder patterns should always match
                         self.check_match_reachable(is_reachable, range);
 
-                        // No need to bind anything when checking the output.
                         let output_expr = self.check(output_expr, &match_info.expected_type);
-                        // Placeholder patterns match with everything, so
-                        // subsequent patterns will be unreachable.
-                        self.elab_match_unreachable(match_info, next_equations);
+                        self.elab_match_unreachable(match_info, equations);
 
                         output_expr
                     }
+                    // If we see a constant pattern we should expect a run of
+                    // constants, elaborating to a constant elimination.
                     (CheckedPattern::Const(range, r#const), _) => {
-                        // Placeholder patterns should always match
                         self.check_match_reachable(is_reachable, range);
-                        let output_expr = self.check(output_expr, &match_info.expected_type);
 
-                        // Continue elaborating constant patterns
-                        self.elab_match_const(
-                            match_info,
-                            is_reachable,
-                            (range, r#const, output_expr),
-                            next_equations,
-                        )
+                        let output_expr = self.check(output_expr, &match_info.expected_type);
+                        let const_equation = (range, r#const, output_expr);
+
+                        self.elab_match_const(match_info, is_reachable, const_equation, equations)
                     }
+                    // If we hit an error, propagate it, while still checking
+                    // the output expression and the subsequent branches.
                     (CheckedPattern::ReportedError(range), _) => {
-                        // Check the output expression and unreachable cases for errors
                         self.check(output_expr, &match_info.expected_type);
-                        self.elab_match_unreachable(match_info, next_equations);
+                        self.elab_match_unreachable(match_info, equations);
                         core::Term::Prim(range.into(), Prim::ReportedError)
                     }
                 }
@@ -2325,123 +2321,109 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
         }
     }
 
-    /// Elaborate the supplied equations, expecting a series of constant patterns
-    fn elab_match_const(
+    /// Elaborate the equations, expecting a series of constant patterns
+    fn elab_match_const<'a>(
         &mut self,
         match_info: &MatchInfo<'arena>,
         is_reachable: bool,
         (const_range, r#const, output_expr): (ByteRange, Const, core::Term<'arena>),
-        mut equations: &[(Pattern<ByteRange>, Term<'_, ByteRange>)],
+        mut equations: impl Iterator<Item = &'a (Pattern<ByteRange>, Term<'a, ByteRange>)>,
     ) -> core::Term<'arena> {
         // The full range of this series of patterns
         let mut full_span = Span::merge(&const_range.into(), &output_expr.span());
         // Temporary vector for accumulating branches
         let mut branches = vec![(r#const, output_expr)];
 
-        // Collect a run of constant patterns
-        while let Some(((pattern, output_expr), next_equations)) = equations.split_first() {
-            // Update the range to cover up to the span of the output expression
+        // Elaborate a run of constant patterns.
+        'patterns: while let Some((pattern, output_expr)) = equations.next() {
+            // Update the range up to the end of the next output expression
             full_span = Span::merge(&full_span, &output_expr.range().into());
 
+            // Default expression, defined if we arrive at a default case
+            let default_expr;
+
             match self.check_pattern(pattern, &match_info.scrutinee.r#type) {
-                // Accumulate constant pattern
+                // Accumulate constant pattern. Search for it in the accumulated
+                // branches and insert it in order.
                 (CheckedPattern::Const(range, r#const), _) => {
                     let output_term = self.check(output_expr, &match_info.expected_type);
 
                     // Find insertion index of the branch
-                    let result = branches.binary_search_by(|(probe_const, _)| {
+                    let insertion_index = branches.binary_search_by(|(probe_const, _)| {
                         Const::partial_cmp(probe_const, &r#const)
                             .expect("attempt to compare non-ordered value")
                     });
 
-                    // Insert the branch if it was not yet covered, or report
-                    // that the branch is unreachable.
-                    match result {
+                    match insertion_index {
                         Ok(_) => self.push_message(Message::UnreachablePattern { range }),
                         Err(index) => {
-                            // This pattern has not yet been covered, so it
-                            // should be reachable.
+                            // This has not yet been covered, so it should be reachable.
                             self.check_match_reachable(is_reachable, range);
                             branches.insert(index, (r#const, output_term));
                         }
                     }
 
-                    equations = next_equations;
+                    // No default case yet, continue looking for constant patterns.
+                    continue 'patterns;
                 }
-                // Time for the default pattern
-                // FIXME: avoid duplication with the cases in `elab_match`
+
+                // Time to elaborate the default pattern. The default case of
+                // `core::Term::ConstMatch` binds a variable, so both
+                // the named and  placeholder patterns should bind this.
                 (CheckedPattern::Name(range, name), pattern_type) => {
-                    // Named patterns should always match
                     self.check_match_reachable(is_reachable, range);
 
-                    // The default case always binds a variable
                     self.rigid_env.push_param(Some(name), pattern_type);
-                    let default_expr = self.check(output_expr, &match_info.expected_type);
+                    default_expr = self.check(output_expr, &match_info.expected_type);
                     self.rigid_env.pop();
-
-                    // Named patterns match with everything, so subsequent
-                    // patterns will be unreachable.
-                    self.elab_match_unreachable(match_info, next_equations);
-
-                    return core::Term::ConstMatch(
-                        full_span,
-                        match_info.scrutinee.expr,
-                        self.scope.to_scope_from_iter(branches.into_iter()),
-                        Some(self.scope.to_scope(default_expr)),
-                    );
                 }
                 (CheckedPattern::Placeholder(range), pattern_type) => {
-                    // Placeholder patterns should always match
                     self.check_match_reachable(is_reachable, range);
 
-                    // The default case always binds a variable
                     self.rigid_env.push_param(None, pattern_type);
-                    let default_expr = self.check(output_expr, &match_info.expected_type);
+                    default_expr = self.check(output_expr, &match_info.expected_type);
                     self.rigid_env.pop();
-
-                    // Placeholder patterns match with everything, so subsequent
-                    // patterns will be unreachable.
-                    self.elab_match_unreachable(match_info, next_equations);
-
-                    return core::Term::ConstMatch(
-                        full_span,
-                        match_info.scrutinee.expr,
-                        self.scope.to_scope_from_iter(branches.into_iter()),
-                        Some(self.scope.to_scope(default_expr)),
-                    );
                 }
                 (CheckedPattern::ReportedError(range), _) => {
-                    // Check the output expression and unreachable cases for errors
                     self.check(output_expr, &match_info.expected_type);
-                    self.elab_match_unreachable(match_info, next_equations);
-                    return core::Term::Prim(range.into(), Prim::ReportedError);
+                    default_expr = core::Term::Prim(range.into(), Prim::ReportedError);
                 }
-            }
+            };
+
+            // A default pattern was found, check any unreachable patterns.
+            self.elab_match_unreachable(match_info, equations);
+
+            return core::Term::ConstMatch(
+                full_span,
+                match_info.scrutinee.expr,
+                self.scope.to_scope_from_iter(branches.into_iter()),
+                Some(self.scope.to_scope(default_expr)),
+            );
         }
 
+        // Finished all the constant patterns without encountering a default
+        // case. This should have been an exhaustive match, so check to see if
+        // all the cases were covered.
         let default_expr = match match_info.scrutinee.r#type.match_prim_spine() {
             // No need for a default case if all the values were covered
             Some((Prim::BoolType, [])) if branches.len() >= 2 => None,
-            _ => {
-                let expr = self.elab_match_absurd(is_reachable, match_info);
-                Some(self.scope.to_scope(expr) as &_)
-            }
+            _ => Some(self.elab_match_absurd(is_reachable, match_info)),
         };
 
         core::Term::ConstMatch(
             full_span,
             match_info.scrutinee.expr,
             self.scope.to_scope_from_iter(branches.into_iter()),
-            default_expr,
+            default_expr.map(|expr| self.scope.to_scope(expr) as &_),
         )
     }
 
     /// Elaborate unreachable match cases. This is useful for that these cases
     /// are correctly typed, even if they are never actually needed.
-    fn elab_match_unreachable(
+    fn elab_match_unreachable<'a>(
         &mut self,
         match_info: &MatchInfo<'arena>,
-        equations: &[(Pattern<ByteRange>, Term<'_, ByteRange>)],
+        equations: impl Iterator<Item = &'a (Pattern<ByteRange>, Term<'a, ByteRange>)>,
     ) {
         self.elab_match(match_info, false, equations);
     }
