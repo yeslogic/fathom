@@ -824,7 +824,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
     ) -> core::Term<'arena> {
         let rigid_infos = (self.scope).to_scope_from_iter(self.rigid_env.infos.iter().copied());
         core::Term::FlexibleInsertion(
-            (&source.range()).into(),
+            source.range().into(),
             self.flexible_env.push(source, r#type),
             rigid_infos,
         )
@@ -2150,9 +2150,9 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
         };
 
         let fun_app = core::Term::FunApp(
-            (&range).into(),
+            range.into(),
             self.scope.to_scope(core::Term::FunApp(
-                (&range).into(), // FIXME: Should this be a sub-range of range (from one of the terms)?
+                range.into(), // FIXME: Should this be a sub-range of range (from one of the terms)?
                 self.scope.to_scope(core::Term::Prim(Span::Empty, fun)),
                 self.scope.to_scope(lhs_expr),
             )),
@@ -2167,12 +2167,10 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
     }
 
     fn synth_reported_error(&mut self, range: ByteRange) -> (core::Term<'arena>, ArcValue<'arena>) {
+        let expr = core::Term::Prim(range.into(), Prim::ReportedError);
         let type_source = FlexSource::ReportedErrorType(range);
         let r#type = self.push_flexible_value(type_source, Value::arc_universe());
-        (
-            core::Term::Prim((&range).into(), Prim::ReportedError),
-            r#type,
-        )
+        (expr, r#type)
     }
 
     /// Check a series of format fields
@@ -2214,7 +2212,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                             let cond_expr = self.check(pred, &bool_type);
 
                             formats.push(core::Term::FormatCond(
-                                (&range).into(), // FIXME: Is this range of all the fields? If so we need to merge ranges of the field only
+                                range.into(), // FIXME: Is this range of all the fields? If so we need to merge ranges of the field only
                                 *label,
                                 self.scope.to_scope(format),
                                 self.scope.to_scope(cond_expr),
@@ -2241,7 +2239,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                     };
 
                     let format = core::Term::FunApp(
-                        (&range).into(),
+                        range.into(),
                         self.scope.to_scope(core::Term::FunApp(
                             Span::Empty, // FIXME: sub-range?
                             self.scope
@@ -2313,7 +2311,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                         );
 
                         core::Term::Let(
-                            (&range).into(), // FIXME: is this the right range to use here?
+                            range.into(), // FIXME: is this the right range to use here?
                             def_name,
                             self.scope.to_scope(def_type),
                             scrutinee_expr,
@@ -2398,7 +2396,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                                     self.rigid_env.pop();
 
                                     return core::Term::ConstMatch(
-                                        (&range).into(),
+                                        range.into(),
                                         scrutinee_expr,
                                         self.scope.to_scope_from_iter(branches.into_iter()),
                                         Some(self.scope.to_scope(default_expr)),
@@ -2410,7 +2408,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                         if num_constructors == Some(branches.len()) {
                             // The absence of a default constructor is ok as the match was exhaustive.
                             return core::Term::ConstMatch(
-                                (&range).into(),
+                                range.into(),
                                 scrutinee_expr,
                                 self.scope.to_scope_from_iter(branches.into_iter()),
                                 None,
@@ -2424,7 +2422,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                                 scrutinee_expr_range: scrutinee_range,
                             });
                         }
-                        core::Term::Prim((&range).into(), Prim::ReportedError)
+                        core::Term::Prim(range.into(), Prim::ReportedError)
                     }
                     CheckedPattern::ReportedError(range) => {
                         // Check for any further errors in the first equation's output expression.
@@ -2439,7 +2437,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                             expected_type,
                         );
 
-                        core::Term::Prim((&range).into(), Prim::ReportedError)
+                        core::Term::Prim(range.into(), Prim::ReportedError)
                     }
                 }
             }
@@ -2451,7 +2449,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                         scrutinee_expr_range: scrutinee_range,
                     });
                 }
-                core::Term::Prim((&match_range).into(), Prim::ReportedError)
+                core::Term::Prim(match_range.into(), Prim::ReportedError)
             }
         }
     }

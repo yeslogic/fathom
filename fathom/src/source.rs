@@ -73,6 +73,12 @@ impl Span {
     }
 }
 
+impl From<ByteRange> for Span {
+    fn from(range: ByteRange) -> Self {
+        Span::Range(range)
+    }
+}
+
 impl From<&ByteRange> for Span {
     fn from(range: &ByteRange) -> Self {
         Span::Range(*range)
