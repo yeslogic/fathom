@@ -769,6 +769,12 @@ pub struct Context<'interner, 'arena, 'error> {
     scope: &'arena Scope<'arena>,
     /// Scoped arena for storing surface terms generated during error reporting.
     error_scope: &'error Scope<'error>,
+
+    // Commonly used values, cached to increase sharing.
+    universe: ArcValue<'static>,
+    format_type: ArcValue<'static>,
+    bool_type: ArcValue<'static>,
+
     /// Item environment.
     item_env: ItemEnv<'arena>,
     /// Rigid environment.
@@ -792,6 +798,11 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
             interner,
             scope,
             error_scope,
+
+            universe: Spanned::empty(Arc::new(Value::Universe)),
+            format_type: Spanned::empty(Arc::new(Value::prim(Prim::FormatType, []))),
+            bool_type: Spanned::empty(Arc::new(Value::prim(Prim::BoolType, []))),
+
             item_env: ItemEnv::new(),
             rigid_env: RigidEnv::default(interner, scope),
             flexible_env: FlexibleEnv::new(),
@@ -816,28 +827,23 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
         Some((rigid_var, rigid_type))
     }
 
-    /// Push an unsolved flexible binder onto the context.
+    /// Push an unsolved term onto the context, to be updated later during unification.
     fn push_flexible_term(
         &mut self,
         source: FlexSource,
         r#type: ArcValue<'arena>,
     ) -> core::Term<'arena> {
-        let rigid_infos = (self.scope).to_scope_from_iter(self.rigid_env.infos.iter().copied());
         core::Term::FlexibleInsertion(
-            (&source.range()).into(),
+            source.range().into(),
             self.flexible_env.push(source, r#type),
-            rigid_infos,
+            (self.scope).to_scope_from_iter(self.rigid_env.infos.iter().copied()),
         )
     }
 
-    /// Push an unsolved flexible binder onto the context.
-    fn push_flexible_value(
-        &mut self,
-        source: FlexSource,
-        r#type: ArcValue<'arena>,
-    ) -> ArcValue<'arena> {
-        let term = self.push_flexible_term(source, r#type); // TODO: Could avoid allocating the rigid infos
-        self.eval_env().eval(&term)
+    /// Push an unsolved type onto the context, to be updated later during unification.
+    fn push_flexible_type(&mut self, source: FlexSource) -> ArcValue<'arena> {
+        let r#type = self.push_flexible_term(source, self.universe.clone());
+        self.eval_env().eval(&r#type)
     }
 
     fn push_message(&mut self, message: Message) {
@@ -1082,7 +1088,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
     /// Elaborate a module
     pub fn elab_module(&mut self, surface_module: &Module<'_, ByteRange>) -> core::Module<'arena> {
         let elab_order = order::elaboration_order(self, surface_module);
-        let universe = Value::arc_universe();
+        let universe = self.universe.clone();
         let mut items = SliceVec::new(self.scope, elab_order.len());
 
         for item in elab_order.iter().copied().map(|i| &surface_module.items[i]) {
@@ -1182,7 +1188,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                     ),
                     None => {
                         let source = FlexSource::ReportedErrorType(*range);
-                        let r#type = self.push_flexible_value(source, Value::arc_universe());
+                        let r#type = self.push_flexible_type(source);
 
                         (CheckedPattern::ReportedError(*range), r#type)
                     }
@@ -1226,7 +1232,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                     ),
                     None => {
                         let source = FlexSource::ReportedErrorType(*range);
-                        let r#type = self.push_flexible_value(source, Value::arc_universe());
+                        let r#type = self.push_flexible_type(source);
 
                         (CheckedPattern::ReportedError(*range), r#type)
                     }
@@ -1251,7 +1257,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                     ),
                     None => {
                         let source = FlexSource::ReportedErrorType(*range);
-                        let r#type = self.push_flexible_value(source, Value::arc_universe());
+                        let r#type = self.push_flexible_type(source);
 
                         (CheckedPattern::ReportedError(*range), r#type)
                     }
@@ -1268,29 +1274,29 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
         match pattern {
             Pattern::Name(range, name) => {
                 let source = FlexSource::NamedPatternType(*range, *name);
-                let r#type = self.push_flexible_value(source, Value::arc_universe());
+                let r#type = self.push_flexible_type(source);
                 (CheckedPattern::Name(*range, *name), r#type)
             }
             Pattern::Placeholder(range) => {
                 let source = FlexSource::PlaceholderPatternType(*range);
-                let r#type = self.push_flexible_value(source, Value::arc_universe());
+                let r#type = self.push_flexible_type(source);
                 (CheckedPattern::Placeholder(*range), r#type)
             }
             Pattern::StringLiteral(range, _) => {
                 self.push_message(Message::AmbiguousStringLiteral { range: *range });
                 let source = FlexSource::ReportedErrorType(*range);
-                let r#type = self.push_flexible_value(source, Value::arc_universe());
+                let r#type = self.push_flexible_type(source);
                 (CheckedPattern::ReportedError(*range), r#type)
             }
             Pattern::NumberLiteral(range, _) => {
                 self.push_message(Message::AmbiguousNumericLiteral { range: *range });
                 let source = FlexSource::ReportedErrorType(*range);
-                let r#type = self.push_flexible_value(source, Value::arc_universe());
+                let r#type = self.push_flexible_type(source);
                 (CheckedPattern::ReportedError(*range), r#type)
             }
             Pattern::BooleanLiteral(range, val) => {
                 let r#const = Const::Bool(*val);
-                let r#type = Spanned::empty(Arc::new(Value::prim(Prim::BoolType, [])));
+                let r#type = self.bool_type.clone();
                 (CheckedPattern::Const(*range, r#const), r#type)
             }
         }
@@ -1306,9 +1312,8 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
         match r#type {
             None => self.check_pattern(pattern, expected_type),
             Some(r#type) => {
-                let universe = Value::arc_universe();
                 let range = r#type.range();
-                let r#type = self.check(r#type, &universe);
+                let r#type = self.check(r#type, &self.universe.clone());
                 let r#type = self.eval_env().eval(&r#type);
 
                 match self.unification_context().unify(&r#type, expected_type) {
@@ -1324,7 +1329,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                         });
 
                         let source = FlexSource::ReportedErrorType(range);
-                        let input_type = self.push_flexible_value(source, universe);
+                        let input_type = self.push_flexible_type(source);
 
                         (CheckedPattern::ReportedError(range), input_type)
                     }
@@ -1342,7 +1347,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
         match r#type {
             None => self.synth_pattern(pattern),
             Some(r#type) => {
-                let r#type = self.check(r#type, &Value::arc_universe());
+                let r#type = self.check(r#type, &self.universe.clone());
                 let type_value = self.eval_env().eval(&r#type);
                 self.check_pattern(pattern, &type_value)
             }
@@ -1520,14 +1525,14 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                     }
                 };
 
-                let len = match len_value.map(|val| (val.span(), val.as_ref())) {
+                let len = match len_value.map(|val| val.as_ref()) {
                     None => Some(elem_exprs.len() as u64),
-                    Some((_, Value::ConstLit(Const::U8(len, _)))) => Some(*len as u64),
-                    Some((_, Value::ConstLit(Const::U16(len, _)))) => Some(*len as u64),
-                    Some((_, Value::ConstLit(Const::U32(len, _)))) => Some(*len as u64),
-                    Some((_, Value::ConstLit(Const::U64(len, _)))) => Some(*len as u64),
-                    Some((span, Value::Stuck(Head::Prim(Prim::ReportedError), _))) => {
-                        return core::Term::Prim(span, Prim::ReportedError); // FIXME: should it use span here or range?
+                    Some(Value::ConstLit(Const::U8(len, _))) => Some(*len as u64),
+                    Some(Value::ConstLit(Const::U16(len, _))) => Some(*len as u64),
+                    Some(Value::ConstLit(Const::U32(len, _))) => Some(*len as u64),
+                    Some(Value::ConstLit(Const::U64(len, _))) => Some(*len as u64),
+                    Some(Value::Stuck(Head::Prim(Prim::ReportedError), _)) => {
+                        return core::Term::Prim(range.into(), Prim::ReportedError);
                     }
                     _ => None,
                 };
@@ -1661,7 +1666,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 let type_source = FlexSource::HoleType(*range, *name);
                 let expr_source = FlexSource::HoleExpr(*range, *name);
 
-                let r#type = self.push_flexible_value(type_source, Value::arc_universe());
+                let r#type = self.push_flexible_type(type_source);
                 let expr = self.push_flexible_term(expr_source, r#type.clone());
 
                 (expr, r#type)
@@ -1670,13 +1675,13 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 let type_source = FlexSource::PlaceholderType(*range);
                 let expr_source = FlexSource::PlaceholderExpr(*range);
 
-                let r#type = self.push_flexible_value(type_source, Value::arc_universe());
+                let r#type = self.push_flexible_type(type_source);
                 let expr = self.push_flexible_term(expr_source, r#type.clone());
 
                 (expr, r#type)
             }
             Term::Ann(range, expr, r#type) => {
-                let r#type = self.check(r#type, &Value::arc_universe()); // FIXME: avoid temporary Arc
+                let r#type = self.check(r#type, &self.universe.clone());
                 let type_value = self.eval_env().eval(&r#type);
                 let expr = self.check(expr, &type_value);
 
@@ -1716,8 +1721,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 // the match expression's output expressions, allowing us to
                 // unify them together.
                 let source = FlexSource::MatchOutputType(*range);
-                let universe = Value::arc_universe();
-                let output_type = self.push_flexible_value(source, universe);
+                let output_type = self.push_flexible_type(source);
 
                 let match_expr = self.check_match(
                     true,
@@ -1731,9 +1735,9 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
 
                 (match_expr, output_type)
             }
-            Term::Universe(range) => (core::Term::Universe(range.into()), Value::arc_universe()),
+            Term::Universe(range) => (core::Term::Universe(range.into()), self.universe.clone()),
             Term::Arrow(range, input_type, output_type) => {
-                let universe = Value::arc_universe(); // FIXME: avoid temporary Arc
+                let universe = self.universe.clone();
                 let input_type = self.check(input_type, &universe);
                 let input_type_value = self.eval_env().eval(&input_type);
 
@@ -1748,16 +1752,15 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                     self.scope.to_scope(output_type),
                 );
 
-                (fun_type, universe)
+                (fun_type, self.universe.clone())
             }
             Term::FunType(range, input_pattern, input_type, output_type) => {
-                let universe = Value::arc_universe(); // FIXME: avoid temporary Arc
                 let (input_pattern, input_type_value) =
                     self.synth_ann_pattern(input_pattern, *input_type);
                 let input_type = self.quote_env(self.scope).quote(&input_type_value); // FIXME: avoid requote if possible?
 
                 let (input_name, _) = self.push_rigid_param(input_pattern, input_type_value);
-                let output_type = self.check(output_type, &universe);
+                let output_type = self.check(output_type, &self.universe.clone());
                 self.rigid_env.pop();
 
                 let fun_type = core::Term::FunType(
@@ -1767,7 +1770,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                     self.scope.to_scope(output_type),
                 );
 
-                (fun_type, universe)
+                (fun_type, self.universe.clone())
             }
             Term::FunLiteral(range, input_pattern, input_type, output_expr) => {
                 let (input_pattern, input_type) =
@@ -1780,18 +1783,14 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
 
                 (
                     core::Term::FunLit(range.into(), input_name, self.scope.to_scope(output_expr)),
-                    // FIXME: Should this use range too?
-                    Spanned::new(
-                        Span::Empty,
-                        Arc::new(Value::FunType(
-                            input_name,
-                            input_type,
-                            Closure::new(
-                                self.rigid_env.exprs.clone(),
-                                self.scope.to_scope(output_type),
-                            ),
-                        )),
-                    ),
+                    Spanned::empty(Arc::new(Value::FunType(
+                        input_name,
+                        input_type,
+                        Closure::new(
+                            self.rigid_env.exprs.clone(),
+                            self.scope.to_scope(output_type),
+                        ),
+                    ))),
                 )
             }
             Term::App(range, head_expr, input_expr) => {
@@ -1814,13 +1813,13 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                     // output types, and then we attempt to unify the head type
                     // against it.
                     _ => {
-                        let universe = Value::arc_universe();
                         // Create a flexible input type
                         let input_source = FlexSource::FunInputType(head_range);
-                        let input_type = self.push_flexible_value(input_source, universe.clone());
+                        let input_type = self.push_flexible_type(input_source);
 
                         // Create a flexible output type, with the input bound
                         self.rigid_env.push_param(None, input_type.clone());
+                        let universe = self.universe.clone();
                         let output_source = FlexSource::FunOutputType(head_range);
                         let output_type = self.push_flexible_term(output_source, universe);
                         self.rigid_env.pop();
@@ -1860,7 +1859,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 (fun_app, output_type)
             }
             Term::RecordType(range, type_fields) => {
-                let universe = Value::arc_universe();
+                let universe = self.universe.clone();
                 let initial_rigid_len = self.rigid_env.len();
                 let (labels, type_fields) =
                     self.report_duplicate_labels(*range, type_fields, |f| f.label);
@@ -1873,13 +1872,11 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                         .push_param(Some(type_field.label.1), type_value);
                     types.push(r#type);
                 }
-
                 self.rigid_env.truncate(initial_rigid_len);
 
-                (
-                    core::Term::RecordType(range.into(), labels, types.into()),
-                    universe,
-                )
+                let record_type = core::Term::RecordType(range.into(), labels, types.into());
+
+                (record_type, universe)
             }
             Term::RecordLiteral(range, expr_fields) => {
                 let (labels, expr_fields) =
@@ -1960,49 +1957,39 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 self.synth_reported_error(*range)
             }
             Term::BooleanLiteral(range, val) => {
-                let bool_type = Spanned::empty(Arc::new(Value::prim(Prim::BoolType, [])));
-                (
-                    core::Term::ConstLit(range.into(), Const::Bool(*val)),
-                    bool_type,
-                )
+                let expr = core::Term::ConstLit(range.into(), Const::Bool(*val));
+                (expr, self.bool_type.clone())
             }
             Term::FormatRecord(range, format_fields) => {
-                let format_type = Spanned::empty(Arc::new(Value::prim(Prim::FormatType, [])));
                 let (labels, formats) = self.check_format_fields(*range, format_fields);
-
-                (
-                    core::Term::FormatRecord(range.into(), labels, formats),
-                    format_type,
-                )
+                let format_record = core::Term::FormatRecord(range.into(), labels, formats);
+                (format_record, self.format_type.clone())
             }
             Term::FormatCond(range, (_, name), format, pred) => {
-                let format_type = Spanned::empty(Arc::new(Value::prim(Prim::FormatType, [])));
+                let format_type = self.format_type.clone();
                 let format = self.check(format, &format_type);
                 let format_value = self.eval_env().eval(&format);
                 let repr_type = self.elim_env().format_repr(&format_value);
+
                 self.rigid_env.push_param(Some(*name), repr_type);
-                let bool_type = Spanned::empty(Arc::new(Value::prim(Prim::BoolType, [])));
+                let bool_type = self.bool_type.clone();
                 let pred_expr = self.check(pred, &bool_type);
                 self.rigid_env.pop();
 
-                (
-                    core::Term::FormatCond(
-                        range.into(),
-                        *name,
-                        self.scope.to_scope(format),
-                        self.scope.to_scope(pred_expr),
-                    ),
-                    format_type,
-                )
+                let cond_format = core::Term::FormatCond(
+                    range.into(),
+                    *name,
+                    self.scope.to_scope(format),
+                    self.scope.to_scope(pred_expr),
+                );
+
+                (cond_format, format_type)
             }
             Term::FormatOverlap(range, format_fields) => {
-                let format_type = Spanned::empty(Arc::new(Value::prim(Prim::FormatType, [])));
                 let (labels, formats) = self.check_format_fields(*range, format_fields);
+                let overlap_format = core::Term::FormatOverlap(range.into(), labels, formats);
 
-                (
-                    core::Term::FormatOverlap(range.into(), labels, formats),
-                    format_type,
-                )
+                (overlap_format, self.format_type.clone())
             }
             Term::BinOp(range, lhs, op, rhs) => self.synth_bin_op(*range, lhs, *op, rhs),
             Term::ReportedError(range) => self.synth_reported_error(*range),
@@ -2149,11 +2136,12 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
             }
         };
 
+        let fun_head = core::Term::Prim(op.range().into(), fun);
         let fun_app = core::Term::FunApp(
-            (&range).into(),
+            range.into(),
             self.scope.to_scope(core::Term::FunApp(
-                (&range).into(), // FIXME: Should this be a sub-range of range (from one of the terms)?
-                self.scope.to_scope(core::Term::Prim(Span::Empty, fun)),
+                Span::merge(&lhs_expr.span(), &rhs_expr.span()),
+                self.scope.to_scope(fun_head),
                 self.scope.to_scope(lhs_expr),
             )),
             self.scope.to_scope(rhs_expr),
@@ -2167,12 +2155,9 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
     }
 
     fn synth_reported_error(&mut self, range: ByteRange) -> (core::Term<'arena>, ArcValue<'arena>) {
-        let type_source = FlexSource::ReportedErrorType(range);
-        let r#type = self.push_flexible_value(type_source, Value::arc_universe());
-        (
-            core::Term::Prim((&range).into(), Prim::ReportedError),
-            r#type,
-        )
+        let expr = core::Term::Prim(range.into(), Prim::ReportedError);
+        let r#type = self.push_flexible_type(FlexSource::ReportedErrorType(range));
+        (expr, r#type)
     }
 
     /// Check a series of format fields
@@ -2181,9 +2166,8 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
         range: ByteRange,
         format_fields: &[FormatField<'_, ByteRange>],
     ) -> (&'arena [StringId], &'arena [core::Term<'arena>]) {
-        let universe_type = Value::arc_universe();
-        let format_type = Spanned::empty(Arc::new(Value::prim(Prim::FormatType, [])));
-        let bool_type = Spanned::empty(Arc::new(Value::prim(Prim::BoolType, [])));
+        let universe = self.universe.clone();
+        let format_type = self.format_type.clone();
 
         let initial_rigid_len = self.rigid_env.len();
         let (labels, format_fields) =
@@ -2195,7 +2179,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
         for format_field in format_fields {
             match format_field {
                 FormatField::Format {
-                    label: (_, label),
+                    label: (label_range, label),
                     format,
                     pred,
                 } => {
@@ -2211,10 +2195,11 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                         Some(pred) => {
                             // Note: No need to push a param, as this was done above,
                             // in preparation for checking the the next format field.
-                            let cond_expr = self.check(pred, &bool_type);
+                            let cond_expr = self.check(pred, &self.bool_type.clone());
 
+                            let field_span = Span::merge(&label_range.into(), &cond_expr.span());
                             formats.push(core::Term::FormatCond(
-                                (&range).into(), // FIXME: Is this range of all the fields? If so we need to merge ranges of the field only
+                                field_span,
                                 *label,
                                 self.scope.to_scope(format),
                                 self.scope.to_scope(cond_expr),
@@ -2223,13 +2208,13 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                     }
                 }
                 FormatField::Computed {
-                    label: (_, label),
+                    label: (label_range, label),
                     type_: r#type,
                     expr,
                 } => {
                     let (expr, r#type, type_value) = match r#type {
                         Some(r#type) => {
-                            let r#type = self.check(r#type, &universe_type);
+                            let r#type = self.check(r#type, &universe);
                             let type_value = self.eval_env().eval(&r#type);
                             (self.check(expr, &type_value), r#type, type_value)
                         }
@@ -2240,12 +2225,13 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                         }
                     };
 
+                    let field_span = Span::merge(&label_range.into(), &expr.span());
                     let format = core::Term::FunApp(
-                        (&range).into(),
+                        Span::merge(&label_range.into(), &expr.span()),
                         self.scope.to_scope(core::Term::FunApp(
-                            Span::Empty, // FIXME: sub-range?
+                            field_span,
                             self.scope
-                                .to_scope(core::Term::Prim(Span::Empty, Prim::FormatSucceed)), // FIXME: sub-range?
+                                .to_scope(core::Term::Prim(field_span, Prim::FormatSucceed)),
                             self.scope.to_scope(r#type),
                         )),
                         self.scope.to_scope(expr),
@@ -2313,7 +2299,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                         );
 
                         core::Term::Let(
-                            (&range).into(), // FIXME: is this the right range to use here?
+                            range.into(), // FIXME: is this the right range to use here?
                             def_name,
                             self.scope.to_scope(def_type),
                             scrutinee_expr,
@@ -2398,7 +2384,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                                     self.rigid_env.pop();
 
                                     return core::Term::ConstMatch(
-                                        (&range).into(),
+                                        range.into(),
                                         scrutinee_expr,
                                         self.scope.to_scope_from_iter(branches.into_iter()),
                                         Some(self.scope.to_scope(default_expr)),
@@ -2410,7 +2396,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                         if num_constructors == Some(branches.len()) {
                             // The absence of a default constructor is ok as the match was exhaustive.
                             return core::Term::ConstMatch(
-                                (&range).into(),
+                                range.into(),
                                 scrutinee_expr,
                                 self.scope.to_scope_from_iter(branches.into_iter()),
                                 None,
@@ -2424,7 +2410,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                                 scrutinee_expr_range: scrutinee_range,
                             });
                         }
-                        core::Term::Prim((&range).into(), Prim::ReportedError)
+                        core::Term::Prim(range.into(), Prim::ReportedError)
                     }
                     CheckedPattern::ReportedError(range) => {
                         // Check for any further errors in the first equation's output expression.
@@ -2439,7 +2425,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                             expected_type,
                         );
 
-                        core::Term::Prim((&range).into(), Prim::ReportedError)
+                        core::Term::Prim(range.into(), Prim::ReportedError)
                     }
                 }
             }
@@ -2451,7 +2437,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                         scrutinee_expr_range: scrutinee_range,
                     });
                 }
-                core::Term::Prim((&match_range).into(), Prim::ReportedError)
+                core::Term::Prim(match_range.into(), Prim::ReportedError)
             }
         }
     }

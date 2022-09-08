@@ -15,12 +15,6 @@ use crate::StringId;
 /// the amount of sharing we can achieve during evaluation.
 pub type ArcValue<'arena> = Spanned<Arc<Value<'arena>>>;
 
-impl<'arena> ArcValue<'arena> {
-    pub fn match_prim_spine(&self) -> Option<(Prim, &[Elim<'arena>])> {
-        self.as_ref().match_prim_spine()
-    }
-}
-
 /// Values in weak-head-normal form, with bindings converted to closures.
 #[derive(Debug, Clone)]
 pub enum Value<'arena> {
@@ -77,12 +71,6 @@ impl<'arena> Value<'arena> {
             Value::Stuck(Head::Prim(prim), spine) => Some((*prim, spine)),
             _ => None,
         }
-    }
-
-    /// Create a new `Arc<Value::Universe>` with no associated span.
-    pub fn arc_universe() -> ArcValue<'arena> {
-        // TODO: Can we share a single instance of this?
-        Spanned::empty(Arc::new(Value::Universe))
     }
 }
 
