@@ -61,10 +61,6 @@ pub enum Span {
 }
 
 impl Span {
-    pub const fn fixme() -> Span {
-        Span::Empty
-    }
-
     pub fn merge(&self, other: &Span) -> Span {
         match (self, other) {
             (Span::Range(a), Span::Range(b)) => a.merge(b).map(Span::Range).unwrap_or(Span::Empty),

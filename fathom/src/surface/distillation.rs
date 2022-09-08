@@ -334,7 +334,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                         core::EntryInfo::Definition => {}
                         core::EntryInfo::Parameter => {
                             let var = self.rigid_len().global_to_local(var).unwrap();
-                            let input_expr = self.check(&core::Term::RigidVar(Span::fixme(), var)); // FIXME: What span should be used here?
+                            let input_expr = self.check(&core::Term::RigidVar(Span::Empty, var));
                             head_expr = Term::App(
                                 (),
                                 self.scope.to_scope(head_expr),

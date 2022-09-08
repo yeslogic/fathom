@@ -1525,14 +1525,14 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                     }
                 };
 
-                let len = match len_value.map(|val| (val.span(), val.as_ref())) {
+                let len = match len_value.map(|val| val.as_ref()) {
                     None => Some(elem_exprs.len() as u64),
-                    Some((_, Value::ConstLit(Const::U8(len, _)))) => Some(*len as u64),
-                    Some((_, Value::ConstLit(Const::U16(len, _)))) => Some(*len as u64),
-                    Some((_, Value::ConstLit(Const::U32(len, _)))) => Some(*len as u64),
-                    Some((_, Value::ConstLit(Const::U64(len, _)))) => Some(*len as u64),
-                    Some((span, Value::Stuck(Head::Prim(Prim::ReportedError), _))) => {
-                        return core::Term::Prim(span, Prim::ReportedError); // FIXME: should it use span here or range?
+                    Some(Value::ConstLit(Const::U8(len, _))) => Some(*len as u64),
+                    Some(Value::ConstLit(Const::U16(len, _))) => Some(*len as u64),
+                    Some(Value::ConstLit(Const::U32(len, _))) => Some(*len as u64),
+                    Some(Value::ConstLit(Const::U64(len, _))) => Some(*len as u64),
+                    Some(Value::Stuck(Head::Prim(Prim::ReportedError), _)) => {
+                        return core::Term::Prim(range.into(), Prim::ReportedError);
                     }
                     _ => None,
                 };
@@ -1783,7 +1783,6 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
 
                 (
                     core::Term::FunLit(range.into(), input_name, self.scope.to_scope(output_expr)),
-                    // FIXME: Should this use range too?
                     Spanned::empty(Arc::new(Value::FunType(
                         input_name,
                         input_type,
@@ -2137,11 +2136,12 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
             }
         };
 
+        let fun_head = core::Term::Prim(op.range().into(), fun);
         let fun_app = core::Term::FunApp(
             range.into(),
             self.scope.to_scope(core::Term::FunApp(
-                range.into(), // FIXME: Should this be a sub-range of range (from one of the terms)?
-                self.scope.to_scope(core::Term::Prim(Span::Empty, fun)),
+                Span::merge(&lhs_expr.span(), &rhs_expr.span()),
+                self.scope.to_scope(fun_head),
                 self.scope.to_scope(lhs_expr),
             )),
             self.scope.to_scope(rhs_expr),
@@ -2179,7 +2179,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
         for format_field in format_fields {
             match format_field {
                 FormatField::Format {
-                    label: (_, label),
+                    label: (label_range, label),
                     format,
                     pred,
                 } => {
@@ -2197,8 +2197,9 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                             // in preparation for checking the the next format field.
                             let cond_expr = self.check(pred, &self.bool_type.clone());
 
+                            let field_span = Span::merge(&label_range.into(), &cond_expr.span());
                             formats.push(core::Term::FormatCond(
-                                range.into(), // FIXME: Is this range of all the fields? If so we need to merge ranges of the field only
+                                field_span,
                                 *label,
                                 self.scope.to_scope(format),
                                 self.scope.to_scope(cond_expr),
@@ -2207,7 +2208,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                     }
                 }
                 FormatField::Computed {
-                    label: (_, label),
+                    label: (label_range, label),
                     type_: r#type,
                     expr,
                 } => {
@@ -2224,12 +2225,13 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                         }
                     };
 
+                    let field_span = Span::merge(&label_range.into(), &expr.span());
                     let format = core::Term::FunApp(
-                        range.into(),
+                        Span::merge(&label_range.into(), &expr.span()),
                         self.scope.to_scope(core::Term::FunApp(
-                            Span::Empty, // FIXME: sub-range?
+                            field_span,
                             self.scope
-                                .to_scope(core::Term::Prim(Span::Empty, Prim::FormatSucceed)), // FIXME: sub-range?
+                                .to_scope(core::Term::Prim(field_span, Prim::FormatSucceed)),
                             self.scope.to_scope(r#type),
                         )),
                         self.scope.to_scope(expr),
