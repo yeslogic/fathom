@@ -1139,7 +1139,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
     ) -> (CheckedPattern, ArcValue<'arena>) {
         match pattern {
             Pattern::Name(range, name) => {
-                (CheckedPattern::Name(*range, *name), expected_type.clone())
+                (CheckedPattern::Binder(*range, *name), expected_type.clone())
             }
             Pattern::Placeholder(range) => {
                 (CheckedPattern::Placeholder(*range), expected_type.clone())
@@ -1175,7 +1175,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
 
                 match constant {
                     Some(constant) => (
-                        CheckedPattern::Const(*range, constant),
+                        CheckedPattern::ConstLit(*range, constant),
                         expected_type.clone(),
                     ),
                     None => {
@@ -1219,7 +1219,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
 
                 match constant {
                     Some(constant) => (
-                        CheckedPattern::Const(*range, constant),
+                        CheckedPattern::ConstLit(*range, constant),
                         expected_type.clone(),
                     ),
                     None => {
@@ -1244,7 +1244,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
 
                 match constant {
                     Some(constant) => (
-                        CheckedPattern::Const(*range, constant),
+                        CheckedPattern::ConstLit(*range, constant),
                         expected_type.clone(),
                     ),
                     None => {
@@ -1267,7 +1267,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
             Pattern::Name(range, name) => {
                 let source = FlexSource::NamedPatternType(*range, *name);
                 let r#type = self.push_flexible_type(source);
-                (CheckedPattern::Name(*range, *name), r#type)
+                (CheckedPattern::Binder(*range, *name), r#type)
             }
             Pattern::Placeholder(range) => {
                 let source = FlexSource::PlaceholderPatternType(*range);
@@ -1289,7 +1289,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
             Pattern::BooleanLiteral(range, val) => {
                 let r#const = Const::Bool(*val);
                 let r#type = self.bool_type.clone();
-                (CheckedPattern::Const(*range, r#const), r#type)
+                (CheckedPattern::ConstLit(*range, r#const), r#type)
             }
         }
     }
@@ -1355,10 +1355,10 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
         r#type: ArcValue<'arena>,
     ) -> Option<StringId> {
         let name = match pattern {
-            CheckedPattern::Name(_, name) => Some(name),
+            CheckedPattern::Binder(_, name) => Some(name),
             CheckedPattern::Placeholder(_) => None,
             // FIXME: generate failing output expressions?
-            CheckedPattern::Const(range, _) => {
+            CheckedPattern::ConstLit(range, _) => {
                 self.push_message(Message::RefutablePattern {
                     pattern_range: range,
                 });
@@ -1380,10 +1380,10 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
         r#type: ArcValue<'arena>,
     ) -> (Option<StringId>, ArcValue<'arena>) {
         let name = match pattern {
-            CheckedPattern::Name(_, name) => Some(name),
+            CheckedPattern::Binder(_, name) => Some(name),
             CheckedPattern::Placeholder(_) => None,
             // FIXME: generate failing output expressions?
-            CheckedPattern::Const(range, _) => {
+            CheckedPattern::ConstLit(range, _) => {
                 self.push_message(Message::RefutablePattern {
                     pattern_range: range,
                 });
@@ -2259,7 +2259,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                     // Named patterns are elaborated to let bindings, where the
                     // scrutinee is bound as a definition in the output
                     // expression. Subsequent patterns are unreachable.
-                    (CheckedPattern::Name(range, name), def_type_value) => {
+                    (CheckedPattern::Binder(range, name), def_type_value) => {
                         self.check_match_reachable(is_reachable, range);
 
                         let def_name = Some(name);
@@ -2292,7 +2292,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                     }
                     // If we see a constant pattern we should expect a run of
                     // constants, elaborating to a constant elimination.
-                    (CheckedPattern::Const(range, r#const), _) => {
+                    (CheckedPattern::ConstLit(range, r#const), _) => {
                         self.check_match_reachable(is_reachable, range);
 
                         let output_expr = self.check(output_expr, &match_info.expected_type);
@@ -2345,7 +2345,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
             match self.check_pattern(pattern, &match_info.scrutinee.r#type) {
                 // Accumulate constant pattern. Search for it in the accumulated
                 // branches and insert it in order.
-                (CheckedPattern::Const(range, r#const), _) => {
+                (CheckedPattern::ConstLit(range, r#const), _) => {
                     let output_term = self.check(output_expr, &match_info.expected_type);
 
                     // Find insertion index of the branch
@@ -2370,7 +2370,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 // Time to elaborate the default pattern. The default case of
                 // `core::Term::ConstMatch` binds a variable, so both
                 // the named and  placeholder patterns should bind this.
-                (CheckedPattern::Name(range, name), pattern_type) => {
+                (CheckedPattern::Binder(range, name), pattern_type) => {
                     self.check_match_reachable(is_reachable, range);
 
                     self.rigid_env.push_param(Some(name), pattern_type);
@@ -2466,11 +2466,16 @@ impl_from_str_radix!(u16);
 impl_from_str_radix!(u32);
 impl_from_str_radix!(u64);
 
+/// Simple patterns that have had some initial elaboration performed on them
 #[derive(Debug)]
 enum CheckedPattern {
-    Name(ByteRange, StringId),
+    /// Pattern that binds rigid variable
+    Binder(ByteRange, StringId),
+    /// Placeholder patterns that match everything
     Placeholder(ByteRange),
-    Const(ByteRange, Const),
+    /// Constant literals
+    ConstLit(ByteRange, Const),
+    /// Error sentinel
     ReportedError(ByteRange),
 }
 
