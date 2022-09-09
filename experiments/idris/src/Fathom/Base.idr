@@ -7,6 +7,12 @@ import Data.List
 import Data.Vect
 
 
+||| Return the type of an expression, without consuming it
+public export
+typeOf : {1 A : Type} -> (0 x : A) -> Type
+typeOf _ = A
+
+
 ---------------------------
 -- ENCODER/DECODER PAIRS --
 ---------------------------

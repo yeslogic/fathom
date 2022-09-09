@@ -14,11 +14,6 @@ import Fathom.Data.Iso
 import Fathom.Data.Sing
 
 
-public export
-typeOf : {1 A : Type} -> (0 x : A) -> Type
-typeOf _ = A
-
-
 -------------------------
 -- FORMAT DESCRIPTIONS --
 -------------------------
