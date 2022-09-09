@@ -18,7 +18,7 @@ import Fathom.Open.Record as Record
 public export
 format : IndRec.Format -> Record.Format
 format f = Record.MkFormat
-  { Rep = Rep f
+  { Rep = f.Rep
   , decode = decode f
   , encode = encode f
   }
@@ -64,7 +64,7 @@ formatOf f = Record.MkFormat
 
 
 ||| Convert an inductive-recursive format description to an indexed format
-indRecToIndexed : (f : IndRec.Format) -> Indexed.FormatOf (Rep f)
+indRecToIndexed : (f : IndRec.Format) -> Indexed.FormatOf f.Rep
 indRecToIndexed End = Indexed.End
 indRecToIndexed Fail = Indexed.Fail
 indRecToIndexed (Pure x) = Indexed.Pure x
@@ -76,7 +76,7 @@ indRecToIndexed (Bind f g) = Indexed.Bind (indRecToIndexed f) (\x => indRecToInd
 mutual
 
   ||| Convert an indexed format description to an inductive-recursive format
-  indexedToIndRecFormat : (f : Indexed.Format) -> (f' : IndRec.Format ** Rep f = Rep f')
+  indexedToIndRecFormat : (f : Indexed.Format) -> (f' : IndRec.Format ** f.Rep = f'.Rep)
   indexedToIndRecFormat (MkFormat () End) = (End ** Refl)
   indexedToIndRecFormat (MkFormat Void Fail) = (Fail ** Refl)
   indexedToIndRecFormat (MkFormat (Sing x) (Pure x)) = (Pure x ** Refl)
@@ -150,8 +150,8 @@ mutual
 --   indexedToIndRec (Bind _ f2) | MkFormatOf f1 =
 --     let
 --       bindF1 = Bind f1
---       bodyF2 : x : Rep f1 -> FormatOf ()
---       bodyF2 = x : Rep f1 =>
+--       bodyF2 : x : f1.Rep -> FormatOf ()
+--       bodyF2 = x : f1.Rep =>
 --         case sameRep (indexedToIndRec (f2 x)) of
 --           (f2' ** prf) => f2')
 --     in
@@ -188,7 +188,7 @@ mutual
 --     in
 --     --    f1 : Format
 --     --  0 A : Type
---     --    f2 : (x : Rep f1) -> FormatOf (B x)
+--     --    f2 : (x : f1.Rep) -> FormatOf (B x)
 --     -- ------------------------------
 --     -- todo_indexedToIndRec : FormatOf (DPair (Rep f1) (\x => B x))
     -- ?todo_indexedToIndRec

@@ -25,7 +25,7 @@ namespace Format
     Pure ()
 
 
-  (.repeat) : Rep Format.flag -> Nat
+  (.repeat) : Format.flag.Rep -> Nat
   (.repeat) (0 ** repeat ** _) = repeat
   (.repeat) (S _ ** repeat ** _) = val repeat
 
