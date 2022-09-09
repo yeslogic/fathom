@@ -41,6 +41,7 @@ mutual
     Pure : {0 A : Type} -> A -> Format
     Ignore : (f : Format) -> (def : f.Rep) -> Format
     Repeat : Nat -> Format -> Format
+    Pair : Format -> Format -> Format
     Bind : (f : Format) -> (f.Rep -> Format) -> Format
     Custom :  (f : CustomFormat) -> Format
 
@@ -53,6 +54,7 @@ mutual
   Rep (Ignore _ _) = Unit
   Rep (Repeat len f) = Vect len f.Rep
   Rep (Pure x) = Sing x
+  Rep (Pair f1 f2) = (f1.Rep, f2.Rep)
   Rep (Bind f1 f2) = (x : f1.Rep ** (f2 x).Rep)
   Rep (Custom f) = f.Rep
 
@@ -94,6 +96,10 @@ namespace Format
     x <- decode f
     xs <- decode (Repeat len f)
     pure (x :: xs)
+  decode (Pair f1 f2) = do
+    x <- decode f1
+    y <- decode f2
+    pure (x, y)
   decode (Bind f1 f2) = do
     x <- decode f1
     y <- decode (f2 x)
@@ -109,6 +115,8 @@ namespace Format
   encode (Repeat Z f) [] = pure []
   encode (Repeat (S len) f) (x :: xs) =
     [| encode f x <+> encode (Repeat len f) xs |]
+  encode (Pair f1 f2) (x, y) =
+    [| encode f1 x <+> encode f2 y |]
   encode (Bind f1 f2) (x ** y) =
     [| encode f1 x <+> encode (f2 x) y |]
   encode (Custom f) x = f.encode x
@@ -255,6 +263,14 @@ namespace FormatOf
   repeat len f with (toFormatEq f)
     repeat len _ | (Element f prf) =
       toFormatOfEq (Element (Repeat len f) (cong (Vect len) prf))
+
+
+  public export
+  pair : {0 A, B : Type} -> FormatOf A -> FormatOf B -> FormatOf (A, B)
+  pair f1 f2 with (toFormatEq f1, toFormatEq f2)
+    pair _ _ | (Element f1 prf1, Element f2 prf2) =
+      toFormatOfEq (Element (Pair f1 f2)
+        (rewrite prf1 in rewrite prf2 in Refl))
 
 
   public export

@@ -70,6 +70,7 @@ indRecToIndexed Fail = Indexed.Fail
 indRecToIndexed (Pure x) = Indexed.Pure x
 indRecToIndexed (Ignore f def) = Indexed.Ignore (indRecToIndexed f) def
 indRecToIndexed (Repeat len f) = Indexed.Repeat len (indRecToIndexed f)
+indRecToIndexed (Pair f1 f2) = Indexed.Pair (indRecToIndexed f1) (indRecToIndexed f2)
 indRecToIndexed (Bind f g) = Indexed.Bind (indRecToIndexed f) (\x => indRecToIndexed (g x))
 
 
@@ -84,6 +85,8 @@ mutual
     _ | MkFormatOf f' = (Ignore f' def ** Refl)
   indexedToIndRecFormat (MkFormat (Vect len _) (Repeat len f)) with (indexedToIndRecFormatOf f)
     _ | MkFormatOf f' = (Repeat len f' ** Refl)
+  indexedToIndRecFormat (MkFormat (_, _) (Pair f1 f2)) with (indexedToIndRecFormatOf f1, indexedToIndRecFormatOf f2)
+    _ | (MkFormatOf f1', MkFormatOf f2') = (Pair f1' f2' ** Refl)
   indexedToIndRecFormat (MkFormat (x : _ ** _) (Bind f1 f2)) with (indexedToIndRecFormatOf f1)
     _ | MkFormatOf f1' =
       (Bind f1' (\x => ?indexedToIndRecFormatBind_f2) ** ?todoBindPrf)
@@ -98,6 +101,8 @@ mutual
     _ | MkFormatOf f' = MkFormatOf (Ignore f' def)
   indexedToIndRecFormatOf (Repeat len f) with (indexedToIndRecFormatOf f)
     _ | MkFormatOf f' = MkFormatOf (Repeat len f')
+  indexedToIndRecFormatOf (Pair f1 f2) with (indexedToIndRecFormatOf f1, indexedToIndRecFormatOf f2)
+    _ | (MkFormatOf f1', MkFormatOf f2') = MkFormatOf (Pair f1' f2')
   indexedToIndRecFormatOf (Bind f1 f2) with (indexedToIndRecFormatOf f1)
     _ | MkFormatOf f1' =
   --     -- let

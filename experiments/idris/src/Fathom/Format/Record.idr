@@ -112,6 +112,23 @@ namespace Format
 
 
   public export
+  pair : Format -> Format -> Format
+  pair f1 f2 = MkFormat { Rep, decode, encode } where
+    Rep : Type
+    Rep = (f1.Rep, f2.Rep)
+
+    decode : DecodePart Rep ByteStream
+    decode = do
+      x <- f1.decode
+      y <- f2.decode
+      pure (x, y)
+
+    encode : Encode Rep ByteStream
+    encode (x, y) =
+      [| f1.encode x <+> f2.encode y |]
+
+
+  public export
   bind : (f : Format) -> (f.Rep -> Format) -> Format
   bind f1 f2 = MkFormat { Rep, decode, encode } where
     Rep : Type
@@ -278,6 +295,14 @@ namespace FormatOf
   repeat len f with (toFormatEq f)
     repeat len _ | (Element f prf) =
       toFormatOfEq (Element (repeat len f) (cong (Vect len) prf))
+
+
+  public export
+  pair : {0 A, B : Type} -> FormatOf A -> FormatOf B -> FormatOf (A, B)
+  pair f1 f2 with (toFormatEq f1, toFormatEq f2)
+    pair _ _ | (Element f1 prf1, Element f2 prf2) =
+      toFormatOfEq (Element (pair f1 f2)
+        (rewrite prf1 in rewrite prf2 in Refl))
 
 
   public export

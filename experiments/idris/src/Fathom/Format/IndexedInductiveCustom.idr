@@ -39,6 +39,7 @@ data FormatOf : (A : Type) -> Type where
   Pure : {0 A : Type} -> (x : A) -> FormatOf (Sing x)
   Ignore : {0 A : Type} -> (f : FormatOf A) -> (def : A) -> FormatOf Unit
   Repeat : {0 A : Type} -> (len : Nat) -> FormatOf A -> FormatOf (Vect len A)
+  Pair : {0 A, B : Type} -> FormatOf A -> FormatOf B -> FormatOf (A, B)
   Bind : {0 A : Type} -> {0 B : A -> Type} -> (f : FormatOf A) -> ((x : A) -> FormatOf (B x)) -> FormatOf (x : A ** B x)
   Custom :  (f : CustomFormat) -> FormatOf f.Rep
 
@@ -74,6 +75,10 @@ namespace FormatOf
     x <- decode f
     xs <- decode (Repeat len f)
     pure (x :: xs)
+  decode (Pair f1 f2) = do
+    x <- decode f1
+    y <- decode f2
+    pure (x, y)
   decode (Bind f1 f2) = do
     x <- decode f1
     y <- decode (f2 x)
@@ -89,6 +94,8 @@ namespace FormatOf
   encode (Repeat Z f) [] = pure []
   encode (Repeat (S len) f) (x :: xs) =
     [| encode f x <+> encode (Repeat len f) xs |]
+  encode (Pair f1 f2) (x, y) =
+    [| encode f1 x <+> encode f2 y |]
   encode (Bind f1 f2) (x ** y) =
     [| encode f1 x <+> encode (f2 x) y |]
   encode (Custom f) x = f.encode x
@@ -204,6 +211,11 @@ namespace Format
   public export
   repeat : (len : Nat) -> Format -> Format
   repeat len f = MkFormat (Vect len f.Rep) (Repeat len (toFormatOf f))
+
+
+  public export
+  pair : Format -> Format -> Format
+  pair f1 f2 = MkFormat (f1.Rep, f2.Rep) (Pair (toFormatOf f1) (toFormatOf f2))
 
 
   public export

@@ -146,6 +146,11 @@ namespace Compile
   compileRep (Pure x) =
     ?todo_compileSingRep -- TODO: interpret an Idris type as a Rust type??
                          --       perhaps we need to restrict this?
+  compileRep (Pair f1 f2) =
+    Just (Rust.Tuple
+      [ !(compileRep f1)
+      , !(compileRep f2)
+      ])
   compileRep (Bind f1 f2) =
     Just (Tuple
       [ !(compileRep f1)
@@ -164,6 +169,7 @@ namespace Compile
   compileDecode (Pure x) = ?todo_compileDecodePure
   compileDecode (Ignore f _) = ?todo_compileDecodeIgnore
   compileDecode (Repeat len f) = ?todo_compileDecodeRepeat
+  compileDecode (Pair f1 f2) = ?todo_compileDecodePair
   compileDecode (Bind f1 f2) = ?todo_compileDecodeBind
   compileDecode (Custom f) =
     -- TODO: f.rustDecode
@@ -176,6 +182,7 @@ namespace Compile
   compileEncode (Pure x) = ?todo_compileEncodePure
   compileEncode (Ignore f def) = ?todo_compileEncodeIgnore
   compileEncode (Repeat len f) = ?todo_compileEncodeRepeat
+  compileEncode (Pair f1 f2) = ?todo_compileEncodePair
   compileEncode (Bind f1 f2) = ?todo_compileEncodeBind
   compileEncode (Custom f) =
     -- TODO: f.rustEncode
