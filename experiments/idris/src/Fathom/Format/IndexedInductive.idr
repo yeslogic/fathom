@@ -1,7 +1,7 @@
 ||| A closed universe of format descriptions as an inductive type, where the
 ||| in-memory representation is tracked as an index on the type.
 
-module Fathom.Closed.IndexedInductive
+module Fathom.Format.IndexedInductive
 
 
 import Data.Colist

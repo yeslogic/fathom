@@ -8,7 +8,7 @@
 ||| universes’ that [some type theorists were proposing](https://www.cmu.edu/dietrich/philosophy/hott/slides/shulman-2022-05-12.pdf#page=79),
 ||| but I may be mistaken.
 
-module Fathom.Open.Record
+module Fathom.Format.Record
 
 
 import Data.Colist

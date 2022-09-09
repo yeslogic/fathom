@@ -4,7 +4,7 @@ module Playground.OpenType.Record
 
 
 import Fathom.Data.Sing
-import Fathom.Open.Record
+import Fathom.Format.Record
 
 
 namespace Format

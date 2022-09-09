@@ -4,7 +4,7 @@ module Playground.OpenType.InductiveRecursive
 
 
 import Fathom.Data.Sing
-import Fathom.Closed.InductiveRecursiveCustom
+import Fathom.Format.InductiveRecursiveCustom
 
 
 namespace Format

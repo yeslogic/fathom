@@ -4,7 +4,7 @@ module Playground.OpenType.IndexedInductive
 
 
 import Fathom.Data.Sing
-import Fathom.Closed.IndexedInductiveCustom
+import Fathom.Format.IndexedInductiveCustom
 
 
 namespace FormatOf

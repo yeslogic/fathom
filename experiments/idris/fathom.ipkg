@@ -20,12 +20,11 @@ modules = Fathom
         , Fathom.Data.Iso
         , Fathom.Data.Sing
         , Fathom.Data.Word
-
-        , Fathom.Closed.IndexedInductive
-        , Fathom.Closed.IndexedInductiveCustom
-        , Fathom.Closed.InductiveRecursive
-        , Fathom.Closed.InductiveRecursiveCustom
-        , Fathom.Open.Record
+        , Fathom.Format.IndexedInductive
+        , Fathom.Format.IndexedInductiveCustom
+        , Fathom.Format.InductiveRecursive
+        , Fathom.Format.InductiveRecursiveCustom
+        , Fathom.Format.Record
 
         , Playground
         , Playground.OpenType.IndexedInductive

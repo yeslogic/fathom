@@ -1,7 +1,7 @@
 ||| A closed universe of format descriptions as an inductive type, where the
 ||| in-memory representation is tracked as an index on the type.
 
-module Fathom.Closed.IndexedInductiveCustom
+module Fathom.Format.IndexedInductiveCustom
 
 
 import Data.Colist
@@ -20,7 +20,7 @@ import Fathom.Data.Sing
 
 ||| A custom format description.
 |||
-||| We’d prefer to just import `Fathom.Open.Record`, but Idris’ imports are a
+||| We’d prefer to just import `Fathom.Format.Record`, but Idris’ imports are a
 ||| bit temperamental and result in ambiguities when importing modules that
 ||| contain types of the same name as those defined in the current module.
 public export
