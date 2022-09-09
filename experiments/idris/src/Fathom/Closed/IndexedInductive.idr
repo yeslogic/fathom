@@ -68,10 +68,10 @@ namespace FormatOf
 
   export
   encode : {0 A, S : Type} -> (f : FormatOf A) -> Encode A (Colist S)
-  encode End () = Just []
-  encode (Pure x) (MkSing _) = Just []
+  encode End () = pure []
+  encode (Pure x) (MkSing _) = pure []
   encode (Ignore f def) () = encode f def
-  encode (Repeat Z f) [] = Just []
+  encode (Repeat Z f) [] = pure []
   encode (Repeat (S len) f) (x :: xs) =
     [| encode f x <+> encode (Repeat len f) xs |]
   encode (Bind f1 f2) (x ** y) =

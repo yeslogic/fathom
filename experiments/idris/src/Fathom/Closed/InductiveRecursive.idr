@@ -100,13 +100,13 @@ namespace Format
 
   export
   encode : (f : Format) -> Encode (Rep f) (Colist a)
-  encode End () = Just []
-  encode (Pure x) (MkSing _) = Just []
+  encode End () = pure []
+  encode (Pure x) (MkSing _) = pure []
   encode (Ignore f def) () = encode f def
-  encode (Repeat Z f) [] = Just []
-  encode (Repeat (S len) f) (x :: xs) = do
+  encode (Repeat Z f) [] = pure []
+  encode (Repeat (S len) f) (x :: xs) =
     [| encode f x <+> encode (Repeat len f) xs |]
-  encode (Bind f1 f2) (x ** y) = do
+  encode (Bind f1 f2) (x ** y) =
     [| encode f1 x <+> encode (f2 x) y |]
 
 

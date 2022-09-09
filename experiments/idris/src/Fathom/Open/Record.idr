@@ -72,7 +72,7 @@ namespace Format
     decode = pure (MkSing x)
 
     encode : Encode Rep ByteStream
-    encode (MkSing _) = Just []
+    encode (MkSing _) = pure []
 
 
   public export
@@ -106,7 +106,7 @@ namespace Format
     encode : Encode Rep ByteStream
     encode = go len where
       go : (len : Nat) -> Encode (Vect len f.Rep) ByteStream
-      go 0 [] = Just []
+      go 0 [] = pure []
       go (S len) (x :: xs) =
         [| f.encode x <+> go len xs |]
 
