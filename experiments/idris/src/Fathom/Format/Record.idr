@@ -109,8 +109,8 @@ namespace Format
 
 
   public export
-  hrepeat : {len : Nat} -> Vect len Format -> Format
-  hrepeat fs = MkFormat { Rep, decode, encode } where
+  tuple : {len : Nat} -> Vect len Format -> Format
+  tuple fs = MkFormat { Rep, decode, encode } where
     Rep : Type
     Rep = HVect (map (.Rep) fs)
 
