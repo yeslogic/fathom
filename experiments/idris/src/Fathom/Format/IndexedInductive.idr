@@ -6,6 +6,7 @@ module Fathom.Format.IndexedInductive
 
 import Data.Colist
 import Data.DPair
+import Data.HVect
 import Data.Vect
 
 import Fathom.Base
@@ -26,6 +27,7 @@ data FormatOf : Type -> Type where
   Pure : {0 A : Type} -> (x : A) -> FormatOf (Sing x)
   Ignore : {0 A : Type} -> (f : FormatOf A) -> (def : A) -> FormatOf Unit
   Repeat : {0 A : Type} -> (len : Nat) -> FormatOf A -> FormatOf (Vect len A)
+  Tuple : {reps : Vect len Type} -> HVect (map FormatOf reps) -> FormatOf (HVect reps)
   Pair : {0 A, B : Type} -> FormatOf A -> FormatOf B -> FormatOf (A, B)
   Bind : {0 A : Type} -> {0 B : A -> Type} -> (f : FormatOf A) -> ((x : A) -> FormatOf (B x)) -> FormatOf (x : A ** B x)
 
@@ -59,6 +61,13 @@ namespace FormatOf
   decode (Repeat 0 f) = pure []
   decode (Repeat (S len) f) =
     [| decode f :: decode (Repeat len f) |]
+  decode (Tuple {reps = []} []) = pure []
+  decode (Tuple {reps = _::_} (f :: fs)) = DecodePart.do
+    x <- decode f
+    xs <- decode (Tuple fs)
+    pure (x :: xs)
+    -- FIXME: Ambiguous elaboration for some reason??
+    -- [| decode f :: decode (Tuple fs) |]
   decode (Pair f1 f2) =
     [| (,) (decode f1) (decode f2) |]
   decode (Bind f1 f2) = do
@@ -75,6 +84,9 @@ namespace FormatOf
   encode (Repeat Z f) [] = pure []
   encode (Repeat (S len) f) (x :: xs) =
     [| encode f x <+> encode (Repeat len f) xs |]
+  encode (Tuple {reps = []} []) [] = pure []
+  encode (Tuple {reps = _::_} (f :: fs)) (x :: xs) =
+    [| encode f x <+> encode (Tuple fs) xs |]
   encode (Pair f1 f2) (x, y) =
     [| encode f1 x <+> encode f2 y |]
   encode (Bind f1 f2) (x ** y) =

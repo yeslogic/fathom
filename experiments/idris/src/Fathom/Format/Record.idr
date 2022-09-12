@@ -109,22 +109,22 @@ namespace Format
 
 
   public export
-  tuple : {len : Nat} -> Vect len Format -> Format
+  tuple : {0 len : Nat} -> Vect len Format -> Format
   tuple fs = MkFormat { Rep, decode, encode } where
     Rep : Type
     Rep = HVect (map (.Rep) fs)
 
     decode : DecodePart Rep ByteStream
     decode = go fs where
-      go : {len : Nat} -> (fs : Vect len Format) -> DecodePart (HVect (map (.Rep) fs)) ByteStream
-      go {len = Z} [] = pure []
-      go {len = S _} (f :: fs) = [| f.decode :: go fs |]
+      go : {0 len : Nat} -> (fs : Vect len Format) -> DecodePart (HVect (map (.Rep) fs)) ByteStream
+      go [] = pure []
+      go (f :: fs) = [| f.decode :: go fs |]
 
     encode : Encode Rep ByteStream
     encode = go fs where
-      go : {len : Nat} -> (fs : Vect len Format) -> Encode (HVect (map (.Rep) fs)) ByteStream
-      go {len = Z} [] [] = pure []
-      go {len = S _} (f :: fs) (x :: xs) = [| f.encode x <+> go fs xs |]
+      go : {0 len : Nat} -> (fs : Vect len Format) -> Encode (HVect (map (.Rep) fs)) ByteStream
+      go [] [] = pure []
+      go (f :: fs) (x :: xs) = [| f.encode x <+> go fs xs |]
 
 
   public export

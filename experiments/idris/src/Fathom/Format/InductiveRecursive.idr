@@ -24,6 +24,7 @@ module Fathom.Format.InductiveRecursive
 
 import Data.Colist
 import Data.DPair
+import Data.HVect
 import Data.Vect
 
 import Fathom.Base
@@ -45,6 +46,7 @@ mutual
     Pure : {0 A : Type} -> A -> Format
     Ignore : (f : Format) -> (def : f.Rep) -> Format
     Repeat : Nat -> Format -> Format
+    Tuple : {0 len : Nat} -> Vect len Format -> Format
     Pair : Format -> Format -> Format
     Bind : (f : Format) -> (f.Rep -> Format) -> Format
 
@@ -54,9 +56,10 @@ mutual
   Rep : Format -> Type
   Rep End = Unit
   Rep Fail = Void
+  Rep (Pure x) = Sing x
   Rep (Ignore _ _) = Unit
   Rep (Repeat len f) = Vect len f.Rep
-  Rep (Pure x) = Sing x
+  Rep (Tuple fs) = HVect (map (.Rep) fs)
   Rep (Pair f1 f2) = (f1.Rep, f2.Rep)
   Rep (Bind f1 f2) = (x : f1.Rep ** (f2 x).Rep)
 
@@ -96,6 +99,9 @@ namespace Format
   decode (Repeat 0 f) = pure []
   decode (Repeat (S len) f) =
     [| decode f :: decode (Repeat len f) |]
+  decode (Tuple []) = pure []
+  decode (Tuple (f :: fs)) =
+    [| decode f :: decode (Tuple fs) |]
   decode (Pair f1 f2) =
     [| (,) (decode f1) (decode f2) |]
   decode (Bind f1 f2) = do
@@ -112,6 +118,9 @@ namespace Format
   encode (Repeat Z f) [] = pure []
   encode (Repeat (S len) f) (x :: xs) =
     [| encode f x <+> encode (Repeat len f) xs |]
+  encode (Tuple []) [] = pure []
+  encode (Tuple (f :: fs)) (x :: xs) =
+    [| encode f x <+> encode (Tuple fs) xs |]
   encode (Pair f1 f2) (x, y) =
     [| encode f1 x <+> encode f2 y |]
   encode (Bind f1 f2) (x ** y) =

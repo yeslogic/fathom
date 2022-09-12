@@ -3,6 +3,7 @@ module Playground
 
 import Data.Colist
 import Data.Vect
+import Data.HVect
 
 import Fathom.Base
 import Fathom.Data.Sing
@@ -70,6 +71,7 @@ indRecToIndexed Fail = Indexed.Fail
 indRecToIndexed (Pure x) = Indexed.Pure x
 indRecToIndexed (Ignore f def) = Indexed.Ignore (indRecToIndexed f) def
 indRecToIndexed (Repeat len f) = Indexed.Repeat len (indRecToIndexed f)
+indRecToIndexed (Tuple fs) = ?todo_indRecToIndexedTuple
 indRecToIndexed (Pair f1 f2) = Indexed.Pair (indRecToIndexed f1) (indRecToIndexed f2)
 indRecToIndexed (Bind f g) = Indexed.Bind (indRecToIndexed f) (\x => indRecToIndexed (g x))
 
@@ -85,6 +87,8 @@ mutual
     _ | MkFormatOf f' = (Ignore f' def ** Refl)
   indexedToIndRecFormat (MkFormat (Vect len _) (Repeat len f)) with (indexedToIndRecFormatOf f)
     _ | MkFormatOf f' = (Repeat len f' ** Refl)
+  indexedToIndRecFormat (MkFormat (HVect reps) (Tuple fs)) =
+    ?todo_indexedToIndRecFormatTuple
   indexedToIndRecFormat (MkFormat (_, _) (Pair f1 f2)) with (indexedToIndRecFormatOf f1, indexedToIndRecFormatOf f2)
     _ | (MkFormatOf f1', MkFormatOf f2') = (Pair f1' f2' ** Refl)
   indexedToIndRecFormat (MkFormat (x : _ ** _) (Bind f1 f2)) with (indexedToIndRecFormatOf f1)
@@ -101,6 +105,8 @@ mutual
     _ | MkFormatOf f' = MkFormatOf (Ignore f' def)
   indexedToIndRecFormatOf (Repeat len f) with (indexedToIndRecFormatOf f)
     _ | MkFormatOf f' = MkFormatOf (Repeat len f')
+  indexedToIndRecFormatOf (Tuple fs) =
+    ?todo_indexedToIndRecFormatOfTuple
   indexedToIndRecFormatOf (Pair f1 f2) with (indexedToIndRecFormatOf f1, indexedToIndRecFormatOf f2)
     _ | (MkFormatOf f1', MkFormatOf f2') = MkFormatOf (Pair f1' f2')
   indexedToIndRecFormatOf (Bind f1 f2) with (indexedToIndRecFormatOf f1)
