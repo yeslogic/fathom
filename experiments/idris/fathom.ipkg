@@ -27,6 +27,7 @@ modules = Fathom
         , Fathom.Format.Record
 
         , Playground
+        , Playground.HeterogeneousSequences
         , Playground.OpenType.IndexedInductive
         , Playground.OpenType.InductiveRecursive
         , Playground.OpenType.Record
