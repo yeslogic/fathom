@@ -24,9 +24,8 @@ import Fathom.Data.Sing
 ||| bit temperamental and result in ambiguities when importing modules that
 ||| contain types of the same name as those defined in the current module.
 public export
-record CustomFormat where
-  constructor MkCustomFormat
-  Rep : Type
+record CustomFormatOf (Rep : Type) where
+  constructor MkCustomFormatOf
   decode : Decode (Rep, ByteStream) ByteStream
   encode : Encode Rep ByteStream
 
@@ -41,7 +40,7 @@ data FormatOf : (A : Type) -> Type where
   Repeat : {0 A : Type} -> (len : Nat) -> FormatOf A -> FormatOf (Vect len A)
   Pair : {0 A, B : Type} -> FormatOf A -> FormatOf B -> FormatOf (A, B)
   Bind : {0 A : Type} -> {0 B : A -> Type} -> (f : FormatOf A) -> ((x : A) -> FormatOf (B x)) -> FormatOf (x : A ** B x)
-  Custom :  (f : CustomFormat) -> FormatOf f.Rep
+  Custom :  {0 A : Type} -> (f : CustomFormatOf A) -> FormatOf A
 
 
 namespace FormatOf
@@ -95,6 +94,51 @@ namespace FormatOf
   encode (Bind f1 f2) (x ** y) =
     [| encode f1 x <+> encode (f2 x) y |]
   encode (Custom f) x = f.encode x
+
+
+  --------------------
+  -- CUSTOM FORMATS --
+  --------------------
+
+
+  public export
+  u8 : FormatOf Nat
+  u8 = Custom (MkCustomFormatOf
+    { decode = map cast decodeU8
+    , encode = encodeU8 . cast {to = Bits8}
+    })
+
+
+  public export
+  u16Le : FormatOf Nat
+  u16Le = Custom (MkCustomFormatOf
+    { decode = map cast (decodeU16 LE)
+    , encode = encodeU16 LE . cast {to = Bits16}
+    })
+
+
+  public export
+  u16Be : FormatOf Nat
+  u16Be = Custom (MkCustomFormatOf
+    { decode = map cast (decodeU16 BE)
+    , encode = encodeU16 BE . cast {to = Bits16}
+    })
+
+
+  public export
+  u32Le : FormatOf Nat
+  u32Le = Custom (MkCustomFormatOf
+    { decode = map cast (decodeU32 LE)
+    , encode = encodeU32 LE . cast {to = Bits32}
+    })
+
+
+  public export
+  u32Be : FormatOf Nat
+  u32Be = Custom (MkCustomFormatOf
+    { decode = map cast (decodeU32 BE)
+    , encode = encodeU32 BE . cast {to = Bits32}
+    })
 
 
 -------------------------
@@ -224,35 +268,3 @@ namespace Format
   public export
   (>>=) : (f : Format) -> (Rep f -> Format) -> Format
   (>>=) = bind
-
-
---------------------
--- CUSTOM FORMATS --
---------------------
-
-
-public export
-u8 : FormatOf Nat
-u8 = Custom (MkCustomFormat
-  { Rep = Nat
-  , decode = map cast decodeU8
-  , encode = encodeU8 . cast {to = Bits8}
-  })
-
-
-public export
-u16Le : FormatOf Nat
-u16Le = Custom (MkCustomFormat
-  { Rep = Nat
-  , decode = map cast (decodeU16 LE)
-  , encode = encodeU16 LE . cast {to = Bits16}
-  })
-
-
-public export
-u16Be : FormatOf Nat
-u16Be = Custom (MkCustomFormat
-  { Rep = Nat
-  , decode = map cast (decodeU16 BE)
-  , encode = encodeU16 BE . cast {to = Bits16}
-  })

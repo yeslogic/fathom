@@ -180,6 +180,24 @@ namespace Format
     }
 
 
+  public export
+  u32Le : Format
+  u32Le = MkFormat
+    { Rep = Nat
+    , decode = map cast (decodeU32 LE)
+    , encode = encodeU32 LE . cast {to = Bits32}
+    }
+
+
+  public export
+  u32Be : Format
+  u32Be = MkFormat
+    { Rep = Nat
+    , decode = map cast (decodeU32 BE)
+    , encode = encodeU32 BE . cast {to = Bits32}
+    }
+
+
 ---------------------------------
 -- INDEXED FORMAT DESCRIPTIONS --
 ---------------------------------
