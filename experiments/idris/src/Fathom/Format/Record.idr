@@ -13,6 +13,7 @@ module Fathom.Format.Record
 
 import Data.Colist
 import Data.DPair
+import Data.HVect
 import Data.Vect
 
 import Fathom.Base
@@ -105,6 +106,25 @@ namespace Format
       go : (len : Nat) -> Encode (Vect len f.Rep) ByteStream
       go 0 [] = pure []
       go (S len) (x :: xs) = [| f.encode x <+> go len xs |]
+
+
+  public export
+  hrepeat : {len : Nat} -> Vect len Format -> Format
+  hrepeat fs = MkFormat { Rep, decode, encode } where
+    Rep : Type
+    Rep = HVect (map (.Rep) fs)
+
+    decode : DecodePart Rep ByteStream
+    decode = go fs where
+      go : {len : Nat} -> (fs : Vect len Format) -> DecodePart (HVect (map (.Rep) fs)) ByteStream
+      go {len = Z} [] = pure []
+      go {len = S _} (f :: fs) = [| f.decode :: go fs |]
+
+    encode : Encode Rep ByteStream
+    encode = go fs where
+      go : {len : Nat} -> (fs : Vect len Format) -> Encode (HVect (map (.Rep) fs)) ByteStream
+      go {len = Z} [] [] = pure []
+      go {len = S _} (f :: fs) (x :: xs) = [| f.encode x <+> go fs xs |]
 
 
   public export
