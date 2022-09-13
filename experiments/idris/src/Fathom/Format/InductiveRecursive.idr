@@ -45,6 +45,7 @@ mutual
     Fail : Format
     Pure : {0 A : Type} -> A -> Format
     Ignore : (f : Format) -> (def : f.Rep) -> Format
+    Choice : Format -> Format -> Format
     Repeat : Nat -> Format -> Format
     Tuple : {0 len : Nat} -> Vect len Format -> Format
     Pair : Format -> Format -> Format
@@ -58,6 +59,7 @@ mutual
   Rep Fail = Void
   Rep (Pure x) = Sing x
   Rep (Ignore _ _) = Unit
+  Rep (Choice f1 f2) = Either f1.Rep f2.Rep
   Rep (Repeat len f) = Vect len f.Rep
   Rep (Tuple fs) = HVect (map (.Rep) fs)
   Rep (Pair f1 f2) = (f1.Rep, f2.Rep)
@@ -96,6 +98,8 @@ namespace Format
   decode Fail = const Nothing
   decode (Pure x) = pure (MkSing x)
   decode (Ignore f _) = ignore (decode f)
+  decode (Choice f1 f2) =
+    [| Left (decode f1) |] <|> [| Right (decode f2) |]
   decode (Repeat 0 f) = pure []
   decode (Repeat (S len) f) =
     [| decode f :: decode (Repeat len f) |]
@@ -115,6 +119,8 @@ namespace Format
   encode End () = pure []
   encode (Pure x) (MkSing _) = pure []
   encode (Ignore f def) () = encode f def
+  encode (Choice f1 f2) (Left x) = encode f1 x
+  encode (Choice f1 f2) (Right y) = encode f2 y
   encode (Repeat Z f) [] = pure []
   encode (Repeat (S len) f) (x :: xs) =
     [| encode f x <+> encode (Repeat len f) xs |]

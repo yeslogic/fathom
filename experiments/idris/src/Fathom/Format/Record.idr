@@ -90,6 +90,21 @@ namespace Format
 
 
   public export
+  choice : Format -> Format -> Format
+  choice f1 f2 = MkFormat { Rep, decode, encode } where
+    Rep : Type
+    Rep = Either f1.Rep f2.Rep
+
+    decode : DecodePart Rep ByteStream
+    decode =
+      [| Left f1.decode |] <|> [| Right f2.decode |]
+
+    encode : Encode Rep ByteStream
+    encode (Left x) = f1.encode x
+    encode (Right y) = f2.encode y
+
+
+  public export
   repeat : Nat -> Format -> Format
   repeat len f = MkFormat { Rep, decode, encode } where
     Rep : Type

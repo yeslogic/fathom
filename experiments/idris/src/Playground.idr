@@ -70,6 +70,7 @@ indRecToIndexed End = Indexed.End
 indRecToIndexed Fail = Indexed.Fail
 indRecToIndexed (Pure x) = Indexed.Pure x
 indRecToIndexed (Ignore f def) = Indexed.Ignore (indRecToIndexed f) def
+indRecToIndexed (Choice f1 f2) = Indexed.Choice (indRecToIndexed f1) (indRecToIndexed f2)
 indRecToIndexed (Repeat len f) = Indexed.Repeat len (indRecToIndexed f)
 indRecToIndexed (Tuple fs) = ?todo_indRecToIndexedTuple
 indRecToIndexed (Pair f1 f2) = Indexed.Pair (indRecToIndexed f1) (indRecToIndexed f2)
@@ -85,6 +86,8 @@ mutual
   indexedToIndRecFormat (MkFormat (Sing x) (Pure x)) = (Pure x ** Refl)
   indexedToIndRecFormat (MkFormat () (Ignore f def)) with (indexedToIndRecFormatOf f)
     _ | MkFormatOf f' = (Ignore f' def ** Refl)
+  indexedToIndRecFormat (MkFormat (Either _ _) (Choice f1 f2)) with (indexedToIndRecFormatOf f1, indexedToIndRecFormatOf f2)
+    _ | (MkFormatOf f1', MkFormatOf f2') = (Choice f1' f2' ** Refl)
   indexedToIndRecFormat (MkFormat (Vect len _) (Repeat len f)) with (indexedToIndRecFormatOf f)
     _ | MkFormatOf f' = (Repeat len f' ** Refl)
   indexedToIndRecFormat (MkFormat (HVect reps) (Tuple fs)) =
@@ -103,6 +106,8 @@ mutual
   indexedToIndRecFormatOf (Pure x) = MkFormatOf (Pure x)
   indexedToIndRecFormatOf (Ignore f def) with (indexedToIndRecFormatOf f)
     _ | MkFormatOf f' = MkFormatOf (Ignore f' def)
+  indexedToIndRecFormatOf (Choice f1 f2) with (indexedToIndRecFormatOf f1, indexedToIndRecFormatOf f2)
+    _ | (MkFormatOf f1', MkFormatOf f2') = MkFormatOf (Choice f1' f2')
   indexedToIndRecFormatOf (Repeat len f) with (indexedToIndRecFormatOf f)
     _ | MkFormatOf f' = MkFormatOf (Repeat len f')
   indexedToIndRecFormatOf (Tuple fs) =

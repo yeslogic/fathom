@@ -133,6 +133,12 @@ namespace DecodePart
   (>>=) = bind
 
 
+  public export
+  (<|>) : {0 S, T : Type} -> DecodePart S T -> Lazy (DecodePart S T) -> DecodePart S T
+  (<|>) decode1 decode2 target =
+    Prelude.(<|>) (decode1 target) (decode2 target)
+
+
 ----------------------
 -- ENCODING TARGETS --
 ----------------------

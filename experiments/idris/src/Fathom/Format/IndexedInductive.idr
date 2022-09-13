@@ -26,6 +26,7 @@ data FormatOf : Type -> Type where
   Fail : FormatOf Void
   Pure : {0 A : Type} -> (x : A) -> FormatOf (Sing x)
   Ignore : {0 A : Type} -> (f : FormatOf A) -> (def : A) -> FormatOf Unit
+  Choice : {0 A, B : Type} -> FormatOf A -> FormatOf B -> FormatOf (Either A B)
   Repeat : {0 A : Type} -> (len : Nat) -> FormatOf A -> FormatOf (Vect len A)
   Tuple : {reps : Vect len Type} -> HVect (map FormatOf reps) -> FormatOf (HVect reps)
   Pair : {0 A, B : Type} -> FormatOf A -> FormatOf B -> FormatOf (A, B)
@@ -58,6 +59,8 @@ namespace FormatOf
   decode Fail = const Nothing
   decode (Pure x) = pure (MkSing x)
   decode (Ignore f _) = ignore (decode f)
+  decode (Choice f1 f2) =
+    [| Left (decode f1) |] <|> [| Right (decode f2) |]
   decode (Repeat 0 f) = pure []
   decode (Repeat (S len) f) =
     [| decode f :: decode (Repeat len f) |]
@@ -81,6 +84,8 @@ namespace FormatOf
   encode End () = pure []
   encode (Pure x) (MkSing _) = pure []
   encode (Ignore f def) () = encode f def
+  encode (Choice f1 f2) (Left x) = encode f1 x
+  encode (Choice f1 f2) (Right y) = encode f2 y
   encode (Repeat Z f) [] = pure []
   encode (Repeat (S len) f) (x :: xs) =
     [| encode f x <+> encode (Repeat len f) xs |]

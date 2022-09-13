@@ -54,6 +54,8 @@ namespace Compile
   compileRep End = Just (Rust.Tuple [])
   compileRep Fail = Just (Rust.Never)
   compileRep (Ignore _ _) = Just (Rust.Tuple [])
+  compileRep (Choice f1 f2) =
+    ?todo_compileRepChoice
   compileRep (Repeat _ f) =
     Just (Rust.Vec !(compileRep f)) -- TODO: Compile to a contract? Or maybe a
                                     --       fixed size array if the length is known
@@ -85,6 +87,7 @@ namespace Compile
   compileDecode Fail = ?todo_compileDecodeFail
   compileDecode (Pure x) = ?todo_compileDecodePure
   compileDecode (Ignore f _) = ?todo_compileDecodeIgnore
+  compileDecode (Choice f1 f2) = ?todo_compileDecodeChoice
   compileDecode (Repeat len f) = ?todo_compileDecodeRepeat
   compileDecode (Tuple fs) = ?todo_compileDecodeTuple
   compileDecode (Pair f1 f2) = ?todo_compileDecodePair
@@ -99,6 +102,7 @@ namespace Compile
   compileEncode Fail = ?todo_compileEncodeFail
   compileEncode (Pure x) = ?todo_compileEncodePure
   compileEncode (Ignore f def) = ?todo_compileEncodeIgnore
+  compileEncode (Choice f1 f2) = ?todo_compileEncodeChoice
   compileEncode (Repeat len f) = ?todo_compileEncodeRepeat
   compileEncode (Tuple fs) = ?todo_compileEncodeTuple
   compileEncode (Pair f1 f2) = ?todo_compileEncodePair
