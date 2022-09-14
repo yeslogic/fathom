@@ -32,8 +32,7 @@ pub enum Message {
     },
     UnknownField {
         head_range: ByteRange,
-        // TODO: add head type
-        // head_type: Doc<_>,
+        head_type: String,
         label_range: ByteRange,
         label: StringId,
     },
@@ -173,6 +172,7 @@ impl Message {
                 ]),
             Message::UnknownField {
                 head_range,
+                head_type,
                 label_range,
                 label,
             } => {
@@ -180,10 +180,11 @@ impl Message {
                 let label = interner.resolve(*label).unwrap();
 
                 Diagnostic::error()
-                    .with_message(format!("cannot find `{}` in projection head", label))
+                    .with_message(format!("cannot find `{}` in expression", label))
                     .with_labels(vec![
                         primary_label(label_range).with_message("unknown label"),
-                        secondary_label(head_range).with_message("head expression"),
+                        secondary_label(head_range)
+                            .with_message(format!("expression of type {}", head_type)),
                     ])
                 // TODO: list suggestions
             }

@@ -220,7 +220,11 @@ pub enum Term<'arena, Range> {
     /// Unit literals.
     UnitLiteral(Range),
     /// Projections.
-    Proj(Range, &'arena Term<'arena, Range>, (Range, StringId)),
+    Proj(
+        Range,
+        &'arena Term<'arena, Range>,
+        &'arena [(Range, StringId)],
+    ),
     /// Array literals.
     ArrayLiteral(Range, &'arena [Term<'arena, Range>]),
     /// String literal.

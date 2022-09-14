@@ -1794,7 +1794,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 for input_expr in *input_exprs {
                     head_type = self.elim_env().force(&head_type);
                     match (&head_expr, head_type.as_ref()) {
-                        // Ensure that the head type is a function type
+                        // Ensure that the head of the application is a function
                         (_, Value::FunType(_, input_type, output_type)) => {
                             // Check the input expression and apply it to the output type
                             let input_range = input_expr.range();
@@ -1878,43 +1878,70 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                     Telescope::new(SharedEnv::new(), &[]),
                 ))),
             ),
-            Term::Proj(range, head_expr, (label_range, label)) => {
+            Term::Proj(range, head_expr, labels) => {
                 let head_range = head_expr.range();
-                let (head_expr, head_type) = self.synth(head_expr);
-                let head_expr_value = self.eval_env().eval(&head_expr);
+                let (mut head_expr, mut head_type) = self.synth(head_expr);
 
-                let head_type = self.elim_env().force(&head_type);
-                match head_type.as_ref() {
-                    Value::RecordType(labels, types) => {
-                        let mut labels = labels.iter();
-                        let mut types = types.clone();
+                'labels: for (label_range, proj_label) in *labels {
+                    head_type = self.elim_env().force(&head_type);
+                    match (&head_expr, head_type.as_ref()) {
+                        // Ensure that the head of the projection is a record
+                        (_, Value::RecordType(labels, types)) => {
+                            let mut labels = labels.iter().copied();
+                            let mut types = types.clone();
 
-                        while let Some((type_label, (r#type, next_types))) =
-                            Option::zip(labels.next(), self.elim_env().split_telescope(types))
-                        {
-                            if label == type_label {
-                                let head_expr = self.scope.to_scope(head_expr);
-                                let expr = core::Term::RecordProj(range.into(), head_expr, *label);
-                                return (expr, r#type);
-                            } else {
-                                let head_expr = head_expr_value.clone();
-                                let expr = self.elim_env().record_proj(head_expr, *type_label);
-                                types = next_types(expr);
+                            let head_expr_value = self.eval_env().eval(&head_expr);
+
+                            // Look for a field matching the label of the current
+                            // projection in the record type.
+                            while let Some((label, (r#type, next_types))) =
+                                Option::zip(labels.next(), self.elim_env().split_telescope(types))
+                            {
+                                if *proj_label == label {
+                                    // The field was found. Update the head expression
+                                    // and continue elaborating the next projection.
+                                    head_expr = core::Term::RecordProj(
+                                        ByteRange::merge(&head_range, label_range).into(),
+                                        self.scope.to_scope(head_expr),
+                                        *proj_label,
+                                    );
+                                    head_type = r#type;
+                                    continue 'labels;
+                                } else {
+                                    // This is not the field we are looking for. Substitute the
+                                    // value of this field in the rest of the types and continue
+                                    // looking for the field.
+                                    let head_expr = head_expr_value.clone();
+                                    let expr = self.elim_env().record_proj(head_expr, label);
+                                    types = next_types(expr);
+                                }
                             }
+                            // Couldn't find the field in the record type.
+                            // Fallthrough with an error.
                         }
+                        // There's been an error when elaborating the head of
+                        // the projection, so avoid trying to elaborate any
+                        // further to prevent cascading type errors.
+                        (core::Term::Prim(_, Prim::ReportedError), _)
+                        | (_, Value::Stuck(Head::Prim(Prim::ReportedError), _)) => {
+                            return self.synth_reported_error(*range);
+                        }
+                        // The head expression was not a record type.
+                        // Fallthrough with an error.
+                        _ => {}
                     }
-                    Value::Stuck(Head::Prim(Prim::ReportedError), _) => {
-                        return self.synth_reported_error(*range);
-                    }
-                    _ => {}
+
+                    let head_type = self.pretty_print_value(&head_type);
+                    self.push_message(Message::UnknownField {
+                        head_range,
+                        head_type,
+                        label_range: *label_range,
+                        label: *proj_label,
+                    });
+                    return self.synth_reported_error(*range);
                 }
 
-                self.push_message(Message::UnknownField {
-                    head_range,
-                    label_range: *label_range,
-                    label: *label,
-                });
-                self.synth_reported_error(*range)
+                (head_expr, head_type)
             }
             Term::ArrayLiteral(range, _) => {
                 self.push_message(Message::AmbiguousArrayLiteral { range: *range });
