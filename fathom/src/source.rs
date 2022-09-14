@@ -81,6 +81,12 @@ impl From<&ByteRange> for Span {
     }
 }
 
+impl From<Option<ByteRange>> for Span {
+    fn from(range: Option<ByteRange>) -> Span {
+        range.map_or(Span::Empty, Span::Range)
+    }
+}
+
 /// Byte offsets into source files.
 pub type BytePos = usize;
 

@@ -224,9 +224,11 @@ fn term_deps(
             term_deps(output_type, item_names, local_names, deps);
             pop_pattern(input_param, local_names);
         }
-        Term::App(_, head_expr, input_expr) => {
+        Term::App(_, head_expr, input_exprs) => {
             term_deps(head_expr, item_names, local_names, deps);
-            term_deps(input_expr, item_names, local_names, deps);
+            for input_expr in *input_exprs {
+                term_deps(input_expr, item_names, local_names, deps);
+            }
         }
         Term::RecordType(_, type_fields) => {
             let initial_locals_names_len = local_names.len();

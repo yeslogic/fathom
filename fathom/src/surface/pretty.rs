@@ -214,12 +214,13 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                     self.term_prec(Prec::Let, output_expr),
                 ]),
             ),
-            Term::App(_, head_expr, input_expr) => self.paren(
+            Term::App(_, head_expr, input_exprs) => self.paren(
                 prec > Prec::App,
                 self.concat([
-                    self.term_prec(Prec::App, head_expr),
-                    self.space(),
-                    self.term_prec(Prec::Atomic, input_expr),
+                    self.term_prec(Prec::Atomic, head_expr),
+                    self.concat(input_exprs.iter().map(|input_expr| {
+                        self.concat([self.space(), self.term_prec(Prec::Atomic, input_expr)])
+                    })),
                 ]),
             ),
             Term::RecordType(_, type_fields) => self.sequence(

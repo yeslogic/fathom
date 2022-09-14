@@ -637,10 +637,6 @@ pub enum FlexSource {
     NamedPatternType(ByteRange, StringId),
     /// The output type of a match expression
     MatchOutputType(ByteRange),
-    /// The input type of a function.
-    FunInputType(ByteRange),
-    /// The output type of a function.
-    FunOutputType(ByteRange),
     /// The type of a reported error.
     ReportedErrorType(ByteRange),
 }
@@ -655,8 +651,6 @@ impl FlexSource {
             | FlexSource::PlaceholderPatternType(range)
             | FlexSource::NamedPatternType(range, _)
             | FlexSource::MatchOutputType(range)
-            | FlexSource::FunInputType(range)
-            | FlexSource::FunOutputType(range)
             | FlexSource::ReportedErrorType(range) => *range,
         }
     }
@@ -1793,70 +1787,50 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                     ))),
                 )
             }
-            Term::App(range, head_expr, input_expr) => {
+            Term::App(range, head_expr, input_exprs) => {
                 let head_range = head_expr.range();
-                let (head_expr, head_type) = self.synth(head_expr);
+                let (mut head_expr, mut head_type) = self.synth(head_expr);
 
-                // Ensure that the head type is a function type
-                let head_type = self.elim_env().force(&head_type);
-                let (head_expr, input_type, output_type) = match head_type.as_ref() {
-                    // The simple case - it's easy to see that it is a function type!
-                    Value::FunType(_, input_type, output_type) => {
-                        (head_expr, input_type.clone(), output_type.clone())
+                for input_expr in *input_exprs {
+                    head_type = self.elim_env().force(&head_type);
+                    match (&head_expr, head_type.as_ref()) {
+                        // Ensure that the head type is a function type
+                        (_, Value::FunType(_, input_type, output_type)) => {
+                            // Check the input expression and apply it to the output type
+                            let input_range = input_expr.range();
+                            let input_expr = self.check(input_expr, input_type);
+                            let input_expr_value = self.eval_env().eval(&input_expr);
+
+                            head_expr = core::Term::FunApp(
+                                ByteRange::merge(&head_range, &input_range).into(),
+                                self.scope.to_scope(head_expr),
+                                self.scope.to_scope(input_expr),
+                            );
+                            head_type =
+                                self.elim_env().apply_closure(output_type, input_expr_value);
+                        }
+                        // There's been an error when elaborating the head of
+                        // the application, so avoid trying to elaborate any
+                        // further to prevent cascading type errors.
+                        (core::Term::Prim(_, Prim::ReportedError), _)
+                        | (_, Value::Stuck(Head::Prim(Prim::ReportedError), _)) => {
+                            return self.synth_reported_error(*range);
+                        }
+                        _ => {
+                            // NOTE: We could try to infer that this is a function type,
+                            // but this takes more work to prevent cascading type errors
+                            let head_type = self.pretty_print_value(&head_type);
+                            self.push_message(Message::UnexpectedInput {
+                                head_range,
+                                head_type,
+                                input_range: input_expr.range(),
+                            });
+                            return self.synth_reported_error(*range);
+                        }
                     }
-                    Value::Stuck(Head::Prim(Prim::ReportedError), _) => {
-                        return self.synth_reported_error(*range);
-                    }
-                    // It's not immediately obvious that the head type is a
-                    // function type, so instead we construct a function type
-                    // with flexible variables standing-in for the input and
-                    // output types, and then we attempt to unify the head type
-                    // against it.
-                    _ => {
-                        // Create a flexible input type
-                        let input_source = FlexSource::FunInputType(head_range);
-                        let input_type = self.push_flexible_type(input_source);
+                }
 
-                        // Create a flexible output type, with the input bound
-                        self.rigid_env.push_param(None, input_type.clone());
-                        let universe = self.universe.clone();
-                        let output_source = FlexSource::FunOutputType(head_range);
-                        let output_type = self.push_flexible_term(output_source, universe);
-                        self.rigid_env.pop();
-
-                        // Create a function type between the flexible variables.
-                        let output_type = Closure::new(
-                            self.rigid_env.exprs.clone(),
-                            self.scope.to_scope(output_type),
-                        );
-                        let fun_type = Spanned::empty(Arc::new(Value::FunType(
-                            None,
-                            input_type.clone(),
-                            output_type.clone(),
-                        )));
-
-                        // Unify the type of the head expression with the function type
-                        let head_expr = self.convert(head_range, head_expr, &head_type, &fun_type);
-
-                        (head_expr, input_type, output_type)
-                    }
-                };
-
-                // Check the input expression and apply it to the output type
-                let input_expr = self.check(input_expr, &input_type);
-                let input_expr_value = self.eval_env().eval(&input_expr);
-                let output_type = self
-                    .elim_env()
-                    .apply_closure(&output_type, input_expr_value);
-
-                // Construct the final function application
-                let fun_app = core::Term::FunApp(
-                    range.into(),
-                    self.scope.to_scope(head_expr),
-                    self.scope.to_scope(input_expr),
-                );
-
-                (fun_app, output_type)
+                (head_expr, head_type)
             }
             Term::RecordType(range, type_fields) => {
                 let universe = self.universe.clone();

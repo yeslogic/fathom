@@ -211,7 +211,7 @@ pub enum Term<'arena, Range> {
     App(
         Range,
         &'arena Term<'arena, Range>,
-        &'arena Term<'arena, Range>,
+        &'arena [Term<'arena, Range>],
     ),
     /// Dependent record types.
     RecordType(Range, &'arena [TypeField<'arena, Range>]),

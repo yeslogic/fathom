@@ -3,6 +3,7 @@
 use scoped_arena::Scope;
 use std::cell::RefCell;
 
+use crate::alloc::SliceVec;
 use crate::core::UIntStyle;
 use crate::env::{self, EnvLen, GlobalVar, LocalVar, UniqueEnv};
 use crate::source::Span;
@@ -327,24 +328,31 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 None => Term::Placeholder(()),
             },
             core::Term::FlexibleInsertion(span, var, rigid_infos) => {
-                let mut head_expr = self.synth(&core::Term::FlexibleVar(*span, *var));
+                let head_expr = self.synth(&core::Term::FlexibleVar(*span, *var));
+                let num_params = rigid_infos
+                    .iter()
+                    .filter(|info| matches!(info, core::EntryInfo::Parameter))
+                    .count();
 
-                for (var, info) in Iterator::zip(env::global_vars(), rigid_infos.iter()) {
-                    match info {
-                        core::EntryInfo::Definition => {}
-                        core::EntryInfo::Parameter => {
-                            let var = self.rigid_len().global_to_local(var).unwrap();
-                            let input_expr = self.check(&core::Term::RigidVar(Span::Empty, var));
-                            head_expr = Term::App(
-                                (),
-                                self.scope.to_scope(head_expr),
-                                self.scope.to_scope(input_expr),
-                            );
+                if num_params == 0 {
+                    head_expr
+                } else {
+                    let head_expr = self.scope.to_scope(head_expr);
+                    let mut input_exprs = SliceVec::new(self.scope, num_params);
+
+                    for (var, info) in Iterator::zip(env::global_vars(), rigid_infos.iter()) {
+                        match info {
+                            core::EntryInfo::Definition => {}
+                            core::EntryInfo::Parameter => {
+                                let var = self.rigid_len().global_to_local(var).unwrap();
+                                input_exprs
+                                    .push(self.check(&core::Term::RigidVar(Span::Empty, var)));
+                            }
                         }
                     }
-                }
 
-                head_expr
+                    Term::App((), head_expr, input_exprs.into())
+                }
             }
             core::Term::Ann(_span, expr, r#type) => {
                 let r#type = self.check(r#type);
@@ -415,21 +423,27 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                     self.scope.to_scope(output_expr),
                 )
             }
-            core::Term::FunApp(_span, head_expr, input_expr) => match head_expr {
-                core::Term::FunApp(_span, core::Term::Prim(_span2, prim), lhs)
+            core::Term::FunApp(_, mut head_expr, input_expr) => match head_expr {
+                core::Term::FunApp(_, core::Term::Prim(_, prim), lhs)
                     if prim_to_bin_op(prim).is_some() =>
                 {
                     // unwrap is safe due to is_some check above
                     self.synth_bin_op(lhs, input_expr, prim_to_bin_op(prim).unwrap())
                 }
                 _ => {
+                    let mut input_exprs = vec![self.check(input_expr)];
+
+                    while let core::Term::FunApp(_, next_head_expr, input_expr) = head_expr {
+                        head_expr = next_head_expr;
+                        input_exprs.push(self.check(input_expr));
+                    }
+
                     let head_expr = self.synth(head_expr);
-                    let input_expr = self.check(input_expr);
 
                     Term::App(
                         (),
                         self.scope.to_scope(head_expr),
-                        self.scope.to_scope(input_expr),
+                        self.scope.to_scope_from_iter(input_exprs.into_iter().rev()),
                     )
                 }
             },

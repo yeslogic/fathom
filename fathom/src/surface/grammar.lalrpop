@@ -180,11 +180,11 @@ MulExpr: Term<'arena, ByteRange> = {
 
 AppTerm: Term<'arena, ByteRange> = {
     AtomicTerm,
-    <start: @L> <head_expr: AppTerm> <input_expr: AtomicTerm> <end: @R> => {
+    <start: @L> <head_expr: AtomicTerm> <input_exprs: AtomicTerm+> <end: @R> => {
         Term::App(
             ByteRange::new(file_id, start, end),
             scope.to_scope(head_expr),
-            scope.to_scope(input_expr),
+            scope.to_scope_from_iter(input_exprs),
         )
     },
 };

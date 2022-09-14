@@ -25,6 +25,11 @@ pub enum Message {
     UnreachablePattern {
         range: ByteRange,
     },
+    UnexpectedInput {
+        head_range: ByteRange,
+        head_type: String,
+        input_range: ByteRange,
+    },
     UnknownField {
         head_range: ByteRange,
         // TODO: add head type
@@ -155,6 +160,17 @@ impl Message {
             Message::UnreachablePattern { range } => Diagnostic::warning()
                 .with_message("unreachable pattern")
                 .with_labels(vec![primary_label(range)]),
+            Message::UnexpectedInput {
+                head_range,
+                head_type,
+                input_range,
+            } => Diagnostic::error()
+                .with_message("expression was applied to an unexpected input")
+                .with_labels(vec![
+                    primary_label(input_range).with_message("unexpected input"),
+                    secondary_label(head_range)
+                        .with_message(format!("expression of type {}", head_type)),
+                ]),
             Message::UnknownField {
                 head_range,
                 label_range,
@@ -418,8 +434,6 @@ impl Message {
                     }
                     FlexSource::NamedPatternType(range, _) => (range, "named pattern type"),
                     FlexSource::MatchOutputType(range) => (range, "match output type"),
-                    FlexSource::FunInputType(range) => (range, "function input type"),
-                    FlexSource::FunOutputType(range) => (range, "function output type"),
                     FlexSource::ReportedErrorType(range) => (range, "error type"), // should never appear in user-facing output
                 };
 
