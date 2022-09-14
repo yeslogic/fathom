@@ -1,0 +1,25 @@
+stdout = ''
+stderr = '''
+error: cannot find `rec` in scope
+  ┌─ tests/fail/elaboration/unknown-field/unbound-head.fathom:3:1
+  │
+3 │ rec.foo.bar
+  │ ^^^ unbound name
+
+error: cannot find `foo` in projection head
+  ┌─ tests/fail/elaboration/unknown-field/unbound-head.fathom:3:5
+  │
+3 │ rec.foo.bar
+  │ --- ^^^ unknown label
+  │ │    
+  │ head expression
+
+error: cannot find `bar` in projection head
+  ┌─ tests/fail/elaboration/unknown-field/unbound-head.fathom:3:9
+  │
+3 │ rec.foo.bar
+  │ ------- ^^^ unknown label
+  │ │        
+  │ head expression
+
+'''
