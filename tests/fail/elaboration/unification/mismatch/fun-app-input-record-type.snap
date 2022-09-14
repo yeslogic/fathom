@@ -1,0 +1,54 @@
+stdout = ''
+stderr = '''
+error: mismatched types
+  ┌─ tests/fail/elaboration/unification/mismatch/fun-app-input-record-type.fathom:3:1
+  │
+3 │ { x : Type } x y
+  │ ^^^^^^^^^^^^ type mismatch, expected `Type`, found `fun (_ : _) -> _ _`
+  │
+  = expected `Type`
+       found `fun (_ : _) -> _ _`
+
+error: cannot find `x` in scope
+  ┌─ tests/fail/elaboration/unification/mismatch/fun-app-input-record-type.fathom:3:14
+  │
+3 │ { x : Type } x y
+  │              ^ unbound name
+
+error: non-variable function application in problem spine
+  ┌─ tests/fail/elaboration/unification/mismatch/fun-app-input-record-type.fathom:3:1
+  │
+3 │ { x : Type } x y
+  │ ^^^^^^^^^^^^^^
+
+error: cannot find `y` in scope
+  ┌─ tests/fail/elaboration/unification/mismatch/fun-app-input-record-type.fathom:3:16
+  │
+3 │ { x : Type } x y
+  │                ^ unbound name
+
+error: failed to infer function input type
+  ┌─ tests/fail/elaboration/unification/mismatch/fun-app-input-record-type.fathom:3:1
+  │
+3 │ { x : Type } x y
+  │ ^^^^^^^^^^^^ unsolved function input type
+
+error: failed to infer function output type
+  ┌─ tests/fail/elaboration/unification/mismatch/fun-app-input-record-type.fathom:3:1
+  │
+3 │ { x : Type } x y
+  │ ^^^^^^^^^^^^ unsolved function output type
+
+error: failed to infer function input type
+  ┌─ tests/fail/elaboration/unification/mismatch/fun-app-input-record-type.fathom:3:1
+  │
+3 │ { x : Type } x y
+  │ ^^^^^^^^^^^^^^ unsolved function input type
+
+error: failed to infer function output type
+  ┌─ tests/fail/elaboration/unification/mismatch/fun-app-input-record-type.fathom:3:1
+  │
+3 │ { x : Type } x y
+  │ ^^^^^^^^^^^^^^ unsolved function output type
+
+'''
