@@ -8,7 +8,7 @@
 //! - [Wikidata](https://www.wikidata.org/wiki/Q729366)
 
 def reserved : fun (f : Format) -> Repr f -> Format =
-    fun f => fun default =>
+    fun f default =>
         let data <- f;
         return data;
 

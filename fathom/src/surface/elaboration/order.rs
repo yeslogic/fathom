@@ -208,21 +208,27 @@ fn term_deps(
             term_deps(param_type, item_names, local_names, deps);
             term_deps(body_type, item_names, local_names, deps);
         }
-        Term::FunType(_, param_pattern, param_type, body_type) => {
-            push_pattern(param_pattern, local_names);
-            if let Some(param_type) = param_type {
-                term_deps(param_type, item_names, local_names, deps);
+        Term::FunType(_, patterns, body_type) => {
+            let initial_locals_names_len = local_names.len();
+            for (pattern, r#type) in *patterns {
+                if let Some(r#type) = r#type {
+                    term_deps(r#type, item_names, local_names, deps);
+                }
+                push_pattern(pattern, local_names);
             }
             term_deps(body_type, item_names, local_names, deps);
-            pop_pattern(param_pattern, local_names);
+            local_names.truncate(initial_locals_names_len);
         }
-        Term::FunLiteral(_, param_pattern, param_type, body_type) => {
-            push_pattern(param_pattern, local_names);
-            if let Some(param_type) = param_type {
-                term_deps(param_type, item_names, local_names, deps);
+        Term::FunLiteral(_, patterns, body_type) => {
+            let initial_locals_names_len = local_names.len();
+            for (pattern, r#type) in *patterns {
+                if let Some(r#type) = r#type {
+                    term_deps(r#type, item_names, local_names, deps);
+                }
+                push_pattern(pattern, local_names);
             }
             term_deps(body_type, item_names, local_names, deps);
-            pop_pattern(param_pattern, local_names);
+            local_names.truncate(initial_locals_names_len);
         }
         Term::App(_, head_expr, arg_exprs) => {
             term_deps(head_expr, item_names, local_names, deps);

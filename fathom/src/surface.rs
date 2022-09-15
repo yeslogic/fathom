@@ -196,15 +196,13 @@ pub enum Term<'arena, Range> {
     /// Dependent function types.
     FunType(
         Range,
-        Pattern<Range>,
-        Option<&'arena Term<'arena, Range>>,
+        &'arena [(Pattern<Range>, Option<&'arena Term<'arena, Range>>)],
         &'arena Term<'arena, Range>,
     ),
     /// Function literals.
     FunLiteral(
         Range,
-        Pattern<Range>,
-        Option<&'arena Term<'arena, Range>>,
+        &'arena [(Pattern<Range>, Option<&'arena Term<'arena, Range>>)],
         &'arena Term<'arena, Range>,
     ),
     /// Applications.
@@ -273,8 +271,8 @@ impl<'arena, Range: Clone> Term<'arena, Range> {
             | Term::Match(range, _, _)
             | Term::Universe(range)
             | Term::Arrow(range, _, _)
-            | Term::FunType(range, _, _, _)
-            | Term::FunLiteral(range, _, _, _)
+            | Term::FunType(range, _, _)
+            | Term::FunLiteral(range, _, _)
             | Term::App(range, _, _)
             | Term::RecordType(range, _)
             | Term::RecordLiteral(range, _)

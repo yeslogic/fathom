@@ -314,11 +314,11 @@ def link_table =
 // -----------------------------------------------------------------------------
 
 /// Reserved formats
-def reserved = fun (format : Format) => fun (default : Repr format) =>
+def reserved = fun (format : Format) (default : Repr format) =>
     format; // TODO: set to `default` during serialisation
 
 /// Deprecated formats
-def deprecated = fun (format : Format) => fun (default : Repr format) =>
+def deprecated = fun (format : Format) (default : Repr format) =>
     format; // TODO: set to `default` during serialisation
 
 
@@ -407,7 +407,7 @@ def empty : Format = {};
 /// ## References
 ///
 /// - [Microsoft's OpenType Spec: Offset16](https://docs.microsoft.com/en-us/typography/opentype/spec/otff#dt_Offset16)
-def offset16 = fun (base : Pos) => fun (format : Format) => {
+def offset16 = fun (base : Pos) (format : Format) => {
     offset <- u16be,
     link <- match offset {
         0 => empty,
@@ -420,7 +420,7 @@ def offset16 = fun (base : Pos) => fun (format : Format) => {
 /// ## References
 ///
 /// - [Microsoft's OpenType Spec: Offset32](https://docs.microsoft.com/en-us/typography/opentype/spec/otff#dt_Offset32)
-def offset32 = fun (base : Pos) => fun (format : Format) => {
+def offset32 = fun (base : Pos) (format : Format) => {
     offset <- u32be,
     link <- match offset {
         0 => empty,
@@ -654,7 +654,7 @@ def device_table = (
     //     quotient + 1
     // else:
     //     quotient
-    let u16_div_ceil = fun (numerator : U16) => fun (denominator : U16) => (
+    let u16_div_ceil = fun (numerator : U16) (denominator : U16) => (
         let quotient = u16_div numerator denominator;
         match ((u16_mul quotient denominator) < numerator) {
             true => u16_add quotient 1,
@@ -662,7 +662,7 @@ def device_table = (
         }
     );
 
-    let delta_bits = fun (delta_format : U16) => fun (num_sizes : U16) =>
+    let delta_bits = fun (delta_format : U16) (num_sizes : U16) =>
         match delta_format {
             // Signed 2-bit value, 8 values per u16be
             0x0001 => u16_mul num_sizes 2,
@@ -674,7 +674,7 @@ def device_table = (
             _ => 0,
         };
 
-    let num_sizes = fun (start : U16) => fun (end : U16) =>
+    let num_sizes = fun (start : U16) (end : U16) =>
         u16_add (u16_sub end start) 1;
 
     {
@@ -1386,7 +1386,7 @@ def extension_substitution = (
 /// ## References
 ///
 /// - [Microsoft's OpenType Spec: Value Record](https://docs.microsoft.com/en-us/typography/opentype/spec/gpos#value-record)
-def value_record = fun (table_start : Pos) => fun (flags : U16) => (
+def value_record = fun (table_start : Pos) (flags : U16) => (
     let X_PLACEMENT : U16 = 0x0001;
     let Y_PLACEMENT : U16 = 0x0002;
     let X_ADVANCE : U16 = 0x0004;
@@ -1396,7 +1396,7 @@ def value_record = fun (table_start : Pos) => fun (flags : U16) => (
     let X_ADVANCE_DEVICE : U16 = 0x0040;
     let Y_ADVANCE_DEVICE : U16 = 0x0080;
 
-    let optional_field = fun (field : U16) => fun (format : Format) =>
+    let optional_field = fun (field : U16) (format : Format) =>
         match (u16_and flags field != (0 : U16)) {
             true => format,
             false => empty,
@@ -1435,7 +1435,7 @@ def value_record = fun (table_start : Pos) => fun (flags : U16) => (
 );
 
 /// A value record that is `empty` if flags is 0
-def optional_value_record = fun (table_start : Pos) => fun (flags : U16) => match (flags == (0 : U16)) {
+def optional_value_record = fun (table_start : Pos) (flags : U16) => match (flags == (0 : U16)) {
     true => empty,
     false => value_record table_start flags
 };
@@ -1561,7 +1561,7 @@ def single_adjustment = (
 /// - [Microsoft's OpenType Spec: GPOS Lookup Type 2](https://docs.microsoft.com/en-us/typography/opentype/spec/gpos#lookup-type-2-pair-adjustment-positioning-subtable)
 def pair_adjustment = (
     /// PairValueRecord
-    let pair_value_record = fun (table_start : Pos) => fun (value_format1 : U16) => fun (value_format2 : U16) => {
+    let pair_value_record = fun (table_start : Pos) (value_format1 : U16) (value_format2 : U16) => {
         /// Glyph ID of second glyph in the pair (first glyph is listed in the Coverage table).
         second_glyph <- u16be,
         /// Positioning data for the first glyph in the pair.
@@ -1571,7 +1571,7 @@ def pair_adjustment = (
     };
 
     /// PairSet Table
-    let pair_set = fun (value_format1 : U16) => fun (value_format2 : U16) => {
+    let pair_set = fun (value_format1 : U16) (value_format2 : U16) => {
         /// The start of the table
         table_start <- stream_pos,
         /// Number of PairValueRecords
@@ -1598,7 +1598,7 @@ def pair_adjustment = (
     };
 
     /// Class2Record
-    let class2_record = fun (table_start : Pos) => fun (value_format1 : U16) => fun (value_format2 : U16) => {
+    let class2_record = fun (table_start : Pos) (value_format1 : U16) (value_format2 : U16) => {
         /// Positioning for first glyph — empty if valueFormat1 = 0.
         value_record1 <- optional_value_record table_start value_format1,
         /// Positioning for second glyph — empty if valueFormat2 = 0.
@@ -1606,7 +1606,7 @@ def pair_adjustment = (
     };
 
     /// Class1Record
-    let class1_record = fun (table_start : Pos) => fun (class2_count : U16) => fun (value_format1 : U16) => fun (value_format2 : U16) => {
+    let class1_record = fun (table_start : Pos) (class2_count : U16) (value_format1 : U16) (value_format2 : U16) => {
         /// Array of Class2 records, ordered by classes in classDef2.
         class2_records <- array16 class2_count (class2_record table_start value_format1 value_format2),
     };
@@ -1696,14 +1696,14 @@ def cursive_attachment = (
 /// - [Microsoft's OpenType Spec: GPOS Lookup Type 4](https://docs.microsoft.com/en-us/typography/opentype/spec/gpos#lookup-type-4-mark-to-base-attachment-positioning-subtable)
 def mark_to_base_attachment = (
     /// BaseRecord
-    let base_record = fun (table_start : Pos) => fun (mark_class_count : U16) => {
+    let base_record = fun (table_start : Pos) (mark_class_count : U16) => {
         /// Array of offsets (one per mark class) to Anchor tables. Offsets are from beginning of
         /// BaseArray table, ordered by class (offsets may be NULL).
         base_anchors <- array16 mark_class_count (offset16 table_start anchor_table),
     };
 
     /// BaseArray Table
-    let base_array_table = fun (table_start : Pos) => fun (mark_class_count : U16) => {
+    let base_array_table = fun (table_start : Pos) (mark_class_count : U16) => {
         /// Number of BaseRecords
         base_count <- u16be,
         /// Array of BaseRecords, in order of baseCoverage Index.
@@ -1745,14 +1745,14 @@ def mark_to_base_attachment = (
 ///
 /// - [Microsoft's OpenType Spec: GPOS Lookup Type 5](https://docs.microsoft.com/en-us/typography/opentype/spec/gpos#lookup-type-5-mark-to-ligature-attachment-positioning-subtable)
 def mark_to_ligature_attachment = (
-    let component_record = fun (table_start : Pos) => fun (mark_class_count : U16) => {
+    let component_record = fun (table_start : Pos) (mark_class_count : U16) => {
         /// Array of offsets (one per class) to Anchor tables. Offsets are from beginning of
         /// LigatureAttach table, ordered by class (offsets may be NULL).
         ligature_anchors <- array16 mark_class_count (offset16 table_start anchor_table),
     };
 
     /// LigatureAttach Table
-    let ligature_attach = fun (table_start : Pos) => fun (mark_class_count : U16) => {
+    let ligature_attach = fun (table_start : Pos) (mark_class_count : U16) => {
         /// Number of ComponentRecords in this ligature
         component_count <- u16be,
         /// Array of Component records, ordered in writing direction.
@@ -1760,7 +1760,7 @@ def mark_to_ligature_attachment = (
     };
 
     /// LigatureArray Table
-    let ligature_array = fun (table_start : Pos) => fun (mark_class_count : U16) => {
+    let ligature_array = fun (table_start : Pos) (mark_class_count : U16) => {
         /// Number of LigatureAttach table offsets
         ligature_count <- u16be,
         /// Array of offsets to LigatureAttach tables. Offsets are from beginning of LigatureArray
@@ -1871,7 +1871,7 @@ def extension_positioning = (
 def lookup_table = fun (tag : U32) => (
     let USE_MARK_FILTERING_SET : U16 = 0x0010;
 
-    let lookup_subtable = fun (tag : U32) => fun (lookup_type : U16) =>
+    let lookup_subtable = fun (tag : U32) (lookup_type : U16) =>
         match tag {
             "GSUB" => match lookup_type {
                 1 => single_substitution,
@@ -2304,7 +2304,7 @@ def cmap_subtable_format13 = fun (platform : Repr platform_id) => {
 ///
 /// - [Microsoft's OpenType Spec: Format 14: Segment mapping to delta values](https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#format-14-unicode-variation-sequences)
 /// - [Apple's TrueType Reference Manual: `'cmap'` format 14](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6cmap.html)
-def cmap_subtable_format14 = fun (platform : Repr platform_id) => fun (table_start : Pos) => {
+def cmap_subtable_format14 = fun (platform : Repr platform_id) (table_start : Pos) => {
     /// The length of the subtable in bytes (including the header)
     length <- u32be,
     /// Number of variation Selector Records
@@ -2552,7 +2552,7 @@ def long_horizontal_metric = {
 ///
 /// - [Microsoft's OpenType Spec: hmtx — Horizontal Metrics Table](https://docs.microsoft.com/en-us/typography/opentype/spec/hmtx)
 /// - [Apple's TrueType Reference Manual: The `'hmtx'` table](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6hmtx.html)
-def htmx_table = fun (number_of_long_horizontal_metrics : U16) => fun (num_glyphs : U16) => {
+def htmx_table = fun (number_of_long_horizontal_metrics : U16) (num_glyphs : U16) => {
     /// Long horizontal metrics, indexed by the glyph ID.
     h_metrics <- array16 number_of_long_horizontal_metrics long_horizontal_metric,
     /// Left side bearings for glyph IDs greater than or equal to the
@@ -2757,7 +2757,7 @@ def name_table = {
 ///
 /// - [Microsoft's OpenType Spec: `loca` table](https://docs.microsoft.com/en-us/typography/opentype/spec/loca)
 /// - [Apple's TrueType Reference Manual: The `'loca'` table](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6loca.html)
-def loca_table = fun (num_glyphs : U16) => fun (index_to_loc_format : S16) => {
+def loca_table = fun (num_glyphs : U16) (index_to_loc_format : S16) => {
     offsets <- match index_to_loc_format {
         // short offsets
         0 => array16 (u16_add num_glyphs 1) u16be, // TODO Offset16
@@ -3298,5 +3298,3 @@ def math_table = unknown_table;
 // -----------------------------------------------------------------------------
 
 // TODO: "avar" .. "vmtx" tables
-
-

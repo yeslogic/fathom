@@ -1,7 +1,7 @@
 // Identity function
 
 let id : fun (A : _) -> A -> A
- = fun A => fun a => a;
+ = fun A a => a;
 
 let id_test : fun (A : _) -> A -> A
  = id _ id _ id _ id _ id _ id _ id _ id _ id _ id _ id _ id _ id _ id _ id _
@@ -26,20 +26,20 @@ let Nat : Type
         Nat;
 
 let zero : Nat
-  = fun Nat => fun succ => fun zero => zero;
+  = fun Nat succ zero => zero;
 
 let succ : Nat -> Nat
   = fun prev =>
-      (fun Nat => fun succ => fun zero =>
+      (fun Nat succ zero =>
         succ (prev _ succ zero));
 
 let add : Nat -> Nat -> Nat
-  = fun n0 => fun n1 => fun Nat => fun succ => fun zero =>
+  = fun n0 n1 Nat succ zero =>
       n0 Nat succ (n1 Nat succ zero);
 
 let mul : Nat -> Nat -> Nat
-  = fun n0 => fun n1 =>
-      fun Nat => fun succ => fun zero =>
+  = fun n0 n1 =>
+      fun Nat succ zero =>
         n0 Nat (n1 Nat succ) zero;
 
 let n0 = zero;
@@ -60,7 +60,7 @@ let n3000 = mul n10 (mul n10 (mul n10 n3));
 // Vectors
 
 let Vec : Type -> Nat -> Type
-  = fun Elem => fun len =>
+  = fun Elem len =>
       fun (Vec : Nat -> Type) ->
       fun (nil : Vec zero) ->
       fun (cons : fun (len : _) -> Elem -> Vec len -> Vec (succ len)) ->
@@ -68,11 +68,11 @@ let Vec : Type -> Nat -> Type
 
 let vnil : fun (Elem : _) -> Vec Elem zero
   = fun Elem =>
-      fun Vec => fun nil => fun cons => nil;
+      fun Vec nil cons => nil;
 
-let vcons : fun (Elem : _) -> fun (len : _) -> Elem -> Vec Elem len -> Vec Elem (succ len)
-  = fun Elem => fun len => fun head => fun tail =>
-      fun Vec => fun nil => fun cons =>
+let vcons : fun (Elem : _) (len : _) -> Elem -> Vec Elem len -> Vec Elem (succ len)
+  = fun Elem len head tail =>
+      fun Vec nil cons =>
         cons len head (tail Vec nil cons);
 
 let vec1 =

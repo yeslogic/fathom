@@ -175,13 +175,18 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 self.text("}"),
             ),
             Term::Universe(_) => self.text("Type"),
-            Term::FunType(_, param_pattern, param_type, body_type) => self.paren(
+            Term::FunType(_, patterns, body_type) => self.paren(
                 prec > Prec::Fun,
                 self.concat([
                     self.concat([
                         self.text("fun"),
                         self.space(),
-                        self.ann_pattern(Prec::Atomic, param_pattern, *param_type),
+                        self.intersperse(
+                            patterns.iter().map(|(pattern, r#type)| {
+                                self.ann_pattern(Prec::Atomic, pattern, *r#type)
+                            }),
+                            self.space(),
+                        ),
                         self.space(),
                         self.text("->"),
                     ])
@@ -200,13 +205,18 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                     self.term_prec(Prec::Fun, body_type),
                 ]),
             ),
-            Term::FunLiteral(_, param_pattern, param_type, body_expr) => self.paren(
+            Term::FunLiteral(_, patterns, body_expr) => self.paren(
                 prec > Prec::Fun,
                 self.concat([
                     self.concat([
                         self.text("fun"),
                         self.space(),
-                        self.ann_pattern(Prec::Atomic, param_pattern, *param_type),
+                        self.intersperse(
+                            patterns.iter().map(|(pattern, r#type)| {
+                                self.ann_pattern(Prec::Atomic, pattern, *r#type)
+                            }),
+                            self.space(),
+                        ),
                         self.space(),
                         self.text("=>"),
                     ])

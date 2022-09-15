@@ -683,7 +683,7 @@ The above could also be defined as:
 
 ```fathom
 let id =
-    fun (A : Type) => fun (a : A) => a;
+    fun (A : Type) (a : A) => a;
 
 id Type S32
 ```
@@ -984,7 +984,7 @@ Optional data can be introduced with the `some` or `none` primitives:
 
 The following operations are defined for option types:
 
-- `option_fold : fun (A : Type) -> fun (B : Type) -> B -> (A -> B) -> Option A -> B`
+- `option_fold : fun (A : Type) (B : Type) -> B -> (A -> B) -> Option A -> B`
 
 ## Arrays
 
@@ -1034,10 +1034,10 @@ function to each element of the array. If the function returns true, then
 `array*_find` returns `some element`. If they all return false, it returns
 `none`.
 
-- `array8_find : fun (len : U8) -> fun (A : Type) -> (A -> Bool) -> Array8 len A -> Option A`
-- `array16_find : fun (len : U16) -> fun (A : Type) -> (A -> Bool) -> Array16 len A -> Option A`
-- `array32_find : fun (len : U32) -> fun (A : Type) -> (A -> Bool) -> Array32 len A -> Option A`
-- `array64_find : fun (len : U64) -> fun (A : Type) -> (A -> Bool) -> Array64 len A -> Option A`
+- `array8_find : fun (len : U8) (A : Type) -> (A -> Bool) -> Array8 len A -> Option A`
+- `array16_find : fun (len : U16) (A : Type) -> (A -> Bool) -> Array16 len A -> Option A`
+- `array32_find : fun (len : U32) (A : Type) -> (A -> Bool) -> Array32 len A -> Option A`
+- `array64_find : fun (len : U64) (A : Type) -> (A -> Bool) -> Array64 len A -> Option A`
 
 #### index
 
@@ -1045,10 +1045,10 @@ function to each element of the array. If the function returns true, then
 operation will not evaluate fully if the index is out of bounds. If this
 happens when parsing a binary format, a parse failure will be triggered.
 
-- `array8_index : fun (len : U8) -> fun (A : Type) -> fun (index : U8) -> Array8 len A -> A`
-- `array16_index : fun (len : U16) -> fun (A : Type) -> fun (index : U16) -> Array16 len A -> A`
-- `array32_index : fun (len : U32) -> fun (A : Type) -> fun (index : U32) -> Array32 len A -> A`
-- `array64_index : fun (len : U64) -> fun (A : Type) -> fun (index : U64) -> Array64 len A -> A`
+- `array8_index : fun (len : U8) (A : Type) (index : U8) -> Array8 len A -> A`
+- `array16_index : fun (len : U16) (A : Type) (index : U16) -> Array16 len A -> A`
+- `array32_index : fun (len : U32) (A : Type) (index : U32) -> Array32 len A -> A`
+- `array64_index : fun (len : U64) (A : Type) (index : U64) -> Array64 len A -> A`
 
 ## Positions
 

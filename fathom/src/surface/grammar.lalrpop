@@ -132,22 +132,18 @@ FunTerm: Term<'arena, ByteRange> = {
             scope.to_scope(body_type),
         )
     },
-    <start: @L> "fun" <param_pattern: AnnPattern> "->"  <body_type: FunTerm> <end: @R> => {
-        let (param_pattern, param_type) = param_pattern;
+    <start: @L> "fun" <patterns: AnnPattern+> "->"  <output_type: FunTerm> <end: @R> => {
         Term::FunType(
             ByteRange::new(file_id, start, end),
-            param_pattern,
-            param_type,
-            scope.to_scope(body_type),
+            scope.to_scope_from_iter(patterns),
+            scope.to_scope(output_type),
         )
     },
-    <start: @L> "fun" <param_pattern: AnnPattern> "=>" <body_type: LetTerm> <end: @R> => {
-        let (param_pattern, param_type) = param_pattern;
+    <start: @L> "fun" <patterns: AnnPattern+> "=>" <output_type: LetTerm> <end: @R> => {
         Term::FunLiteral(
             ByteRange::new(file_id, start, end),
-            param_pattern,
-            param_type,
-            scope.to_scope(body_type),
+            scope.to_scope_from_iter(patterns),
+            scope.to_scope(output_type),
         )
     },
 };
