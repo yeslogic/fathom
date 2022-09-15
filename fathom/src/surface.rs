@@ -145,7 +145,7 @@ impl<Range> fmt::Display for BinOp<Range> {
 }
 
 impl<Range: Clone> Pattern<Range> {
-    fn range(&self) -> Range {
+    pub fn range(&self) -> Range {
         match self {
             Pattern::Name(range, _)
             | Pattern::Placeholder(range)

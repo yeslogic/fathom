@@ -1,4 +1,4 @@
 stdout = '''
-let x : U8 = 3; match x { 1 => x, _ => let x : U8 = _; x } : U8
+let x : U8 = 3; match x { 1 => x, _ => _ } : U8
 '''
 stderr = ''
