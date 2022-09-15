@@ -16,6 +16,7 @@ enum Prec {
     Mul,
     Add,
     App,
+    Proj,
     Atomic,
 }
 
@@ -157,7 +158,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 self.concat([
                     self.text("match"),
                     self.space(),
-                    self.term_prec(Prec::Atomic, scrutinee),
+                    self.term_prec(Prec::Proj, scrutinee),
                     self.space(),
                     self.text("{"),
                 ]),
@@ -214,12 +215,13 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                     self.term_prec(Prec::Let, output_expr),
                 ]),
             ),
-            Term::App(_, head_expr, input_expr) => self.paren(
+            Term::App(_, head_expr, input_exprs) => self.paren(
                 prec > Prec::App,
                 self.concat([
-                    self.term_prec(Prec::App, head_expr),
-                    self.space(),
-                    self.term_prec(Prec::Atomic, input_expr),
+                    self.term_prec(Prec::Proj, head_expr),
+                    self.concat(input_exprs.iter().map(|input_expr| {
+                        self.concat([self.space(), self.term_prec(Prec::Proj, input_expr)])
+                    })),
                 ]),
             ),
             Term::RecordType(_, type_fields) => self.sequence(
@@ -251,10 +253,11 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 self.text("}"),
             ),
             Term::UnitLiteral(_) => self.text("{}"),
-            Term::Proj(_, head_expr, (_, label)) => self.concat([
+            Term::Proj(_, head_expr, labels) => self.concat([
                 self.term_prec(Prec::Atomic, head_expr),
-                self.text("."),
-                self.string_id(*label),
+                self.concat(
+                    (labels.iter()).map(|(_, label)| self.text(".").append(self.string_id(*label))),
+                ),
             ]),
             Term::ArrayLiteral(_, exprs) => self.sequence(
                 self.text("["),

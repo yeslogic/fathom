@@ -179,12 +179,23 @@ MulExpr: Term<'arena, ByteRange> = {
 };
 
 AppTerm: Term<'arena, ByteRange> = {
-    AtomicTerm,
-    <start: @L> <head_expr: AppTerm> <input_expr: AtomicTerm> <end: @R> => {
+    ProjTerm,
+    <start: @L> <head_expr: ProjTerm> <input_exprs: ProjTerm+> <end: @R> => {
         Term::App(
             ByteRange::new(file_id, start, end),
             scope.to_scope(head_expr),
-            scope.to_scope(input_expr),
+            scope.to_scope_from_iter(input_exprs),
+        )
+    },
+};
+
+ProjTerm: Term<'arena, ByteRange> = {
+    AtomicTerm,
+    <start: @L> <head_expr: AtomicTerm> <labels: ("." <RangedName>)+> <end: @R> => {
+        Term::Proj(
+            ByteRange::new(file_id, start, end),
+            scope.to_scope(head_expr),
+            scope.to_scope_from_iter(labels),
         )
     },
 };
@@ -195,7 +206,7 @@ AtomicTerm: Term<'arena, ByteRange> = {
     <start: @L> <name: Name> <end: @R> => Term::Name(ByteRange::new(file_id, start, end), name),
     <start: @L> "_" <end: @R> => Term::Placeholder(ByteRange::new(file_id, start, end)),
     <start: @L> <name: Hole> <end: @R> => Term::Hole(ByteRange::new(file_id, start, end), name),
-    <start: @L> "match" <scrutinee: AtomicTerm> "{"  <equations: Seq<(<Pattern> "=>" <Term>), ",">> "}" <end: @R> => {
+    <start: @L> "match" <scrutinee: ProjTerm> "{"  <equations: Seq<(<Pattern> "=>" <Term>), ",">> "}" <end: @R> => {
         Term::Match(ByteRange::new(file_id, start, end), scope.to_scope(scrutinee), equations)
     },
     <start: @L> "Type" <end: @R> => Term::Universe(ByteRange::new(file_id, start, end)),
@@ -218,9 +229,6 @@ AtomicTerm: Term<'arena, ByteRange> = {
     },
     <start: @L> "overlap" "{" <fields: NonEmptySeq<FormatField, ",">> "}" <end: @R> => {
         Term::FormatOverlap(ByteRange::new(file_id, start, end), fields)
-    },
-    <start: @L> <head_expr: AtomicTerm> "." <label: RangedName> <end: @R> => {
-        Term::Proj(ByteRange::new(file_id, start, end), scope.to_scope(head_expr), label)
     },
     <start: @L> "[" <exprs: Seq<Term, ",">> "]" <end: @R> => {
         Term::ArrayLiteral(ByteRange::new(file_id, start, end), exprs)
