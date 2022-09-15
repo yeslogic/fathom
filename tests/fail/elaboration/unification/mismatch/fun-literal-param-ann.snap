@@ -1,7 +1,7 @@
 stdout = ''
 stderr = '''
 error: mismatched types
-  ┌─ tests/fail/elaboration/unification/mismatch/fun-literal-input-ann.fathom:3:19
+  ┌─ tests/fail/elaboration/unification/mismatch/fun-literal-param-ann.fathom:3:19
   │
 3 │ fun A => fun (a : Type) => a : fun (A : Type) -> A -> A
   │                   ^^^^ type mismatch, expected `Type`, found `A`
@@ -10,7 +10,7 @@ error: mismatched types
        found `A`
 
 error: cannot find `a` in scope
-  ┌─ tests/fail/elaboration/unification/mismatch/fun-literal-input-ann.fathom:3:28
+  ┌─ tests/fail/elaboration/unification/mismatch/fun-literal-param-ann.fathom:3:28
   │
 3 │ fun A => fun (a : Type) => a : fun (A : Type) -> A -> A
   │                            ^ unbound name

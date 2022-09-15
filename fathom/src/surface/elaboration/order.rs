@@ -204,30 +204,30 @@ fn term_deps(
             }
             local_names.truncate(initial_locals_names_len);
         }
-        Term::Arrow(_, input_type, output_type) => {
-            term_deps(input_type, item_names, local_names, deps);
-            term_deps(output_type, item_names, local_names, deps);
+        Term::Arrow(_, param_type, body_type) => {
+            term_deps(param_type, item_names, local_names, deps);
+            term_deps(body_type, item_names, local_names, deps);
         }
-        Term::FunType(_, input_pattern, input_type, output_type) => {
-            push_pattern(input_pattern, local_names);
-            if let Some(input_type) = input_type {
-                term_deps(input_type, item_names, local_names, deps);
+        Term::FunType(_, param_pattern, param_type, body_type) => {
+            push_pattern(param_pattern, local_names);
+            if let Some(param_type) = param_type {
+                term_deps(param_type, item_names, local_names, deps);
             }
-            term_deps(output_type, item_names, local_names, deps);
-            pop_pattern(input_pattern, local_names);
+            term_deps(body_type, item_names, local_names, deps);
+            pop_pattern(param_pattern, local_names);
         }
-        Term::FunLiteral(_, input_param, input_type, output_type) => {
-            push_pattern(input_param, local_names);
-            if let Some(input_type) = input_type {
-                term_deps(input_type, item_names, local_names, deps);
+        Term::FunLiteral(_, param_pattern, param_type, body_type) => {
+            push_pattern(param_pattern, local_names);
+            if let Some(param_type) = param_type {
+                term_deps(param_type, item_names, local_names, deps);
             }
-            term_deps(output_type, item_names, local_names, deps);
-            pop_pattern(input_param, local_names);
+            term_deps(body_type, item_names, local_names, deps);
+            pop_pattern(param_pattern, local_names);
         }
-        Term::App(_, head_expr, input_exprs) => {
+        Term::App(_, head_expr, arg_exprs) => {
             term_deps(head_expr, item_names, local_names, deps);
-            for input_expr in *input_exprs {
-                term_deps(input_expr, item_names, local_names, deps);
+            for arg_expr in *arg_exprs {
+                term_deps(arg_expr, item_names, local_names, deps);
             }
         }
         Term::RecordType(_, type_fields) => {

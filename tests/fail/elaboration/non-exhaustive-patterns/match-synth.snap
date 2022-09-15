@@ -15,10 +15,10 @@ error: non-exhaustive patterns in match expression
   │ │      patterns not covered
   │ in match expression
 
-error: failed to infer match output type
+error: failed to infer match expression type
   ┌─ tests/fail/elaboration/non-exhaustive-patterns/match-synth.fathom:3:1
   │
 3 │ match (x : U8) {}
-  │ ^^^^^^^^^^^^^^^^^ unsolved match output type
+  │ ^^^^^^^^^^^^^^^^^ unsolved match expression type
 
 '''

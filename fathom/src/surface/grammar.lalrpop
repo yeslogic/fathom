@@ -125,29 +125,29 @@ LetTerm: Term<'arena, ByteRange> = {
 
 FunTerm: Term<'arena, ByteRange> = {
     EqExpr,
-    <start: @L> <input_type: AppTerm> "->"  <output_type: FunTerm> <end: @R> => {
+    <start: @L> <param_type: AppTerm> "->"  <body_type: FunTerm> <end: @R> => {
         Term::Arrow(
             ByteRange::new(file_id, start, end),
-            scope.to_scope(input_type),
-            scope.to_scope(output_type),
+            scope.to_scope(param_type),
+            scope.to_scope(body_type),
         )
     },
-    <start: @L> "fun" <input_param: AnnPattern> "->"  <output_type: FunTerm> <end: @R> => {
-        let (input_param, input_type) = input_param;
+    <start: @L> "fun" <param_pattern: AnnPattern> "->"  <body_type: FunTerm> <end: @R> => {
+        let (param_pattern, param_type) = param_pattern;
         Term::FunType(
             ByteRange::new(file_id, start, end),
-            input_param,
-            input_type,
-            scope.to_scope(output_type),
+            param_pattern,
+            param_type,
+            scope.to_scope(body_type),
         )
     },
-    <start: @L> "fun" <input_param: AnnPattern> "=>" <output_type: LetTerm> <end: @R> => {
-        let (input_param, input_type) = input_param;
+    <start: @L> "fun" <param_pattern: AnnPattern> "=>" <body_type: LetTerm> <end: @R> => {
+        let (param_pattern, param_type) = param_pattern;
         Term::FunLiteral(
             ByteRange::new(file_id, start, end),
-            input_param,
-            input_type,
-            scope.to_scope(output_type),
+            param_pattern,
+            param_type,
+            scope.to_scope(body_type),
         )
     },
 };
@@ -180,11 +180,11 @@ MulExpr: Term<'arena, ByteRange> = {
 
 AppTerm: Term<'arena, ByteRange> = {
     ProjTerm,
-    <start: @L> <head_expr: ProjTerm> <input_exprs: ProjTerm+> <end: @R> => {
+    <start: @L> <head_expr: ProjTerm> <arg_exprs: ProjTerm+> <end: @R> => {
         Term::App(
             ByteRange::new(file_id, start, end),
             scope.to_scope(head_expr),
-            scope.to_scope_from_iter(input_exprs),
+            scope.to_scope_from_iter(arg_exprs),
         )
     },
 };

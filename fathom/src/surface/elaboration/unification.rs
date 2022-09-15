@@ -230,17 +230,17 @@ impl<'arena, 'env> Context<'arena, 'env> {
             (Value::Universe, Value::Universe) => Ok(()),
 
             (
-                Value::FunType(_, input_type0, output_type0),
-                Value::FunType(_, input_type1, output_type1),
+                Value::FunType(_, param_type0, body_type0),
+                Value::FunType(_, param_type1, body_type1),
             ) => {
-                self.unify(input_type0, input_type1)?;
-                self.unify_closures(output_type0, output_type1)
+                self.unify(param_type0, param_type1)?;
+                self.unify_closures(body_type0, body_type1)
             }
-            (Value::FunLit(_, output_expr0), Value::FunLit(_, output_expr1)) => {
-                self.unify_closures(output_expr0, output_expr1)
+            (Value::FunLit(_, body_expr0), Value::FunLit(_, body_expr1)) => {
+                self.unify_closures(body_expr0, body_expr1)
             }
-            (Value::FunLit(_, output_expr), _) => self.unify_fun_lit(output_expr, &value1),
-            (_, Value::FunLit(_, output_expr)) => self.unify_fun_lit(output_expr, &value0),
+            (Value::FunLit(_, body_expr), _) => self.unify_fun_lit(body_expr, &value1),
+            (_, Value::FunLit(_, body_expr)) => self.unify_fun_lit(body_expr, &value0),
 
             (Value::RecordType(labels0, types0), Value::RecordType(labels1, types1)) => {
                 if labels0 != labels1 {
@@ -315,8 +315,8 @@ impl<'arena, 'env> Context<'arena, 'env> {
         }
         for (elim0, elim1) in Iterator::zip(spine0.iter(), spine1.iter()) {
             match (elim0, elim1) {
-                (Elim::FunApp(input_expr0), Elim::FunApp(input_expr1)) => {
-                    self.unify(input_expr0, input_expr1)?;
+                (Elim::FunApp(arg_expr0), Elim::FunApp(arg_expr1)) => {
+                    self.unify(arg_expr0, arg_expr1)?;
                 }
                 (Elim::RecordProj(label0), Elim::RecordProj(label1)) if label0 == label1 => {}
                 (_, _) => {
@@ -384,15 +384,15 @@ impl<'arena, 'env> Context<'arena, 'env> {
     /// ```
     fn unify_fun_lit(
         &mut self,
-        output_expr: &Closure<'arena>,
+        body_expr: &Closure<'arena>,
         value: &ArcValue<'arena>,
     ) -> Result<(), Error> {
         let var = Spanned::empty(Arc::new(Value::rigid_var(self.rigid_exprs.next_global())));
         let value = self.elim_env().fun_app(value.clone(), var.clone());
-        let output_expr = self.elim_env().apply_closure(output_expr, var);
+        let body_expr = self.elim_env().apply_closure(body_expr, var);
 
         self.rigid_exprs.push();
-        let result = self.unify(&output_expr, &value);
+        let result = self.unify(&body_expr, &value);
         self.rigid_exprs.pop();
 
         result
@@ -453,7 +453,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
 
         for elim in spine {
             match elim {
-                Elim::FunApp(input_expr) => match self.elim_env().force(input_expr).as_ref() {
+                Elim::FunApp(arg_expr) => match self.elim_env().force(arg_expr).as_ref() {
                     Value::Stuck(Head::RigidVar(source_var), spine)
                         if spine.is_empty() && self.renaming.set_rigid(*source_var) => {}
                     Value::Stuck(Head::RigidVar(source_var), _) => {
@@ -511,10 +511,10 @@ impl<'arena, 'env> Context<'arena, 'env> {
 
                 spine.iter().fold(Ok(head_expr), |head_expr, elim| {
                     Ok(match elim {
-                        Elim::FunApp(input_expr) => Term::FunApp(
+                        Elim::FunApp(arg_expr) => Term::FunApp(
                             span,
                             self.scope.to_scope(head_expr?),
-                            self.scope.to_scope(self.rename(flexible_var, input_expr)?),
+                            self.scope.to_scope(self.rename(flexible_var, arg_expr)?),
                         ),
                         Elim::RecordProj(label) => {
                             Term::RecordProj(span, self.scope.to_scope(head_expr?), *label)
@@ -526,10 +526,10 @@ impl<'arena, 'env> Context<'arena, 'env> {
 
                             let default_expr = loop {
                                 match self.elim_env().split_branches(branches) {
-                                    SplitBranches::Branch((r#const, output_expr), next_branch) => {
+                                    SplitBranches::Branch((r#const, body_expr), next_branch) => {
                                         pattern_branches.push((
                                             r#const,
-                                            self.rename(flexible_var, &output_expr)?,
+                                            self.rename(flexible_var, &body_expr)?,
                                         ));
                                         branches = next_branch;
                                     }
@@ -555,24 +555,24 @@ impl<'arena, 'env> Context<'arena, 'env> {
 
             Value::Universe => Ok(Term::Universe(span)),
 
-            Value::FunType(input_name, input_type, output_type) => {
-                let input_type = self.rename(flexible_var, input_type)?;
-                let output_type = self.rename_closure(flexible_var, output_type)?;
+            Value::FunType(param_name, param_type, body_type) => {
+                let param_type = self.rename(flexible_var, param_type)?;
+                let body_type = self.rename_closure(flexible_var, body_type)?;
 
                 Ok(Term::FunType(
                     span,
-                    *input_name,
-                    self.scope.to_scope(input_type),
-                    self.scope.to_scope(output_type),
+                    *param_name,
+                    self.scope.to_scope(param_type),
+                    self.scope.to_scope(body_type),
                 ))
             }
-            Value::FunLit(input_name, output_expr) => {
-                let output_expr = self.rename_closure(flexible_var, output_expr)?;
+            Value::FunLit(param_name, body_expr) => {
+                let body_expr = self.rename_closure(flexible_var, body_expr)?;
 
                 Ok(Term::FunLit(
                     span,
-                    *input_name,
-                    self.scope.to_scope(output_expr),
+                    *param_name,
+                    self.scope.to_scope(body_expr),
                 ))
             }
 
