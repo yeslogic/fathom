@@ -1391,52 +1391,8 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
             (Term::Match(range, scrutinee_expr, equations), _) => {
                 self.check_match(*range, scrutinee_expr, equations, &expected_type)
             }
-            (Term::FunLiteral(range, patterns, body_expr), Value::FunType(_, _, _)) => {
-                let initial_rigid_len = self.rigid_env.len();
-
-                // Elaborate the parameters, collecting them in a stack
-                let mut param_names = Vec::with_capacity(patterns.len());
-                let mut body_type = expected_type;
-                for (pattern, r#type) in *patterns {
-                    body_type = self.elim_env().force(&body_type);
-                    match body_type.as_ref() {
-                        Value::FunType(_, param_type, next_body_type) => {
-                            let pattern = self.check_ann_pattern(pattern, *r#type, param_type);
-                            let (param_name, arg_expr) =
-                                self.push_rigid_param(pattern, param_type.clone());
-
-                            param_names.push(param_name);
-                            body_type = self.elim_env().apply_closure(next_body_type, arg_expr);
-                        }
-                        // We could attempt to switch to synthesis mode here for the body of the
-                        // function, but it probably isn't worth the complexity at this point, so
-                        // just report an error instead.
-                        _ => {
-                            let body_type = self.pretty_print_value(&body_type);
-                            self.push_message(Message::UnexpectedParameter {
-                                param_range: pattern.range(),
-                                expected_type: body_type,
-                            });
-                            self.rigid_env.truncate(initial_rigid_len);
-                            return core::Term::Prim(range.into(), Prim::ReportedError);
-                        }
-                    }
-                }
-
-                let mut fun_lit = self.check(body_expr, &body_type);
-
-                self.rigid_env.truncate(initial_rigid_len);
-
-                // Construct the function literal and type from the parameters in reverse
-                for name in param_names.into_iter().rev() {
-                    fun_lit = core::Term::FunLit(
-                        range.into(), // FIXME
-                        name,
-                        self.scope.to_scope(fun_lit),
-                    );
-                }
-
-                fun_lit
+            (Term::FunLiteral(range, patterns, body_expr), _) => {
+                self.check_fun_lit(*range, patterns, body_expr, &expected_type)
             }
             (Term::RecordLiteral(range, expr_fields), Value::RecordType(labels, types)) => {
                 // TODO: improve handling of duplicate labels
@@ -1744,37 +1700,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 (fun_type, self.universe.clone())
             }
             Term::FunLiteral(range, patterns, body_expr) => {
-                let initial_rigid_len = self.rigid_env.len();
-
-                // Elaborate the parameters, collecting them in a stack
-                let mut params = Vec::with_capacity(patterns.len());
-                for (pattern, r#type) in *patterns {
-                    let (pattern, type_value) = self.synth_ann_pattern(pattern, *r#type);
-                    let r#type = self.quote_env(self.scope).quote(&type_value);
-                    let (name, _) = self.push_rigid_param(pattern, type_value);
-                    params.push((name, r#type));
-                }
-
-                let (mut fun_lit, body_type) = self.synth(body_expr);
-                let mut fun_type = self.quote_env(self.scope).quote(&body_type);
-                self.rigid_env.truncate(initial_rigid_len);
-
-                // Construct the function literal and type from the parameters in reverse
-                for (name, r#type) in params.into_iter().rev() {
-                    fun_lit = core::Term::FunLit(
-                        range.into(), // FIXME
-                        name,
-                        self.scope.to_scope(fun_lit),
-                    );
-                    fun_type = core::Term::FunType(
-                        range.into(), // FIXME
-                        name,
-                        self.scope.to_scope(r#type),
-                        self.scope.to_scope(fun_type),
-                    );
-                }
-
-                (fun_lit, self.eval_env().eval(&fun_type))
+                self.synth_fun_lit(*range, patterns, body_expr)
             }
             Term::App(range, head_expr, arg_exprs) => {
                 let head_range = head_expr.range();
@@ -1983,6 +1909,92 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
             Term::BinOp(range, lhs, op, rhs) => self.synth_bin_op(*range, lhs, *op, rhs),
             Term::ReportedError(range) => self.synth_reported_error(*range),
         }
+    }
+
+    fn check_fun_lit(
+        &mut self,
+        range: ByteRange,
+        patterns: &[(Pattern<ByteRange>, Option<&Term<'_, ByteRange>>)],
+        body_expr: &Term<'_, ByteRange>,
+        expected_type: &ArcValue<'arena>,
+    ) -> core::Term<'arena> {
+        match patterns.split_first() {
+            Some(((pattern, r#type), next_params)) => {
+                let body_type = self.elim_env().force(expected_type);
+                match body_type.as_ref() {
+                    Value::FunType(_, param_type, next_body_type) => {
+                        let range = ByteRange::merge(&pattern.range(), &body_expr.range()).unwrap();
+                        let pattern = self.check_ann_pattern(pattern, *r#type, param_type);
+                        let (name, arg_expr) = self.push_rigid_param(pattern, param_type.clone());
+
+                        let body_type = self.elim_env().apply_closure(next_body_type, arg_expr);
+                        let body_expr =
+                            self.check_fun_lit(range, next_params, body_expr, &body_type);
+                        self.rigid_env.pop();
+
+                        core::Term::FunLit(range.into(), name, self.scope.to_scope(body_expr))
+                    }
+                    // Attempt to elaborate the the body of the function in synthesis
+                    // mode if we are checking against a flexible variable.
+                    Value::Stuck(Head::FlexibleVar(_), _) => {
+                        let range = ByteRange::merge(&pattern.range(), &body_expr.range()).unwrap();
+                        let (expr, r#type) = self.synth_fun_lit(range, patterns, body_expr);
+                        self.convert(range, expr, &r#type, expected_type)
+                    }
+                    Value::Stuck(Head::Prim(Prim::ReportedError), _) => {
+                        core::Term::Prim(range.into(), Prim::ReportedError)
+                    }
+                    _ => {
+                        let body_type = self.pretty_print_value(&body_type);
+                        self.push_message(Message::UnexpectedParameter {
+                            param_range: pattern.range(),
+                            expected_type: body_type,
+                        });
+                        core::Term::Prim(range.into(), Prim::ReportedError)
+                    }
+                }
+            }
+            None => self.check(body_expr, expected_type),
+        }
+    }
+
+    fn synth_fun_lit(
+        &mut self,
+        range: ByteRange,
+        patterns: &[(Pattern<ByteRange>, Option<&Term<ByteRange>>)],
+        body_expr: &Term<'_, ByteRange>,
+    ) -> (core::Term<'arena>, ArcValue<'arena>) {
+        let initial_rigid_len = self.rigid_env.len();
+
+        // Elaborate the parameters, collecting them into a stack
+        let mut params = Vec::with_capacity(patterns.len());
+        for (i, (pattern, r#type)) in patterns.iter().enumerate() {
+            let range = match i {
+                0 => range, // The first pattern uses the range of the full function literal
+                _ => ByteRange::merge(&pattern.range(), &body_expr.range()).unwrap(),
+            };
+            let (pattern, type_value) = self.synth_ann_pattern(pattern, *r#type);
+            let r#type = self.quote_env(self.scope).quote(&type_value);
+            let (name, _) = self.push_rigid_param(pattern, type_value);
+            params.push((range, name, r#type));
+        }
+
+        let (mut fun_lit, body_type) = self.synth(body_expr);
+        let mut fun_type = self.quote_env(self.scope).quote(&body_type);
+        self.rigid_env.truncate(initial_rigid_len);
+
+        // Construct the function literal and type from the parameters in reverse
+        for (range, name, r#type) in params.into_iter().rev() {
+            fun_lit = core::Term::FunLit(range.into(), name, self.scope.to_scope(fun_lit));
+            fun_type = core::Term::FunType(
+                Span::Empty,
+                name,
+                self.scope.to_scope(r#type),
+                self.scope.to_scope(fun_type),
+            );
+        }
+
+        (fun_lit, self.eval_env().eval(&fun_type))
     }
 
     fn synth_bin_op(
