@@ -1,7 +1,7 @@
 stdout = ''
 stderr = '''
 error: mismatched types
-  ┌─ tests/fail/elaboration/unification/mismatch/arrow-input-type.fathom:3:34
+  ┌─ tests/fail/elaboration/unification/mismatch/arrow-param-type.fathom:3:34
   │
 3 │ fun (A : Type) -> fun (a : A) -> a -> A
   │                                  ^ type mismatch, expected `A`, found `Type`

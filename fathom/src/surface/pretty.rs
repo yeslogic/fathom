@@ -136,7 +136,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                     self.term_prec(Prec::Top, r#type),
                 ]),
             ),
-            Term::Let(_, def_pattern, def_type, def_expr, output_expr) => self.paren(
+            Term::Let(_, def_pattern, def_type, def_expr, body_expr) => self.paren(
                 prec > Prec::Let,
                 self.concat([
                     self.concat([
@@ -151,7 +151,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                     ])
                     .group(),
                     self.line(),
-                    self.term_prec(Prec::Let, output_expr),
+                    self.term_prec(Prec::Let, body_expr),
                 ]),
             ),
             Term::Match(_, scrutinee, equations) => self.sequence(
@@ -162,66 +162,68 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                     self.space(),
                     self.text("{"),
                 ]),
-                equations.iter().map(|(pattern, output_expr)| {
+                equations.iter().map(|(pattern, body_expr)| {
                     self.concat([
                         self.pattern(pattern),
                         self.space(),
                         self.text("=>"),
                         self.space(),
-                        self.term_prec(Prec::Top, r#output_expr),
+                        self.term_prec(Prec::Top, r#body_expr),
                     ])
                 }),
                 self.text(","),
                 self.text("}"),
             ),
             Term::Universe(_) => self.text("Type"),
-            Term::FunType(_, input_pattern, input_type, output_type) => self.paren(
+            Term::FunType(_, param_pattern, param_type, body_type) => self.paren(
                 prec > Prec::Fun,
                 self.concat([
                     self.concat([
                         self.text("fun"),
                         self.space(),
-                        self.ann_pattern(Prec::Atomic, input_pattern, *input_type),
+                        self.ann_pattern(Prec::Atomic, param_pattern, *param_type),
                         self.space(),
                         self.text("->"),
                     ])
                     .group(),
                     self.softline(),
-                    self.term_prec(Prec::Fun, output_type),
+                    self.term_prec(Prec::Fun, body_type),
                 ]),
             ),
-            Term::Arrow(_, input_type, output_type) => self.paren(
+            Term::Arrow(_, param_type, body_type) => self.paren(
                 prec > Prec::Fun,
                 self.concat([
-                    self.term_prec(Prec::App, input_type),
+                    self.term_prec(Prec::App, param_type),
                     self.softline(),
                     self.text("->"),
                     self.softline(),
-                    self.term_prec(Prec::Fun, output_type),
+                    self.term_prec(Prec::Fun, body_type),
                 ]),
             ),
-            Term::FunLiteral(_, input_pattern, input_type, output_expr) => self.paren(
+            Term::FunLiteral(_, param_pattern, param_type, body_expr) => self.paren(
                 prec > Prec::Fun,
                 self.concat([
                     self.concat([
                         self.text("fun"),
                         self.space(),
-                        self.ann_pattern(Prec::Atomic, input_pattern, *input_type),
+                        self.ann_pattern(Prec::Atomic, param_pattern, *param_type),
                         self.space(),
                         self.text("=>"),
                     ])
                     .group(),
                     self.space(),
-                    self.term_prec(Prec::Let, output_expr),
+                    self.term_prec(Prec::Let, body_expr),
                 ]),
             ),
-            Term::App(_, head_expr, input_exprs) => self.paren(
+            Term::App(_, head_expr, arg_exprs) => self.paren(
                 prec > Prec::App,
                 self.concat([
                     self.term_prec(Prec::Proj, head_expr),
-                    self.concat(input_exprs.iter().map(|input_expr| {
-                        self.concat([self.space(), self.term_prec(Prec::Proj, input_expr)])
-                    })),
+                    self.space(),
+                    self.intersperse(
+                        (arg_exprs.iter()).map(|arg_expr| self.term_prec(Prec::Proj, arg_expr)),
+                        self.space(),
+                    ),
                 ]),
             ),
             Term::RecordType(_, type_fields) => self.sequence(

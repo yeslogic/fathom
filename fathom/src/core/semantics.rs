@@ -53,9 +53,9 @@ pub enum Value<'arena> {
 }
 
 impl<'arena> Value<'arena> {
-    pub fn prim(prim: Prim, inputs: impl IntoIterator<Item = ArcValue<'arena>>) -> Value<'arena> {
-        let inputs = inputs.into_iter().map(Elim::FunApp).collect();
-        Value::Stuck(Head::Prim(prim), inputs)
+    pub fn prim(prim: Prim, params: impl IntoIterator<Item = ArcValue<'arena>>) -> Value<'arena> {
+        let params = params.into_iter().map(Elim::FunApp).collect();
+        Value::Stuck(Head::Prim(prim), params)
     }
 
     pub fn rigid_var(global: GlobalVar) -> Value<'arena> {
@@ -307,35 +307,35 @@ impl<'arena, 'env> EvalEnv<'arena, 'env> {
                 head_expr
             }
             Term::Ann(span, expr, _) => Spanned::merge(*span, self.eval(expr)),
-            Term::Let(span, _, _, def_expr, output_expr) => {
+            Term::Let(span, _, _, def_expr, body_expr) => {
                 let def_expr = self.eval(def_expr);
                 self.rigid_exprs.push(def_expr);
-                let output_expr = self.eval(output_expr);
+                let body_expr = self.eval(body_expr);
                 self.rigid_exprs.pop();
-                Spanned::merge(*span, output_expr)
+                Spanned::merge(*span, body_expr)
             }
 
             Term::Universe(span) => Spanned::new(*span, Arc::new(Value::Universe)),
 
-            Term::FunType(span, input_name, input_type, output_type) => Spanned::new(
+            Term::FunType(span, param_name, param_type, body_type) => Spanned::new(
                 *span,
                 Arc::new(Value::FunType(
-                    *input_name,
-                    self.eval(input_type),
-                    Closure::new(self.rigid_exprs.clone(), output_type),
+                    *param_name,
+                    self.eval(param_type),
+                    Closure::new(self.rigid_exprs.clone(), body_type),
                 )),
             ),
-            Term::FunLit(span, input_name, output_expr) => Spanned::new(
+            Term::FunLit(span, param_name, body_expr) => Spanned::new(
                 *span,
                 Arc::new(Value::FunLit(
-                    *input_name,
-                    Closure::new(self.rigid_exprs.clone(), output_expr),
+                    *param_name,
+                    Closure::new(self.rigid_exprs.clone(), body_expr),
                 )),
             ),
-            Term::FunApp(span, head_expr, input_expr) => {
+            Term::FunApp(span, head_expr, arg_expr) => {
                 let head_expr = self.eval(head_expr);
-                let input_expr = self.eval(input_expr);
-                Spanned::merge(*span, self.elim_env().fun_app(head_expr, input_expr))
+                let arg_expr = self.eval(arg_expr);
+                Spanned::merge(*span, self.elim_env().fun_app(head_expr, arg_expr))
             }
 
             Term::RecordType(span, labels, types) => {
@@ -390,25 +390,25 @@ impl<'arena, 'env> EvalEnv<'arena, 'env> {
 type PrimStep = for<'arena> fn(&ElimEnv<'arena, '_>, &[Elim<'arena>]) -> Option<ArcValue<'arena>>;
 
 macro_rules! step {
-    ($env:pat, [$($input:pat),*] => $output:expr) => {
+    ($env:pat, [$($param:pat),*] => $body:expr) => {
         |$env, spine| match spine {
-            [$(Elim::FunApp($input)),*] => Some($output),
+            [$(Elim::FunApp($param)),*] => Some($body),
             _ => return None,
         }
     };
 }
 
-// TODO: Should we merge the spans of the input idents to produce the output span?
+// TODO: Should we merge the spans of the param idents to produce the body span?
 macro_rules! const_step {
-    ([$($input:ident : $Input:ident),*] => $output:expr) => {
-        step!(_, [$($input),*] => match ($($input.as_ref(),)*) {
-            ($(Value::ConstLit(Const::$Input($input, ..)),)*) => Spanned::empty(Arc::new(Value::ConstLit($output))),
+    ([$($param:ident : $Input:ident),*] => $body:expr) => {
+        step!(_, [$($param),*] => match ($($param.as_ref(),)*) {
+            ($(Value::ConstLit(Const::$Input($param, ..)),)*) => Spanned::empty(Arc::new(Value::ConstLit($body))),
             _ => return None,
         })
     };
-    ([$($input:ident , $style:ident : $Input:ident),*] => $output:expr) => {
-        step!(_, [$($input),*] => match ($($input.as_ref(),)*) {
-            ($(Value::ConstLit(Const::$Input($input, $style)),)*) => Spanned::empty(Arc::new(Value::ConstLit($output))),
+    ([$($param:ident , $style:ident : $Input:ident),*] => $body:expr) => {
+        step!(_, [$($param),*] => match ($($param.as_ref(),)*) {
+            ($(Value::ConstLit(Const::$Input($param, $style)),)*) => Spanned::empty(Arc::new(Value::ConstLit($body))),
             _ => return None,
         })
     };
@@ -691,10 +691,10 @@ impl<'arena, 'env> ElimEnv<'arena, 'env> {
         mut branches: Branches<'arena, P>,
     ) -> SplitBranches<'arena, P> {
         match branches.pattern_branches.split_first() {
-            Some(((pattern, output_expr), pattern_branches)) => {
+            Some(((pattern, body_expr), pattern_branches)) => {
                 branches.pattern_branches = pattern_branches;
                 let mut context = self.eval_env(&mut branches.rigid_exprs);
-                SplitBranches::Branch((*pattern, context.eval(output_expr)), branches)
+                SplitBranches::Branch((*pattern, context.eval(body_expr)), branches)
             }
             None => match branches.default_expr {
                 Some(default_expr) => {
@@ -712,14 +712,14 @@ impl<'arena, 'env> ElimEnv<'arena, 'env> {
     pub fn fun_app(
         &self,
         mut head_expr: ArcValue<'arena>,
-        input_expr: ArcValue<'arena>,
+        arg_expr: ArcValue<'arena>,
     ) -> ArcValue<'arena> {
         match Arc::make_mut(&mut head_expr) {
             // Beta-reduction
-            Value::FunLit(_, output_expr) => self.apply_closure(output_expr, input_expr), // FIXME: use span from head/input exprs?
+            Value::FunLit(_, body_expr) => self.apply_closure(body_expr, arg_expr), // FIXME: use span from head/arg exprs?
             // The computation is stuck, preventing further reduction
             Value::Stuck(head, spine) => {
-                spine.push(Elim::FunApp(input_expr));
+                spine.push(Elim::FunApp(arg_expr));
 
                 match head {
                     Head::Prim(prim) => prim_step(*prim)(self, spine).unwrap_or(head_expr),
@@ -766,9 +766,9 @@ impl<'arena, 'env> ElimEnv<'arena, 'env> {
         match Arc::make_mut(&mut head_expr) {
             Value::ConstLit(r#const) => {
                 // Try each branch
-                for (branch_const, output_expr) in branches.pattern_branches {
+                for (branch_const, body_expr) in branches.pattern_branches {
                     if r#const == branch_const {
-                        return self.eval_env(&mut branches.rigid_exprs).eval(output_expr);
+                        return self.eval_env(&mut branches.rigid_exprs).eval(body_expr);
                     }
                 }
                 // Otherwise call default with `head_expr`
@@ -791,7 +791,7 @@ impl<'arena, 'env> ElimEnv<'arena, 'env> {
     /// Apply an expression to an elimination spine.
     fn apply_spine(&self, head_expr: ArcValue<'arena>, spine: &[Elim<'arena>]) -> ArcValue<'arena> {
         spine.iter().fold(head_expr, |head_expr, elim| match elim {
-            Elim::FunApp(input_expr) => self.fun_app(head_expr, input_expr.clone()),
+            Elim::FunApp(arg_expr) => self.fun_app(head_expr, arg_expr.clone()),
             Elim::RecordProj(label) => self.record_proj(head_expr, *label),
             Elim::ConstMatch(split) => self.const_match(head_expr, split.clone()),
         })
@@ -916,10 +916,10 @@ impl<'in_arena, 'out_arena, 'env> QuoteEnv<'in_arena, 'out_arena, 'env> {
                 };
 
                 spine.iter().fold(head_expr, |head_expr, elim| match elim {
-                    Elim::FunApp(input_expr) => Term::FunApp(
+                    Elim::FunApp(arg_expr) => Term::FunApp(
                         span,
                         self.scope.to_scope(head_expr),
-                        self.scope.to_scope(self.quote(input_expr)),
+                        self.scope.to_scope(self.quote(arg_expr)),
                     ),
                     Elim::RecordProj(label) => {
                         Term::RecordProj(span, self.scope.to_scope(head_expr), *label)
@@ -931,8 +931,8 @@ impl<'in_arena, 'out_arena, 'env> QuoteEnv<'in_arena, 'out_arena, 'env> {
 
                         let default_expr = loop {
                             match self.elim_env().split_branches(branches) {
-                                SplitBranches::Branch((r#const, output_expr), next_branches) => {
-                                    pattern_branches.push((r#const, self.quote(&output_expr)));
+                                SplitBranches::Branch((r#const, body_expr), next_branches) => {
+                                    pattern_branches.push((r#const, self.quote(&body_expr)));
                                     branches = next_branches;
                                 }
                                 SplitBranches::Default(default_expr) => {
@@ -954,21 +954,21 @@ impl<'in_arena, 'out_arena, 'env> QuoteEnv<'in_arena, 'out_arena, 'env> {
 
             Value::Universe => Term::Universe(span),
 
-            Value::FunType(input_name, input_type, output_type) => {
-                let input_type = self.quote(input_type);
-                let output_type = self.quote_closure(output_type);
+            Value::FunType(param_name, param_type, body_type) => {
+                let param_type = self.quote(param_type);
+                let body_type = self.quote_closure(body_type);
 
                 Term::FunType(
                     span,
-                    *input_name,
-                    self.scope.to_scope(input_type),
-                    self.scope.to_scope(output_type),
+                    *param_name,
+                    self.scope.to_scope(param_type),
+                    self.scope.to_scope(body_type),
                 )
             }
-            Value::FunLit(input_name, output_expr) => {
-                let output_expr = self.quote_closure(output_expr);
+            Value::FunLit(param_name, body_expr) => {
+                let body_expr = self.quote_closure(body_expr);
 
-                Term::FunLit(span, *input_name, self.scope.to_scope(output_expr))
+                Term::FunLit(span, *param_name, self.scope.to_scope(body_expr))
             }
 
             Value::RecordType(labels, types) => {
@@ -1124,17 +1124,17 @@ impl<'arena, 'env> ConversionEnv<'arena, 'env> {
             (Value::Universe, Value::Universe) => true,
 
             (
-                Value::FunType(_, input_type0, output_type0),
-                Value::FunType(_, input_type1, output_type1),
+                Value::FunType(_, param_type0, body_type0),
+                Value::FunType(_, param_type1, body_type1),
             ) => {
-                self.is_equal(input_type0, input_type1)
-                    && self.is_equal_closures(output_type0, output_type1)
+                self.is_equal(param_type0, param_type1)
+                    && self.is_equal_closures(body_type0, body_type1)
             }
-            (Value::FunLit(_, output_expr0), Value::FunLit(_, output_expr1)) => {
-                self.is_equal_closures(output_expr0, output_expr1)
+            (Value::FunLit(_, body_expr0), Value::FunLit(_, body_expr1)) => {
+                self.is_equal_closures(body_expr0, body_expr1)
             }
-            (Value::FunLit(_, output_expr), _) => self.is_equal_fun_lit(output_expr, &value1),
-            (_, Value::FunLit(_, output_expr)) => self.is_equal_fun_lit(output_expr, &value0),
+            (Value::FunLit(_, body_expr), _) => self.is_equal_fun_lit(body_expr, &value1),
+            (_, Value::FunLit(_, body_expr)) => self.is_equal_fun_lit(body_expr, &value0),
 
             (Value::RecordType(labels0, types0), Value::RecordType(labels1, types1)) => {
                 labels0 == labels1 && self.is_equal_telescopes(types0, types1)
@@ -1239,9 +1239,9 @@ impl<'arena, 'env> ConversionEnv<'arena, 'env> {
                 self.elim_env().split_branches(branches1),
             ) {
                 (
-                    Branch((const0, output_expr0), next_branches0),
-                    Branch((const1, output_expr1), next_branches1),
-                ) if const0 == const1 && self.is_equal(&output_expr0, &output_expr1) => {
+                    Branch((const0, body_expr0), next_branches0),
+                    Branch((const1, body_expr1), next_branches1),
+                ) if const0 == const1 && self.is_equal(&body_expr0, &body_expr1) => {
                     branches0 = next_branches0;
                     branches1 = next_branches1;
                 }
@@ -1259,13 +1259,13 @@ impl<'arena, 'env> ConversionEnv<'arena, 'env> {
     /// ```fathom
     /// (fun x => f x) = f
     /// ```
-    fn is_equal_fun_lit(&mut self, output_expr: &Closure<'_>, value: &ArcValue<'_>) -> bool {
+    fn is_equal_fun_lit(&mut self, body_expr: &Closure<'_>, value: &ArcValue<'_>) -> bool {
         let var = Spanned::empty(Arc::new(Value::rigid_var(self.rigid_exprs.next_global())));
         let value = self.elim_env().fun_app(value.clone(), var.clone());
-        let output_expr = self.elim_env().apply_closure(output_expr, var);
+        let body_expr = self.elim_env().apply_closure(body_expr, var);
 
         self.push_rigid();
-        let result = self.is_equal(&output_expr, &value);
+        let result = self.is_equal(&body_expr, &value);
         self.pop_rigid();
 
         result

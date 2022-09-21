@@ -228,17 +228,17 @@ impl<'arena> Term<'arena> {
             | Term::ConstLit(_, _) => false,
 
             Term::Ann(_, expr, r#type) => expr.binds_rigid_var(var) || r#type.binds_rigid_var(var),
-            Term::Let(_, _, def_type, def_expr, output_expr) => {
+            Term::Let(_, _, def_type, def_expr, body_expr) => {
                 def_type.binds_rigid_var(var)
                     || def_expr.binds_rigid_var(var)
-                    || output_expr.binds_rigid_var(var.prev())
+                    || body_expr.binds_rigid_var(var.prev())
             }
-            Term::FunType(_, _, input_type, output_type) => {
-                input_type.binds_rigid_var(var) || output_type.binds_rigid_var(var.prev())
+            Term::FunType(_, _, param_type, body_type) => {
+                param_type.binds_rigid_var(var) || body_type.binds_rigid_var(var.prev())
             }
-            Term::FunLit(_, _, output_expr) => output_expr.binds_rigid_var(var.prev()),
-            Term::FunApp(_, head_expr, input_expr) => {
-                head_expr.binds_rigid_var(var) || input_expr.binds_rigid_var(var)
+            Term::FunLit(_, _, body_expr) => body_expr.binds_rigid_var(var.prev()),
+            Term::FunApp(_, head_expr, arg_expr) => {
+                head_expr.binds_rigid_var(var) || arg_expr.binds_rigid_var(var)
             }
             Term::RecordType(_, _, terms)
             | Term::RecordLit(_, _, terms)

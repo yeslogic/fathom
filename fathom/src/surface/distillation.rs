@@ -203,12 +203,12 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 // Avoid adding extraneous type annotations!
                 self.check(expr)
             }
-            core::Term::Let(_span, def_name, def_type, def_expr, output_expr) => {
+            core::Term::Let(_span, def_name, def_type, def_expr, body_expr) => {
                 let def_type = self.synth(def_type);
                 let def_expr = self.check(def_expr);
 
                 let def_name = self.push_rigid(*def_name);
-                let output_expr = self.check(output_expr);
+                let body_expr = self.check(body_expr);
                 self.pop_rigid();
 
                 Term::Let(
@@ -216,19 +216,19 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                     Pattern::Name((), def_name),
                     Some(self.scope.to_scope(def_type)),
                     self.scope.to_scope(def_expr),
-                    self.scope.to_scope(output_expr),
+                    self.scope.to_scope(body_expr),
                 )
             }
-            core::Term::FunLit(_span, input_name, output_expr) => {
-                let input_name = self.push_rigid(*input_name);
-                let output_expr = self.check(output_expr);
+            core::Term::FunLit(_span, param_name, body_expr) => {
+                let param_name = self.push_rigid(*param_name);
+                let body_expr = self.check(body_expr);
                 self.pop_rigid();
 
                 Term::FunLiteral(
                     (),
-                    Pattern::Name((), input_name),
+                    Pattern::Name((), param_name),
                     None,
-                    self.scope.to_scope(output_expr),
+                    self.scope.to_scope(body_expr),
                 )
             }
             core::Term::RecordType(_span, labels, _) if labels.is_empty() => Term::UnitLiteral(()),
@@ -285,10 +285,10 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                             self.scope.to_scope_from_iter(
                                 branches
                                     .iter()
-                                    .map(|(r#const, output_expr)| {
+                                    .map(|(r#const, body_expr)| {
                                         let pattern = self.check_constant_pattern(r#const);
-                                        let output_expr = self.check(output_expr);
-                                        (pattern, output_expr)
+                                        let body_expr = self.check(body_expr);
+                                        (pattern, body_expr)
                                     })
                                     .chain(std::iter::once(default_branch)),
                             ),
@@ -298,10 +298,10 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                         (),
                         self.scope.to_scope(head_expr),
                         self.scope.to_scope_from_iter(branches.iter().map(
-                            |(r#const, output_expr)| {
+                            |(r#const, body_expr)| {
                                 let pattern = self.check_constant_pattern(r#const);
-                                let output_expr = self.check(output_expr);
-                                (pattern, output_expr)
+                                let body_expr = self.check(body_expr);
+                                (pattern, body_expr)
                             },
                         )),
                     ),
@@ -338,20 +338,19 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                     head_expr
                 } else {
                     let head_expr = self.scope.to_scope(head_expr);
-                    let mut input_exprs = SliceVec::new(self.scope, num_params);
+                    let mut arg_exprs = SliceVec::new(self.scope, num_params);
 
                     for (var, info) in Iterator::zip(env::global_vars(), rigid_infos.iter()) {
                         match info {
                             core::EntryInfo::Definition => {}
                             core::EntryInfo::Parameter => {
                                 let var = self.rigid_len().global_to_local(var).unwrap();
-                                input_exprs
-                                    .push(self.check(&core::Term::RigidVar(Span::Empty, var)));
+                                arg_exprs.push(self.check(&core::Term::RigidVar(Span::Empty, var)));
                             }
                         }
                     }
 
-                    Term::App((), head_expr, input_exprs.into())
+                    Term::App((), head_expr, arg_exprs.into())
                 }
             }
             core::Term::Ann(_span, expr, r#type) => {
@@ -360,12 +359,12 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
 
                 Term::Ann((), self.scope.to_scope(expr), self.scope.to_scope(r#type))
             }
-            core::Term::Let(_span, def_name, def_type, def_expr, output_expr) => {
+            core::Term::Let(_span, def_name, def_type, def_expr, body_expr) => {
                 let def_type = self.synth(def_type);
                 let def_expr = self.check(def_expr);
 
                 let def_name = self.push_rigid(*def_name);
-                let output_expr = self.synth(output_expr);
+                let body_expr = self.synth(body_expr);
                 self.pop_rigid();
 
                 Term::Let(
@@ -373,69 +372,68 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                     Pattern::Name((), def_name),
                     Some(self.scope.to_scope(def_type)),
                     self.scope.to_scope(def_expr),
-                    self.scope.to_scope(output_expr),
+                    self.scope.to_scope(body_expr),
                 )
             }
             core::Term::Universe(_span) => Term::Universe(()),
 
-            // Use arrow sugar if the the input binding is not referenced in the
-            // output type.
-            core::Term::FunType(_span, _, input_type, output_type)
-                if !output_type.binds_rigid_var(LocalVar::last()) =>
+            // Use arrow sugar if the parameter is not referenced in the body type.
+            core::Term::FunType(_span, _, param_type, body_type)
+                if !body_type.binds_rigid_var(LocalVar::last()) =>
             {
-                let input_type = self.check(input_type);
+                let param_type = self.check(param_type);
 
                 self.push_rigid(None);
-                let output_type = self.check(output_type);
+                let body_type = self.check(body_type);
                 self.pop_rigid();
 
                 Term::Arrow(
                     (),
-                    self.scope.to_scope(input_type),
-                    self.scope.to_scope(output_type),
+                    self.scope.to_scope(param_type),
+                    self.scope.to_scope(body_type),
                 )
             }
             // Otherwise distill to a function type with an explicit parameter.
-            core::Term::FunType(_span, input_name, input_type, output_type) => {
-                let input_type = self.check(input_type);
+            core::Term::FunType(_span, param_name, param_type, body_type) => {
+                let param_type = self.check(param_type);
 
-                let input_name = self.push_rigid(*input_name);
-                let output_type = self.check(output_type);
+                let param_name = self.push_rigid(*param_name);
+                let body_type = self.check(body_type);
                 self.pop_rigid();
 
                 Term::FunType(
                     (),
-                    Pattern::Name((), input_name),
-                    Some(self.scope.to_scope(input_type)),
-                    self.scope.to_scope(output_type),
+                    Pattern::Name((), param_name),
+                    Some(self.scope.to_scope(param_type)),
+                    self.scope.to_scope(body_type),
                 )
             }
 
-            core::Term::FunLit(_span, input_name, output_expr) => {
-                let input_name = self.push_rigid(*input_name);
-                let output_expr = self.synth(output_expr);
+            core::Term::FunLit(_span, param_name, body_expr) => {
+                let param_name = self.push_rigid(*param_name);
+                let body_expr = self.synth(body_expr);
                 self.pop_rigid();
 
                 Term::FunLiteral(
                     (),
-                    Pattern::Name((), input_name),
+                    Pattern::Name((), param_name),
                     None,
-                    self.scope.to_scope(output_expr),
+                    self.scope.to_scope(body_expr),
                 )
             }
-            core::Term::FunApp(_, mut head_expr, input_expr) => match head_expr {
+            core::Term::FunApp(_, mut head_expr, arg_expr) => match head_expr {
                 core::Term::FunApp(_, core::Term::Prim(_, prim), lhs)
                     if prim_to_bin_op(prim).is_some() =>
                 {
                     // unwrap is safe due to is_some check above
-                    self.synth_bin_op(lhs, input_expr, prim_to_bin_op(prim).unwrap())
+                    self.synth_bin_op(lhs, arg_expr, prim_to_bin_op(prim).unwrap())
                 }
                 _ => {
-                    let mut input_exprs = vec![self.check(input_expr)];
+                    let mut arg_exprs = vec![self.check(arg_expr)];
 
-                    while let core::Term::FunApp(_, next_head_expr, input_expr) = head_expr {
+                    while let core::Term::FunApp(_, next_head_expr, arg_expr) = head_expr {
                         head_expr = next_head_expr;
-                        input_exprs.push(self.check(input_expr));
+                        arg_exprs.push(self.check(arg_expr));
                     }
 
                     let head_expr = self.synth(head_expr);
@@ -443,7 +441,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                     Term::App(
                         (),
                         self.scope.to_scope(head_expr),
-                        self.scope.to_scope_from_iter(input_exprs.into_iter().rev()),
+                        self.scope.to_scope_from_iter(arg_exprs.into_iter().rev()),
                     )
                 }
             },
@@ -564,10 +562,10 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                             self.scope.to_scope_from_iter(
                                 branches
                                     .iter()
-                                    .map(|(r#const, output_expr)| {
+                                    .map(|(r#const, body_expr)| {
                                         let pattern = self.check_constant_pattern(r#const);
-                                        let output_expr = self.synth(output_expr);
-                                        (pattern, output_expr)
+                                        let body_expr = self.synth(body_expr);
+                                        (pattern, body_expr)
                                     })
                                     .chain(std::iter::once(default_branch)),
                             ),
@@ -577,10 +575,10 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                         (),
                         self.scope.to_scope(head_expr),
                         self.scope.to_scope_from_iter(branches.iter().map(
-                            |(r#const, output_expr)| {
+                            |(r#const, body_expr)| {
                                 let pattern = self.check_constant_pattern(r#const);
-                                let output_expr = self.synth(output_expr);
-                                (pattern, output_expr)
+                                let body_expr = self.synth(body_expr);
+                                (pattern, body_expr)
                             },
                         )),
                     ),
