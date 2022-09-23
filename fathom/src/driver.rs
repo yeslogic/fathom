@@ -339,6 +339,61 @@ impl<'surface, 'core> Driver<'surface, 'core> {
         Status::Ok
     }
 
+    pub fn compile_and_emit_format(
+        &mut self,
+        module_file_id: Option<FileId>,
+        format_file_id: FileId,
+    ) -> Status {
+        use itertools::Itertools;
+        use std::sync::Arc;
+
+        use crate::core::semantics::Value;
+        use crate::core::Prim;
+
+        let err_scope = scoped_arena::Scope::new();
+        let mut context = elaboration::Context::new(&self.interner, &self.core_scope, &err_scope);
+
+        // Parse and elaborate the supplied module
+        if let Some(file_id) = module_file_id {
+            let surface_module = self.parse_module(file_id);
+            context.elab_module(&surface_module);
+        }
+
+        // Parse and elaborate the supplied format with the items from the
+        // supplied in the module in scope. This is still a bit of a hack, and
+        // will need to be revisited if we need to support multiple modules, but
+        // it works for now!
+        let surface_format = self.parse_term(format_file_id);
+        let format_term = context.check(
+            &surface_format,
+            &Spanned::new(Span::Empty, Arc::new(Value::prim(Prim::FormatType, []))),
+        );
+
+        // Emit errors we might have found during elaboration
+        let elab_messages = context.drain_messages();
+        self.emit_diagnostics(elab_messages.map(|m| m.to_diagnostic(&self.interner)));
+
+        // Return early if we’ve seen any errors, unless `allow_errors` is enabled
+        if *self.seen_errors.borrow() && !self.allow_errors {
+            return Status::Error;
+        }
+
+        // let format = context.eval_env().eval(&format_term);
+        let format = context.eval_env().normalise(&self.core_scope, &format_term);
+        dbg!(&format);
+
+        // Generate code...
+        match context.compile_context().compile_format(&format) {
+            Ok(()) => (),
+            Err(_err) => {
+                // self.emit_diagnostic(self.read_error_to_diagnostic(err, &mut context));
+                return Status::Error;
+            }
+        };
+
+        Status::Ok
+    }
+
     fn parse_module(&'surface self, file_id: FileId) -> surface::Module<'surface, ByteRange> {
         let source = self.files.get(file_id).unwrap().source();
         let (module, messages) =

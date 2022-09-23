@@ -27,7 +27,7 @@ use std::sync::Arc;
 
 use crate::alloc::SliceVec;
 use crate::core::semantics::{self, ArcValue, Head, Telescope, Value};
-use crate::core::{self, binary, Const, Prim, UIntStyle};
+use crate::core::{self, binary, compile, Const, Prim, UIntStyle};
 use crate::env::{self, EnvLen, Level, SharedEnv, SliceEnv, UniqueEnv};
 use crate::source::{ByteRange, Span, Spanned};
 use crate::surface::elaboration::reporting::Message;
@@ -898,6 +898,10 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
         buffer: binary::Buffer<'data>,
     ) -> binary::Context<'arena, '_, 'data> {
         binary::Context::new(&self.item_env.exprs, &self.meta_env.exprs, buffer)
+    }
+
+    pub fn compile_context(&self) -> compile::Context<'arena, '_> {
+        compile::Context::new(&self.item_env.exprs, &self.meta_env.exprs)
     }
 
     fn pretty_print_value(&mut self, value: &ArcValue<'_>) -> String {

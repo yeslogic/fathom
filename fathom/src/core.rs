@@ -5,6 +5,7 @@ use crate::source::Span;
 use crate::StringId;
 
 pub mod binary;
+pub mod compile;
 pub mod semantics;
 
 /// Modules
