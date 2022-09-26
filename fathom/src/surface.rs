@@ -54,17 +54,25 @@ impl<'arena> Module<'arena, ByteRange> {
 #[derive(Debug, Clone)]
 pub enum Item<'arena, Range> {
     /// Top-level definitions
-    Definition {
-        /// The label that identifies this definition
-        label: (Range, StringId),
-        /// An optional type annotation for the defined expression
-        // FIXME: raw identifiers in LALRPOP grammars https://github.com/lalrpop/lalrpop/issues/613
-        type_: Option<&'arena Term<'arena, Range>>,
-        /// The defined expression
-        expr: &'arena Term<'arena, Range>,
-    },
+    Def(ItemDef<'arena, Range>),
     /// Reported error sentinel
     ReportedError(Range),
+}
+
+/// Top-level definitions
+#[derive(Debug, Clone)]
+pub struct ItemDef<'arena, Range> {
+    /// The full range of the definition
+    range: Range,
+    /// The label that identifies this definition
+    label: (Range, StringId),
+    /// Parameter patterns
+    patterns: &'arena [(Pattern<Range>, Option<&'arena Term<'arena, Range>>)],
+    /// An optional type annotation for the defined expression
+    // FIXME: raw identifiers in LALRPOP grammars https://github.com/lalrpop/lalrpop/issues/613
+    type_: Option<&'arena Term<'arena, Range>>,
+    /// The defined expression
+    expr: &'arena Term<'arena, Range>,
 }
 
 /// Surface patterns.

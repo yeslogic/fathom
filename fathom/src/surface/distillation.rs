@@ -8,7 +8,9 @@ use crate::core::UIntStyle;
 use crate::env::{self, EnvLen, GlobalVar, LocalVar, UniqueEnv};
 use crate::source::Span;
 use crate::surface::elaboration::FlexSource;
-use crate::surface::{BinOp, ExprField, FormatField, Item, Module, Pattern, Term, TypeField};
+use crate::surface::{
+    BinOp, ExprField, FormatField, Item, ItemDef, Module, Pattern, Term, TypeField,
+};
 use crate::{core, StringId, StringInterner};
 
 /// Distillation context.
@@ -98,7 +100,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
         let scope = self.scope;
 
         let items = core_module.items.iter().map(|item| match item {
-            core::Item::Definition {
+            core::Item::Def {
                 label,
                 r#type,
                 expr,
@@ -107,11 +109,13 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 let expr = scope.to_scope(self.check(expr));
                 self.push_item(*label);
 
-                Item::Definition {
+                Item::Def(ItemDef {
+                    range: (),
                     label: ((), *label),
+                    patterns: &[],
                     type_: Some(r#type),
                     expr,
-                }
+                })
             }
         });
 

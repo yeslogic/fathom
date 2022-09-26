@@ -86,6 +86,27 @@ def point : Format = {
 };
 ```
 
+#### Parameter sugar
+
+A list of parameters can be supplied to definitions:
+
+```fathom
+def point (f : Format) : Format = {
+  x <- f,
+  y <- f,
+};
+```
+
+This is sugar for a function definition:
+
+```fathom
+def point : Format -> Format =
+  fun f => {
+    x <- f,
+    y <- f,
+  };
+```
+
 ## Structure
 
 This section descibes basic structural parts of Fathom.

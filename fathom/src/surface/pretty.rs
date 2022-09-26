@@ -51,15 +51,24 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
 
     fn item<Range>(&'arena self, item: &Item<'_, Range>) -> DocBuilder<'arena, Self> {
         match item {
-            Item::Definition { label, type_, expr } => self
+            Item::Def(item) => self
                 .concat([
                     self.text("def"),
                     self.space(),
-                    match type_ {
-                        None => self.string_id(label.1),
+                    match item.type_ {
+                        None => self.concat([
+                            self.string_id(item.label.1),
+                            self.ann_patterns(item.patterns),
+                            self.space(),
+                        ]),
                         Some(r#type) => self.concat([
-                            self.concat([self.string_id(label.1), self.space(), self.text(":")])
-                                .group(),
+                            self.concat([
+                                self.string_id(item.label.1),
+                                self.ann_patterns(item.patterns),
+                                self.space(),
+                                self.text(":"),
+                            ])
+                            .group(),
                             self.softline(),
                             self.term_prec(Prec::Top, r#type),
                         ]),
@@ -67,7 +76,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                     self.space(),
                     self.text("="),
                     self.softline(),
-                    self.term_prec(Prec::Let, expr),
+                    self.term_prec(Prec::Let, item.expr),
                     self.text(";"),
                 ])
                 .group(),
@@ -106,6 +115,18 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 ]),
             ),
         }
+    }
+
+    fn ann_patterns<Range>(
+        &'arena self,
+        patterns: &[(Pattern<Range>, Option<&Term<'_, Range>>)],
+    ) -> DocBuilder<'arena, Self> {
+        self.concat(patterns.iter().map(|(pattern, r#type)| {
+            self.concat([
+                self.space(),
+                self.ann_pattern(Prec::Atomic, pattern, *r#type),
+            ])
+        }))
     }
 
     pub fn term<Range>(&'arena self, term: &Term<'_, Range>) -> DocBuilder<'arena, Self> {
@@ -180,13 +201,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 self.concat([
                     self.concat([
                         self.text("fun"),
-                        self.space(),
-                        self.intersperse(
-                            patterns.iter().map(|(pattern, r#type)| {
-                                self.ann_pattern(Prec::Atomic, pattern, *r#type)
-                            }),
-                            self.space(),
-                        ),
+                        self.ann_patterns(patterns),
                         self.space(),
                         self.text("->"),
                     ])
@@ -210,13 +225,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 self.concat([
                     self.concat([
                         self.text("fun"),
-                        self.space(),
-                        self.intersperse(
-                            patterns.iter().map(|(pattern, r#type)| {
-                                self.ann_pattern(Prec::Atomic, pattern, *r#type)
-                            }),
-                            self.space(),
-                        ),
+                        self.ann_patterns(patterns),
                         self.space(),
                         self.text("=>"),
                     ])

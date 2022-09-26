@@ -3,7 +3,7 @@ use std::cell::RefCell;
 
 use crate::{StringId, StringInterner};
 use crate::source::{ByteRange, FileId};
-use crate::surface::{ExprField, FormatField, Item, Module, ParseMessage, Pattern, Term, TypeField, BinOp};
+use crate::surface::{ExprField, FormatField, Item, ItemDef, Module, ParseMessage, Pattern, Term, TypeField, BinOp};
 use crate::surface::lexer::{Error as LexerError, Token};
 
 grammar<'arena, 'source>(
@@ -71,12 +71,14 @@ pub Module: Module<'arena, ByteRange> = {
 };
 
 Item: Item<'arena, ByteRange> = {
-    <start: @L> "def" <label: RangedName> <type_: (":" <LetTerm>)?> "=" <expr: Term> ";" <end: @R> => {
-        Item::Definition {
+    <start: @L> "def" <label: RangedName> <patterns: AnnPattern*> <type_: (":" <LetTerm>)?> "=" <expr: Term> ";" <end: @R> => {
+        Item::Def(ItemDef {
+            range: ByteRange::new(file_id, start, end),
             label,
+            patterns: scope.to_scope_from_iter(patterns),
             type_: type_.map(|type_| scope.to_scope(type_) as &_),
             expr: scope.to_scope(expr),
-        }
+        })
     },
     <start: @L> <error: !> <end: @R> => {
         messages.push(ParseMessage::from_lalrpop_recovery(file_id, error));

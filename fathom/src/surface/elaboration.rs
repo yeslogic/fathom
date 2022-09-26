@@ -1074,44 +1074,21 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
     /// Elaborate a module
     pub fn elab_module(&mut self, surface_module: &Module<'_, ByteRange>) -> core::Module<'arena> {
         let elab_order = order::elaboration_order(self, surface_module);
-        let universe = self.universe.clone();
         let mut items = SliceVec::new(self.scope, elab_order.len());
 
         for item in elab_order.iter().copied().map(|i| &surface_module.items[i]) {
             match item {
-                Item::Definition {
-                    label: (_, label),
-                    type_: None,
-                    expr,
-                } => {
-                    let (expr, type_value) = self.synth(expr);
+                Item::Def(item) => {
+                    let (expr, type_value) =
+                        self.synth_fun_lit(item.range, item.patterns, item.expr, item.type_);
+                    let expr_value = self.eval_env().eval(&expr);
                     let r#type = self.quote_env(self.scope).quote(&type_value);
-                    let expr_value = self.eval_env().eval(&expr);
 
                     self.item_env
-                        .push_definition(*label, type_value, expr_value);
+                        .push_definition(item.label.1, type_value, expr_value);
 
-                    items.push(core::Item::Definition {
-                        label: *label,
-                        r#type: self.scope.to_scope(r#type),
-                        expr: self.scope.to_scope(expr),
-                    });
-                }
-                Item::Definition {
-                    label: (_, label),
-                    type_: Some(r#type),
-                    expr,
-                } => {
-                    let r#type = self.check(r#type, &universe);
-                    let type_value = self.eval_env().eval(&r#type);
-                    let expr = self.check(expr, &type_value);
-                    let expr_value = self.eval_env().eval(&expr);
-
-                    self.item_env
-                        .push_definition(*label, type_value, expr_value);
-
-                    items.push(core::Item::Definition {
-                        label: *label,
+                    items.push(core::Item::Def {
+                        label: item.label.1,
                         r#type: self.scope.to_scope(r#type),
                         expr: self.scope.to_scope(expr),
                     });
@@ -1700,7 +1677,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 (fun_type, self.universe.clone())
             }
             Term::FunLiteral(range, patterns, body_expr) => {
-                self.synth_fun_lit(*range, patterns, body_expr)
+                self.synth_fun_lit(*range, patterns, body_expr, None)
             }
             Term::App(range, head_expr, arg_exprs) => {
                 let head_range = head_expr.range();
@@ -1919,7 +1896,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
         expected_type: &ArcValue<'arena>,
     ) -> core::Term<'arena> {
         match patterns.split_first() {
-            Some(((pattern, r#type), next_params)) => {
+            Some(((pattern, r#type), next_patterns)) => {
                 let body_type = self.elim_env().force(expected_type);
                 match body_type.as_ref() {
                     Value::FunType(_, param_type, next_body_type) => {
@@ -1929,7 +1906,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
 
                         let body_type = self.elim_env().apply_closure(next_body_type, arg_expr);
                         let body_expr =
-                            self.check_fun_lit(range, next_params, body_expr, &body_type);
+                            self.check_fun_lit(range, next_patterns, body_expr, &body_type);
                         self.rigid_env.pop();
 
                         core::Term::FunLit(range.into(), name, self.scope.to_scope(body_expr))
@@ -1938,7 +1915,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                     // mode if we are checking against a flexible variable.
                     Value::Stuck(Head::FlexibleVar(_), _) => {
                         let range = ByteRange::merge(&pattern.range(), &body_expr.range()).unwrap();
-                        let (expr, r#type) = self.synth_fun_lit(range, patterns, body_expr);
+                        let (expr, r#type) = self.synth_fun_lit(range, patterns, body_expr, None);
                         self.convert(range, expr, &r#type, expected_type)
                     }
                     Value::Stuck(Head::Prim(Prim::ReportedError), _) => {
@@ -1963,6 +1940,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
         range: ByteRange,
         patterns: &[(Pattern<ByteRange>, Option<&Term<ByteRange>>)],
         body_expr: &Term<'_, ByteRange>,
+        body_type: Option<&Term<'_, ByteRange>>,
     ) -> (core::Term<'arena>, ArcValue<'arena>) {
         let initial_rigid_len = self.rigid_env.len();
 
@@ -1979,8 +1957,18 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
             params.push((range, name, r#type));
         }
 
-        let (mut fun_lit, body_type) = self.synth(body_expr);
-        let mut fun_type = self.quote_env(self.scope).quote(&body_type);
+        let (mut fun_lit, mut fun_type) = match body_type {
+            Some(body_type) => {
+                let body_type = self.check(body_type, &self.universe.clone());
+                let body_type_value = self.eval_env().eval(&body_type);
+                (self.check(body_expr, &body_type_value), body_type)
+            }
+            None => {
+                let (body_expr, body_type) = self.synth(body_expr);
+                (body_expr, self.quote_env(self.scope).quote(&body_type))
+            }
+        };
+
         self.rigid_env.truncate(initial_rigid_len);
 
         // Construct the function literal and type from the parameters in reverse

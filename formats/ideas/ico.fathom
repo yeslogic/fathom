@@ -7,10 +7,9 @@
 //! - [Wikipedia](https://en.wikipedia.org/wiki/ICO_(file_format))
 //! - [Wikidata](https://www.wikidata.org/wiki/Q729366)
 
-def reserved : fun (f : Format) -> Repr f -> Format =
-    fun f default =>
-        let data <- f;
-        return data;
+def reserved (f : Format) (reserved : Repr f) : Format =
+    let data <- f;
+    return data;
 
 def image = {
     width <- u8 if 0 then 256,
