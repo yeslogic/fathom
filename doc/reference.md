@@ -8,7 +8,7 @@ elaboration, and core language is forthcoming.
 
 ## Contents
 
-- [Modules](#items)
+- [Modules](#modules)
   - [Definitions](#definitions)
 - [Structure](#structure)
   - [Names](#names)
@@ -304,7 +304,7 @@ record format will fail to parse. For example:
 }
 ```
 
-This can be thought of as a shorthand form of [conditional formats](#conditional-format),
+This can be thought of as a shorthand form of [conditional formats](#conditional-formats),
 allowing the field label to be reused as the name bound by the conditional
 format. For example, the above format is equivalent to:
 
