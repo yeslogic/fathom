@@ -28,7 +28,7 @@ use std::sync::Arc;
 use crate::alloc::SliceVec;
 use crate::core::semantics::{self, ArcValue, Head, Telescope, Value};
 use crate::core::{self, binary, Const, Prim, UIntStyle};
-use crate::env::{self, EnvLen, GlobalVar, SharedEnv, SliceEnv, UniqueEnv};
+use crate::env::{self, EnvLen, Level, SharedEnv, SliceEnv, UniqueEnv};
 use crate::source::{ByteRange, Span, Spanned};
 use crate::surface::elaboration::reporting::Message;
 use crate::surface::{distillation, pretty, BinOp, FormatField, Item, Module, Pattern, Term};
@@ -69,8 +69,8 @@ impl<'arena> ItemEnv<'arena> {
         self.exprs.push(expr);
     }
 
-    pub fn get_name(&self, name: StringId) -> Option<(GlobalVar, ArcValue<'arena>)> {
-        itertools::izip!(env::global_vars(), self.names.iter(), self.types.iter())
+    pub fn get_name(&self, name: StringId) -> Option<(Level, ArcValue<'arena>)> {
+        itertools::izip!(env::levels(), self.names.iter(), self.types.iter())
             .find_map(|(var, n, r#type)| (name == *n).then(|| (var, r#type.clone())))
     }
 }
@@ -118,11 +118,10 @@ impl<'arena> RigidEnv<'arena> {
         use crate::core::Prim::*;
         use crate::core::Term;
 
-        const VAR0: Term<'_> = Term::RigidVar(Span::Empty, env::LocalVar::last());
-        const VAR1: Term<'_> = Term::RigidVar(Span::Empty, env::LocalVar::last().prev());
-        const VAR2: Term<'_> = Term::RigidVar(Span::Empty, env::LocalVar::last().prev().prev());
-        const VAR3: Term<'_> =
-            Term::RigidVar(Span::Empty, env::LocalVar::last().prev().prev().prev());
+        const VAR0: Term<'_> = Term::RigidVar(Span::Empty, env::Index::last());
+        const VAR1: Term<'_> = Term::RigidVar(Span::Empty, env::Index::last().prev());
+        const VAR2: Term<'_> = Term::RigidVar(Span::Empty, env::Index::last().prev().prev());
+        const VAR3: Term<'_> = Term::RigidVar(Span::Empty, env::Index::last().prev().prev().prev());
         const UNIVERSE: Term<'_> = Term::Universe(Span::Empty);
         const FORMAT_TYPE: Term<'_> = Term::Prim(Span::Empty, FormatType);
         const BOOL_TYPE: Term<'_> = Term::Prim(Span::Empty, BoolType);
@@ -537,7 +536,7 @@ impl<'arena> RigidEnv<'arena> {
     fn push_param(&mut self, name: Option<StringId>, r#type: ArcValue<'arena>) -> ArcValue<'arena> {
         // An expression that refers to itself once it is pushed onto the rigid
         // expression environment.
-        let expr = Spanned::empty(Arc::new(Value::rigid_var(self.exprs.len().next_global())));
+        let expr = Spanned::empty(Arc::new(Value::rigid_var(self.exprs.len().next_level())));
 
         self.names.push(name);
         self.types.push(r#type);
@@ -688,9 +687,9 @@ impl<'arena> FlexibleEnv<'arena> {
     }
 
     /// Push an unsolved flexible binder onto the context.
-    fn push(&mut self, source: FlexSource, r#type: ArcValue<'arena>) -> GlobalVar {
+    fn push(&mut self, source: FlexSource, r#type: ArcValue<'arena>) -> Level {
         // TODO: check that hole name is not already in use
-        let var = self.exprs.len().next_global();
+        let var = self.exprs.len().next_level();
 
         self.sources.push(source);
         self.types.push(r#type);
@@ -798,17 +797,17 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
     }
 
     /// Lookup an item name in the context.
-    fn get_item_name(&self, name: StringId) -> Option<(env::GlobalVar, &ArcValue<'arena>)> {
-        let item_var = self.item_env.names.elem_global(&name)?;
-        let item_type = self.item_env.types.get_global(item_var)?;
+    fn get_item_name(&self, name: StringId) -> Option<(env::Level, &ArcValue<'arena>)> {
+        let item_var = self.item_env.names.elem_level(&name)?;
+        let item_type = self.item_env.types.get_level(item_var)?;
 
         Some((item_var, item_type))
     }
 
     /// Lookup a rigid name in the context.
-    fn get_rigid_name(&self, name: StringId) -> Option<(env::LocalVar, &ArcValue<'arena>)> {
-        let rigid_var = self.rigid_env.names.elem_local(&Some(name))?;
-        let rigid_type = self.rigid_env.types.get_local(rigid_var)?;
+    fn get_rigid_name(&self, name: StringId) -> Option<(env::Index, &ArcValue<'arena>)> {
+        let rigid_var = self.rigid_env.names.elem_index(&Some(name))?;
+        let rigid_type = self.rigid_env.types.get_index(rigid_var)?;
 
         Some((rigid_var, rigid_type))
     }

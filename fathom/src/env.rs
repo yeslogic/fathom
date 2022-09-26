@@ -4,8 +4,8 @@
 //!
 //! Nameless variables are used to avoid the expense of keeping track of name
 //! substitutions during evaluation and conversion checking. We use a
-//! combination of [de Bruijn indices][LocalVar] in terms and [de Bruijn
-//! levels][GlobalVar] in values in order to avoid the expensive and error-prone
+//! combination of [de Bruijn indices][Index] in terms and [de Bruijn
+//! levels][Level] in values in order to avoid the expensive and error-prone
 //! shifting operations that are often associated with nameless approaches to
 //! environments. For more information on this approach, see section 3.1 of
 //! [Abel's habilitation thesis](https://www.cse.chalmers.se/~abela/habil.pdf).
@@ -42,31 +42,31 @@ type RawVar = u16;
 /// [de Bruijn index]: https://en.wikipedia.org/wiki/De_Bruijn_index
 /// [alpha-equivalence]: https://ncatlab.org/nlab/show/alpha-equivalence
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub struct LocalVar(RawVar);
+pub struct Index(RawVar);
 
-impl LocalVar {
+impl Index {
     /// The last variable to be bound in the environment.
-    pub const fn last() -> LocalVar {
-        LocalVar(0)
+    pub const fn last() -> Index {
+        Index(0)
     }
 
     /// Returns the previously bound variable, relative to this one.
-    pub const fn prev(self) -> LocalVar {
-        LocalVar(self.0 + 1) // FIXME: check overflow?
+    pub const fn prev(self) -> Index {
+        Index(self.0 + 1) // FIXME: check overflow?
     }
 }
 
-impl fmt::Debug for LocalVar {
+impl fmt::Debug for Index {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "LocalVar(")?;
+        write!(f, "Index(")?;
         self.0.fmt(f)?;
         write!(f, ")")
     }
 }
 
-/// An iterator over local variables, listed from the most recently bound.
-pub fn local_vars() -> impl Iterator<Item = LocalVar> {
-    (0..).map(LocalVar)
+/// An iterator over indices, listed from the most recently bound.
+pub fn indices() -> impl Iterator<Item = Index> {
+    (0..).map(Index)
 }
 
 /// A de Bruijn level, which represents a variable by counting the number of
@@ -79,35 +79,35 @@ pub fn local_vars() -> impl Iterator<Item = LocalVar> {
 /// | de Bruijn levels  | `λ_. λ_. λ_. 0 2 (1 2)` |
 ///
 /// Levels are used in [values][crate::core::semantics::Value] because they
-/// are not tied to a specific binding depth, unlike [indices][LocalVar].
+/// are not tied to a specific binding depth, unlike [indices][Index].
 /// Because of this, we're able to sidestep the need for expensive variable
 /// shifting during [normalisation][crate::core::semantics::EvalEnv::normalise].
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub struct GlobalVar(RawVar);
+pub struct Level(RawVar);
 
-impl GlobalVar {
+impl Level {
     /// The first variable to be bound in the environment.
-    pub const fn first() -> LocalVar {
-        LocalVar(0)
+    pub const fn first() -> Level {
+        Level(0)
     }
 
     /// Returns the next bound variable, relative to this one.
-    pub const fn next(self) -> GlobalVar {
-        GlobalVar(self.0 + 1) // FIXME: check overflow?
+    pub const fn next(self) -> Level {
+        Level(self.0 + 1) // FIXME: check overflow?
     }
 }
 
-impl fmt::Debug for GlobalVar {
+impl fmt::Debug for Level {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "GlobalVar(")?;
+        write!(f, "Level(")?;
         self.0.fmt(f)?;
         write!(f, ")")
     }
 }
 
-/// An iterator over global variables, listed from the least recently bound.
-pub fn global_vars() -> impl Iterator<Item = GlobalVar> {
-    (0..).map(GlobalVar)
+/// An iterator over levels, listed from the least recently bound.
+pub fn levels() -> impl Iterator<Item = Level> {
+    (0..).map(Level)
 }
 
 /// The length of an environment.
@@ -125,19 +125,19 @@ impl EnvLen {
         *self = EnvLen::new();
     }
 
-    /// Convert a local variable to a global variable in the current environment.
-    pub fn local_to_global(self, local: LocalVar) -> Option<GlobalVar> {
-        Some(GlobalVar(self.0.checked_sub(local.0)?.checked_sub(1)?))
+    /// Convert an index to a level in the current environment.
+    pub fn index_to_level(self, index: Index) -> Option<Level> {
+        Some(Level(self.0.checked_sub(index.0)?.checked_sub(1)?))
     }
 
-    /// Convert a global variable to a local variable in the current environment.
-    pub fn global_to_local(self, global: GlobalVar) -> Option<LocalVar> {
-        Some(LocalVar(self.0.checked_sub(global.0)?.checked_sub(1)?))
+    /// Convert a level to an index in the current environment.
+    pub fn level_to_index(self, level: Level) -> Option<Index> {
+        Some(Index(self.0.checked_sub(level.0)?.checked_sub(1)?))
     }
 
-    /// The next global variable that will be bound in this environment.
-    pub fn next_global(self) -> GlobalVar {
-        GlobalVar(self.0)
+    /// The next level that will be bound in this environment.
+    pub fn next_level(self) -> Level {
+        Level(self.0)
     }
 
     /// Push an entry onto the environment.
@@ -234,19 +234,19 @@ impl<Entry> SliceEnv<Entry> {
         EnvLen(self.entries.len() as RawVar)
     }
 
-    /// Lookup an entry in the environment using global variable reference.
-    pub fn get_global(&self, global_var: GlobalVar) -> Option<&Entry> {
-        self.entries.get(usize::from(global_var.0))
+    /// Lookup an entry in the environment using a level
+    pub fn get_level(&self, level: Level) -> Option<&Entry> {
+        self.entries.get(usize::from(level.0))
     }
 
-    /// Lookup an entry in the environment using a local variable reference.
-    pub fn get_local(&self, local_var: LocalVar) -> Option<&Entry> {
-        self.get_global(self.len().local_to_global(local_var)?)
+    /// Lookup an entry in the environment using an index
+    pub fn get_index(&self, index: Index) -> Option<&Entry> {
+        self.get_level(self.len().index_to_level(index)?)
     }
 
-    /// Set an entry in the environment using global variable reference.
-    pub fn set_global(&mut self, global_var: GlobalVar, entry: Entry) {
-        self.entries[usize::from(global_var.0)] = entry;
+    /// Set an entry in the environment using a level
+    pub fn set_level(&mut self, level: Level, entry: Entry) {
+        self.entries[usize::from(level.0)] = entry;
     }
 
     /// Iterate over the elements in the environment.
@@ -256,13 +256,12 @@ impl<Entry> SliceEnv<Entry> {
 }
 
 impl<Entry: PartialEq> SliceEnv<Entry> {
-    pub fn elem_global(&self, entry: &Entry) -> Option<GlobalVar> {
-        Iterator::zip(global_vars(), self.iter()).find_map(|(var, e)| (entry == e).then(|| var))
+    pub fn elem_level(&self, entry: &Entry) -> Option<Level> {
+        Iterator::zip(levels(), self.iter()).find_map(|(var, e)| (entry == e).then(|| var))
     }
 
-    pub fn elem_local(&self, entry: &Entry) -> Option<LocalVar> {
-        Iterator::zip(local_vars(), self.iter().rev())
-            .find_map(|(var, e)| (entry == e).then(|| var))
+    pub fn elem_index(&self, entry: &Entry) -> Option<Index> {
+        Iterator::zip(indices(), self.iter().rev()).find_map(|(var, e)| (entry == e).then(|| var))
     }
 }
 
@@ -299,14 +298,14 @@ impl<Entry> SharedEnv<Entry> {
         EnvLen(self.entries.len() as RawVar)
     }
 
-    /// Lookup an entry in the environment using global variable reference.
-    pub fn get_global(&self, global_var: GlobalVar) -> Option<&Entry> {
-        self.entries.get(usize::from(global_var.0))
+    /// Lookup an entry in the environment using a level
+    pub fn get_level(&self, level: Level) -> Option<&Entry> {
+        self.entries.get(usize::from(level.0))
     }
 
-    /// Lookup an entry in the environment using a local variable reference.
-    pub fn get_local(&self, local_var: LocalVar) -> Option<&Entry> {
-        self.get_global(self.len().local_to_global(local_var)?)
+    /// Lookup an entry in the environment using an index
+    pub fn get_index(&self, index: Index) -> Option<&Entry> {
+        self.get_level(self.len().index_to_level(index)?)
     }
 
     /// Push an entry onto the environment.

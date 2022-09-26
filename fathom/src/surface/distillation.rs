@@ -5,7 +5,7 @@ use std::cell::RefCell;
 
 use crate::alloc::SliceVec;
 use crate::core::UIntStyle;
-use crate::env::{self, EnvLen, GlobalVar, LocalVar, UniqueEnv};
+use crate::env::{self, EnvLen, Index, Level, UniqueEnv};
 use crate::source::Span;
 use crate::surface::elaboration::FlexSource;
 use crate::surface::{
@@ -48,16 +48,16 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
         self.rigid_names.len()
     }
 
-    fn get_item_name(&self, var: GlobalVar) -> Option<StringId> {
-        self.item_names.get_global(var).copied()
+    fn get_item_name(&self, var: Level) -> Option<StringId> {
+        self.item_names.get_level(var).copied()
     }
 
     fn push_item(&mut self, name: StringId) {
         self.item_names.push(name);
     }
 
-    fn get_rigid_name(&self, var: LocalVar) -> Option<StringId> {
-        self.rigid_names.get_local(var).copied().flatten()
+    fn get_rigid_name(&self, var: Index) -> Option<StringId> {
+        self.rigid_names.get_index(var).copied().flatten()
     }
 
     fn push_rigid(&mut self, name: Option<StringId>) -> StringId {
@@ -79,8 +79,8 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
         self.rigid_names.truncate(len);
     }
 
-    fn get_flexible_name(&self, var: GlobalVar) -> Option<StringId> {
-        match self.flexible_sources.get_global(var)? {
+    fn get_flexible_name(&self, var: Level) -> Option<StringId> {
+        match self.flexible_sources.get_level(var)? {
             FlexSource::HoleExpr(_, name) => Some(*name),
             _ => None,
         }
@@ -353,11 +353,11 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                     let head_expr = self.scope.to_scope(head_expr);
                     let mut arg_exprs = SliceVec::new(self.scope, num_params);
 
-                    for (var, info) in Iterator::zip(env::global_vars(), rigid_infos.iter()) {
+                    for (var, info) in Iterator::zip(env::levels(), rigid_infos.iter()) {
                         match info {
                             core::EntryInfo::Definition => {}
                             core::EntryInfo::Parameter => {
-                                let var = self.rigid_len().global_to_local(var).unwrap();
+                                let var = self.rigid_len().level_to_index(var).unwrap();
                                 arg_exprs.push(self.check(&core::Term::RigidVar(Span::Empty, var)));
                             }
                         }
@@ -400,7 +400,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                     match body_type {
                         // Use an explicit parameter if it is referenced in the body
                         core::Term::FunType(_, param_name, param_type, next_body_type)
-                            if next_body_type.binds_rigid_var(LocalVar::last()) =>
+                            if next_body_type.binds_rigid_var(Index::last()) =>
                         {
                             let param_type = self.check(param_type);
                             let param_name = self.push_rigid(*param_name);

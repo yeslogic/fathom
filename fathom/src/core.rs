@@ -1,6 +1,6 @@
 //! Core language.
 
-use crate::env::{GlobalVar, LocalVar};
+use crate::env::{Index, Level};
 use crate::source::Span;
 use crate::StringId;
 
@@ -44,7 +44,7 @@ pub enum Term<'arena> {
     /// Item variable occurrences.
     ///
     /// These refer to [items][Item] bound at the top-level of a [module][Module].
-    ItemVar(Span, GlobalVar),
+    ItemVar(Span, Level),
     /// Rigid variable occurrences.
     ///
     /// These correspond to variables that were most likely bound as a result of
@@ -59,7 +59,7 @@ pub enum Term<'arena> {
     ///
     /// - [A unification algorithm for typed λ-calculus](https://doi.org/10.1016/0304-3975(75)90011-0)
     /// - [Type Classes: Rigid type variables](https://typeclasses.com/rigid-type-variables)
-    RigidVar(Span, LocalVar),
+    RigidVar(Span, Index),
     /// Flexible variable occurrences.
     ///
     /// These are inserted during [elaboration] when we have something we want
@@ -70,7 +70,7 @@ pub enum Term<'arena> {
     /// Also known as: metavariables.
     ///
     /// [elaboration]: crate::surface::elaboration
-    FlexibleVar(Span, GlobalVar),
+    FlexibleVar(Span, Level),
     /// A flexible variable that has been inserted during elaboration, along
     /// with the [entry information] in the rigid environment at the time of
     /// insertion.
@@ -124,7 +124,7 @@ pub enum Term<'arena> {
     //
     // - https://lib.rs/crates/smallbitvec
     // - https://lib.rs/crates/bit-vec
-    FlexibleInsertion(Span, GlobalVar, &'arena [EntryInfo]),
+    FlexibleInsertion(Span, Level, &'arena [EntryInfo]),
     /// Annotated expressions.
     Ann(Span, &'arena Term<'arena>, &'arena Term<'arena>),
     /// Let expressions.
@@ -217,7 +217,7 @@ impl<'arena> Term<'arena> {
     }
 
     /// Returns `true` if the term contains an occurrence of the rigid variable.
-    pub fn binds_rigid_var(&self, mut var: LocalVar) -> bool {
+    pub fn binds_rigid_var(&self, mut var: Index) -> bool {
         match self {
             Term::RigidVar(_, v) => *v == var,
             Term::ItemVar(_, _)

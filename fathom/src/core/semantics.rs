@@ -7,7 +7,7 @@ use std::sync::Arc;
 
 use crate::alloc::SliceVec;
 use crate::core::{Const, EntryInfo, Prim, Term, UIntStyle};
-use crate::env::{EnvLen, GlobalVar, SharedEnv, SliceEnv};
+use crate::env::{EnvLen, Level, SharedEnv, SliceEnv};
 use crate::source::{Span, Spanned};
 use crate::StringId;
 
@@ -58,12 +58,12 @@ impl<'arena> Value<'arena> {
         Value::Stuck(Head::Prim(prim), params)
     }
 
-    pub fn rigid_var(global: GlobalVar) -> Value<'arena> {
-        Value::Stuck(Head::RigidVar(global), Vec::new())
+    pub fn rigid_var(level: Level) -> Value<'arena> {
+        Value::Stuck(Head::RigidVar(level), Vec::new())
     }
 
-    pub fn flexible_var(global: GlobalVar) -> Value<'arena> {
-        Value::Stuck(Head::FlexibleVar(global), Vec::new())
+    pub fn flexible_var(level: Level) -> Value<'arena> {
+        Value::Stuck(Head::FlexibleVar(level), Vec::new())
     }
 
     pub fn match_prim_spine(&self) -> Option<(Prim, &[Elim<'arena>])> {
@@ -80,9 +80,9 @@ pub enum Head {
     /// Primitives that have not yet been reduced.
     Prim(Prim),
     /// Variables that refer to rigid binders.
-    RigidVar(GlobalVar),
+    RigidVar(Level),
     /// Variables that refer to unsolved flexible problems.
-    FlexibleVar(GlobalVar), // TODO: Use a RefCell here?
+    FlexibleVar(Level), // TODO: Use a RefCell here?
 }
 
 /// A pending elimination to be reduced if the [head][Head] of a [stuck
@@ -283,15 +283,15 @@ impl<'arena, 'env> EvalEnv<'arena, 'env> {
     /// twitter thread](https://twitter.com/brendanzab/status/1423536653658771457)).
     pub fn eval(&mut self, term: &Term<'arena>) -> ArcValue<'arena> {
         match term {
-            Term::ItemVar(span, var) => match self.item_exprs.get_global(*var) {
+            Term::ItemVar(span, var) => match self.item_exprs.get_level(*var) {
                 Some(value) => Spanned::new(*span, Arc::clone(value)),
                 None => panic_any(Error::InvalidItemVar),
             },
-            Term::RigidVar(span, var) => match self.rigid_exprs.get_local(*var) {
+            Term::RigidVar(span, var) => match self.rigid_exprs.get_index(*var) {
                 Some(value) => Spanned::new(*span, Arc::clone(value)),
                 None => panic_any(Error::InvalidRigidVar),
             },
-            Term::FlexibleVar(span, var) => match self.flexible_exprs.get_global(*var) {
+            Term::FlexibleVar(span, var) => match self.flexible_exprs.get_level(*var) {
                 Some(Some(value)) => Spanned::new(*span, Arc::clone(value)),
                 Some(None) => Spanned::new(*span, Arc::new(Value::flexible_var(*var))),
                 None => panic_any(Error::InvalidFlexibleVar),
@@ -639,7 +639,7 @@ impl<'arena, 'env> ElimEnv<'arena, 'env> {
         let mut forced_value = value.clone();
         // Attempt to force flexible values until we don't see any more.
         while let Value::Stuck(Head::FlexibleVar(var), spine) = forced_value.as_ref() {
-            match self.flexible_exprs.get_global(*var) {
+            match self.flexible_exprs.get_level(*var) {
                 // Apply the spine to the solution. This might uncover another
                 // flexible value so we'll continue looping.
                 Some(Some(expr)) => forced_value = self.apply_spine(expr.clone(), spine),
@@ -910,7 +910,7 @@ impl<'in_arena, 'out_arena, 'env> QuoteEnv<'in_arena, 'out_arena, 'env> {
                     Head::Prim(prim) => Term::Prim(span, *prim),
                     Head::RigidVar(var) => {
                         // FIXME: Unwrap
-                        Term::RigidVar(span, self.rigid_exprs.global_to_local(*var).unwrap())
+                        Term::RigidVar(span, self.rigid_exprs.level_to_index(*var).unwrap())
                     }
                     Head::FlexibleVar(var) => Term::FlexibleVar(span, *var),
                 };
@@ -1020,7 +1020,7 @@ impl<'in_arena, 'out_arena, 'env> QuoteEnv<'in_arena, 'out_arena, 'env> {
 
     /// Quote a [closure][Closure] back into a [term][Term].
     fn quote_closure(&mut self, closure: &Closure<'in_arena>) -> Term<'out_arena> {
-        let var = Arc::new(Value::rigid_var(self.rigid_exprs.next_global()));
+        let var = Arc::new(Value::rigid_var(self.rigid_exprs.next_level()));
         let value = self.elim_env().apply_closure(closure, Spanned::empty(var));
 
         self.push_rigid();
@@ -1040,7 +1040,7 @@ impl<'in_arena, 'out_arena, 'env> QuoteEnv<'in_arena, 'out_arena, 'env> {
         let mut terms = SliceVec::new(self.scope, telescope.len());
 
         while let Some((value, next_telescope)) = self.elim_env().split_telescope(telescope) {
-            let var = Arc::new(Value::rigid_var(self.rigid_exprs.next_global()));
+            let var = Arc::new(Value::rigid_var(self.rigid_exprs.next_level()));
             telescope = next_telescope(Spanned::empty(var));
             terms.push(self.quote(&value));
             self.rigid_exprs.push();
@@ -1178,7 +1178,7 @@ impl<'arena, 'env> ConversionEnv<'arena, 'env> {
 
     /// Check that two [closures][Closure] are equal.
     pub fn is_equal_closures(&mut self, closure0: &Closure<'_>, closure1: &Closure<'_>) -> bool {
-        let var = Spanned::empty(Arc::new(Value::rigid_var(self.rigid_exprs.next_global())));
+        let var = Spanned::empty(Arc::new(Value::rigid_var(self.rigid_exprs.next_level())));
         let value0 = self.elim_env().apply_closure(closure0, var.clone());
         let value1 = self.elim_env().apply_closure(closure1, var);
 
@@ -1212,7 +1212,7 @@ impl<'arena, 'env> ConversionEnv<'arena, 'env> {
                 return false;
             }
 
-            let var = Spanned::empty(Arc::new(Value::rigid_var(self.rigid_exprs.next_global())));
+            let var = Spanned::empty(Arc::new(Value::rigid_var(self.rigid_exprs.next_level())));
             telescope0 = next_telescope0(var.clone());
             telescope1 = next_telescope1(var);
             self.rigid_exprs.push();
@@ -1260,7 +1260,7 @@ impl<'arena, 'env> ConversionEnv<'arena, 'env> {
     /// (fun x => f x) = f
     /// ```
     fn is_equal_fun_lit(&mut self, body_expr: &Closure<'_>, value: &ArcValue<'_>) -> bool {
-        let var = Spanned::empty(Arc::new(Value::rigid_var(self.rigid_exprs.next_global())));
+        let var = Spanned::empty(Arc::new(Value::rigid_var(self.rigid_exprs.next_level())));
         let value = self.elim_env().fun_app(value.clone(), var.clone());
         let body_expr = self.elim_env().apply_closure(body_expr, var);
 
