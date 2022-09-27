@@ -249,7 +249,7 @@ impl std::error::Error for BufferError {}
 
 pub struct Context<'arena, 'env, 'data> {
     item_exprs: &'env SliceEnv<ArcValue<'arena>>,
-    flexible_exprs: &'env SliceEnv<Option<ArcValue<'arena>>>,
+    meta_exprs: &'env SliceEnv<Option<ArcValue<'arena>>>,
     initial_buffer: Buffer<'data>,
     pending_formats: Vec<(usize, ArcValue<'arena>)>,
     cached_refs: HashMap<usize, Vec<ParsedRef<'arena>>>,
@@ -267,12 +267,12 @@ pub struct ParsedRef<'arena> {
 impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
     pub fn new(
         item_exprs: &'env SliceEnv<ArcValue<'arena>>,
-        flexible_exprs: &'env SliceEnv<Option<ArcValue<'arena>>>,
+        meta_exprs: &'env SliceEnv<Option<ArcValue<'arena>>>,
         initial_buffer: Buffer<'data>,
     ) -> Context<'arena, 'env, 'data> {
         Context {
             item_exprs,
-            flexible_exprs,
+            meta_exprs,
             initial_buffer,
             pending_formats: Vec::new(),
             cached_refs: HashMap::new(),
@@ -280,11 +280,11 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
     }
 
     fn elim_env(&self) -> semantics::ElimEnv<'arena, 'env> {
-        semantics::ElimEnv::new(self.item_exprs, self.flexible_exprs)
+        semantics::ElimEnv::new(self.item_exprs, self.meta_exprs)
     }
 
     fn conversion_env(&self) -> semantics::ConversionEnv<'arena, 'env> {
-        semantics::ConversionEnv::new(self.item_exprs, EnvLen::new(), self.flexible_exprs)
+        semantics::ConversionEnv::new(self.item_exprs, EnvLen::new(), self.meta_exprs)
     }
 
     pub fn read_entrypoint(
@@ -370,8 +370,8 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
                 ))
             }
 
-            Value::Stuck(Head::RigidVar(_), _)
-            | Value::Stuck(Head::FlexibleVar(_), _)
+            Value::Stuck(Head::LocalVar(_), _)
+            | Value::Stuck(Head::MetaVar(_), _)
             | Value::Universe
             | Value::FunType(_, _, _)
             | Value::FunLit(_, _)

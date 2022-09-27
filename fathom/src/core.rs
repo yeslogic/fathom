@@ -1,6 +1,6 @@
 //! Core language.
 
-use crate::env::{GlobalVar, LocalVar};
+use crate::env::{Index, Level};
 use crate::source::Span;
 use crate::StringId;
 
@@ -25,13 +25,12 @@ pub enum Item<'arena> {
     },
 }
 
-/// Information about how entries were bound in the rigid environment. This is
-/// used when inserting [flexible variables][Term::FlexibleInsertion] during
-/// elaboration.
+/// Information about how local variables were bound. This is  used when
+/// inserting [metavariables][Term::InsertedMeta] during elaboration.
 //
 // See also: https://en.wikipedia.org/wiki/Abstract_and_concrete
 #[derive(Debug, Copy, Clone)]
-pub enum EntryInfo {
+pub enum LocalInfo {
     /// The entry was bound as a definition in the environment.
     Definition,
     /// The entry was bound as a parameter in the environment
@@ -44,8 +43,8 @@ pub enum Term<'arena> {
     /// Item variable occurrences.
     ///
     /// These refer to [items][Item] bound at the top-level of a [module][Module].
-    ItemVar(Span, GlobalVar),
-    /// Rigid variable occurrences.
+    ItemVar(Span, Level),
+    /// Local variable occurrences.
     ///
     /// These correspond to variables that were most likely bound as a result of
     /// user code, for example from [let expressions]), [function types] and
@@ -58,27 +57,24 @@ pub enum Term<'arena> {
     /// ## References
     ///
     /// - [A unification algorithm for typed λ-calculus](https://doi.org/10.1016/0304-3975(75)90011-0)
-    /// - [Type Classes: Rigid type variables](https://typeclasses.com/rigid-type-variables)
-    RigidVar(Span, LocalVar),
-    /// Flexible variable occurrences.
+    /// - [Type Classes: Rigid type variables](https://typeclasses.com/local-type-variables)
+    LocalVar(Span, Index),
+    /// Metavariable occurrences.
     ///
-    /// These are inserted during [elaboration] when we have something we want
-    /// pattern unification to fill in for us. They are 'flexible' because the
-    /// expressions that they correspond to might be updated (from unknown to
-    /// known) during unification.
-    ///
-    /// Also known as: metavariables.
+    /// These refer to unification problems that were originally inserted during
+    /// [elaboration]. when we have a term that we want pattern unification to
+    /// infer for us based on how the variable is used later on in the program.
     ///
     /// [elaboration]: crate::surface::elaboration
-    FlexibleVar(Span, GlobalVar),
-    /// A flexible variable that has been inserted during elaboration, along
-    /// with the [entry information] in the rigid environment at the time of
+    MetaVar(Span, Level),
+    /// A metavariable that has been inserted during elaboration, along
+    /// with the [entry information] in the local environment at the time of
     /// insertion.
     ///
-    /// The entry information will let us know what rigidly bound parameters to
-    /// apply to the flexible variable during [evaluation]. The applied
-    /// parameters will correspond to the [function literals] that will be
-    /// added to the flexible solution during unification.
+    /// The entry information will let us know what locally bound parameters to
+    /// apply to the metavariable during [evaluation]. The applied parameters
+    /// will correspond to the [function literals] that will be added to the
+    /// meta solution during unification.
     ///
     /// We clone the entry information and perform the function applications
     /// during evaluation because elaborating to a series of [function
@@ -105,12 +101,12 @@ pub enum Term<'arena> {
     /// //                        │ │
     /// //                        ▼ ▼
     ///        let b : A = a; (?x A a);
-    /// //                     ^^^^^^  the flexible insertion
+    /// //                     ^^^^^^  the inserted metavariable
     /// Type
     /// ```
     ///
-    /// Notice how `A` and `a` are applied to the flexible variable `?x`,
-    /// because they are bound as rigid parameters, where as `b` is _not_
+    /// Notice how `A` and `a` are applied to the metavariable `?x`,
+    /// because they are bound as local parameters, where as `b` is _not_
     /// applied, because it is bound as a definition.
     ///
     /// [entry information]: EntryInfo
@@ -124,7 +120,7 @@ pub enum Term<'arena> {
     //
     // - https://lib.rs/crates/smallbitvec
     // - https://lib.rs/crates/bit-vec
-    FlexibleInsertion(Span, GlobalVar, &'arena [EntryInfo]),
+    InsertedMeta(Span, Level, &'arena [LocalInfo]),
     /// Annotated expressions.
     Ann(Span, &'arena Term<'arena>, &'arena Term<'arena>),
     /// Let expressions.
@@ -194,9 +190,9 @@ impl<'arena> Term<'arena> {
     pub fn span(&self) -> Span {
         match self {
             Term::ItemVar(span, _)
-            | Term::RigidVar(span, _)
-            | Term::FlexibleVar(span, _)
-            | Term::FlexibleInsertion(span, _, _)
+            | Term::LocalVar(span, _)
+            | Term::MetaVar(span, _)
+            | Term::InsertedMeta(span, _, _)
             | Term::Ann(span, _, _)
             | Term::Let(span, _, _, _, _)
             | Term::Universe(span)
@@ -216,49 +212,47 @@ impl<'arena> Term<'arena> {
         }
     }
 
-    /// Returns `true` if the term contains an occurrence of the rigid variable.
-    pub fn binds_rigid_var(&self, mut var: LocalVar) -> bool {
+    /// Returns `true` if the term contains an occurrence of the local variable.
+    pub fn binds_local(&self, mut var: Index) -> bool {
         match self {
-            Term::RigidVar(_, v) => *v == var,
+            Term::LocalVar(_, v) => *v == var,
             Term::ItemVar(_, _)
-            | Term::FlexibleVar(_, _)
-            | Term::FlexibleInsertion(_, _, _)
+            | Term::MetaVar(_, _)
+            | Term::InsertedMeta(_, _, _)
             | Term::Universe(_)
             | Term::Prim(_, _)
             | Term::ConstLit(_, _) => false,
 
-            Term::Ann(_, expr, r#type) => expr.binds_rigid_var(var) || r#type.binds_rigid_var(var),
+            Term::Ann(_, expr, r#type) => expr.binds_local(var) || r#type.binds_local(var),
             Term::Let(_, _, def_type, def_expr, body_expr) => {
-                def_type.binds_rigid_var(var)
-                    || def_expr.binds_rigid_var(var)
-                    || body_expr.binds_rigid_var(var.prev())
+                def_type.binds_local(var)
+                    || def_expr.binds_local(var)
+                    || body_expr.binds_local(var.prev())
             }
             Term::FunType(_, _, param_type, body_type) => {
-                param_type.binds_rigid_var(var) || body_type.binds_rigid_var(var.prev())
+                param_type.binds_local(var) || body_type.binds_local(var.prev())
             }
-            Term::FunLit(_, _, body_expr) => body_expr.binds_rigid_var(var.prev()),
+            Term::FunLit(_, _, body_expr) => body_expr.binds_local(var.prev()),
             Term::FunApp(_, head_expr, arg_expr) => {
-                head_expr.binds_rigid_var(var) || arg_expr.binds_rigid_var(var)
+                head_expr.binds_local(var) || arg_expr.binds_local(var)
             }
             Term::RecordType(_, _, terms)
             | Term::RecordLit(_, _, terms)
             | Term::FormatRecord(_, _, terms)
             | Term::FormatOverlap(_, _, terms) => terms.iter().any(|term| {
-                let result = term.binds_rigid_var(var);
+                let result = term.binds_local(var);
                 var = var.prev();
                 result
             }),
-            Term::RecordProj(_, head_expr, _) => head_expr.binds_rigid_var(var),
-            Term::ArrayLit(_, elem_exprs) => {
-                elem_exprs.iter().any(|term| term.binds_rigid_var(var))
-            }
+            Term::RecordProj(_, head_expr, _) => head_expr.binds_local(var),
+            Term::ArrayLit(_, elem_exprs) => elem_exprs.iter().any(|term| term.binds_local(var)),
             Term::FormatCond(_, _, format, pred) => {
-                format.binds_rigid_var(var) || pred.binds_rigid_var(var.prev())
+                format.binds_local(var) || pred.binds_local(var.prev())
             }
             Term::ConstMatch(_, scrut, branches, default_expr) => {
-                scrut.binds_rigid_var(var)
-                    || branches.iter().any(|(_, term)| term.binds_rigid_var(var))
-                    || default_expr.map_or(false, |term| term.binds_rigid_var(var.prev()))
+                scrut.binds_local(var)
+                    || branches.iter().any(|(_, term)| term.binds_local(var))
+                    || default_expr.map_or(false, |term| term.binds_local(var.prev()))
             }
         }
     }

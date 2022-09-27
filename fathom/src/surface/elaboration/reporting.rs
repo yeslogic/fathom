@@ -3,7 +3,7 @@ use itertools::Itertools;
 use std::cell::RefCell;
 
 use crate::source::{ByteRange, FileId};
-use crate::surface::elaboration::{unification, FlexSource};
+use crate::surface::elaboration::{unification, MetaSource};
 use crate::surface::BinOp;
 use crate::{StringId, StringInterner, BUG_REPORT_URL};
 
@@ -106,9 +106,9 @@ pub enum Message {
         lhs: String,
         rhs: String,
     },
-    /// A solution for a flexible variable could not be found.
-    UnsolvedFlexibleVar {
-        source: FlexSource,
+    /// A solution for a metavariable could not be found.
+    UnsolvedMetaVar {
+        source: MetaSource,
         // TODO: add type
         // type: Doc<_>,
     },
@@ -401,7 +401,7 @@ impl Message {
                         SpineError::NonLinearSpine(_var) => Diagnostic::error()
                             .with_message("variable appeared more than once in problem spine")
                             .with_labels(vec![primary_label(range)]),
-                        SpineError::NonRigidFunApp => Diagnostic::error()
+                        SpineError::NonLocalFunApp => Diagnostic::error()
                             .with_message("non-variable function application in problem spine")
                             .with_labels(vec![primary_label(range)]),
                         SpineError::RecordProj(_label) => Diagnostic::error()
@@ -412,8 +412,8 @@ impl Message {
                             .with_labels(vec![primary_label(range)]),
                     },
                     Error::Rename(error) => match error {
-                        RenameError::EscapingRigidVar(_var) => Diagnostic::error()
-                            .with_message("escaping rigid variable")
+                        RenameError::EscapingLocalVar(_var) => Diagnostic::error()
+                            .with_message("escaping local variable")
                             .with_labels(vec![primary_label(range)]),
                         RenameError::InfiniteSolution => Diagnostic::error()
                             .with_message("infinite solution")
@@ -433,18 +433,18 @@ impl Message {
                         name, expr,
                     )])
             }
-            Message::UnsolvedFlexibleVar { source } => {
+            Message::UnsolvedMetaVar { source } => {
                 let (range, source_name) = match source {
-                    FlexSource::HoleType(range, _) => (range, "hole type"), // should never appear in user-facing output
-                    FlexSource::HoleExpr(range, _) => (range, "hole expression"),
-                    FlexSource::PlaceholderType(range) => (range, "placeholder type"), // should never appear in user-facing output
-                    FlexSource::PlaceholderExpr(range) => (range, "placeholder expression"),
-                    FlexSource::PlaceholderPatternType(range) => {
+                    MetaSource::HoleType(range, _) => (range, "hole type"), // should never appear in user-facing output
+                    MetaSource::HoleExpr(range, _) => (range, "hole expression"),
+                    MetaSource::PlaceholderType(range) => (range, "placeholder type"), // should never appear in user-facing output
+                    MetaSource::PlaceholderExpr(range) => (range, "placeholder expression"),
+                    MetaSource::PlaceholderPatternType(range) => {
                         (range, "placeholder pattern type")
                     }
-                    FlexSource::NamedPatternType(range, _) => (range, "named pattern type"),
-                    FlexSource::MatchExprType(range) => (range, "match expression type"),
-                    FlexSource::ReportedErrorType(range) => (range, "error type"), // should never appear in user-facing output
+                    MetaSource::NamedPatternType(range, _) => (range, "named pattern type"),
+                    MetaSource::MatchExprType(range) => (range, "match expression type"),
+                    MetaSource::ReportedErrorType(range) => (range, "error type"), // should never appear in user-facing output
                 };
 
                 Diagnostic::error()

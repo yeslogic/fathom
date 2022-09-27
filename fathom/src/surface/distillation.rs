@@ -5,9 +5,9 @@ use std::cell::RefCell;
 
 use crate::alloc::SliceVec;
 use crate::core::UIntStyle;
-use crate::env::{self, EnvLen, GlobalVar, LocalVar, UniqueEnv};
+use crate::env::{self, EnvLen, Index, Level, UniqueEnv};
 use crate::source::Span;
-use crate::surface::elaboration::FlexSource;
+use crate::surface::elaboration::MetaSource;
 use crate::surface::{
     BinOp, ExprField, FormatField, Item, ItemDef, Module, Pattern, Term, TypeField,
 };
@@ -20,10 +20,10 @@ pub struct Context<'interner, 'arena, 'env> {
     scope: &'arena Scope<'arena>,
     /// Item name environment.
     item_names: &'env mut UniqueEnv<StringId>,
-    /// Rigid name environment.
-    rigid_names: &'env mut UniqueEnv<Option<StringId>>,
-    /// Flexible sources.
-    flexible_sources: &'env UniqueEnv<FlexSource>,
+    /// Local name environment.
+    local_names: &'env mut UniqueEnv<Option<StringId>>,
+    /// Metavariable sources.
+    meta_sources: &'env UniqueEnv<MetaSource>,
 }
 
 impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
@@ -32,56 +32,56 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
         interner: &'interner RefCell<StringInterner>,
         scope: &'arena Scope<'arena>,
         item_names: &'env mut UniqueEnv<StringId>,
-        rigid_names: &'env mut UniqueEnv<Option<StringId>>,
-        flexible_sources: &'env UniqueEnv<FlexSource>,
+        local_names: &'env mut UniqueEnv<Option<StringId>>,
+        meta_sources: &'env UniqueEnv<MetaSource>,
     ) -> Context<'interner, 'arena, 'env> {
         Context {
             interner,
             scope,
             item_names,
-            rigid_names,
-            flexible_sources,
+            local_names,
+            meta_sources,
         }
     }
 
-    fn rigid_len(&mut self) -> EnvLen {
-        self.rigid_names.len()
+    fn local_len(&mut self) -> EnvLen {
+        self.local_names.len()
     }
 
-    fn get_item_name(&self, var: GlobalVar) -> Option<StringId> {
-        self.item_names.get_global(var).copied()
+    fn get_item_name(&self, var: Level) -> Option<StringId> {
+        self.item_names.get_level(var).copied()
     }
 
     fn push_item(&mut self, name: StringId) {
         self.item_names.push(name);
     }
 
-    fn get_rigid_name(&self, var: LocalVar) -> Option<StringId> {
-        self.rigid_names.get_local(var).copied().flatten()
+    fn get_local_name(&self, var: Index) -> Option<StringId> {
+        self.local_names.get_index(var).copied().flatten()
     }
 
-    fn push_rigid(&mut self, name: Option<StringId>) -> StringId {
+    fn push_local(&mut self, name: Option<StringId>) -> StringId {
         let name = name.unwrap_or_else(|| {
             self.interner.borrow_mut().get_or_intern_static("_") // TODO: choose a better name?
         });
 
         // TODO: avoid globals
         // TODO: ensure we chose a correctly bound name
-        self.rigid_names.push(Some(name));
+        self.local_names.push(Some(name));
         name
     }
 
-    fn pop_rigid(&mut self) {
-        self.rigid_names.pop();
+    fn pop_local(&mut self) {
+        self.local_names.pop();
     }
 
-    fn truncate_rigid(&mut self, len: EnvLen) {
-        self.rigid_names.truncate(len);
+    fn truncate_local(&mut self, len: EnvLen) {
+        self.local_names.truncate(len);
     }
 
-    fn get_flexible_name(&self, var: GlobalVar) -> Option<StringId> {
-        match self.flexible_sources.get_global(var)? {
-            FlexSource::HoleExpr(_, name) => Some(*name),
+    fn get_hole_name(&self, var: Level) -> Option<StringId> {
+        match self.meta_sources.get_level(var)? {
+            MetaSource::HoleExpr(_, name) => Some(*name),
             _ => None,
         }
     }
@@ -211,9 +211,9 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 let def_type = self.synth(def_type);
                 let def_expr = self.check(def_expr);
 
-                let def_name = self.push_rigid(*def_name);
+                let def_name = self.push_local(*def_name);
                 let body_expr = self.check(body_expr);
-                self.pop_rigid();
+                self.pop_local();
 
                 Term::Let(
                     (),
@@ -224,15 +224,15 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 )
             }
             core::Term::FunLit(_, param_name, mut body_expr) => {
-                let initial_rigid_len = self.rigid_len();
-                let mut param_names = vec![self.push_rigid(*param_name)];
+                let initial_local_len = self.local_len();
+                let mut param_names = vec![self.push_local(*param_name)];
                 while let core::Term::FunLit(_, param_name, next_body_expr) = body_expr {
-                    param_names.push(self.push_rigid(*param_name));
+                    param_names.push(self.push_local(*param_name));
                     body_expr = next_body_expr;
                 }
 
                 let body_expr = self.check(body_expr);
-                self.truncate_rigid(initial_rigid_len);
+                self.truncate_local(initial_local_len);
 
                 let patterns = param_names
                     .into_iter()
@@ -285,9 +285,9 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 match default_expr {
                     Some(default_expr) => {
                         let default_branch = {
-                            let name = self.push_rigid(None);
+                            let name = self.push_local(None);
                             let default_expr = self.check(default_expr);
-                            self.pop_rigid();
+                            self.pop_local();
 
                             (Pattern::Name((), name), default_expr)
                         };
@@ -332,19 +332,19 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 Some(name) => Term::Name((), name),
                 None => todo!("misbound variable"), // TODO: error?
             },
-            core::Term::RigidVar(_span, var) => match self.get_rigid_name(*var) {
+            core::Term::LocalVar(_span, var) => match self.get_local_name(*var) {
                 Some(name) => Term::Name((), name),
                 None => todo!("misbound variable"), // TODO: error?
             },
-            core::Term::FlexibleVar(_span, var) => match self.get_flexible_name(*var) {
+            core::Term::MetaVar(_span, var) => match self.get_hole_name(*var) {
                 Some(name) => Term::Hole((), name),
                 None => Term::Placeholder(()),
             },
-            core::Term::FlexibleInsertion(span, var, rigid_infos) => {
-                let head_expr = self.synth(&core::Term::FlexibleVar(*span, *var));
-                let num_params = rigid_infos
+            core::Term::InsertedMeta(span, var, local_infos) => {
+                let head_expr = self.synth(&core::Term::MetaVar(*span, *var));
+                let num_params = local_infos
                     .iter()
-                    .filter(|info| matches!(info, core::EntryInfo::Parameter))
+                    .filter(|info| matches!(info, core::LocalInfo::Parameter))
                     .count();
 
                 if num_params == 0 {
@@ -353,12 +353,12 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                     let head_expr = self.scope.to_scope(head_expr);
                     let mut arg_exprs = SliceVec::new(self.scope, num_params);
 
-                    for (var, info) in Iterator::zip(env::global_vars(), rigid_infos.iter()) {
+                    for (var, info) in Iterator::zip(env::levels(), local_infos.iter()) {
                         match info {
-                            core::EntryInfo::Definition => {}
-                            core::EntryInfo::Parameter => {
-                                let var = self.rigid_len().global_to_local(var).unwrap();
-                                arg_exprs.push(self.check(&core::Term::RigidVar(Span::Empty, var)));
+                            core::LocalInfo::Definition => {}
+                            core::LocalInfo::Parameter => {
+                                let var = self.local_len().level_to_index(var).unwrap();
+                                arg_exprs.push(self.check(&core::Term::LocalVar(Span::Empty, var)));
                             }
                         }
                     }
@@ -376,9 +376,9 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 let def_type = self.synth(def_type);
                 let def_expr = self.check(def_expr);
 
-                let def_name = self.push_rigid(*def_name);
+                let def_name = self.push_local(*def_name);
                 let body_expr = self.synth(body_expr);
-                self.pop_rigid();
+                self.pop_local();
 
                 Term::Let(
                     (),
@@ -391,7 +391,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
             core::Term::Universe(_span) => Term::Universe(()),
 
             core::Term::FunType(..) => {
-                let initial_rigid_len = self.rigid_len();
+                let initial_local_len = self.local_len();
 
                 let mut patterns = Vec::new();
                 let mut body_type = core_term;
@@ -400,10 +400,10 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                     match body_type {
                         // Use an explicit parameter if it is referenced in the body
                         core::Term::FunType(_, param_name, param_type, next_body_type)
-                            if next_body_type.binds_rigid_var(LocalVar::last()) =>
+                            if next_body_type.binds_local(Index::last()) =>
                         {
                             let param_type = self.check(param_type);
-                            let param_name = self.push_rigid(*param_name);
+                            let param_name = self.push_local(*param_name);
                             patterns.push((
                                 Pattern::Name((), param_name),
                                 Some(self.scope.to_scope(param_type) as &_),
@@ -414,9 +414,9 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                         core::Term::FunType(_, _, param_type, body_type) => {
                             let param_type = self.check(param_type);
 
-                            self.push_rigid(None);
+                            self.push_local(None);
                             let body_type = self.check(body_type);
-                            self.pop_rigid();
+                            self.pop_local();
 
                             break Term::Arrow(
                                 (),
@@ -428,7 +428,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                     }
                 };
 
-                self.truncate_rigid(initial_rigid_len);
+                self.truncate_local(initial_local_len);
 
                 if patterns.is_empty() {
                     body_type
@@ -442,17 +442,17 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
             }
 
             core::Term::FunLit(..) => {
-                let initial_rigid_len = self.rigid_len();
+                let initial_local_len = self.local_len();
                 let mut param_names = Vec::new();
                 let mut body_expr = core_term;
 
                 while let core::Term::FunLit(_, param_name, next_body_expr) = body_expr {
-                    param_names.push(self.push_rigid(*param_name));
+                    param_names.push(self.push_local(*param_name));
                     body_expr = next_body_expr;
                 }
 
                 let body_expr = self.synth(body_expr);
-                self.truncate_rigid(initial_rigid_len);
+                self.truncate_local(initial_local_len);
 
                 let patterns = param_names
                     .into_iter()
@@ -492,18 +492,18 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 Term::Ann((), &Term::UnitLiteral(()), &Term::Universe(()))
             }
             core::Term::RecordType(_span, labels, types) => {
-                let initial_rigid_len = self.rigid_len();
+                let initial_local_len = self.local_len();
                 let type_fields = (self.scope).to_scope_from_iter(
                     Iterator::zip(labels.iter(), types.iter()).map(|(label, r#type)| {
                         let r#type = self.check(r#type);
-                        self.push_rigid(Some(*label));
+                        self.push_local(Some(*label));
                         TypeField {
                             label: ((), *label), // TODO: range from span
                             type_: r#type,
                         }
                     }),
                 );
-                self.truncate_rigid(initial_rigid_len);
+                self.truncate_local(initial_local_len);
 
                 Term::RecordType((), type_fields)
             }
@@ -550,9 +550,9 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
             }
             core::Term::FormatCond(_span, label, format, cond) => {
                 let format = self.check(format);
-                self.push_rigid(Some(*label));
+                self.push_local(Some(*label));
                 let cond = self.check(cond);
-                self.pop_rigid();
+                self.pop_local();
                 Term::FormatCond(
                     (),
                     ((), *label),
@@ -592,9 +592,9 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 match default_expr {
                     Some(default_expr) => {
                         let default_branch = {
-                            let name = self.push_rigid(None);
+                            let name = self.push_local(None);
                             let default_expr = self.synth(default_expr);
-                            self.pop_rigid();
+                            self.pop_local();
 
                             (Pattern::Name((), name), default_expr)
                         };
@@ -653,7 +653,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
     ) -> &'arena [FormatField<'arena, ()>] {
         use crate::core::Prim::FormatSucceed;
 
-        let initial_rigid_len = self.rigid_len();
+        let initial_local_len = self.local_len();
         let core_fields = Iterator::zip(labels.iter().copied(), core_formats.iter());
         let format_fields =
             (self.scope).to_scope_from_iter(core_fields.map(|(label, format)| match format {
@@ -665,7 +665,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 ) => {
                     let r#type = self.check(r#type);
                     let expr = self.check(expr);
-                    self.push_rigid(Some(label));
+                    self.push_local(Some(label));
 
                     FormatField::Computed {
                         label: ((), label),
@@ -677,7 +677,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 // that binds the same name as the current field label.
                 core::Term::FormatCond(_span, name, format, pred) if label == *name => {
                     let format = self.check(format);
-                    self.push_rigid(Some(label));
+                    self.push_local(Some(label));
                     let pred = self.check(pred);
 
                     FormatField::Format {
@@ -689,7 +689,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 // Otherwise stick with a regular format field...
                 format => {
                     let format = self.check(format);
-                    self.push_rigid(Some(label));
+                    self.push_local(Some(label));
 
                     FormatField::Format {
                         label: ((), label),
@@ -698,7 +698,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                     }
                 }
             }));
-        self.truncate_rigid(initial_rigid_len);
+        self.truncate_local(initial_local_len);
 
         format_fields
     }
