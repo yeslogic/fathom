@@ -63,7 +63,7 @@ impl From<RenameError> for Error {
 /// An error that was found in the problem spine.
 #[derive(Debug, Clone)]
 pub enum SpineError {
-    /// A rigid variable appeared multiple times in a flexible spine.
+    /// A local variable appeared multiple times in a flexible spine.
     ///
     /// For example:
     ///
@@ -99,13 +99,13 @@ pub enum SpineError {
     /// ```
     ///
     /// In this case the example solution `?α := fun _ => true` is not even
-    /// well-typed! In contrast, if the flexible spine only has distinct rigid
-    /// variables, even if the return type is dependent, rigid variables block
+    /// well-typed! In contrast, if the flexible spine only has distinct local
+    /// variables, even if the return type is dependent, local variables block
     /// all computation in the return type, and the pattern solution is
     /// guaranteed to be well-typed.
     NonLinearSpine(Level),
     /// A flexible variable was found in the problem spine.
-    NonRigidFunApp,
+    NonLocalFunApp,
     /// A record projection was found in the problem spine.
     RecordProj(StringId),
     /// A constant match was found in the problem spine.
@@ -115,10 +115,10 @@ pub enum SpineError {
 /// An error that occurred when renaming the solution.
 #[derive(Debug, Clone)]
 pub enum RenameError {
-    /// A free rigid variable in the compared value does not occur in the
+    /// A free local variable in the compared value does not occur in the
     /// flexible spine.
     ///
-    /// For example, where `z : U` is a rigid variable:
+    /// For example, where `z : U` is a local variable:
     ///
     /// ```text
     /// ?α x y =? z -> z
@@ -127,7 +127,7 @@ pub enum RenameError {
     /// There is no solution for this flexible variable because `?α` is the
     /// topmost-level scope, so it can only abstract over `x` and `y`, but
     /// these don't occur in `z -> z`.
-    EscapingRigidVar(Level),
+    EscapingLocalVar(Level),
     /// The flexible variable occurs in the value being compared against.
     /// This is sometimes referred to as an 'occurs check' failure.
     ///
@@ -162,8 +162,8 @@ pub struct Context<'arena, 'env> {
     renaming: &'env mut PartialRenaming,
     /// Item expressions.
     item_exprs: &'env SliceEnv<ArcValue<'arena>>,
-    /// The length of the rigid environment.
-    rigid_exprs: EnvLen,
+    /// The length of the local environment.
+    local_exprs: EnvLen,
     /// Solutions for flexible variables.
     flexible_exprs: &'env mut SliceEnv<Option<ArcValue<'arena>>>,
 }
@@ -173,14 +173,14 @@ impl<'arena, 'env> Context<'arena, 'env> {
         scope: &'arena Scope<'arena>,
         renaming: &'env mut PartialRenaming,
         item_exprs: &'env SliceEnv<ArcValue<'arena>>,
-        rigid_exprs: EnvLen,
+        local_exprs: EnvLen,
         flexible_exprs: &'env mut SliceEnv<Option<ArcValue<'arena>>>,
     ) -> Context<'arena, 'env> {
         Context {
             scope,
             renaming,
             item_exprs,
-            rigid_exprs,
+            local_exprs,
             flexible_exprs,
         }
     }
@@ -209,7 +209,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
             (Value::Stuck(Head::Prim(Prim::ReportedError), _), _)
             | (_, Value::Stuck(Head::Prim(Prim::ReportedError), _)) => Ok(()),
 
-            // Rigid-rigid and flexible-flexible cases
+            // Local-local and flexible-flexible cases
             //
             // Both values have head variables in common, so all we need to do
             // is unify the elimination spines.
@@ -219,8 +219,8 @@ impl<'arena, 'env> Context<'arena, 'env> {
                 self.unify_spines(spine0, spine1)
             }
             (
-                Value::Stuck(Head::RigidVar(var0), spine0),
-                Value::Stuck(Head::RigidVar(var1), spine1),
+                Value::Stuck(Head::LocalVar(var0), spine0),
+                Value::Stuck(Head::LocalVar(var1), spine1),
             ) if var0 == var1 => self.unify_spines(spine0, spine1),
             (
                 Value::Stuck(Head::FlexibleVar(var0), spine0),
@@ -289,7 +289,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
 
             (Value::ConstLit(const0), Value::ConstLit(const1)) if const0 == const1 => Ok(()),
 
-            // Flexible-rigid cases
+            // Flexible-local cases
             //
             // One of the values has a flexible variable at its head, so we
             // attempt to solve it using pattern unification.
@@ -333,13 +333,13 @@ impl<'arena, 'env> Context<'arena, 'env> {
         closure0: &Closure<'arena>,
         closure1: &Closure<'arena>,
     ) -> Result<(), Error> {
-        let var = Spanned::empty(Arc::new(Value::rigid_var(self.rigid_exprs.next_level())));
+        let var = Spanned::empty(Arc::new(Value::local_var(self.local_exprs.next_level())));
         let value0 = self.elim_env().apply_closure(closure0, var.clone());
         let value1 = self.elim_env().apply_closure(closure1, var);
 
-        self.rigid_exprs.push();
+        self.local_exprs.push();
         let result = self.unify(&value0, &value1);
-        self.rigid_exprs.pop();
+        self.local_exprs.pop();
 
         result
     }
@@ -354,7 +354,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
             return Err(Error::Mismatch);
         }
 
-        let initial_rigid_len = self.rigid_exprs;
+        let initial_local_len = self.local_exprs;
         let mut telescope0 = telescope0.clone();
         let mut telescope1 = telescope1.clone();
 
@@ -363,17 +363,17 @@ impl<'arena, 'env> Context<'arena, 'env> {
             self.elim_env().split_telescope(telescope1),
         ) {
             if let Err(error) = self.unify(&value0, &value1) {
-                self.rigid_exprs.truncate(initial_rigid_len);
+                self.local_exprs.truncate(initial_local_len);
                 return Err(error);
             }
 
-            let var = Spanned::empty(Arc::new(Value::rigid_var(self.rigid_exprs.next_level())));
+            let var = Spanned::empty(Arc::new(Value::local_var(self.local_exprs.next_level())));
             telescope0 = next_telescope0(var.clone());
             telescope1 = next_telescope1(var);
-            self.rigid_exprs.push();
+            self.local_exprs.push();
         }
 
-        self.rigid_exprs.truncate(initial_rigid_len);
+        self.local_exprs.truncate(initial_local_len);
         Ok(())
     }
 
@@ -387,13 +387,13 @@ impl<'arena, 'env> Context<'arena, 'env> {
         body_expr: &Closure<'arena>,
         value: &ArcValue<'arena>,
     ) -> Result<(), Error> {
-        let var = Spanned::empty(Arc::new(Value::rigid_var(self.rigid_exprs.next_level())));
+        let var = Spanned::empty(Arc::new(Value::local_var(self.local_exprs.next_level())));
         let value = self.elim_env().fun_app(value.clone(), var.clone());
         let body_expr = self.elim_env().apply_closure(body_expr, var);
 
-        self.rigid_exprs.push();
+        self.local_exprs.push();
         let result = self.unify(&body_expr, &value);
-        self.rigid_exprs.pop();
+        self.local_exprs.pop();
 
         result
     }
@@ -437,29 +437,29 @@ impl<'arena, 'env> Context<'arena, 'env> {
         self.init_renaming(spine)?;
         let term = self.rename(flexible_var, value)?;
         let fun_term = self.fun_intros(spine, term);
-        let mut rigid_exprs = SharedEnv::new();
-        let solution = self.elim_env().eval_env(&mut rigid_exprs).eval(&fun_term);
+        let mut local_exprs = SharedEnv::new();
+        let solution = self.elim_env().eval_env(&mut local_exprs).eval(&fun_term);
 
         self.flexible_exprs.set_level(flexible_var, Some(solution));
 
         Ok(())
     }
 
-    /// Re-initialise the [`Context::renaming`] by mapping the rigid variables
-    /// in the spine to the rigid variables in the solution. This can fail if
-    /// the spine does not contain distinct rigid variables.
+    /// Re-initialise the [`Context::renaming`] by mapping the local variables
+    /// in the spine to the local variables in the solution. This can fail if
+    /// the spine does not contain distinct local variables.
     fn init_renaming(&mut self, spine: &[Elim<'arena>]) -> Result<(), SpineError> {
-        self.renaming.init(self.rigid_exprs);
+        self.renaming.init(self.local_exprs);
 
         for elim in spine {
             match elim {
                 Elim::FunApp(arg_expr) => match self.elim_env().force(arg_expr).as_ref() {
-                    Value::Stuck(Head::RigidVar(source_var), spine)
-                        if spine.is_empty() && self.renaming.set_rigid(*source_var) => {}
-                    Value::Stuck(Head::RigidVar(source_var), _) => {
+                    Value::Stuck(Head::LocalVar(source_var), spine)
+                        if spine.is_empty() && self.renaming.set_local(*source_var) => {}
+                    Value::Stuck(Head::LocalVar(source_var), _) => {
                         return Err(SpineError::NonLinearSpine(*source_var))
                     }
-                    _ => return Err(SpineError::NonRigidFunApp),
+                    _ => return Err(SpineError::NonLocalFunApp),
                 },
                 Elim::RecordProj(label) => return Err(SpineError::RecordProj(*label)),
                 Elim::ConstMatch(_) => return Err(SpineError::ConstMatch),
@@ -499,9 +499,9 @@ impl<'arena, 'env> Context<'arena, 'env> {
             Value::Stuck(head, spine) => {
                 let head_expr = match head {
                     Head::Prim(prim) => Term::Prim(span, *prim),
-                    Head::RigidVar(source_var) => match self.renaming.get_as_index(*source_var) {
-                        None => return Err(RenameError::EscapingRigidVar(*source_var)),
-                        Some(target_var) => Term::RigidVar(span, target_var),
+                    Head::LocalVar(source_var) => match self.renaming.get_as_index(*source_var) {
+                        None => return Err(RenameError::EscapingLocalVar(*source_var)),
+                        Some(target_var) => Term::LocalVar(span, target_var),
                     },
                     Head::FlexibleVar(var) => match *var {
                         var if flexible_var == var => return Err(RenameError::InfiniteSolution),
@@ -634,12 +634,12 @@ impl<'arena, 'env> Context<'arena, 'env> {
         flexible_var: Level,
         closure: &Closure<'arena>,
     ) -> Result<Term<'arena>, RenameError> {
-        let source_var = self.renaming.next_rigid_var();
+        let source_var = self.renaming.next_local_var();
         let value = self.elim_env().apply_closure(closure, source_var);
 
-        self.renaming.push_rigid();
+        self.renaming.push_local();
         let term = self.rename(flexible_var, &value);
-        self.renaming.pop_rigid();
+        self.renaming.pop_local();
 
         term
     }
@@ -650,7 +650,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
         flexible_var: Level,
         telescope: &Telescope<'arena>,
     ) -> Result<&'arena [Term<'arena>], RenameError> {
-        let initial_rigid_len = self.rigid_exprs;
+        let initial_local_len = self.local_exprs;
         let mut telescope = telescope.clone();
         let mut terms = SliceVec::new(self.scope, telescope.len());
 
@@ -659,25 +659,25 @@ impl<'arena, 'env> Context<'arena, 'env> {
                 Ok(term) => {
                     terms.push(term);
                     let var =
-                        Spanned::empty(Arc::new(Value::rigid_var(self.rigid_exprs.next_level())));
+                        Spanned::empty(Arc::new(Value::local_var(self.local_exprs.next_level())));
                     telescope = next_telescope(var);
-                    self.rigid_exprs.push();
+                    self.local_exprs.push();
                 }
                 Err(error) => {
-                    self.rigid_exprs.truncate(initial_rigid_len);
+                    self.local_exprs.truncate(initial_local_len);
                     return Err(error);
                 }
             }
         }
 
-        self.rigid_exprs.truncate(initial_rigid_len);
+        self.local_exprs.truncate(initial_local_len);
         Ok(terms.into())
     }
 }
 
 /// A partial renaming from a source environment to a target environment.
 pub struct PartialRenaming {
-    /// Mapping from rigid variables in the source environment to rigid
+    /// Mapping from local variables in the source environment to local
     /// variables in the target environment.
     source: UniqueEnv<Option<Level>>,
     /// The length of the target binding environment
@@ -701,18 +701,18 @@ impl PartialRenaming {
         self.target.clear();
     }
 
-    fn next_rigid_var<'arena>(&self) -> ArcValue<'arena> {
-        Spanned::empty(Arc::new(Value::rigid_var(self.source.len().next_level())))
+    fn next_local_var<'arena>(&self) -> ArcValue<'arena> {
+        Spanned::empty(Arc::new(Value::local_var(self.source.len().next_level())))
     }
 
-    /// Set a rigid source variable to rigid target variable mapping, ensuring
+    /// Set a local source variable to local target variable mapping, ensuring
     /// that the variable appears uniquely.
     ///
     /// # Returns
     ///
-    /// - `true` if the rigid binding was set successfully.
-    /// - `false` if the rigid binding was already set.
-    fn set_rigid(&mut self, source_var: Level) -> bool {
+    /// - `true` if the local binding was set successfully.
+    /// - `false` if the local binding was already set.
+    fn set_local(&mut self, source_var: Level) -> bool {
         let is_unique = self.get_as_level(source_var).is_none();
 
         if is_unique {
@@ -724,26 +724,26 @@ impl PartialRenaming {
         is_unique
     }
 
-    /// Push an extra rigid binding onto the renaming.
-    fn push_rigid(&mut self) {
+    /// Push an extra local binding onto the renaming.
+    fn push_local(&mut self) {
         let target_var = self.target.next_level();
         self.source.push(Some(target_var));
         self.target.push();
     }
 
-    /// Pop a rigid binding off the renaming.
-    fn pop_rigid(&mut self) {
+    /// Pop a local binding off the renaming.
+    fn pop_local(&mut self) {
         self.source.pop();
         self.target.pop();
     }
 
-    /// Get the rigid variable in the target environment that will be used in
+    /// Get the local variable in the target environment that will be used in
     /// place of the `source_var`.
     fn get_as_level(&self, source_var: Level) -> Option<Level> {
         self.source.get_level(source_var).copied().flatten()
     }
 
-    /// Rename a rigid variable in the source environment to a rigid variable in
+    /// Rename a local variable in the source environment to a local variable in
     /// the target environment.
     fn get_as_index(&self, source_var: Level) -> Option<Index> {
         let target_var = self.get_as_level(source_var)?;

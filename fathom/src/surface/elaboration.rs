@@ -75,35 +75,35 @@ impl<'arena> ItemEnv<'arena> {
     }
 }
 
-/// Rigid environment.
+/// Local variable environment.
 ///
-/// This is used for keeping track of [rigid variables] that are bound by the
+/// This is used for keeping track of [local variables] that are bound by the
 /// program, for example by function parameters, let bindings, or pattern
 /// matching.
 ///
 /// This environment behaves as a stack. As scopes are entered, it is important
-/// to remember to call either [`RigidEnv::push_def`] or [`RigidEnv::push_param`].
-/// On scope exit, it is important to remember to call [`RigidEnv::pop`].
-/// Multiple bindings can be removed at once with [`RigidEnv::truncate`].
+/// to remember to call either [`LocalEnv::push_def`] or [`LocalEnv::push_param`].
+/// On scope exit, it is important to remember to call [`LocalEnv::pop`].
+/// Multiple bindings can be removed at once with [`LocalEnv::truncate`].
 ///
-/// [rigid variables]: core::Term::RigidVar
-pub struct RigidEnv<'arena> {
-    /// Names of rigid variables.
+/// [local variables]: core::Term::LocalVar
+pub struct LocalEnv<'arena> {
+    /// Names of local variables.
     names: UniqueEnv<Option<StringId>>,
-    /// Types of rigid variables.
+    /// Types of local variables.
     types: UniqueEnv<ArcValue<'arena>>,
-    /// Information about the binders. Used when inserting new flexible
+    /// Information about the local binders. Used when inserting new flexible
     /// variables during [evaluation][semantics::EvalEnv::eval].
-    infos: UniqueEnv<core::EntryInfo>,
-    /// Expressions that will be substituted for rigid variables during
+    infos: UniqueEnv<core::LocalInfo>,
+    /// Expressions that will be substituted for local variables during
     /// [evaluation][semantics::EvalEnv::eval].
     exprs: SharedEnv<ArcValue<'arena>>,
 }
 
-impl<'arena> RigidEnv<'arena> {
+impl<'arena> LocalEnv<'arena> {
     /// Construct a new, empty environment.
-    pub fn new() -> RigidEnv<'arena> {
-        RigidEnv {
+    pub fn new() -> LocalEnv<'arena> {
+        LocalEnv {
             names: UniqueEnv::new(),
             types: UniqueEnv::new(),
             infos: UniqueEnv::new(),
@@ -114,14 +114,14 @@ impl<'arena> RigidEnv<'arena> {
     pub fn default(
         interner: &RefCell<StringInterner>,
         scope: &'arena Scope<'arena>,
-    ) -> RigidEnv<'arena> {
+    ) -> LocalEnv<'arena> {
         use crate::core::Prim::*;
         use crate::core::Term;
 
-        const VAR0: Term<'_> = Term::RigidVar(Span::Empty, env::Index::last());
-        const VAR1: Term<'_> = Term::RigidVar(Span::Empty, env::Index::last().prev());
-        const VAR2: Term<'_> = Term::RigidVar(Span::Empty, env::Index::last().prev().prev());
-        const VAR3: Term<'_> = Term::RigidVar(Span::Empty, env::Index::last().prev().prev().prev());
+        const VAR0: Term<'_> = Term::LocalVar(Span::Empty, env::Index::last());
+        const VAR1: Term<'_> = Term::LocalVar(Span::Empty, env::Index::last().prev());
+        const VAR2: Term<'_> = Term::LocalVar(Span::Empty, env::Index::last().prev().prev());
+        const VAR3: Term<'_> = Term::LocalVar(Span::Empty, env::Index::last().prev().prev().prev());
         const UNIVERSE: Term<'_> = Term::Universe(Span::Empty);
         const FORMAT_TYPE: Term<'_> = Term::Prim(Span::Empty, FormatType);
         const BOOL_TYPE: Term<'_> = Term::Prim(Span::Empty, BoolType);
@@ -139,7 +139,7 @@ impl<'arena> RigidEnv<'arena> {
         const ARRAY64_TYPE: Term<'_> = Term::Prim(Span::Empty, Array64Type);
         const POS_TYPE: Term<'_> = Term::Prim(Span::Empty, PosType);
 
-        let mut env = RigidEnvBuilder::new(interner, scope);
+        let mut env = LocalEnvBuilder::new(interner, scope);
 
         env.define_prim(VoidType, &UNIVERSE);
         env.define_prim(BoolType, &UNIVERSE);
@@ -514,12 +514,12 @@ impl<'arena> RigidEnv<'arena> {
         env.build()
     }
 
-    /// Get the length of the rigid environment.
+    /// Get the length of the local environment.
     fn len(&self) -> EnvLen {
         self.names.len()
     }
 
-    /// Push a rigid definition onto the context.
+    /// Push a local definition onto the context.
     fn push_def(
         &mut self,
         name: Option<StringId>,
@@ -528,25 +528,25 @@ impl<'arena> RigidEnv<'arena> {
     ) {
         self.names.push(name);
         self.types.push(r#type);
-        self.infos.push(core::EntryInfo::Definition);
+        self.infos.push(core::LocalInfo::Definition);
         self.exprs.push(expr);
     }
 
-    /// Push a rigid parameter onto the context.
+    /// Push a local parameter onto the context.
     fn push_param(&mut self, name: Option<StringId>, r#type: ArcValue<'arena>) -> ArcValue<'arena> {
-        // An expression that refers to itself once it is pushed onto the rigid
+        // An expression that refers to itself once it is pushed onto the local
         // expression environment.
-        let expr = Spanned::empty(Arc::new(Value::rigid_var(self.exprs.len().next_level())));
+        let expr = Spanned::empty(Arc::new(Value::local_var(self.exprs.len().next_level())));
 
         self.names.push(name);
         self.types.push(r#type);
-        self.infos.push(core::EntryInfo::Parameter);
+        self.infos.push(core::LocalInfo::Parameter);
         self.exprs.push(expr.clone());
 
         expr
     }
 
-    /// Pop a rigid binder off the context.
+    /// Pop a local binder off the context.
     fn pop(&mut self) {
         self.names.pop();
         self.types.pop();
@@ -554,7 +554,7 @@ impl<'arena> RigidEnv<'arena> {
         self.exprs.pop();
     }
 
-    /// Truncate the rigid environment.
+    /// Truncate the local environment.
     fn truncate(&mut self, len: EnvLen) {
         self.names.truncate(len);
         self.types.truncate(len);
@@ -563,19 +563,19 @@ impl<'arena> RigidEnv<'arena> {
     }
 }
 
-pub struct RigidEnvBuilder<'i, 'arena> {
-    env: RigidEnv<'arena>,
+pub struct LocalEnvBuilder<'i, 'arena> {
+    env: LocalEnv<'arena>,
     interner: &'i RefCell<StringInterner>,
     scope: &'arena Scope<'arena>,
 }
 
-impl<'i, 'arena> RigidEnvBuilder<'i, 'arena> {
+impl<'i, 'arena> LocalEnvBuilder<'i, 'arena> {
     fn new(
         interner: &'i RefCell<StringInterner>,
         scope: &'arena Scope<'arena>,
-    ) -> RigidEnvBuilder<'i, 'arena> {
-        let env = RigidEnv::new();
-        RigidEnvBuilder {
+    ) -> LocalEnvBuilder<'i, 'arena> {
+        let env = LocalEnv::new();
+        LocalEnvBuilder {
             env,
             interner,
             scope,
@@ -614,7 +614,7 @@ impl<'i, 'arena> RigidEnvBuilder<'i, 'arena> {
         );
     }
 
-    fn build(self) -> RigidEnv<'arena> {
+    fn build(self) -> LocalEnv<'arena> {
         self.env
     }
 }
@@ -704,7 +704,7 @@ impl<'arena> FlexibleEnv<'arena> {
         scope: &'error Scope<'error>,
         mut item_names: UniqueEnv<StringId>,
         item_exprs: &'this SliceEnv<ArcValue<'this>>,
-        mut rigid_names: UniqueEnv<Option<StringId>>,
+        mut local_names: UniqueEnv<Option<StringId>>,
     ) -> impl 'this + Iterator<Item = Message> {
         let entries = Iterator::zip(self.sources.iter(), self.exprs.iter());
 
@@ -719,13 +719,13 @@ impl<'arena> FlexibleEnv<'arena> {
             // Yield messages of solved named holes
             (Some(expr), FlexSource::HoleExpr(range, name)) => {
                 let term =
-                    semantics::QuoteEnv::new(scope, item_exprs, rigid_names.len(), &self.exprs)
+                    semantics::QuoteEnv::new(scope, item_exprs, local_names.len(), &self.exprs)
                         .quote(expr);
                 let surface_term = distillation::Context::new(
                     interner,
                     scope,
                     &mut item_names,
-                    &mut rigid_names,
+                    &mut local_names,
                     &self.sources,
                 )
                 .check(&term);
@@ -762,8 +762,8 @@ pub struct Context<'interner, 'arena, 'error> {
 
     /// Item environment.
     item_env: ItemEnv<'arena>,
-    /// Rigid environment.
-    rigid_env: RigidEnv<'arena>,
+    /// Local environment.
+    local_env: LocalEnv<'arena>,
     /// Flexible environment.
     flexible_env: FlexibleEnv<'arena>,
     /// A partial renaming to be used during [`unification`].
@@ -789,7 +789,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
             bool_type: Spanned::empty(Arc::new(Value::prim(Prim::BoolType, []))),
 
             item_env: ItemEnv::new(),
-            rigid_env: RigidEnv::default(interner, scope),
+            local_env: LocalEnv::default(interner, scope),
             flexible_env: FlexibleEnv::new(),
             renaming: unification::PartialRenaming::new(),
             messages: Vec::new(),
@@ -804,12 +804,12 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
         Some((item_var, item_type))
     }
 
-    /// Lookup a rigid name in the context.
-    fn get_rigid_name(&self, name: StringId) -> Option<(env::Index, &ArcValue<'arena>)> {
-        let rigid_var = self.rigid_env.names.elem_index(&Some(name))?;
-        let rigid_type = self.rigid_env.types.get_index(rigid_var)?;
+    /// Lookup a local name in the context.
+    fn get_local_name(&self, name: StringId) -> Option<(env::Index, &ArcValue<'arena>)> {
+        let local_var = self.local_env.names.elem_index(&Some(name))?;
+        let local_type = self.local_env.types.get_index(local_var)?;
 
-        Some((rigid_var, rigid_type))
+        Some((local_var, local_type))
     }
 
     /// Push an unsolved term onto the context, to be updated later during unification.
@@ -821,7 +821,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
         core::Term::FlexibleInsertion(
             source.range().into(),
             self.flexible_env.push(source, r#type),
-            (self.scope).to_scope_from_iter(self.rigid_env.infos.iter().copied()),
+            (self.scope).to_scope_from_iter(self.local_env.infos.iter().copied()),
         )
     }
 
@@ -841,7 +841,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
             self.error_scope,
             self.item_env.names.clone(),
             &self.item_env.exprs,
-            self.rigid_env.names.clone(),
+            self.local_env.names.clone(),
         );
 
         self.messages.drain(..).chain(report_messages)
@@ -850,7 +850,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
     pub fn eval_env(&mut self) -> semantics::EvalEnv<'arena, '_> {
         semantics::EvalEnv::new(
             &self.item_env.exprs,
-            &mut self.rigid_env.exprs,
+            &mut self.local_env.exprs,
             &self.flexible_env.exprs,
         )
     }
@@ -866,7 +866,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
         semantics::QuoteEnv::new(
             scope,
             &self.item_env.exprs,
-            self.rigid_env.len(),
+            self.local_env.len(),
             &self.flexible_env.exprs,
         )
     }
@@ -876,7 +876,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
             self.scope,
             &mut self.renaming,
             &self.item_env.exprs,
-            self.rigid_env.len(),
+            self.local_env.len(),
             &mut self.flexible_env.exprs,
         )
     }
@@ -889,7 +889,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
             self.interner,
             scope,
             &mut self.item_env.names,
-            &mut self.rigid_env.names,
+            &mut self.local_env.names,
             &self.flexible_env.sources,
         )
     }
@@ -1284,9 +1284,9 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
         }
     }
 
-    /// Push a rigid definition onto the context.
+    /// Push a local definition onto the context.
     /// The supplied `pattern` is expected to be irrefutable.
-    fn push_rigid_def(
+    fn push_local_def(
         &mut self,
         pattern: CheckedPattern,
         expr: ArcValue<'arena>,
@@ -1305,14 +1305,14 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
             CheckedPattern::ReportedError(_) => None,
         };
 
-        self.rigid_env.push_def(name, expr, r#type);
+        self.local_env.push_def(name, expr, r#type);
 
         name
     }
 
-    /// Push a rigid parameter onto the context.
+    /// Push a local parameter onto the context.
     /// The supplied `pattern` is expected to be irrefutable.
-    fn push_rigid_param(
+    fn push_local_param(
         &mut self,
         pattern: CheckedPattern,
         r#type: ArcValue<'arena>,
@@ -1330,7 +1330,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
             CheckedPattern::ReportedError(_) => None,
         };
 
-        let expr = self.rigid_env.push_param(name, r#type);
+        let expr = self.local_env.push_param(name, r#type);
 
         (name, expr)
     }
@@ -1352,9 +1352,9 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 let def_expr = self.check(def_expr, &def_type_value);
                 let def_expr_value = self.eval_env().eval(&def_expr);
 
-                let def_name = self.push_rigid_def(def_pattern, def_expr_value, def_type_value); // TODO: split on constants
+                let def_name = self.push_local_def(def_pattern, def_expr_value, def_type_value); // TODO: split on constants
                 let body_expr = self.check(body_expr, &expected_type);
-                self.rigid_env.pop();
+                self.local_env.pop();
 
                 core::Term::Let(
                     range.into(),
@@ -1557,8 +1557,8 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
     ) -> (core::Term<'arena>, ArcValue<'arena>) {
         match surface_term {
             Term::Name(range, name) => {
-                if let Some((term, r#type)) = self.get_rigid_name(*name) {
-                    return (core::Term::RigidVar(range.into(), term), r#type.clone());
+                if let Some((term, r#type)) = self.get_local_name(*name) {
+                    return (core::Term::LocalVar(range.into(), term), r#type.clone());
                 }
                 if let Some((term, r#type)) = self.get_item_name(*name) {
                     return (core::Term::ItemVar(range.into(), term), r#type.clone());
@@ -1607,9 +1607,9 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 let def_expr = self.check(def_expr, &def_type_value);
                 let def_expr_value = self.eval_env().eval(&def_expr);
 
-                let def_name = self.push_rigid_def(def_pattern, def_expr_value, def_type_value);
+                let def_name = self.push_local_def(def_pattern, def_expr_value, def_type_value);
                 let (body_expr, body_type) = self.synth(body_expr);
-                self.rigid_env.pop();
+                self.local_env.pop();
 
                 let let_expr = core::Term::Let(
                     range.into(),
@@ -1635,9 +1635,9 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 let param_type = self.check(param_type, &universe);
                 let param_type_value = self.eval_env().eval(&param_type);
 
-                self.rigid_env.push_param(None, param_type_value);
+                self.local_env.push_param(None, param_type_value);
                 let body_type = self.check(body_type, &universe);
-                self.rigid_env.pop();
+                self.local_env.pop();
 
                 let fun_type = core::Term::FunType(
                     range.into(),
@@ -1649,19 +1649,19 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 (fun_type, self.universe.clone())
             }
             Term::FunType(range, patterns, body_type) => {
-                let initial_rigid_len = self.rigid_env.len();
+                let initial_local_len = self.local_env.len();
 
                 // Elaborate the parameters, collecting them in a stack
                 let mut params = Vec::with_capacity(patterns.len());
                 for (pattern, r#type) in *patterns {
                     let (pattern, type_value) = self.synth_ann_pattern(pattern, *r#type);
                     let r#type = self.quote_env(self.scope).quote(&type_value);
-                    let (name, _) = self.push_rigid_param(pattern, type_value);
+                    let (name, _) = self.push_local_param(pattern, type_value);
                     params.push((name, r#type));
                 }
 
                 let mut fun_type = self.check(body_type, &self.universe.clone());
-                self.rigid_env.truncate(initial_rigid_len);
+                self.local_env.truncate(initial_local_len);
 
                 // Construct the function type from the parameters in reverse
                 for (name, r#type) in params.into_iter().rev() {
@@ -1724,7 +1724,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
             }
             Term::RecordType(range, type_fields) => {
                 let universe = self.universe.clone();
-                let initial_rigid_len = self.rigid_env.len();
+                let initial_local_len = self.local_env.len();
                 let (labels, type_fields) =
                     self.report_duplicate_labels(*range, type_fields, |f| f.label);
                 let mut types = SliceVec::new(self.scope, labels.len());
@@ -1732,11 +1732,11 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 for type_field in type_fields {
                     let r#type = self.check(&type_field.type_, &universe);
                     let type_value = self.eval_env().eval(&r#type);
-                    self.rigid_env
+                    self.local_env
                         .push_param(Some(type_field.label.1), type_value);
                     types.push(r#type);
                 }
-                self.rigid_env.truncate(initial_rigid_len);
+                self.local_env.truncate(initial_local_len);
 
                 let record_type = core::Term::RecordType(range.into(), labels, types.into());
 
@@ -1754,7 +1754,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                     exprs.push(expr);
                 }
 
-                let types = Telescope::new(self.rigid_env.exprs.clone(), types.into());
+                let types = Telescope::new(self.local_env.exprs.clone(), types.into());
 
                 (
                     core::Term::RecordLit(range.into(), labels, exprs.into()),
@@ -1862,10 +1862,10 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 let format_value = self.eval_env().eval(&format);
                 let repr_type = self.elim_env().format_repr(&format_value);
 
-                self.rigid_env.push_param(Some(*name), repr_type);
+                self.local_env.push_param(Some(*name), repr_type);
                 let bool_type = self.bool_type.clone();
                 let pred_expr = self.check(pred, &bool_type);
-                self.rigid_env.pop();
+                self.local_env.pop();
 
                 let cond_format = core::Term::FormatCond(
                     range.into(),
@@ -1901,12 +1901,12 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                     Value::FunType(_, param_type, next_body_type) => {
                         let range = ByteRange::merge(&pattern.range(), &body_expr.range()).unwrap();
                         let pattern = self.check_ann_pattern(pattern, *r#type, param_type);
-                        let (name, arg_expr) = self.push_rigid_param(pattern, param_type.clone());
+                        let (name, arg_expr) = self.push_local_param(pattern, param_type.clone());
 
                         let body_type = self.elim_env().apply_closure(next_body_type, arg_expr);
                         let body_expr =
                             self.check_fun_lit(range, next_patterns, body_expr, &body_type);
-                        self.rigid_env.pop();
+                        self.local_env.pop();
 
                         core::Term::FunLit(range.into(), name, self.scope.to_scope(body_expr))
                     }
@@ -1942,7 +1942,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
         body_expr: &Term<'_, ByteRange>,
         body_type: Option<&Term<'_, ByteRange>>,
     ) -> (core::Term<'arena>, ArcValue<'arena>) {
-        let initial_rigid_len = self.rigid_env.len();
+        let initial_local_len = self.local_env.len();
 
         // Elaborate the parameters, collecting them into a stack
         let mut params = Vec::with_capacity(patterns.len());
@@ -1953,7 +1953,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
             };
             let (pattern, type_value) = self.synth_ann_pattern(pattern, *r#type);
             let r#type = self.quote_env(self.scope).quote(&type_value);
-            let (name, _) = self.push_rigid_param(pattern, type_value);
+            let (name, _) = self.push_local_param(pattern, type_value);
             params.push((range, name, r#type));
         }
 
@@ -1969,7 +1969,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
             }
         };
 
-        self.rigid_env.truncate(initial_rigid_len);
+        self.local_env.truncate(initial_local_len);
 
         // Construct the function literal and type from the parameters in reverse
         for (range, name, r#type) in params.into_iter().rev() {
@@ -2158,7 +2158,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
         let universe = self.universe.clone();
         let format_type = self.format_type.clone();
 
-        let initial_rigid_len = self.rigid_env.len();
+        let initial_local_len = self.local_env.len();
         let (labels, format_fields) =
             self.report_duplicate_labels(range, format_fields, |f| match f {
                 FormatField::Format { label, .. } | FormatField::Computed { label, .. } => *label,
@@ -2176,7 +2176,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                     let format_value = self.eval_env().eval(&format);
                     let r#type = self.elim_env().format_repr(&format_value);
 
-                    self.rigid_env.push_param(Some(*label), r#type);
+                    self.local_env.push_param(Some(*label), r#type);
 
                     match pred {
                         None => formats.push(format),
@@ -2227,13 +2227,13 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                     );
 
                     // Assume that `Repr ${type_value} ${expr} = ${type_value}`
-                    self.rigid_env.push_param(Some(*label), type_value);
+                    self.local_env.push_param(Some(*label), type_value);
                     formats.push(format);
                 }
             }
         }
 
-        self.rigid_env.truncate(initial_rigid_len);
+        self.local_env.truncate(initial_local_len);
 
         (labels, formats.into())
     }
@@ -2290,9 +2290,9 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                         let def_type_value = match_info.scrutinee.r#type.clone();
                         let def_type = self.quote_env(self.scope).quote(&def_type_value);
 
-                        self.rigid_env.push_def(def_name, def_expr, def_type_value);
+                        self.local_env.push_def(def_name, def_expr, def_type_value);
                         let body_expr = self.check(body_expr, &match_info.expected_type);
-                        self.rigid_env.pop();
+                        self.local_env.pop();
 
                         self.elab_match_unreachable(match_info, equations);
 
@@ -2397,16 +2397,16 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 CheckedPattern::Binder(range, name) => {
                     self.check_match_reachable(is_reachable, range);
 
-                    (self.rigid_env).push_param(Some(name), match_info.scrutinee.r#type.clone());
+                    (self.local_env).push_param(Some(name), match_info.scrutinee.r#type.clone());
                     default_expr = self.check(body_expr, &match_info.expected_type);
-                    self.rigid_env.pop();
+                    self.local_env.pop();
                 }
                 CheckedPattern::Placeholder(range) => {
                     self.check_match_reachable(is_reachable, range);
 
-                    (self.rigid_env).push_param(None, match_info.scrutinee.r#type.clone());
+                    (self.local_env).push_param(None, match_info.scrutinee.r#type.clone());
                     default_expr = self.check(body_expr, &match_info.expected_type);
-                    self.rigid_env.pop();
+                    self.local_env.pop();
                 }
                 CheckedPattern::ReportedError(range) => {
                     self.check(body_expr, &match_info.expected_type);
@@ -2493,7 +2493,7 @@ impl_from_str_radix!(u64);
 /// Simple patterns that have had some initial elaboration performed on them
 #[derive(Debug)]
 enum CheckedPattern {
-    /// Pattern that binds rigid variable
+    /// Pattern that binds local variable
     Binder(ByteRange, StringId),
     /// Placeholder patterns that match everything
     Placeholder(ByteRange),

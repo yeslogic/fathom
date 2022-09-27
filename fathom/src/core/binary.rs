@@ -370,7 +370,7 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
                 ))
             }
 
-            Value::Stuck(Head::RigidVar(_), _)
+            Value::Stuck(Head::LocalVar(_), _)
             | Value::Stuck(Head::FlexibleVar(_), _)
             | Value::Universe
             | Value::FunType(_, _, _)

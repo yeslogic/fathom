@@ -401,7 +401,7 @@ impl Message {
                         SpineError::NonLinearSpine(_var) => Diagnostic::error()
                             .with_message("variable appeared more than once in problem spine")
                             .with_labels(vec![primary_label(range)]),
-                        SpineError::NonRigidFunApp => Diagnostic::error()
+                        SpineError::NonLocalFunApp => Diagnostic::error()
                             .with_message("non-variable function application in problem spine")
                             .with_labels(vec![primary_label(range)]),
                         SpineError::RecordProj(_label) => Diagnostic::error()
@@ -412,8 +412,8 @@ impl Message {
                             .with_labels(vec![primary_label(range)]),
                     },
                     Error::Rename(error) => match error {
-                        RenameError::EscapingRigidVar(_var) => Diagnostic::error()
-                            .with_message("escaping rigid variable")
+                        RenameError::EscapingLocalVar(_var) => Diagnostic::error()
+                            .with_message("escaping local variable")
                             .with_labels(vec![primary_label(range)]),
                         RenameError::InfiniteSolution => Diagnostic::error()
                             .with_message("infinite solution")
