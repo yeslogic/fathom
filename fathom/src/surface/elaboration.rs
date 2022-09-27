@@ -1922,11 +1922,12 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                         core::Term::Prim(range.into(), Prim::ReportedError)
                     }
                     _ => {
-                        let body_type = self.pretty_print_value(&body_type);
                         self.push_message(Message::UnexpectedParameter {
                             param_range: pattern.range(),
-                            expected_type: body_type,
                         });
+                        // TODO: For improved error recovery, bind the rest of
+                        // the parameters, and check the body of the function
+                        // literal using the expected body type.
                         core::Term::Prim(range.into(), Prim::ReportedError)
                     }
                 }

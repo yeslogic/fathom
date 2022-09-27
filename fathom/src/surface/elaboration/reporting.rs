@@ -27,7 +27,6 @@ pub enum Message {
     },
     UnexpectedParameter {
         param_range: ByteRange,
-        expected_type: String,
     },
     UnexpectedArgument {
         head_range: ByteRange,
@@ -163,17 +162,12 @@ impl Message {
             Message::UnreachablePattern { range } => Diagnostic::warning()
                 .with_message("unreachable pattern")
                 .with_labels(vec![primary_label(range)]),
-            Message::UnexpectedParameter {
-                param_range,
-                expected_type,
-            } => Diagnostic::error()
+            Message::UnexpectedParameter { param_range } => Diagnostic::error()
                 .with_message("too many parameters in function literal")
                 .with_labels(vec![
-                    primary_label(param_range).with_message("unexpected parameter"),
-                    secondary_label(param_range)
-                        .with_message(format!("expected type {}", expected_type)),
+                    primary_label(param_range).with_message("unexpected parameter")
                 ])
-                .with_notes(vec![format!("expected type {}", expected_type)]),
+                .with_notes(vec!["this parameter can be removed".to_owned()]),
             Message::UnexpectedArgument {
                 head_range,
                 head_type,
