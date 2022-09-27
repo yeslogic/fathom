@@ -1,32 +1,30 @@
 stdout = '''
-let id : fun (A : Type) -> A -> A = fun A => fun a => a;
-let Eq : fun (A : Type) -> A -> A -> Type =
-fun A => fun a0 => fun a1 => fun (P : A -> Type) -> P a0 -> P a1;
-let refl : fun (A : Type) -> fun (a : A) -> fun (P : A -> Type) -> P a -> P a =
-fun A => fun a => fun P => id (P a);
-let fun_eta_left : fun (f : Type -> Type) -> fun (P : (Type -> Type) -> Type) ->
-P f -> P (fun x => f x) = fun f => refl (_ f) f;
-let fun_eta_right : fun (f : Type -> Type) -> fun (P : (Type -> Type) ->
-Type) -> P (fun x => f x) -> P f = fun f => refl (_ f) f;
-let fun_eta_left : fun (f : Type -> Type -> Type) -> fun (P : (Type -> Type ->
-Type) -> Type) -> P f -> P (fun x => f x) = fun f => refl (_ f) f;
-let fun_eta_right : fun (f : Type -> Type -> Type) -> fun (P : (Type -> Type ->
-Type) -> Type) -> P (fun x => f x) -> P f = fun f => refl (_ f) f;
-let fun_eta_left : fun (f : Type -> Type -> Type) -> fun (P : (Type -> Type ->
-Type) -> Type) -> P f -> P (fun x => fun y => f x y) = fun f => refl (_ f) f;
-let fun_eta_right : fun (f : Type -> Type -> Type) -> fun (P : (Type -> Type ->
-Type) -> Type) -> P (fun x => fun y => f x y) -> P f = fun f => refl (_ f) f;
-let fun_eta_left : fun (f : Type -> Type -> Type) -> fun (P : (Type -> Type ->
-Type) -> Type) -> P (fun x => f x) -> P (fun x => fun y => f x y) =
-fun f => refl (_ f) f;
-let fun_eta_right : fun (f : Type -> Type -> Type) -> fun (P : (Type -> Type ->
-Type) -> Type) -> P (fun x => fun y => f x y) -> P (fun x => f x) =
-fun f => refl (_ f) f;
-let record_eta_left : fun (r : { x : Type, y : Type }) -> fun (P : {
+let id : fun (A : Type) -> A -> A = fun A a => a;
+let Eq : fun (A : Type) -> A -> A -> Type = fun A a0 a1 => fun (P : A ->
+Type) -> P a0 -> P a1;
+let refl : fun (A : Type) (a : A) (P : A -> Type) -> P a -> P a =
+fun A a P => id (P a);
+let fun_eta_left : fun (f : Type -> Type) (P : (Type -> Type) -> Type) -> P f ->
+P (fun x => f x) = fun f => refl (_ f) f;
+let fun_eta_right : fun (f : Type -> Type) (P : (Type -> Type) -> Type) ->
+P (fun x => f x) -> P f = fun f => refl (_ f) f;
+let fun_eta_left : fun (f : Type -> Type -> Type) (P : (Type -> Type -> Type) ->
+Type) -> P f -> P (fun x => f x) = fun f => refl (_ f) f;
+let fun_eta_right : fun (f : Type -> Type -> Type) (P : (Type -> Type -> Type)
+-> Type) -> P (fun x => f x) -> P f = fun f => refl (_ f) f;
+let fun_eta_left : fun (f : Type -> Type -> Type) (P : (Type -> Type -> Type) ->
+Type) -> P f -> P (fun x y => f x y) = fun f => refl (_ f) f;
+let fun_eta_right : fun (f : Type -> Type -> Type) (P : (Type -> Type -> Type)
+-> Type) -> P (fun x y => f x y) -> P f = fun f => refl (_ f) f;
+let fun_eta_left : fun (f : Type -> Type -> Type) (P : (Type -> Type -> Type) ->
+Type) -> P (fun x => f x) -> P (fun x y => f x y) = fun f => refl (_ f) f;
+let fun_eta_right : fun (f : Type -> Type -> Type) (P : (Type -> Type -> Type)
+-> Type) -> P (fun x y => f x y) -> P (fun x => f x) = fun f => refl (_ f) f;
+let record_eta_left : fun (r : { x : Type, y : Type }) (P : {
     x : Type,
     y : Type,
 } -> Type) -> P r -> P { x = r.x, y = r.y } = fun r => refl (_ r) r;
-let record_eta_right : fun (r : { x : Type, y : Type }) -> fun (P : {
+let record_eta_right : fun (r : { x : Type, y : Type }) (P : {
     x : Type,
     y : Type,
 } -> Type) -> P { x = r.x, y = r.y } -> P r = fun r => refl (_ r) r;

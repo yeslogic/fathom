@@ -25,6 +25,9 @@ pub enum Message {
     UnreachablePattern {
         range: ByteRange,
     },
+    UnexpectedParameter {
+        param_range: ByteRange,
+    },
     UnexpectedArgument {
         head_range: ByteRange,
         head_type: String,
@@ -159,6 +162,12 @@ impl Message {
             Message::UnreachablePattern { range } => Diagnostic::warning()
                 .with_message("unreachable pattern")
                 .with_labels(vec![primary_label(range)]),
+            Message::UnexpectedParameter { param_range } => Diagnostic::error()
+                .with_message("too many parameters in function literal")
+                .with_labels(vec![
+                    primary_label(param_range).with_message("unexpected parameter")
+                ])
+                .with_notes(vec!["this parameter can be removed".to_owned()]),
             Message::UnexpectedArgument {
                 head_range,
                 head_type,

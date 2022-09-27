@@ -1,0 +1,11 @@
+stdout = ''
+stderr = '''
+error: too many parameters in function literal
+  ┌─ tests/fail/elaboration/unexpected-parameter/fun-literal.fathom:3:9
+  │
+3 │ fun A a b => a : fun (A : Type) -> A -> A
+  │         ^ unexpected parameter
+  │
+  = this parameter can be removed
+
+'''

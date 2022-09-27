@@ -8,7 +8,9 @@ use crate::core::UIntStyle;
 use crate::env::{self, EnvLen, GlobalVar, LocalVar, UniqueEnv};
 use crate::source::Span;
 use crate::surface::elaboration::FlexSource;
-use crate::surface::{BinOp, ExprField, FormatField, Item, Module, Pattern, Term, TypeField};
+use crate::surface::{
+    BinOp, ExprField, FormatField, Item, ItemDef, Module, Pattern, Term, TypeField,
+};
 use crate::{core, StringId, StringInterner};
 
 /// Distillation context.
@@ -98,7 +100,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
         let scope = self.scope;
 
         let items = core_module.items.iter().map(|item| match item {
-            core::Item::Definition {
+            core::Item::Def {
                 label,
                 r#type,
                 expr,
@@ -107,11 +109,13 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 let expr = scope.to_scope(self.check(expr));
                 self.push_item(*label);
 
-                Item::Definition {
+                Item::Def(ItemDef {
+                    range: (),
                     label: ((), *label),
+                    patterns: &[],
                     type_: Some(r#type),
                     expr,
-                }
+                })
             }
         });
 
@@ -219,15 +223,24 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                     self.scope.to_scope(body_expr),
                 )
             }
-            core::Term::FunLit(_span, param_name, body_expr) => {
-                let param_name = self.push_rigid(*param_name);
+            core::Term::FunLit(_, param_name, mut body_expr) => {
+                let initial_rigid_len = self.rigid_len();
+                let mut param_names = vec![self.push_rigid(*param_name)];
+                while let core::Term::FunLit(_, param_name, next_body_expr) = body_expr {
+                    param_names.push(self.push_rigid(*param_name));
+                    body_expr = next_body_expr;
+                }
+
                 let body_expr = self.check(body_expr);
-                self.pop_rigid();
+                self.truncate_rigid(initial_rigid_len);
+
+                let patterns = param_names
+                    .into_iter()
+                    .map(|name| (Pattern::Name((), name), None));
 
                 Term::FunLiteral(
                     (),
-                    Pattern::Name((), param_name),
-                    None,
+                    self.scope.to_scope_from_iter(patterns),
                     self.scope.to_scope(body_expr),
                 )
             }
@@ -377,47 +390,77 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
             }
             core::Term::Universe(_span) => Term::Universe(()),
 
-            // Use arrow sugar if the parameter is not referenced in the body type.
-            core::Term::FunType(_span, _, param_type, body_type)
-                if !body_type.binds_rigid_var(LocalVar::last()) =>
-            {
-                let param_type = self.check(param_type);
+            core::Term::FunType(..) => {
+                let initial_rigid_len = self.rigid_len();
 
-                self.push_rigid(None);
-                let body_type = self.check(body_type);
-                self.pop_rigid();
+                let mut patterns = Vec::new();
+                let mut body_type = core_term;
 
-                Term::Arrow(
-                    (),
-                    self.scope.to_scope(param_type),
-                    self.scope.to_scope(body_type),
-                )
+                let body_type = loop {
+                    match body_type {
+                        // Use an explicit parameter if it is referenced in the body
+                        core::Term::FunType(_, param_name, param_type, next_body_type)
+                            if next_body_type.binds_rigid_var(LocalVar::last()) =>
+                        {
+                            let param_type = self.check(param_type);
+                            let param_name = self.push_rigid(*param_name);
+                            patterns.push((
+                                Pattern::Name((), param_name),
+                                Some(self.scope.to_scope(param_type) as &_),
+                            ));
+                            body_type = next_body_type;
+                        }
+                        // Use arrow sugar if the parameter is not referenced in the body type.
+                        core::Term::FunType(_, _, param_type, body_type) => {
+                            let param_type = self.check(param_type);
+
+                            self.push_rigid(None);
+                            let body_type = self.check(body_type);
+                            self.pop_rigid();
+
+                            break Term::Arrow(
+                                (),
+                                self.scope.to_scope(param_type),
+                                self.scope.to_scope(body_type),
+                            );
+                        }
+                        body_type => break self.check(body_type),
+                    }
+                };
+
+                self.truncate_rigid(initial_rigid_len);
+
+                if patterns.is_empty() {
+                    body_type
+                } else {
+                    Term::FunType(
+                        (),
+                        self.scope.to_scope_from_iter(patterns),
+                        self.scope.to_scope(body_type),
+                    )
+                }
             }
-            // Otherwise distill to a function type with an explicit parameter.
-            core::Term::FunType(_span, param_name, param_type, body_type) => {
-                let param_type = self.check(param_type);
 
-                let param_name = self.push_rigid(*param_name);
-                let body_type = self.check(body_type);
-                self.pop_rigid();
+            core::Term::FunLit(..) => {
+                let initial_rigid_len = self.rigid_len();
+                let mut param_names = Vec::new();
+                let mut body_expr = core_term;
 
-                Term::FunType(
-                    (),
-                    Pattern::Name((), param_name),
-                    Some(self.scope.to_scope(param_type)),
-                    self.scope.to_scope(body_type),
-                )
-            }
+                while let core::Term::FunLit(_, param_name, next_body_expr) = body_expr {
+                    param_names.push(self.push_rigid(*param_name));
+                    body_expr = next_body_expr;
+                }
 
-            core::Term::FunLit(_span, param_name, body_expr) => {
-                let param_name = self.push_rigid(*param_name);
                 let body_expr = self.synth(body_expr);
-                self.pop_rigid();
+                self.truncate_rigid(initial_rigid_len);
+
+                let patterns = param_names
+                    .into_iter()
+                    .map(|name| (Pattern::Name((), name), None));
 
                 Term::FunLiteral(
                     (),
-                    Pattern::Name((), param_name),
-                    None,
+                    self.scope.to_scope_from_iter(patterns),
                     self.scope.to_scope(body_expr),
                 )
             }

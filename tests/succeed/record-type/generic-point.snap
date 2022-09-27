@@ -1,7 +1,7 @@
 stdout = '''
 let Point : Type -> Type = fun A => { x : A, y : A };
 let test_point : fun (A : Type) -> { x : A, y : A } -> { x : A, y : A } =
-fun A => fun p => p;
+fun A p => p;
 Type : Type
 '''
 stderr = ''

@@ -1,0 +1,1 @@
+fun (A : Type) (a : A) => a : fun (A : Type) -> _

@@ -54,17 +54,25 @@ impl<'arena> Module<'arena, ByteRange> {
 #[derive(Debug, Clone)]
 pub enum Item<'arena, Range> {
     /// Top-level definitions
-    Definition {
-        /// The label that identifies this definition
-        label: (Range, StringId),
-        /// An optional type annotation for the defined expression
-        // FIXME: raw identifiers in LALRPOP grammars https://github.com/lalrpop/lalrpop/issues/613
-        type_: Option<&'arena Term<'arena, Range>>,
-        /// The defined expression
-        expr: &'arena Term<'arena, Range>,
-    },
+    Def(ItemDef<'arena, Range>),
     /// Reported error sentinel
     ReportedError(Range),
+}
+
+/// Top-level definitions
+#[derive(Debug, Clone)]
+pub struct ItemDef<'arena, Range> {
+    /// The full range of the definition
+    range: Range,
+    /// The label that identifies this definition
+    label: (Range, StringId),
+    /// Parameter patterns
+    patterns: &'arena [(Pattern<Range>, Option<&'arena Term<'arena, Range>>)],
+    /// An optional type annotation for the defined expression
+    // FIXME: raw identifiers in LALRPOP grammars https://github.com/lalrpop/lalrpop/issues/613
+    type_: Option<&'arena Term<'arena, Range>>,
+    /// The defined expression
+    expr: &'arena Term<'arena, Range>,
 }
 
 /// Surface patterns.
@@ -196,15 +204,13 @@ pub enum Term<'arena, Range> {
     /// Dependent function types.
     FunType(
         Range,
-        Pattern<Range>,
-        Option<&'arena Term<'arena, Range>>,
+        &'arena [(Pattern<Range>, Option<&'arena Term<'arena, Range>>)],
         &'arena Term<'arena, Range>,
     ),
     /// Function literals.
     FunLiteral(
         Range,
-        Pattern<Range>,
-        Option<&'arena Term<'arena, Range>>,
+        &'arena [(Pattern<Range>, Option<&'arena Term<'arena, Range>>)],
         &'arena Term<'arena, Range>,
     ),
     /// Applications.
@@ -273,8 +279,8 @@ impl<'arena, Range: Clone> Term<'arena, Range> {
             | Term::Match(range, _, _)
             | Term::Universe(range)
             | Term::Arrow(range, _, _)
-            | Term::FunType(range, _, _, _)
-            | Term::FunLiteral(range, _, _, _)
+            | Term::FunType(range, _, _)
+            | Term::FunLiteral(range, _, _)
             | Term::App(range, _, _)
             | Term::RecordType(range, _)
             | Term::RecordLiteral(range, _)

@@ -15,7 +15,7 @@ pub struct Module<'arena> {
 /// Top-level items
 pub enum Item<'arena> {
     /// Top-level definitions
-    Definition {
+    Def {
         /// The label that identifies this definition
         label: StringId,
         /// The type of the defined expression

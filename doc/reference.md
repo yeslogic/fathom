@@ -8,7 +8,7 @@ elaboration, and core language is forthcoming.
 
 ## Contents
 
-- [Modules](#items)
+- [Modules](#modules)
   - [Definitions](#definitions)
 - [Structure](#structure)
   - [Names](#names)
@@ -84,6 +84,27 @@ def point : Format = {
   x <- u32be,
   y <- u32be,
 };
+```
+
+#### Parameter sugar
+
+A list of parameters can be supplied to definitions:
+
+```fathom
+def point (f : Format) : Format = {
+  x <- f,
+  y <- f,
+};
+```
+
+This is sugar for a function definition:
+
+```fathom
+def point : Format -> Format =
+  fun f => {
+    x <- f,
+    y <- f,
+  };
 ```
 
 ## Structure
@@ -304,7 +325,7 @@ record format will fail to parse. For example:
 }
 ```
 
-This can be thought of as a shorthand form of [conditional formats](#conditional-format),
+This can be thought of as a shorthand form of [conditional formats](#conditional-formats),
 allowing the field label to be reused as the name bound by the conditional
 format. For example, the above format is equivalent to:
 
@@ -683,7 +704,7 @@ The above could also be defined as:
 
 ```fathom
 let id =
-    fun (A : Type) => fun (a : A) => a;
+    fun (A : Type) (a : A) => a;
 
 id Type S32
 ```
@@ -984,7 +1005,7 @@ Optional data can be introduced with the `some` or `none` primitives:
 
 The following operations are defined for option types:
 
-- `option_fold : fun (A : Type) -> fun (B : Type) -> B -> (A -> B) -> Option A -> B`
+- `option_fold : fun (A : Type) (B : Type) -> B -> (A -> B) -> Option A -> B`
 
 ## Arrays
 
@@ -1034,10 +1055,10 @@ function to each element of the array. If the function returns true, then
 `array*_find` returns `some element`. If they all return false, it returns
 `none`.
 
-- `array8_find : fun (len : U8) -> fun (A : Type) -> (A -> Bool) -> Array8 len A -> Option A`
-- `array16_find : fun (len : U16) -> fun (A : Type) -> (A -> Bool) -> Array16 len A -> Option A`
-- `array32_find : fun (len : U32) -> fun (A : Type) -> (A -> Bool) -> Array32 len A -> Option A`
-- `array64_find : fun (len : U64) -> fun (A : Type) -> (A -> Bool) -> Array64 len A -> Option A`
+- `array8_find : fun (len : U8) (A : Type) -> (A -> Bool) -> Array8 len A -> Option A`
+- `array16_find : fun (len : U16) (A : Type) -> (A -> Bool) -> Array16 len A -> Option A`
+- `array32_find : fun (len : U32) (A : Type) -> (A -> Bool) -> Array32 len A -> Option A`
+- `array64_find : fun (len : U64) (A : Type) -> (A -> Bool) -> Array64 len A -> Option A`
 
 #### index
 
@@ -1045,10 +1066,10 @@ function to each element of the array. If the function returns true, then
 operation will not evaluate fully if the index is out of bounds. If this
 happens when parsing a binary format, a parse failure will be triggered.
 
-- `array8_index : fun (len : U8) -> fun (A : Type) -> fun (index : U8) -> Array8 len A -> A`
-- `array16_index : fun (len : U16) -> fun (A : Type) -> fun (index : U16) -> Array16 len A -> A`
-- `array32_index : fun (len : U32) -> fun (A : Type) -> fun (index : U32) -> Array32 len A -> A`
-- `array64_index : fun (len : U64) -> fun (A : Type) -> fun (index : U64) -> Array64 len A -> A`
+- `array8_index : fun (len : U8) (A : Type) (index : U8) -> Array8 len A -> A`
+- `array16_index : fun (len : U16) (A : Type) (index : U16) -> Array16 len A -> A`
+- `array32_index : fun (len : U32) (A : Type) (index : U32) -> Array32 len A -> A`
+- `array64_index : fun (len : U64) (A : Type) (index : U64) -> Array64 len A -> A`
 
 ## Positions
 

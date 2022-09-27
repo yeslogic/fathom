@@ -46,9 +46,7 @@ fn item_names(surface_module: &Module<'_, ByteRange>) -> FxHashMap<StringId, usi
         .iter()
         .enumerate()
         .filter_map(|(i, item)| match item {
-            Item::Definition {
-                label: (_, label), ..
-            } => Some((*label, i)),
+            Item::Def(item) => Some((item.label.1, i)),
             Item::ReportedError(_) => None,
         })
         .collect()
@@ -92,13 +90,11 @@ impl<'a, 'interner, 'arena, 'error> ModuleOrderContext<'a, 'interner, 'arena, 'e
         let mut erroneous = FxHashSet::default();
         for item in items {
             match item {
-                Item::Definition {
-                    label: (_, label), ..
-                } => {
-                    if erroneous.contains(label) {
+                Item::Def(item) => {
+                    if erroneous.contains(&item.label.1) {
                         continue;
                     }
-                    match self.visit_item(*label, item_names, dependencies) {
+                    match self.visit_item(item.label.1, item_names, dependencies) {
                         Ok(()) => self.stack.clear(),
                         Err(Error::CycleDetected) => erroneous.extend(self.stack.drain(..)),
                     }
@@ -151,15 +147,14 @@ fn item_dependencies(
 ) -> Vec<StringId> {
     let mut deps = Vec::new();
     match item {
-        Item::Definition {
-            label: _,
-            type_,
-            expr,
-        } => {
-            if let Some(r#type) = type_ {
+        Item::Def(item) => {
+            let initial_locals_names_len = local_names.len();
+            push_pattern_deps(item.patterns, item_names, local_names, &mut deps);
+            if let Some(r#type) = item.type_ {
                 term_deps(r#type, item_names, local_names, &mut deps);
             }
-            term_deps(expr, item_names, local_names, &mut deps);
+            term_deps(item.expr, item_names, local_names, &mut deps);
+            local_names.truncate(initial_locals_names_len);
         }
         Item::ReportedError(_) => {}
     }
@@ -208,21 +203,17 @@ fn term_deps(
             term_deps(param_type, item_names, local_names, deps);
             term_deps(body_type, item_names, local_names, deps);
         }
-        Term::FunType(_, param_pattern, param_type, body_type) => {
-            push_pattern(param_pattern, local_names);
-            if let Some(param_type) = param_type {
-                term_deps(param_type, item_names, local_names, deps);
-            }
+        Term::FunType(_, patterns, body_type) => {
+            let initial_locals_names_len = local_names.len();
+            push_pattern_deps(*patterns, item_names, local_names, deps);
             term_deps(body_type, item_names, local_names, deps);
-            pop_pattern(param_pattern, local_names);
+            local_names.truncate(initial_locals_names_len);
         }
-        Term::FunLiteral(_, param_pattern, param_type, body_type) => {
-            push_pattern(param_pattern, local_names);
-            if let Some(param_type) = param_type {
-                term_deps(param_type, item_names, local_names, deps);
-            }
+        Term::FunLiteral(_, patterns, body_type) => {
+            let initial_locals_names_len = local_names.len();
+            push_pattern_deps(*patterns, item_names, local_names, deps);
             term_deps(body_type, item_names, local_names, deps);
-            pop_pattern(param_pattern, local_names);
+            local_names.truncate(initial_locals_names_len);
         }
         Term::App(_, head_expr, arg_exprs) => {
             term_deps(head_expr, item_names, local_names, deps);
@@ -278,6 +269,20 @@ fn term_deps(
         | Term::NumberLiteral(_, _)
         | Term::BooleanLiteral(_, _)
         | Term::ReportedError(_) => {}
+    }
+}
+
+fn push_pattern_deps(
+    patterns: &[(Pattern<ByteRange>, Option<&Term<'_, ByteRange>>)],
+    item_names: &FxHashMap<StringId, usize>,
+    local_names: &mut Vec<StringId>,
+    deps: &mut Vec<StringId>,
+) {
+    for (pattern, r#type) in patterns {
+        if let Some(r#type) = r#type {
+            term_deps(r#type, item_names, local_names, deps);
+        }
+        push_pattern(pattern, local_names);
     }
 }
 

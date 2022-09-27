@@ -1,0 +1,9 @@
+stdout = ''
+stderr = '''
+error: failed to infer named pattern type
+  ┌─ tests/fail/elaboration/unsolved/fun-literal-placeholder-body-type.fathom:3:16
+  │
+3 │ fun (A : Type) a (b : A) => a : fun (A : Type) -> _
+  │                ^ unsolved named pattern type
+
+'''

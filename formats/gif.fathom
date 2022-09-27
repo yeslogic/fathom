@@ -49,7 +49,7 @@ def color_table_entry = {
 /// ## References
 ///
 /// - [GIF89a Specification: Section 19](https://www.w3.org/Graphics/GIF/spec-gif89a.txt)
-def global_color_table = fun (len : U16) => {
+def global_color_table (len : U16) = {
     entries <- array16 len color_table_entry,
 };
 

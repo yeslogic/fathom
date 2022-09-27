@@ -17,18 +17,18 @@ def find_table : fun (num_tables : U16) -> Array16 num_tables {
     offset : U32,
     length : U32,
 } =
-fun num_tables => fun table_records => fun table_id => array16_find (_ num_tables table_records table_id) (Repr table_record) (fun table_record => table_record.table_id == table_id) table_records;
+fun num_tables table_records table_id => array16_find (_ num_tables table_records table_id) (Repr table_record) (fun table_record => table_record.table_id == table_id) table_records;
 def link_table : Pos -> {
     table_id : U32,
     checksum : U32,
     offset : U32,
     length : U32,
 } -> Format -> Format =
-fun file_start => fun table_record => fun table_format => link (pos_add_u32 file_start table_record.offset) (limit32 table_record.length table_format);
+fun file_start table_record table_format => link (pos_add_u32 file_start table_record.offset) (limit32 table_record.length table_format);
 def platform_id : Format = u16be;
 def encoding_id : U16 -> Format = fun platform => u16be;
 def empty : Format = {};
-def offset32 : Pos -> Format -> Format = fun base => fun format => {
+def offset32 : Pos -> Format -> Format = fun base format => {
     offset <- u32be,
     link <- match offset {
         0 => empty,
@@ -49,7 +49,7 @@ def cmap_subtable_format2 : U16 -> Format = fun platform => {
     sub_header_keys <- array16 256 u16be,
 };
 def reserved : fun (format : Format) -> Repr format -> Format =
-fun format => fun default => format;
+fun format default => format;
 def cmap_subtable_format4 : U16 -> Format = fun platform => {
     length <- u16be,
     language <- cmap_language_id platform,
@@ -129,7 +129,7 @@ def variation_selector : Pos -> Format = fun table_start => {
     non_default_uvs_offset <- offset32 table_start non_default_uvs_table,
 };
 def cmap_subtable_format14 : U16 -> Pos -> Format =
-fun platform => fun table_start => {
+fun platform table_start => {
     length <- u32be,
     num_var_selector_records <- u32be,
     var_selector <- array32 num_var_selector_records (variation_selector table_start),
@@ -165,7 +165,7 @@ def cmap_table : Format = {
 def fixed : Format = u32be;
 def long_date_time : Format = s64be;
 def deprecated : fun (format : Format) -> Repr format -> Format =
-fun format => fun default => format;
+fun format default => format;
 def head_table : Format = {
     major_version <- u16be where major_version == (1 : U16),
     minor_version <- u16be,
@@ -236,11 +236,11 @@ def long_horizontal_metric : Format = {
     left_side_bearing <- s16be,
 };
 def htmx_table : U16 -> U16 -> Format =
-fun number_of_long_horizontal_metrics => fun num_glyphs => {
+fun number_of_long_horizontal_metrics num_glyphs => {
     h_metrics <- array16 number_of_long_horizontal_metrics long_horizontal_metric,
     left_side_bearings <- array16 (u16_sub num_glyphs number_of_long_horizontal_metrics) s16be,
 };
-def offset16 : Pos -> Format -> Format = fun base => fun format => {
+def offset16 : Pos -> Format -> Format = fun base format => {
     offset <- u16be,
     link <- match offset {
         0 => empty,
@@ -398,8 +398,7 @@ def glyph : Format = {
 def glyf_table : U16 -> Format = fun num_glyphs => {
     glyphs <- array16 num_glyphs glyph,
 };
-def loca_table : U16 -> S16 -> Format =
-fun num_glyphs => fun index_to_loc_format => {
+def loca_table : U16 -> S16 -> Format = fun num_glyphs index_to_loc_format => {
     offsets <- match index_to_loc_format {
         0 => array16 (u16_add num_glyphs 1) u16be,
         1 => array16 (u16_add num_glyphs 1) u32be,
@@ -464,19 +463,19 @@ def attach_list : Format = let attach_point_table : _ = {
     attach_point_offsets <- array16 glyph_count (offset16 table_start attach_point_table),
 };
 def device_table : Format = let u16_div_ceil : _ =
-fun numerator => fun denominator => let quotient : _ numerator denominator =
+fun numerator denominator => let quotient : _ numerator denominator =
 u16_div numerator denominator;
 match (u16_mul quotient denominator < numerator) {
     false => quotient,
     true => u16_add quotient 1,
 };
-let delta_bits : _ = fun delta_format => fun num_sizes => match delta_format {
+let delta_bits : _ = fun delta_format num_sizes => match delta_format {
     0x1 => u16_mul num_sizes 2,
     0x2 => u16_mul num_sizes 4,
     0x3 => u16_mul num_sizes 8,
     _ => 0,
 };
-let num_sizes : _ = fun start => fun end => u16_add (u16_sub end start) 1;
+let num_sizes : _ = fun start end => u16_add (u16_sub end start) 1;
 {
     start_size <- u16be,
     end_size <- u16be,
@@ -765,7 +764,7 @@ def extension_substitution : Format = let extension_subst_format1 : _ = {
     },
 };
 def value_record : Pos -> U16 -> Format =
-fun table_start => fun flags => let X_PLACEMENT : U16 = 0x1;
+fun table_start flags => let X_PLACEMENT : U16 = 0x1;
 let Y_PLACEMENT : U16 = 0x2;
 let X_ADVANCE : U16 = 0x4;
 let Y_ADVANCE : U16 = 0x8;
@@ -774,7 +773,7 @@ let Y_PLACEMENT_DEVICE : U16 = 0x20;
 let X_ADVANCE_DEVICE : U16 = 0x40;
 let Y_ADVANCE_DEVICE : U16 = 0x80;
 let optional_field : _ table_start flags =
-fun field => fun format => match (u16_and flags field != (0 : U16)) {
+fun field format => match (u16_and flags field != (0 : U16)) {
     false => empty,
     true => format,
 };
@@ -810,17 +809,17 @@ let single_pos_format2 : _ = fun table_start => {
     },
 };
 def optional_value_record : Pos -> U16 -> Format =
-fun table_start => fun flags => match (flags == (0 : U16)) {
+fun table_start flags => match (flags == (0 : U16)) {
     false => value_record table_start flags,
     true => empty,
 };
 def pair_adjustment : Format = let pair_value_record : _ =
-fun table_start => fun value_format1 => fun value_format2 => {
+fun table_start value_format1 value_format2 => {
     second_glyph <- u16be,
     value_record1 <- optional_value_record table_start value_format1,
     value_record2 <- optional_value_record table_start value_format2,
 };
-let pair_set : _ = fun value_format1 => fun value_format2 => {
+let pair_set : _ = fun value_format1 value_format2 => {
     table_start <- stream_pos,
     pair_value_count <- u16be,
     pair_value_records <- array16 pair_value_count (pair_value_record table_start value_format1 value_format2),
@@ -832,13 +831,12 @@ let pair_pos_format1 : _ = fun table_start => {
     pair_set_count <- u16be,
     pair_sets <- array16 pair_set_count (offset16 table_start (pair_set value_format1 value_format2)),
 };
-let class2_record : _ =
-fun table_start => fun value_format1 => fun value_format2 => {
+let class2_record : _ = fun table_start value_format1 value_format2 => {
     value_record1 <- optional_value_record table_start value_format1,
     value_record2 <- optional_value_record table_start value_format2,
 };
 let class1_record : _ =
-fun table_start => fun class2_count => fun value_format1 => fun value_format2 => {
+fun table_start class2_count value_format1 value_format2 => {
     class2_records <- array16 class2_count (class2_record table_start value_format1 value_format2),
 };
 let pair_pos_format2 : _ = fun pair_pos_start => {
@@ -907,10 +905,10 @@ def mark_array_table : Format = let mark_record : _ = fun table_start => {
     mark_records <- array16 mark_count (mark_record table_start),
 };
 def mark_to_base_attachment : Format = let base_record : _ =
-fun table_start => fun mark_class_count => {
+fun table_start mark_class_count => {
     base_anchors <- array16 mark_class_count (offset16 table_start anchor_table),
 };
-let base_array_table : _ = fun table_start => fun mark_class_count => {
+let base_array_table : _ = fun table_start mark_class_count => {
     base_count <- u16be,
     base_records <- array16 base_count (base_record table_start mark_class_count),
 };
@@ -930,14 +928,14 @@ let mark_base_pos_format1 : _ = fun table_start => {
     },
 };
 def mark_to_ligature_attachment : Format = let component_record : _ =
-fun table_start => fun mark_class_count => {
+fun table_start mark_class_count => {
     ligature_anchors <- array16 mark_class_count (offset16 table_start anchor_table),
 };
-let ligature_attach : _ = fun table_start => fun mark_class_count => {
+let ligature_attach : _ = fun table_start mark_class_count => {
     component_count <- u16be,
     component_records <- array16 component_count (component_record table_start mark_class_count),
 };
-let ligature_array : _ = fun table_start => fun mark_class_count => {
+let ligature_array : _ = fun table_start mark_class_count => {
     ligature_count <- u16be,
     ligature_attaches <- array16 ligature_count (offset16 table_start (ligature_attach table_start mark_class_count)),
 };
@@ -983,7 +981,7 @@ def extension_positioning : Format = let extension_pos_format1 : _ = {
 };
 def lookup_table : U32 -> Format = fun tag => let USE_MARK_FILTERING_SET : U16 =
 0x10;
-let lookup_subtable : _ tag = fun tag => fun lookup_type => match tag {
+let lookup_subtable : _ tag = fun tag lookup_type => match tag {
     "GPOS" => match lookup_type {
         1 => single_adjustment,
         2 => pair_adjustment,
@@ -1048,19 +1046,19 @@ def table_directory : Pos -> Format = fun file_start => {
     table_records <- array16 num_tables table_record,
     table_links <- let required_table :
     _ file_start sfnt_version num_tables search_range entry_selector range_shift table_records =
-    fun table_id => fun table_format => {
+    fun table_id table_format => {
         table_record <- unwrap (Repr table_record) (find_table (_ file_start sfnt_version num_tables search_range entry_selector range_shift table_records table_id table_format) table_records table_id),
         link <- link_table file_start table_record table_format,
     };
     let required_table_with_len :
     _ file_start sfnt_version num_tables search_range entry_selector range_shift table_records =
-    fun table_id => fun table_format => {
+    fun table_id table_format => {
         table_record <- unwrap (Repr table_record) (find_table (_ file_start sfnt_version num_tables search_range entry_selector range_shift table_records table_id table_format) table_records table_id),
         link <- link_table file_start table_record (table_format table_record.length),
     };
     let optional_table :
     _ file_start sfnt_version num_tables search_range entry_selector range_shift table_records =
-    fun table_id => fun table_format => option_fold (Repr table_record) Format {} (fun record => link_table file_start record table_format) (find_table (_ file_start sfnt_version num_tables search_range entry_selector range_shift table_records table_id table_format) table_records table_id);
+    fun table_id table_format => option_fold (Repr table_record) Format {} (fun record => link_table file_start record table_format) (find_table (_ file_start sfnt_version num_tables search_range entry_selector range_shift table_records table_id table_format) table_records table_id);
     {
         cmap <- required_table "cmap" cmap_table,
         head <- required_table "head" head_table,
