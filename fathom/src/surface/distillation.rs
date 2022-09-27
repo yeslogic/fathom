@@ -7,7 +7,7 @@ use crate::alloc::SliceVec;
 use crate::core::UIntStyle;
 use crate::env::{self, EnvLen, Index, Level, UniqueEnv};
 use crate::source::Span;
-use crate::surface::elaboration::FlexSource;
+use crate::surface::elaboration::MetaSource;
 use crate::surface::{
     BinOp, ExprField, FormatField, Item, ItemDef, Module, Pattern, Term, TypeField,
 };
@@ -22,8 +22,8 @@ pub struct Context<'interner, 'arena, 'env> {
     item_names: &'env mut UniqueEnv<StringId>,
     /// Local name environment.
     local_names: &'env mut UniqueEnv<Option<StringId>>,
-    /// Flexible sources.
-    flexible_sources: &'env UniqueEnv<FlexSource>,
+    /// Metavariable sources.
+    meta_sources: &'env UniqueEnv<MetaSource>,
 }
 
 impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
@@ -33,14 +33,14 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
         scope: &'arena Scope<'arena>,
         item_names: &'env mut UniqueEnv<StringId>,
         local_names: &'env mut UniqueEnv<Option<StringId>>,
-        flexible_sources: &'env UniqueEnv<FlexSource>,
+        meta_sources: &'env UniqueEnv<MetaSource>,
     ) -> Context<'interner, 'arena, 'env> {
         Context {
             interner,
             scope,
             item_names,
             local_names,
-            flexible_sources,
+            meta_sources,
         }
     }
 
@@ -79,9 +79,9 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
         self.local_names.truncate(len);
     }
 
-    fn get_flexible_name(&self, var: Level) -> Option<StringId> {
-        match self.flexible_sources.get_level(var)? {
-            FlexSource::HoleExpr(_, name) => Some(*name),
+    fn get_hole_name(&self, var: Level) -> Option<StringId> {
+        match self.meta_sources.get_level(var)? {
+            MetaSource::HoleExpr(_, name) => Some(*name),
             _ => None,
         }
     }
@@ -336,12 +336,12 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 Some(name) => Term::Name((), name),
                 None => todo!("misbound variable"), // TODO: error?
             },
-            core::Term::FlexibleVar(_span, var) => match self.get_flexible_name(*var) {
+            core::Term::MetaVar(_span, var) => match self.get_hole_name(*var) {
                 Some(name) => Term::Hole((), name),
                 None => Term::Placeholder(()),
             },
-            core::Term::FlexibleInsertion(span, var, local_infos) => {
-                let head_expr = self.synth(&core::Term::FlexibleVar(*span, *var));
+            core::Term::InsertedMeta(span, var, local_infos) => {
+                let head_expr = self.synth(&core::Term::MetaVar(*span, *var));
                 let num_params = local_infos
                     .iter()
                     .filter(|info| matches!(info, core::LocalInfo::Parameter))

@@ -60,10 +60,11 @@ impl From<RenameError> for Error {
     }
 }
 
-/// An error that was found in the problem spine.
+/// An error that was found in the spine of a unification problem.
 #[derive(Debug, Clone)]
 pub enum SpineError {
-    /// A local variable appeared multiple times in a flexible spine.
+    /// A local variable appeared multiple times in the spine of a unification
+    /// problem.
     ///
     /// For example:
     ///
@@ -99,12 +100,12 @@ pub enum SpineError {
     /// ```
     ///
     /// In this case the example solution `?α := fun _ => true` is not even
-    /// well-typed! In contrast, if the flexible spine only has distinct local
+    /// well-typed! In contrast, if the problem spine only has distinct local
     /// variables, even if the return type is dependent, local variables block
     /// all computation in the return type, and the pattern solution is
     /// guaranteed to be well-typed.
     NonLinearSpine(Level),
-    /// A flexible variable was found in the problem spine.
+    /// A metavariable was found in the problem spine.
     NonLocalFunApp,
     /// A record projection was found in the problem spine.
     RecordProj(StringId),
@@ -116,7 +117,7 @@ pub enum SpineError {
 #[derive(Debug, Clone)]
 pub enum RenameError {
     /// A free local variable in the compared value does not occur in the
-    /// flexible spine.
+    /// problem spine.
     ///
     /// For example, where `z : U` is a local variable:
     ///
@@ -124,11 +125,11 @@ pub enum RenameError {
     /// ?α x y =? z -> z
     /// ```
     ///
-    /// There is no solution for this flexible variable because `?α` is the
+    /// There is no solution for this metavariable because `?α` is the
     /// topmost-level scope, so it can only abstract over `x` and `y`, but
     /// these don't occur in `z -> z`.
     EscapingLocalVar(Level),
-    /// The flexible variable occurs in the value being compared against.
+    /// The metavariable occurs in the value being compared against.
     /// This is sometimes referred to as an 'occurs check' failure.
     ///
     /// For example:
@@ -138,7 +139,7 @@ pub enum RenameError {
     /// ```
     ///
     /// Here `?α` occurs in the right hand side, so in order to solve this
-    /// flexible variable we would end up going into an infinite loop,
+    /// metavariable we would end up going into an infinite loop,
     /// attempting to construct larger and larger solutions:
     ///
     /// - `?α =? ?α -> ?α`
@@ -156,7 +157,7 @@ pub enum RenameError {
 pub struct Context<'arena, 'env> {
     /// Scoped arena for storing [renamed][Context::rename] terms.
     scope: &'arena Scope<'arena>,
-    /// A renaming that is used when solving flexible variables using pattern
+    /// A renaming that is used when solving metavariables using pattern
     /// unification. We store it in the parent context, re-initialising it on
     /// each call to [`Context::solve`] in order to reuse previous allocations.
     renaming: &'env mut PartialRenaming,
@@ -164,8 +165,8 @@ pub struct Context<'arena, 'env> {
     item_exprs: &'env SliceEnv<ArcValue<'arena>>,
     /// The length of the local environment.
     local_exprs: EnvLen,
-    /// Solutions for flexible variables.
-    flexible_exprs: &'env mut SliceEnv<Option<ArcValue<'arena>>>,
+    /// Solutions for metavariables.
+    meta_exprs: &'env mut SliceEnv<Option<ArcValue<'arena>>>,
 }
 
 impl<'arena, 'env> Context<'arena, 'env> {
@@ -174,19 +175,19 @@ impl<'arena, 'env> Context<'arena, 'env> {
         renaming: &'env mut PartialRenaming,
         item_exprs: &'env SliceEnv<ArcValue<'arena>>,
         local_exprs: EnvLen,
-        flexible_exprs: &'env mut SliceEnv<Option<ArcValue<'arena>>>,
+        meta_exprs: &'env mut SliceEnv<Option<ArcValue<'arena>>>,
     ) -> Context<'arena, 'env> {
         Context {
             scope,
             renaming,
             item_exprs,
             local_exprs,
-            flexible_exprs,
+            meta_exprs,
         }
     }
 
     fn elim_env(&self) -> semantics::ElimEnv<'arena, '_> {
-        semantics::ElimEnv::new(self.item_exprs, self.flexible_exprs)
+        semantics::ElimEnv::new(self.item_exprs, self.meta_exprs)
     }
 
     /// Unify two values, updating the solution environment if necessary.
@@ -209,7 +210,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
             (Value::Stuck(Head::Prim(Prim::ReportedError), _), _)
             | (_, Value::Stuck(Head::Prim(Prim::ReportedError), _)) => Ok(()),
 
-            // Local-local and flexible-flexible cases
+            // Local-local and meta-meta cases
             //
             // Both values have head variables in common, so all we need to do
             // is unify the elimination spines.
@@ -223,8 +224,8 @@ impl<'arena, 'env> Context<'arena, 'env> {
                 Value::Stuck(Head::LocalVar(var1), spine1),
             ) if var0 == var1 => self.unify_spines(spine0, spine1),
             (
-                Value::Stuck(Head::FlexibleVar(var0), spine0),
-                Value::Stuck(Head::FlexibleVar(var1), spine1),
+                Value::Stuck(Head::MetaVar(var0), spine0),
+                Value::Stuck(Head::MetaVar(var1), spine1),
             ) if var0 == var1 => self.unify_spines(spine0, spine1),
 
             (Value::Universe, Value::Universe) => Ok(()),
@@ -289,16 +290,12 @@ impl<'arena, 'env> Context<'arena, 'env> {
 
             (Value::ConstLit(const0), Value::ConstLit(const1)) if const0 == const1 => Ok(()),
 
-            // Flexible-local cases
+            // Meta-local cases
             //
-            // One of the values has a flexible variable at its head, so we
+            // One of the values has a metavariable at its head, so we
             // attempt to solve it using pattern unification.
-            (Value::Stuck(Head::FlexibleVar(var0), spine0), _) => {
-                self.solve(*var0, spine0, &value1)
-            }
-            (_, Value::Stuck(Head::FlexibleVar(var1), spine1)) => {
-                self.solve(*var1, spine1, &value0)
-            }
+            (Value::Stuck(Head::MetaVar(var0), spine0), _) => self.solve(*var0, spine0, &value1),
+            (_, Value::Stuck(Head::MetaVar(var1), spine1)) => self.solve(*var1, spine1, &value0),
 
             (_, _) => Err(Error::Mismatch),
         }
@@ -422,25 +419,25 @@ impl<'arena, 'env> Context<'arena, 'env> {
     /// ?α spine =? value`
     /// ```
     ///
-    /// If successful, the flexible environment will be updated with a solution
-    /// that looks something like:
+    /// If successful, the metavariable environment will be updated with a
+    /// solution that looks something like:
     ///
     /// ```text
     /// ?α := fun spine => value
     /// ```
     fn solve(
         &mut self,
-        flexible_var: Level,
+        meta_var: Level,
         spine: &[Elim<'arena>],
         value: &ArcValue<'arena>,
     ) -> Result<(), Error> {
         self.init_renaming(spine)?;
-        let term = self.rename(flexible_var, value)?;
+        let term = self.rename(meta_var, value)?;
         let fun_term = self.fun_intros(spine, term);
         let mut local_exprs = SharedEnv::new();
         let solution = self.elim_env().eval_env(&mut local_exprs).eval(&fun_term);
 
-        self.flexible_exprs.set_level(flexible_var, Some(solution));
+        self.meta_exprs.set_level(meta_var, Some(solution));
 
         Ok(())
     }
@@ -483,14 +480,14 @@ impl<'arena, 'env> Context<'arena, 'env> {
     /// Rename `value` to a [`Term`], while at the same time using the current
     /// renaming to update variable indices, failing if the partial renaming is
     /// not defined (resulting in an [scope error][Error::ScopeError]), and also
-    /// checking for occurrences of the `flexible_var` (resulting in an [occurs
+    /// checking for occurrences of the `meta_var` (resulting in an [occurs
     /// check error][Error::InfiniteSolution]).
     ///
     /// This allows us to subsequently wrap the returned term in function
     /// literals, using [`Context::function_intros`].
     fn rename(
         &mut self,
-        flexible_var: Level,
+        meta_var: Level,
         value: &ArcValue<'arena>,
     ) -> Result<Term<'arena>, RenameError> {
         let val = self.elim_env().force(value);
@@ -503,9 +500,9 @@ impl<'arena, 'env> Context<'arena, 'env> {
                         None => return Err(RenameError::EscapingLocalVar(*source_var)),
                         Some(target_var) => Term::LocalVar(span, target_var),
                     },
-                    Head::FlexibleVar(var) => match *var {
-                        var if flexible_var == var => return Err(RenameError::InfiniteSolution),
-                        var => Term::FlexibleVar(span, var),
+                    Head::MetaVar(var) => match *var {
+                        var if meta_var == var => return Err(RenameError::InfiniteSolution),
+                        var => Term::MetaVar(span, var),
                     },
                 };
 
@@ -514,7 +511,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
                         Elim::FunApp(arg_expr) => Term::FunApp(
                             span,
                             self.scope.to_scope(head_expr?),
-                            self.scope.to_scope(self.rename(flexible_var, arg_expr)?),
+                            self.scope.to_scope(self.rename(meta_var, arg_expr)?),
                         ),
                         Elim::RecordProj(label) => {
                             Term::RecordProj(span, self.scope.to_scope(head_expr?), *label)
@@ -527,16 +524,12 @@ impl<'arena, 'env> Context<'arena, 'env> {
                             let default_expr = loop {
                                 match self.elim_env().split_branches(branches) {
                                     SplitBranches::Branch((r#const, body_expr), next_branch) => {
-                                        pattern_branches.push((
-                                            r#const,
-                                            self.rename(flexible_var, &body_expr)?,
-                                        ));
+                                        pattern_branches
+                                            .push((r#const, self.rename(meta_var, &body_expr)?));
                                         branches = next_branch;
                                     }
                                     SplitBranches::Default(default_expr) => {
-                                        break Some(
-                                            self.rename_closure(flexible_var, &default_expr)?,
-                                        )
+                                        break Some(self.rename_closure(meta_var, &default_expr)?)
                                     }
                                     SplitBranches::None => break None,
                                 }
@@ -556,8 +549,8 @@ impl<'arena, 'env> Context<'arena, 'env> {
             Value::Universe => Ok(Term::Universe(span)),
 
             Value::FunType(param_name, param_type, body_type) => {
-                let param_type = self.rename(flexible_var, param_type)?;
-                let body_type = self.rename_closure(flexible_var, body_type)?;
+                let param_type = self.rename(meta_var, param_type)?;
+                let body_type = self.rename_closure(meta_var, body_type)?;
 
                 Ok(Term::FunType(
                     span,
@@ -567,7 +560,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
                 ))
             }
             Value::FunLit(param_name, body_expr) => {
-                let body_expr = self.rename_closure(flexible_var, body_expr)?;
+                let body_expr = self.rename_closure(meta_var, body_expr)?;
 
                 Ok(Term::FunLit(
                     span,
@@ -578,7 +571,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
 
             Value::RecordType(labels, types) => {
                 let labels = self.scope.to_scope(labels); // FIXME: avoid copy if this is the same arena?
-                let types = self.rename_telescope(flexible_var, types)?;
+                let types = self.rename_telescope(meta_var, types)?;
 
                 Ok(Term::RecordType(span, labels, types))
             }
@@ -586,7 +579,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
                 let labels = self.scope.to_scope(labels); // FIXME: avoid copy if this is the same arena?
                 let mut new_exprs = SliceVec::new(self.scope, exprs.len());
                 for expr in exprs {
-                    new_exprs.push(self.rename(flexible_var, expr)?);
+                    new_exprs.push(self.rename(meta_var, expr)?);
                 }
 
                 Ok(Term::RecordLit(span, labels, new_exprs.into()))
@@ -595,7 +588,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
             Value::ArrayLit(elem_exprs) => {
                 let mut new_elem_exprs = SliceVec::new(self.scope, elem_exprs.len());
                 for elem_expr in elem_exprs {
-                    new_elem_exprs.push(self.rename(flexible_var, elem_expr)?);
+                    new_elem_exprs.push(self.rename(meta_var, elem_expr)?);
                 }
 
                 Ok(Term::ArrayLit(span, new_elem_exprs.into()))
@@ -603,13 +596,13 @@ impl<'arena, 'env> Context<'arena, 'env> {
 
             Value::FormatRecord(labels, formats) => {
                 let labels = self.scope.to_scope(labels); // FIXME: avoid copy if this is the same arena?
-                let formats = self.rename_telescope(flexible_var, formats)?;
+                let formats = self.rename_telescope(meta_var, formats)?;
 
                 Ok(Term::FormatRecord(span, labels, formats))
             }
             Value::FormatCond(label, format, cond) => {
-                let format = self.rename(flexible_var, format)?;
-                let cond = self.rename_closure(flexible_var, cond)?;
+                let format = self.rename(meta_var, format)?;
+                let cond = self.rename_closure(meta_var, cond)?;
                 Ok(Term::FormatCond(
                     span,
                     *label,
@@ -619,7 +612,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
             }
             Value::FormatOverlap(labels, formats) => {
                 let labels = self.scope.to_scope(labels); // FIXME: avoid copy if this is the same arena?
-                let formats = self.rename_telescope(flexible_var, formats)?;
+                let formats = self.rename_telescope(meta_var, formats)?;
 
                 Ok(Term::FormatOverlap(span, labels, formats))
             }
@@ -631,14 +624,14 @@ impl<'arena, 'env> Context<'arena, 'env> {
     /// Rename a closure back into a [`Term`].
     fn rename_closure(
         &mut self,
-        flexible_var: Level,
+        meta_var: Level,
         closure: &Closure<'arena>,
     ) -> Result<Term<'arena>, RenameError> {
         let source_var = self.renaming.next_local_var();
         let value = self.elim_env().apply_closure(closure, source_var);
 
         self.renaming.push_local();
-        let term = self.rename(flexible_var, &value);
+        let term = self.rename(meta_var, &value);
         self.renaming.pop_local();
 
         term
@@ -647,7 +640,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
     /// Rename a telescope back into a [`Term`].
     fn rename_telescope(
         &mut self,
-        flexible_var: Level,
+        meta_var: Level,
         telescope: &Telescope<'arena>,
     ) -> Result<&'arena [Term<'arena>], RenameError> {
         let initial_local_len = self.local_exprs;
@@ -655,7 +648,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
         let mut terms = SliceVec::new(self.scope, telescope.len());
 
         while let Some((value, next_telescope)) = self.elim_env().split_telescope(telescope) {
-            match self.rename(flexible_var, &value) {
+            match self.rename(meta_var, &value) {
                 Ok(term) => {
                     terms.push(term);
                     let var =

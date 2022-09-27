@@ -26,7 +26,7 @@ pub enum Item<'arena> {
 }
 
 /// Information about how local variables were bound. This is  used when
-/// inserting [flexible variables][Term::FlexibleInsertion] during elaboration.
+/// inserting [metavariables][Term::InsertedMeta] during elaboration.
 //
 // See also: https://en.wikipedia.org/wiki/Abstract_and_concrete
 #[derive(Debug, Copy, Clone)]
@@ -59,25 +59,22 @@ pub enum Term<'arena> {
     /// - [A unification algorithm for typed λ-calculus](https://doi.org/10.1016/0304-3975(75)90011-0)
     /// - [Type Classes: Rigid type variables](https://typeclasses.com/local-type-variables)
     LocalVar(Span, Index),
-    /// Flexible variable occurrences.
+    /// Metavariable occurrences.
     ///
-    /// These are inserted during [elaboration] when we have something we want
-    /// pattern unification to fill in for us. They are 'flexible' because the
-    /// expressions that they correspond to might be updated (from unknown to
-    /// known) during unification.
-    ///
-    /// Also known as: metavariables.
+    /// These refer to unification problems that were originally inserted during
+    /// [elaboration]. when we have a term that we want pattern unification to
+    /// infer for us based on how the variable is used later on in the program.
     ///
     /// [elaboration]: crate::surface::elaboration
-    FlexibleVar(Span, Level),
-    /// A flexible variable that has been inserted during elaboration, along
+    MetaVar(Span, Level),
+    /// A metavariable that has been inserted during elaboration, along
     /// with the [entry information] in the local environment at the time of
     /// insertion.
     ///
     /// The entry information will let us know what locally bound parameters to
-    /// apply to the flexible variable during [evaluation]. The applied
-    /// parameters will correspond to the [function literals] that will be
-    /// added to the flexible solution during unification.
+    /// apply to the metavariable during [evaluation]. The applied parameters
+    /// will correspond to the [function literals] that will be added to the
+    /// meta solution during unification.
     ///
     /// We clone the entry information and perform the function applications
     /// during evaluation because elaborating to a series of [function
@@ -104,11 +101,11 @@ pub enum Term<'arena> {
     /// //                        │ │
     /// //                        ▼ ▼
     ///        let b : A = a; (?x A a);
-    /// //                     ^^^^^^  the flexible insertion
+    /// //                     ^^^^^^  the inserted metavariable
     /// Type
     /// ```
     ///
-    /// Notice how `A` and `a` are applied to the flexible variable `?x`,
+    /// Notice how `A` and `a` are applied to the metavariable `?x`,
     /// because they are bound as local parameters, where as `b` is _not_
     /// applied, because it is bound as a definition.
     ///
@@ -123,7 +120,7 @@ pub enum Term<'arena> {
     //
     // - https://lib.rs/crates/smallbitvec
     // - https://lib.rs/crates/bit-vec
-    FlexibleInsertion(Span, Level, &'arena [LocalInfo]),
+    InsertedMeta(Span, Level, &'arena [LocalInfo]),
     /// Annotated expressions.
     Ann(Span, &'arena Term<'arena>, &'arena Term<'arena>),
     /// Let expressions.
@@ -194,8 +191,8 @@ impl<'arena> Term<'arena> {
         match self {
             Term::ItemVar(span, _)
             | Term::LocalVar(span, _)
-            | Term::FlexibleVar(span, _)
-            | Term::FlexibleInsertion(span, _, _)
+            | Term::MetaVar(span, _)
+            | Term::InsertedMeta(span, _, _)
             | Term::Ann(span, _, _)
             | Term::Let(span, _, _, _, _)
             | Term::Universe(span)
@@ -220,8 +217,8 @@ impl<'arena> Term<'arena> {
         match self {
             Term::LocalVar(_, v) => *v == var,
             Term::ItemVar(_, _)
-            | Term::FlexibleVar(_, _)
-            | Term::FlexibleInsertion(_, _, _)
+            | Term::MetaVar(_, _)
+            | Term::InsertedMeta(_, _, _)
             | Term::Universe(_)
             | Term::Prim(_, _)
             | Term::ConstLit(_, _) => false,

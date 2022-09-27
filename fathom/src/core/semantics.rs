@@ -62,8 +62,8 @@ impl<'arena> Value<'arena> {
         Value::Stuck(Head::LocalVar(level), Vec::new())
     }
 
-    pub fn flexible_var(level: Level) -> Value<'arena> {
-        Value::Stuck(Head::FlexibleVar(level), Vec::new())
+    pub fn meta_var(level: Level) -> Value<'arena> {
+        Value::Stuck(Head::MetaVar(level), Vec::new())
     }
 
     pub fn match_prim_spine(&self) -> Option<(Prim, &[Elim<'arena>])> {
@@ -81,8 +81,8 @@ pub enum Head {
     Prim(Prim),
     /// Variables that refer to local binders.
     LocalVar(Level),
-    /// Variables that refer to unsolved flexible problems.
-    FlexibleVar(Level), // TODO: Use a RefCell here?
+    /// Variables that refer to unsolved unification problems.
+    MetaVar(Level), // TODO: Use a RefCell here?
 }
 
 /// A pending elimination to be reduced if the [head][Head] of a [stuck
@@ -209,7 +209,7 @@ pub enum SplitBranches<'arena, P> {
 pub enum Error {
     InvalidItemVar,
     InvalidLocalVar,
-    InvalidFlexibleVar,
+    InvalidMetaVar,
     InvalidFunctionApp,
     InvalidRecordProj,
     InvalidConstMatch,
@@ -222,7 +222,7 @@ impl Error {
         match &self {
             Error::InvalidItemVar => "invalid item variable",
             Error::InvalidLocalVar => "invalid local variable",
-            Error::InvalidFlexibleVar => "invalid flexible variable",
+            Error::InvalidMetaVar => "invalid metavariable",
             Error::InvalidFunctionApp => "invalid function application",
             Error::InvalidRecordProj => "invalid record projection",
             Error::InvalidConstMatch => "invalid constant match",
@@ -239,24 +239,24 @@ impl Error {
 pub struct EvalEnv<'arena, 'env> {
     item_exprs: &'env SliceEnv<ArcValue<'arena>>,
     local_exprs: &'env mut SharedEnv<ArcValue<'arena>>,
-    flexible_exprs: &'env SliceEnv<Option<ArcValue<'arena>>>,
+    meta_exprs: &'env SliceEnv<Option<ArcValue<'arena>>>,
 }
 
 impl<'arena, 'env> EvalEnv<'arena, 'env> {
     pub fn new(
         item_exprs: &'env SliceEnv<ArcValue<'arena>>,
         local_exprs: &'env mut SharedEnv<ArcValue<'arena>>,
-        flexible_exprs: &'env SliceEnv<Option<ArcValue<'arena>>>,
+        meta_exprs: &'env SliceEnv<Option<ArcValue<'arena>>>,
     ) -> EvalEnv<'arena, 'env> {
         EvalEnv {
             item_exprs,
             local_exprs,
-            flexible_exprs,
+            meta_exprs,
         }
     }
 
     fn elim_env(&self) -> ElimEnv<'arena, 'env> {
-        ElimEnv::new(self.item_exprs, self.flexible_exprs)
+        ElimEnv::new(self.item_exprs, self.meta_exprs)
     }
 
     /// Fully normalise a term by first [evaluating][EvalEnv::eval] it into
@@ -271,7 +271,7 @@ impl<'arena, 'env> EvalEnv<'arena, 'env> {
             scope,
             self.item_exprs,
             self.local_exprs.len(),
-            self.flexible_exprs,
+            self.meta_exprs,
         )
         .quote(&self.eval(term))
     }
@@ -291,13 +291,13 @@ impl<'arena, 'env> EvalEnv<'arena, 'env> {
                 Some(value) => Spanned::new(*span, Arc::clone(value)),
                 None => panic_any(Error::InvalidLocalVar),
             },
-            Term::FlexibleVar(span, var) => match self.flexible_exprs.get_level(*var) {
+            Term::MetaVar(span, var) => match self.meta_exprs.get_level(*var) {
                 Some(Some(value)) => Spanned::new(*span, Arc::clone(value)),
-                Some(None) => Spanned::new(*span, Arc::new(Value::flexible_var(*var))),
-                None => panic_any(Error::InvalidFlexibleVar),
+                Some(None) => Spanned::new(*span, Arc::new(Value::meta_var(*var))),
+                None => panic_any(Error::InvalidMetaVar),
             },
-            Term::FlexibleInsertion(span, var, local_infos) => {
-                let mut head_expr = self.eval(&Term::FlexibleVar(*span, *var));
+            Term::InsertedMeta(span, var, local_infos) => {
+                let mut head_expr = self.eval(&Term::MetaVar(*span, *var));
                 for (info, expr) in Iterator::zip(local_infos.iter(), self.local_exprs.iter()) {
                     head_expr = match info {
                         LocalInfo::Definition => head_expr,
@@ -612,17 +612,17 @@ fn prim_step(prim: Prim) -> PrimStep {
 /// environment that would be needed for full evaluation.
 pub struct ElimEnv<'arena, 'env> {
     item_exprs: &'env SliceEnv<ArcValue<'arena>>,
-    flexible_exprs: &'env SliceEnv<Option<ArcValue<'arena>>>,
+    meta_exprs: &'env SliceEnv<Option<ArcValue<'arena>>>,
 }
 
 impl<'arena, 'env> ElimEnv<'arena, 'env> {
     pub fn new(
         item_exprs: &'env SliceEnv<ArcValue<'arena>>,
-        flexible_exprs: &'env SliceEnv<Option<ArcValue<'arena>>>,
+        meta_exprs: &'env SliceEnv<Option<ArcValue<'arena>>>,
     ) -> ElimEnv<'arena, 'env> {
         ElimEnv {
             item_exprs,
-            flexible_exprs,
+            meta_exprs,
         }
     }
 
@@ -630,23 +630,23 @@ impl<'arena, 'env> ElimEnv<'arena, 'env> {
         &self,
         local_exprs: &'env mut SharedEnv<ArcValue<'arena>>,
     ) -> EvalEnv<'arena, 'env> {
-        EvalEnv::new(self.item_exprs, local_exprs, self.flexible_exprs)
+        EvalEnv::new(self.item_exprs, local_exprs, self.meta_exprs)
     }
 
     /// Bring a value up-to-date with any new unification solutions that
     /// might now be present at the head of in the given value.
     pub fn force(&self, value: &ArcValue<'arena>) -> ArcValue<'arena> {
         let mut forced_value = value.clone();
-        // Attempt to force flexible values until we don't see any more.
-        while let Value::Stuck(Head::FlexibleVar(var), spine) = forced_value.as_ref() {
-            match self.flexible_exprs.get_level(*var) {
+        // Attempt to force metavariables until we don't see any more.
+        while let Value::Stuck(Head::MetaVar(var), spine) = forced_value.as_ref() {
+            match self.meta_exprs.get_level(*var) {
                 // Apply the spine to the solution. This might uncover another
-                // flexible value so we'll continue looping.
+                // metavariable so we'll continue looping.
                 Some(Some(expr)) => forced_value = self.apply_spine(expr.clone(), spine),
-                // There's no solution for this flexible variable yet, meaning
+                // There's no solution for this metavariable yet, meaning
                 // that we've forced the value as much as possible for now
                 Some(None) => break,
-                None => panic_any(Error::InvalidFlexibleVar), // TODO: Pass span into this error?
+                None => panic_any(Error::InvalidMetaVar), // TODO: Pass span into this error?
             }
         }
         forced_value
@@ -864,13 +864,13 @@ impl<'arena, 'env> ElimEnv<'arena, 'env> {
 /// Quotation environment.
 ///
 /// This environment keeps track of the length of the local environment,
-/// and the values of flexible variable expressions, allowing for quotation.
+/// and the values of metavariable expressions, allowing for quotation.
 #[derive(Clone)]
 pub struct QuoteEnv<'in_arena, 'out_arena, 'env> {
     scope: &'out_arena Scope<'out_arena>,
     item_exprs: &'env SliceEnv<ArcValue<'in_arena>>,
     local_exprs: EnvLen,
-    flexible_exprs: &'env SliceEnv<Option<ArcValue<'in_arena>>>,
+    meta_exprs: &'env SliceEnv<Option<ArcValue<'in_arena>>>,
 }
 
 impl<'in_arena, 'out_arena, 'env> QuoteEnv<'in_arena, 'out_arena, 'env> {
@@ -878,18 +878,18 @@ impl<'in_arena, 'out_arena, 'env> QuoteEnv<'in_arena, 'out_arena, 'env> {
         scope: &'out_arena Scope<'out_arena>,
         item_exprs: &'env SliceEnv<ArcValue<'in_arena>>,
         local_exprs: EnvLen,
-        flexible_exprs: &'env SliceEnv<Option<ArcValue<'in_arena>>>,
+        meta_exprs: &'env SliceEnv<Option<ArcValue<'in_arena>>>,
     ) -> QuoteEnv<'in_arena, 'out_arena, 'env> {
         QuoteEnv {
             scope,
             item_exprs,
             local_exprs,
-            flexible_exprs,
+            meta_exprs,
         }
     }
 
     fn elim_env<'this>(&'this self) -> ElimEnv<'in_arena, 'env> {
-        ElimEnv::new(self.item_exprs, self.flexible_exprs)
+        ElimEnv::new(self.item_exprs, self.meta_exprs)
     }
 
     fn push_local(&mut self) {
@@ -912,7 +912,7 @@ impl<'in_arena, 'out_arena, 'env> QuoteEnv<'in_arena, 'out_arena, 'env> {
                         // FIXME: Unwrap
                         Term::LocalVar(span, self.local_exprs.level_to_index(*var).unwrap())
                     }
-                    Head::FlexibleVar(var) => Term::FlexibleVar(span, *var),
+                    Head::MetaVar(var) => Term::MetaVar(span, *var),
                 };
 
                 spine.iter().fold(head_expr, |head_expr, elim| match elim {
@@ -1054,28 +1054,28 @@ impl<'in_arena, 'out_arena, 'env> QuoteEnv<'in_arena, 'out_arena, 'env> {
 /// Conversion environment.
 ///
 /// This environment keeps track of the length of the local environment,
-/// and the values of flexible variable expressions, allowing for conversion.
+/// and the values of metavariable expressions, allowing for conversion.
 pub struct ConversionEnv<'arena, 'env> {
     item_exprs: &'env SliceEnv<ArcValue<'arena>>,
     local_exprs: EnvLen,
-    flexible_exprs: &'env SliceEnv<Option<ArcValue<'arena>>>,
+    meta_exprs: &'env SliceEnv<Option<ArcValue<'arena>>>,
 }
 
 impl<'arena, 'env> ConversionEnv<'arena, 'env> {
     pub fn new(
         item_exprs: &'env SliceEnv<ArcValue<'arena>>,
         local_exprs: EnvLen,
-        flexible_exprs: &'env SliceEnv<Option<ArcValue<'arena>>>,
+        meta_exprs: &'env SliceEnv<Option<ArcValue<'arena>>>,
     ) -> ConversionEnv<'arena, 'env> {
         ConversionEnv {
             item_exprs,
             local_exprs,
-            flexible_exprs,
+            meta_exprs,
         }
     }
 
     fn elim_env(&self) -> ElimEnv<'arena, 'env> {
-        ElimEnv::new(self.item_exprs, self.flexible_exprs)
+        ElimEnv::new(self.item_exprs, self.meta_exprs)
     }
 
     fn push_local(&mut self) {

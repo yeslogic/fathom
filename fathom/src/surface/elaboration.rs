@@ -92,8 +92,8 @@ pub struct LocalEnv<'arena> {
     names: UniqueEnv<Option<StringId>>,
     /// Types of local variables.
     types: UniqueEnv<ArcValue<'arena>>,
-    /// Information about the local binders. Used when inserting new flexible
-    /// variables during [evaluation][semantics::EvalEnv::eval].
+    /// Information about the local binders. Used when inserting new
+    /// metavariables during [evaluation][semantics::EvalEnv::eval].
     infos: UniqueEnv<core::LocalInfo>,
     /// Expressions that will be substituted for local variables during
     /// [evaluation][semantics::EvalEnv::eval].
@@ -588,15 +588,14 @@ impl<'i, 'arena> LocalEnvBuilder<'i, 'arena> {
 
     fn define_prim(&mut self, prim: Prim, r#type: &core::Term<'arena>) {
         let name = self.name(prim.name());
-        let flexible_exprs = UniqueEnv::new();
+        let meta_exprs = UniqueEnv::new();
         let item_exprs = UniqueEnv::new();
-        let r#type = semantics::EvalEnv::new(&item_exprs, &mut SharedEnv::new(), &flexible_exprs)
-            .eval(r#type);
-        self.env.push_def(
-            name,
-            Spanned::new(Span::Empty, Arc::new(Value::prim(prim, []))),
-            r#type,
-        );
+        let mut local_exprs = SharedEnv::new();
+
+        let expr = Spanned::empty(Arc::new(Value::prim(prim, [])));
+        let r#type =
+            semantics::EvalEnv::new(&item_exprs, &mut local_exprs, &meta_exprs).eval(r#type);
+        self.env.push_def(name, expr, r#type);
     }
 
     fn define_prim_fun<const ARITY: usize>(
@@ -619,9 +618,9 @@ impl<'i, 'arena> LocalEnvBuilder<'i, 'arena> {
     }
 }
 
-/// The reason why a flexible variable was inserted.
+/// The reason why a metavariable was inserted.
 #[derive(Debug, Copy, Clone)]
-pub enum FlexSource {
+pub enum MetaSource {
     /// The type of a hole.
     HoleType(ByteRange, StringId),
     /// The expression of a hole.
@@ -640,54 +639,54 @@ pub enum FlexSource {
     ReportedErrorType(ByteRange),
 }
 
-impl FlexSource {
+impl MetaSource {
     pub fn range(&self) -> ByteRange {
         match self {
-            FlexSource::HoleType(range, _)
-            | FlexSource::HoleExpr(range, _)
-            | FlexSource::PlaceholderType(range)
-            | FlexSource::PlaceholderExpr(range)
-            | FlexSource::PlaceholderPatternType(range)
-            | FlexSource::NamedPatternType(range, _)
-            | FlexSource::MatchExprType(range)
-            | FlexSource::ReportedErrorType(range) => *range,
+            MetaSource::HoleType(range, _)
+            | MetaSource::HoleExpr(range, _)
+            | MetaSource::PlaceholderType(range)
+            | MetaSource::PlaceholderExpr(range)
+            | MetaSource::PlaceholderPatternType(range)
+            | MetaSource::NamedPatternType(range, _)
+            | MetaSource::MatchExprType(range)
+            | MetaSource::ReportedErrorType(range) => *range,
         }
     }
 }
 
-/// Flexible environment.
+/// Metavariable environment.
 ///
-/// This is used for keeping track of the state of [flexible variables] whose
+/// This is used for keeping track of the state of [metavariables] whose
 /// definitions are intended to be found through the use of [unification].
 ///
-/// [flexible variables]: core::Term::FlexibleVar
-pub struct FlexibleEnv<'arena> {
-    /// The source of inserted flexible variables, used when reporting [unsolved
-    /// flexible variables][Message::UnsolvedFlexibleVar].
-    sources: UniqueEnv<FlexSource>,
-    /// Types of flexible variables.
+/// [metavariables]: core::Term::MetaVar
+pub struct MetaEnv<'arena> {
+    /// The source of inserted metavariables, used when reporting [unsolved
+    /// metavariables][Message::UnsolvedMetaVar].
+    sources: UniqueEnv<MetaSource>,
+    /// Types of metavariables.
     types: UniqueEnv</* TODO: lazy value */ ArcValue<'arena>>,
-    /// Expressions that will be substituted for flexible variables during
+    /// Expressions that will be substituted for metavariables during
     /// [evaluation][semantics::EvalEnv::eval].
     ///
-    /// These will be set to [`None`] when a flexible variable is first
-    /// [inserted][Context::push_flexible_term], then will be set to [`Some`]
+    /// These will be set to [`None`] when a metavariable is first
+    /// [inserted][Context::push_unsolved_term], then will be set to [`Some`]
     /// if a solution is found during [`unification`].
     exprs: UniqueEnv<Option<ArcValue<'arena>>>,
 }
 
-impl<'arena> FlexibleEnv<'arena> {
+impl<'arena> MetaEnv<'arena> {
     /// Construct a new, empty environment.
-    pub fn new() -> FlexibleEnv<'arena> {
-        FlexibleEnv {
+    pub fn new() -> MetaEnv<'arena> {
+        MetaEnv {
             sources: UniqueEnv::new(),
             types: UniqueEnv::new(),
             exprs: UniqueEnv::new(),
         }
     }
 
-    /// Push an unsolved flexible binder onto the context.
-    fn push(&mut self, source: FlexSource, r#type: ArcValue<'arena>) -> Level {
+    /// Push an unsolved metavariable onto the context.
+    fn push(&mut self, source: MetaSource, r#type: ArcValue<'arena>) -> Level {
         // TODO: check that hole name is not already in use
         let var = self.exprs.len().next_level();
 
@@ -709,15 +708,15 @@ impl<'arena> FlexibleEnv<'arena> {
         let entries = Iterator::zip(self.sources.iter(), self.exprs.iter());
 
         entries.filter_map(move |(&source, expr)| match (expr, source) {
-            // Avoid producing messages for some unsolved flexible sources:
-            (None, FlexSource::HoleType(_, _)) => None, // should have an unsolved hole expression
-            (None, FlexSource::PlaceholderType(_)) => None, // should have an unsolved placeholder expression
-            (None, FlexSource::ReportedErrorType(_)) => None, // should already have an error reported
+            // Avoid producing messages for some unsolved metavariable sources:
+            (None, MetaSource::HoleType(_, _)) => None, // should have an unsolved hole expression
+            (None, MetaSource::PlaceholderType(_)) => None, // should have an unsolved placeholder expression
+            (None, MetaSource::ReportedErrorType(_)) => None, // should already have an error reported
 
             // For other sources, report an unsolved problem message
-            (None, source) => Some(Message::UnsolvedFlexibleVar { source }),
+            (None, source) => Some(Message::UnsolvedMetaVar { source }),
             // Yield messages of solved named holes
-            (Some(expr), FlexSource::HoleExpr(range, name)) => {
+            (Some(expr), MetaSource::HoleExpr(range, name)) => {
                 let term =
                     semantics::QuoteEnv::new(scope, item_exprs, local_names.len(), &self.exprs)
                         .quote(expr);
@@ -764,8 +763,8 @@ pub struct Context<'interner, 'arena, 'error> {
     item_env: ItemEnv<'arena>,
     /// Local environment.
     local_env: LocalEnv<'arena>,
-    /// Flexible environment.
-    flexible_env: FlexibleEnv<'arena>,
+    /// Meta environment.
+    meta_env: MetaEnv<'arena>,
     /// A partial renaming to be used during [`unification`].
     renaming: unification::PartialRenaming,
     /// Diagnostic messages encountered during elaboration.
@@ -790,7 +789,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
 
             item_env: ItemEnv::new(),
             local_env: LocalEnv::default(interner, scope),
-            flexible_env: FlexibleEnv::new(),
+            meta_env: MetaEnv::new(),
             renaming: unification::PartialRenaming::new(),
             messages: Vec::new(),
         }
@@ -813,21 +812,21 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
     }
 
     /// Push an unsolved term onto the context, to be updated later during unification.
-    fn push_flexible_term(
+    fn push_unsolved_term(
         &mut self,
-        source: FlexSource,
+        source: MetaSource,
         r#type: ArcValue<'arena>,
     ) -> core::Term<'arena> {
-        core::Term::FlexibleInsertion(
+        core::Term::InsertedMeta(
             source.range().into(),
-            self.flexible_env.push(source, r#type),
+            self.meta_env.push(source, r#type),
             (self.scope).to_scope_from_iter(self.local_env.infos.iter().copied()),
         )
     }
 
     /// Push an unsolved type onto the context, to be updated later during unification.
-    fn push_flexible_type(&mut self, source: FlexSource) -> ArcValue<'arena> {
-        let r#type = self.push_flexible_term(source, self.universe.clone());
+    fn push_unsolved_type(&mut self, source: MetaSource) -> ArcValue<'arena> {
+        let r#type = self.push_unsolved_term(source, self.universe.clone());
         self.eval_env().eval(&r#type)
     }
 
@@ -836,7 +835,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
     }
 
     pub fn drain_messages(&mut self) -> impl '_ + Iterator<Item = Message> {
-        let report_messages = self.flexible_env.report(
+        let report_messages = self.meta_env.report(
             self.interner,
             self.error_scope,
             self.item_env.names.clone(),
@@ -851,12 +850,12 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
         semantics::EvalEnv::new(
             &self.item_env.exprs,
             &mut self.local_env.exprs,
-            &self.flexible_env.exprs,
+            &self.meta_env.exprs,
         )
     }
 
     pub fn elim_env(&self) -> semantics::ElimEnv<'arena, '_> {
-        semantics::ElimEnv::new(&self.item_env.exprs, &self.flexible_env.exprs)
+        semantics::ElimEnv::new(&self.item_env.exprs, &self.meta_env.exprs)
     }
 
     pub fn quote_env<'out_arena>(
@@ -867,7 +866,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
             scope,
             &self.item_env.exprs,
             self.local_env.len(),
-            &self.flexible_env.exprs,
+            &self.meta_env.exprs,
         )
     }
 
@@ -877,7 +876,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
             &mut self.renaming,
             &self.item_env.exprs,
             self.local_env.len(),
-            &mut self.flexible_env.exprs,
+            &mut self.meta_env.exprs,
         )
     }
 
@@ -890,7 +889,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
             scope,
             &mut self.item_env.names,
             &mut self.local_env.names,
-            &self.flexible_env.sources,
+            &self.meta_env.sources,
         )
     }
 
@@ -898,7 +897,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
         &self,
         buffer: binary::Buffer<'data>,
     ) -> binary::Context<'arena, '_, 'data> {
-        binary::Context::new(&self.item_env.exprs, &self.flexible_env.exprs, buffer)
+        binary::Context::new(&self.item_env.exprs, &self.meta_env.exprs, buffer)
     }
 
     fn pretty_print_value(&mut self, value: &ArcValue<'_>) -> String {
@@ -1207,25 +1206,25 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
     ) -> (CheckedPattern, ArcValue<'arena>) {
         match pattern {
             Pattern::Name(range, name) => {
-                let source = FlexSource::NamedPatternType(*range, *name);
-                let r#type = self.push_flexible_type(source);
+                let source = MetaSource::NamedPatternType(*range, *name);
+                let r#type = self.push_unsolved_type(source);
                 (CheckedPattern::Binder(*range, *name), r#type)
             }
             Pattern::Placeholder(range) => {
-                let source = FlexSource::PlaceholderPatternType(*range);
-                let r#type = self.push_flexible_type(source);
+                let source = MetaSource::PlaceholderPatternType(*range);
+                let r#type = self.push_unsolved_type(source);
                 (CheckedPattern::Placeholder(*range), r#type)
             }
             Pattern::StringLiteral(range, _) => {
                 self.push_message(Message::AmbiguousStringLiteral { range: *range });
-                let source = FlexSource::ReportedErrorType(*range);
-                let r#type = self.push_flexible_type(source);
+                let source = MetaSource::ReportedErrorType(*range);
+                let r#type = self.push_unsolved_type(source);
                 (CheckedPattern::ReportedError(*range), r#type)
             }
             Pattern::NumberLiteral(range, _) => {
                 self.push_message(Message::AmbiguousNumericLiteral { range: *range });
-                let source = FlexSource::ReportedErrorType(*range);
-                let r#type = self.push_flexible_type(source);
+                let source = MetaSource::ReportedErrorType(*range);
+                let r#type = self.push_unsolved_type(source);
                 (CheckedPattern::ReportedError(*range), r#type)
             }
             Pattern::BooleanLiteral(range, val) => {
@@ -1571,20 +1570,20 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 self.synth_reported_error(*range)
             }
             Term::Hole(range, name) => {
-                let type_source = FlexSource::HoleType(*range, *name);
-                let expr_source = FlexSource::HoleExpr(*range, *name);
+                let type_source = MetaSource::HoleType(*range, *name);
+                let expr_source = MetaSource::HoleExpr(*range, *name);
 
-                let r#type = self.push_flexible_type(type_source);
-                let expr = self.push_flexible_term(expr_source, r#type.clone());
+                let r#type = self.push_unsolved_type(type_source);
+                let expr = self.push_unsolved_term(expr_source, r#type.clone());
 
                 (expr, r#type)
             }
             Term::Placeholder(range) => {
-                let type_source = FlexSource::PlaceholderType(*range);
-                let expr_source = FlexSource::PlaceholderExpr(*range);
+                let type_source = MetaSource::PlaceholderType(*range);
+                let expr_source = MetaSource::PlaceholderExpr(*range);
 
-                let r#type = self.push_flexible_type(type_source);
-                let expr = self.push_flexible_term(expr_source, r#type.clone());
+                let r#type = self.push_unsolved_type(type_source);
+                let expr = self.push_unsolved_term(expr_source, r#type.clone());
 
                 (expr, r#type)
             }
@@ -1622,10 +1621,10 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 (let_expr, body_type)
             }
             Term::Match(range, scrutinee_expr, equations) => {
-                // Create a single flexible variable representing the overall
+                // Create a single metavariable representing the overall
                 // type of the match expression, allowing us to unify this with
                 // the types of the match equations together.
-                let r#type = self.push_flexible_type(FlexSource::MatchExprType(*range));
+                let r#type = self.push_unsolved_type(MetaSource::MatchExprType(*range));
                 let expr = self.check_match(*range, scrutinee_expr, equations, &r#type);
                 (expr, r#type)
             }
@@ -1911,8 +1910,8 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                         core::Term::FunLit(range.into(), name, self.scope.to_scope(body_expr))
                     }
                     // Attempt to elaborate the the body of the function in synthesis
-                    // mode if we are checking against a flexible variable.
-                    Value::Stuck(Head::FlexibleVar(_), _) => {
+                    // mode if we are checking against a metavariable.
+                    Value::Stuck(Head::MetaVar(_), _) => {
                         let range = ByteRange::merge(&pattern.range(), &body_expr.range()).unwrap();
                         let (expr, r#type) = self.synth_fun_lit(range, patterns, body_expr, None);
                         self.convert(range, expr, &r#type, expected_type)
@@ -2145,7 +2144,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
 
     fn synth_reported_error(&mut self, range: ByteRange) -> (core::Term<'arena>, ArcValue<'arena>) {
         let expr = core::Term::Prim(range.into(), Prim::ReportedError);
-        let r#type = self.push_flexible_type(FlexSource::ReportedErrorType(range));
+        let r#type = self.push_unsolved_type(MetaSource::ReportedErrorType(range));
         (expr, r#type)
     }
 
