@@ -267,13 +267,8 @@ impl<'arena, 'env> EvalEnv<'arena, 'env> {
         scope: &'out_arena Scope<'out_arena>,
         term: &Term<'arena>,
     ) -> Term<'out_arena> {
-        QuoteEnv::new(
-            scope,
-            self.item_exprs,
-            self.local_exprs.len(),
-            self.meta_exprs,
-        )
-        .quote(&self.eval(term))
+        QuoteEnv::new(self.item_exprs, self.local_exprs.len(), self.meta_exprs)
+            .quote(scope, &self.eval(term))
     }
 
     /// Evaluate a [term][Term] into a [value][Value].
@@ -351,11 +346,9 @@ impl<'arena, 'env> EvalEnv<'arena, 'env> {
                 Spanned::merge(*span, self.elim_env().record_proj(head_expr, *label))
             }
 
-            Term::ArrayLit(span, elem_exprs) => {
-                let elem_exprs = (elem_exprs.iter())
-                    .map(|elem_expr| self.eval(elem_expr))
-                    .collect();
-                Spanned::new(*span, Arc::new(Value::ArrayLit(elem_exprs)))
+            Term::ArrayLit(span, exprs) => {
+                let exprs = exprs.iter().map(|expr| self.eval(expr)).collect();
+                Spanned::new(*span, Arc::new(Value::ArrayLit(exprs)))
             }
 
             Term::FormatRecord(span, labels, formats) => {
@@ -866,22 +859,19 @@ impl<'arena, 'env> ElimEnv<'arena, 'env> {
 /// This environment keeps track of the length of the local environment,
 /// and the values of metavariable expressions, allowing for quotation.
 #[derive(Clone)]
-pub struct QuoteEnv<'in_arena, 'out_arena, 'env> {
-    scope: &'out_arena Scope<'out_arena>,
+pub struct QuoteEnv<'in_arena, 'env> {
     item_exprs: &'env SliceEnv<ArcValue<'in_arena>>,
     local_exprs: EnvLen,
     meta_exprs: &'env SliceEnv<Option<ArcValue<'in_arena>>>,
 }
 
-impl<'in_arena, 'out_arena, 'env> QuoteEnv<'in_arena, 'out_arena, 'env> {
+impl<'in_arena, 'env> QuoteEnv<'in_arena, 'env> {
     pub fn new(
-        scope: &'out_arena Scope<'out_arena>,
         item_exprs: &'env SliceEnv<ArcValue<'in_arena>>,
         local_exprs: EnvLen,
         meta_exprs: &'env SliceEnv<Option<ArcValue<'in_arena>>>,
-    ) -> QuoteEnv<'in_arena, 'out_arena, 'env> {
+    ) -> QuoteEnv<'in_arena, 'env> {
         QuoteEnv {
-            scope,
             item_exprs,
             local_exprs,
             meta_exprs,
@@ -901,7 +891,14 @@ impl<'in_arena, 'out_arena, 'env> QuoteEnv<'in_arena, 'out_arena, 'env> {
     }
 
     /// Quote a [value][Value] back into a [term][Term].
-    pub fn quote(&mut self, value: &ArcValue<'in_arena>) -> Term<'out_arena> {
+    pub fn quote<'out_arena>(
+        &mut self,
+        scope: &'out_arena Scope<'out_arena>,
+        value: &ArcValue<'in_arena>,
+    ) -> Term<'out_arena> {
+        // NOTE: this copies more than is necessary when `'in_arena == 'out_arena`:
+        // for example when copying label slices.
+
         let value = self.elim_env().force(value);
         let span = value.span();
         match value.as_ref() {
@@ -918,35 +915,32 @@ impl<'in_arena, 'out_arena, 'env> QuoteEnv<'in_arena, 'out_arena, 'env> {
                 spine.iter().fold(head_expr, |head_expr, elim| match elim {
                     Elim::FunApp(arg_expr) => Term::FunApp(
                         span,
-                        self.scope.to_scope(head_expr),
-                        self.scope.to_scope(self.quote(arg_expr)),
+                        scope.to_scope(head_expr),
+                        scope.to_scope(self.quote(scope, arg_expr)),
                     ),
                     Elim::RecordProj(label) => {
-                        Term::RecordProj(span, self.scope.to_scope(head_expr), *label)
+                        Term::RecordProj(span, scope.to_scope(head_expr), *label)
                     }
                     Elim::ConstMatch(branches) => {
                         let mut branches = branches.clone();
-                        let mut pattern_branches =
-                            SliceVec::new(self.scope, branches.num_patterns());
+                        let mut pattern_branches = SliceVec::new(scope, branches.num_patterns());
 
                         let default_expr = loop {
                             match self.elim_env().split_branches(branches) {
                                 SplitBranches::Branch((r#const, body_expr), next_branches) => {
-                                    pattern_branches.push((r#const, self.quote(&body_expr)));
+                                    pattern_branches.push((r#const, self.quote(scope, &body_expr)));
                                     branches = next_branches;
                                 }
-                                SplitBranches::Default(default_expr) => {
-                                    break Some(self.quote_closure(&default_expr))
-                                }
+                                SplitBranches::Default(default_expr) => break Some(default_expr),
                                 SplitBranches::None => break None,
                             }
                         };
 
                         Term::ConstMatch(
                             span,
-                            self.scope.to_scope(head_expr),
+                            scope.to_scope(head_expr),
                             pattern_branches.into(),
-                            default_expr.map(|expr| self.scope.to_scope(expr) as &_),
+                            default_expr.map(|expr| self.quote_closure(scope, &expr)),
                         )
                     }
                 })
@@ -954,95 +948,82 @@ impl<'in_arena, 'out_arena, 'env> QuoteEnv<'in_arena, 'out_arena, 'env> {
 
             Value::Universe => Term::Universe(span),
 
-            Value::FunType(param_name, param_type, body_type) => {
-                let param_type = self.quote(param_type);
-                let body_type = self.quote_closure(body_type);
-
-                Term::FunType(
-                    span,
-                    *param_name,
-                    self.scope.to_scope(param_type),
-                    self.scope.to_scope(body_type),
-                )
-            }
+            Value::FunType(param_name, param_type, body_type) => Term::FunType(
+                span,
+                *param_name,
+                scope.to_scope(self.quote(scope, param_type)),
+                self.quote_closure(scope, body_type),
+            ),
             Value::FunLit(param_name, body_expr) => {
-                let body_expr = self.quote_closure(body_expr);
-
-                Term::FunLit(span, *param_name, self.scope.to_scope(body_expr))
+                Term::FunLit(span, *param_name, self.quote_closure(scope, body_expr))
             }
 
-            Value::RecordType(labels, types) => {
-                let labels = self.scope.to_scope_from_iter(labels.iter().copied()); // FIXME: avoid copy if this is the same arena?
-                let types = self.quote_telescope(types);
+            Value::RecordType(labels, types) => Term::RecordType(
+                span,
+                scope.to_scope_from_iter(labels.iter().copied()),
+                self.quote_telescope(scope, types),
+            ),
+            Value::RecordLit(labels, exprs) => Term::RecordLit(
+                span,
+                scope.to_scope_from_iter(labels.iter().copied()),
+                scope.to_scope_from_iter(exprs.iter().map(|expr| self.quote(scope, expr))),
+            ),
+            Value::ArrayLit(exprs) => Term::ArrayLit(
+                span,
+                scope.to_scope_from_iter(exprs.iter().map(|expr| self.quote(scope, expr))),
+            ),
 
-                Term::RecordType(span, labels, types)
-            }
-            Value::RecordLit(labels, exprs) => {
-                let labels = self.scope.to_scope_from_iter(labels.iter().copied()); // FIXME: avoid copy if this is the same arena?
-                let exprs =
-                    (self.scope).to_scope_from_iter(exprs.iter().map(|expr| self.quote(expr)));
-
-                Term::RecordLit(span, labels, exprs)
-            }
-            Value::ArrayLit(elem_exprs) => {
-                let elem_exprs = (self.scope)
-                    .to_scope_from_iter(elem_exprs.iter().map(|elem_expr| self.quote(elem_expr)));
-
-                Term::ArrayLit(span, elem_exprs)
-            }
-
-            Value::FormatRecord(labels, formats) => {
-                let labels = self.scope.to_scope_from_iter(labels.iter().copied()); // FIXME: avoid copy if this is the same arena?
-                let formats = self.quote_telescope(formats);
-
-                Term::FormatRecord(span, labels, formats)
-            }
-            Value::FormatCond(label, format, cond) => {
-                let format = self.quote(format);
-                let cond = self.quote_closure(cond);
-                Term::FormatCond(
-                    span,
-                    *label,
-                    self.scope.to_scope(format),
-                    self.scope.to_scope(cond),
-                )
-            }
-            Value::FormatOverlap(labels, formats) => {
-                let labels = self.scope.to_scope_from_iter(labels.iter().copied()); // FIXME: avoid copy if this is the same arena?
-                let formats = self.quote_telescope(formats);
-
-                Term::FormatOverlap(span, labels, formats)
-            }
+            Value::FormatRecord(labels, formats) => Term::FormatRecord(
+                span,
+                scope.to_scope_from_iter(labels.iter().copied()),
+                self.quote_telescope(scope, formats),
+            ),
+            Value::FormatCond(label, format, cond) => Term::FormatCond(
+                span,
+                *label,
+                scope.to_scope(self.quote(scope, format)),
+                self.quote_closure(scope, cond),
+            ),
+            Value::FormatOverlap(labels, formats) => Term::FormatOverlap(
+                span,
+                scope.to_scope_from_iter(labels.iter().copied()),
+                self.quote_telescope(scope, formats),
+            ),
 
             Value::ConstLit(r#const) => Term::ConstLit(span, *r#const),
         }
     }
 
     /// Quote a [closure][Closure] back into a [term][Term].
-    fn quote_closure(&mut self, closure: &Closure<'in_arena>) -> Term<'out_arena> {
+    fn quote_closure<'out_arena>(
+        &mut self,
+        scope: &'out_arena Scope<'out_arena>,
+        closure: &Closure<'in_arena>,
+    ) -> &'out_arena Term<'out_arena> {
         let var = Arc::new(Value::local_var(self.local_exprs.next_level()));
         let value = self.elim_env().apply_closure(closure, Spanned::empty(var));
 
         self.push_local();
-        let term = self.quote(&value);
+        let term = self.quote(scope, &value);
         self.pop_local();
 
-        term
+        scope.to_scope(term)
     }
 
     /// Quote a [telescope][Telescope] back into a slice of [terms][Term].
-    fn quote_telescope(
+    fn quote_telescope<'out_arena>(
         &mut self,
+        scope: &'out_arena Scope<'out_arena>,
         telescope: &Telescope<'in_arena>,
     ) -> &'out_arena [Term<'out_arena>] {
         let initial_local_len = self.local_exprs;
         let mut telescope = telescope.clone();
-        let mut terms = SliceVec::new(self.scope, telescope.len());
+        let mut terms = SliceVec::new(scope, telescope.len());
 
         while let Some((value, next_telescope)) = self.elim_env().split_telescope(telescope) {
             let var = Arc::new(Value::local_var(self.local_exprs.next_level()));
             telescope = next_telescope(Spanned::empty(var));
-            terms.push(self.quote(&value));
+            terms.push(self.quote(scope, &value));
             self.local_exprs.push();
         }
 
@@ -1151,9 +1132,9 @@ impl<'arena, 'env> ConversionEnv<'arena, 'env> {
                 self.is_equal_record_lit(labels, exprs, &value0)
             }
 
-            (Value::ArrayLit(elem_exprs0), Value::ArrayLit(elem_exprs1)) => {
-                Iterator::zip(elem_exprs0.iter(), elem_exprs1.iter())
-                    .all(|(elem_expr0, elem_expr1)| self.is_equal(elem_expr0, elem_expr1))
+            (Value::ArrayLit(exprs0), Value::ArrayLit(exprs1)) => {
+                Iterator::zip(exprs0.iter(), exprs1.iter())
+                    .all(|(expr0, expr1)| self.is_equal(expr0, expr1))
             }
 
             (Value::FormatRecord(labels0, formats0), Value::FormatRecord(labels1, formats1))

@@ -717,9 +717,8 @@ impl<'arena> MetaEnv<'arena> {
             (None, source) => Some(Message::UnsolvedMetaVar { source }),
             // Yield messages of solved named holes
             (Some(expr), MetaSource::HoleExpr(range, name)) => {
-                let term =
-                    semantics::QuoteEnv::new(scope, item_exprs, local_names.len(), &self.exprs)
-                        .quote(expr);
+                let term = semantics::QuoteEnv::new(item_exprs, local_names.len(), &self.exprs)
+                    .quote(scope, expr);
                 let surface_term = distillation::Context::new(
                     interner,
                     scope,
@@ -858,12 +857,8 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
         semantics::ElimEnv::new(&self.item_env.exprs, &self.meta_env.exprs)
     }
 
-    pub fn quote_env<'out_arena>(
-        &self,
-        scope: &'out_arena Scope<'out_arena>,
-    ) -> semantics::QuoteEnv<'arena, 'out_arena, '_> {
+    pub fn quote_env(&self) -> semantics::QuoteEnv<'arena, '_> {
         semantics::QuoteEnv::new(
-            scope,
             &self.item_env.exprs,
             self.local_env.len(),
             &self.meta_env.exprs,
@@ -901,7 +896,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
     }
 
     fn pretty_print_value(&mut self, value: &ArcValue<'_>) -> String {
-        let term = self.quote_env(self.error_scope).quote(value);
+        let term = self.quote_env().quote(self.error_scope, value);
         let surface_term = self.distillation_context(self.error_scope).check(&term);
         let pretty_context = pretty::Context::new(self.interner, self.error_scope);
         let doc = pretty_context.term(&surface_term).into_doc();
@@ -1092,7 +1087,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                     let (expr, type_value) =
                         self.synth_fun_lit(item.range, item.patterns, item.expr, item.type_);
                     let expr_value = self.eval_env().eval(&expr);
-                    let r#type = self.quote_env(self.scope).quote(&type_value);
+                    let r#type = self.quote_env().quote(self.scope, &type_value);
 
                     self.item_env
                         .push_definition(item.label.1, type_value, expr_value);
@@ -1343,7 +1338,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
         match (surface_term, expected_type.as_ref()) {
             (Term::Let(range, def_pattern, def_type, def_expr, body_expr), _) => {
                 let (def_pattern, def_type_value) = self.synth_ann_pattern(def_pattern, *def_type);
-                let def_type = self.quote_env(self.scope).quote(&def_type_value); // FIXME: avoid requote if possible?
+                let def_type = self.quote_env().quote(self.scope, &def_type_value);
                 let def_expr = self.check(def_expr, &def_type_value);
                 let def_expr_value = self.eval_env().eval(&def_expr);
 
@@ -1582,7 +1577,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
             }
             Term::Let(range, def_pattern, def_type, def_expr, body_expr) => {
                 let (def_pattern, def_type_value) = self.synth_ann_pattern(def_pattern, *def_type);
-                let def_type = self.quote_env(self.scope).quote(&def_type_value); // FIXME: avoid requote if possible?
+                let def_type = self.quote_env().quote(self.scope, &def_type_value);
                 let def_expr = self.check(def_expr, &def_type_value);
                 let def_expr_value = self.eval_env().eval(&def_expr);
 
@@ -1634,7 +1629,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 let mut params = Vec::with_capacity(patterns.len());
                 for (pattern, r#type) in *patterns {
                     let (pattern, type_value) = self.synth_ann_pattern(pattern, *r#type);
-                    let r#type = self.quote_env(self.scope).quote(&type_value);
+                    let r#type = self.quote_env().quote(self.scope, &type_value);
                     let (name, _) = self.push_local_param(pattern, type_value);
                     params.push((name, r#type));
                 }
@@ -1729,7 +1724,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
 
                 for expr_field in expr_fields {
                     let (expr, r#type) = self.synth(&expr_field.expr);
-                    types.push(self.quote_env(self.scope).quote(&r#type)); // NOTE: Unsure if these are correctly bound!
+                    types.push(self.quote_env().quote(self.scope, &r#type));
                     exprs.push(expr);
                 }
 
@@ -1931,7 +1926,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 _ => ByteRange::merge(&pattern.range(), &body_expr.range()).unwrap(),
             };
             let (pattern, type_value) = self.synth_ann_pattern(pattern, *r#type);
-            let r#type = self.quote_env(self.scope).quote(&type_value);
+            let r#type = self.quote_env().quote(self.scope, &type_value);
             let (name, _) = self.push_local_param(pattern, type_value);
             params.push((range, name, r#type));
         }
@@ -1944,7 +1939,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
             }
             None => {
                 let (body_expr, body_type) = self.synth(body_expr);
-                (body_expr, self.quote_env(self.scope).quote(&body_type))
+                (body_expr, self.quote_env().quote(self.scope, &body_type))
             }
         };
 
@@ -2188,7 +2183,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                         }
                         None => {
                             let (expr, type_value) = self.synth(expr);
-                            let r#type = self.quote_env(self.scope).quote(&type_value);
+                            let r#type = self.quote_env().quote(self.scope, &type_value);
                             (expr, r#type, type_value)
                         }
                     };
@@ -2267,7 +2262,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                         let def_name = Some(name);
                         let def_expr = self.eval_env().eval(match_info.scrutinee.expr);
                         let def_type_value = match_info.scrutinee.r#type.clone();
-                        let def_type = self.quote_env(self.scope).quote(&def_type_value);
+                        let def_type = self.quote_env().quote(self.scope, &def_type_value);
 
                         self.local_env.push_def(def_name, def_expr, def_type_value);
                         let body_expr = self.check(body_expr, &match_info.expected_type);

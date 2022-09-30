@@ -221,7 +221,7 @@ impl<'surface, 'core> Driver<'surface, 'core> {
         // Parse and elaborate the term
         let surface_term = self.parse_term(file_id);
         let (term, r#type) = context.synth(&surface_term);
-        let r#type = context.quote_env(&self.core_scope).quote(&r#type);
+        let r#type = context.quote_env().quote(&self.core_scope, &r#type);
 
         // Emit errors we might have found during elaboration
         let elab_messages = context.drain_messages();
@@ -260,7 +260,7 @@ impl<'surface, 'core> Driver<'surface, 'core> {
         }
 
         let term = context.eval_env().normalise(&self.core_scope, &term);
-        let r#type = context.quote_env(&self.core_scope).quote(&r#type);
+        let r#type = context.quote_env().quote(&self.core_scope, &r#type);
 
         self.surface_scope.reset(); // Reuse the surface scope for distillation
         let mut context = context.distillation_context(&self.surface_scope);
@@ -329,7 +329,7 @@ impl<'surface, 'core> Driver<'surface, 'core> {
             let exprs = parsed_refs.iter().map(|parsed_ref| {
                 let core_scope = &self.core_scope;
                 let surface_scope = &self.surface_scope;
-                let expr = context.quote_env(core_scope).quote(&parsed_ref.expr);
+                let expr = context.quote_env().quote(core_scope, &parsed_ref.expr);
                 context.distillation_context(surface_scope).check(&expr)
             });
 
@@ -440,7 +440,7 @@ impl<'surface, 'core> Driver<'surface, 'core> {
             ReadError::CondFailure(span, ref value) => {
                 let core_scope = &self.core_scope;
                 let surface_scope = &self.surface_scope;
-                let expr = context.quote_env(core_scope).quote(value);
+                let expr = context.quote_env().quote(core_scope, value);
                 let surface_term = context.distillation_context(surface_scope).check(&expr);
                 let pretty_context = surface::pretty::Context::new(&self.interner, surface_scope);
                 let doc = pretty_context.term(&surface_term).into_doc();
