@@ -1,14 +1,8 @@
-use std::collections::HashMap;
-use std::convert::TryFrom;
-use std::fmt;
 use std::fmt::Debug;
-use std::slice::SliceIndex;
-use std::sync::Arc;
 
-use crate::core::semantics::{self, ArcValue, Elim, Head, Value};
-use crate::core::{Const, Prim, Term, UIntStyle};
-use crate::env::{EnvLen, Index, SharedEnv, SliceEnv, UniqueEnv};
-use crate::source::{Span, Spanned};
+use crate::core::semantics::{self, ArcValue};
+use crate::core::{Prim, Term};
+use crate::env::{EnvLen, SharedEnv, SliceEnv, UniqueEnv};
 use crate::StringId;
 
 pub struct Context<'arena, 'env> {
@@ -85,6 +79,17 @@ pub struct CompileEnv {
     types: UniqueEnv<Type>,
 }
 
+#[derive(Debug)]
+pub struct Module {
+    items: Vec<Item>,
+}
+
+#[derive(Debug)]
+enum Item {
+    Struct(Struct),
+    ReadFn(DecodeFn),
+}
+
 impl CompileEnv {
     pub fn new() -> Self {
         CompileEnv {
@@ -132,7 +137,8 @@ impl<'arena, 'env, 'data> Context<'arena, 'env> {
         &mut self,
         format: &Term<'arena>,
         // TODO: Return a Rust module containing all the compiled elements?
-    ) -> Result<(), ()> {
+    ) -> Result<Module, ()> {
+        let mut items = Vec::new();
         match format {
             Term::ItemVar(_, _) => unimplemented! {},
             Term::LocalVar(_, _) => unimplemented! {},
@@ -155,11 +161,13 @@ impl<'arena, 'env, 'data> Context<'arena, 'env> {
                     fields.push((label, ty));
                 }
                 let r#struct = Struct { fields };
-                dbg!(r#struct);
+                dbg!(&r#struct);
+                items.push(Item::Struct(r#struct));
 
                 // Now generate the read function
                 let read_fn = self.compile_decode(format);
                 dbg!(&read_fn);
+                items.push(Item::ReadFn(read_fn));
             }
             Term::FormatCond(_, _, _, _) => unimplemented! {},
             Term::FormatOverlap(_, _, _) => unimplemented! {},
@@ -168,7 +176,7 @@ impl<'arena, 'env, 'data> Context<'arena, 'env> {
             Term::ConstMatch(_, _, _, _) => unimplemented! {},
         }
 
-        Ok(())
+        Ok(Module { items })
     }
 
     fn compile_rep(&mut self, format: &Term<'arena>) -> Type {
@@ -297,6 +305,312 @@ impl<'arena, 'env, 'data> Context<'arena, 'env> {
             Prim::FormatU64Be => ParseExpr::Const(TypeConst::U64Be),
             Prim::FormatU64Le => ParseExpr::Const(TypeConst::U64Le),
             _ => todo! {},
+        }
+    }
+}
+
+pub mod rust {
+    use std::cell::RefCell;
+
+    use pretty::{Doc, DocAllocator, DocBuilder, DocPtr, RefDoc};
+    use scoped_arena::Scope;
+
+    use crate::core::compile::{DecodeExpr, Item, Module, ParseExpr, Type, TypeConst};
+    use crate::{StringId, StringInterner};
+
+    const INDENT: isize = 4;
+
+    pub struct Context<'interner, 'arena> {
+        interner: &'interner RefCell<StringInterner>,
+        scope: &'arena Scope<'arena>,
+    }
+
+    impl<'interner, 'arena> Context<'interner, 'arena> {
+        pub fn new(
+            interner: &'interner RefCell<StringInterner>,
+            scope: &'arena Scope<'arena>,
+        ) -> Context<'interner, 'arena> {
+            Context { interner, scope }
+        }
+
+        fn string_id(&'arena self, name: StringId) -> DocBuilder<'arena, Self> {
+            match self.interner.borrow().resolve(name) {
+                Some(name) => self.text(name.to_owned()),
+                None => self.text("#error"),
+            }
+        }
+
+        pub fn module(&'arena self, module: &Module) -> DocBuilder<'arena, Self> {
+            self.intersperse(
+                module.items.iter().map(|item| self.item(item)),
+                self.hardline(),
+            )
+        }
+
+        fn item(&'arena self, item: &Item) -> DocBuilder<'arena, Self> {
+            match item {
+                Item::Struct(r#struct) => self.sequence(
+                    self.concat([
+                        self.text("struct"),
+                        self.space(),
+                        self.text("TodoStructName"),
+                        self.space(),
+                        self.text("{"),
+                    ]),
+                    r#struct.fields.iter().map(|(name, ty)| {
+                        self.concat([
+                            self.string_id(*name),
+                            self.text(":"),
+                            self.space(),
+                            self.ty_prec((), ty),
+                        ])
+                    }),
+                    self.text(","),
+                    self.text("}"),
+                ),
+                Item::ReadFn(readfn) => self.sequence(
+                    self.concat([
+                        self.text("impl<'a> ReadBinary<'a> for"),
+                        self.space(),
+                        self.text("TodoStruct"),
+                        self.space(),
+                        self.text("{"),
+                        self.hardline(),
+                        self.text("type HostType = Self;"),
+                        self.hardline(),
+                        self.text("pub fn read() -> Result<Self::HostType, ParseError> {"),
+                    ]),
+                    readfn.exprs.iter().map(|expr| self.expr(expr)),
+                    self.text(";"),
+                    self.text("}"),
+                ),
+            }
+        }
+
+        fn ty_prec(
+            &'arena self,
+            _prec: (), // TODO: Is this needed?
+            ty: &Type,
+        ) -> DocBuilder<'arena, Self> {
+            match ty {
+                Type::U8 => self.text("u8"),
+                Type::U16 => self.text("u16"),
+                Type::U32 => self.text("u32"),
+                Type::U64 => self.text("u64"),
+                Type::I8 => self.text("i8"),
+                Type::I16 => self.text("i16"),
+                Type::I32 => self.text("i32"),
+                Type::I64 => self.text("i64"),
+                Type::Vec(t) => self.concat([
+                    // TODO: Use sequence?
+                    self.text("Vec<"),
+                    self.ty_prec((), t),
+                    self.text(">"),
+                ]),
+                Type::Array(len, t) => self.concat([
+                    // TODO: Use sequence?
+                    self.text("["),
+                    self.ty_prec((), t),
+                    self.text(";"),
+                    self.space(),
+                    self.text(len.to_string()), // FIXME: right way to do this?
+                    self.text("]"),
+                ]),
+            }
+        }
+
+        fn expr(&'arena self, expr: &DecodeExpr) -> DocBuilder<'arena, Self> {
+            match expr {
+                DecodeExpr::Struct {
+                    name,
+                    parse_fields,
+                    fields,
+                } => {
+                    self.concat([
+                        self.parse_fields(parse_fields),
+                        self.hardline(),
+                        self.construct_struct(/*name,*/ fields),
+                    ])
+                }
+            }
+        }
+
+        fn parse_fields(
+            &'arena self,
+            fields: &[(StringId, ParseExpr)],
+        ) -> DocBuilder<'arena, Self> {
+            self.sequence(
+                self.text(""),
+                fields.iter().map(|(name, field)| {
+                    self.concat([
+                        self.text("let"),
+                        self.space(),
+                        self.string_id(*name),
+                        self.space(),
+                        self.text("="),
+                        self.space(),
+                        self.parse_expr(field),
+                        self.text("?"),
+                    ])
+                }),
+                self.concat([self.text(";"), self.hardline()]),
+                self.text(""),
+            )
+        }
+
+        fn construct_struct(
+            &'arena self,
+            /*name: StringId,*/ fields: &[ParseExpr],
+        ) -> DocBuilder<'arena, Self> {
+            self.sequence(
+                self.concat([
+                    self.text("Ok("),
+                    self.text(/*name*/ "TodoStruct"),
+                    self.space(),
+                    self.text("{"),
+                ]),
+                fields.iter().enumerate().map(|(i, field)| {
+                    self.concat([
+                        self.text(format!("todo_field_{}:", i)),
+                        self.space(),
+                        self.parse_expr(field),
+                    ])
+                }),
+                self.text(","),
+                self.text("})"),
+            )
+        }
+
+        fn parse_expr(&'arena self, expr: &ParseExpr) -> DocBuilder<'arena, Self> {
+            match expr {
+                ParseExpr::Const(r#const) => self.type_const(r#const),
+                ParseExpr::Var(var) => self.text("todo_var"),
+            }
+        }
+
+        fn type_const(&'arena self, ty_const: &TypeConst) -> DocBuilder<'arena, Self> {
+            match ty_const {
+                TypeConst::U8 => self.text("read_u8()"),
+                TypeConst::U16Be => self.text("read_u16be()"),
+                TypeConst::U32Be => self.text("read_u32be()"),
+                TypeConst::U64Be => self.text("read_u64be()"),
+                TypeConst::U16Le => self.text("read_u16le()"),
+                TypeConst::U32Le => self.text("read_u32le()"),
+                TypeConst::U64Le => self.text("read_u64le()"),
+            }
+        }
+
+        /// Pretty prints a delimited sequence of documents with a trailing
+        /// separator if it is formatted over multiple lines.
+        pub fn sequence(
+            &'arena self,
+            start_delim: DocBuilder<'arena, Self>,
+            docs: impl ExactSizeIterator<Item = DocBuilder<'arena, Self>> + Clone,
+            separator: DocBuilder<'arena, Self>,
+            end_delim: DocBuilder<'arena, Self>,
+        ) -> DocBuilder<'arena, Self> {
+            if docs.len() == 0 {
+                self.concat([start_delim, end_delim])
+            } else {
+                DocBuilder::flat_alt(
+                    self.concat([
+                        start_delim.clone(),
+                        self.concat(
+                            docs.clone()
+                                .map(|doc| self.concat([self.hardline(), doc, separator.clone()])),
+                        )
+                        .nest(INDENT),
+                        self.hardline(),
+                        end_delim.clone(),
+                    ]),
+                    self.concat([
+                        start_delim,
+                        self.space(),
+                        self.intersperse(docs, self.concat([separator, self.space()])),
+                        self.space(),
+                        end_delim,
+                    ]),
+                )
+                .group()
+            }
+        }
+    }
+
+    impl<'interner, 'arena, A: 'arena> DocAllocator<'arena, A> for Context<'interner, 'arena> {
+        type Doc = RefDoc<'arena, A>;
+
+        #[inline]
+        fn alloc(&'arena self, doc: Doc<'arena, Self::Doc, A>) -> Self::Doc {
+            // Based on the `DocAllocator` implementation for `pretty::Arena`
+            RefDoc(match doc {
+                // Return 'static references for common variants to avoid some allocations
+                Doc::Nil => &Doc::Nil,
+                Doc::Hardline => &Doc::Hardline,
+                Doc::Fail => &Doc::Fail,
+                // space()
+                Doc::BorrowedText(" ") => &Doc::BorrowedText(" "),
+                // line()
+                Doc::FlatAlt(RefDoc(Doc::Hardline), RefDoc(Doc::BorrowedText(" "))) => {
+                    &Doc::FlatAlt(RefDoc(&Doc::Hardline), RefDoc(&Doc::BorrowedText(" ")))
+                }
+                // line_()
+                Doc::FlatAlt(RefDoc(Doc::Hardline), RefDoc(Doc::Nil)) => {
+                    &Doc::FlatAlt(RefDoc(&Doc::Hardline), RefDoc(&Doc::Nil))
+                }
+                // softline()
+                Doc::Group(RefDoc(Doc::FlatAlt(
+                    RefDoc(Doc::Hardline),
+                    RefDoc(Doc::BorrowedText(" ")),
+                ))) => &Doc::Group(RefDoc(&Doc::FlatAlt(
+                    RefDoc(&Doc::Hardline),
+                    RefDoc(&Doc::BorrowedText(" ")),
+                ))),
+                // softline_()
+                Doc::Group(RefDoc(Doc::FlatAlt(RefDoc(Doc::Hardline), RefDoc(Doc::Nil)))) => {
+                    &Doc::Group(RefDoc(&Doc::FlatAlt(
+                        RefDoc(&Doc::Hardline),
+                        RefDoc(&Doc::Nil),
+                    )))
+                }
+
+                // Language tokens
+                Doc::BorrowedText("fun") => &Doc::BorrowedText("fun"),
+                Doc::BorrowedText("let") => &Doc::BorrowedText("let"),
+                Doc::BorrowedText("overlap") => &Doc::BorrowedText("overlap"),
+                Doc::BorrowedText("Type") => &Doc::BorrowedText("Type"),
+                Doc::BorrowedText("where") => &Doc::BorrowedText("where"),
+                Doc::BorrowedText(":") => &Doc::BorrowedText(":"),
+                Doc::BorrowedText(",") => &Doc::BorrowedText(","),
+                Doc::BorrowedText("=") => &Doc::BorrowedText("="),
+                Doc::BorrowedText("=>") => &Doc::BorrowedText("=>"),
+                Doc::BorrowedText(".") => &Doc::BorrowedText("."),
+                Doc::BorrowedText("->") => &Doc::BorrowedText("->"),
+                Doc::BorrowedText("<-") => &Doc::BorrowedText("<-"),
+                Doc::BorrowedText(";") => &Doc::BorrowedText(";"),
+                Doc::BorrowedText("_") => &Doc::BorrowedText("_"),
+                Doc::BorrowedText("{") => &Doc::BorrowedText("{"),
+                Doc::BorrowedText("}") => &Doc::BorrowedText("}"),
+                Doc::BorrowedText("[") => &Doc::BorrowedText("["),
+                Doc::BorrowedText("]") => &Doc::BorrowedText("]"),
+                Doc::BorrowedText("(") => &Doc::BorrowedText("("),
+                Doc::BorrowedText(")") => &Doc::BorrowedText(")"),
+
+                _ => self.scope.to_scope(doc),
+            })
+        }
+
+        fn alloc_column_fn(
+            &'arena self,
+            f: impl 'arena + Fn(usize) -> Self::Doc,
+        ) -> <Self::Doc as DocPtr<'arena, A>>::ColumnFn {
+            self.scope.to_scope(f)
+        }
+
+        fn alloc_width_fn(
+            &'arena self,
+            f: impl 'arena + Fn(isize) -> Self::Doc,
+        ) -> <Self::Doc as DocPtr<'arena, A>>::WidthFn {
+            self.scope.to_scope(f)
         }
     }
 }

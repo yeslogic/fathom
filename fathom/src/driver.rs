@@ -5,9 +5,9 @@ use std::cell::RefCell;
 use std::io::Read;
 use std::path::Path;
 
-use crate::core::binary;
 use crate::core::binary::{BufferError, ReadError};
 use crate::core::compile::CompileEnv;
+use crate::core::{binary, compile};
 use crate::env::UniqueEnv;
 use crate::source::{ByteRange, FileId, Span, Spanned};
 use crate::surface::{self, elaboration};
@@ -384,18 +384,22 @@ impl<'surface, 'core> Driver<'surface, 'core> {
         let format = context.eval_env().normalise(&self.core_scope, &format_term);
         dbg!(&format);
 
-        // Generate code...
+        // Generate IR...
         let mut compile_env = CompileEnv::new();
-        match context
+        let module = match context
             .compile_context(&mut compile_env)
             .compile_format(&format)
         {
-            Ok(()) => (),
+            Ok(module) => module,
             Err(_err) => {
                 // self.emit_diagnostic(self.read_error_to_diagnostic(err, &mut context));
                 return Status::Error;
             }
         };
+
+        // Emit code...
+        let context = compile::rust::Context::new(&self.interner, &self.surface_scope);
+        self.emit_doc(context.module(&module).into_doc());
 
         Status::Ok
     }
