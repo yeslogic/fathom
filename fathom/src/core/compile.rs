@@ -7,7 +7,7 @@ use std::sync::Arc;
 
 use crate::core::semantics::{self, ArcValue, Elim, Head, Value};
 use crate::core::{Const, Prim, Term, UIntStyle};
-use crate::env::{EnvLen, SharedEnv, SliceEnv};
+use crate::env::{EnvLen, Index, SharedEnv, SliceEnv, UniqueEnv};
 use crate::source::{Span, Spanned};
 use crate::StringId;
 
@@ -15,8 +15,7 @@ pub struct Context<'arena, 'env> {
     item_exprs: &'env SliceEnv<ArcValue<'arena>>,
     rigid_exprs: &'env SharedEnv<ArcValue<'arena>>,
     flexible_exprs: &'env SliceEnv<Option<ArcValue<'arena>>>,
-    pending_formats: Vec<(usize, ArcValue<'arena>)>,
-    // cached_refs: HashMap<usize, Vec<ParsedRef<'arena>>>,
+    compile_env: &'env mut CompileEnv,
 }
 
 #[derive(Debug)]
@@ -35,9 +34,75 @@ enum Type {
     Array(usize, Box<Type>),
 }
 
+/// The definition of a struct
 #[derive(Debug)]
 struct Struct {
+    // TODO: Add name?
     fields: Vec<(StringId, Type)>,
+}
+
+#[derive(Debug)]
+struct DecodeFn {
+    exprs: Vec<DecodeExpr>,
+}
+
+#[derive(Debug)]
+enum DecodeExpr {
+    /// name, fields
+    Struct {
+        // name of the struct
+        name: String,
+        // Parse a type into a named variable
+        parse_fields: Vec<(StringId, ParseExpr)>,
+        // How to initialise the fields of the struct using the variables
+        fields: Vec<ParseExpr>,
+    },
+}
+
+#[derive(Debug)]
+enum ParseExpr {
+    // Parse a const type
+    Const(TypeConst),
+    // A reference to a variable
+    Var(usize),
+}
+
+#[derive(Debug)]
+enum TypeConst {
+    U8,
+    U16Be,
+    U32Be,
+    U64Be,
+    U16Le,
+    U32Le,
+    U64Le,
+}
+
+pub struct CompileEnv {
+    /// Names of variables.
+    names: UniqueEnv<Option<StringId>>,
+    /// Types of variables.
+    types: UniqueEnv<Type>,
+}
+
+impl CompileEnv {
+    pub fn new() -> Self {
+        CompileEnv {
+            names: UniqueEnv::new(),
+            types: UniqueEnv::new(),
+        }
+    }
+
+    /// Get the length of the environment.
+    fn len(&self) -> EnvLen {
+        self.names.len()
+    }
+
+    /// Truncate the environment.
+    fn truncate(&mut self, len: EnvLen) {
+        self.names.truncate(len);
+        self.types.truncate(len);
+    }
 }
 
 impl<'arena, 'env, 'data> Context<'arena, 'env> {
@@ -45,14 +110,13 @@ impl<'arena, 'env, 'data> Context<'arena, 'env> {
         item_exprs: &'env SliceEnv<ArcValue<'arena>>,
         rigid_exprs: &'env SharedEnv<ArcValue<'arena>>,
         flexible_exprs: &'env SliceEnv<Option<ArcValue<'arena>>>,
+        compile_env: &'env mut CompileEnv,
     ) -> Context<'arena, 'env> {
         Context {
             item_exprs,
             rigid_exprs,
             flexible_exprs,
-            // initial_buffer,
-            pending_formats: Vec::new(),
-            // cached_refs: HashMap::new(),
+            compile_env,
         }
     }
 
@@ -85,9 +149,6 @@ impl<'arena, 'env, 'data> Context<'arena, 'env> {
             Term::RecordProj(_, _, _) => unimplemented! {},
             Term::ArrayLit(_, _) => unimplemented! {},
             Term::FormatRecord(_, labels, formats) => {
-                println!(
-                    r#"generate a new rust struct as a "representation" of that format, and a function to to decode that struct."#
-                );
                 let mut fields = Vec::with_capacity(labels.len());
                 for (label, format) in labels.iter().copied().zip(formats.iter()) {
                     let ty = self.compile_rep(format);
@@ -95,6 +156,10 @@ impl<'arena, 'env, 'data> Context<'arena, 'env> {
                 }
                 let r#struct = Struct { fields };
                 dbg!(r#struct);
+
+                // Now generate the read function
+                let read_fn = self.compile_decode(format);
+                dbg!(&read_fn);
             }
             Term::FormatCond(_, _, _, _) => unimplemented! {},
             Term::FormatOverlap(_, _, _) => unimplemented! {},
@@ -164,6 +229,73 @@ impl<'arena, 'env, 'data> Context<'arena, 'env> {
             Prim::FormatS16Be | Prim::FormatS16Le => Type::I16,
             Prim::FormatS32Be | Prim::FormatS32Le => Type::I32,
             Prim::FormatS64Be | Prim::FormatS64Le => Type::I64,
+            _ => todo! {},
+        }
+    }
+
+    fn compile_decode(&mut self, format: &Term<'arena>) -> DecodeFn {
+        match format {
+            Term::FormatRecord(_, labels, formats) => {
+                // For each field, put the name and type in the environment and generate a reader for it
+                // Then when encountering a variable we need to be able to lookup in that environment
+                // using the variable
+                let initial_env_len = self.compile_env.len();
+                let mut fields = Vec::with_capacity(labels.len());
+                let parse_fields: Vec<(StringId, ParseExpr)> = labels
+                    .iter()
+                    .copied()
+                    .zip(formats.iter())
+                    .map(|(label, format)| (label, self.read_format(format)))
+                    .collect();
+                // for (label, format) in  {
+                //     self.read_format(format, &mut parse_fields);
+                //
+                //     // Generate var decl
+                //     // For each field create a variable in the environment and initialise it with
+                //     // a read of the format
+                //
+                //     // Generate struct initialisation
+                // }
+                self.compile_env.truncate(initial_env_len);
+
+                for (i, _) in parse_fields.iter().enumerate() {
+                    fields.push(ParseExpr::Var(i));
+                }
+
+                // Create DecodeExpr::Struct
+                let st = DecodeExpr::Struct {
+                    // name of the struct
+                    name: String::from("TodoName"),
+                    // Parse a type into a named variable
+                    parse_fields,
+                    // How to initialise the fields of the struct using the variables
+                    fields,
+                };
+                DecodeFn { exprs: vec![st] }
+            }
+            _ => unreachable!("can only compile decode for format records"),
+        }
+    }
+
+    fn read_format(&mut self, format: &Term<'arena>) -> ParseExpr {
+        match format {
+            // Term::RigidVar(_, var) => {
+            //     exprs.push(ParseExpr::Var(*var));
+            // }
+            Term::Prim(_, prim) => Self::read_prim(prim),
+            _ => unreachable!("format: {:?}", format),
+        }
+    }
+
+    fn read_prim(prim: &Prim) -> ParseExpr {
+        match prim {
+            Prim::FormatU8 => ParseExpr::Const(TypeConst::U8),
+            Prim::FormatU16Be => ParseExpr::Const(TypeConst::U16Be),
+            Prim::FormatU16Le => ParseExpr::Const(TypeConst::U16Le),
+            Prim::FormatU32Be => ParseExpr::Const(TypeConst::U32Be),
+            Prim::FormatU32Le => ParseExpr::Const(TypeConst::U32Le),
+            Prim::FormatU64Be => ParseExpr::Const(TypeConst::U64Be),
+            Prim::FormatU64Le => ParseExpr::Const(TypeConst::U64Le),
             _ => todo! {},
         }
     }

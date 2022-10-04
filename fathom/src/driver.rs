@@ -7,6 +7,8 @@ use std::path::Path;
 
 use crate::core::binary;
 use crate::core::binary::{BufferError, ReadError};
+use crate::core::compile::CompileEnv;
+use crate::env::UniqueEnv;
 use crate::source::{ByteRange, FileId, Span, Spanned};
 use crate::surface::{self, elaboration};
 use crate::{StringInterner, BUG_REPORT_URL};
@@ -383,7 +385,11 @@ impl<'surface, 'core> Driver<'surface, 'core> {
         dbg!(&format);
 
         // Generate code...
-        match context.compile_context().compile_format(&format) {
+        let mut compile_env = CompileEnv::new();
+        match context
+            .compile_context(&mut compile_env)
+            .compile_format(&format)
+        {
             Ok(()) => (),
             Err(_err) => {
                 // self.emit_diagnostic(self.read_error_to_diagnostic(err, &mut context));

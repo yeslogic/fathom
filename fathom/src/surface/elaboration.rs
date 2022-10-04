@@ -26,6 +26,7 @@ use std::str::FromStr;
 use std::sync::Arc;
 
 use crate::alloc::SliceVec;
+use crate::core::compile::CompileEnv;
 use crate::core::semantics::{self, ArcValue, Head, Telescope, Value};
 use crate::core::{self, binary, compile, Const, Prim, UIntStyle};
 use crate::env::{self, EnvLen, Level, SharedEnv, SliceEnv, UniqueEnv};
@@ -900,11 +901,15 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
         binary::Context::new(&self.item_env.exprs, &self.meta_env.exprs, buffer)
     }
 
-    pub fn compile_context(&self) -> compile::Context<'arena, '_> {
+    pub fn compile_context<'a>(
+        &'a self,
+        compile_env: &'a mut CompileEnv,
+    ) -> compile::Context<'arena, '_> {
         compile::Context::new(
             &self.item_env.exprs,
             &self.local_env.exprs,
             &self.meta_env.exprs,
+            compile_env,
         )
     }
 
