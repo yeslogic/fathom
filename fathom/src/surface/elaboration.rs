@@ -945,7 +945,12 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
     }
 
     /// Parse a source string into number, assuming an ASCII encoding.
-    fn parse_ascii<T>(&mut self, range: ByteRange, string_id: StringId) -> Option<T>
+    fn parse_ascii<T>(
+        &mut self,
+        range: ByteRange,
+        string_id: StringId,
+        make: fn(T, UIntStyle) -> Const,
+    ) -> Option<Const>
     where
         T: From<u8> + std::ops::Shl<Output = T> + std::ops::BitOr<Output = T>,
     {
@@ -954,10 +959,11 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
         // TODO: Non-ASCII encodings
 
         let interner = self.interner.borrow();
-        let mut data = Some(T::from(0));
+        let source = interner.resolve(string_id).unwrap();
+        let mut num = Some(T::from(0));
         let mut count: u8 = 0;
 
-        for (offset, ch) in interner.resolve(string_id).unwrap().char_indices() {
+        for (offset, ch) in source.char_indices() {
             if !ch.is_ascii() {
                 let ch_start = range.start() + 1 + offset;
                 let ch_end = ch_start + ch.len_utf8();
@@ -965,14 +971,14 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 self.push_message(Message::NonAsciiStringLiteral {
                     invalid_range: ByteRange::new(range.file_id(), ch_start, ch_end),
                 });
-                data = None;
+                num = None;
             }
 
-            data = data.filter(|_| usize::from(count) < std::mem::size_of::<T>());
-            data = data.map(|data| {
+            num = num.filter(|_| usize::from(count) < std::mem::size_of::<T>());
+            num = num.map(|num| {
                 // Yikes this is a tad ugly. Setting the bytes in reverse order...
                 let offset = 8 * (std::mem::size_of::<T>() as u8 - (count + 1));
-                data | (T::from(ch as u8) << T::from(offset))
+                num | (T::from(ch as u8) << T::from(offset))
             });
             count += 1;
         }
@@ -983,20 +989,25 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 expected_len: std::mem::size_of::<T>(),
                 found_len: count as usize,
             });
-            data = None;
+            num = None;
         }
 
-        data
+        num.map(|num| make(num, UIntStyle::Ascii))
     }
 
     /// Parse a source string into a number.
-    fn parse_number<T: FromStr>(&mut self, range: ByteRange, string_id: StringId) -> Option<T>
+    fn parse_number<T: FromStr>(
+        &mut self,
+        range: ByteRange,
+        string_id: StringId,
+        make: fn(T) -> Const,
+    ) -> Option<Const>
     where
         T::Err: std::fmt::Display,
     {
         // TODO: Custom parsing and improved errors
         match self.interner.borrow().resolve(string_id).unwrap().parse() {
-            Ok(data) => Some(data),
+            Ok(data) => Some(make(data)),
             Err(error) => {
                 let message = error.to_string();
                 self.push_message(Message::InvalidNumericLiteral { range, message });
@@ -1010,10 +1021,11 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
         &mut self,
         range: ByteRange,
         string_id: StringId,
-    ) -> Option<(T, UIntStyle)> {
+        make: fn(T, UIntStyle) -> Const,
+    ) -> Option<Const> {
         // TODO: Custom parsing and improved errors
-        let s = self.interner.borrow();
-        let s = s.resolve(string_id).unwrap();
+        let interner = self.interner.borrow();
+        let s = interner.resolve(string_id).unwrap();
         let (s, radix, style) = if let Some(s) = s.strip_prefix("0x") {
             (s, 16, UIntStyle::Hexadecimal)
         } else if let Some(s) = s.strip_prefix("0b") {
@@ -1022,7 +1034,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
             (s, 10, UIntStyle::Decimal)
         };
         match T::from_str_radix(s, radix) {
-            Ok(data) => Some((data, style)),
+            Ok(data) => Some(make(data, style)),
             Err(error) => {
                 let message = error.to_string();
                 self.push_message(Message::InvalidNumericLiteral { range, message });
@@ -1109,20 +1121,12 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
         match pattern {
             Pattern::Name(range, name) => CheckedPattern::Binder(*range, *name),
             Pattern::Placeholder(range) => CheckedPattern::Placeholder(*range),
-            Pattern::StringLiteral(range, string) => {
+            Pattern::StringLiteral(range, lit) => {
                 let constant = match expected_type.match_prim_spine() {
-                    Some((Prim::U8Type, [])) => self
-                        .parse_ascii(*range, *string)
-                        .map(|num| Const::U8(num, UIntStyle::Ascii)),
-                    Some((Prim::U16Type, [])) => self
-                        .parse_ascii(*range, *string)
-                        .map(|num| Const::U16(num, UIntStyle::Ascii)),
-                    Some((Prim::U32Type, [])) => self
-                        .parse_ascii(*range, *string)
-                        .map(|num| Const::U32(num, UIntStyle::Ascii)),
-                    Some((Prim::U64Type, [])) => self
-                        .parse_ascii(*range, *string)
-                        .map(|num| Const::U64(num, UIntStyle::Ascii)),
+                    Some((Prim::U8Type, [])) => self.parse_ascii(*range, *lit, Const::U8),
+                    Some((Prim::U16Type, [])) => self.parse_ascii(*range, *lit, Const::U16),
+                    Some((Prim::U32Type, [])) => self.parse_ascii(*range, *lit, Const::U32),
+                    Some((Prim::U64Type, [])) => self.parse_ascii(*range, *lit, Const::U64),
                     // Some((Prim::Array8Type, [len, _])) => todo!(),
                     // Some((Prim::Array16Type, [len, _])) => todo!(),
                     // Some((Prim::Array32Type, [len, _])) => todo!(),
@@ -1143,26 +1147,18 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                     None => CheckedPattern::ReportedError(*range),
                 }
             }
-            Pattern::NumberLiteral(range, number) => {
+            Pattern::NumberLiteral(range, lit) => {
                 let constant = match expected_type.match_prim_spine() {
-                    Some((Prim::U8Type, [])) => self
-                        .parse_number_radix(*range, *number)
-                        .map(|(num, style)| Const::U8(num, style)),
-                    Some((Prim::U16Type, [])) => self
-                        .parse_number_radix(*range, *number)
-                        .map(|(num, style)| Const::U16(num, style)),
-                    Some((Prim::U32Type, [])) => self
-                        .parse_number_radix(*range, *number)
-                        .map(|(num, style)| Const::U32(num, style)),
-                    Some((Prim::U64Type, [])) => self
-                        .parse_number_radix(*range, *number)
-                        .map(|(num, style)| Const::U64(num, style)),
-                    Some((Prim::S8Type, [])) => self.parse_number(*range, *number).map(Const::S8),
-                    Some((Prim::S16Type, [])) => self.parse_number(*range, *number).map(Const::S16),
-                    Some((Prim::S32Type, [])) => self.parse_number(*range, *number).map(Const::S32),
-                    Some((Prim::S64Type, [])) => self.parse_number(*range, *number).map(Const::S64),
-                    Some((Prim::F32Type, [])) => self.parse_number(*range, *number).map(Const::F32),
-                    Some((Prim::F64Type, [])) => self.parse_number(*range, *number).map(Const::F64),
+                    Some((Prim::U8Type, [])) => self.parse_number_radix(*range, *lit, Const::U8),
+                    Some((Prim::U16Type, [])) => self.parse_number_radix(*range, *lit, Const::U16),
+                    Some((Prim::U32Type, [])) => self.parse_number_radix(*range, *lit, Const::U32),
+                    Some((Prim::U64Type, [])) => self.parse_number_radix(*range, *lit, Const::U64),
+                    Some((Prim::S8Type, [])) => self.parse_number(*range, *lit, Const::S8),
+                    Some((Prim::S16Type, [])) => self.parse_number(*range, *lit, Const::S16),
+                    Some((Prim::S32Type, [])) => self.parse_number(*range, *lit, Const::S32),
+                    Some((Prim::S64Type, [])) => self.parse_number(*range, *lit, Const::S64),
+                    Some((Prim::F32Type, [])) => self.parse_number(*range, *lit, Const::F32),
+                    Some((Prim::F64Type, [])) => self.parse_number(*range, *lit, Const::F64),
                     Some((Prim::ReportedError, _)) => None,
                     _ => {
                         let expected_type = self.pretty_print_value(expected_type);
@@ -1469,20 +1465,12 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                     }
                 }
             }
-            (Term::StringLiteral(range, string), _) => {
+            (Term::StringLiteral(range, lit), _) => {
                 let constant = match expected_type.match_prim_spine() {
-                    Some((Prim::U8Type, [])) => self
-                        .parse_ascii(*range, *string)
-                        .map(|num| Const::U8(num, UIntStyle::Ascii)),
-                    Some((Prim::U16Type, [])) => self
-                        .parse_ascii(*range, *string)
-                        .map(|num| Const::U16(num, UIntStyle::Ascii)),
-                    Some((Prim::U32Type, [])) => self
-                        .parse_ascii(*range, *string)
-                        .map(|num| Const::U32(num, UIntStyle::Ascii)),
-                    Some((Prim::U64Type, [])) => self
-                        .parse_ascii(*range, *string)
-                        .map(|num| Const::U64(num, UIntStyle::Ascii)),
+                    Some((Prim::U8Type, [])) => self.parse_ascii(*range, *lit, Const::U8),
+                    Some((Prim::U16Type, [])) => self.parse_ascii(*range, *lit, Const::U16),
+                    Some((Prim::U32Type, [])) => self.parse_ascii(*range, *lit, Const::U32),
+                    Some((Prim::U64Type, [])) => self.parse_ascii(*range, *lit, Const::U64),
                     // Some((Prim::Array8Type, [len, _])) => todo!(),
                     // Some((Prim::Array16Type, [len, _])) => todo!(),
                     // Some((Prim::Array32Type, [len, _])) => todo!(),
@@ -1503,26 +1491,18 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                     None => core::Term::Prim(range.into(), Prim::ReportedError),
                 }
             }
-            (Term::NumberLiteral(range, number), _) => {
+            (Term::NumberLiteral(range, lit), _) => {
                 let constant = match expected_type.match_prim_spine() {
-                    Some((Prim::U8Type, [])) => self
-                        .parse_number_radix(*range, *number)
-                        .map(|(num, style)| Const::U8(num, style)),
-                    Some((Prim::U16Type, [])) => self
-                        .parse_number_radix(*range, *number)
-                        .map(|(num, style)| Const::U16(num, style)),
-                    Some((Prim::U32Type, [])) => self
-                        .parse_number_radix(*range, *number)
-                        .map(|(num, style)| Const::U32(num, style)),
-                    Some((Prim::U64Type, [])) => self
-                        .parse_number_radix(*range, *number)
-                        .map(|(num, style)| Const::U64(num, style)),
-                    Some((Prim::S8Type, [])) => self.parse_number(*range, *number).map(Const::S8),
-                    Some((Prim::S16Type, [])) => self.parse_number(*range, *number).map(Const::S16),
-                    Some((Prim::S32Type, [])) => self.parse_number(*range, *number).map(Const::S32),
-                    Some((Prim::S64Type, [])) => self.parse_number(*range, *number).map(Const::S64),
-                    Some((Prim::F32Type, [])) => self.parse_number(*range, *number).map(Const::F32),
-                    Some((Prim::F64Type, [])) => self.parse_number(*range, *number).map(Const::F64),
+                    Some((Prim::U8Type, [])) => self.parse_number_radix(*range, *lit, Const::U8),
+                    Some((Prim::U16Type, [])) => self.parse_number_radix(*range, *lit, Const::U16),
+                    Some((Prim::U32Type, [])) => self.parse_number_radix(*range, *lit, Const::U32),
+                    Some((Prim::U64Type, [])) => self.parse_number_radix(*range, *lit, Const::U64),
+                    Some((Prim::S8Type, [])) => self.parse_number(*range, *lit, Const::S8),
+                    Some((Prim::S16Type, [])) => self.parse_number(*range, *lit, Const::S16),
+                    Some((Prim::S32Type, [])) => self.parse_number(*range, *lit, Const::S32),
+                    Some((Prim::S64Type, [])) => self.parse_number(*range, *lit, Const::S64),
+                    Some((Prim::F32Type, [])) => self.parse_number(*range, *lit, Const::F32),
+                    Some((Prim::F64Type, [])) => self.parse_number(*range, *lit, Const::F64),
                     Some((Prim::ReportedError, _)) => None,
                     _ => {
                         let expected_type = self.pretty_print_value(&expected_type);
