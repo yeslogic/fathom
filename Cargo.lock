@@ -370,6 +370,7 @@ dependencies = [
  "diff",
  "fxhash",
  "globwalk",
+ "heck 0.4.0",
  "itertools",
  "lalrpop",
  "lalrpop-util",

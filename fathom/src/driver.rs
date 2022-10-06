@@ -8,7 +8,6 @@ use std::path::Path;
 use crate::core::binary::{BufferError, ReadError};
 use crate::core::compile::CompileEnv;
 use crate::core::{binary, compile};
-use crate::env::UniqueEnv;
 use crate::source::{ByteRange, FileId, Span, Spanned};
 use crate::surface::{self, elaboration};
 use crate::{StringInterner, BUG_REPORT_URL};
@@ -341,35 +340,12 @@ impl<'surface, 'core> Driver<'surface, 'core> {
         Status::Ok
     }
 
-    pub fn compile_and_emit_format(
-        &mut self,
-        module_file_id: Option<FileId>,
-        format_file_id: FileId,
-    ) -> Status {
-        use itertools::Itertools;
-        use std::sync::Arc;
-
-        use crate::core::semantics::Value;
-        use crate::core::Prim;
-
+    pub fn compile_and_emit_module(&mut self, file_id: FileId) -> Status {
         let err_scope = scoped_arena::Scope::new();
         let mut context = elaboration::Context::new(&self.interner, &self.core_scope, &err_scope);
 
-        // Parse and elaborate the supplied module
-        if let Some(file_id) = module_file_id {
-            let surface_module = self.parse_module(file_id);
-            context.elab_module(&surface_module);
-        }
-
-        // Parse and elaborate the supplied format with the items from the
-        // supplied in the module in scope. This is still a bit of a hack, and
-        // will need to be revisited if we need to support multiple modules, but
-        // it works for now!
-        let surface_format = self.parse_term(format_file_id);
-        let format_term = context.check(
-            &surface_format,
-            &Spanned::new(Span::Empty, Arc::new(Value::prim(Prim::FormatType, []))),
-        );
+        let surface_module = self.parse_module(file_id);
+        let module = context.elab_module(&surface_module);
 
         // Emit errors we might have found during elaboration
         let elab_messages = context.drain_messages();
@@ -380,15 +356,11 @@ impl<'surface, 'core> Driver<'surface, 'core> {
             return Status::Error;
         }
 
-        // let format = context.eval_env().eval(&format_term);
-        let format = context.eval_env().normalise(&self.core_scope, &format_term);
-        dbg!(&format);
-
         // Generate IR...
-        let mut compile_env = CompileEnv::new();
+        let mut compile_env = CompileEnv::default(&self.interner);
         let module = match context
             .compile_context(&mut compile_env)
-            .compile_format(&format)
+            .compile_module(&module)
         {
             Ok(module) => module,
             Err(_err) => {

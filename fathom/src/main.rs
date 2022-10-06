@@ -70,19 +70,6 @@ enum Cli {
         /// Path to a module to load when reading
         #[clap(long = "module", name = "MODULE_FILE", display_order = 0)]
         module_file: Option<PathOrStdin>,
-        /// Format used when reading the binary data
-        ///
-        /// The term provided by `FORMAT` must be of type `Format`.
-        ///
-        /// Required unless `--module` is present.
-        #[clap(
-            long = "format",
-            name = "FORMAT",
-            default_value = "main",
-            required_unless_present = "MODULE_FILE",
-            display_order = 1
-        )]
-        format: String,
     },
 }
 
@@ -213,18 +200,14 @@ fn main() -> ! {
 
             std::process::exit(status.exit_code());
         }
-        Cli::Compile {
-            module_file,
-            format,
-        } => {
+        Cli::Compile { module_file } => {
             let mut driver = fathom::Driver::new();
             driver.install_panic_hook();
             driver.set_emit_width(get_pretty_width());
 
             let module_file_id = module_file.map(|input| load_file_or_exit(&mut driver, input));
-            let format_file_id = driver.load_source_string("<FORMAT>".to_owned(), format);
 
-            let status = driver.compile_and_emit_format(module_file_id, format_file_id);
+            let status = driver.compile_and_emit_module(module_file_id.expect("FIXME no module"));
 
             std::process::exit(status.exit_code());
         }

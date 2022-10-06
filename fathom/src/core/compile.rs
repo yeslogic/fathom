@@ -1,19 +1,25 @@
+use std::cell::RefCell;
 use std::fmt::Debug;
 
-use crate::core::semantics::{self, ArcValue};
-use crate::core::{Prim, Term};
-use crate::env::{EnvLen, SharedEnv, SliceEnv, UniqueEnv};
-use crate::StringId;
+use heck::ToPascalCase;
 
-pub struct Context<'arena, 'env> {
+use crate::core::semantics::ArcValue;
+use crate::core::{self, Prim, Term};
+use crate::env::{EnvLen, SharedEnv, SliceEnv, UniqueEnv};
+use crate::{StringId, StringInterner};
+
+pub struct Context<'arena, 'env, 'interner> {
     item_exprs: &'env SliceEnv<ArcValue<'arena>>,
     rigid_exprs: &'env SharedEnv<ArcValue<'arena>>,
     flexible_exprs: &'env SliceEnv<Option<ArcValue<'arena>>>,
-    compile_env: &'env mut CompileEnv,
+    compile_env: &'env mut CompileEnv<'interner>,
+    // TODO: Maybe the interner should be in here
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 enum Type {
+    Bool,
+
     U8,
     U16,
     U32,
@@ -26,12 +32,34 @@ enum Type {
     Vec(Box<Type>),
     /// Array with a known length
     Array(usize, Box<Type>),
+
+    ReadU8,
+    ReadU16Be,
+    ReadU16Le,
+    ReadU32Be,
+    ReadU32Le,
+    ReadU64Be,
+    ReadU64Le,
+    ReadI8,
+    ReadI16Be,
+    ReadI16Le,
+    ReadI32Be,
+    ReadI32Le,
+    ReadI64Be,
+    ReadI64Le,
+    ReadF32Be,
+    ReadF32Le,
+    ReadF64Be,
+    ReadF64Le,
+
+    Todo,
 }
 
 /// The definition of a struct
 #[derive(Debug)]
 struct Struct {
-    // TODO: Add name?
+    // name of the struct
+    name: StringId,
     fields: Vec<(StringId, Type)>,
 }
 
@@ -45,38 +73,28 @@ enum DecodeExpr {
     /// name, fields
     Struct {
         // name of the struct
-        name: String,
+        name: StringId,
         // Parse a type into a named variable
         parse_fields: Vec<(StringId, ParseExpr)>,
         // How to initialise the fields of the struct using the variables
-        fields: Vec<ParseExpr>,
+        fields: Vec<(StringId, ParseExpr)>,
     },
 }
 
 #[derive(Debug)]
 enum ParseExpr {
     // Parse a const type
-    Const(TypeConst),
+    Const(Type),
     // A reference to a variable
-    Var(usize),
+    Var(StringId),
 }
 
-#[derive(Debug)]
-enum TypeConst {
-    U8,
-    U16Be,
-    U32Be,
-    U64Be,
-    U16Le,
-    U32Le,
-    U64Le,
-}
-
-pub struct CompileEnv {
+pub struct CompileEnv<'interner> {
     /// Names of variables.
     names: UniqueEnv<Option<StringId>>,
     /// Types of variables.
     types: UniqueEnv<Type>,
+    interner: &'interner RefCell<StringInterner>,
 }
 
 #[derive(Debug)]
@@ -90,12 +108,232 @@ enum Item {
     ReadFn(DecodeFn),
 }
 
-impl CompileEnv {
-    pub fn new() -> Self {
+impl<'interner> CompileEnv<'interner> {
+    pub fn new(interner: &'interner RefCell<StringInterner>) -> Self {
         CompileEnv {
             names: UniqueEnv::new(),
             types: UniqueEnv::new(),
+            interner,
         }
+    }
+
+    pub fn default(
+        interner: &'interner RefCell<StringInterner>,
+        // scope: &'arena Scope<'arena>,
+    ) -> Self {
+        let mut env = CompileEnvBuilder::new(interner);
+
+        env.define_prim("void", Type::Todo); // Perhaps these have no name, and names are used for variables?
+        env.define_prim("bool", Type::Bool);
+        env.define_prim("u8", Type::U8);
+        env.define_prim("u16", Type::U16);
+        env.define_prim("u32", Type::U32);
+        env.define_prim("u64", Type::U64);
+        env.define_prim("i8", Type::I8);
+        env.define_prim("i16", Type::I16);
+        env.define_prim("i32", Type::I32);
+        env.define_prim("i64", Type::I64);
+        env.define_prim("f32", Type::Todo);
+        env.define_prim("f64", Type::Todo);
+        env.define_prim("Option", Type::Todo);
+        env.define_prim("array", Type::Todo);
+        env.define_prim("[u8]", Type::Array(0, Box::new(Type::U8)));
+        env.define_prim("[u16]", Type::Array(0, Box::new(Type::U16)));
+        env.define_prim("[u32]", Type::Array(0, Box::new(Type::U32)));
+        env.define_prim("[u64]", Type::Array(0, Box::new(Type::U64)));
+        env.define_prim("pos", Type::Todo);
+        env.define_prim("ref", Type::Todo);
+        env.define_prim("format", Type::Todo);
+
+        env.define_prim("FormatU8", Type::ReadU8);
+        env.define_prim("FormatU16Be", Type::ReadU16Be);
+        env.define_prim("FormatU16Le", Type::ReadU16Le);
+        env.define_prim("FormatU32Be", Type::ReadU32Be);
+        env.define_prim("FormatU32Le", Type::ReadU32Le);
+        env.define_prim("FormatU64Be", Type::ReadU64Be);
+        env.define_prim("FormatU64Le", Type::ReadU64Le);
+        env.define_prim("FormatS8", Type::ReadI8);
+        env.define_prim("FormatS16Be", Type::ReadI16Be);
+        env.define_prim("FormatS16Le", Type::ReadI16Le);
+        env.define_prim("FormatS32Be", Type::ReadI32Be);
+        env.define_prim("FormatS32Le", Type::ReadI32Le);
+        env.define_prim("FormatS64Be", Type::ReadI64Be);
+        env.define_prim("FormatS64Le", Type::ReadI64Le);
+        env.define_prim("FormatF32Be", Type::ReadF32Be);
+        env.define_prim("FormatF32Le", Type::ReadF32Le);
+        env.define_prim("FormatF64Be", Type::ReadF64Be);
+        env.define_prim("FormatF64Le", Type::ReadF64Le);
+
+        // FIXME: These are all just todos for now but need to be present so the number of entries
+        // in the env matches in order for LocalVars to index properly.
+        env.define_prim("FormatArray8", Type::Todo);
+        env.define_prim("FormatArray16", Type::Todo);
+        env.define_prim("FormatArray32", Type::Todo);
+        env.define_prim("FormatArray64", Type::Todo);
+        env.define_prim("FormatRepeatUntilEnd", Type::Todo);
+        env.define_prim("FormatLimit8", Type::Todo);
+        env.define_prim("FormatLimit16", Type::Todo);
+        env.define_prim("FormatLimit32", Type::Todo);
+        env.define_prim("FormatLimit64", Type::Todo);
+        env.define_prim("FormatLink", Type::Todo);
+        env.define_prim("FormatDeref", Type::Todo);
+        env.define_prim("FormatStreamPos", Type::Todo);
+        env.define_prim("FormatSucceed", Type::Todo);
+        env.define_prim("FormatFail", Type::Todo);
+        env.define_prim("FormatUnwrap", Type::Todo);
+        env.define_prim("FormatRepr", Type::Todo);
+
+        env.define_prim("BoolEq", Type::Todo);
+        env.define_prim("BoolNeq", Type::Todo);
+        env.define_prim("BoolNot", Type::Todo);
+        env.define_prim("BoolAnd", Type::Todo);
+        env.define_prim("BoolOr", Type::Todo);
+        env.define_prim("BoolXor", Type::Todo);
+
+        env.define_prim("U8Eq", Type::Todo);
+        env.define_prim("U8Neq", Type::Todo);
+        env.define_prim("U8Lt", Type::Todo);
+        env.define_prim("U8Gt", Type::Todo);
+        env.define_prim("U8Lte", Type::Todo);
+        env.define_prim("U8Gte", Type::Todo);
+        env.define_prim("U8Add", Type::Todo);
+        env.define_prim("U8Sub", Type::Todo);
+        env.define_prim("U8Mul", Type::Todo);
+        env.define_prim("U8Div", Type::Todo);
+        env.define_prim("U8Not", Type::Todo);
+        env.define_prim("U8Shl", Type::Todo);
+        env.define_prim("U8Shr", Type::Todo);
+        env.define_prim("U8And", Type::Todo);
+        env.define_prim("U8Or", Type::Todo);
+        env.define_prim("U8Xor", Type::Todo);
+
+        env.define_prim("U16Eq", Type::Todo);
+        env.define_prim("U16Neq", Type::Todo);
+        env.define_prim("U16Lt", Type::Todo);
+        env.define_prim("U16Gt", Type::Todo);
+        env.define_prim("U16Lte", Type::Todo);
+        env.define_prim("U16Gte", Type::Todo);
+        env.define_prim("U16Add", Type::Todo);
+        env.define_prim("U16Sub", Type::Todo);
+        env.define_prim("U16Mul", Type::Todo);
+        env.define_prim("U16Div", Type::Todo);
+        env.define_prim("U16Not", Type::Todo);
+        env.define_prim("U16Shl", Type::Todo);
+        env.define_prim("U16Shr", Type::Todo);
+        env.define_prim("U16And", Type::Todo);
+        env.define_prim("U16Or", Type::Todo);
+        env.define_prim("U16Xor", Type::Todo);
+
+        env.define_prim("U32Eq", Type::Todo);
+        env.define_prim("U32Neq", Type::Todo);
+        env.define_prim("U32Lt", Type::Todo);
+        env.define_prim("U32Gt", Type::Todo);
+        env.define_prim("U32Lte", Type::Todo);
+        env.define_prim("U32Gte", Type::Todo);
+        env.define_prim("U32Add", Type::Todo);
+        env.define_prim("U32Sub", Type::Todo);
+        env.define_prim("U32Mul", Type::Todo);
+        env.define_prim("U32Div", Type::Todo);
+        env.define_prim("U32Not", Type::Todo);
+        env.define_prim("U32Shl", Type::Todo);
+        env.define_prim("U32Shr", Type::Todo);
+        env.define_prim("U32And", Type::Todo);
+        env.define_prim("U32Or", Type::Todo);
+        env.define_prim("U32Xor", Type::Todo);
+
+        env.define_prim("U64Eq", Type::Todo);
+        env.define_prim("U64Neq", Type::Todo);
+        env.define_prim("U64Lt", Type::Todo);
+        env.define_prim("U64Gt", Type::Todo);
+        env.define_prim("U64Lte", Type::Todo);
+        env.define_prim("U64Gte", Type::Todo);
+        env.define_prim("U64Add", Type::Todo);
+        env.define_prim("U64Sub", Type::Todo);
+        env.define_prim("U64Mul", Type::Todo);
+        env.define_prim("U64Div", Type::Todo);
+        env.define_prim("U64Not", Type::Todo);
+        env.define_prim("U64Shl", Type::Todo);
+        env.define_prim("U64Shr", Type::Todo);
+        env.define_prim("U64And", Type::Todo);
+        env.define_prim("U64Or", Type::Todo);
+        env.define_prim("U64Xor", Type::Todo);
+
+        env.define_prim("S8Eq", Type::Todo);
+        env.define_prim("S8Neq", Type::Todo);
+        env.define_prim("S8Lt", Type::Todo);
+        env.define_prim("S8Gt", Type::Todo);
+        env.define_prim("S8Lte", Type::Todo);
+        env.define_prim("S8Gte", Type::Todo);
+        env.define_prim("S8Neg", Type::Todo);
+        env.define_prim("S8Add", Type::Todo);
+        env.define_prim("S8Sub", Type::Todo);
+        env.define_prim("S8Mul", Type::Todo);
+        env.define_prim("S8Div", Type::Todo);
+        env.define_prim("S8Abs", Type::Todo);
+        env.define_prim("S8UAbs", Type::Todo);
+
+        env.define_prim("S16Eq", Type::Todo);
+        env.define_prim("S16Neq", Type::Todo);
+        env.define_prim("S16Lt", Type::Todo);
+        env.define_prim("S16Gt", Type::Todo);
+        env.define_prim("S16Lte", Type::Todo);
+        env.define_prim("S16Gte", Type::Todo);
+        env.define_prim("S16Neg", Type::Todo);
+        env.define_prim("S16Add", Type::Todo);
+        env.define_prim("S16Sub", Type::Todo);
+        env.define_prim("S16Mul", Type::Todo);
+        env.define_prim("S16Div", Type::Todo);
+        env.define_prim("S16Abs", Type::Todo);
+        env.define_prim("S16UAbs", Type::Todo);
+
+        env.define_prim("S32Eq", Type::Todo);
+        env.define_prim("S32Neq", Type::Todo);
+        env.define_prim("S32Lt", Type::Todo);
+        env.define_prim("S32Gt", Type::Todo);
+        env.define_prim("S32Lte", Type::Todo);
+        env.define_prim("S32Gte", Type::Todo);
+        env.define_prim("S32Neg", Type::Todo);
+        env.define_prim("S32Add", Type::Todo);
+        env.define_prim("S32Sub", Type::Todo);
+        env.define_prim("S32Mul", Type::Todo);
+        env.define_prim("S32Div", Type::Todo);
+        env.define_prim("S32Abs", Type::Todo);
+        env.define_prim("S32UAbs", Type::Todo);
+
+        env.define_prim("S64Eq", Type::Todo);
+        env.define_prim("S64Neq", Type::Todo);
+        env.define_prim("S64Lt", Type::Todo);
+        env.define_prim("S64Gt", Type::Todo);
+        env.define_prim("S64Lte", Type::Todo);
+        env.define_prim("S64Gte", Type::Todo);
+        env.define_prim("S64Neg", Type::Todo);
+        env.define_prim("S64Add", Type::Todo);
+        env.define_prim("S64Sub", Type::Todo);
+        env.define_prim("S64Mul", Type::Todo);
+        env.define_prim("S64Div", Type::Todo);
+        env.define_prim("S64Abs", Type::Todo);
+        env.define_prim("S64UAbs", Type::Todo);
+
+        env.define_prim("OptionSome", Type::Todo);
+        env.define_prim("OptionNone", Type::Todo);
+        env.define_prim("OptionFold", Type::Todo);
+
+        env.define_prim("Array8Find", Type::Todo);
+        env.define_prim("Array16Find", Type::Todo);
+        env.define_prim("Array32Find", Type::Todo);
+        env.define_prim("Array64Find", Type::Todo);
+
+        env.define_prim("Array8Index", Type::Todo);
+        env.define_prim("Array16Index", Type::Todo);
+        env.define_prim("Array32Index", Type::Todo);
+        env.define_prim("Array64Index", Type::Todo);
+
+        env.define_prim("PosAddU8", Type::Todo);
+        env.define_prim("PosAddU16", Type::Todo);
+        env.define_prim("PosAddU32", Type::Todo);
+        env.define_prim("PosAddU64", Type::Todo);
+
+        env.build()
     }
 
     /// Get the length of the environment.
@@ -108,15 +346,47 @@ impl CompileEnv {
         self.names.truncate(len);
         self.types.truncate(len);
     }
+
+    /// Push a definition onto the context.
+    fn push_def(&mut self, name: Option<StringId>, r#type: Type) {
+        self.names.push(name);
+        self.types.push(r#type);
+    }
 }
 
-impl<'arena, 'env, 'data> Context<'arena, 'env> {
+pub struct CompileEnvBuilder<'interner> {
+    env: CompileEnv<'interner>,
+    // scope: &'arena Scope<'arena>,
+}
+
+impl<'interner> CompileEnvBuilder<'interner> {
+    fn new(interner: &'interner RefCell<StringInterner>) -> Self {
+        CompileEnvBuilder {
+            env: CompileEnv::new(interner),
+        }
+    }
+
+    // TODO: Why Option?
+    fn name(&self, name: &'static str) -> Option<StringId> {
+        Some(self.env.interner.borrow_mut().get_or_intern_static(name))
+    }
+
+    fn define_prim(&mut self, name: &'static str, ty: Type) {
+        self.env.push_def(self.name(name), ty);
+    }
+
+    fn build(self) -> CompileEnv<'interner> {
+        self.env
+    }
+}
+
+impl<'arena, 'env, 'data, 'interner> Context<'arena, 'env, 'interner> {
     pub fn new(
         item_exprs: &'env SliceEnv<ArcValue<'arena>>,
         rigid_exprs: &'env SharedEnv<ArcValue<'arena>>,
         flexible_exprs: &'env SliceEnv<Option<ArcValue<'arena>>>,
-        compile_env: &'env mut CompileEnv,
-    ) -> Context<'arena, 'env> {
+        compile_env: &'env mut CompileEnv<'interner>,
+    ) -> Context<'arena, 'env, 'interner> {
         Context {
             item_exprs,
             rigid_exprs,
@@ -125,21 +395,44 @@ impl<'arena, 'env, 'data> Context<'arena, 'env> {
         }
     }
 
-    fn elim_env(&self) -> semantics::ElimEnv<'arena, 'env> {
-        semantics::ElimEnv::new(self.item_exprs, self.flexible_exprs)
+    pub fn compile_module(&mut self, module: &core::Module<'arena>) -> Result<Module, ()> {
+        let mut m = Module { items: Vec::new() };
+        for item in module.items {
+            self.compile_item(&mut m, item)?;
+            dbg!(&m);
+        }
+        Ok(m)
     }
 
-    fn conversion_env(&self) -> semantics::ConversionEnv<'arena, 'env> {
-        semantics::ConversionEnv::new(self.item_exprs, EnvLen::new(), self.flexible_exprs)
+    fn compile_item(&mut self, module: &mut Module, item: &core::Item<'arena>) -> Result<(), ()> {
+        match item {
+            core::Item::Def {
+                label,
+                r#type: _type,
+                expr,
+            } => {
+                dbg!(expr);
+
+                let name = self
+                    .compile_env
+                    .interner
+                    .borrow()
+                    .resolve(*label)
+                    .map(|name| name.to_pascal_case())
+                    .expect("missing string");
+                let name = self.compile_env.interner.borrow_mut().get_or_intern(name);
+                self.compile_def(module, name, expr)
+            }
+        }
     }
 
-    pub fn compile_format(
+    fn compile_def(
         &mut self,
-        format: &Term<'arena>,
-        // TODO: Return a Rust module containing all the compiled elements?
-    ) -> Result<Module, ()> {
-        let mut items = Vec::new();
-        match format {
+        module: &mut Module,
+        label: StringId,
+        expr: &Term<'arena>,
+    ) -> Result<(), ()> {
+        match expr {
             Term::ItemVar(_, _) => unimplemented! {},
             Term::LocalVar(_, _) => unimplemented! {},
             Term::MetaVar(_, _) => unimplemented! {},
@@ -156,18 +449,25 @@ impl<'arena, 'env, 'data> Context<'arena, 'env> {
             Term::ArrayLit(_, _) => unimplemented! {},
             Term::FormatRecord(_, labels, formats) => {
                 let mut fields = Vec::with_capacity(labels.len());
+
+                let initial_env_len = self.compile_env.len();
                 for (label, format) in labels.iter().copied().zip(formats.iter()) {
                     let ty = self.compile_rep(format);
-                    fields.push((label, ty));
+                    fields.push((label, ty.clone())); // FIXME: clone
+                    self.compile_env.push_def(Some(label), ty);
                 }
-                let r#struct = Struct { fields };
+                self.compile_env.truncate(initial_env_len);
+                let r#struct = Struct {
+                    name: label,
+                    fields,
+                };
                 dbg!(&r#struct);
-                items.push(Item::Struct(r#struct));
+                module.items.push(Item::Struct(r#struct));
 
                 // Now generate the read function
-                let read_fn = self.compile_decode(format);
+                let read_fn = self.compile_decode(label, expr);
                 dbg!(&read_fn);
-                items.push(Item::ReadFn(read_fn));
+                module.items.push(Item::ReadFn(read_fn));
             }
             Term::FormatCond(_, _, _, _) => unimplemented! {},
             Term::FormatOverlap(_, _, _) => unimplemented! {},
@@ -176,21 +476,56 @@ impl<'arena, 'env, 'data> Context<'arena, 'env> {
             Term::ConstMatch(_, _, _, _) => unimplemented! {},
         }
 
-        Ok(Module { items })
+        Ok(())
     }
 
     fn compile_rep(&mut self, format: &Term<'arena>) -> Type {
         // We already have `format_repr` but that operates on Values...
-
         match format {
             Term::ItemVar(_, _) => todo! {},
+
             Term::LocalVar(_, var) => {
-                // TODO: How to resolve var?
-                match self.rigid_exprs.get_index(*var) {
-                    Some(value) => dbg!(value),
-                    None => panic!("invalid rigid var"),
-                };
-                todo!("rigid var");
+                let ty = self
+                    .compile_env
+                    .types
+                    .get_index(*var)
+                    .expect("invalid rigid var")
+                    .clone();
+
+                // Get the repr for this
+                match ty {
+                    // Type::Bool => {}
+                    // Type::U8 => {}
+                    // Type::U16 => {}
+                    // Type::U32 => {}
+                    // Type::U64 => {}
+                    // Type::I8 => {}
+                    // Type::I16 => {}
+                    // Type::I32 => {}
+                    // Type::I64 => {}
+                    // Type::Vec(_) => {}
+                    // Type::Array(_, _) => {}
+                    Type::ReadU8 => Type::U8,
+                    Type::ReadU16Be => Type::U16,
+                    Type::ReadU16Le => Type::U16,
+                    Type::ReadU32Be => Type::U32,
+                    Type::ReadU32Le => Type::U32,
+                    Type::ReadU64Be => Type::U64,
+                    Type::ReadU64Le => Type::U64,
+                    Type::ReadI8 => Type::I8,
+                    Type::ReadI16Be => Type::I16,
+                    Type::ReadI16Le => Type::I16,
+                    Type::ReadI32Be => Type::I32,
+                    Type::ReadI32Le => Type::I32,
+                    Type::ReadI64Be => Type::I64,
+                    Type::ReadI64Le => Type::I64,
+                    // Type::ReadF32Be => Type::F32,
+                    // Type::ReadF32Le => Type::F32,
+                    // Type::ReadF64Be => Type::F64,
+                    // Type::ReadF64Le => Type::F64,
+                    // Type::Todo => {}
+                    _ => todo!(),
+                }
             }
             Term::MetaVar(_, _) => todo! {},
             Term::InsertedMeta(_, _, _) => todo! {},
@@ -201,7 +536,7 @@ impl<'arena, 'env, 'data> Context<'arena, 'env> {
             Term::FunLit(_, _, _) => todo! {},
             Term::FunApp(
                 _,
-                Term::FunApp(_, Term::Prim(_, Prim::FormatArray32), len),
+                Term::FunApp(_, Term::Prim(_, Prim::FormatArray32), _len),
                 ele_format,
             ) => {
                 // How to compile function application?
@@ -213,7 +548,7 @@ impl<'arena, 'env, 'data> Context<'arena, 'env> {
                 // dbg!(("array32", len));
                 Type::Vec(Box::new(item_type))
             }
-            Term::FunApp(_, head, input) => todo!("fun app"),
+            Term::FunApp(_, _head, _input) => todo!("fun app"),
             Term::RecordType(_, _, _) => todo! {},
             Term::RecordLit(_, _, _) => todo! {},
             Term::RecordProj(_, _, _) => todo! {},
@@ -241,7 +576,7 @@ impl<'arena, 'env, 'data> Context<'arena, 'env> {
         }
     }
 
-    fn compile_decode(&mut self, format: &Term<'arena>) -> DecodeFn {
+    fn compile_decode(&mut self, name: StringId, format: &Term<'arena>) -> DecodeFn {
         match format {
             Term::FormatRecord(_, labels, formats) => {
                 // For each field, put the name and type in the environment and generate a reader for it
@@ -253,27 +588,23 @@ impl<'arena, 'env, 'data> Context<'arena, 'env> {
                     .iter()
                     .copied()
                     .zip(formats.iter())
-                    .map(|(label, format)| (label, self.read_format(format)))
+                    .map(|(label, format)| {
+                        let ty = self.read_format(format);
+                        self.compile_env.push_def(Some(label), ty.clone()); // FIXME: clone
+                        (label, ParseExpr::Const(ty))
+                    })
                     .collect();
-                // for (label, format) in  {
-                //     self.read_format(format, &mut parse_fields);
-                //
-                //     // Generate var decl
-                //     // For each field create a variable in the environment and initialise it with
-                //     // a read of the format
-                //
-                //     // Generate struct initialisation
-                // }
-                self.compile_env.truncate(initial_env_len);
 
-                for (i, _) in parse_fields.iter().enumerate() {
-                    fields.push(ParseExpr::Var(i));
+                for name in labels.iter() {
+                    fields.push((*name, ParseExpr::Var(*name)));
                 }
+
+                self.compile_env.truncate(initial_env_len);
 
                 // Create DecodeExpr::Struct
                 let st = DecodeExpr::Struct {
                     // name of the struct
-                    name: String::from("TodoName"),
+                    name,
                     // Parse a type into a named variable
                     parse_fields,
                     // How to initialise the fields of the struct using the variables
@@ -285,25 +616,28 @@ impl<'arena, 'env, 'data> Context<'arena, 'env> {
         }
     }
 
-    fn read_format(&mut self, format: &Term<'arena>) -> ParseExpr {
+    fn read_format(&mut self, format: &Term<'arena>) -> Type {
         match format {
-            // Term::RigidVar(_, var) => {
-            //     exprs.push(ParseExpr::Var(*var));
-            // }
+            Term::LocalVar(_, var) => self
+                .compile_env
+                .types
+                .get_index(*var)
+                .expect("invalid rigid var")
+                .clone(),
             Term::Prim(_, prim) => Self::read_prim(prim),
-            _ => unreachable!("format: {:?}", format),
+            _ => unimplemented!("format: {:?}", format),
         }
     }
 
-    fn read_prim(prim: &Prim) -> ParseExpr {
+    fn read_prim(prim: &Prim) -> Type {
         match prim {
-            Prim::FormatU8 => ParseExpr::Const(TypeConst::U8),
-            Prim::FormatU16Be => ParseExpr::Const(TypeConst::U16Be),
-            Prim::FormatU16Le => ParseExpr::Const(TypeConst::U16Le),
-            Prim::FormatU32Be => ParseExpr::Const(TypeConst::U32Be),
-            Prim::FormatU32Le => ParseExpr::Const(TypeConst::U32Le),
-            Prim::FormatU64Be => ParseExpr::Const(TypeConst::U64Be),
-            Prim::FormatU64Le => ParseExpr::Const(TypeConst::U64Le),
+            Prim::FormatU8 => Type::ReadU8,
+            Prim::FormatU16Be => Type::ReadU16Be,
+            Prim::FormatU16Le => Type::ReadU16Le,
+            Prim::FormatU32Be => Type::ReadF32Be,
+            Prim::FormatU32Le => Type::ReadF32Le,
+            Prim::FormatU64Be => Type::ReadF64Be,
+            Prim::FormatU64Le => Type::ReadF64Le,
             _ => todo! {},
         }
     }
@@ -315,7 +649,7 @@ pub mod rust {
     use pretty::{Doc, DocAllocator, DocBuilder, DocPtr, RefDoc};
     use scoped_arena::Scope;
 
-    use crate::core::compile::{DecodeExpr, Item, Module, ParseExpr, Type, TypeConst};
+    use crate::core::compile::{DecodeExpr, DecodeFn, Item, Module, ParseExpr, Type};
     use crate::{StringId, StringInterner};
 
     const INDENT: isize = 4;
@@ -353,7 +687,7 @@ pub mod rust {
                     self.concat([
                         self.text("struct"),
                         self.space(),
-                        self.text("TodoStructName"),
+                        self.string_id(r#struct.name),
                         self.space(),
                         self.text("{"),
                     ]),
@@ -368,23 +702,31 @@ pub mod rust {
                     self.text(","),
                     self.text("}"),
                 ),
-                Item::ReadFn(readfn) => self.sequence(
-                    self.concat([
-                        self.text("impl<'a> ReadBinary<'a> for"),
-                        self.space(),
-                        self.text("TodoStruct"),
-                        self.space(),
-                        self.text("{"),
-                        self.hardline(),
-                        self.text("type HostType = Self;"),
-                        self.hardline(),
-                        self.text("pub fn read() -> Result<Self::HostType, ParseError> {"),
-                    ]),
-                    readfn.exprs.iter().map(|expr| self.expr(expr)),
-                    self.text(";"),
-                    self.text("}"),
-                ),
+                Item::ReadFn(readfn) => {
+                    let docs = vec![self.text("type HostType = Self"), self.read_fn(readfn)];
+                    self.sequence(
+                        self.concat([
+                            self.text("impl<'a> ReadBinary<'a> for"),
+                            self.space(),
+                            self.text("TodoStruct"),
+                            self.space(),
+                            self.text("{"),
+                        ]),
+                        docs.into_iter(),
+                        self.text(";"),
+                        self.concat([self.text("}")]),
+                    )
+                }
             }
+        }
+
+        fn read_fn(&'arena self, readfn: &DecodeFn) -> DocBuilder<'arena, Self> {
+            self.sequence(
+                self.text("pub fn read() -> Result<Self::HostType, ParseError> {"),
+                readfn.exprs.iter().map(|expr| self.expr(expr)),
+                self.text(";"),
+                self.text("}"),
+            )
         }
 
         fn ty_prec(
@@ -416,6 +758,16 @@ pub mod rust {
                     self.text(len.to_string()), // FIXME: right way to do this?
                     self.text("]"),
                 ]),
+                Type::Bool => self.text("bool"),
+                Type::ReadU8 => self.text("read_u8()"),
+                Type::ReadU16Be => self.text("read_u16be()"),
+                Type::ReadU32Be => self.text("read_u32be()"),
+                Type::ReadU64Be => self.text("read_u64be()"),
+                Type::ReadU16Le => self.text("read_u16le()"),
+                Type::ReadU32Le => self.text("read_u32le()"),
+                Type::ReadU64Le => self.text("read_u64le()"),
+                Type::Todo => self.text("todo!()"),
+                _ => unimplemented!(),
             }
         }
 
@@ -425,13 +777,11 @@ pub mod rust {
                     name,
                     parse_fields,
                     fields,
-                } => {
-                    self.concat([
-                        self.parse_fields(parse_fields),
-                        self.hardline(),
-                        self.construct_struct(/*name,*/ fields),
-                    ])
-                }
+                } => self.concat([
+                    self.parse_fields(parse_fields),
+                    self.hardline(),
+                    self.construct_struct(*name, fields),
+                ]),
             }
         }
 
@@ -460,18 +810,21 @@ pub mod rust {
 
         fn construct_struct(
             &'arena self,
-            /*name: StringId,*/ fields: &[ParseExpr],
+            name: StringId,
+            fields: &[(StringId, ParseExpr)],
         ) -> DocBuilder<'arena, Self> {
             self.sequence(
                 self.concat([
-                    self.text("Ok("),
-                    self.text(/*name*/ "TodoStruct"),
+                    // FIXME: Remove need for return
+                    self.text("return Ok("),
+                    self.string_id(name),
                     self.space(),
                     self.text("{"),
                 ]),
-                fields.iter().enumerate().map(|(i, field)| {
+                fields.iter().map(|(name, field)| {
                     self.concat([
-                        self.text(format!("todo_field_{}:", i)),
+                        self.string_id(*name),
+                        self.text(":"),
                         self.space(),
                         self.parse_expr(field),
                     ])
@@ -483,20 +836,21 @@ pub mod rust {
 
         fn parse_expr(&'arena self, expr: &ParseExpr) -> DocBuilder<'arena, Self> {
             match expr {
-                ParseExpr::Const(r#const) => self.type_const(r#const),
-                ParseExpr::Var(var) => self.text("todo_var"),
+                ParseExpr::Const(ty) => self.type_const(ty),
+                ParseExpr::Var(name) => self.string_id(*name),
             }
         }
 
-        fn type_const(&'arena self, ty_const: &TypeConst) -> DocBuilder<'arena, Self> {
+        fn type_const(&'arena self, ty_const: &Type) -> DocBuilder<'arena, Self> {
             match ty_const {
-                TypeConst::U8 => self.text("read_u8()"),
-                TypeConst::U16Be => self.text("read_u16be()"),
-                TypeConst::U32Be => self.text("read_u32be()"),
-                TypeConst::U64Be => self.text("read_u64be()"),
-                TypeConst::U16Le => self.text("read_u16le()"),
-                TypeConst::U32Le => self.text("read_u32le()"),
-                TypeConst::U64Le => self.text("read_u64le()"),
+                Type::ReadU8 => self.text("read_u8()"),
+                Type::ReadU16Be => self.text("read_u16be()"),
+                Type::ReadU32Be => self.text("read_u32be()"),
+                Type::ReadU64Be => self.text("read_u64be()"),
+                Type::ReadU16Le => self.text("read_u16le()"),
+                Type::ReadU32Le => self.text("read_u32le()"),
+                Type::ReadU64Le => self.text("read_u64le()"),
+                _ => unimplemented!(),
             }
         }
 
