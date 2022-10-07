@@ -693,10 +693,10 @@ impl<'arena> MetaEnv<'arena> {
         var
     }
 
-    fn report<'this, 'interner: 'this, 'error: 'this>(
+    fn report<'this, 'interner: 'this>(
         &'this self,
         interner: &'interner RefCell<StringInterner>,
-        scope: &'error Scope<'error>,
+        scope: &'arena Scope<'arena>,
         mut item_names: UniqueEnv<StringId>,
         item_exprs: &'this SliceEnv<ArcValue<'this>>,
         mut local_names: UniqueEnv<Option<StringId>>,
@@ -737,7 +737,7 @@ impl<'arena> MetaEnv<'arena> {
 }
 
 /// Elaboration context.
-pub struct Context<'interner, 'arena, 'error> {
+pub struct Context<'interner, 'arena> {
     /// Global string interner.
     interner: &'interner RefCell<StringInterner>,
     /// Scoped arena for storing elaborated terms.
@@ -746,8 +746,6 @@ pub struct Context<'interner, 'arena, 'error> {
     //       elaborated terms to an external `Scope` during zonking, resetting
     //       this scope on completion.
     scope: &'arena Scope<'arena>,
-    /// Scoped arena for storing surface terms generated during error reporting.
-    error_scope: &'error Scope<'error>,
 
     // Commonly used values, cached to increase sharing.
     universe: ArcValue<'static>,
@@ -766,17 +764,15 @@ pub struct Context<'interner, 'arena, 'error> {
     messages: Vec<Message>,
 }
 
-impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
+impl<'interner, 'arena> Context<'interner, 'arena> {
     /// Construct a new elaboration context, backed by the supplied arena.
     pub fn new(
         interner: &'interner RefCell<StringInterner>,
         scope: &'arena Scope<'arena>,
-        error_scope: &'error Scope<'error>,
-    ) -> Context<'interner, 'arena, 'error> {
+    ) -> Context<'interner, 'arena> {
         Context {
             interner,
             scope,
-            error_scope,
 
             universe: Spanned::empty(Arc::new(Value::Universe)),
             format_type: Spanned::empty(Arc::new(Value::prim(Prim::FormatType, []))),
@@ -832,7 +828,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
     pub fn drain_messages(&mut self) -> impl '_ + Iterator<Item = Message> {
         let report_messages = self.meta_env.report(
             self.interner,
-            self.error_scope,
+            self.scope,
             self.item_env.names.clone(),
             &self.item_env.exprs,
             self.local_env.names.clone(),
@@ -878,11 +874,12 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
     }
 
     fn pretty_print_value(&mut self, value: &ArcValue<'_>) -> String {
-        let term = self.quote_env().quote(self.error_scope, value);
-        let surface_term = self.distillation_context(self.error_scope).check(&term);
-        let pretty_context = pretty::Context::new(self.interner, self.error_scope);
-        let doc = pretty_context.term(&surface_term).into_doc();
-        doc.pretty(usize::MAX).to_string()
+        let term = self.quote_env().quote(self.scope, value);
+        let surface_term = self.distillation_context(self.scope).check(&term);
+        pretty::Context::new(self.interner, self.scope)
+            .term(&surface_term)
+            .pretty(usize::MAX)
+            .to_string()
     }
 
     /// Reports an error if there are duplicate fields found, returning a slice

@@ -64,15 +64,15 @@ fn collect_item_dependencies(
         .collect()
 }
 
-struct ModuleOrderContext<'a, 'interner, 'arena, 'error> {
-    elab_context: &'a mut elaboration::Context<'interner, 'arena, 'error>,
+struct ModuleOrderContext<'a, 'interner, 'arena> {
+    elab_context: &'a mut elaboration::Context<'interner, 'arena>,
     output: Vec<usize>,
     visited: FxHashSet<StringId>,
     stack: Vec<StringId>,
 }
 
-impl<'a, 'interner, 'arena, 'error> ModuleOrderContext<'a, 'interner, 'arena, 'error> {
-    fn new(elab_context: &'a mut elaboration::Context<'interner, 'arena, 'error>) -> Self {
+impl<'a, 'interner, 'arena> ModuleOrderContext<'a, 'interner, 'arena> {
+    fn new(elab_context: &'a mut elaboration::Context<'interner, 'arena>) -> Self {
         ModuleOrderContext {
             elab_context,
             output: Vec::new(),

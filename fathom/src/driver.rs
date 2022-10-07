@@ -190,8 +190,7 @@ impl<'surface, 'core> Driver<'surface, 'core> {
     }
 
     pub fn elaborate_and_emit_module(&mut self, file_id: FileId) -> Status {
-        let err_scope = scoped_arena::Scope::new();
-        let mut context = elaboration::Context::new(&self.interner, &self.core_scope, &err_scope);
+        let mut context = elaboration::Context::new(&self.interner, &self.core_scope);
 
         let surface_module = self.parse_module(file_id);
         let module = context.elab_module(&surface_module);
@@ -215,8 +214,7 @@ impl<'surface, 'core> Driver<'surface, 'core> {
     }
 
     pub fn elaborate_and_emit_term(&mut self, file_id: FileId) -> Status {
-        let err_scope = scoped_arena::Scope::new();
-        let mut context = elaboration::Context::new(&self.interner, &self.core_scope, &err_scope);
+        let mut context = elaboration::Context::new(&self.interner, &self.core_scope);
 
         // Parse and elaborate the term
         let surface_term = self.parse_term(file_id);
@@ -242,8 +240,7 @@ impl<'surface, 'core> Driver<'surface, 'core> {
     }
 
     pub fn normalise_and_emit_term(&mut self, file_id: FileId) -> Status {
-        let err_scope = scoped_arena::Scope::new();
-        let mut context = elaboration::Context::new(&self.interner, &self.core_scope, &err_scope);
+        let mut context = elaboration::Context::new(&self.interner, &self.core_scope);
 
         // Parse and elaborate the term
         let surface_term = self.parse_term(file_id);
@@ -279,8 +276,7 @@ impl<'surface, 'core> Driver<'surface, 'core> {
     ) -> Status {
         use itertools::Itertools;
 
-        let err_scope = scoped_arena::Scope::new();
-        let mut context = elaboration::Context::new(&self.interner, &self.core_scope, &err_scope);
+        let mut context = elaboration::Context::new(&self.interner, &self.core_scope);
 
         // Parse and elaborate the supplied module
         if let Some(file_id) = module_file_id {
