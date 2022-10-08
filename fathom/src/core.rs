@@ -1,6 +1,6 @@
 //! Core language.
 
-use crate::env::{Index, Level};
+use crate::env::{EnvLen, Index, Level};
 use crate::source::Span;
 use crate::StringId;
 
@@ -253,6 +253,55 @@ impl<'arena> Term<'arena> {
                 scrut.binds_local(var)
                     || branches.iter().any(|(_, term)| term.binds_local(var))
                     || default_expr.map_or(false, |term| term.binds_local(var.prev()))
+            }
+        }
+    }
+
+    /// Returns `true` if the term is "closed" (does not contain free local or meta variables) with respect to `local_env` and `meta_env`.
+    pub fn is_closed(&self, mut local_env: EnvLen, meta_env: EnvLen) -> bool {
+        match self {
+            Term::LocalVar(_, var) => var.0 < local_env.0,
+            Term::MetaVar(_, var) | Term::InsertedMeta(_, var, _) => var.0 < meta_env.0,
+            Term::ItemVar(_, _) | Term::Universe(_) | Term::Prim(_, _) | Term::ConstLit(_, _) => {
+                true
+            }
+            Term::Ann(_, expr, r#type) => {
+                expr.is_closed(local_env, meta_env) && r#type.is_closed(local_env, meta_env)
+            }
+            Term::Let(_, _, def_type, def_expr, body_expr) => {
+                def_type.is_closed(local_env, meta_env)
+                    && def_expr.is_closed(local_env, meta_env)
+                    && body_expr.is_closed(local_env.next(), meta_env)
+            }
+            Term::FunType(_, _, param_type, body_type) => {
+                param_type.is_closed(local_env, meta_env)
+                    && body_type.is_closed(local_env.next(), meta_env)
+            }
+            Term::FunLit(_, _, body_expr) => body_expr.is_closed(local_env.next(), meta_env),
+            Term::FunApp(_, head_expr, arg_expr) => {
+                head_expr.is_closed(local_env, meta_env) && arg_expr.is_closed(local_env, meta_env)
+            }
+            Term::RecordType(_, _, terms)
+            | Term::RecordLit(_, _, terms)
+            | Term::FormatRecord(_, _, terms)
+            | Term::FormatOverlap(_, _, terms) => terms.iter().all(|term| {
+                let result = term.is_closed(local_env, meta_env);
+                local_env = local_env.next();
+                result
+            }),
+            Term::RecordProj(_, head_expr, _) => head_expr.is_closed(local_env, meta_env),
+            Term::ArrayLit(_, elem_exprs) => elem_exprs
+                .iter()
+                .all(|term| term.is_closed(local_env, meta_env)),
+            Term::FormatCond(_, _, format, pred) => {
+                format.is_closed(local_env, meta_env) && pred.is_closed(local_env.next(), meta_env)
+            }
+            Term::ConstMatch(_, scrut, branches, default_expr) => {
+                scrut.is_closed(local_env, meta_env)
+                    && branches
+                        .iter()
+                        .all(|(_, term)| term.is_closed(local_env, meta_env))
+                    && default_expr.map_or(true, |term| term.is_closed(local_env.next(), meta_env))
             }
         }
     }

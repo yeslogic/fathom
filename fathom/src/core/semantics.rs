@@ -904,7 +904,7 @@ impl<'in_arena, 'out_arena, 'env> QuoteEnv<'in_arena, 'out_arena, 'env> {
     pub fn quote(&mut self, value: &ArcValue<'in_arena>) -> Term<'out_arena> {
         let value = self.elim_env().force(value);
         let span = value.span();
-        match value.as_ref() {
+        let term = match value.as_ref() {
             Value::Stuck(head, spine) => {
                 let head_expr = match head {
                     Head::Prim(prim) => Term::Prim(span, *prim),
@@ -1015,7 +1015,13 @@ impl<'in_arena, 'out_arena, 'env> QuoteEnv<'in_arena, 'out_arena, 'env> {
             }
 
             Value::ConstLit(r#const) => Term::ConstLit(span, *r#const),
-        }
+        };
+        debug_assert!(
+            term.is_closed(self.local_exprs, self.meta_exprs.len()),
+            "Term `{:#?}` has free variables",
+            term
+        );
+        term
     }
 
     /// Quote a [closure][Closure] back into a [term][Term].
@@ -1027,6 +1033,11 @@ impl<'in_arena, 'out_arena, 'env> QuoteEnv<'in_arena, 'out_arena, 'env> {
         let term = self.quote(&value);
         self.pop_local();
 
+        debug_assert!(
+            term.is_closed(self.local_exprs, self.meta_exprs.len()),
+            "Term `{:#?}` has free variables",
+            term
+        );
         term
     }
 

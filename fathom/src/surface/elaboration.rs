@@ -685,6 +685,11 @@ impl<'arena> MetaEnv<'arena> {
         }
     }
 
+    /// Get the length of the meta environment.
+    fn len(&self) -> EnvLen {
+        self.sources.len()
+    }
+
     /// Push an unsolved metavariable onto the context.
     fn push(&mut self, source: MetaSource, r#type: ArcValue<'arena>) -> Level {
         // TODO: check that hole name is not already in use
@@ -769,6 +774,19 @@ pub struct Context<'interner, 'arena, 'error> {
     renaming: unification::PartialRenaming,
     /// Diagnostic messages encountered during elaboration.
     messages: Vec<Message>,
+}
+
+macro_rules! assert_closed {
+    ($this:expr, $term:expr) => {{
+        // let-bind variables to ensure they are only evaulated once
+        let this = &$this;
+        let term = &$term;
+        debug_assert!(
+            term.is_closed(this.local_env.len(), this.meta_env.len()),
+            "Term `{:#?}` contains free variables",
+            term,
+        );
+    }};
 }
 
 impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
@@ -1097,6 +1115,9 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                     self.item_env
                         .push_definition(item.label.1, type_value, expr_value);
 
+                    assert_closed!(self, r#type);
+                    assert_closed!(self, expr);
+
                     items.push(core::Item::Def {
                         label: item.label.1,
                         r#type: self.scope.to_scope(r#type),
@@ -1340,7 +1361,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
     ) -> core::Term<'arena> {
         let expected_type = self.elim_env().force(expected_type);
 
-        match (surface_term, expected_type.as_ref()) {
+        let expr = match (surface_term, expected_type.as_ref()) {
             (Term::Let(range, def_pattern, def_type, def_expr, body_expr), _) => {
                 let (def_pattern, def_type_value) = self.synth_ann_pattern(def_pattern, *def_type);
                 let def_type = self.quote_env(self.scope).quote(&def_type_value); // FIXME: avoid requote if possible?
@@ -1524,7 +1545,9 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 let (core_term, synth_type) = self.synth(surface_term);
                 self.convert(surface_term.range(), core_term, &synth_type, &expected_type)
             }
-        }
+        };
+        assert_closed!(self, expr);
+        expr
     }
 
     /// Synthesize the type of the given surface term.
@@ -1534,7 +1557,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
         &mut self,
         surface_term: &Term<'_, ByteRange>,
     ) -> (core::Term<'arena>, ArcValue<'arena>) {
-        match surface_term {
+        let (expr, r#type) = match surface_term {
             Term::Name(range, name) => {
                 if let Some((term, r#type)) = self.get_local_name(*name) {
                     return (core::Term::LocalVar(range.into(), term), r#type.clone());
@@ -1863,7 +1886,10 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
             }
             Term::BinOp(range, lhs, op, rhs) => self.synth_bin_op(*range, lhs, *op, rhs),
             Term::ReportedError(range) => self.synth_reported_error(*range),
-        }
+        };
+
+        assert_closed!(self, expr);
+        (expr, r#type)
     }
 
     fn check_fun_lit(
@@ -1873,7 +1899,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
         body_expr: &Term<'_, ByteRange>,
         expected_type: &ArcValue<'arena>,
     ) -> core::Term<'arena> {
-        match patterns.split_first() {
+        let expr = match patterns.split_first() {
             Some(((pattern, r#type), next_patterns)) => {
                 let body_type = self.elim_env().force(expected_type);
                 match body_type.as_ref() {
@@ -1911,7 +1937,10 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 }
             }
             None => self.check(body_expr, expected_type),
-        }
+        };
+
+        assert_closed!(self, expr);
+        expr
     }
 
     fn synth_fun_lit(
@@ -1961,6 +1990,8 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
             );
         }
 
+        assert_closed!(self, fun_lit);
+        assert_closed!(self, fun_type);
         (fun_lit, self.eval_env().eval(&fun_type))
     }
 
@@ -2115,6 +2146,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
             self.scope.to_scope(rhs_expr),
         );
 
+        assert_closed!(self, fun_app);
         // TODO: Maybe it would be good to reuse lhs_type here if body_type is the same
         (
             fun_app,
@@ -2255,7 +2287,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
         is_reachable: bool,
         mut equations: impl Iterator<Item = &'a (Pattern<ByteRange>, Term<'a, ByteRange>)>,
     ) -> core::Term<'arena> {
-        match equations.next() {
+        let expr = match equations.next() {
             Some((pattern, body_expr)) => {
                 match self.check_pattern(pattern, &match_info.scrutinee.r#type) {
                     // Named patterns are elaborated to let bindings, where the
@@ -2313,7 +2345,10 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 }
             }
             None => self.elab_match_absurd(is_reachable, match_info),
-        }
+        };
+
+        assert_closed!(self, expr);
+        expr
     }
 
     /// Ensure that this part of a match expression is reachable, reporting
