@@ -904,13 +904,8 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
     pub fn compile_context<'a>(
         &'a self,
         compile_env: &'a mut CompileEnv<'interner>,
-    ) -> compile::Context<'arena, '_, 'interner> {
-        compile::Context::new(
-            &self.item_env.exprs,
-            &self.local_env.exprs,
-            &self.meta_env.exprs,
-            compile_env,
-        )
+    ) -> compile::Context<'_, 'interner> {
+        compile::Context::new(compile_env)
     }
 
     fn pretty_print_value(&mut self, value: &ArcValue<'_>) -> String {

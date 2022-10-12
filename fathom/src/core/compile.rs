@@ -3,15 +3,11 @@ use std::fmt::Debug;
 
 use heck::ToPascalCase;
 
-use crate::core::semantics::ArcValue;
 use crate::core::{self, Prim, Term};
-use crate::env::{EnvLen, SharedEnv, SliceEnv, UniqueEnv};
+use crate::env::{EnvLen, UniqueEnv};
 use crate::{StringId, StringInterner};
 
-pub struct Context<'arena, 'env, 'interner> {
-    item_exprs: &'env SliceEnv<ArcValue<'arena>>,
-    rigid_exprs: &'env SharedEnv<ArcValue<'arena>>,
-    flexible_exprs: &'env SliceEnv<Option<ArcValue<'arena>>>,
+pub struct Context<'env, 'interner> {
     compile_env: &'env mut CompileEnv<'interner>,
     // TODO: Maybe the interner should be in here
 }
@@ -381,19 +377,9 @@ impl<'interner> CompileEnvBuilder<'interner> {
     }
 }
 
-impl<'arena, 'env, 'data, 'interner> Context<'arena, 'env, 'interner> {
-    pub fn new(
-        item_exprs: &'env SliceEnv<ArcValue<'arena>>,
-        rigid_exprs: &'env SharedEnv<ArcValue<'arena>>,
-        flexible_exprs: &'env SliceEnv<Option<ArcValue<'arena>>>,
-        compile_env: &'env mut CompileEnv<'interner>,
-    ) -> Context<'arena, 'env, 'interner> {
-        Context {
-            item_exprs,
-            rigid_exprs,
-            flexible_exprs,
-            compile_env,
-        }
+impl<'arena, 'env, 'data, 'interner> Context<'env, 'interner> {
+    pub fn new(compile_env: &'env mut CompileEnv<'interner>) -> Context<'env, 'interner> {
+        Context { compile_env }
     }
 
     pub fn compile_module(&mut self, module: &core::Module<'arena>) -> Result<Module, ()> {
