@@ -12,6 +12,18 @@ pub struct Context<'env, 'interner> {
     interner: &'interner RefCell<StringInterner>,
 }
 
+pub struct CompileEnv {
+    /// Names of variables.
+    names: UniqueEnv<Option<StringId>>,
+    /// Types of variables.
+    types: UniqueEnv<Type>,
+}
+
+pub struct CompileEnvBuilder<'interner> {
+    env: CompileEnv,
+    interner: &'interner RefCell<StringInterner>,
+}
+
 #[derive(Debug, Clone)]
 enum Type {
     Bool,
@@ -24,6 +36,7 @@ enum Type {
     I16,
     I32,
     I64,
+
     /// A vector: array with unknown length
     Vec(Box<Type>),
     /// Array with a known length
@@ -60,13 +73,13 @@ struct Struct {
 }
 
 #[derive(Debug)]
-struct DecodeFn {
+struct ReadFn {
     struct_name: StringId,
-    exprs: Vec<DecodeExpr>,
+    exprs: Vec<ReadExpr>,
 }
 
 #[derive(Debug)]
-enum DecodeExpr {
+enum ReadExpr {
     /// name, fields
     Struct {
         // name of the struct
@@ -86,13 +99,6 @@ enum ParseExpr {
     Var(StringId),
 }
 
-pub struct CompileEnv {
-    /// Names of variables.
-    names: UniqueEnv<Option<StringId>>,
-    /// Types of variables.
-    types: UniqueEnv<Type>,
-}
-
 #[derive(Debug)]
 pub struct Module {
     items: Vec<Item>,
@@ -101,7 +107,7 @@ pub struct Module {
 #[derive(Debug)]
 enum Item {
     Struct(Struct),
-    ReadFn(DecodeFn),
+    ReadFn(ReadFn),
 }
 
 impl<'interner> CompileEnv {
@@ -346,11 +352,6 @@ impl<'interner> CompileEnv {
     }
 }
 
-pub struct CompileEnvBuilder<'interner> {
-    env: CompileEnv,
-    interner: &'interner RefCell<StringInterner>,
-}
-
 impl<'interner> CompileEnvBuilder<'interner> {
     fn new(interner: &'interner RefCell<StringInterner>) -> Self {
         CompileEnvBuilder {
@@ -453,7 +454,7 @@ impl<'arena, 'env, 'data, 'interner> Context<'env, 'interner> {
                 module.items.push(Item::Struct(r#struct));
 
                 // Now generate the read function
-                let read_fn = self.compile_decode(label, expr);
+                let read_fn = self.compile_read(label, expr);
                 dbg!(&read_fn);
                 module.items.push(Item::ReadFn(read_fn));
             }
@@ -564,7 +565,8 @@ impl<'arena, 'env, 'data, 'interner> Context<'env, 'interner> {
         }
     }
 
-    fn compile_decode(&mut self, name: StringId, format: &Term<'arena>) -> DecodeFn {
+    // Generate the read function for a format
+    fn compile_read(&mut self, name: StringId, format: &Term<'arena>) -> ReadFn {
         match format {
             Term::FormatRecord(_, labels, formats) => {
                 // For each field, put the name and type in the environment and generate a reader for it
@@ -589,8 +591,7 @@ impl<'arena, 'env, 'data, 'interner> Context<'env, 'interner> {
 
                 self.compile_env.truncate(initial_env_len);
 
-                // Create DecodeExpr::Struct
-                let st = DecodeExpr::Struct {
+                let st = ReadExpr::Struct {
                     // name of the struct
                     name,
                     // Parse a type into a named variable
@@ -598,12 +599,12 @@ impl<'arena, 'env, 'data, 'interner> Context<'env, 'interner> {
                     // How to initialise the fields of the struct using the variables
                     fields,
                 };
-                DecodeFn {
+                ReadFn {
                     struct_name: name,
                     exprs: vec![st],
                 }
             }
-            _ => unreachable!("can only compile decode for format records"),
+            _ => unreachable!("can only compile read for format records"),
         }
     }
 
@@ -640,7 +641,7 @@ pub mod rust {
     use pretty::{Doc, DocAllocator, DocBuilder, DocPtr, RefDoc};
     use scoped_arena::Scope;
 
-    use crate::core::compile::{DecodeExpr, DecodeFn, Item, Module, ParseExpr, Type};
+    use crate::core::compile::{Item, Module, ParseExpr, ReadExpr, ReadFn, Type};
     use crate::{StringId, StringInterner};
 
     const INDENT: isize = 4;
@@ -727,7 +728,7 @@ pub mod rust {
             ])
         }
 
-        fn read_fn(&'arena self, readfn: &DecodeFn) -> DocBuilder<'arena, Self> {
+        fn read_fn(&'arena self, readfn: &ReadFn) -> DocBuilder<'arena, Self> {
             self.concat([
                 self.text("fn read(ctxt: &mut ReadCtxt<'a>) -> Result<Self, ParseError> {"),
                 self.hardline().nest(INDENT),
@@ -783,9 +784,9 @@ pub mod rust {
             }
         }
 
-        fn expr(&'arena self, expr: &DecodeExpr) -> DocBuilder<'arena, Self> {
+        fn expr(&'arena self, expr: &ReadExpr) -> DocBuilder<'arena, Self> {
             match expr {
-                DecodeExpr::Struct {
+                ReadExpr::Struct {
                     name,
                     parse_fields,
                     fields,
