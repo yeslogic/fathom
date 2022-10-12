@@ -314,7 +314,7 @@ impl<'surface, 'core> Driver<'surface, 'core> {
 
         let format = context.eval_env().eval(&format_term);
         let buffer = binary::Buffer::from(buffer_data);
-        let refs = match context.binary_context(buffer).read_entrypoint(format) {
+        let refs = match binary::Context::new(context.elim_env(), buffer).read_entrypoint(format) {
             Ok(refs) => refs,
             Err(err) => {
                 self.emit_diagnostic(self.read_error_to_diagnostic(err, &mut context));

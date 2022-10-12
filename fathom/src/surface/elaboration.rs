@@ -26,8 +26,8 @@ use std::str::FromStr;
 use std::sync::Arc;
 
 use crate::alloc::SliceVec;
-use crate::core::semantics::{self, ArcValue, Head, Telescope, Value};
-use crate::core::{self, binary, Const, Prim, UIntStyle};
+use crate::core::semantics::{self, ArcValue, ElimEnv, Head, Telescope, Value};
+use crate::core::{self, Const, Prim, UIntStyle};
 use crate::env::{self, EnvLen, Level, SharedEnv, SliceEnv, UniqueEnv};
 use crate::source::{ByteRange, Span, Spanned};
 use crate::surface::elaboration::reporting::Message;
@@ -593,8 +593,9 @@ impl<'i, 'arena> LocalEnvBuilder<'i, 'arena> {
         let mut local_exprs = SharedEnv::new();
 
         let expr = Spanned::empty(Arc::new(Value::prim(prim, [])));
-        let r#type =
-            semantics::EvalEnv::new(&item_exprs, &mut local_exprs, &meta_exprs).eval(r#type);
+        let r#type = ElimEnv::new(&item_exprs, &meta_exprs)
+            .eval_env(&mut local_exprs)
+            .eval(r#type);
         self.env.push_def(name, expr, r#type);
     }
 
@@ -717,8 +718,8 @@ impl<'arena> MetaEnv<'arena> {
             (None, source) => Some(Message::UnsolvedMetaVar { source }),
             // Yield messages of solved named holes
             (Some(expr), MetaSource::HoleExpr(range, name)) => {
-                let term = semantics::QuoteEnv::new(item_exprs, local_names.len(), &self.exprs)
-                    .quote(scope, expr);
+                let elim_env = ElimEnv::new(item_exprs, &self.exprs);
+                let term = semantics::QuoteEnv::new(elim_env, local_names.len()).quote(scope, expr);
                 let surface_term = distillation::Context::new(
                     interner,
                     scope,
@@ -846,11 +847,8 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
     }
 
     pub fn eval_env(&mut self) -> semantics::EvalEnv<'arena, '_> {
-        semantics::EvalEnv::new(
-            &self.item_env.exprs,
-            &mut self.local_env.exprs,
-            &self.meta_env.exprs,
-        )
+        semantics::ElimEnv::new(&self.item_env.exprs, &self.meta_env.exprs)
+            .eval_env(&mut self.local_env.exprs)
     }
 
     pub fn elim_env(&self) -> semantics::ElimEnv<'arena, '_> {
@@ -858,11 +856,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
     }
 
     pub fn quote_env(&self) -> semantics::QuoteEnv<'arena, '_> {
-        semantics::QuoteEnv::new(
-            &self.item_env.exprs,
-            self.local_env.len(),
-            &self.meta_env.exprs,
-        )
+        semantics::QuoteEnv::new(self.elim_env(), self.local_env.len())
     }
 
     fn unification_context(&mut self) -> unification::Context<'arena, '_> {
@@ -886,13 +880,6 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
             &mut self.local_env.names,
             &self.meta_env.sources,
         )
-    }
-
-    pub fn binary_context<'data>(
-        &self,
-        buffer: binary::Buffer<'data>,
-    ) -> binary::Context<'arena, '_, 'data> {
-        binary::Context::new(&self.item_env.exprs, &self.meta_env.exprs, buffer)
     }
 
     fn pretty_print_value(&mut self, value: &ArcValue<'_>) -> String {
