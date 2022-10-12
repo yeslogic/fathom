@@ -8,8 +8,8 @@ use crate::env::{EnvLen, UniqueEnv};
 use crate::{StringId, StringInterner};
 
 pub struct Context<'env, 'interner> {
-    compile_env: &'env mut CompileEnv<'interner>,
-    // TODO: Maybe the interner should be in here
+    compile_env: &'env mut CompileEnv,
+    interner: &'interner RefCell<StringInterner>,
 }
 
 #[derive(Debug, Clone)]
@@ -86,12 +86,11 @@ enum ParseExpr {
     Var(StringId),
 }
 
-pub struct CompileEnv<'interner> {
+pub struct CompileEnv {
     /// Names of variables.
     names: UniqueEnv<Option<StringId>>,
     /// Types of variables.
     types: UniqueEnv<Type>,
-    interner: &'interner RefCell<StringInterner>,
 }
 
 #[derive(Debug)]
@@ -105,19 +104,15 @@ enum Item {
     ReadFn(DecodeFn),
 }
 
-impl<'interner> CompileEnv<'interner> {
-    pub fn new(interner: &'interner RefCell<StringInterner>) -> Self {
+impl<'interner> CompileEnv {
+    pub fn new() -> Self {
         CompileEnv {
             names: UniqueEnv::new(),
             types: UniqueEnv::new(),
-            interner,
         }
     }
 
-    pub fn default(
-        interner: &'interner RefCell<StringInterner>,
-        // scope: &'arena Scope<'arena>,
-    ) -> Self {
+    pub fn default(interner: &'interner RefCell<StringInterner>) -> Self {
         let mut env = CompileEnvBuilder::new(interner);
 
         env.define_prim("void", Type::Todo); // Perhaps these have no name, and names are used for variables?
@@ -352,34 +347,41 @@ impl<'interner> CompileEnv<'interner> {
 }
 
 pub struct CompileEnvBuilder<'interner> {
-    env: CompileEnv<'interner>,
-    // scope: &'arena Scope<'arena>,
+    env: CompileEnv,
+    interner: &'interner RefCell<StringInterner>,
 }
 
 impl<'interner> CompileEnvBuilder<'interner> {
     fn new(interner: &'interner RefCell<StringInterner>) -> Self {
         CompileEnvBuilder {
-            env: CompileEnv::new(interner),
+            env: CompileEnv::new(),
+            interner,
         }
     }
 
     // TODO: Why Option?
     fn name(&self, name: &'static str) -> Option<StringId> {
-        Some(self.env.interner.borrow_mut().get_or_intern_static(name))
+        Some(self.interner.borrow_mut().get_or_intern_static(name))
     }
 
     fn define_prim(&mut self, name: &'static str, ty: Type) {
         self.env.push_def(self.name(name), ty);
     }
 
-    fn build(self) -> CompileEnv<'interner> {
+    fn build(self) -> CompileEnv {
         self.env
     }
 }
 
 impl<'arena, 'env, 'data, 'interner> Context<'env, 'interner> {
-    pub fn new(compile_env: &'env mut CompileEnv<'interner>) -> Context<'env, 'interner> {
-        Context { compile_env }
+    pub fn new(
+        compile_env: &'env mut CompileEnv,
+        interner: &'interner RefCell<StringInterner>,
+    ) -> Context<'env, 'interner> {
+        Context {
+            compile_env,
+            interner,
+        }
     }
 
     pub fn compile_module(&mut self, module: &core::Module<'arena>) -> Result<Module, ()> {
@@ -401,13 +403,12 @@ impl<'arena, 'env, 'data, 'interner> Context<'env, 'interner> {
                 dbg!(expr);
 
                 let name = self
-                    .compile_env
                     .interner
                     .borrow()
                     .resolve(*label)
                     .map(|name| name.to_pascal_case())
                     .expect("missing string");
-                let name = self.compile_env.interner.borrow_mut().get_or_intern(name);
+                let name = self.interner.borrow_mut().get_or_intern(name);
                 self.compile_def(module, name, expr)
             }
         }

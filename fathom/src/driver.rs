@@ -359,7 +359,7 @@ impl<'surface, 'core> Driver<'surface, 'core> {
         // Generate IR...
         let mut compile_env = CompileEnv::default(&self.interner);
         let module = match context
-            .compile_context(&mut compile_env)
+            .compile_context(&mut compile_env, &self.interner)
             .compile_module(&module)
         {
             Ok(module) => module,
