@@ -65,6 +65,7 @@ struct Struct {
 
 #[derive(Debug)]
 struct DecodeFn {
+    struct_name: StringId,
     exprs: Vec<DecodeExpr>,
 }
 
@@ -610,7 +611,10 @@ impl<'arena, 'env, 'data, 'interner> Context<'arena, 'env, 'interner> {
                     // How to initialise the fields of the struct using the variables
                     fields,
                 };
-                DecodeFn { exprs: vec![st] }
+                DecodeFn {
+                    struct_name: name,
+                    exprs: vec![st],
+                }
             }
             _ => unreachable!("can only compile decode for format records"),
         }
@@ -675,10 +679,14 @@ pub mod rust {
         }
 
         pub fn module(&'arena self, module: &Module) -> DocBuilder<'arena, Self> {
-            self.intersperse(
-                module.items.iter().map(|item| self.item(item)),
+            self.concat([
+                self.imports(),
                 self.hardline(),
-            )
+                self.intersperse(
+                    module.items.iter().map(|item| self.item(item)),
+                    self.hardline(),
+                ),
+            ])
         }
 
         fn item(&'arena self, item: &Item) -> DocBuilder<'arena, Self> {
@@ -700,33 +708,50 @@ pub mod rust {
                         ])
                     }),
                     self.text(","),
-                    self.text("}"),
+                    self.concat([self.text("}"), self.hardline()]),
                 ),
                 Item::ReadFn(readfn) => {
-                    let docs = vec![self.text("type HostType = Self"), self.read_fn(readfn)];
-                    self.sequence(
-                        self.concat([
-                            self.text("impl<'a> ReadBinary<'a> for"),
-                            self.space(),
-                            self.text("TodoStruct"),
-                            self.space(),
-                            self.text("{"),
-                        ]),
-                        docs.into_iter(),
-                        self.text(";"),
-                        self.concat([self.text("}")]),
-                    )
+                    let docs = vec![
+                        self.concat([self.text("type HostType = Self;"), self.hardline()]),
+                        self.read_fn(readfn),
+                    ];
+
+                    self.concat([
+                        self.text("impl<'a> ReadBinary<'a> for"),
+                        self.space(),
+                        self.string_id(readfn.struct_name),
+                        self.space(),
+                        self.text("{"),
+                        self.hardline().nest(INDENT),
+                        self.intersperse(docs, self.hardline()).nest(INDENT),
+                        self.hardline(),
+                        self.text("}"),
+                    ])
                 }
             }
         }
 
+        fn imports(&'arena self) -> DocBuilder<'arena, Self> {
+            self.concat([
+                self.text("use fathom_runtime::error::{ParseError};"),
+                self.hardline(),
+                self.text("use fathom_runtime::read::{ReadCtxt, ReadBinary};"),
+                self.hardline(),
+            ])
+        }
+
         fn read_fn(&'arena self, readfn: &DecodeFn) -> DocBuilder<'arena, Self> {
-            self.sequence(
-                self.text("pub fn read() -> Result<Self::HostType, ParseError> {"),
-                readfn.exprs.iter().map(|expr| self.expr(expr)),
-                self.text(";"),
+            self.concat([
+                self.text("fn read(ctxt: &mut ReadCtxt<'a>) -> Result<Self, ParseError> {"),
+                self.hardline().nest(INDENT),
+                self.intersperse(
+                    readfn.exprs.iter().map(|expr| self.expr(expr)),
+                    self.concat([self.text(";"), self.hardline()]),
+                )
+                .nest(INDENT),
+                self.hardline(),
                 self.text("}"),
-            )
+            ])
         }
 
         fn ty_prec(
@@ -759,13 +784,13 @@ pub mod rust {
                     self.text("]"),
                 ]),
                 Type::Bool => self.text("bool"),
-                Type::ReadU8 => self.text("read_u8()"),
-                Type::ReadU16Be => self.text("read_u16be()"),
-                Type::ReadU32Be => self.text("read_u32be()"),
-                Type::ReadU64Be => self.text("read_u64be()"),
-                Type::ReadU16Le => self.text("read_u16le()"),
-                Type::ReadU32Le => self.text("read_u32le()"),
-                Type::ReadU64Le => self.text("read_u64le()"),
+                Type::ReadU8 => self.text("ctxt.read_u8()"),
+                Type::ReadU16Be => self.text("ctxt.read_u16be()"),
+                Type::ReadU32Be => self.text("ctxt.read_u32be()"),
+                Type::ReadU64Be => self.text("ctxt.read_u64be()"),
+                Type::ReadU16Le => self.text("ctxt.read_u16le()"),
+                Type::ReadU32Le => self.text("ctxt.read_u32le()"),
+                Type::ReadU64Le => self.text("ctxt.read_u64le()"),
                 Type::Todo => self.text("todo!()"),
                 _ => unimplemented!(),
             }
@@ -789,23 +814,19 @@ pub mod rust {
             &'arena self,
             fields: &[(StringId, ParseExpr)],
         ) -> DocBuilder<'arena, Self> {
-            self.sequence(
-                self.text(""),
-                fields.iter().map(|(name, field)| {
-                    self.concat([
-                        self.text("let"),
-                        self.space(),
-                        self.string_id(*name),
-                        self.space(),
-                        self.text("="),
-                        self.space(),
-                        self.parse_expr(field),
-                        self.text("?"),
-                    ])
-                }),
-                self.concat([self.text(";"), self.hardline()]),
-                self.text(""),
-            )
+            self.concat(fields.iter().map(|(name, field)| {
+                self.concat([
+                    self.text("let"),
+                    self.space(),
+                    self.string_id(*name),
+                    self.space(),
+                    self.text("="),
+                    self.space(),
+                    self.parse_expr(field),
+                    self.text("?;"),
+                    self.hardline(),
+                ])
+            }))
         }
 
         fn construct_struct(
@@ -815,8 +836,7 @@ pub mod rust {
         ) -> DocBuilder<'arena, Self> {
             self.sequence(
                 self.concat([
-                    // FIXME: Remove need for return
-                    self.text("return Ok("),
+                    self.text("Ok("),
                     self.string_id(name),
                     self.space(),
                     self.text("{"),
@@ -843,13 +863,13 @@ pub mod rust {
 
         fn type_const(&'arena self, ty_const: &Type) -> DocBuilder<'arena, Self> {
             match ty_const {
-                Type::ReadU8 => self.text("read_u8()"),
-                Type::ReadU16Be => self.text("read_u16be()"),
-                Type::ReadU32Be => self.text("read_u32be()"),
-                Type::ReadU64Be => self.text("read_u64be()"),
-                Type::ReadU16Le => self.text("read_u16le()"),
-                Type::ReadU32Le => self.text("read_u32le()"),
-                Type::ReadU64Le => self.text("read_u64le()"),
+                Type::ReadU8 => self.text("ctxt.read_u8()"),
+                Type::ReadU16Be => self.text("ctxt.read_u16be()"),
+                Type::ReadU32Be => self.text("ctxt.read_u32be()"),
+                Type::ReadU64Be => self.text("ctxt.read_u64be()"),
+                Type::ReadU16Le => self.text("ctxt.read_u16le()"),
+                Type::ReadU32Le => self.text("ctxt.read_u32le()"),
+                Type::ReadU64Le => self.text("ctxt.read_u64le()"),
                 _ => unimplemented!(),
             }
         }
