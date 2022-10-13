@@ -28,7 +28,7 @@ use std::sync::Arc;
 use crate::alloc::SliceVec;
 use crate::core::semantics::{self, ArcValue, ElimEnv, Head, Telescope, Value};
 use crate::core::{self, Const, Prim, UIntStyle};
-use crate::env::{self, EnvLen, Level, SharedEnv, SliceEnv, UniqueEnv};
+use crate::env::{self, EnvLen, Level, SharedEnv, UniqueEnv};
 use crate::source::{ByteRange, Span, Spanned};
 use crate::surface::elaboration::reporting::Message;
 use crate::surface::{distillation, pretty, BinOp, FormatField, Item, Module, Pattern, Term};
@@ -692,50 +692,6 @@ impl<'arena> MetaEnv<'arena> {
 
         var
     }
-
-    fn report<'this, 'interner: 'this>(
-        &'this self,
-        interner: &'interner RefCell<StringInterner>,
-        scope: &'arena Scope<'arena>,
-        mut item_names: UniqueEnv<StringId>,
-        item_exprs: &'this SliceEnv<ArcValue<'this>>,
-        mut local_names: UniqueEnv<Option<StringId>>,
-    ) -> impl 'this + Iterator<Item = Message> {
-        let entries = Iterator::zip(self.sources.iter(), self.exprs.iter());
-
-        entries.filter_map(move |(&source, expr)| match (expr, source) {
-            // Avoid producing messages for some unsolved metavariable sources:
-            (None, MetaSource::HoleType(_, _)) => None, // should have an unsolved hole expression
-            (None, MetaSource::PlaceholderType(_)) => None, // should have an unsolved placeholder expression
-            (None, MetaSource::ReportedErrorType(_)) => None, // should already have an error reported
-
-            // For other sources, report an unsolved problem message
-            (None, source) => Some(Message::UnsolvedMetaVar { source }),
-            // Yield messages of solved named holes
-            (Some(expr), MetaSource::HoleExpr(range, name)) => {
-                let elim_env = ElimEnv::new(item_exprs, &self.exprs);
-                let term = semantics::QuoteEnv::new(elim_env, local_names.len())
-                    .unfolding_metas()
-                    .quote(scope, expr);
-                let surface_term = distillation::Context::new(
-                    interner,
-                    scope,
-                    &mut item_names,
-                    &mut local_names,
-                    &self.sources,
-                )
-                .check(&term);
-
-                let pretty_context = pretty::Context::new(interner, scope);
-                let doc = pretty_context.term(&surface_term).into_doc();
-                let expr = doc.pretty(usize::MAX).to_string();
-
-                Some(Message::HoleSolution { range, name, expr })
-            }
-            // Ignore solutions of anything else
-            (Some(_), _) => None,
-        })
-    }
 }
 
 /// Elaboration context.
@@ -827,16 +783,43 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         self.messages.push(message);
     }
 
-    pub fn drain_messages(&mut self) -> impl '_ + Iterator<Item = Message> {
-        let report_messages = self.meta_env.report(
-            self.interner,
-            self.scope,
-            self.item_env.names.clone(),
-            &self.item_env.exprs,
-            self.local_env.names.clone(),
-        );
+    pub fn handle_messages(&mut self, on_message: &mut dyn FnMut(Message)) {
+        for message in self.messages.drain(..) {
+            on_message(message);
+        }
 
-        self.messages.drain(..).chain(report_messages)
+        let meta_env = &self.meta_env;
+        for (expr, source) in Iterator::zip(meta_env.exprs.iter(), meta_env.sources.iter()) {
+            match (expr, *source) {
+                // Avoid producing messages for some unsolved metavariable sources:
+                (None, MetaSource::HoleType(_, _)) => {} // should have an unsolved hole expression
+                (None, MetaSource::PlaceholderType(_)) => {} // should have an unsolved placeholder expression
+                (None, MetaSource::ReportedErrorType(_)) => {} // should already have an error reported
+
+                // For other sources, report an unsolved problem message
+                (None, source) => on_message(Message::UnsolvedMetaVar { source }),
+                // Yield messages of solved named holes
+                (Some(expr), MetaSource::HoleExpr(range, name)) => {
+                    let term = self.quote_env().quote(self.scope, expr);
+                    let surface_term = distillation::Context::new(
+                        self.interner,
+                        self.scope,
+                        &mut self.item_env.names,
+                        &mut self.local_env.names,
+                        &self.meta_env.sources,
+                    )
+                    .check(&term);
+
+                    let pretty_context = pretty::Context::new(self.interner, self.scope);
+                    let doc = pretty_context.term(&surface_term).into_doc();
+                    let expr = doc.pretty(usize::MAX).to_string();
+
+                    on_message(Message::HoleSolution { range, name, expr });
+                }
+                // Ignore solutions of anything else
+                (Some(_), _) => {}
+            }
+        }
     }
 
     pub fn eval_env(&mut self) -> semantics::EvalEnv<'arena, '_> {
@@ -1065,6 +1048,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         &mut self,
         scope: &'out_arena Scope<'out_arena>,
         surface_module: &Module<'_, ByteRange>,
+        on_message: &mut dyn FnMut(Message),
     ) -> core::Module<'out_arena> {
         let elab_order = order::elaboration_order(self, surface_module);
         let mut items = Vec::with_capacity(surface_module.items.len());
@@ -1109,7 +1093,8 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
             }
         }));
 
-        // TODO: Collect elaboration messages
+        self.handle_messages(on_message);
+
         // TODO: Clear environments
         // TODO: Reset scopes
 
@@ -1121,12 +1106,14 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         &mut self,
         scope: &'out_arena Scope<'out_arena>,
         surface_term: &Term<'_, ByteRange>,
+        on_message: &mut dyn FnMut(Message),
     ) -> (core::Term<'out_arena>, core::Term<'out_arena>) {
         let (term, r#type) = self.synth(surface_term);
         let term = self.eval_env().unfold_metas(scope, &term);
         let r#type = self.quote_env().unfolding_metas().quote(scope, &r#type);
 
-        // TODO: Collect elaboration messages
+        self.handle_messages(on_message);
+
         // TODO: Clear environments
         // TODO: Reset scopes
 
@@ -1138,13 +1125,17 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         &mut self,
         scope: &'out_arena Scope<'out_arena>,
         surface_term: &Term<'_, ByteRange>,
+        on_message: &mut dyn FnMut(Message),
     ) -> core::Term<'out_arena> {
         let term = self.check(surface_term, &self.format_type.clone());
-        self.eval_env().unfold_metas(scope, &term)
+        let term = self.eval_env().unfold_metas(scope, &term); // TODO: fuse with above?
 
-        // TODO: Collect elaboration messages
+        self.handle_messages(on_message);
+
         // TODO: Clear environments
         // TODO: Reset scopes
+
+        term
     }
 
     /// Check that a pattern matches an expected type.
