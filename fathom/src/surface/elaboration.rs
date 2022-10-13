@@ -39,7 +39,7 @@ mod reporting;
 mod unification;
 
 /// Top-level item environment.
-pub struct ItemEnv<'arena> {
+struct ItemEnv<'arena> {
     /// Names of items.
     names: UniqueEnv<StringId>,
     /// Types of items.
@@ -50,7 +50,7 @@ pub struct ItemEnv<'arena> {
 
 impl<'arena> ItemEnv<'arena> {
     /// Construct a new, empty environment.
-    pub fn new() -> ItemEnv<'arena> {
+    fn new() -> ItemEnv<'arena> {
         ItemEnv {
             names: UniqueEnv::new(),
             types: UniqueEnv::new(),
@@ -58,7 +58,7 @@ impl<'arena> ItemEnv<'arena> {
         }
     }
 
-    pub fn push_definition(
+    fn push_definition(
         &mut self,
         name: StringId,
         r#type: ArcValue<'arena>,
@@ -67,11 +67,6 @@ impl<'arena> ItemEnv<'arena> {
         self.names.push(name);
         self.types.push(r#type);
         self.exprs.push(expr);
-    }
-
-    pub fn get_name(&self, name: StringId) -> Option<(Level, ArcValue<'arena>)> {
-        itertools::izip!(env::levels(), self.names.iter(), self.types.iter())
-            .find_map(|(var, n, r#type)| (name == *n).then(|| (var, r#type.clone())))
     }
 }
 
@@ -87,7 +82,7 @@ impl<'arena> ItemEnv<'arena> {
 /// Multiple bindings can be removed at once with [`LocalEnv::truncate`].
 ///
 /// [local variables]: core::Term::LocalVar
-pub struct LocalEnv<'arena> {
+struct LocalEnv<'arena> {
     /// Names of local variables.
     names: UniqueEnv<Option<StringId>>,
     /// Types of local variables.
@@ -102,7 +97,7 @@ pub struct LocalEnv<'arena> {
 
 impl<'arena> LocalEnv<'arena> {
     /// Construct a new, empty environment.
-    pub fn new() -> LocalEnv<'arena> {
+    fn new() -> LocalEnv<'arena> {
         LocalEnv {
             names: UniqueEnv::new(),
             types: UniqueEnv::new(),
@@ -111,7 +106,7 @@ impl<'arena> LocalEnv<'arena> {
         }
     }
 
-    pub fn default(
+    fn default(
         interner: &RefCell<StringInterner>,
         scope: &'arena Scope<'arena>,
     ) -> LocalEnv<'arena> {
@@ -563,7 +558,7 @@ impl<'arena> LocalEnv<'arena> {
     }
 }
 
-pub struct LocalEnvBuilder<'i, 'arena> {
+struct LocalEnvBuilder<'i, 'arena> {
     env: LocalEnv<'arena>,
     interner: &'i RefCell<StringInterner>,
     scope: &'arena Scope<'arena>,
@@ -661,7 +656,7 @@ impl MetaSource {
 /// definitions are intended to be found through the use of [unification].
 ///
 /// [metavariables]: core::Term::MetaVar
-pub struct MetaEnv<'arena> {
+struct MetaEnv<'arena> {
     /// The source of inserted metavariables, used when reporting [unsolved
     /// metavariables][Message::UnsolvedMetaVar].
     sources: UniqueEnv<MetaSource>,
@@ -678,7 +673,7 @@ pub struct MetaEnv<'arena> {
 
 impl<'arena> MetaEnv<'arena> {
     /// Construct a new, empty environment.
-    pub fn new() -> MetaEnv<'arena> {
+    fn new() -> MetaEnv<'arena> {
         MetaEnv {
             sources: UniqueEnv::new(),
             types: UniqueEnv::new(),
@@ -1094,6 +1089,20 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
         }
     }
 
+    /// Elaborate a term, returning its synthesized type.
+    pub fn elab_term(
+        &mut self,
+        surface_term: &Term<'_, ByteRange>,
+    ) -> (core::Term<'arena>, core::Term<'arena>) {
+        let (term, r#type) = self.synth(surface_term);
+        (term, self.quote_env().quote(self.scope, &r#type))
+    }
+
+    /// Elaborate a term, expecting it to be a format.
+    pub fn elab_format(&mut self, surface_term: &Term<'_, ByteRange>) -> core::Term<'arena> {
+        self.check(surface_term, &self.format_type.clone())
+    }
+
     /// Check that a pattern matches an expected type.
     fn check_pattern(
         &mut self,
@@ -1315,7 +1324,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
     /// Check that a surface term conforms to the given type.
     ///
     /// Returns the elaborated term in the core language.
-    pub fn check(
+    fn check(
         &mut self,
         surface_term: &Term<'_, ByteRange>,
         expected_type: &ArcValue<'arena>,
@@ -1512,7 +1521,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
     /// Synthesize the type of the given surface term.
     ///
     /// Returns the elaborated term in the core language and its type.
-    pub fn synth(
+    fn synth(
         &mut self,
         surface_term: &Term<'_, ByteRange>,
     ) -> (core::Term<'arena>, ArcValue<'arena>) {

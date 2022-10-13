@@ -7,7 +7,7 @@ use std::path::Path;
 
 use crate::core::binary;
 use crate::core::binary::{BufferError, ReadError};
-use crate::source::{ByteRange, FileId, Span, Spanned};
+use crate::source::{ByteRange, FileId, Span};
 use crate::surface::{self, elaboration};
 use crate::{StringInterner, BUG_REPORT_URL};
 
@@ -220,8 +220,7 @@ impl<'surface, 'core> Driver<'surface, 'core> {
 
         // Parse and elaborate the term
         let surface_term = self.parse_term(file_id);
-        let (term, r#type) = context.synth(&surface_term);
-        let r#type = context.quote_env().quote(&self.core_scope, &r#type);
+        let (term, r#type) = context.elab_term(&surface_term);
 
         // Emit errors we might have found during elaboration
         let elab_messages = context.drain_messages();
@@ -248,7 +247,7 @@ impl<'surface, 'core> Driver<'surface, 'core> {
 
         // Parse and elaborate the term
         let surface_term = self.parse_term(file_id);
-        let (term, r#type) = context.synth(&surface_term);
+        let (term, r#type) = context.elab_term(&surface_term);
 
         // Emit errors we might have found during elaboration
         let elab_messages = context.drain_messages();
@@ -260,7 +259,7 @@ impl<'surface, 'core> Driver<'surface, 'core> {
         }
 
         let term = context.eval_env().normalise(&self.core_scope, &term);
-        let r#type = context.quote_env().quote(&self.core_scope, &r#type);
+        let r#type = context.eval_env().normalise(&self.core_scope, &r#type);
 
         self.surface_scope.reset(); // Reuse the surface scope for distillation
         let mut context = context.distillation_context(&self.surface_scope);
@@ -279,10 +278,6 @@ impl<'surface, 'core> Driver<'surface, 'core> {
         buffer_data: &[u8],
     ) -> Status {
         use itertools::Itertools;
-        use std::sync::Arc;
-
-        use crate::core::semantics::Value;
-        use crate::core::Prim;
 
         let err_scope = scoped_arena::Scope::new();
         let mut context = elaboration::Context::new(&self.interner, &self.core_scope, &err_scope);
@@ -298,10 +293,7 @@ impl<'surface, 'core> Driver<'surface, 'core> {
         // will need to be revisited if we need to support multiple modules, but
         // it works for now!
         let surface_format = self.parse_term(format_file_id);
-        let format_term = context.check(
-            &surface_format,
-            &Spanned::new(Span::Empty, Arc::new(Value::prim(Prim::FormatType, []))),
-        );
+        let format = context.elab_format(&surface_format);
 
         // Emit errors we might have found during elaboration
         let elab_messages = context.drain_messages();
@@ -312,7 +304,7 @@ impl<'surface, 'core> Driver<'surface, 'core> {
             return Status::Error;
         }
 
-        let format = context.eval_env().eval(&format_term);
+        let format = context.eval_env().eval(&format);
         let buffer = binary::Buffer::from(buffer_data);
         let refs = match binary::Context::new(context.elim_env(), buffer).read_entrypoint(format) {
             Ok(refs) => refs,
