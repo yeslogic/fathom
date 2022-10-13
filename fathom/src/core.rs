@@ -32,9 +32,9 @@ pub enum Item<'arena> {
 #[derive(Debug, Copy, Clone)]
 pub enum LocalInfo {
     /// The entry was bound as a definition in the environment.
-    Definition,
+    Def,
     /// The entry was bound as a parameter in the environment
-    Parameter,
+    Param,
 }
 
 /// Core language terms.

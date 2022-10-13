@@ -207,9 +207,9 @@ pub enum SplitBranches<'arena, P> {
 // TODO: include stack trace(??)
 #[derive(Clone, Debug)]
 pub enum Error {
-    InvalidItemVar,
-    InvalidLocalVar,
-    InvalidMetaVar,
+    UnboundItemVar,
+    UnboundLocalVar,
+    UnboundMetaVar,
     InvalidFunctionApp,
     InvalidRecordProj,
     InvalidConstMatch,
@@ -220,9 +220,9 @@ pub enum Error {
 impl Error {
     pub fn description(&self) -> &str {
         match &self {
-            Error::InvalidItemVar => "invalid item variable",
-            Error::InvalidLocalVar => "invalid local variable",
-            Error::InvalidMetaVar => "invalid metavariable",
+            Error::UnboundItemVar => "unbound item variable",
+            Error::UnboundLocalVar => "unbound local variable",
+            Error::UnboundMetaVar => "unbound metavariable",
             Error::InvalidFunctionApp => "invalid function application",
             Error::InvalidRecordProj => "invalid record projection",
             Error::InvalidConstMatch => "invalid constant match",
@@ -276,26 +276,20 @@ impl<'arena, 'env> EvalEnv<'arena, 'env> {
         match term {
             Term::ItemVar(span, var) => match self.elim_env.item_exprs.get_level(*var) {
                 Some(value) => Spanned::new(*span, Arc::clone(value)),
-                None => panic_any(Error::InvalidItemVar),
+                None => panic_any(Error::UnboundItemVar),
             },
             Term::LocalVar(span, var) => match self.local_exprs.get_index(*var) {
                 Some(value) => Spanned::new(*span, Arc::clone(value)),
-                None => panic_any(Error::InvalidLocalVar),
+                None => panic_any(Error::UnboundLocalVar),
             },
             Term::MetaVar(span, var) => match self.elim_env.meta_exprs.get_level(*var) {
                 Some(Some(value)) => Spanned::new(*span, Arc::clone(value)),
                 Some(None) => Spanned::new(*span, Arc::new(Value::meta_var(*var))),
-                None => panic_any(Error::InvalidMetaVar),
+                None => panic_any(Error::UnboundMetaVar),
             },
             Term::InsertedMeta(span, var, local_infos) => {
-                let mut head_expr = self.eval(&Term::MetaVar(*span, *var));
-                for (info, expr) in Iterator::zip(local_infos.iter(), self.local_exprs.iter()) {
-                    head_expr = match info {
-                        LocalInfo::Definition => head_expr,
-                        LocalInfo::Parameter => self.elim_env.fun_app(head_expr, expr.clone()),
-                    };
-                }
-                head_expr
+                let head_expr = self.eval(&Term::MetaVar(*span, *var));
+                self.apply_local_infos(head_expr, local_infos)
             }
             Term::Ann(span, expr, _) => Spanned::merge(*span, self.eval(expr)),
             Term::Let(span, _, _, def_expr, body_expr) => {
@@ -372,6 +366,20 @@ impl<'arena, 'env> EvalEnv<'arena, 'env> {
                 Spanned::merge(*span, self.elim_env.const_match(head_expr, branches))
             }
         }
+    }
+
+    fn apply_local_infos(
+        &mut self,
+        mut head_expr: ArcValue<'arena>,
+        infos: &[LocalInfo],
+    ) -> ArcValue<'arena> {
+        for (info, expr) in Iterator::zip(infos.iter(), self.local_exprs.iter()) {
+            head_expr = match info {
+                LocalInfo::Def => head_expr,
+                LocalInfo::Param => self.elim_env.fun_app(head_expr, expr.clone()),
+            };
+        }
+        head_expr
     }
 }
 
@@ -640,7 +648,7 @@ impl<'arena, 'env> ElimEnv<'arena, 'env> {
                 // There's no solution for this metavariable yet, meaning
                 // that we've forced the value as much as possible for now
                 Some(None) => break,
-                None => panic_any(Error::InvalidMetaVar), // TODO: Pass span into this error?
+                None => panic_any(Error::UnboundMetaVar), // TODO: Pass span into this error?
             }
         }
         forced_value
@@ -862,6 +870,7 @@ impl<'arena, 'env> ElimEnv<'arena, 'env> {
 pub struct QuoteEnv<'in_arena, 'env> {
     elim_env: ElimEnv<'in_arena, 'env>,
     local_exprs: EnvLen,
+    unfold_metas: bool,
 }
 
 impl<'in_arena, 'env> QuoteEnv<'in_arena, 'env> {
@@ -872,7 +881,13 @@ impl<'in_arena, 'env> QuoteEnv<'in_arena, 'env> {
         QuoteEnv {
             elim_env,
             local_exprs,
+            unfold_metas: false,
         }
+    }
+
+    pub fn unfolding_metas(mut self) -> QuoteEnv<'in_arena, 'env> {
+        self.unfold_metas = true;
+        self
     }
 
     fn push_local(&mut self) {
@@ -895,17 +910,9 @@ impl<'in_arena, 'env> QuoteEnv<'in_arena, 'env> {
         let value = self.elim_env.force(value);
         let span = value.span();
         match value.as_ref() {
-            Value::Stuck(head, spine) => {
-                let head_expr = match head {
-                    Head::Prim(prim) => Term::Prim(span, *prim),
-                    Head::LocalVar(var) => {
-                        // FIXME: Unwrap
-                        Term::LocalVar(span, self.local_exprs.level_to_index(*var).unwrap())
-                    }
-                    Head::MetaVar(var) => Term::MetaVar(span, *var),
-                };
-
-                spine.iter().fold(head_expr, |head_expr, elim| match elim {
+            Value::Stuck(head, spine) => spine.iter().fold(
+                self.quote_head(scope, span, head),
+                |head_expr, elim| match elim {
                     Elim::FunApp(arg_expr) => Term::FunApp(
                         span,
                         scope.to_scope(head_expr),
@@ -936,8 +943,8 @@ impl<'in_arena, 'env> QuoteEnv<'in_arena, 'env> {
                             default_expr.map(|expr| self.quote_closure(scope, &expr)),
                         )
                     }
-                })
-            }
+                },
+            ),
 
             Value::Universe => Term::Universe(span),
 
@@ -987,6 +994,30 @@ impl<'in_arena, 'env> QuoteEnv<'in_arena, 'env> {
         }
     }
 
+    /// Quote an [elimination head][Head] back into a [term][Term].
+    fn quote_head<'out_arena>(
+        &mut self,
+        scope: &'out_arena Scope<'out_arena>,
+        span: Span,
+        head: &Head,
+    ) -> Term<'out_arena> {
+        match head {
+            Head::Prim(prim) => Term::Prim(span, *prim),
+            Head::LocalVar(var) => match self.local_exprs.level_to_index(*var) {
+                Some(var) => Term::LocalVar(span, var),
+                None => panic_any(Error::UnboundLocalVar),
+            },
+            Head::MetaVar(var) if self.unfold_metas => {
+                match self.elim_env.meta_exprs.get_level(*var) {
+                    Some(Some(value)) => self.quote(scope, value),
+                    Some(None) => Term::MetaVar(span, *var),
+                    None => panic_any(Error::UnboundMetaVar),
+                }
+            }
+            Head::MetaVar(var) => Term::MetaVar(span, *var),
+        }
+    }
+
     /// Quote a [closure][Closure] back into a [term][Term].
     fn quote_closure<'out_arena>(
         &mut self,
@@ -1022,6 +1053,226 @@ impl<'in_arena, 'env> QuoteEnv<'in_arena, 'env> {
 
         self.local_exprs.truncate(initial_local_len);
         terms.into()
+    }
+}
+
+pub enum TermOrValue<'in_arena, 'out_arena> {
+    Value(ArcValue<'in_arena>),
+    Term(Term<'out_arena>),
+}
+
+impl<'arena, 'env> EvalEnv<'arena, 'env> {
+    /// Unfold all solved metavariable solutions and meta-headed eliminations.
+    ///
+    /// If all the metas have been solved, this will result in a term that no
+    /// longer depends on the environment of metavariable solutions.
+    ///
+    /// This is sometimes known as _zonking_.
+    ///
+    /// # References
+    ///
+    /// - [The GHC Commentary: Type Variables and Zonking](https://gitlab.haskell.org/ghc/ghc/-/wikis/commentary/compiler/type-checker#types-variables-and-zonking)
+    /// - [What does the GHC source mean by "zonk"?](https://stackoverflow.com/questions/31889048/what-does-the-ghc-source-mean-by-zonk)
+    /// - [Email by Simon Peyton-Jones](https://mail.haskell.org/pipermail/glasgow-haskell-users/2013-August/024209.html)
+    pub fn unfold_metas<'out_arena>(
+        &mut self,
+        scope: &'out_arena Scope<'out_arena>,
+        term: &Term<'arena>,
+    ) -> Term<'out_arena> {
+        match term {
+            Term::ItemVar(span, var) => Term::ItemVar(*span, *var),
+            Term::LocalVar(span, var) => Term::LocalVar(*span, *var),
+
+            // These might be meta-headed eliminations
+            Term::MetaVar(..) | Term::FunApp(..) | Term::RecordProj(..) | Term::ConstMatch(..) => {
+                match self.unfold_spine_metas(scope, term) {
+                    TermOrValue::Term(term) => term,
+                    TermOrValue::Value(value) => self.quote_env().quote(scope, &value),
+                }
+            }
+
+            Term::InsertedMeta(span, var, infos) => {
+                match self.elim_env.meta_exprs.get_level(*var) {
+                    Some(Some(value)) => {
+                        let value = self.apply_local_infos(value.clone(), infos);
+                        self.quote_env().quote(scope, &value)
+                    }
+                    Some(None) => {
+                        let infos = scope.to_scope_from_iter(infos.iter().copied());
+                        Term::InsertedMeta(*span, *var, infos)
+                    }
+                    None => panic_any(Error::UnboundMetaVar),
+                }
+            }
+            Term::Ann(span, expr, r#type) => Term::Ann(
+                *span,
+                scope.to_scope(self.unfold_metas(scope, expr)),
+                scope.to_scope(self.unfold_metas(scope, r#type)),
+            ),
+            Term::Let(span, def_name, def_type, def_expr, body_expr) => Term::Let(
+                *span,
+                *def_name,
+                scope.to_scope(self.unfold_metas(scope, def_type)),
+                scope.to_scope(self.unfold_metas(scope, def_expr)),
+                self.unfold_bound_metas(scope, body_expr),
+            ),
+
+            Term::Universe(span) => Term::Universe(*span),
+
+            Term::FunType(span, param_name, param_type, body_type) => Term::FunType(
+                *span,
+                *param_name,
+                scope.to_scope(self.unfold_metas(scope, param_type)),
+                self.unfold_bound_metas(scope, body_type),
+            ),
+            Term::FunLit(span, param_name, body_expr) => Term::FunLit(
+                *span,
+                *param_name,
+                self.unfold_bound_metas(scope, body_expr),
+            ),
+
+            Term::RecordType(span, labels, types) => Term::RecordType(
+                *span,
+                scope.to_scope_from_iter(labels.iter().copied()),
+                self.unfold_telescope_metas(scope, types),
+            ),
+            Term::RecordLit(span, labels, exprs) => Term::RecordLit(
+                *span,
+                scope.to_scope_from_iter(labels.iter().copied()),
+                scope.to_scope_from_iter(exprs.iter().map(|expr| self.unfold_metas(scope, expr))),
+            ),
+
+            Term::ArrayLit(span, exprs) => Term::ArrayLit(
+                *span,
+                scope.to_scope_from_iter(exprs.iter().map(|expr| self.unfold_metas(scope, expr))),
+            ),
+
+            Term::FormatRecord(span, labels, formats) => Term::FormatRecord(
+                *span,
+                scope.to_scope_from_iter(labels.iter().copied()),
+                self.unfold_telescope_metas(scope, formats),
+            ),
+            Term::FormatCond(span, name, format, pred) => Term::FormatCond(
+                *span,
+                *name,
+                scope.to_scope(self.unfold_metas(scope, format)),
+                self.unfold_bound_metas(scope, pred),
+            ),
+            Term::FormatOverlap(span, labels, formats) => Term::FormatOverlap(
+                *span,
+                scope.to_scope_from_iter(labels.iter().copied()),
+                self.unfold_telescope_metas(scope, formats),
+            ),
+
+            Term::Prim(span, prim) => Term::Prim(*span, *prim),
+
+            Term::ConstLit(span, r#const) => Term::ConstLit(*span, *r#const),
+        }
+    }
+
+    /// Unfold elimination spines with solved metavariables at their head.
+    fn unfold_spine_metas<'out_arena>(
+        &mut self,
+        scope: &'out_arena Scope<'out_arena>,
+        term: &Term<'arena>,
+    ) -> TermOrValue<'arena, 'out_arena> {
+        match term {
+            Term::MetaVar(span, var) => match self.elim_env.meta_exprs.get_level(*var) {
+                Some(Some(value)) => TermOrValue::Value(value.clone()),
+                Some(None) => TermOrValue::Term(Term::MetaVar(*span, *var)),
+                None => panic_any(Error::UnboundMetaVar),
+            },
+            Term::InsertedMeta(span, var, infos) => {
+                match self.elim_env.meta_exprs.get_level(*var) {
+                    Some(Some(value)) => {
+                        TermOrValue::Value(self.apply_local_infos(value.clone(), infos))
+                    }
+                    Some(None) => {
+                        let infos = scope.to_scope_from_iter(infos.iter().copied());
+                        TermOrValue::Term(Term::InsertedMeta(*span, *var, infos))
+                    }
+                    None => panic_any(Error::UnboundMetaVar),
+                }
+            }
+
+            Term::FunApp(span, head_expr, arg_expr) => {
+                match self.unfold_spine_metas(scope, head_expr) {
+                    TermOrValue::Term(head_expr) => TermOrValue::Term(Term::FunApp(
+                        *span,
+                        scope.to_scope(head_expr),
+                        scope.to_scope(self.unfold_metas(scope, arg_expr)),
+                    )),
+                    TermOrValue::Value(head_expr) => {
+                        let arg_expr = self.eval(arg_expr);
+                        TermOrValue::Value(self.elim_env.fun_app(head_expr, arg_expr))
+                    }
+                }
+            }
+            Term::RecordProj(span, head_expr, label) => {
+                match self.unfold_spine_metas(scope, head_expr) {
+                    TermOrValue::Term(head_expr) => TermOrValue::Term(Term::RecordProj(
+                        *span,
+                        scope.to_scope(head_expr),
+                        *label,
+                    )),
+                    TermOrValue::Value(head_expr) => {
+                        TermOrValue::Value(self.elim_env.record_proj(head_expr, *label))
+                    }
+                }
+            }
+            Term::ConstMatch(span, head_expr, branches, default) => {
+                match self.unfold_spine_metas(scope, head_expr) {
+                    TermOrValue::Term(head_expr) => TermOrValue::Term(Term::ConstMatch(
+                        *span,
+                        scope.to_scope(head_expr),
+                        scope.to_scope_from_iter(
+                            (branches.iter())
+                                .map(|(r#const, expr)| (*r#const, self.unfold_metas(scope, expr))),
+                        ),
+                        default.map(|expr| self.unfold_bound_metas(scope, expr)),
+                    )),
+                    TermOrValue::Value(head_expr) => {
+                        let branches = Branches::new(self.local_exprs.clone(), branches, *default);
+                        TermOrValue::Value(self.elim_env.const_match(head_expr, branches))
+                    }
+                }
+            }
+
+            term => TermOrValue::Term(self.unfold_metas(scope, term)),
+        }
+    }
+
+    fn unfold_bound_metas<'out_arena>(
+        &mut self,
+        scope: &'out_arena Scope<'out_arena>,
+        term: &Term<'arena>,
+    ) -> &'out_arena Term<'out_arena> {
+        let var = Arc::new(Value::local_var(self.local_exprs.len().next_level()));
+
+        self.local_exprs.push(Spanned::empty(var));
+        let term = self.unfold_metas(scope, term);
+        self.local_exprs.pop();
+
+        scope.to_scope(term)
+    }
+
+    fn unfold_telescope_metas<'out_arena>(
+        &mut self,
+        scope: &'out_arena Scope<'out_arena>,
+        terms: &[Term<'arena>],
+    ) -> &'out_arena [Term<'out_arena>] {
+        let initial_locals = self.local_exprs.len();
+
+        let terms = scope.to_scope_from_iter(terms.iter().map(|term| {
+            let term = self.unfold_metas(scope, term);
+            let var = Arc::new(Value::local_var(self.local_exprs.len().next_level()));
+            self.local_exprs.push(Spanned::empty(var));
+            term
+        }));
+
+        self.local_exprs.truncate(initial_locals);
+
+        terms
     }
 }
 

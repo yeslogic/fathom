@@ -523,7 +523,7 @@ impl<'arena> LocalEnv<'arena> {
     ) {
         self.names.push(name);
         self.types.push(r#type);
-        self.infos.push(core::LocalInfo::Definition);
+        self.infos.push(core::LocalInfo::Def);
         self.exprs.push(expr);
     }
 
@@ -535,7 +535,7 @@ impl<'arena> LocalEnv<'arena> {
 
         self.names.push(name);
         self.types.push(r#type);
-        self.infos.push(core::LocalInfo::Parameter);
+        self.infos.push(core::LocalInfo::Param);
         self.exprs.push(expr.clone());
 
         expr
@@ -714,7 +714,9 @@ impl<'arena> MetaEnv<'arena> {
             // Yield messages of solved named holes
             (Some(expr), MetaSource::HoleExpr(range, name)) => {
                 let elim_env = ElimEnv::new(item_exprs, &self.exprs);
-                let term = semantics::QuoteEnv::new(elim_env, local_names.len()).quote(scope, expr);
+                let term = semantics::QuoteEnv::new(elim_env, local_names.len())
+                    .unfolding_metas()
+                    .quote(scope, expr);
                 let surface_term = distillation::Context::new(
                     interner,
                     scope,
@@ -874,9 +876,12 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
     }
 
     fn pretty_print_value(&mut self, value: &ArcValue<'_>) -> String {
-        let term = self.quote_env().quote(self.scope, value);
-        let surface_term = self.distillation_context(self.scope).check(&term);
-        pretty::Context::new(self.interner, self.scope)
+        let scope = self.scope;
+
+        let term = self.quote_env().unfolding_metas().quote(scope, value);
+        let surface_term = self.distillation_context(scope).check(&term);
+
+        pretty::Context::new(self.interner, scope)
             .term(&surface_term)
             .pretty(usize::MAX)
             .to_string()
@@ -1055,10 +1060,14 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         }
     }
 
-    /// Elaborate a module
-    pub fn elab_module(&mut self, surface_module: &Module<'_, ByteRange>) -> core::Module<'arena> {
+    /// Elaborate a module.
+    pub fn elab_module<'out_arena>(
+        &mut self,
+        scope: &'out_arena Scope<'out_arena>,
+        surface_module: &Module<'_, ByteRange>,
+    ) -> core::Module<'out_arena> {
         let elab_order = order::elaboration_order(self, surface_module);
-        let mut items = SliceVec::new(self.scope, elab_order.len());
+        let mut items = Vec::with_capacity(surface_module.items.len());
 
         for item in elab_order.iter().copied().map(|i| &surface_module.items[i]) {
             match item {
@@ -1081,23 +1090,61 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
             }
         }
 
-        core::Module {
-            items: items.into(),
-        }
+        // Unfold all unification solutions
+        let items = scope.to_scope_from_iter(items.into_iter().map(|item| match item {
+            core::Item::Def {
+                label,
+                r#type,
+                expr,
+            } => {
+                // TODO: Unfold unsolved metas to reported errors
+                let r#type = self.eval_env().unfold_metas(scope, r#type);
+                let expr = self.eval_env().unfold_metas(scope, expr);
+
+                core::Item::Def {
+                    label,
+                    r#type: scope.to_scope(r#type),
+                    expr: scope.to_scope(expr),
+                }
+            }
+        }));
+
+        // TODO: Collect elaboration messages
+        // TODO: Clear environments
+        // TODO: Reset scopes
+
+        core::Module { items }
     }
 
     /// Elaborate a term, returning its synthesized type.
-    pub fn elab_term(
+    pub fn elab_term<'out_arena>(
         &mut self,
+        scope: &'out_arena Scope<'out_arena>,
         surface_term: &Term<'_, ByteRange>,
-    ) -> (core::Term<'arena>, core::Term<'arena>) {
+    ) -> (core::Term<'out_arena>, core::Term<'out_arena>) {
         let (term, r#type) = self.synth(surface_term);
-        (term, self.quote_env().quote(self.scope, &r#type))
+        let term = self.eval_env().unfold_metas(scope, &term);
+        let r#type = self.quote_env().unfolding_metas().quote(scope, &r#type);
+
+        // TODO: Collect elaboration messages
+        // TODO: Clear environments
+        // TODO: Reset scopes
+
+        (term, r#type)
     }
 
     /// Elaborate a term, expecting it to be a format.
-    pub fn elab_format(&mut self, surface_term: &Term<'_, ByteRange>) -> core::Term<'arena> {
-        self.check(surface_term, &self.format_type.clone())
+    pub fn elab_format<'out_arena>(
+        &mut self,
+        scope: &'out_arena Scope<'out_arena>,
+        surface_term: &Term<'_, ByteRange>,
+    ) -> core::Term<'out_arena> {
+        let term = self.check(surface_term, &self.format_type.clone());
+        self.eval_env().unfold_metas(scope, &term)
+
+        // TODO: Collect elaboration messages
+        // TODO: Clear environments
+        // TODO: Reset scopes
     }
 
     /// Check that a pattern matches an expected type.

@@ -193,7 +193,7 @@ impl<'surface, 'core> Driver<'surface, 'core> {
         let mut context = elaboration::Context::new(&self.interner, &self.core_scope);
 
         let surface_module = self.parse_module(file_id);
-        let module = context.elab_module(&surface_module);
+        let module = context.elab_module(&self.core_scope, &surface_module);
 
         // Emit errors we might have found during elaboration
         let elab_messages = context.drain_messages();
@@ -218,7 +218,7 @@ impl<'surface, 'core> Driver<'surface, 'core> {
 
         // Parse and elaborate the term
         let surface_term = self.parse_term(file_id);
-        let (term, r#type) = context.elab_term(&surface_term);
+        let (term, r#type) = context.elab_term(&self.core_scope, &surface_term);
 
         // Emit errors we might have found during elaboration
         let elab_messages = context.drain_messages();
@@ -244,7 +244,7 @@ impl<'surface, 'core> Driver<'surface, 'core> {
 
         // Parse and elaborate the term
         let surface_term = self.parse_term(file_id);
-        let (term, r#type) = context.elab_term(&surface_term);
+        let (term, r#type) = context.elab_term(&self.core_scope, &surface_term);
 
         // Emit errors we might have found during elaboration
         let elab_messages = context.drain_messages();
@@ -281,7 +281,7 @@ impl<'surface, 'core> Driver<'surface, 'core> {
         // Parse and elaborate the supplied module
         if let Some(file_id) = module_file_id {
             let surface_module = self.parse_module(file_id);
-            context.elab_module(&surface_module);
+            context.elab_module(&self.core_scope, &surface_module);
         }
 
         // Parse and elaborate the supplied format with the items from the
@@ -289,7 +289,7 @@ impl<'surface, 'core> Driver<'surface, 'core> {
         // will need to be revisited if we need to support multiple modules, but
         // it works for now!
         let surface_format = self.parse_term(format_file_id);
-        let format = context.elab_format(&surface_format);
+        let format = context.elab_format(&self.core_scope, &surface_format);
 
         // Emit errors we might have found during elaboration
         let elab_messages = context.drain_messages();
