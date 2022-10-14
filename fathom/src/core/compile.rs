@@ -3,7 +3,7 @@ use std::fmt::Debug;
 
 use heck::ToPascalCase;
 
-use crate::core::{self, Prim, Term};
+use crate::core::{self, Const, Prim, Term};
 use crate::env::{EnvLen, UniqueEnv};
 use crate::{StringId, StringInterner};
 
@@ -27,6 +27,7 @@ pub struct CompileEnvBuilder<'interner> {
 #[derive(Debug, Clone)]
 enum Type {
     Bool,
+    Const(Const),
 
     U8,
     U16,
@@ -49,6 +50,7 @@ enum Type {
     ReadU32Le,
     ReadU64Be,
     ReadU64Le,
+
     ReadI8,
     ReadI16Be,
     ReadI16Le,
@@ -56,10 +58,25 @@ enum Type {
     ReadI32Le,
     ReadI64Be,
     ReadI64Le,
+
     ReadF32Be,
     ReadF32Le,
     ReadF64Be,
     ReadF64Le,
+
+    ReadArray8(/*u8,*/ Box<Type>),
+    ReadArray16(/*u16,*/ Box<Type>),
+    ReadArray32(/*u32,*/ Box<ParseExpr>),
+    ReadArray64(/*u64,*/ Box<Type>),
+
+    // len, elem
+    DoReadArray32(Box<ParseExpr>, Box<ParseExpr>),
+
+    // I don't like this...
+    PrimReadArray8,
+    PrimReadArray16,
+    PrimReadArray32,
+    PrimReadArray64,
 
     Todo,
 }
@@ -70,11 +87,18 @@ struct Struct {
     // name of the struct
     name: StringId,
     fields: Vec<(StringId, Type)>,
+    borrows_data: bool,
+}
+
+#[derive(Debug)]
+struct ReadStruct {
+    name: StringId,
+    borrows_data: bool,
 }
 
 #[derive(Debug)]
 struct ReadFn {
-    struct_name: StringId,
+    r#struct: ReadStruct,
     exprs: Vec<ReadExpr>,
 }
 
@@ -91,7 +115,7 @@ enum ReadExpr {
     },
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 enum ParseExpr {
     // Parse a const type
     Const(Type),
@@ -121,215 +145,215 @@ impl<'interner> CompileEnv {
     pub fn default(interner: &'interner RefCell<StringInterner>) -> Self {
         let mut env = CompileEnvBuilder::new(interner);
 
-        env.define_prim("void", Type::Todo); // Perhaps these have no name, and names are used for variables?
-        env.define_prim("bool", Type::Bool);
-        env.define_prim("u8", Type::U8);
-        env.define_prim("u16", Type::U16);
-        env.define_prim("u32", Type::U32);
-        env.define_prim("u64", Type::U64);
-        env.define_prim("i8", Type::I8);
-        env.define_prim("i16", Type::I16);
-        env.define_prim("i32", Type::I32);
-        env.define_prim("i64", Type::I64);
-        env.define_prim("f32", Type::Todo);
-        env.define_prim("f64", Type::Todo);
-        env.define_prim("Option", Type::Todo);
-        env.define_prim("array", Type::Todo);
-        env.define_prim("[u8]", Type::Array(0, Box::new(Type::U8)));
-        env.define_prim("[u16]", Type::Array(0, Box::new(Type::U16)));
-        env.define_prim("[u32]", Type::Array(0, Box::new(Type::U32)));
-        env.define_prim("[u64]", Type::Array(0, Box::new(Type::U64)));
-        env.define_prim("pos", Type::Todo);
-        env.define_prim("ref", Type::Todo);
-        env.define_prim("format", Type::Todo);
+        env.define_prim(Some("void"), Type::Todo); // Perhaps these have no name, and names are used for variables?
+        env.define_prim(None, Type::Bool);
+        env.define_prim(None, Type::U8);
+        env.define_prim(None, Type::U16);
+        env.define_prim(None, Type::U32);
+        env.define_prim(None, Type::U64);
+        env.define_prim(None, Type::I8);
+        env.define_prim(None, Type::I16);
+        env.define_prim(None, Type::I32);
+        env.define_prim(None, Type::I64);
+        env.define_prim(Some("f32"), Type::Todo);
+        env.define_prim(Some("f64"), Type::Todo);
+        env.define_prim(Some("Option"), Type::Todo);
+        env.define_prim(Some("array"), Type::Todo);
+        env.define_prim(None, Type::Array(0, Box::new(Type::U8)));
+        env.define_prim(None, Type::Array(0, Box::new(Type::U16)));
+        env.define_prim(None, Type::Array(0, Box::new(Type::U32)));
+        env.define_prim(None, Type::Array(0, Box::new(Type::U64)));
+        env.define_prim(Some("pos"), Type::Todo);
+        env.define_prim(Some("ref"), Type::Todo);
+        env.define_prim(Some("format"), Type::Todo);
 
-        env.define_prim("FormatU8", Type::ReadU8);
-        env.define_prim("FormatU16Be", Type::ReadU16Be);
-        env.define_prim("FormatU16Le", Type::ReadU16Le);
-        env.define_prim("FormatU32Be", Type::ReadU32Be);
-        env.define_prim("FormatU32Le", Type::ReadU32Le);
-        env.define_prim("FormatU64Be", Type::ReadU64Be);
-        env.define_prim("FormatU64Le", Type::ReadU64Le);
-        env.define_prim("FormatS8", Type::ReadI8);
-        env.define_prim("FormatS16Be", Type::ReadI16Be);
-        env.define_prim("FormatS16Le", Type::ReadI16Le);
-        env.define_prim("FormatS32Be", Type::ReadI32Be);
-        env.define_prim("FormatS32Le", Type::ReadI32Le);
-        env.define_prim("FormatS64Be", Type::ReadI64Be);
-        env.define_prim("FormatS64Le", Type::ReadI64Le);
-        env.define_prim("FormatF32Be", Type::ReadF32Be);
-        env.define_prim("FormatF32Le", Type::ReadF32Le);
-        env.define_prim("FormatF64Be", Type::ReadF64Be);
-        env.define_prim("FormatF64Le", Type::ReadF64Le);
+        env.define_prim(None, Type::ReadU8);
+        env.define_prim(None, Type::ReadU16Be);
+        env.define_prim(None, Type::ReadU16Le);
+        env.define_prim(None, Type::ReadU32Be);
+        env.define_prim(None, Type::ReadU32Le);
+        env.define_prim(None, Type::ReadU64Be);
+        env.define_prim(None, Type::ReadU64Le);
+        env.define_prim(None, Type::ReadI8);
+        env.define_prim(None, Type::ReadI16Be);
+        env.define_prim(None, Type::ReadI16Le);
+        env.define_prim(None, Type::ReadI32Be);
+        env.define_prim(None, Type::ReadI32Le);
+        env.define_prim(None, Type::ReadI64Be);
+        env.define_prim(None, Type::ReadI64Le);
+        env.define_prim(None, Type::ReadF32Be);
+        env.define_prim(None, Type::ReadF32Le);
+        env.define_prim(None, Type::ReadF64Be);
+        env.define_prim(None, Type::ReadF64Le);
+        env.define_prim(None, Type::PrimReadArray8);
+        env.define_prim(None, Type::PrimReadArray16);
+        env.define_prim(None, Type::PrimReadArray32);
+        env.define_prim(None, Type::PrimReadArray64);
 
         // FIXME: These are all just todos for now but need to be present so the number of entries
         // in the env matches in order for LocalVars to index properly.
-        env.define_prim("FormatArray8", Type::Todo);
-        env.define_prim("FormatArray16", Type::Todo);
-        env.define_prim("FormatArray32", Type::Todo);
-        env.define_prim("FormatArray64", Type::Todo);
-        env.define_prim("FormatRepeatUntilEnd", Type::Todo);
-        env.define_prim("FormatLimit8", Type::Todo);
-        env.define_prim("FormatLimit16", Type::Todo);
-        env.define_prim("FormatLimit32", Type::Todo);
-        env.define_prim("FormatLimit64", Type::Todo);
-        env.define_prim("FormatLink", Type::Todo);
-        env.define_prim("FormatDeref", Type::Todo);
-        env.define_prim("FormatStreamPos", Type::Todo);
-        env.define_prim("FormatSucceed", Type::Todo);
-        env.define_prim("FormatFail", Type::Todo);
-        env.define_prim("FormatUnwrap", Type::Todo);
-        env.define_prim("FormatRepr", Type::Todo);
+        env.define_prim(Some("FormatRepeatUntilEnd"), Type::Todo);
+        env.define_prim(Some("FormatLimit8"), Type::Todo);
+        env.define_prim(Some("FormatLimit16"), Type::Todo);
+        env.define_prim(Some("FormatLimit32"), Type::Todo);
+        env.define_prim(Some("FormatLimit64"), Type::Todo);
+        env.define_prim(Some("FormatLink"), Type::Todo);
+        env.define_prim(Some("FormatDeref"), Type::Todo);
+        env.define_prim(Some("FormatStreamPos"), Type::Todo);
+        env.define_prim(Some("FormatSucceed"), Type::Todo);
+        env.define_prim(Some("FormatFail"), Type::Todo);
+        env.define_prim(Some("FormatUnwrap"), Type::Todo);
+        env.define_prim(Some("FormatRepr"), Type::Todo);
 
-        env.define_prim("BoolEq", Type::Todo);
-        env.define_prim("BoolNeq", Type::Todo);
-        env.define_prim("BoolNot", Type::Todo);
-        env.define_prim("BoolAnd", Type::Todo);
-        env.define_prim("BoolOr", Type::Todo);
-        env.define_prim("BoolXor", Type::Todo);
+        env.define_prim(Some("BoolEq"), Type::Todo);
+        env.define_prim(Some("BoolNeq"), Type::Todo);
+        env.define_prim(Some("BoolNot"), Type::Todo);
+        env.define_prim(Some("BoolAnd"), Type::Todo);
+        env.define_prim(Some("BoolOr"), Type::Todo);
+        env.define_prim(Some("BoolXor"), Type::Todo);
 
-        env.define_prim("U8Eq", Type::Todo);
-        env.define_prim("U8Neq", Type::Todo);
-        env.define_prim("U8Lt", Type::Todo);
-        env.define_prim("U8Gt", Type::Todo);
-        env.define_prim("U8Lte", Type::Todo);
-        env.define_prim("U8Gte", Type::Todo);
-        env.define_prim("U8Add", Type::Todo);
-        env.define_prim("U8Sub", Type::Todo);
-        env.define_prim("U8Mul", Type::Todo);
-        env.define_prim("U8Div", Type::Todo);
-        env.define_prim("U8Not", Type::Todo);
-        env.define_prim("U8Shl", Type::Todo);
-        env.define_prim("U8Shr", Type::Todo);
-        env.define_prim("U8And", Type::Todo);
-        env.define_prim("U8Or", Type::Todo);
-        env.define_prim("U8Xor", Type::Todo);
+        env.define_prim(Some("U8Eq"), Type::Todo);
+        env.define_prim(Some("U8Neq"), Type::Todo);
+        env.define_prim(Some("U8Lt"), Type::Todo);
+        env.define_prim(Some("U8Gt"), Type::Todo);
+        env.define_prim(Some("U8Lte"), Type::Todo);
+        env.define_prim(Some("U8Gte"), Type::Todo);
+        env.define_prim(Some("U8Add"), Type::Todo);
+        env.define_prim(Some("U8Sub"), Type::Todo);
+        env.define_prim(Some("U8Mul"), Type::Todo);
+        env.define_prim(Some("U8Div"), Type::Todo);
+        env.define_prim(Some("U8Not"), Type::Todo);
+        env.define_prim(Some("U8Shl"), Type::Todo);
+        env.define_prim(Some("U8Shr"), Type::Todo);
+        env.define_prim(Some("U8And"), Type::Todo);
+        env.define_prim(Some("U8Or"), Type::Todo);
+        env.define_prim(Some("U8Xor"), Type::Todo);
 
-        env.define_prim("U16Eq", Type::Todo);
-        env.define_prim("U16Neq", Type::Todo);
-        env.define_prim("U16Lt", Type::Todo);
-        env.define_prim("U16Gt", Type::Todo);
-        env.define_prim("U16Lte", Type::Todo);
-        env.define_prim("U16Gte", Type::Todo);
-        env.define_prim("U16Add", Type::Todo);
-        env.define_prim("U16Sub", Type::Todo);
-        env.define_prim("U16Mul", Type::Todo);
-        env.define_prim("U16Div", Type::Todo);
-        env.define_prim("U16Not", Type::Todo);
-        env.define_prim("U16Shl", Type::Todo);
-        env.define_prim("U16Shr", Type::Todo);
-        env.define_prim("U16And", Type::Todo);
-        env.define_prim("U16Or", Type::Todo);
-        env.define_prim("U16Xor", Type::Todo);
+        env.define_prim(Some("U16Eq"), Type::Todo);
+        env.define_prim(Some("U16Neq"), Type::Todo);
+        env.define_prim(Some("U16Lt"), Type::Todo);
+        env.define_prim(Some("U16Gt"), Type::Todo);
+        env.define_prim(Some("U16Lte"), Type::Todo);
+        env.define_prim(Some("U16Gte"), Type::Todo);
+        env.define_prim(Some("U16Add"), Type::Todo);
+        env.define_prim(Some("U16Sub"), Type::Todo);
+        env.define_prim(Some("U16Mul"), Type::Todo);
+        env.define_prim(Some("U16Div"), Type::Todo);
+        env.define_prim(Some("U16Not"), Type::Todo);
+        env.define_prim(Some("U16Shl"), Type::Todo);
+        env.define_prim(Some("U16Shr"), Type::Todo);
+        env.define_prim(Some("U16And"), Type::Todo);
+        env.define_prim(Some("U16Or"), Type::Todo);
+        env.define_prim(Some("U16Xor"), Type::Todo);
 
-        env.define_prim("U32Eq", Type::Todo);
-        env.define_prim("U32Neq", Type::Todo);
-        env.define_prim("U32Lt", Type::Todo);
-        env.define_prim("U32Gt", Type::Todo);
-        env.define_prim("U32Lte", Type::Todo);
-        env.define_prim("U32Gte", Type::Todo);
-        env.define_prim("U32Add", Type::Todo);
-        env.define_prim("U32Sub", Type::Todo);
-        env.define_prim("U32Mul", Type::Todo);
-        env.define_prim("U32Div", Type::Todo);
-        env.define_prim("U32Not", Type::Todo);
-        env.define_prim("U32Shl", Type::Todo);
-        env.define_prim("U32Shr", Type::Todo);
-        env.define_prim("U32And", Type::Todo);
-        env.define_prim("U32Or", Type::Todo);
-        env.define_prim("U32Xor", Type::Todo);
+        env.define_prim(Some("U32Eq"), Type::Todo);
+        env.define_prim(Some("U32Neq"), Type::Todo);
+        env.define_prim(Some("U32Lt"), Type::Todo);
+        env.define_prim(Some("U32Gt"), Type::Todo);
+        env.define_prim(Some("U32Lte"), Type::Todo);
+        env.define_prim(Some("U32Gte"), Type::Todo);
+        env.define_prim(Some("U32Add"), Type::Todo);
+        env.define_prim(Some("U32Sub"), Type::Todo);
+        env.define_prim(Some("U32Mul"), Type::Todo);
+        env.define_prim(Some("U32Div"), Type::Todo);
+        env.define_prim(Some("U32Not"), Type::Todo);
+        env.define_prim(Some("U32Shl"), Type::Todo);
+        env.define_prim(Some("U32Shr"), Type::Todo);
+        env.define_prim(Some("U32And"), Type::Todo);
+        env.define_prim(Some("U32Or"), Type::Todo);
+        env.define_prim(Some("U32Xor"), Type::Todo);
 
-        env.define_prim("U64Eq", Type::Todo);
-        env.define_prim("U64Neq", Type::Todo);
-        env.define_prim("U64Lt", Type::Todo);
-        env.define_prim("U64Gt", Type::Todo);
-        env.define_prim("U64Lte", Type::Todo);
-        env.define_prim("U64Gte", Type::Todo);
-        env.define_prim("U64Add", Type::Todo);
-        env.define_prim("U64Sub", Type::Todo);
-        env.define_prim("U64Mul", Type::Todo);
-        env.define_prim("U64Div", Type::Todo);
-        env.define_prim("U64Not", Type::Todo);
-        env.define_prim("U64Shl", Type::Todo);
-        env.define_prim("U64Shr", Type::Todo);
-        env.define_prim("U64And", Type::Todo);
-        env.define_prim("U64Or", Type::Todo);
-        env.define_prim("U64Xor", Type::Todo);
+        env.define_prim(Some("U64Eq"), Type::Todo);
+        env.define_prim(Some("U64Neq"), Type::Todo);
+        env.define_prim(Some("U64Lt"), Type::Todo);
+        env.define_prim(Some("U64Gt"), Type::Todo);
+        env.define_prim(Some("U64Lte"), Type::Todo);
+        env.define_prim(Some("U64Gte"), Type::Todo);
+        env.define_prim(Some("U64Add"), Type::Todo);
+        env.define_prim(Some("U64Sub"), Type::Todo);
+        env.define_prim(Some("U64Mul"), Type::Todo);
+        env.define_prim(Some("U64Div"), Type::Todo);
+        env.define_prim(Some("U64Not"), Type::Todo);
+        env.define_prim(Some("U64Shl"), Type::Todo);
+        env.define_prim(Some("U64Shr"), Type::Todo);
+        env.define_prim(Some("U64And"), Type::Todo);
+        env.define_prim(Some("U64Or"), Type::Todo);
+        env.define_prim(Some("U64Xor"), Type::Todo);
 
-        env.define_prim("S8Eq", Type::Todo);
-        env.define_prim("S8Neq", Type::Todo);
-        env.define_prim("S8Lt", Type::Todo);
-        env.define_prim("S8Gt", Type::Todo);
-        env.define_prim("S8Lte", Type::Todo);
-        env.define_prim("S8Gte", Type::Todo);
-        env.define_prim("S8Neg", Type::Todo);
-        env.define_prim("S8Add", Type::Todo);
-        env.define_prim("S8Sub", Type::Todo);
-        env.define_prim("S8Mul", Type::Todo);
-        env.define_prim("S8Div", Type::Todo);
-        env.define_prim("S8Abs", Type::Todo);
-        env.define_prim("S8UAbs", Type::Todo);
+        env.define_prim(Some("S8Eq"), Type::Todo);
+        env.define_prim(Some("S8Neq"), Type::Todo);
+        env.define_prim(Some("S8Lt"), Type::Todo);
+        env.define_prim(Some("S8Gt"), Type::Todo);
+        env.define_prim(Some("S8Lte"), Type::Todo);
+        env.define_prim(Some("S8Gte"), Type::Todo);
+        env.define_prim(Some("S8Neg"), Type::Todo);
+        env.define_prim(Some("S8Add"), Type::Todo);
+        env.define_prim(Some("S8Sub"), Type::Todo);
+        env.define_prim(Some("S8Mul"), Type::Todo);
+        env.define_prim(Some("S8Div"), Type::Todo);
+        env.define_prim(Some("S8Abs"), Type::Todo);
+        env.define_prim(Some("S8UAbs"), Type::Todo);
 
-        env.define_prim("S16Eq", Type::Todo);
-        env.define_prim("S16Neq", Type::Todo);
-        env.define_prim("S16Lt", Type::Todo);
-        env.define_prim("S16Gt", Type::Todo);
-        env.define_prim("S16Lte", Type::Todo);
-        env.define_prim("S16Gte", Type::Todo);
-        env.define_prim("S16Neg", Type::Todo);
-        env.define_prim("S16Add", Type::Todo);
-        env.define_prim("S16Sub", Type::Todo);
-        env.define_prim("S16Mul", Type::Todo);
-        env.define_prim("S16Div", Type::Todo);
-        env.define_prim("S16Abs", Type::Todo);
-        env.define_prim("S16UAbs", Type::Todo);
+        env.define_prim(Some("S16Eq"), Type::Todo);
+        env.define_prim(Some("S16Neq"), Type::Todo);
+        env.define_prim(Some("S16Lt"), Type::Todo);
+        env.define_prim(Some("S16Gt"), Type::Todo);
+        env.define_prim(Some("S16Lte"), Type::Todo);
+        env.define_prim(Some("S16Gte"), Type::Todo);
+        env.define_prim(Some("S16Neg"), Type::Todo);
+        env.define_prim(Some("S16Add"), Type::Todo);
+        env.define_prim(Some("S16Sub"), Type::Todo);
+        env.define_prim(Some("S16Mul"), Type::Todo);
+        env.define_prim(Some("S16Div"), Type::Todo);
+        env.define_prim(Some("S16Abs"), Type::Todo);
+        env.define_prim(Some("S16UAbs"), Type::Todo);
 
-        env.define_prim("S32Eq", Type::Todo);
-        env.define_prim("S32Neq", Type::Todo);
-        env.define_prim("S32Lt", Type::Todo);
-        env.define_prim("S32Gt", Type::Todo);
-        env.define_prim("S32Lte", Type::Todo);
-        env.define_prim("S32Gte", Type::Todo);
-        env.define_prim("S32Neg", Type::Todo);
-        env.define_prim("S32Add", Type::Todo);
-        env.define_prim("S32Sub", Type::Todo);
-        env.define_prim("S32Mul", Type::Todo);
-        env.define_prim("S32Div", Type::Todo);
-        env.define_prim("S32Abs", Type::Todo);
-        env.define_prim("S32UAbs", Type::Todo);
+        env.define_prim(Some("S32Eq"), Type::Todo);
+        env.define_prim(Some("S32Neq"), Type::Todo);
+        env.define_prim(Some("S32Lt"), Type::Todo);
+        env.define_prim(Some("S32Gt"), Type::Todo);
+        env.define_prim(Some("S32Lte"), Type::Todo);
+        env.define_prim(Some("S32Gte"), Type::Todo);
+        env.define_prim(Some("S32Neg"), Type::Todo);
+        env.define_prim(Some("S32Add"), Type::Todo);
+        env.define_prim(Some("S32Sub"), Type::Todo);
+        env.define_prim(Some("S32Mul"), Type::Todo);
+        env.define_prim(Some("S32Div"), Type::Todo);
+        env.define_prim(Some("S32Abs"), Type::Todo);
+        env.define_prim(Some("S32UAbs"), Type::Todo);
 
-        env.define_prim("S64Eq", Type::Todo);
-        env.define_prim("S64Neq", Type::Todo);
-        env.define_prim("S64Lt", Type::Todo);
-        env.define_prim("S64Gt", Type::Todo);
-        env.define_prim("S64Lte", Type::Todo);
-        env.define_prim("S64Gte", Type::Todo);
-        env.define_prim("S64Neg", Type::Todo);
-        env.define_prim("S64Add", Type::Todo);
-        env.define_prim("S64Sub", Type::Todo);
-        env.define_prim("S64Mul", Type::Todo);
-        env.define_prim("S64Div", Type::Todo);
-        env.define_prim("S64Abs", Type::Todo);
-        env.define_prim("S64UAbs", Type::Todo);
+        env.define_prim(Some("S64Eq"), Type::Todo);
+        env.define_prim(Some("S64Neq"), Type::Todo);
+        env.define_prim(Some("S64Lt"), Type::Todo);
+        env.define_prim(Some("S64Gt"), Type::Todo);
+        env.define_prim(Some("S64Lte"), Type::Todo);
+        env.define_prim(Some("S64Gte"), Type::Todo);
+        env.define_prim(Some("S64Neg"), Type::Todo);
+        env.define_prim(Some("S64Add"), Type::Todo);
+        env.define_prim(Some("S64Sub"), Type::Todo);
+        env.define_prim(Some("S64Mul"), Type::Todo);
+        env.define_prim(Some("S64Div"), Type::Todo);
+        env.define_prim(Some("S64Abs"), Type::Todo);
+        env.define_prim(Some("S64UAbs"), Type::Todo);
 
-        env.define_prim("OptionSome", Type::Todo);
-        env.define_prim("OptionNone", Type::Todo);
-        env.define_prim("OptionFold", Type::Todo);
+        env.define_prim(Some("OptionSome"), Type::Todo);
+        env.define_prim(Some("OptionNone"), Type::Todo);
+        env.define_prim(Some("OptionFold"), Type::Todo);
 
-        env.define_prim("Array8Find", Type::Todo);
-        env.define_prim("Array16Find", Type::Todo);
-        env.define_prim("Array32Find", Type::Todo);
-        env.define_prim("Array64Find", Type::Todo);
+        env.define_prim(Some("Array8Find"), Type::Todo);
+        env.define_prim(Some("Array16Find"), Type::Todo);
+        env.define_prim(Some("Array32Find"), Type::Todo);
+        env.define_prim(Some("Array64Find"), Type::Todo);
 
-        env.define_prim("Array8Index", Type::Todo);
-        env.define_prim("Array16Index", Type::Todo);
-        env.define_prim("Array32Index", Type::Todo);
-        env.define_prim("Array64Index", Type::Todo);
+        env.define_prim(Some("Array8Index"), Type::Todo);
+        env.define_prim(Some("Array16Index"), Type::Todo);
+        env.define_prim(Some("Array32Index"), Type::Todo);
+        env.define_prim(Some("Array64Index"), Type::Todo);
 
-        env.define_prim("PosAddU8", Type::Todo);
-        env.define_prim("PosAddU16", Type::Todo);
-        env.define_prim("PosAddU32", Type::Todo);
-        env.define_prim("PosAddU64", Type::Todo);
+        env.define_prim(Some("PosAddU8"), Type::Todo);
+        env.define_prim(Some("PosAddU16"), Type::Todo);
+        env.define_prim(Some("PosAddU32"), Type::Todo);
+        env.define_prim(Some("PosAddU64"), Type::Todo);
 
         env.build()
     }
@@ -365,8 +389,8 @@ impl<'interner> CompileEnvBuilder<'interner> {
         Some(self.interner.borrow_mut().get_or_intern_static(name))
     }
 
-    fn define_prim(&mut self, name: &'static str, ty: Type) {
-        self.env.push_def(self.name(name), ty);
+    fn define_prim(&mut self, name: Option<&'static str>, ty: Type) {
+        self.env.push_def(name.and_then(|s| self.name(s)), ty);
     }
 
     fn build(self) -> CompileEnv {
@@ -389,7 +413,6 @@ impl<'arena, 'env, 'data, 'interner> Context<'env, 'interner> {
         let mut m = Module { items: Vec::new() };
         for item in module.items {
             self.compile_item(&mut m, item)?;
-            dbg!(&m);
         }
         Ok(m)
     }
@@ -401,8 +424,6 @@ impl<'arena, 'env, 'data, 'interner> Context<'env, 'interner> {
                 r#type: _type,
                 expr,
             } => {
-                dbg!(expr);
-
                 let name = self
                     .interner
                     .borrow()
@@ -440,22 +461,25 @@ impl<'arena, 'env, 'data, 'interner> Context<'env, 'interner> {
                 let mut fields = Vec::with_capacity(labels.len());
 
                 let initial_env_len = self.compile_env.len();
+                let mut borrows_data = false;
                 for (label, format) in labels.iter().copied().zip(formats.iter()) {
                     let ty = self.compile_rep(format);
                     fields.push((label, ty.clone())); // FIXME: clone
+                    borrows_data |= ty_borrows_data(&ty);
                     self.compile_env.push_def(Some(label), ty);
                 }
                 self.compile_env.truncate(initial_env_len);
                 let r#struct = Struct {
                     name: label,
                     fields,
+                    borrows_data,
                 };
                 dbg!(&r#struct);
-                module.items.push(Item::Struct(r#struct));
 
                 // Now generate the read function
-                let read_fn = self.compile_read(label, expr);
+                let read_fn = self.compile_read(&r#struct, expr);
                 dbg!(&read_fn);
+                module.items.push(Item::Struct(r#struct));
                 module.items.push(Item::ReadFn(read_fn));
             }
             Term::FormatCond(_, _, _, _) => unimplemented! {},
@@ -512,8 +536,14 @@ impl<'arena, 'env, 'data, 'interner> Context<'env, 'interner> {
                     // Type::ReadF32Le => Type::F32,
                     // Type::ReadF64Be => Type::F64,
                     // Type::ReadF64Le => Type::F64,
+
+                    // (Prim::FormatArray32, [Elim::FunApp(len), Elim::FunApp(elem)]) => {
+                    //     Value::prim(Prim::Array32Type, [len.clone(), self.format_repr(elem)])
+                    // }
+                    // Type::ReadArray32(len, ele) => Type::Array(len as usize, ele),
+
                     // Type::Todo => {}
-                    _ => todo!(),
+                    _ => todo!("compile rep: {:?}", ty),
                 }
             }
             Term::MetaVar(_, _) => todo! {},
@@ -523,21 +553,28 @@ impl<'arena, 'env, 'data, 'interner> Context<'env, 'interner> {
             Term::Universe(_) => todo! {},
             Term::FunType(_, _, _, _) => todo! {},
             Term::FunLit(_, _, _) => todo! {},
-            Term::FunApp(
-                _,
-                Term::FunApp(_, Term::Prim(_, Prim::FormatArray32), _len),
-                ele_format,
-            ) => {
-                // How to compile function application?
-                // In the simple case we're calling a primitive function, so know how to compile
-                // that..?
-                // let len = self.compile_rep(len); // ignore len for now as we might not know it
-                // at this point
-                let item_type = self.compile_rep(ele_format);
-                // dbg!(("array32", len));
-                Type::Vec(Box::new(item_type))
+            // Term::FunApp(
+            //     _,
+            //     Term::FunApp(_, head, input),
+            //     ele_format,
+            // ) => {
+            //     dbg!(head);
+            //     dbg!(input);
+            //     dbg!(ele_format);
+            //
+            //     // How to compile function application?
+            //     // In the simple case we're calling a primitive function, so know how to compile
+            //     // that..?
+            //     // let len = self.compile_rep(len); // ignore len for now as we might not know it
+            //     // at this point
+            //     let item_type = self.compile_rep(ele_format);
+            //     // dbg!(("array32", len));
+            //     Type::Vec(Box::new(item_type))
+            // }
+            Term::FunApp(_, head, input) => {
+                let mut args = vec![*input];
+                self.compile_fun_app(head, &mut args).expect("not prim")
             }
-            Term::FunApp(_, _head, _input) => todo!("fun app"),
             Term::RecordType(_, _, _) => todo! {},
             Term::RecordLit(_, _, _) => todo! {},
             Term::RecordProj(_, _, _) => todo! {},
@@ -551,6 +588,246 @@ impl<'arena, 'env, 'data, 'interner> Context<'env, 'interner> {
         }
     }
 
+    fn compile_fun_app<'a>(
+        &self,
+        head: &'a Term<'arena>,
+        args: &mut Vec<&'a Term<'arena>>,
+    ) -> Result<Type, ()> {
+        match head {
+            Term::LocalVar(_, index) => {
+                let ty = self
+                    .compile_env
+                    .types
+                    .get_index(*index)
+                    .expect("invalid rigid var")
+                    .clone();
+                dbg!(&ty);
+
+                let args = self.compile_args(args);
+
+                match (ty, args.as_slice()) {
+                    (Type::PrimReadArray8, [len, ele]) => {
+                        todo!("read array 8")
+                    }
+                    // (Type::PrimReadArray16, [len, ele]) => {}
+                    (Type::PrimReadArray32, [_, ele]) => {
+                        Ok(Type::ReadArray32(Box::new(ele.clone())))
+                    }
+                    // (Type::PrimReadArray64, [len, ele]) => {}
+                    (Type::Todo, _) => todo!(),
+                    (Type::Const(c), []) => todo!("const {:?}", c),
+                    otherwise => panic!("invalid fun app {:?}", otherwise),
+                }
+            }
+            Term::FunApp(_, head, input) => {
+                args.push(input);
+                self.compile_fun_app(head, args)
+            }
+            Term::Prim(_, prim) => {
+                match prim {
+                    // Prim::VoidType => unimplemented!(),
+                    // Prim::BoolType => Type::Bool,
+                    // Prim::U8Type => unimplemented!(),
+                    // Prim::U16Type => unimplemented!(),
+                    // Prim::U32Type => unimplemented!(),
+                    // Prim::U64Type => unimplemented!(),
+                    // Prim::S8Type => unimplemented!(),
+                    // Prim::S16Type => unimplemented!(),
+                    // Prim::S32Type => unimplemented!(),
+                    // Prim::S64Type => unimplemented!(),
+                    // Prim::F32Type => unimplemented!(),
+                    // Prim::F64Type => unimplemented!(),
+                    // Prim::OptionType => unimplemented!(),
+                    // Prim::ArrayType => unimplemented!(),
+                    // Prim::Array8Type => unimplemented!(),
+                    // Prim::Array16Type => unimplemented!(),
+                    // Prim::Array32Type => unimplemented!(),
+                    // Prim::Array64Type => unimplemented!(),
+                    // Prim::PosType => unimplemented!(),
+                    // Prim::RefType => unimplemented!(),
+                    Prim::FormatType => unimplemented!(),
+                    Prim::FormatU8 => unimplemented!(),
+                    Prim::FormatU16Be => unimplemented!(),
+                    Prim::FormatU16Le => unimplemented!(),
+                    Prim::FormatU32Be => unimplemented!(),
+                    Prim::FormatU32Le => unimplemented!(),
+                    Prim::FormatU64Be => unimplemented!(),
+                    Prim::FormatU64Le => unimplemented!(),
+                    Prim::FormatS8 => unimplemented!(),
+                    Prim::FormatS16Be => unimplemented!(),
+                    Prim::FormatS16Le => unimplemented!(),
+                    Prim::FormatS32Be => unimplemented!(),
+                    Prim::FormatS32Le => unimplemented!(),
+                    Prim::FormatS64Be => unimplemented!(),
+                    Prim::FormatS64Le => unimplemented!(),
+                    Prim::FormatF32Be => unimplemented!(),
+                    Prim::FormatF32Le => unimplemented!(),
+                    Prim::FormatF64Be => unimplemented!(),
+                    Prim::FormatF64Le => unimplemented!(),
+                    Prim::FormatArray8 => unimplemented!(),
+                    Prim::FormatArray16 => unimplemented!(),
+                    // TODO: deal with args
+                    Prim::FormatArray32 => unimplemented!(),
+                    Prim::FormatArray64 => unimplemented!(),
+                    // Prim::FormatRepeatUntilEnd => unimplemented!(),
+                    // Prim::FormatLimit8 => unimplemented!(),
+                    // Prim::FormatLimit16 => unimplemented!(),
+                    // Prim::FormatLimit32 => unimplemented!(),
+                    // Prim::FormatLimit64 => unimplemented!(),
+                    // Prim::FormatStreamPos => unimplemented!(),
+                    // Prim::FormatLink => unimplemented!(),
+                    // Prim::FormatDeref => unimplemented!(),
+                    // Prim::FormatSucceed => unimplemented!(),
+                    // Prim::FormatFail => unimplemented!(),
+                    // Prim::FormatUnwrap => unimplemented!(),
+                    // Prim::FormatRepr => unimplemented!(),
+                    // Prim::ReportedError => unimplemented!(),
+                    // Prim::BoolEq => unimplemented!(),
+                    // Prim::BoolNeq => unimplemented!(),
+                    // Prim::BoolNot => unimplemented!(),
+                    // Prim::BoolAnd => unimplemented!(),
+                    // Prim::BoolOr => unimplemented!(),
+                    // Prim::BoolXor => unimplemented!(),
+                    // Prim::U8Eq => unimplemented!(),
+                    // Prim::U8Neq => unimplemented!(),
+                    // Prim::U8Gt => unimplemented!(),
+                    // Prim::U8Lt => unimplemented!(),
+                    // Prim::U8Gte => unimplemented!(),
+                    // Prim::U8Lte => unimplemented!(),
+                    // Prim::U8Add => unimplemented!(),
+                    // Prim::U8Sub => unimplemented!(),
+                    // Prim::U8Mul => unimplemented!(),
+                    // Prim::U8Div => unimplemented!(),
+                    // Prim::U8Not => unimplemented!(),
+                    // Prim::U8Shl => unimplemented!(),
+                    // Prim::U8Shr => unimplemented!(),
+                    // Prim::U8And => unimplemented!(),
+                    // Prim::U8Or => unimplemented!(),
+                    // Prim::U8Xor => unimplemented!(),
+                    // Prim::U16Eq => unimplemented!(),
+                    // Prim::U16Neq => unimplemented!(),
+                    // Prim::U16Gt => unimplemented!(),
+                    // Prim::U16Lt => unimplemented!(),
+                    // Prim::U16Gte => unimplemented!(),
+                    // Prim::U16Lte => unimplemented!(),
+                    // Prim::U16Add => unimplemented!(),
+                    // Prim::U16Sub => unimplemented!(),
+                    // Prim::U16Mul => unimplemented!(),
+                    // Prim::U16Div => unimplemented!(),
+                    // Prim::U16Not => unimplemented!(),
+                    // Prim::U16Shl => unimplemented!(),
+                    // Prim::U16Shr => unimplemented!(),
+                    // Prim::U16And => unimplemented!(),
+                    // Prim::U16Or => unimplemented!(),
+                    // Prim::U16Xor => unimplemented!(),
+                    // Prim::U32Eq => unimplemented!(),
+                    // Prim::U32Neq => unimplemented!(),
+                    // Prim::U32Gt => unimplemented!(),
+                    // Prim::U32Lt => unimplemented!(),
+                    // Prim::U32Gte => unimplemented!(),
+                    // Prim::U32Lte => unimplemented!(),
+                    // Prim::U32Add => unimplemented!(),
+                    // Prim::U32Sub => unimplemented!(),
+                    // Prim::U32Mul => unimplemented!(),
+                    // Prim::U32Div => unimplemented!(),
+                    // Prim::U32Not => unimplemented!(),
+                    // Prim::U32Shl => unimplemented!(),
+                    // Prim::U32Shr => unimplemented!(),
+                    // Prim::U32And => unimplemented!(),
+                    // Prim::U32Or => unimplemented!(),
+                    // Prim::U32Xor => unimplemented!(),
+                    // Prim::U64Eq => unimplemented!(),
+                    // Prim::U64Neq => unimplemented!(),
+                    // Prim::U64Gt => unimplemented!(),
+                    // Prim::U64Lt => unimplemented!(),
+                    // Prim::U64Gte => unimplemented!(),
+                    // Prim::U64Lte => unimplemented!(),
+                    // Prim::U64Add => unimplemented!(),
+                    // Prim::U64Sub => unimplemented!(),
+                    // Prim::U64Mul => unimplemented!(),
+                    // Prim::U64Div => unimplemented!(),
+                    // Prim::U64Not => unimplemented!(),
+                    // Prim::U64Shl => unimplemented!(),
+                    // Prim::U64Shr => unimplemented!(),
+                    // Prim::U64And => unimplemented!(),
+                    // Prim::U64Or => unimplemented!(),
+                    // Prim::U64Xor => unimplemented!(),
+                    // Prim::S8Eq => unimplemented!(),
+                    // Prim::S8Neq => unimplemented!(),
+                    // Prim::S8Gt => unimplemented!(),
+                    // Prim::S8Lt => unimplemented!(),
+                    // Prim::S8Gte => unimplemented!(),
+                    // Prim::S8Lte => unimplemented!(),
+                    // Prim::S8Neg => unimplemented!(),
+                    // Prim::S8Add => unimplemented!(),
+                    // Prim::S8Sub => unimplemented!(),
+                    // Prim::S8Mul => unimplemented!(),
+                    // Prim::S8Div => unimplemented!(),
+                    // Prim::S8Abs => unimplemented!(),
+                    // Prim::S8UAbs => unimplemented!(),
+                    // Prim::S16Eq => unimplemented!(),
+                    // Prim::S16Neq => unimplemented!(),
+                    // Prim::S16Gt => unimplemented!(),
+                    // Prim::S16Lt => unimplemented!(),
+                    // Prim::S16Gte => unimplemented!(),
+                    // Prim::S16Lte => unimplemented!(),
+                    // Prim::S16Neg => unimplemented!(),
+                    // Prim::S16Add => unimplemented!(),
+                    // Prim::S16Sub => unimplemented!(),
+                    // Prim::S16Mul => unimplemented!(),
+                    // Prim::S16Div => unimplemented!(),
+                    // Prim::S16Abs => unimplemented!(),
+                    // Prim::S16UAbs => unimplemented!(),
+                    // Prim::S32Eq => unimplemented!(),
+                    // Prim::S32Neq => unimplemented!(),
+                    // Prim::S32Gt => unimplemented!(),
+                    // Prim::S32Lt => unimplemented!(),
+                    // Prim::S32Gte => unimplemented!(),
+                    // Prim::S32Lte => unimplemented!(),
+                    // Prim::S32Neg => unimplemented!(),
+                    // Prim::S32Add => unimplemented!(),
+                    // Prim::S32Sub => unimplemented!(),
+                    // Prim::S32Mul => unimplemented!(),
+                    // Prim::S32Div => unimplemented!(),
+                    // Prim::S32Abs => unimplemented!(),
+                    // Prim::S32UAbs => unimplemented!(),
+                    // Prim::S64Eq => unimplemented!(),
+                    // Prim::S64Neq => unimplemented!(),
+                    // Prim::S64Gt => unimplemented!(),
+                    // Prim::S64Lt => unimplemented!(),
+                    // Prim::S64Gte => unimplemented!(),
+                    // Prim::S64Lte => unimplemented!(),
+                    // Prim::S64Neg => unimplemented!(),
+                    // Prim::S64Add => unimplemented!(),
+                    // Prim::S64Sub => unimplemented!(),
+                    // Prim::S64Mul => unimplemented!(),
+                    // Prim::S64Div => unimplemented!(),
+                    // Prim::S64Abs => unimplemented!(),
+                    // Prim::S64UAbs => unimplemented!(),
+                    // Prim::OptionSome => unimplemented!(),
+                    // Prim::OptionNone => unimplemented!(),
+                    // Prim::OptionFold => unimplemented!(),
+                    // Prim::Array8Find => unimplemented!(),
+                    // Prim::Array16Find => unimplemented!(),
+                    // Prim::Array32Find => unimplemented!(),
+                    // Prim::Array64Find => unimplemented!(),
+                    // Prim::Array8Index => unimplemented!(),
+                    // Prim::Array16Index => unimplemented!(),
+                    // Prim::Array32Index => unimplemented!(),
+                    // Prim::Array64Index => unimplemented!(),
+                    // Prim::PosAddU8 => unimplemented!(),
+                    // Prim::PosAddU16 => unimplemented!(),
+                    // Prim::PosAddU32 => unimplemented!(),
+                    // Prim::PosAddU64 => unimplemented!(),
+                    _ => unimplemented!(),
+                }
+            }
+            _ => Err(()),
+        }
+        // todo!()
+    }
+
+    // TODO: Rename prim_repr or something
     fn compile_prim(prim: &Prim) -> Type {
         match prim {
             Prim::FormatU8 => Type::U8,
@@ -566,7 +843,7 @@ impl<'arena, 'env, 'data, 'interner> Context<'env, 'interner> {
     }
 
     // Generate the read function for a format
-    fn compile_read(&mut self, name: StringId, format: &Term<'arena>) -> ReadFn {
+    fn compile_read(&mut self, r#struct: &Struct, format: &Term<'arena>) -> ReadFn {
         match format {
             Term::FormatRecord(_, labels, formats) => {
                 // For each field, put the name and type in the environment and generate a reader for it
@@ -591,6 +868,11 @@ impl<'arena, 'env, 'data, 'interner> Context<'env, 'interner> {
 
                 self.compile_env.truncate(initial_env_len);
 
+                let name = r#struct.name;
+                let read_struct = ReadStruct {
+                    name,
+                    borrows_data: r#struct.borrows_data,
+                };
                 let st = ReadExpr::Struct {
                     // name of the struct
                     name,
@@ -600,7 +882,7 @@ impl<'arena, 'env, 'data, 'interner> Context<'env, 'interner> {
                     fields,
                 };
                 ReadFn {
-                    struct_name: name,
+                    r#struct: read_struct,
                     exprs: vec![st],
                 }
             }
@@ -617,7 +899,251 @@ impl<'arena, 'env, 'data, 'interner> Context<'env, 'interner> {
                 .expect("invalid rigid var")
                 .clone(),
             Term::Prim(_, prim) => Self::read_prim(prim),
+            Term::FunApp(_, head, input) => {
+                let mut args = vec![*input];
+                self.read_fun_app(head, &mut args)
+                    .expect("read_fun_app failed")
+            }
             _ => unimplemented!("format: {:?}", format),
+        }
+    }
+
+    fn read_fun_app<'a>(
+        &self,
+        head: &'a Term<'arena>,
+        args: &mut Vec<&'a Term<'arena>>,
+    ) -> Result<Type, ()> {
+        match head {
+            Term::LocalVar(_, index) => {
+                let ty = self
+                    .compile_env
+                    .types
+                    .get_index(*index)
+                    .expect("invalid rigid var")
+                    .clone();
+                let args = self.compile_args(args);
+
+                match (ty, args.as_slice()) {
+                    (Type::PrimReadArray8, [len, ele]) => {
+                        todo!("read array 8")
+                    }
+                    // (Type::PrimReadArray16, [len, ele]) => {}
+                    (Type::PrimReadArray32, [len, ele]) => {
+                        Ok(Type::DoReadArray32(
+                            // FIXME: The len should alrady be present? so should not trigger another read
+                            Box::new(len.clone()),
+                            Box::new(ele.clone()),
+                        ))
+                    }
+                    // (Type::PrimReadArray64, [len, ele]) => {}
+                    (Type::Todo, _) => todo!(),
+                    (otherwise, ele) => panic!("invalid fun app {:?}, {:?}", otherwise, ele),
+                }
+            }
+            Term::FunApp(_, head, input) => {
+                args.push(input);
+                self.read_fun_app(head, args)
+            }
+            Term::Prim(_, prim) => {
+                match prim {
+                    // Prim::VoidType => unimplemented!(),
+                    // Prim::BoolType => Type::Bool,
+                    // Prim::U8Type => unimplemented!(),
+                    // Prim::U16Type => unimplemented!(),
+                    // Prim::U32Type => unimplemented!(),
+                    // Prim::U64Type => unimplemented!(),
+                    // Prim::S8Type => unimplemented!(),
+                    // Prim::S16Type => unimplemented!(),
+                    // Prim::S32Type => unimplemented!(),
+                    // Prim::S64Type => unimplemented!(),
+                    // Prim::F32Type => unimplemented!(),
+                    // Prim::F64Type => unimplemented!(),
+                    // Prim::OptionType => unimplemented!(),
+                    // Prim::ArrayType => unimplemented!(),
+                    // Prim::Array8Type => unimplemented!(),
+                    // Prim::Array16Type => unimplemented!(),
+                    // Prim::Array32Type => unimplemented!(),
+                    // Prim::Array64Type => unimplemented!(),
+                    // Prim::PosType => unimplemented!(),
+                    // Prim::RefType => unimplemented!(),
+                    Prim::FormatType => unimplemented!(),
+                    Prim::FormatU8 => unimplemented!(),
+                    Prim::FormatU16Be => unimplemented!(),
+                    Prim::FormatU16Le => unimplemented!(),
+                    Prim::FormatU32Be => unimplemented!(),
+                    Prim::FormatU32Le => unimplemented!(),
+                    Prim::FormatU64Be => unimplemented!(),
+                    Prim::FormatU64Le => unimplemented!(),
+                    Prim::FormatS8 => unimplemented!(),
+                    Prim::FormatS16Be => unimplemented!(),
+                    Prim::FormatS16Le => unimplemented!(),
+                    Prim::FormatS32Be => unimplemented!(),
+                    Prim::FormatS32Le => unimplemented!(),
+                    Prim::FormatS64Be => unimplemented!(),
+                    Prim::FormatS64Le => unimplemented!(),
+                    Prim::FormatF32Be => unimplemented!(),
+                    Prim::FormatF32Le => unimplemented!(),
+                    Prim::FormatF64Be => unimplemented!(),
+                    Prim::FormatF64Le => unimplemented!(),
+                    Prim::FormatArray8 => unimplemented!(),
+                    Prim::FormatArray16 => unimplemented!(),
+                    // TODO: deal with args
+                    Prim::FormatArray32 => unimplemented!(),
+                    Prim::FormatArray64 => unimplemented!(),
+                    // Prim::FormatRepeatUntilEnd => unimplemented!(),
+                    // Prim::FormatLimit8 => unimplemented!(),
+                    // Prim::FormatLimit16 => unimplemented!(),
+                    // Prim::FormatLimit32 => unimplemented!(),
+                    // Prim::FormatLimit64 => unimplemented!(),
+                    // Prim::FormatStreamPos => unimplemented!(),
+                    // Prim::FormatLink => unimplemented!(),
+                    // Prim::FormatDeref => unimplemented!(),
+                    // Prim::FormatSucceed => unimplemented!(),
+                    // Prim::FormatFail => unimplemented!(),
+                    // Prim::FormatUnwrap => unimplemented!(),
+                    // Prim::FormatRepr => unimplemented!(),
+                    // Prim::ReportedError => unimplemented!(),
+                    // Prim::BoolEq => unimplemented!(),
+                    // Prim::BoolNeq => unimplemented!(),
+                    // Prim::BoolNot => unimplemented!(),
+                    // Prim::BoolAnd => unimplemented!(),
+                    // Prim::BoolOr => unimplemented!(),
+                    // Prim::BoolXor => unimplemented!(),
+                    // Prim::U8Eq => unimplemented!(),
+                    // Prim::U8Neq => unimplemented!(),
+                    // Prim::U8Gt => unimplemented!(),
+                    // Prim::U8Lt => unimplemented!(),
+                    // Prim::U8Gte => unimplemented!(),
+                    // Prim::U8Lte => unimplemented!(),
+                    // Prim::U8Add => unimplemented!(),
+                    // Prim::U8Sub => unimplemented!(),
+                    // Prim::U8Mul => unimplemented!(),
+                    // Prim::U8Div => unimplemented!(),
+                    // Prim::U8Not => unimplemented!(),
+                    // Prim::U8Shl => unimplemented!(),
+                    // Prim::U8Shr => unimplemented!(),
+                    // Prim::U8And => unimplemented!(),
+                    // Prim::U8Or => unimplemented!(),
+                    // Prim::U8Xor => unimplemented!(),
+                    // Prim::U16Eq => unimplemented!(),
+                    // Prim::U16Neq => unimplemented!(),
+                    // Prim::U16Gt => unimplemented!(),
+                    // Prim::U16Lt => unimplemented!(),
+                    // Prim::U16Gte => unimplemented!(),
+                    // Prim::U16Lte => unimplemented!(),
+                    // Prim::U16Add => unimplemented!(),
+                    // Prim::U16Sub => unimplemented!(),
+                    // Prim::U16Mul => unimplemented!(),
+                    // Prim::U16Div => unimplemented!(),
+                    // Prim::U16Not => unimplemented!(),
+                    // Prim::U16Shl => unimplemented!(),
+                    // Prim::U16Shr => unimplemented!(),
+                    // Prim::U16And => unimplemented!(),
+                    // Prim::U16Or => unimplemented!(),
+                    // Prim::U16Xor => unimplemented!(),
+                    // Prim::U32Eq => unimplemented!(),
+                    // Prim::U32Neq => unimplemented!(),
+                    // Prim::U32Gt => unimplemented!(),
+                    // Prim::U32Lt => unimplemented!(),
+                    // Prim::U32Gte => unimplemented!(),
+                    // Prim::U32Lte => unimplemented!(),
+                    // Prim::U32Add => unimplemented!(),
+                    // Prim::U32Sub => unimplemented!(),
+                    // Prim::U32Mul => unimplemented!(),
+                    // Prim::U32Div => unimplemented!(),
+                    // Prim::U32Not => unimplemented!(),
+                    // Prim::U32Shl => unimplemented!(),
+                    // Prim::U32Shr => unimplemented!(),
+                    // Prim::U32And => unimplemented!(),
+                    // Prim::U32Or => unimplemented!(),
+                    // Prim::U32Xor => unimplemented!(),
+                    // Prim::U64Eq => unimplemented!(),
+                    // Prim::U64Neq => unimplemented!(),
+                    // Prim::U64Gt => unimplemented!(),
+                    // Prim::U64Lt => unimplemented!(),
+                    // Prim::U64Gte => unimplemented!(),
+                    // Prim::U64Lte => unimplemented!(),
+                    // Prim::U64Add => unimplemented!(),
+                    // Prim::U64Sub => unimplemented!(),
+                    // Prim::U64Mul => unimplemented!(),
+                    // Prim::U64Div => unimplemented!(),
+                    // Prim::U64Not => unimplemented!(),
+                    // Prim::U64Shl => unimplemented!(),
+                    // Prim::U64Shr => unimplemented!(),
+                    // Prim::U64And => unimplemented!(),
+                    // Prim::U64Or => unimplemented!(),
+                    // Prim::U64Xor => unimplemented!(),
+                    // Prim::S8Eq => unimplemented!(),
+                    // Prim::S8Neq => unimplemented!(),
+                    // Prim::S8Gt => unimplemented!(),
+                    // Prim::S8Lt => unimplemented!(),
+                    // Prim::S8Gte => unimplemented!(),
+                    // Prim::S8Lte => unimplemented!(),
+                    // Prim::S8Neg => unimplemented!(),
+                    // Prim::S8Add => unimplemented!(),
+                    // Prim::S8Sub => unimplemented!(),
+                    // Prim::S8Mul => unimplemented!(),
+                    // Prim::S8Div => unimplemented!(),
+                    // Prim::S8Abs => unimplemented!(),
+                    // Prim::S8UAbs => unimplemented!(),
+                    // Prim::S16Eq => unimplemented!(),
+                    // Prim::S16Neq => unimplemented!(),
+                    // Prim::S16Gt => unimplemented!(),
+                    // Prim::S16Lt => unimplemented!(),
+                    // Prim::S16Gte => unimplemented!(),
+                    // Prim::S16Lte => unimplemented!(),
+                    // Prim::S16Neg => unimplemented!(),
+                    // Prim::S16Add => unimplemented!(),
+                    // Prim::S16Sub => unimplemented!(),
+                    // Prim::S16Mul => unimplemented!(),
+                    // Prim::S16Div => unimplemented!(),
+                    // Prim::S16Abs => unimplemented!(),
+                    // Prim::S16UAbs => unimplemented!(),
+                    // Prim::S32Eq => unimplemented!(),
+                    // Prim::S32Neq => unimplemented!(),
+                    // Prim::S32Gt => unimplemented!(),
+                    // Prim::S32Lt => unimplemented!(),
+                    // Prim::S32Gte => unimplemented!(),
+                    // Prim::S32Lte => unimplemented!(),
+                    // Prim::S32Neg => unimplemented!(),
+                    // Prim::S32Add => unimplemented!(),
+                    // Prim::S32Sub => unimplemented!(),
+                    // Prim::S32Mul => unimplemented!(),
+                    // Prim::S32Div => unimplemented!(),
+                    // Prim::S32Abs => unimplemented!(),
+                    // Prim::S32UAbs => unimplemented!(),
+                    // Prim::S64Eq => unimplemented!(),
+                    // Prim::S64Neq => unimplemented!(),
+                    // Prim::S64Gt => unimplemented!(),
+                    // Prim::S64Lt => unimplemented!(),
+                    // Prim::S64Gte => unimplemented!(),
+                    // Prim::S64Lte => unimplemented!(),
+                    // Prim::S64Neg => unimplemented!(),
+                    // Prim::S64Add => unimplemented!(),
+                    // Prim::S64Sub => unimplemented!(),
+                    // Prim::S64Mul => unimplemented!(),
+                    // Prim::S64Div => unimplemented!(),
+                    // Prim::S64Abs => unimplemented!(),
+                    // Prim::S64UAbs => unimplemented!(),
+                    // Prim::OptionSome => unimplemented!(),
+                    // Prim::OptionNone => unimplemented!(),
+                    // Prim::OptionFold => unimplemented!(),
+                    // Prim::Array8Find => unimplemented!(),
+                    // Prim::Array16Find => unimplemented!(),
+                    // Prim::Array32Find => unimplemented!(),
+                    // Prim::Array64Find => unimplemented!(),
+                    // Prim::Array8Index => unimplemented!(),
+                    // Prim::Array16Index => unimplemented!(),
+                    // Prim::Array32Index => unimplemented!(),
+                    // Prim::Array64Index => unimplemented!(),
+                    // Prim::PosAddU8 => unimplemented!(),
+                    // Prim::PosAddU16 => unimplemented!(),
+                    // Prim::PosAddU32 => unimplemented!(),
+                    // Prim::PosAddU64 => unimplemented!(),
+                    _ => unimplemented!(),
+                }
+            }
+            _ => Err(()),
         }
     }
 
@@ -633,6 +1159,60 @@ impl<'arena, 'env, 'data, 'interner> Context<'env, 'interner> {
             _ => todo! {},
         }
     }
+    fn compile_args(&self, args: &[&Term]) -> Vec<ParseExpr> {
+        let mut out = Vec::with_capacity(args.len());
+        for arg in args.into_iter().rev() {
+            let ty = match *arg {
+                // Term::ItemVar(_, _) => {}
+                Term::LocalVar(_, index) => self
+                    .compile_env
+                    .names
+                    .get_index(*index)
+                    .expect("invalid local var")
+                    .map(|name| ParseExpr::Var(name))
+                    .unwrap_or_else(|| {
+                        ParseExpr::Const(
+                            self.compile_env
+                                .types
+                                .get_index(*index)
+                                .expect("invalid local var")
+                                .clone(),
+                        )
+                    }),
+                // Term::MetaVar(_, _) => {}
+                // Term::InsertedMeta(_, _, _) => {}
+                // Term::Ann(_, _, _) => {}
+                // Term::Let(_, _, _, _, _) => {}
+                // Term::Universe(_) => {}
+                // Term::FunType(_, _, _, _) => {}
+                // Term::FunLit(_, _, _) => {}
+                // Term::FunApp(_, _, _) => {}
+                // Term::RecordType(_, _, _) => {}
+                // Term::RecordLit(_, _, _) => {}
+                // Term::RecordProj(_, _, _) => {}
+                // Term::ArrayLit(_, _) => {}
+                // Term::FormatRecord(_, _, _) => {}
+                // Term::FormatCond(_, _, _, _) => {}
+                // Term::FormatOverlap(_, _, _) => {}
+                // Term::Prim(_, _) => {}
+                Term::ConstLit(_, val) => ParseExpr::Const(Type::Const(*val)),
+                // Term::ConstMatch(_, _, _, _) => {}
+                otherwise => todo!("compile arg {:?}", otherwise),
+            };
+            out.push(ty);
+        }
+        out
+    }
+}
+
+fn ty_borrows_data(ty: &Type) -> bool {
+    match ty {
+        Type::ReadArray8(_)
+        | Type::ReadArray16(_)
+        | Type::ReadArray32(_)
+        | Type::ReadArray64(_) => true,
+        _ => false,
+    }
 }
 
 pub mod rust {
@@ -642,6 +1222,7 @@ pub mod rust {
     use scoped_arena::Scope;
 
     use crate::core::compile::{Item, Module, ParseExpr, ReadExpr, ReadFn, Type};
+    use crate::core::Const;
     use crate::{StringId, StringInterner};
 
     const INDENT: isize = 4;
@@ -684,6 +1265,11 @@ pub mod rust {
                         self.text("struct"),
                         self.space(),
                         self.string_id(r#struct.name),
+                        if r#struct.borrows_data {
+                            self.text("<'a>")
+                        } else {
+                            self.text("") // FIXME: better way to do this?
+                        },
                         self.space(),
                         self.text("{"),
                     ]),
@@ -707,7 +1293,12 @@ pub mod rust {
                     self.concat([
                         self.text("impl<'a> ReadBinary<'a> for"),
                         self.space(),
-                        self.string_id(readfn.struct_name),
+                        self.string_id(readfn.r#struct.name),
+                        if readfn.r#struct.borrows_data {
+                            self.text("<'a>")
+                        } else {
+                            self.text("") // FIXME: better way to do this?
+                        },
                         self.space(),
                         self.text("{"),
                         self.hardline().nest(INDENT),
@@ -721,9 +1312,7 @@ pub mod rust {
 
         fn imports(&'arena self) -> DocBuilder<'arena, Self> {
             self.concat([
-                self.text("use fathom_runtime::error::{ParseError};"),
-                self.hardline(),
-                self.text("use fathom_runtime::read::{ReadCtxt, ReadBinary};"),
+                self.text("use fathom_runtime::prelude::*;"),
                 self.hardline(),
             ])
         }
@@ -742,6 +1331,7 @@ pub mod rust {
             ])
         }
 
+        // This is used for defining variables and struct fields
         fn ty_prec(
             &'arena self,
             _prec: (), // TODO: Is this needed?
@@ -773,14 +1363,20 @@ pub mod rust {
                 ]),
                 Type::Bool => self.text("bool"),
                 Type::ReadU8 => self.text("ctxt.read_u8()"),
-                Type::ReadU16Be => self.text("ctxt.read_u16be()"),
-                Type::ReadU32Be => self.text("ctxt.read_u32be()"),
+                Type::ReadU16Be => self.text("U16Be"),
+                Type::ReadU32Be => self.text("U32Be"),
                 Type::ReadU64Be => self.text("ctxt.read_u64be()"),
                 Type::ReadU16Le => self.text("ctxt.read_u16le()"),
                 Type::ReadU32Le => self.text("ctxt.read_u32le()"),
                 Type::ReadU64Le => self.text("ctxt.read_u64le()"),
+                Type::ReadArray32(ele) => self.concat([
+                    self.text("ReadArray<'a, "),
+                    // self.ty_prec((), ele),
+                    self.parse_expr_prec(ele),
+                    self.text(">"),
+                ]),
                 Type::Todo => self.text("todo!()"),
-                _ => unimplemented!(),
+                otherwise => unimplemented!("ty_prec {:?}", otherwise),
             }
         }
 
@@ -811,7 +1407,7 @@ pub mod rust {
                     self.text("="),
                     self.space(),
                     self.parse_expr(field),
-                    self.text("?;"),
+                    self.text(";"),
                     self.hardline(),
                 ])
             }))
@@ -849,16 +1445,39 @@ pub mod rust {
             }
         }
 
+        fn parse_expr_prec(&'arena self, expr: &ParseExpr) -> DocBuilder<'arena, Self> {
+            match expr {
+                ParseExpr::Const(ty) => self.ty_prec((), ty),
+                ParseExpr::Var(name) => self.string_id(*name),
+            }
+        }
+
         fn type_const(&'arena self, ty_const: &Type) -> DocBuilder<'arena, Self> {
             match ty_const {
-                Type::ReadU8 => self.text("ctxt.read_u8()"),
-                Type::ReadU16Be => self.text("ctxt.read_u16be()"),
-                Type::ReadU32Be => self.text("ctxt.read_u32be()"),
-                Type::ReadU64Be => self.text("ctxt.read_u64be()"),
-                Type::ReadU16Le => self.text("ctxt.read_u16le()"),
-                Type::ReadU32Le => self.text("ctxt.read_u32le()"),
-                Type::ReadU64Le => self.text("ctxt.read_u64le()"),
-                _ => unimplemented!(),
+                Type::ReadU8 => self.text("ctxt.read_u8()?"),
+                Type::ReadU16Be => self.text("ctxt.read_u16be()?"),
+                Type::ReadU32Be => self.text("ctxt.read_u32be()?"),
+                Type::ReadU64Be => self.text("ctxt.read_u64be()?"),
+                Type::ReadU16Le => self.text("ctxt.read_u16le()?"),
+                Type::ReadU32Le => self.text("ctxt.read_u32le()?"),
+                Type::ReadU64Le => self.text("ctxt.read_u64le()?"),
+                Type::DoReadArray32(len, ele) => {
+                    // FIXME: we need to put the rust repr of ele into the arg
+                    self.concat([
+                        self.text("ctxt.read_array::<"),
+                        // self.ty_prec((), ele),
+                        self.parse_expr_prec(ele),
+                        self.text(">("),
+                        // self.type_const(len),
+                        self.parse_expr(len),
+                        self.text(" as usize /* FIXME: cast */)?"),
+                    ])
+                }
+                Type::Const(Const::U8(val, style)) => self.text(style.format(val)),
+                Type::Const(Const::U16(val, style)) => self.text(style.format(val)),
+                Type::Const(Const::U32(val, style)) => self.text(style.format(val)),
+                Type::Const(Const::U64(val, style)) => self.text(style.format(val)),
+                otherwise => unimplemented!("type_const {:?}", otherwise),
             }
         }
 
