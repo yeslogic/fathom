@@ -82,7 +82,7 @@ impl<'arena> Value<'arena> {
                 let head_is_closed = match head {
                     Head::Prim(_) => true,
                     Head::LocalVar(var) => var.0 < local_env.0,
-                    Head::MetaVar(var) => var.0 < local_env.0,
+                    Head::MetaVar(var) => var.0 < meta_env.0,
                 };
                 head_is_closed
                     && spine.iter().all(|elim| match elim {
@@ -167,7 +167,7 @@ impl<'arena> Closure<'arena> {
     }
 
     pub fn is_closed(&self, meta_env: EnvLen) -> bool {
-        self.term.is_closed(self.local_exprs.len(), meta_env)
+        self.term.is_closed(self.local_exprs.len().next(), meta_env)
     }
 }
 
