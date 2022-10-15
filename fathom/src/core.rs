@@ -257,7 +257,8 @@ impl<'arena> Term<'arena> {
         }
     }
 
-    /// Returns `true` if the term is "closed" (does not contain free local or meta variables) with respect to `local_env` and `meta_env`.
+    /// Returns `true` if the term is "closed" (does not contain free local
+    /// or meta variables) with respect to `local_env` and `meta_env`.
     pub fn is_closed(&self, mut local_env: EnvLen, meta_env: EnvLen) -> bool {
         match self {
             Term::LocalVar(_, var) => var.0 < local_env.0,
