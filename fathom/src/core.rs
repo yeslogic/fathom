@@ -261,7 +261,10 @@ impl<'arena> Term<'arena> {
     pub fn is_closed(&self, mut local_env: EnvLen, meta_env: EnvLen) -> bool {
         match self {
             Term::LocalVar(_, var) => var.0 < local_env.0,
-            Term::MetaVar(_, var) | Term::InsertedMeta(_, var, _) => var.0 < meta_env.0,
+            Term::MetaVar(_, var) => var.0 < meta_env.0,
+            Term::InsertedMeta(_, var, infos) => {
+                var.0 < meta_env.0 && infos.len() <= local_env.0.into()
+            }
             Term::ItemVar(_, _) | Term::Universe(_) | Term::Prim(_, _) | Term::ConstLit(_, _) => {
                 true
             }
