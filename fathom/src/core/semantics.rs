@@ -72,6 +72,50 @@ impl<'arena> Value<'arena> {
             _ => None,
         }
     }
+
+    /// Returns `true` if the term is "closed" (does not contain free local or meta variables) with respect to `local_env` and `meta_env`.
+    pub fn is_closed(&self, local_env: EnvLen, meta_env: EnvLen) -> bool {
+        match self {
+            Value::ConstLit(_) | Value::Universe => true,
+            Value::Stuck(head, spine) => {
+                let head_is_closed = match head {
+                    Head::Prim(_) => true,
+                    Head::LocalVar(var) => var.0 < local_env.0,
+                    Head::MetaVar(var) => var.0 < local_env.0,
+                };
+                head_is_closed
+                    && spine.iter().all(|elim| match elim {
+                        Elim::FunApp(value) => value.is_closed(local_env, meta_env),
+                        Elim::RecordProj(_) => true,
+                        Elim::ConstMatch(branches) => {
+                            branches
+                                .pattern_branches
+                                .iter()
+                                .all(|(_, term)| term.is_closed(local_env, meta_env))
+                                && branches
+                                    .default_expr
+                                    .map_or(true, |expr| expr.is_closed(local_env.next(), meta_env))
+                        }
+                    })
+            }
+            Value::FunType(_, param_type, body_type) => {
+                param_type.is_closed(local_env, meta_env) && body_type.is_closed(meta_env)
+            }
+            Value::FunLit(_, body_term) => body_term.is_closed(meta_env),
+            Value::RecordType(_, types) => types.is_closed(meta_env),
+            Value::RecordLit(_, exprs) => {
+                exprs.iter().all(|expr| expr.is_closed(local_env, meta_env))
+            }
+            Value::ArrayLit(elem_exprs) => elem_exprs
+                .iter()
+                .all(|expr| expr.is_closed(local_env, meta_env)),
+            Value::FormatRecord(_, formats) => formats.is_closed(meta_env),
+            Value::FormatCond(_, format, cond) => {
+                format.is_closed(local_env, meta_env) && cond.is_closed(meta_env.next())
+            }
+            Value::FormatOverlap(_, formats) => formats.is_closed(meta_env),
+        }
+    }
 }
 
 /// The head of a [stuck value][Value::Stuck].
@@ -120,6 +164,10 @@ impl<'arena> Closure<'arena> {
     pub fn span(&self) -> Span {
         self.term.span()
     }
+
+    pub fn is_closed(&self, meta_env: EnvLen) -> bool {
+        self.term.is_closed(self.local_exprs.len(), meta_env)
+    }
 }
 
 /// A series of terms where each term might depend on previous terms.
@@ -163,6 +211,15 @@ impl<'arena> Telescope<'arena> {
     /// The number of terms in the telescope.
     pub fn len(&self) -> usize {
         self.terms.len()
+    }
+
+    pub fn is_closed(&self, meta_env: EnvLen) -> bool {
+        let mut local_env = self.local_exprs.len();
+        self.terms.iter().all(|term| {
+            let result = term.is_closed(local_env, meta_env);
+            local_env = local_env.next();
+            result
+        })
     }
 }
 
