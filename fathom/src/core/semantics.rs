@@ -340,6 +340,11 @@ impl<'arena, 'env> EvalEnv<'arena, 'env> {
     /// closure conversion + partial evaluation (for more discussion see [this
     /// twitter thread](https://twitter.com/brendanzab/status/1423536653658771457)).
     pub fn eval(&mut self, term: &Term<'arena>) -> ArcValue<'arena> {
+        debug_assert!(
+            term.is_closed(self.local_exprs.len(), self.meta_exprs.len()),
+            "Term `{:#?}` has free variables",
+            term
+        );
         match term {
             Term::ItemVar(span, var) => match self.item_exprs.get_level(*var) {
                 Some(value) => Spanned::new(*span, Arc::clone(value)),
@@ -960,6 +965,12 @@ impl<'in_arena, 'out_arena, 'env> QuoteEnv<'in_arena, 'out_arena, 'env> {
 
     /// Quote a [value][Value] back into a [term][Term].
     pub fn quote(&mut self, value: &ArcValue<'in_arena>) -> Term<'out_arena> {
+        debug_assert!(
+            value.is_closed(self.local_exprs, self.meta_exprs.len()),
+            "Value `{:#?}` has free variables",
+            value
+        );
+
         let value = self.elim_env().force(value);
         let span = value.span();
         let term = match value.as_ref() {
