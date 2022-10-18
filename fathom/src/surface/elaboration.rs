@@ -26,9 +26,9 @@ use std::str::FromStr;
 use std::sync::Arc;
 
 use crate::alloc::SliceVec;
-use crate::core::semantics::{self, ArcValue, Head, Telescope, Value};
-use crate::core::{self, binary, Const, Prim, UIntStyle};
-use crate::env::{self, EnvLen, Level, SharedEnv, SliceEnv, UniqueEnv};
+use crate::core::semantics::{self, ArcValue, ElimEnv, Head, Telescope, Value};
+use crate::core::{self, Const, Prim, UIntStyle};
+use crate::env::{self, EnvLen, Level, SharedEnv, UniqueEnv};
 use crate::source::{ByteRange, Span, Spanned};
 use crate::surface::elaboration::reporting::Message;
 use crate::surface::{distillation, pretty, BinOp, FormatField, Item, Module, Pattern, Term};
@@ -39,7 +39,7 @@ mod reporting;
 mod unification;
 
 /// Top-level item environment.
-pub struct ItemEnv<'arena> {
+struct ItemEnv<'arena> {
     /// Names of items.
     names: UniqueEnv<StringId>,
     /// Types of items.
@@ -50,7 +50,7 @@ pub struct ItemEnv<'arena> {
 
 impl<'arena> ItemEnv<'arena> {
     /// Construct a new, empty environment.
-    pub fn new() -> ItemEnv<'arena> {
+    fn new() -> ItemEnv<'arena> {
         ItemEnv {
             names: UniqueEnv::new(),
             types: UniqueEnv::new(),
@@ -58,7 +58,7 @@ impl<'arena> ItemEnv<'arena> {
         }
     }
 
-    pub fn push_definition(
+    fn push_definition(
         &mut self,
         name: StringId,
         r#type: ArcValue<'arena>,
@@ -67,11 +67,6 @@ impl<'arena> ItemEnv<'arena> {
         self.names.push(name);
         self.types.push(r#type);
         self.exprs.push(expr);
-    }
-
-    pub fn get_name(&self, name: StringId) -> Option<(Level, ArcValue<'arena>)> {
-        itertools::izip!(env::levels(), self.names.iter(), self.types.iter())
-            .find_map(|(var, n, r#type)| (name == *n).then(|| (var, r#type.clone())))
     }
 }
 
@@ -87,7 +82,7 @@ impl<'arena> ItemEnv<'arena> {
 /// Multiple bindings can be removed at once with [`LocalEnv::truncate`].
 ///
 /// [local variables]: core::Term::LocalVar
-pub struct LocalEnv<'arena> {
+struct LocalEnv<'arena> {
     /// Names of local variables.
     names: UniqueEnv<Option<StringId>>,
     /// Types of local variables.
@@ -102,7 +97,7 @@ pub struct LocalEnv<'arena> {
 
 impl<'arena> LocalEnv<'arena> {
     /// Construct a new, empty environment.
-    pub fn new() -> LocalEnv<'arena> {
+    fn new() -> LocalEnv<'arena> {
         LocalEnv {
             names: UniqueEnv::new(),
             types: UniqueEnv::new(),
@@ -111,7 +106,7 @@ impl<'arena> LocalEnv<'arena> {
         }
     }
 
-    pub fn default(
+    fn default(
         interner: &RefCell<StringInterner>,
         scope: &'arena Scope<'arena>,
     ) -> LocalEnv<'arena> {
@@ -528,7 +523,7 @@ impl<'arena> LocalEnv<'arena> {
     ) {
         self.names.push(name);
         self.types.push(r#type);
-        self.infos.push(core::LocalInfo::Definition);
+        self.infos.push(core::LocalInfo::Def);
         self.exprs.push(expr);
     }
 
@@ -540,7 +535,7 @@ impl<'arena> LocalEnv<'arena> {
 
         self.names.push(name);
         self.types.push(r#type);
-        self.infos.push(core::LocalInfo::Parameter);
+        self.infos.push(core::LocalInfo::Param);
         self.exprs.push(expr.clone());
 
         expr
@@ -563,7 +558,7 @@ impl<'arena> LocalEnv<'arena> {
     }
 }
 
-pub struct LocalEnvBuilder<'i, 'arena> {
+struct LocalEnvBuilder<'i, 'arena> {
     env: LocalEnv<'arena>,
     interner: &'i RefCell<StringInterner>,
     scope: &'arena Scope<'arena>,
@@ -593,8 +588,9 @@ impl<'i, 'arena> LocalEnvBuilder<'i, 'arena> {
         let mut local_exprs = SharedEnv::new();
 
         let expr = Spanned::empty(Arc::new(Value::prim(prim, [])));
-        let r#type =
-            semantics::EvalEnv::new(&item_exprs, &mut local_exprs, &meta_exprs).eval(r#type);
+        let r#type = ElimEnv::new(&item_exprs, &meta_exprs)
+            .eval_env(&mut local_exprs)
+            .eval(r#type);
         self.env.push_def(name, expr, r#type);
     }
 
@@ -660,7 +656,7 @@ impl MetaSource {
 /// definitions are intended to be found through the use of [unification].
 ///
 /// [metavariables]: core::Term::MetaVar
-pub struct MetaEnv<'arena> {
+struct MetaEnv<'arena> {
     /// The source of inserted metavariables, used when reporting [unsolved
     /// metavariables][Message::UnsolvedMetaVar].
     sources: UniqueEnv<MetaSource>,
@@ -677,7 +673,7 @@ pub struct MetaEnv<'arena> {
 
 impl<'arena> MetaEnv<'arena> {
     /// Construct a new, empty environment.
-    pub fn new() -> MetaEnv<'arena> {
+    fn new() -> MetaEnv<'arena> {
         MetaEnv {
             sources: UniqueEnv::new(),
             types: UniqueEnv::new(),
@@ -696,53 +692,10 @@ impl<'arena> MetaEnv<'arena> {
 
         var
     }
-
-    fn report<'this, 'interner: 'this, 'error: 'this>(
-        &'this self,
-        interner: &'interner RefCell<StringInterner>,
-        scope: &'error Scope<'error>,
-        mut item_names: UniqueEnv<StringId>,
-        item_exprs: &'this SliceEnv<ArcValue<'this>>,
-        mut local_names: UniqueEnv<Option<StringId>>,
-    ) -> impl 'this + Iterator<Item = Message> {
-        let entries = Iterator::zip(self.sources.iter(), self.exprs.iter());
-
-        entries.filter_map(move |(&source, expr)| match (expr, source) {
-            // Avoid producing messages for some unsolved metavariable sources:
-            (None, MetaSource::HoleType(_, _)) => None, // should have an unsolved hole expression
-            (None, MetaSource::PlaceholderType(_)) => None, // should have an unsolved placeholder expression
-            (None, MetaSource::ReportedErrorType(_)) => None, // should already have an error reported
-
-            // For other sources, report an unsolved problem message
-            (None, source) => Some(Message::UnsolvedMetaVar { source }),
-            // Yield messages of solved named holes
-            (Some(expr), MetaSource::HoleExpr(range, name)) => {
-                let term =
-                    semantics::QuoteEnv::new(scope, item_exprs, local_names.len(), &self.exprs)
-                        .quote(expr);
-                let surface_term = distillation::Context::new(
-                    interner,
-                    scope,
-                    &mut item_names,
-                    &mut local_names,
-                    &self.sources,
-                )
-                .check(&term);
-
-                let pretty_context = pretty::Context::new(interner, scope);
-                let doc = pretty_context.term(&surface_term).into_doc();
-                let expr = doc.pretty(usize::MAX).to_string();
-
-                Some(Message::HoleSolution { range, name, expr })
-            }
-            // Ignore solutions of anything else
-            (Some(_), _) => None,
-        })
-    }
 }
 
 /// Elaboration context.
-pub struct Context<'interner, 'arena, 'error> {
+pub struct Context<'interner, 'arena> {
     /// Global string interner.
     interner: &'interner RefCell<StringInterner>,
     /// Scoped arena for storing elaborated terms.
@@ -751,8 +704,6 @@ pub struct Context<'interner, 'arena, 'error> {
     //       elaborated terms to an external `Scope` during zonking, resetting
     //       this scope on completion.
     scope: &'arena Scope<'arena>,
-    /// Scoped arena for storing surface terms generated during error reporting.
-    error_scope: &'error Scope<'error>,
 
     // Commonly used values, cached to increase sharing.
     universe: ArcValue<'static>,
@@ -771,17 +722,15 @@ pub struct Context<'interner, 'arena, 'error> {
     messages: Vec<Message>,
 }
 
-impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
+impl<'interner, 'arena> Context<'interner, 'arena> {
     /// Construct a new elaboration context, backed by the supplied arena.
     pub fn new(
         interner: &'interner RefCell<StringInterner>,
         scope: &'arena Scope<'arena>,
-        error_scope: &'error Scope<'error>,
-    ) -> Context<'interner, 'arena, 'error> {
+    ) -> Context<'interner, 'arena> {
         Context {
             interner,
             scope,
-            error_scope,
 
             universe: Spanned::empty(Arc::new(Value::Universe)),
             format_type: Spanned::empty(Arc::new(Value::prim(Prim::FormatType, []))),
@@ -834,40 +783,56 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
         self.messages.push(message);
     }
 
-    pub fn drain_messages(&mut self) -> impl '_ + Iterator<Item = Message> {
-        let report_messages = self.meta_env.report(
-            self.interner,
-            self.error_scope,
-            self.item_env.names.clone(),
-            &self.item_env.exprs,
-            self.local_env.names.clone(),
-        );
+    pub fn handle_messages(&mut self, on_message: &mut dyn FnMut(Message)) {
+        for message in self.messages.drain(..) {
+            on_message(message);
+        }
 
-        self.messages.drain(..).chain(report_messages)
+        let meta_env = &self.meta_env;
+        for (expr, source) in Iterator::zip(meta_env.exprs.iter(), meta_env.sources.iter()) {
+            match (expr, *source) {
+                // Avoid producing messages for some unsolved metavariable sources:
+                (None, MetaSource::HoleType(_, _)) => {} // should have an unsolved hole expression
+                (None, MetaSource::PlaceholderType(_)) => {} // should have an unsolved placeholder expression
+                (None, MetaSource::ReportedErrorType(_)) => {} // should already have an error reported
+
+                // For other sources, report an unsolved problem message
+                (None, source) => on_message(Message::UnsolvedMetaVar { source }),
+                // Yield messages of solved named holes
+                (Some(expr), MetaSource::HoleExpr(range, name)) => {
+                    let term = self.quote_env().quote(self.scope, expr);
+                    let surface_term = distillation::Context::new(
+                        self.interner,
+                        self.scope,
+                        &mut self.item_env.names,
+                        &mut self.local_env.names,
+                        &self.meta_env.sources,
+                    )
+                    .check(&term);
+
+                    let pretty_context = pretty::Context::new(self.interner, self.scope);
+                    let doc = pretty_context.term(&surface_term).into_doc();
+                    let expr = doc.pretty(usize::MAX).to_string();
+
+                    on_message(Message::HoleSolution { range, name, expr });
+                }
+                // Ignore solutions of anything else
+                (Some(_), _) => {}
+            }
+        }
     }
 
     pub fn eval_env(&mut self) -> semantics::EvalEnv<'arena, '_> {
-        semantics::EvalEnv::new(
-            &self.item_env.exprs,
-            &mut self.local_env.exprs,
-            &self.meta_env.exprs,
-        )
+        semantics::ElimEnv::new(&self.item_env.exprs, &self.meta_env.exprs)
+            .eval_env(&mut self.local_env.exprs)
     }
 
     pub fn elim_env(&self) -> semantics::ElimEnv<'arena, '_> {
         semantics::ElimEnv::new(&self.item_env.exprs, &self.meta_env.exprs)
     }
 
-    pub fn quote_env<'out_arena>(
-        &self,
-        scope: &'out_arena Scope<'out_arena>,
-    ) -> semantics::QuoteEnv<'arena, 'out_arena, '_> {
-        semantics::QuoteEnv::new(
-            scope,
-            &self.item_env.exprs,
-            self.local_env.len(),
-            &self.meta_env.exprs,
-        )
+    pub fn quote_env(&self) -> semantics::QuoteEnv<'arena, '_> {
+        semantics::QuoteEnv::new(self.elim_env(), self.local_env.len())
     }
 
     fn unification_context(&mut self) -> unification::Context<'arena, '_> {
@@ -893,19 +858,16 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
         )
     }
 
-    pub fn binary_context<'data>(
-        &self,
-        buffer: binary::Buffer<'data>,
-    ) -> binary::Context<'arena, '_, 'data> {
-        binary::Context::new(&self.item_env.exprs, &self.meta_env.exprs, buffer)
-    }
-
     fn pretty_print_value(&mut self, value: &ArcValue<'_>) -> String {
-        let term = self.quote_env(self.error_scope).quote(value);
-        let surface_term = self.distillation_context(self.error_scope).check(&term);
-        let pretty_context = pretty::Context::new(self.interner, self.error_scope);
-        let doc = pretty_context.term(&surface_term).into_doc();
-        doc.pretty(usize::MAX).to_string()
+        let scope = self.scope;
+
+        let term = self.quote_env().unfolding_metas().quote(scope, value);
+        let surface_term = self.distillation_context(scope).check(&term);
+
+        pretty::Context::new(self.interner, scope)
+            .term(&surface_term)
+            .pretty(usize::MAX)
+            .to_string()
     }
 
     /// Reports an error if there are duplicate fields found, returning a slice
@@ -1081,10 +1043,15 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
         }
     }
 
-    /// Elaborate a module
-    pub fn elab_module(&mut self, surface_module: &Module<'_, ByteRange>) -> core::Module<'arena> {
+    /// Elaborate a module.
+    pub fn elab_module<'out_arena>(
+        &mut self,
+        scope: &'out_arena Scope<'out_arena>,
+        surface_module: &Module<'_, ByteRange>,
+        on_message: &mut dyn FnMut(Message),
+    ) -> core::Module<'out_arena> {
         let elab_order = order::elaboration_order(self, surface_module);
-        let mut items = SliceVec::new(self.scope, elab_order.len());
+        let mut items = Vec::with_capacity(surface_module.items.len());
 
         for item in elab_order.iter().copied().map(|i| &surface_module.items[i]) {
             match item {
@@ -1092,7 +1059,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                     let (expr, type_value) =
                         self.synth_fun_lit(item.range, item.patterns, item.expr, item.type_);
                     let expr_value = self.eval_env().eval(&expr);
-                    let r#type = self.quote_env(self.scope).quote(&type_value);
+                    let r#type = self.quote_env().quote(self.scope, &type_value);
 
                     self.item_env
                         .push_definition(item.label.1, type_value, expr_value);
@@ -1107,9 +1074,68 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
             }
         }
 
-        core::Module {
-            items: items.into(),
-        }
+        // Unfold all unification solutions
+        let items = scope.to_scope_from_iter(items.into_iter().map(|item| match item {
+            core::Item::Def {
+                label,
+                r#type,
+                expr,
+            } => {
+                // TODO: Unfold unsolved metas to reported errors
+                let r#type = self.eval_env().unfold_metas(scope, r#type);
+                let expr = self.eval_env().unfold_metas(scope, expr);
+
+                core::Item::Def {
+                    label,
+                    r#type: scope.to_scope(r#type),
+                    expr: scope.to_scope(expr),
+                }
+            }
+        }));
+
+        self.handle_messages(on_message);
+
+        // TODO: Clear environments
+        // TODO: Reset scopes
+
+        core::Module { items }
+    }
+
+    /// Elaborate a term, returning its synthesized type.
+    pub fn elab_term<'out_arena>(
+        &mut self,
+        scope: &'out_arena Scope<'out_arena>,
+        surface_term: &Term<'_, ByteRange>,
+        on_message: &mut dyn FnMut(Message),
+    ) -> (core::Term<'out_arena>, core::Term<'out_arena>) {
+        let (term, r#type) = self.synth(surface_term);
+        let term = self.eval_env().unfold_metas(scope, &term);
+        let r#type = self.quote_env().unfolding_metas().quote(scope, &r#type);
+
+        self.handle_messages(on_message);
+
+        // TODO: Clear environments
+        // TODO: Reset scopes
+
+        (term, r#type)
+    }
+
+    /// Elaborate a term, expecting it to be a format.
+    pub fn elab_format<'out_arena>(
+        &mut self,
+        scope: &'out_arena Scope<'out_arena>,
+        surface_term: &Term<'_, ByteRange>,
+        on_message: &mut dyn FnMut(Message),
+    ) -> core::Term<'out_arena> {
+        let term = self.check(surface_term, &self.format_type.clone());
+        let term = self.eval_env().unfold_metas(scope, &term); // TODO: fuse with above?
+
+        self.handle_messages(on_message);
+
+        // TODO: Clear environments
+        // TODO: Reset scopes
+
+        term
     }
 
     /// Check that a pattern matches an expected type.
@@ -1333,7 +1359,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
     /// Check that a surface term conforms to the given type.
     ///
     /// Returns the elaborated term in the core language.
-    pub fn check(
+    fn check(
         &mut self,
         surface_term: &Term<'_, ByteRange>,
         expected_type: &ArcValue<'arena>,
@@ -1343,7 +1369,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
         match (surface_term, expected_type.as_ref()) {
             (Term::Let(range, def_pattern, def_type, def_expr, body_expr), _) => {
                 let (def_pattern, def_type_value) = self.synth_ann_pattern(def_pattern, *def_type);
-                let def_type = self.quote_env(self.scope).quote(&def_type_value); // FIXME: avoid requote if possible?
+                let def_type = self.quote_env().quote(self.scope, &def_type_value);
                 let def_expr = self.check(def_expr, &def_type_value);
                 let def_expr_value = self.eval_env().eval(&def_expr);
 
@@ -1530,7 +1556,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
     /// Synthesize the type of the given surface term.
     ///
     /// Returns the elaborated term in the core language and its type.
-    pub fn synth(
+    fn synth(
         &mut self,
         surface_term: &Term<'_, ByteRange>,
     ) -> (core::Term<'arena>, ArcValue<'arena>) {
@@ -1582,7 +1608,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
             }
             Term::Let(range, def_pattern, def_type, def_expr, body_expr) => {
                 let (def_pattern, def_type_value) = self.synth_ann_pattern(def_pattern, *def_type);
-                let def_type = self.quote_env(self.scope).quote(&def_type_value); // FIXME: avoid requote if possible?
+                let def_type = self.quote_env().quote(self.scope, &def_type_value);
                 let def_expr = self.check(def_expr, &def_type_value);
                 let def_expr_value = self.eval_env().eval(&def_expr);
 
@@ -1634,7 +1660,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 let mut params = Vec::with_capacity(patterns.len());
                 for (pattern, r#type) in *patterns {
                     let (pattern, type_value) = self.synth_ann_pattern(pattern, *r#type);
-                    let r#type = self.quote_env(self.scope).quote(&type_value);
+                    let r#type = self.quote_env().quote(self.scope, &type_value);
                     let (name, _) = self.push_local_param(pattern, type_value);
                     params.push((name, r#type));
                 }
@@ -1729,7 +1755,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
 
                 for expr_field in expr_fields {
                     let (expr, r#type) = self.synth(&expr_field.expr);
-                    types.push(self.quote_env(self.scope).quote(&r#type)); // NOTE: Unsure if these are correctly bound!
+                    types.push(self.quote_env().quote(self.scope, &r#type));
                     exprs.push(expr);
                 }
 
@@ -1931,7 +1957,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 _ => ByteRange::merge(&pattern.range(), &body_expr.range()).unwrap(),
             };
             let (pattern, type_value) = self.synth_ann_pattern(pattern, *r#type);
-            let r#type = self.quote_env(self.scope).quote(&type_value);
+            let r#type = self.quote_env().quote(self.scope, &type_value);
             let (name, _) = self.push_local_param(pattern, type_value);
             params.push((range, name, r#type));
         }
@@ -1944,7 +1970,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
             }
             None => {
                 let (body_expr, body_type) = self.synth(body_expr);
-                (body_expr, self.quote_env(self.scope).quote(&body_type))
+                (body_expr, self.quote_env().quote(self.scope, &body_type))
             }
         };
 
@@ -2188,7 +2214,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                         }
                         None => {
                             let (expr, type_value) = self.synth(expr);
-                            let r#type = self.quote_env(self.scope).quote(&type_value);
+                            let r#type = self.quote_env().quote(self.scope, &type_value);
                             (expr, r#type, type_value)
                         }
                     };
@@ -2267,7 +2293,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                         let def_name = Some(name);
                         let def_expr = self.eval_env().eval(match_info.scrutinee.expr);
                         let def_type_value = match_info.scrutinee.r#type.clone();
-                        let def_type = self.quote_env(self.scope).quote(&def_type_value);
+                        let def_type = self.quote_env().quote(self.scope, &def_type_value);
 
                         self.local_env.push_def(def_name, def_expr, def_type_value);
                         let body_expr = self.check(body_expr, &match_info.expected_type);

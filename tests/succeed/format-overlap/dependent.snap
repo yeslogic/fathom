@@ -1,7 +1,10 @@
 stdout = '''
-let record0 : _ = { length <- u8 };
-let record1 : _ = fun length => { _length <- u8, data <- array8 length u8 };
-let silly : _ = overlap {
+let record0 : Format = { length <- u8 };
+let record1 : U8 -> Format = fun length => {
+    _length <- u8,
+    data <- array8 length u8,
+};
+let silly : Format = overlap {
     record0 <- record0,
     record1 <- record1 record0.length,
 };

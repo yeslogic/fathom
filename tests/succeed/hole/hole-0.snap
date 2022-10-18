@@ -1,5 +1,5 @@
 stdout = '''
-fun (A : ?universe) -> A : Type
+fun (A : Type) -> A : Type
 '''
 stderr = '''
 note: solution found for hole `?universe`
