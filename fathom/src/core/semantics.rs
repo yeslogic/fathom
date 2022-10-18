@@ -1009,7 +1009,9 @@ impl<'in_arena, 'env> QuoteEnv<'in_arena, 'env> {
             },
             Head::MetaVar(var) if self.unfold_metas => {
                 match self.elim_env.meta_exprs.get_level(*var) {
+                    // The metavariable has a solution, so unfold it.
                     Some(Some(value)) => self.quote(scope, value),
+                    // NOTE: We might want to replace this with `ReportedError`.
                     Some(None) => Term::MetaVar(span, *var),
                     None => panic_any(Error::UnboundMetaVar),
                 }
@@ -1083,9 +1085,10 @@ impl<'arena, 'env> EvalEnv<'arena, 'env> {
             Term::ItemVar(span, var) => Term::ItemVar(*span, *var),
             Term::LocalVar(span, var) => Term::LocalVar(*span, *var),
 
-            // These might be meta-headed eliminations
+            // These terms might be elimination spines with metavariables at
+            // their head that need to be unfolded.
             Term::MetaVar(..) | Term::FunApp(..) | Term::RecordProj(..) | Term::ConstMatch(..) => {
-                match self.unfold_spine_metas(scope, term) {
+                match self.unfold_meta_var_spines(scope, term) {
                     TermOrValue::Term(term) => term,
                     TermOrValue::Value(value) => self.quote_env().quote(scope, &value),
                 }
@@ -1171,22 +1174,31 @@ impl<'arena, 'env> EvalEnv<'arena, 'env> {
     }
 
     /// Unfold elimination spines with solved metavariables at their head.
-    fn unfold_spine_metas<'out_arena>(
+    fn unfold_meta_var_spines<'out_arena>(
         &mut self,
         scope: &'out_arena Scope<'out_arena>,
         term: &Term<'arena>,
     ) -> TermOrValue<'arena, 'out_arena> {
+        // Recurse to find the head of an elimination, checking if it's a
+        // metavariable. If so, check if it has a solution, and then apply
+        // eliminations to the solution in turn on our way back out.
         match term {
             Term::MetaVar(span, var) => match self.elim_env.meta_exprs.get_level(*var) {
+                // The metavariable has a solution, so unfold it.
                 Some(Some(value)) => TermOrValue::Value(value.clone()),
+                // No solution was found for the metavariable.
+                // NOTE: We might want to replace this with `ReportedError`.
                 Some(None) => TermOrValue::Term(Term::MetaVar(*span, *var)),
                 None => panic_any(Error::UnboundMetaVar),
             },
             Term::InsertedMeta(span, var, infos) => {
                 match self.elim_env.meta_exprs.get_level(*var) {
+                    // The metavariable has a solution, so unfold it.
                     Some(Some(value)) => {
                         TermOrValue::Value(self.apply_local_infos(value.clone(), infos))
                     }
+                    // No solution was found for the metavariable.
+                    // NOTE: We might want to replace this with `ReportedError`.
                     Some(None) => {
                         let infos = scope.to_scope_from_iter(infos.iter().copied());
                         TermOrValue::Term(Term::InsertedMeta(*span, *var, infos))
@@ -1196,7 +1208,7 @@ impl<'arena, 'env> EvalEnv<'arena, 'env> {
             }
 
             Term::FunApp(span, head_expr, arg_expr) => {
-                match self.unfold_spine_metas(scope, head_expr) {
+                match self.unfold_meta_var_spines(scope, head_expr) {
                     TermOrValue::Term(head_expr) => TermOrValue::Term(Term::FunApp(
                         *span,
                         scope.to_scope(head_expr),
@@ -1209,7 +1221,7 @@ impl<'arena, 'env> EvalEnv<'arena, 'env> {
                 }
             }
             Term::RecordProj(span, head_expr, label) => {
-                match self.unfold_spine_metas(scope, head_expr) {
+                match self.unfold_meta_var_spines(scope, head_expr) {
                     TermOrValue::Term(head_expr) => TermOrValue::Term(Term::RecordProj(
                         *span,
                         scope.to_scope(head_expr),
@@ -1221,7 +1233,7 @@ impl<'arena, 'env> EvalEnv<'arena, 'env> {
                 }
             }
             Term::ConstMatch(span, head_expr, branches, default) => {
-                match self.unfold_spine_metas(scope, head_expr) {
+                match self.unfold_meta_var_spines(scope, head_expr) {
                     TermOrValue::Term(head_expr) => TermOrValue::Term(Term::ConstMatch(
                         *span,
                         scope.to_scope(head_expr),
