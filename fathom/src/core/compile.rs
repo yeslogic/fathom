@@ -1,14 +1,17 @@
+use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::fmt::Debug;
 
 use heck::ToPascalCase;
 
 use crate::core::{self, Const, Prim, Term};
-use crate::env::{EnvLen, UniqueEnv};
+use crate::env::{EnvLen, Index, UniqueEnv};
 use crate::{StringId, StringInterner};
 
 pub struct Context<'env, 'interner> {
     compile_env: &'env mut CompileEnv,
+    /// Names of top-level items.
+    items: UniqueEnv<StringId>,
     interner: &'interner RefCell<StringInterner>,
 }
 
@@ -64,13 +67,16 @@ enum Type {
     ReadF64Be,
     ReadF64Le,
 
-    ReadArray8(/*u8,*/ Box<Type>),
-    ReadArray16(/*u16,*/ Box<Type>),
-    ReadArray32(/*u32,*/ Box<ParseExpr>),
-    ReadArray64(/*u64,*/ Box<Type>),
+    ReadArray8(Box<ParseExpr>),
+    ReadArray16(Box<ParseExpr>),
+    ReadArray32(Box<ParseExpr>),
+    ReadArray64(Box<ParseExpr>),
 
     // len, elem
+    DoReadArray8(Box<ParseExpr>, Box<ParseExpr>),
+    DoReadArray16(Box<ParseExpr>, Box<ParseExpr>),
     DoReadArray32(Box<ParseExpr>, Box<ParseExpr>),
+    DoReadArray64(Box<ParseExpr>, Box<ParseExpr>),
 
     // I don't like this...
     PrimReadArray8,
@@ -132,6 +138,7 @@ pub struct Module {
 enum Item {
     Struct(Struct),
     ReadFn(ReadFn),
+    Var(StringId),
 }
 
 impl<'interner> CompileEnv {
@@ -405,6 +412,7 @@ impl<'arena, 'env, 'data, 'interner> Context<'env, 'interner> {
     ) -> Context<'env, 'interner> {
         Context {
             compile_env,
+            items: UniqueEnv::new(),
             interner,
         }
     }
@@ -412,12 +420,17 @@ impl<'arena, 'env, 'data, 'interner> Context<'env, 'interner> {
     pub fn compile_module(&mut self, module: &core::Module<'arena>) -> Result<Module, ()> {
         let mut m = Module { items: Vec::new() };
         for item in module.items {
-            self.compile_item(&mut m, item)?;
+            let name = self.compile_item(&mut m, item)?;
+            self.items.push(name);
         }
         Ok(m)
     }
 
-    fn compile_item(&mut self, module: &mut Module, item: &core::Item<'arena>) -> Result<(), ()> {
+    fn compile_item(
+        &mut self,
+        module: &mut Module,
+        item: &core::Item<'arena>,
+    ) -> Result<StringId, ()> {
         match item {
             core::Item::Def {
                 label,
@@ -431,7 +444,8 @@ impl<'arena, 'env, 'data, 'interner> Context<'env, 'interner> {
                     .map(|name| name.to_pascal_case())
                     .expect("missing string");
                 let name = self.interner.borrow_mut().get_or_intern(name);
-                self.compile_def(module, name, expr)
+                self.compile_def(module, name, expr)?;
+                Ok(name)
             }
         }
     }
@@ -443,7 +457,7 @@ impl<'arena, 'env, 'data, 'interner> Context<'env, 'interner> {
         expr: &Term<'arena>,
     ) -> Result<(), ()> {
         match expr {
-            Term::ItemVar(_, _) => unimplemented! {},
+            Term::ItemVar(_, _) => {}
             Term::LocalVar(_, _) => unimplemented! {},
             Term::MetaVar(_, _) => unimplemented! {},
             Term::InsertedMeta(_, _, _) => unimplemented! {},
@@ -496,7 +510,6 @@ impl<'arena, 'env, 'data, 'interner> Context<'env, 'interner> {
         // We already have `format_repr` but that operates on Values...
         match format {
             Term::ItemVar(_, _) => todo! {},
-
             Term::LocalVar(_, var) => {
                 let ty = self
                     .compile_env
@@ -606,14 +619,16 @@ impl<'arena, 'env, 'data, 'interner> Context<'env, 'interner> {
                 let args = self.compile_args(args);
 
                 match (ty, args.as_slice()) {
-                    (Type::PrimReadArray8, [len, ele]) => {
-                        todo!("read array 8")
+                    (Type::PrimReadArray8, [_, ele]) => Ok(Type::ReadArray8(Box::new(ele.clone()))),
+                    (Type::PrimReadArray16, [_, ele]) => {
+                        Ok(Type::ReadArray16(Box::new(ele.clone())))
                     }
-                    // (Type::PrimReadArray16, [len, ele]) => {}
                     (Type::PrimReadArray32, [_, ele]) => {
                         Ok(Type::ReadArray32(Box::new(ele.clone())))
                     }
-                    // (Type::PrimReadArray64, [len, ele]) => {}
+                    (Type::PrimReadArray64, [_, ele]) => {
+                        Ok(Type::ReadArray64(Box::new(ele.clone())))
+                    }
                     (Type::Todo, _) => todo!(),
                     (Type::Const(c), []) => todo!("const {:?}", c),
                     otherwise => panic!("invalid fun app {:?}", otherwise),
@@ -924,18 +939,22 @@ impl<'arena, 'env, 'data, 'interner> Context<'env, 'interner> {
                 let args = self.compile_args(args);
 
                 match (ty, args.as_slice()) {
-                    (Type::PrimReadArray8, [len, ele]) => {
-                        todo!("read array 8")
-                    }
-                    // (Type::PrimReadArray16, [len, ele]) => {}
-                    (Type::PrimReadArray32, [len, ele]) => {
-                        Ok(Type::DoReadArray32(
-                            // FIXME: The len should alrady be present? so should not trigger another read
-                            Box::new(len.clone()),
-                            Box::new(ele.clone()),
-                        ))
-                    }
-                    // (Type::PrimReadArray64, [len, ele]) => {}
+                    (Type::PrimReadArray8, [len, ele]) => Ok(Type::DoReadArray8(
+                        Box::new(len.clone()),
+                        Box::new(ele.clone()),
+                    )),
+                    (Type::PrimReadArray16, [len, ele]) => Ok(Type::DoReadArray16(
+                        Box::new(len.clone()),
+                        Box::new(ele.clone()),
+                    )),
+                    (Type::PrimReadArray32, [len, ele]) => Ok(Type::DoReadArray32(
+                        Box::new(len.clone()),
+                        Box::new(ele.clone()),
+                    )),
+                    (Type::PrimReadArray64, [len, ele]) => Ok(Type::DoReadArray64(
+                        Box::new(len.clone()),
+                        Box::new(ele.clone()),
+                    )),
                     (Type::Todo, _) => todo!(),
                     (otherwise, ele) => panic!("invalid fun app {:?}, {:?}", otherwise, ele),
                 }
@@ -1163,7 +1182,10 @@ impl<'arena, 'env, 'data, 'interner> Context<'env, 'interner> {
         let mut out = Vec::with_capacity(args.len());
         for arg in args.into_iter().rev() {
             let ty = match *arg {
-                // Term::ItemVar(_, _) => {}
+                Term::ItemVar(_, var) => {
+                    let name = self.items.get_level(*var).expect("missing item");
+                    ParseExpr::Var(*name)
+                }
                 Term::LocalVar(_, index) => self
                     .compile_env
                     .names
@@ -1260,6 +1282,7 @@ pub mod rust {
 
         fn item(&'arena self, item: &Item) -> DocBuilder<'arena, Self> {
             match item {
+                Item::Var(name) => self.string_id(*name),
                 Item::Struct(r#struct) => self.sequence(
                     self.concat([
                         self.text("struct"),
@@ -1369,9 +1392,11 @@ pub mod rust {
                 Type::ReadU16Le => self.text("ctxt.read_u16le()"),
                 Type::ReadU32Le => self.text("ctxt.read_u32le()"),
                 Type::ReadU64Le => self.text("ctxt.read_u64le()"),
-                Type::ReadArray32(ele) => self.concat([
+                Type::ReadArray8(ele)
+                | Type::ReadArray16(ele)
+                | Type::ReadArray32(ele)
+                | Type::ReadArray64(ele) => self.concat([
                     self.text("ReadArray<'a, "),
-                    // self.ty_prec((), ele),
                     self.parse_expr_prec(ele),
                     self.text(">"),
                 ]),
@@ -1461,18 +1486,16 @@ pub mod rust {
                 Type::ReadU16Le => self.text("ctxt.read_u16le()?"),
                 Type::ReadU32Le => self.text("ctxt.read_u32le()?"),
                 Type::ReadU64Le => self.text("ctxt.read_u64le()?"),
-                Type::DoReadArray32(len, ele) => {
-                    // FIXME: we need to put the rust repr of ele into the arg
-                    self.concat([
-                        self.text("ctxt.read_array::<"),
-                        // self.ty_prec((), ele),
-                        self.parse_expr_prec(ele),
-                        self.text(">("),
-                        // self.type_const(len),
-                        self.parse_expr(len),
-                        self.text(" as usize /* FIXME: cast */)?"),
-                    ])
-                }
+                Type::DoReadArray8(len, ele)
+                | Type::DoReadArray16(len, ele)
+                | Type::DoReadArray32(len, ele)
+                | Type::DoReadArray64(len, ele) => self.concat([
+                    self.text("ctxt.read_array::<"),
+                    self.parse_expr_prec(ele),
+                    self.text(">("),
+                    self.parse_expr(len),
+                    self.text(" as usize /* FIXME: cast */)?"),
+                ]),
                 Type::Const(Const::U8(val, style)) => self.text(style.format(val)),
                 Type::Const(Const::U16(val, style)) => self.text(style.format(val)),
                 Type::Const(Const::U32(val, style)) => self.text(style.format(val)),
