@@ -8,8 +8,8 @@ use std::slice::SliceIndex;
 use std::sync::Arc;
 
 use crate::core::semantics::{ArcValue, Elim, ElimEnv, Head, Value};
-use crate::core::{Const, Prim, UIntStyle};
-use crate::env::EnvLen;
+use crate::core::{Const, Prim, Term, UIntStyle};
+use crate::env::{EnvLen, SharedEnv};
 use crate::source::{Span, Spanned};
 
 #[derive(Clone, Debug)]
@@ -278,11 +278,12 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
 
     pub fn read_entrypoint(
         mut self,
-        format: ArcValue<'arena>,
+        format: &Term<'arena>,
     ) -> Result<HashMap<usize, Vec<ParsedRef<'arena>>>, ReadError<'arena>> {
         // Parse the entrypoint from the start of the binary data
-        self.pending_formats
-            .push((self.initial_buffer.start_offset(), format));
+        let offset = self.initial_buffer.start_offset();
+        let format = self.elim_env.eval_env(&mut SharedEnv::new()).eval(format);
+        self.pending_formats.push((offset, format));
 
         while let Some((pos, format)) = self.pending_formats.pop() {
             self.lookup_or_read_ref(pos, &format)?;
