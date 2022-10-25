@@ -24,16 +24,13 @@ def link_table : Pos -> {
     offset : U32,
     length : U32,
 } -> Format -> Format =
-fun file_start table_record table_format => link (pos_add_u32 file_start table_record.offset) (limit32 table_record.length table_format);
+fun file_start table_record table_format => link (file_start + table_record.offset) (limit32 table_record.length table_format);
 def platform_id : Format = u16be;
 def encoding_id : U16 -> Format = fun platform => u16be;
 def empty : Format = {};
 def offset32 : Pos -> Format -> Format = fun base format => {
     offset <- u32be,
-    link <- match offset {
-        0 => empty,
-        _ => link (pos_add_u32 base offset) format,
-    },
+    link <- match offset { 0 => empty, _ => link (base + offset) format },
 };
 def language_id : Format = u16be;
 def cmap_language_id : U16 -> Format = fun platform => language_id;
@@ -54,7 +51,7 @@ def cmap_subtable_format4 : U16 -> Format = fun platform => {
     length <- u16be,
     language <- cmap_language_id platform,
     seg_count_x2 <- u16be,
-    let seg_count : U16 = u16_div seg_count_x2 2,
+    let seg_count : U16 = seg_count_x2 / (2 : U16),
     search_range <- u16be,
     entry_selector <- u16be,
     range_shift <- u16be,
@@ -238,14 +235,11 @@ def long_horizontal_metric : Format = {
 def htmx_table : U16 -> U16 -> Format =
 fun number_of_long_horizontal_metrics num_glyphs => {
     h_metrics <- array16 number_of_long_horizontal_metrics long_horizontal_metric,
-    left_side_bearings <- array16 (u16_sub num_glyphs number_of_long_horizontal_metrics) s16be,
+    left_side_bearings <- array16 (num_glyphs - number_of_long_horizontal_metrics) s16be,
 };
 def offset16 : Pos -> Format -> Format = fun base format => {
     offset <- u16be,
-    link <- match offset {
-        0 => empty,
-        _ => link (pos_add_u16 base offset) format,
-    },
+    link <- match offset { 0 => empty, _ => link (base + offset) format },
 };
 def name_record : Pos -> Format = fun storage_start => {
     platform <- platform_id,
@@ -268,10 +262,10 @@ def name_table : Format = {
     version <- u16be,
     name_count <- u16be,
     storage_offset <- u16be,
-    name_records <- array16 name_count (name_record (pos_add_u16 table_start storage_offset)),
+    name_records <- array16 name_count (name_record (table_start + storage_offset)),
     data <- match version {
         0 => {},
-        1 => name_version_1 (pos_add_u16 table_start storage_offset),
+        1 => name_version_1 (table_start + storage_offset),
         _ => unknown_table,
     },
 };
@@ -400,8 +394,8 @@ def glyf_table : U16 -> Format = fun num_glyphs => {
 };
 def loca_table : U16 -> S16 -> Format = fun num_glyphs index_to_loc_format => {
     offsets <- match index_to_loc_format {
-        0 => array16 (u16_add num_glyphs 1) u16be,
-        1 => array16 (u16_add num_glyphs 1) u32be,
+        0 => array16 (num_glyphs + (1 : U16)) u16be,
+        1 => array16 (num_glyphs + (1 : U16)) u32be,
         _ => unknown_table,
     },
 };
@@ -463,20 +457,19 @@ def attach_list : Format = let attach_point_table : Format = {
     attach_point_offsets <- array16 glyph_count (offset16 table_start attach_point_table),
 };
 def device_table : Format = let u16_div_ceil : U16 -> U16 -> U16 =
-fun numerator denominator => let quotient : U16 = u16_div numerator denominator;
-match (u16_mul quotient denominator < numerator) {
+fun numerator denominator => let quotient : U16 = numerator / denominator;
+match ((quotient * denominator) < numerator) {
     false => quotient,
-    true => u16_add quotient 1,
+    true => quotient + (1 : U16),
 };
 let delta_bits : U16 -> U16 -> U16 =
 fun delta_format num_sizes => match delta_format {
-    0x1 => u16_mul num_sizes 2,
-    0x2 => u16_mul num_sizes 4,
-    0x3 => u16_mul num_sizes 8,
+    0x1 => num_sizes * (2 : U16),
+    0x2 => num_sizes * (4 : U16),
+    0x3 => num_sizes * (8 : U16),
     _ => 0,
 };
-let num_sizes : U16 -> U16 -> U16 =
-fun start end => u16_add (u16_sub end start) 1;
+let num_sizes : U16 -> U16 -> U16 = fun start end => end - start + (1 : U16);
 {
     start_size <- u16be,
     end_size <- u16be,
@@ -644,7 +637,7 @@ def alternate_substitution : Format = let alternate_set : Format = {
 def ligature_substitution : Format = let ligature_table : Format = {
     ligature_glyph <- u16be,
     component_count <- u16be,
-    component_glyph_ids <- array16 (u16_sub component_count 1) u16be,
+    component_glyph_ids <- array16 (component_count - (1 : U16)) u16be,
 };
 let ligature_set : Format = {
     table_start <- stream_pos,
@@ -670,7 +663,7 @@ def sequence_lookup_record : Format = {
 def sequence_context_format1 : Format = let sequence_rule : Format = {
     glyph_count <- u16be,
     seq_lookup_count <- u16be,
-    input_sequence <- array16 (u16_sub glyph_count 1) u16be,
+    input_sequence <- array16 (glyph_count - (1 : U16)) u16be,
     seq_lookup_records <- array16 seq_lookup_count sequence_lookup_record,
 };
 let sequence_rule_set : Format = {
@@ -687,7 +680,7 @@ let sequence_rule_set : Format = {
 def sequence_context_format2 : Format = let class_sequence_rule : Format = {
     glyph_count <- u16be,
     seq_lookup_count <- u16be,
-    input_sequence <- array16 (u16_sub glyph_count 1) u16be,
+    input_sequence <- array16 (glyph_count - (1 : U16)) u16be,
     seqLookupRecords <- array16 seq_lookup_count sequence_lookup_record,
 };
 let class_sequence_rule_set : Format = {
@@ -1211,7 +1204,7 @@ Format = {
     backtrack_glyph_count <- u16be,
     backtrack_sequence <- array16 backtrack_glyph_count u16be,
     input_glyph_count <- u16be,
-    input_sequence <- array16 (u16_sub input_glyph_count 1) u16be,
+    input_sequence <- array16 (input_glyph_count - (1 : U16)) u16be,
     lookahead_glyph_count <- u16be,
     lookahead_sequence <- array16 lookahead_glyph_count u16be,
     seq_lookup_count <- u16be,
@@ -1233,7 +1226,7 @@ let chained_class_sequence_rule : Format = {
     backtrack_glyph_count <- u16be,
     backtrack_sequence <- array16 backtrack_glyph_count u16be,
     input_glyph_count <- u16be,
-    input_sequence <- array16 (u16_sub input_glyph_count 1) u16be,
+    input_sequence <- array16 (input_glyph_count - (1 : U16)) u16be,
     lookahead_glyph_count <- u16be,
     lookahead_sequence <- array16 lookahead_glyph_count u16be,
     seq_lookup_count <- u16be,

@@ -20,6 +20,7 @@
 //! - [Lecture Notes on Bidirectional Type Checking](https://www.cs.cmu.edu/~fp/courses/15312-f04/handouts/15-bidirectional.pdf)
 //! - [elaboration-zoo](https://github.com/AndrasKovacs/elaboration-zoo/)
 
+use fxhash::FxHashMap;
 use scoped_arena::Scope;
 use std::cell::RefCell;
 use std::str::FromStr;
@@ -38,78 +39,20 @@ mod order;
 mod reporting;
 mod unification;
 
-/// Top-level item environment.
-struct ItemEnv<'arena> {
-    /// Names of items.
-    names: UniqueEnv<StringId>,
-    /// Types of items.
-    types: UniqueEnv<ArcValue<'arena>>,
-    /// Expressions of items.
-    exprs: UniqueEnv<ArcValue<'arena>>,
+/// Environment of primitives
+struct PrimEnv<'arena> {
+    // TODO: Provide a way to reflect these as top-level items in a module for
+    //       improved documentation and error messages.
+    entries: FxHashMap<StringId, (Prim, ArcValue<'arena>)>,
 }
 
-impl<'arena> ItemEnv<'arena> {
-    /// Construct a new, empty environment.
-    fn new() -> ItemEnv<'arena> {
-        ItemEnv {
-            names: UniqueEnv::new(),
-            types: UniqueEnv::new(),
-            exprs: UniqueEnv::new(),
-        }
-    }
-
-    fn push_definition(
-        &mut self,
-        name: StringId,
-        r#type: ArcValue<'arena>,
-        expr: ArcValue<'arena>,
-    ) {
-        self.names.push(name);
-        self.types.push(r#type);
-        self.exprs.push(expr);
-    }
-}
-
-/// Local variable environment.
-///
-/// This is used for keeping track of [local variables] that are bound by the
-/// program, for example by function parameters, let bindings, or pattern
-/// matching.
-///
-/// This environment behaves as a stack. As scopes are entered, it is important
-/// to remember to call either [`LocalEnv::push_def`] or [`LocalEnv::push_param`].
-/// On scope exit, it is important to remember to call [`LocalEnv::pop`].
-/// Multiple bindings can be removed at once with [`LocalEnv::truncate`].
-///
-/// [local variables]: core::Term::LocalVar
-struct LocalEnv<'arena> {
-    /// Names of local variables.
-    names: UniqueEnv<Option<StringId>>,
-    /// Types of local variables.
-    types: UniqueEnv<ArcValue<'arena>>,
-    /// Information about the local binders. Used when inserting new
-    /// metavariables during [evaluation][semantics::EvalEnv::eval].
-    infos: UniqueEnv<core::LocalInfo>,
-    /// Expressions that will be substituted for local variables during
-    /// [evaluation][semantics::EvalEnv::eval].
-    exprs: SharedEnv<ArcValue<'arena>>,
-}
-
-impl<'arena> LocalEnv<'arena> {
-    /// Construct a new, empty environment.
-    fn new() -> LocalEnv<'arena> {
-        LocalEnv {
-            names: UniqueEnv::new(),
-            types: UniqueEnv::new(),
-            infos: UniqueEnv::new(),
-            exprs: SharedEnv::new(),
-        }
-    }
-
+impl<'arena> PrimEnv<'arena> {
     fn default(
         interner: &RefCell<StringInterner>,
         scope: &'arena Scope<'arena>,
-    ) -> LocalEnv<'arena> {
+    ) -> PrimEnv<'arena> {
+        // TODO: Clean this up somehow!
+
         use crate::core::Prim::*;
         use crate::core::Term;
 
@@ -134,7 +77,7 @@ impl<'arena> LocalEnv<'arena> {
         const ARRAY64_TYPE: Term<'_> = Term::Prim(Span::Empty, Array64Type);
         const POS_TYPE: Term<'_> = Term::Prim(Span::Empty, PosType);
 
-        let mut env = LocalEnvBuilder::new(interner, scope);
+        let mut env = PrimEnvBuilder::new(interner, scope);
 
         env.define_prim(VoidType, &UNIVERSE);
         env.define_prim(BoolType, &UNIVERSE);
@@ -508,6 +451,133 @@ impl<'arena> LocalEnv<'arena> {
 
         env.build()
     }
+}
+
+struct PrimEnvBuilder<'interner, 'arena> {
+    entries: FxHashMap<StringId, (Prim, ArcValue<'arena>)>,
+    interner: &'interner RefCell<StringInterner>,
+    scope: &'arena Scope<'arena>,
+    meta_exprs: UniqueEnv<Option<ArcValue<'arena>>>,
+    item_exprs: UniqueEnv<ArcValue<'arena>>,
+    local_exprs: SharedEnv<ArcValue<'arena>>,
+}
+
+impl<'interner, 'arena> PrimEnvBuilder<'interner, 'arena> {
+    fn new(
+        interner: &'interner RefCell<StringInterner>,
+        scope: &'arena Scope<'arena>,
+    ) -> PrimEnvBuilder<'interner, 'arena> {
+        PrimEnvBuilder {
+            entries: FxHashMap::with_hasher(fxhash::FxBuildHasher::default()),
+            interner,
+            scope,
+            meta_exprs: UniqueEnv::new(),
+            item_exprs: UniqueEnv::new(),
+            local_exprs: SharedEnv::new(),
+        }
+    }
+
+    fn name(&self, name: &'static str) -> Option<StringId> {
+        Some(self.interner.borrow_mut().get_or_intern_static(name))
+    }
+
+    fn define_prim(&mut self, prim: Prim, r#type: &core::Term<'arena>) {
+        let name = self.interner.borrow_mut().get_or_intern_static(prim.name());
+        let r#type = ElimEnv::new(&self.item_exprs, &self.meta_exprs)
+            .eval_env(&mut self.local_exprs)
+            .eval(r#type);
+        self.entries.insert(name, (prim, r#type));
+    }
+
+    fn define_prim_fun<const ARITY: usize>(
+        &mut self,
+        prim: Prim,
+        param_types: [&'arena core::Term<'arena>; ARITY],
+        body_type: &'arena core::Term<'arena>,
+    ) {
+        self.define_prim(
+            prim,
+            (param_types.iter().rev()).fold(body_type, |r#type, param_type| {
+                self.scope
+                    .to_scope(core::Term::FunType(Span::Empty, None, param_type, r#type))
+            }),
+        );
+    }
+
+    fn build(self) -> PrimEnv<'arena> {
+        PrimEnv {
+            entries: self.entries,
+        }
+    }
+}
+
+/// Top-level item environment.
+struct ItemEnv<'arena> {
+    /// Names of items.
+    names: UniqueEnv<StringId>,
+    /// Types of items.
+    types: UniqueEnv<ArcValue<'arena>>,
+    /// Expressions of items.
+    exprs: UniqueEnv<ArcValue<'arena>>,
+}
+
+impl<'arena> ItemEnv<'arena> {
+    /// Construct a new, empty environment.
+    fn new() -> ItemEnv<'arena> {
+        ItemEnv {
+            names: UniqueEnv::new(),
+            types: UniqueEnv::new(),
+            exprs: UniqueEnv::new(),
+        }
+    }
+
+    fn push_definition(
+        &mut self,
+        name: StringId,
+        r#type: ArcValue<'arena>,
+        expr: ArcValue<'arena>,
+    ) {
+        self.names.push(name);
+        self.types.push(r#type);
+        self.exprs.push(expr);
+    }
+}
+
+/// Local variable environment.
+///
+/// This is used for keeping track of [local variables] that are bound by the
+/// program, for example by function parameters, let bindings, or pattern
+/// matching.
+///
+/// This environment behaves as a stack. As scopes are entered, it is important
+/// to remember to call either [`LocalEnv::push_def`] or [`LocalEnv::push_param`].
+/// On scope exit, it is important to remember to call [`LocalEnv::pop`].
+/// Multiple bindings can be removed at once with [`LocalEnv::truncate`].
+///
+/// [local variables]: core::Term::LocalVar
+struct LocalEnv<'arena> {
+    /// Names of local variables.
+    names: UniqueEnv<Option<StringId>>,
+    /// Types of local variables.
+    types: UniqueEnv<ArcValue<'arena>>,
+    /// Information about the local binders. Used when inserting new
+    /// metavariables during [evaluation][semantics::EvalEnv::eval].
+    infos: UniqueEnv<core::LocalInfo>,
+    /// Expressions that will be substituted for local variables during
+    /// [evaluation][semantics::EvalEnv::eval].
+    exprs: SharedEnv<ArcValue<'arena>>,
+}
+
+impl<'arena> LocalEnv<'arena> {
+    /// Construct a new, empty environment.
+    fn new() -> LocalEnv<'arena> {
+        LocalEnv {
+            names: UniqueEnv::new(),
+            types: UniqueEnv::new(),
+            infos: UniqueEnv::new(),
+            exprs: SharedEnv::new(),
+        }
+    }
 
     /// Get the length of the local environment.
     fn len(&self) -> EnvLen {
@@ -555,62 +625,6 @@ impl<'arena> LocalEnv<'arena> {
         self.types.truncate(len);
         self.infos.truncate(len);
         self.exprs.truncate(len);
-    }
-}
-
-struct LocalEnvBuilder<'i, 'arena> {
-    env: LocalEnv<'arena>,
-    interner: &'i RefCell<StringInterner>,
-    scope: &'arena Scope<'arena>,
-}
-
-impl<'i, 'arena> LocalEnvBuilder<'i, 'arena> {
-    fn new(
-        interner: &'i RefCell<StringInterner>,
-        scope: &'arena Scope<'arena>,
-    ) -> LocalEnvBuilder<'i, 'arena> {
-        let env = LocalEnv::new();
-        LocalEnvBuilder {
-            env,
-            interner,
-            scope,
-        }
-    }
-
-    fn name(&self, name: &'static str) -> Option<StringId> {
-        Some(self.interner.borrow_mut().get_or_intern_static(name))
-    }
-
-    fn define_prim(&mut self, prim: Prim, r#type: &core::Term<'arena>) {
-        let name = self.name(prim.name());
-        let meta_exprs = UniqueEnv::new();
-        let item_exprs = UniqueEnv::new();
-        let mut local_exprs = SharedEnv::new();
-
-        let expr = Spanned::empty(Arc::new(Value::prim(prim, [])));
-        let r#type = ElimEnv::new(&item_exprs, &meta_exprs)
-            .eval_env(&mut local_exprs)
-            .eval(r#type);
-        self.env.push_def(name, expr, r#type);
-    }
-
-    fn define_prim_fun<const ARITY: usize>(
-        &mut self,
-        prim: Prim,
-        param_types: [&'arena core::Term<'arena>; ARITY],
-        body_type: &'arena core::Term<'arena>,
-    ) {
-        self.define_prim(
-            prim,
-            (param_types.iter().rev()).fold(body_type, |r#type, param_type| {
-                self.scope
-                    .to_scope(core::Term::FunType(Span::Empty, None, param_type, r#type))
-            }),
-        );
-    }
-
-    fn build(self) -> LocalEnv<'arena> {
-        self.env
     }
 }
 
@@ -710,12 +724,14 @@ pub struct Context<'interner, 'arena> {
     format_type: ArcValue<'static>,
     bool_type: ArcValue<'static>,
 
+    /// Primitive environment.
+    prim_env: PrimEnv<'arena>,
     /// Item environment.
     item_env: ItemEnv<'arena>,
-    /// Local environment.
-    local_env: LocalEnv<'arena>,
     /// Meta environment.
     meta_env: MetaEnv<'arena>,
+    /// Local environment.
+    local_env: LocalEnv<'arena>,
     /// A partial renaming to be used during [`unification`].
     renaming: unification::PartialRenaming,
     /// Diagnostic messages encountered during elaboration.
@@ -736,12 +752,20 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
             format_type: Spanned::empty(Arc::new(Value::prim(Prim::FormatType, []))),
             bool_type: Spanned::empty(Arc::new(Value::prim(Prim::BoolType, []))),
 
+            prim_env: PrimEnv::default(interner, scope),
             item_env: ItemEnv::new(),
-            local_env: LocalEnv::default(interner, scope),
             meta_env: MetaEnv::new(),
+            local_env: LocalEnv::new(),
             renaming: unification::PartialRenaming::new(),
             messages: Vec::new(),
         }
+    }
+
+    /// Lookup a primitive name in the context.
+    fn get_prim_name(&self, name: StringId) -> Option<(Prim, &ArcValue<'arena>)> {
+        let (prim, r#type) = self.prim_env.entries.get(&name)?;
+
+        Some((*prim, r#type))
     }
 
     /// Lookup an item name in the context.
@@ -1567,6 +1591,9 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 }
                 if let Some((term, r#type)) = self.get_item_name(*name) {
                     return (core::Term::ItemVar(range.into(), term), r#type.clone());
+                }
+                if let Some((prim, r#type)) = self.get_prim_name(*name) {
+                    return (core::Term::Prim(range.into(), prim), r#type.clone());
                 }
 
                 self.push_message(Message::UnboundName {

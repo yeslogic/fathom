@@ -1,7 +1,7 @@
 stdout = '''
 let format : Format = {
     seg_count_x2 <- u16be,
-    let seg_count : U16 = u16_div seg_count_x2 2,
+    let seg_count : U16 = seg_count_x2 / (2 : U16),
     start_code <- array16 seg_count u16be,
     id_delta <- array16 seg_count s16be,
 };
