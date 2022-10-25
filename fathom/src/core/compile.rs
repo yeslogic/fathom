@@ -94,12 +94,14 @@ struct Struct {
     name: StringId,
     fields: Vec<(StringId, Type)>,
     borrows_data: bool,
+    fixed_size: Option<usize>,
 }
 
 #[derive(Debug)]
 struct ReadStruct {
     name: StringId,
     borrows_data: bool,
+    fixed_size: Option<usize>,
 }
 
 #[derive(Debug)]
@@ -127,6 +129,48 @@ enum ParseExpr {
     Const(Type),
     // A reference to a variable
     Var(StringId),
+}
+
+impl ParseExpr {
+    pub(crate) fn repr(&self) -> ParseExpr {
+        match self {
+            ParseExpr::Const(ty) => match ty {
+                Type::ReadU8 => ParseExpr::Const(Type::U8),
+                Type::ReadU16Be => ParseExpr::Const(Type::U16),
+                Type::ReadU16Le => ParseExpr::Const(Type::U16),
+                Type::ReadU32Be => ParseExpr::Const(Type::U32),
+                Type::ReadU32Le => ParseExpr::Const(Type::U32),
+                Type::ReadU64Be => ParseExpr::Const(Type::U64),
+                Type::ReadU64Le => ParseExpr::Const(Type::U64),
+                Type::ReadI8 => ParseExpr::Const(Type::I8),
+                Type::ReadI16Be => ParseExpr::Const(Type::I16),
+                Type::ReadI16Le => ParseExpr::Const(Type::I16),
+                Type::ReadI32Be => ParseExpr::Const(Type::I32),
+                Type::ReadI32Le => ParseExpr::Const(Type::I32),
+                Type::ReadI64Be => ParseExpr::Const(Type::I64),
+                Type::ReadI64Le => ParseExpr::Const(Type::I64),
+                // Type::ReadF32Be => Type::F32,
+                // Type::ReadF32Le => Type::F32,
+                // Type::ReadF64Be => Type::F64,
+                // Type::ReadF64Le => Type::F64,
+                // Type::ReadArray8(_) => {}
+                // Type::ReadArray16(_) => {}
+                // Type::ReadArray32(_) => {}
+                // Type::ReadArray64(_) => {}
+                // Type::DoReadArray8(_, _) => {}
+                // Type::DoReadArray16(_, _) => {}
+                // Type::DoReadArray32(_, _) => {}
+                // Type::DoReadArray64(_, _) => {}
+                // Type::PrimReadArray8 => {}
+                // Type::PrimReadArray16 => {}
+                // Type::PrimReadArray32 => {}
+                // Type::PrimReadArray64 => {}
+                Type::Todo => todo! {},
+                _ => unimplemented!("unexpected type"),
+            },
+            ParseExpr::Var(_) => todo!("can we get here?"),
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -487,6 +531,7 @@ impl<'arena, 'env, 'data, 'interner> Context<'env, 'interner> {
                     name: label,
                     fields,
                     borrows_data,
+                    fixed_size: self.fixed_size(expr),
                 };
                 dbg!(&r#struct);
 
@@ -887,6 +932,7 @@ impl<'arena, 'env, 'data, 'interner> Context<'env, 'interner> {
                 let read_struct = ReadStruct {
                     name,
                     borrows_data: r#struct.borrows_data,
+                    fixed_size: r#struct.fixed_size,
                 };
                 let st = ReadExpr::Struct {
                     // name of the struct
@@ -1225,6 +1271,69 @@ impl<'arena, 'env, 'data, 'interner> Context<'env, 'interner> {
         }
         out
     }
+
+    fn fixed_size(&mut self, format: &Term<'arena>) -> Option<usize> {
+        match format {
+            Term::ItemVar(_, _) => unimplemented! {},
+            Term::LocalVar(_, var) => {
+                let ty = self
+                    .compile_env
+                    .types
+                    .get_index(*var)
+                    .expect("invalid rigid var")
+                    .clone();
+
+                // Get the size for this
+                match ty {
+                    Type::ReadU8 => Some(1),
+                    Type::ReadU16Be => Some(2),
+                    Type::ReadU16Le => Some(2),
+                    Type::ReadU32Be => Some(4),
+                    Type::ReadU32Le => Some(4),
+                    Type::ReadU64Be => Some(8),
+                    Type::ReadU64Le => Some(8),
+                    Type::ReadI8 => Some(1),
+                    Type::ReadI16Be => Some(2),
+                    Type::ReadI16Le => Some(2),
+                    Type::ReadI32Be => Some(4),
+                    Type::ReadI32Le => Some(4),
+                    Type::ReadI64Be => Some(8),
+                    Type::ReadI64Le => Some(8),
+                    Type::ReadF32Be => Some(4),
+                    Type::ReadF32Le => Some(4),
+                    Type::ReadF64Be => Some(8),
+                    Type::ReadF64Le => Some(8),
+
+                    Type::Todo => None,
+                    _ => todo!("fixed size: {:?}", ty),
+                }
+            }
+            Term::MetaVar(_, _) => unimplemented! {},
+            Term::InsertedMeta(_, _, _) => unimplemented! {},
+            Term::Ann(_, _, _) => unimplemented! {},
+            Term::Let(_, _, _, _, _) => unimplemented! {},
+            Term::Universe(_) => unimplemented! {},
+            Term::FunType(_, _, _, _) => unimplemented! {},
+            Term::FunLit(_, _, _) => unimplemented! {},
+            Term::FunApp(_, _, _) => unimplemented! {},
+            Term::RecordType(_, _, _) => unimplemented! {},
+            Term::RecordLit(_, _, _) => unimplemented! {},
+            Term::RecordProj(_, _, _) => unimplemented! {},
+            Term::ArrayLit(_, _) => unimplemented! {},
+            Term::FormatRecord(_, labels, formats) => {
+                let mut size = 0;
+                for field in *formats {
+                    size += self.fixed_size(field)?;
+                }
+                Some(size)
+            }
+            Term::FormatCond(_, _, _, _) => unimplemented! {},
+            Term::FormatOverlap(_, _, _) => unimplemented! {},
+            Term::Prim(_, _) => unimplemented! {},
+            Term::ConstLit(_, _) => unimplemented! {},
+            Term::ConstMatch(_, _, _, _) => unimplemented! {},
+        }
+    }
 }
 
 fn ty_borrows_data(ty: &Type) -> bool {
@@ -1308,29 +1417,66 @@ pub mod rust {
                     self.concat([self.text("}"), self.hardline()]),
                 ),
                 Item::ReadFn(readfn) => {
-                    let docs = vec![
-                        self.concat([self.text("type HostType = Self;"), self.hardline()]),
-                        self.read_fn(readfn),
-                    ];
-
-                    self.concat([
-                        self.text("impl<'a> ReadBinary<'a> for"),
-                        self.space(),
-                        self.string_id(readfn.r#struct.name),
-                        if readfn.r#struct.borrows_data {
-                            self.text("<'a>")
-                        } else {
-                            self.text("") // FIXME: better way to do this?
-                        },
-                        self.space(),
-                        self.text("{"),
-                        self.hardline().nest(INDENT),
-                        self.intersperse(docs, self.hardline()).nest(INDENT),
-                        self.hardline(),
-                        self.text("}"),
-                    ])
+                    if readfn.r#struct.fixed_size.is_some() {
+                        self.read_from_impl(readfn)
+                    } else {
+                        self.read_binary_impl(readfn)
+                    }
                 }
             }
+        }
+
+        fn read_from_impl(&'arena self, readfn: &ReadFn) -> DocBuilder<'arena, Self> {
+            // Collect the read type of each field
+            let docs = vec![
+                self.concat([
+                    self.text("type ReadType = "),
+                    self.read_types(readfn),
+                    self.text(";"),
+                    self.hardline(),
+                ]),
+                self.read_from_fn(readfn),
+            ];
+            self.concat([
+                self.text("impl<'a> ReadFrom<'a> for"),
+                self.space(),
+                self.string_id(readfn.r#struct.name),
+                if readfn.r#struct.borrows_data {
+                    self.text("<'a>")
+                } else {
+                    self.text("") // FIXME: better way to do this?
+                },
+                self.space(),
+                self.text("{"),
+                self.hardline().nest(INDENT),
+                self.intersperse(docs, self.hardline()).nest(INDENT),
+                self.hardline(),
+                self.text("}"),
+            ])
+        }
+
+        fn read_binary_impl(&'arena self, readfn: &ReadFn) -> DocBuilder<'arena, Self> {
+            let docs = vec![
+                self.concat([self.text("type HostType = Self;"), self.hardline()]),
+                self.read_fn(readfn),
+            ];
+
+            self.concat([
+                self.text("impl<'a> ReadBinary<'a> for"),
+                self.space(),
+                self.string_id(readfn.r#struct.name),
+                if readfn.r#struct.borrows_data {
+                    self.text("<'a>")
+                } else {
+                    self.text("") // FIXME: better way to do this?
+                },
+                self.space(),
+                self.text("{"),
+                self.hardline().nest(INDENT),
+                self.intersperse(docs, self.hardline()).nest(INDENT),
+                self.hardline(),
+                self.text("}"),
+            ])
         }
 
         fn imports(&'arena self) -> DocBuilder<'arena, Self> {
@@ -1352,6 +1498,75 @@ pub mod rust {
                 self.hardline(),
                 self.text("}"),
             ])
+        }
+
+        fn read_from_fn(&'arena self, readfn: &ReadFn) -> DocBuilder<'arena, Self> {
+            let args = self.read_types_repr(readfn);
+            self.concat([
+                self.text("fn from(args: "),
+                args,
+                self.text(") -> Self {"),
+                self.hardline().nest(INDENT),
+                self.intersperse(
+                    readfn.exprs.iter().map(|expr| self.from_expr(expr)),
+                    self.concat([self.text(";"), self.hardline()]),
+                )
+                .nest(INDENT),
+                self.hardline(),
+                self.text("}"),
+            ])
+        }
+
+        fn read_types(&'arena self, readfn: &ReadFn) -> DocBuilder<'arena, Self> {
+            self.concat([
+                self.text("("),
+                self.intersperse(
+                    readfn.exprs.iter().map(|expr| self.read_type(expr)),
+                    self.text(", "),
+                ),
+                self.text(")"),
+            ])
+        }
+
+        fn read_type(&'arena self, expr: &ReadExpr) -> DocBuilder<'arena, Self> {
+            match expr {
+                ReadExpr::Struct {
+                    name,
+                    parse_fields,
+                    fields,
+                } => self.intersperse(
+                    parse_fields
+                        .iter()
+                        .map(|(_name, field)| self.parse_expr_prec(field)),
+                    self.text(", "),
+                ),
+            }
+        }
+
+        fn read_types_repr(&'arena self, readfn: &ReadFn) -> DocBuilder<'arena, Self> {
+            self.concat([
+                self.text("("),
+                self.intersperse(
+                    readfn.exprs.iter().map(|expr| self.read_type_repr(expr)),
+                    self.text(", "),
+                ),
+                self.text(")"),
+            ])
+        }
+
+        fn read_type_repr(&'arena self, expr: &ReadExpr) -> DocBuilder<'arena, Self> {
+            match expr {
+                ReadExpr::Struct {
+                    name,
+                    parse_fields,
+                    fields,
+                } => self.intersperse(
+                    parse_fields
+                        .iter()
+                        .map(|(_name, field)| self.parse_expr_prec(&field.repr())),
+                    self.text(", "),
+                ),
+            }
         }
 
         // This is used for defining variables and struct fields
@@ -1385,13 +1600,13 @@ pub mod rust {
                     self.text("]"),
                 ]),
                 Type::Bool => self.text("bool"),
-                Type::ReadU8 => self.text("ctxt.read_u8()"),
+                Type::ReadU8 => self.text("U8"),
                 Type::ReadU16Be => self.text("U16Be"),
                 Type::ReadU32Be => self.text("U32Be"),
-                Type::ReadU64Be => self.text("ctxt.read_u64be()"),
-                Type::ReadU16Le => self.text("ctxt.read_u16le()"),
-                Type::ReadU32Le => self.text("ctxt.read_u32le()"),
-                Type::ReadU64Le => self.text("ctxt.read_u64le()"),
+                Type::ReadU64Be => self.text("U64Be"),
+                Type::ReadU16Le => self.text("U32Le"),
+                Type::ReadU32Le => self.text("U32Le"),
+                Type::ReadU64Le => self.text("U64Le"),
                 Type::ReadArray8(ele)
                 | Type::ReadArray16(ele)
                 | Type::ReadArray32(ele)
@@ -1416,6 +1631,16 @@ pub mod rust {
                     self.hardline(),
                     self.construct_struct(*name, fields),
                 ]),
+            }
+        }
+
+        fn from_expr(&'arena self, expr: &ReadExpr) -> DocBuilder<'arena, Self> {
+            match expr {
+                ReadExpr::Struct {
+                    name,
+                    parse_fields,
+                    fields,
+                } => self.concat([self.construct_struct_from(*name, fields)]),
             }
         }
 
@@ -1460,6 +1685,27 @@ pub mod rust {
                 }),
                 self.text(","),
                 self.text("})"),
+            )
+        }
+
+        fn construct_struct_from(
+            &'arena self,
+            name: StringId,
+            fields: &[(StringId, ParseExpr)],
+        ) -> DocBuilder<'arena, Self> {
+            self.sequence(
+                self.concat([self.string_id(name), self.space(), self.text("{")]),
+                fields.iter().enumerate().map(|(i, (name, field))| {
+                    self.concat([
+                        self.string_id(*name),
+                        self.text(":"),
+                        self.space(),
+                        self.text("args."),
+                        self.text(i.to_string()),
+                    ])
+                }),
+                self.text(","),
+                self.text("}"),
             )
         }
 
