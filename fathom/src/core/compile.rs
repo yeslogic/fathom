@@ -1,4 +1,3 @@
-use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::fmt::Debug;
 
@@ -29,9 +28,10 @@ pub struct CompileEnvBuilder<'interner> {
 
 #[derive(Debug, Clone)]
 enum Type {
-    Bool,
     Const(Const),
+    Item(StringId),
 
+    Bool,
     U8,
     U16,
     U32,
@@ -87,9 +87,87 @@ enum Type {
     Todo,
 }
 
+impl Type {
+    fn repr(&self) -> Type {
+        match self {
+            Type::ReadU8 => Type::U8,
+            Type::ReadU16Be => Type::U16,
+            Type::ReadU16Le => Type::U16,
+            Type::ReadU32Be => Type::U32,
+            Type::ReadU32Le => Type::U32,
+            Type::ReadU64Be => Type::U64,
+            Type::ReadU64Le => Type::U64,
+            Type::ReadI8 => Type::I8,
+            Type::ReadI16Be => Type::I16,
+            Type::ReadI16Le => Type::I16,
+            Type::ReadI32Be => Type::I32,
+            Type::ReadI32Le => Type::I32,
+            Type::ReadI64Be => Type::I64,
+            Type::ReadI64Le => Type::I64,
+            // Type::ReadF32Be => Type::F32,
+            // Type::ReadF32Le => Type::F32,
+            // Type::ReadF64Be => Type::F64,
+            // Type::ReadF64Le => Type::F64,
+            // Type::ReadArray8(_) => {}
+            // Type::ReadArray16(_) => {}
+            // Type::ReadArray32(_) => {}
+            // Type::ReadArray64(_) => {}
+            // Type::DoReadArray8(_, _) => {}
+            // Type::DoReadArray16(_, _) => {}
+            // Type::DoReadArray32(_, _) => {}
+            // Type::DoReadArray64(_, _) => {}
+            // Type::PrimReadArray8 => {}
+            // Type::PrimReadArray16 => {}
+            // Type::PrimReadArray32 => {}
+            // Type::PrimReadArray64 => {}
+            Type::Todo => todo! {},
+            _ => unimplemented!("unexpected type"),
+        }
+    }
+}
+
 /// The definition of a struct
 #[derive(Debug)]
-struct Struct {
+enum Struct {
+    Tuple(TupleStruct),
+    Struct(StructStruct),
+}
+
+impl Struct {
+    fn name(&self) -> StringId {
+        match self {
+            Struct::Tuple(s) => s.name,
+            Struct::Struct(s) => s.name,
+        }
+    }
+
+    fn borrows_data(&self) -> bool {
+        match self {
+            Struct::Tuple(s) => s.borrows_data,
+            Struct::Struct(s) => s.borrows_data,
+        }
+    }
+
+    fn fixed_size(&self) -> Option<usize> {
+        match self {
+            Struct::Tuple(s) => s.fixed_size,
+            Struct::Struct(s) => s.fixed_size,
+        }
+    }
+}
+
+#[derive(Debug)]
+struct TupleStruct {
+    // name of the struct
+    name: StringId,
+    // for now we only support one field for new types
+    field: Type,
+    borrows_data: bool,
+    fixed_size: Option<usize>,
+}
+
+#[derive(Debug)]
+struct StructStruct {
     // name of the struct
     name: StringId,
     fields: Vec<(StringId, Type)>,
@@ -134,40 +212,7 @@ enum ParseExpr {
 impl ParseExpr {
     pub(crate) fn repr(&self) -> ParseExpr {
         match self {
-            ParseExpr::Const(ty) => match ty {
-                Type::ReadU8 => ParseExpr::Const(Type::U8),
-                Type::ReadU16Be => ParseExpr::Const(Type::U16),
-                Type::ReadU16Le => ParseExpr::Const(Type::U16),
-                Type::ReadU32Be => ParseExpr::Const(Type::U32),
-                Type::ReadU32Le => ParseExpr::Const(Type::U32),
-                Type::ReadU64Be => ParseExpr::Const(Type::U64),
-                Type::ReadU64Le => ParseExpr::Const(Type::U64),
-                Type::ReadI8 => ParseExpr::Const(Type::I8),
-                Type::ReadI16Be => ParseExpr::Const(Type::I16),
-                Type::ReadI16Le => ParseExpr::Const(Type::I16),
-                Type::ReadI32Be => ParseExpr::Const(Type::I32),
-                Type::ReadI32Le => ParseExpr::Const(Type::I32),
-                Type::ReadI64Be => ParseExpr::Const(Type::I64),
-                Type::ReadI64Le => ParseExpr::Const(Type::I64),
-                // Type::ReadF32Be => Type::F32,
-                // Type::ReadF32Le => Type::F32,
-                // Type::ReadF64Be => Type::F64,
-                // Type::ReadF64Le => Type::F64,
-                // Type::ReadArray8(_) => {}
-                // Type::ReadArray16(_) => {}
-                // Type::ReadArray32(_) => {}
-                // Type::ReadArray64(_) => {}
-                // Type::DoReadArray8(_, _) => {}
-                // Type::DoReadArray16(_, _) => {}
-                // Type::DoReadArray32(_, _) => {}
-                // Type::DoReadArray64(_, _) => {}
-                // Type::PrimReadArray8 => {}
-                // Type::PrimReadArray16 => {}
-                // Type::PrimReadArray32 => {}
-                // Type::PrimReadArray64 => {}
-                Type::Todo => todo! {},
-                _ => unimplemented!("unexpected type"),
-            },
+            ParseExpr::Const(ty) => ParseExpr::Const(ty.repr()),
             ParseExpr::Var(_) => todo!("can we get here?"),
         }
     }
@@ -182,7 +227,7 @@ pub struct Module {
 enum Item {
     Struct(Struct),
     ReadFn(ReadFn),
-    Var(StringId),
+    Alias(StringId, StringId),
 }
 
 impl<'interner> CompileEnv {
@@ -501,8 +546,28 @@ impl<'arena, 'env, 'data, 'interner> Context<'env, 'interner> {
         expr: &Term<'arena>,
     ) -> Result<(), ()> {
         match expr {
-            Term::ItemVar(_, _) => {}
-            Term::LocalVar(_, _) => unimplemented! {},
+            Term::ItemVar(_, level) => {
+                let name = self.items.get_level(*level).expect("missing item");
+                module.items.push(Item::Alias(label, *name))
+            }
+            Term::LocalVar(_, var) => {
+                let ty = self
+                    .compile_env
+                    .types
+                    .get_index(*var)
+                    .expect("invalid local var");
+                let borrows_data = ty_borrows_data(ty);
+
+                let r#struct = Struct::Tuple(TupleStruct {
+                    name: label,
+                    field: ty.clone(),
+                    borrows_data,
+                    fixed_size: self.fixed_size(expr),
+                });
+                let read_fn = self.compile_read(&r#struct, expr);
+                module.items.push(Item::Struct(r#struct));
+                module.items.push(Item::ReadFn(read_fn));
+            }
             Term::MetaVar(_, _) => unimplemented! {},
             Term::InsertedMeta(_, _, _) => unimplemented! {},
             Term::Ann(_, _, _) => unimplemented! {},
@@ -527,12 +592,12 @@ impl<'arena, 'env, 'data, 'interner> Context<'env, 'interner> {
                     self.compile_env.push_def(Some(label), ty);
                 }
                 self.compile_env.truncate(initial_env_len);
-                let r#struct = Struct {
+                let r#struct = Struct::Struct(StructStruct {
                     name: label,
                     fields,
                     borrows_data,
                     fixed_size: self.fixed_size(expr),
-                };
+                });
                 dbg!(&r#struct);
 
                 // Now generate the read function
@@ -554,7 +619,10 @@ impl<'arena, 'env, 'data, 'interner> Context<'env, 'interner> {
     fn compile_rep(&mut self, format: &Term<'arena>) -> Type {
         // We already have `format_repr` but that operates on Values...
         match format {
-            Term::ItemVar(_, _) => todo! {},
+            Term::ItemVar(_, var) => {
+                let name = self.items.get_level(*var).expect("missing item");
+                Type::Item(*name)
+            }
             Term::LocalVar(_, var) => {
                 let ty = self
                     .compile_env
@@ -905,6 +973,40 @@ impl<'arena, 'env, 'data, 'interner> Context<'env, 'interner> {
     // Generate the read function for a format
     fn compile_read(&mut self, r#struct: &Struct, format: &Term<'arena>) -> ReadFn {
         match format {
+            Term::LocalVar(_, var) => {
+                // For each field, put the name and type in the environment and generate a reader for it
+                // Then when encountering a variable we need to be able to lookup in that environment
+                // using the variable
+                // let initial_env_len = self.compile_env.len();
+                let mut fields = Vec::with_capacity(1);
+                let parse_fields: Vec<(StringId, ParseExpr)> = match r#struct {
+                    Struct::Tuple(TupleStruct { field, .. }) => {
+                        let name = self.interner.borrow_mut().get_or_intern_static("inner");
+                        vec![(name, ParseExpr::Const(field.clone()))]
+                    }
+                    Struct::Struct(_) => unreachable! {},
+                };
+                fields.push((parse_fields[0].0, ParseExpr::Var(parse_fields[0].0)));
+
+                let name = r#struct.name();
+                let read_struct = ReadStruct {
+                    name,
+                    borrows_data: r#struct.borrows_data(),
+                    fixed_size: r#struct.fixed_size(),
+                };
+                let st = ReadExpr::Struct {
+                    // name of the struct
+                    name,
+                    // Parse a type into a named variable
+                    parse_fields,
+                    // How to initialise the fields of the struct using the variables
+                    fields,
+                };
+                ReadFn {
+                    r#struct: read_struct,
+                    exprs: vec![st],
+                }
+            }
             Term::FormatRecord(_, labels, formats) => {
                 // For each field, put the name and type in the environment and generate a reader for it
                 // Then when encountering a variable we need to be able to lookup in that environment
@@ -928,11 +1030,11 @@ impl<'arena, 'env, 'data, 'interner> Context<'env, 'interner> {
 
                 self.compile_env.truncate(initial_env_len);
 
-                let name = r#struct.name;
+                let name = r#struct.name();
                 let read_struct = ReadStruct {
                     name,
-                    borrows_data: r#struct.borrows_data,
-                    fixed_size: r#struct.fixed_size,
+                    borrows_data: r#struct.borrows_data(),
+                    fixed_size: r#struct.fixed_size(),
                 };
                 let st = ReadExpr::Struct {
                     // name of the struct
@@ -947,7 +1049,7 @@ impl<'arena, 'env, 'data, 'interner> Context<'env, 'interner> {
                     exprs: vec![st],
                 }
             }
-            _ => unreachable!("can only compile read for format records"),
+            _ => unreachable!("can only compile read for format records, got {:?}", format),
         }
     }
 
@@ -964,6 +1066,10 @@ impl<'arena, 'env, 'data, 'interner> Context<'env, 'interner> {
                 let mut args = vec![*input];
                 self.read_fun_app(head, &mut args)
                     .expect("read_fun_app failed")
+            }
+            Term::ItemVar(_, level) => {
+                let name = self.items.get_level(*level).expect("missing item");
+                Type::Item(*name)
             }
             _ => unimplemented!("format: {:?}", format),
         }
@@ -1274,7 +1380,7 @@ impl<'arena, 'env, 'data, 'interner> Context<'env, 'interner> {
 
     fn fixed_size(&mut self, format: &Term<'arena>) -> Option<usize> {
         match format {
-            Term::ItemVar(_, _) => unimplemented! {},
+            Term::ItemVar(_, _) => None,
             Term::LocalVar(_, var) => {
                 let ty = self
                     .compile_env
@@ -1352,7 +1458,7 @@ pub mod rust {
     use pretty::{Doc, DocAllocator, DocBuilder, DocPtr, RefDoc};
     use scoped_arena::Scope;
 
-    use crate::core::compile::{Item, Module, ParseExpr, ReadExpr, ReadFn, Type};
+    use crate::core::compile::{Item, Module, ParseExpr, ReadExpr, ReadFn, Struct, Type};
     use crate::core::Const;
     use crate::{StringId, StringInterner};
 
@@ -1391,8 +1497,23 @@ pub mod rust {
 
         fn item(&'arena self, item: &Item) -> DocBuilder<'arena, Self> {
             match item {
-                Item::Var(name) => self.string_id(*name),
-                Item::Struct(r#struct) => self.sequence(
+                Item::Alias(alias, name) => self.concat([
+                    self.text("type "),
+                    self.string_id(*alias),
+                    self.text(" = "),
+                    self.string_id(*name),
+                    self.text(";"),
+                ]),
+                Item::Struct(Struct::Tuple(r#struct)) => self.concat([
+                    self.text("struct"),
+                    self.space(),
+                    self.string_id(r#struct.name),
+                    self.text("("),
+                    self.ty_prec((), &r#struct.field),
+                    self.text(");"),
+                    self.hardline(),
+                ]),
+                Item::Struct(Struct::Struct(r#struct)) => self.sequence(
                     self.concat([
                         self.text("struct"),
                         self.space(),
@@ -1576,6 +1697,7 @@ pub mod rust {
             ty: &Type,
         ) -> DocBuilder<'arena, Self> {
             match ty {
+                Type::Item(name) => self.string_id(*name),
                 Type::U8 => self.text("u8"),
                 Type::U16 => self.text("u16"),
                 Type::U32 => self.text("u32"),
@@ -1725,6 +1847,7 @@ pub mod rust {
 
         fn type_const(&'arena self, ty_const: &Type) -> DocBuilder<'arena, Self> {
             match ty_const {
+                Type::Item(name) => self.string_id(*name),
                 Type::ReadU8 => self.text("ctxt.read_u8()?"),
                 Type::ReadU16Be => self.text("ctxt.read_u16be()?"),
                 Type::ReadU32Be => self.text("ctxt.read_u32be()?"),
