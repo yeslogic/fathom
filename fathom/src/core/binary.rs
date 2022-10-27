@@ -7,9 +7,9 @@ use std::fmt::Debug;
 use std::slice::SliceIndex;
 use std::sync::Arc;
 
-use crate::core::semantics::{ArcValue, Elim, ElimEnv, Head, Value};
-use crate::core::{Const, Prim, UIntStyle};
-use crate::env::EnvLen;
+use crate::core::semantics::{self, ArcValue, Elim, Head, Value};
+use crate::core::{Const, Item, Module, Prim, Term, UIntStyle};
+use crate::env::{EnvLen, SharedEnv, UniqueEnv};
 use crate::source::{Span, Spanned};
 
 #[derive(Clone, Debug)]
@@ -247,8 +247,9 @@ impl fmt::Display for BufferError {
 
 impl std::error::Error for BufferError {}
 
-pub struct Context<'arena, 'env, 'data> {
-    elim_env: ElimEnv<'arena, 'env>,
+pub struct Context<'arena, 'data> {
+    item_exprs: UniqueEnv<ArcValue<'arena>>,
+    local_exprs: SharedEnv<ArcValue<'arena>>,
     initial_buffer: Buffer<'data>,
     pending_formats: Vec<(usize, ArcValue<'arena>)>,
     cached_refs: HashMap<usize, Vec<ParsedRef<'arena>>>,
@@ -263,26 +264,45 @@ pub struct ParsedRef<'arena> {
     pub expr: ArcValue<'arena>,
 }
 
-impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
-    pub fn new(
-        elim_env: ElimEnv<'arena, 'env>,
-        initial_buffer: Buffer<'data>,
-    ) -> Context<'arena, 'env, 'data> {
+impl<'arena, 'data> Context<'arena, 'data> {
+    pub fn new(initial_buffer: Buffer<'data>) -> Context<'arena, 'data> {
         Context {
-            elim_env,
+            item_exprs: UniqueEnv::new(),
+            local_exprs: SharedEnv::new(),
             initial_buffer,
             pending_formats: Vec::new(),
             cached_refs: HashMap::new(),
         }
     }
 
+    fn eval_env(&mut self) -> semantics::EvalEnv<'arena, '_> {
+        let elim_env = semantics::ElimEnv::new(&self.item_exprs, [][..].into());
+        semantics::EvalEnv::new(elim_env, &mut self.local_exprs)
+    }
+
+    fn elim_env(&self) -> semantics::ElimEnv<'arena, '_> {
+        semantics::ElimEnv::new(&self.item_exprs, [][..].into())
+    }
+
+    pub fn add_module(&mut self, module: &Module<'arena>) {
+        for item in module.items {
+            match item {
+                Item::Def { expr, .. } => {
+                    let expr = self.eval_env().eval(expr);
+                    self.item_exprs.push(expr);
+                }
+            }
+        }
+    }
+
     pub fn read_entrypoint(
         mut self,
-        format: ArcValue<'arena>,
+        format: &Term<'arena>,
     ) -> Result<HashMap<usize, Vec<ParsedRef<'arena>>>, ReadError<'arena>> {
         // Parse the entrypoint from the start of the binary data
-        self.pending_formats
-            .push((self.initial_buffer.start_offset(), format));
+        let offset = self.initial_buffer.start_offset();
+        let format = self.eval_env().eval(format);
+        self.pending_formats.push((offset, format));
 
         while let Some((pos, format)) = self.pending_formats.pop() {
             self.lookup_or_read_ref(pos, &format)?;
@@ -296,30 +316,28 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
         reader: &mut BufferReader<'data>,
         format: &ArcValue<'arena>,
     ) -> Result<ArcValue<'arena>, ReadError<'arena>> {
-        let val = self.elim_env.force(format);
-        let format_span = val.span();
-        match val.as_ref() {
+        match format.as_ref() {
             Value::Stuck(Head::Prim(prim), slice) => {
-                self.read_prim(reader, *prim, slice, format_span)
+                self.read_prim(reader, *prim, slice, format.span())
             }
             Value::FormatRecord(labels, formats) => {
                 let mut formats = formats.clone();
                 let mut exprs = Vec::with_capacity(formats.len());
 
-                while let Some((format, next_formats)) = self.elim_env.split_telescope(formats) {
+                while let Some((format, next_formats)) = self.elim_env().split_telescope(formats) {
                     let expr = self.read_format(reader, &format)?;
                     exprs.push(expr.clone());
                     formats = next_formats(expr);
                 }
 
                 Ok(Spanned::new(
-                    format_span,
+                    format.span(),
                     Arc::new(Value::RecordLit(labels, exprs)),
                 ))
             }
             Value::FormatCond(_label, format, cond) => {
                 let value = self.read_format(reader, format)?;
-                let cond_res = self.elim_env.apply_closure(cond, value.clone());
+                let cond_res = self.elim_env().apply_closure(cond, value.clone());
 
                 match cond_res.as_ref() {
                     Value::ConstLit(Const::Bool(true)) => Ok(value),
@@ -338,7 +356,7 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
                 let mut formats = formats.clone();
                 let mut exprs = Vec::with_capacity(formats.len());
 
-                while let Some((format, next_formats)) = self.elim_env.split_telescope(formats) {
+                while let Some((format, next_formats)) = self.elim_env().split_telescope(formats) {
                     let mut reader = reader.clone();
 
                     let expr = self.read_format(&mut reader, &format)?;
@@ -354,7 +372,7 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
                 reader.set_relative_offset(max_relative_offset).unwrap();
 
                 Ok(Spanned::new(
-                    format_span,
+                    format.span(),
                     Arc::new(Value::RecordLit(labels, exprs)),
                 ))
             }
@@ -367,7 +385,7 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
             | Value::RecordType(_, _)
             | Value::RecordLit(_, _)
             | Value::ArrayLit(_)
-            | Value::ConstLit(_) => Err(ReadError::InvalidFormat(format_span)),
+            | Value::ConstLit(_) => Err(ReadError::InvalidFormat(format.span())),
         }
     }
 
@@ -430,7 +448,7 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
         len: &ArcValue<'arena>,
         elem_format: &ArcValue<'arena>,
     ) -> Result<ArcValue<'arena>, ReadError<'arena>> {
-        let len = match self.elim_env.force(len).as_ref() {
+        let len = match len.as_ref() {
             Value::ConstLit(Const::U8(len, _)) => u64::from(*len),
             Value::ConstLit(Const::U16(len, _)) => u64::from(*len),
             Value::ConstLit(Const::U32(len, _)) => u64::from(*len),
@@ -480,7 +498,7 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
         elem_format: &ArcValue<'arena>,
     ) -> Result<ArcValue<'arena>, ReadError<'arena>> {
         let len_span = len.span();
-        let len = match self.elim_env.force(len).as_ref() {
+        let len = match len.as_ref() {
             Value::ConstLit(Const::U8(len, _)) => Some(usize::from(*len)),
             Value::ConstLit(Const::U16(len, _)) => Some(usize::from(*len)),
             Value::ConstLit(Const::U32(len, _)) => usize::try_from(*len).ok(),
@@ -503,7 +521,7 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
         pos_value: &ArcValue<'arena>,
         elem_format: &ArcValue<'arena>,
     ) -> Result<ArcValue<'arena>, ReadError<'arena>> {
-        let pos = match self.elim_env.force(pos_value).as_ref() {
+        let pos = match pos_value.as_ref() {
             Value::ConstLit(Const::Pos(pos)) => *pos,
             _ => return Err(ReadError::InvalidValue(pos_value.span())),
         };
@@ -521,7 +539,7 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
         format: &ArcValue<'arena>,
         r#ref: &ArcValue<'arena>,
     ) -> Result<ArcValue<'arena>, ReadError<'arena>> {
-        let pos = match self.elim_env.force(r#ref).as_ref() {
+        let pos = match r#ref.as_ref() {
             Value::ConstLit(Const::Ref(pos)) => *pos,
             _ => return Err(ReadError::InvalidValue(r#ref.span())),
         };
@@ -541,7 +559,7 @@ impl<'arena, 'env, 'data> Context<'arena, 'env, 'data> {
         // that parsed reference alongside the position in `Const::Ref`.
 
         (self.cached_refs.get(&pos)?.iter()).find(|r| {
-            self.elim_env
+            self.elim_env()
                 .conversion_env(EnvLen::new())
                 .is_equal(&r.format, format)
         })

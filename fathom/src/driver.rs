@@ -270,14 +270,18 @@ impl<'surface, 'core> Driver<'surface, 'core> {
     ) -> Status {
         use itertools::Itertools;
 
-        let mut context = elaboration::Context::new(&self.interner, &self.core_scope);
+        let initial_buffer = binary::Buffer::from(buffer_data);
+        let mut binary_context = binary::Context::new(initial_buffer);
+        let mut elab_context = elaboration::Context::new(&self.interner, &self.core_scope);
 
-        // Parse and elaborate the supplied module
+        // Parse and elaborate a module if one was provided
         if let Some(file_id) = module_file_id {
             let surface_module = self.parse_module(file_id);
-            context.elab_module(&self.core_scope, &surface_module, &mut |m| {
+            let module = elab_context.elab_module(&self.core_scope, &surface_module, &mut |m| {
                 self.emit_diagnostic(m.to_diagnostic(&self.interner));
             });
+            // Add it to the binary context
+            binary_context.add_module(&module);
         }
 
         // Parse and elaborate the supplied format with the items from the
@@ -285,7 +289,7 @@ impl<'surface, 'core> Driver<'surface, 'core> {
         // will need to be revisited if we need to support multiple modules, but
         // it works for now!
         let surface_format = self.parse_term(format_file_id);
-        let format = context.elab_format(&self.core_scope, &surface_format, &mut |m| {
+        let format = elab_context.elab_format(&self.core_scope, &surface_format, &mut |m| {
             self.emit_diagnostic(m.to_diagnostic(&self.interner));
         });
 
@@ -294,12 +298,10 @@ impl<'surface, 'core> Driver<'surface, 'core> {
             return Status::Error;
         }
 
-        let format = context.eval_env().eval(&format);
-        let buffer = binary::Buffer::from(buffer_data);
-        let refs = match binary::Context::new(context.elim_env(), buffer).read_entrypoint(format) {
+        let refs = match binary_context.read_entrypoint(&format) {
             Ok(refs) => refs,
             Err(err) => {
-                self.emit_diagnostic(self.read_error_to_diagnostic(err, &mut context));
+                self.emit_diagnostic(self.read_error_to_diagnostic(err, &mut elab_context));
                 return Status::Error;
             }
         };
@@ -311,8 +313,10 @@ impl<'surface, 'core> Driver<'surface, 'core> {
             let exprs = parsed_refs.iter().map(|parsed_ref| {
                 let core_scope = &self.core_scope;
                 let surface_scope = &self.surface_scope;
-                let expr = context.quote_env().quote(core_scope, &parsed_ref.expr);
-                context.distillation_context(surface_scope).check(&expr)
+                let expr = elab_context.quote_env().quote(core_scope, &parsed_ref.expr);
+                elab_context
+                    .distillation_context(surface_scope)
+                    .check(&expr)
             });
 
             self.emit_ref(pos, exprs.collect());

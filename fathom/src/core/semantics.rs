@@ -6,7 +6,7 @@ use std::panic::panic_any;
 use std::sync::Arc;
 
 use crate::alloc::SliceVec;
-use crate::core::{Const, LocalInfo, Prim, Term, UIntStyle};
+use crate::core::{prim, Const, LocalInfo, Prim, Term};
 use crate::env::{EnvLen, Level, SharedEnv, SliceEnv};
 use crate::source::{Span, Spanned};
 use crate::StringId;
@@ -383,226 +383,6 @@ impl<'arena, 'env> EvalEnv<'arena, 'env> {
     }
 }
 
-/// Primitive evaluation step.
-type PrimStep = for<'arena> fn(&ElimEnv<'arena, '_>, &[Elim<'arena>]) -> Option<ArcValue<'arena>>;
-
-macro_rules! step {
-    ($env:pat, [$($param:pat),*] => $body:expr) => {
-        |$env, spine| match spine {
-            [$(Elim::FunApp($param)),*] => Some($body),
-            _ => return None,
-        }
-    };
-}
-
-// TODO: Should we merge the spans of the param idents to produce the body span?
-macro_rules! const_step {
-    ([$($param:ident : $Input:ident),*] => $body:expr) => {
-        step!(_, [$($param),*] => match ($($param.as_ref(),)*) {
-            ($(Value::ConstLit(Const::$Input($param, ..)),)*) => Spanned::empty(Arc::new(Value::ConstLit($body))),
-            _ => return None,
-        })
-    };
-    ([$($param:ident , $style:ident : $Input:ident),*] => $body:expr) => {
-        step!(_, [$($param),*] => match ($($param.as_ref(),)*) {
-            ($(Value::ConstLit(Const::$Input($param, $style)),)*) => Spanned::empty(Arc::new(Value::ConstLit($body))),
-            _ => return None,
-        })
-    };
-}
-
-/// Returns an evaluation step for a primitive, if there is one defined.
-#[rustfmt::skip]
-fn prim_step(prim: Prim) -> PrimStep {
-    use std::ops::{BitAnd, BitOr, BitXor, Not};
-    use std::convert::TryFrom;
-
-    match prim {
-        Prim::FormatRepr => step!(env, [format] => env.format_repr(format)),
-
-        Prim::BoolEq => const_step!([x: Bool, y: Bool] => Const::Bool(x == y)),
-        Prim::BoolNeq => const_step!([x: Bool, y: Bool] => Const::Bool(x != y)),
-        Prim::BoolNot => const_step!([x: Bool] => Const::Bool(bool::not(*x))),
-        Prim::BoolAnd => const_step!([x: Bool, y: Bool] => Const::Bool(*x && *y)),
-        Prim::BoolOr => const_step!([x: Bool, y: Bool] => Const::Bool(*x || *y)),
-        Prim::BoolXor => const_step!([x: Bool, y: Bool] => Const::Bool(*x ^ *y)),
-
-        Prim::U8Eq => const_step!([x: U8, y: U8] => Const::Bool(x == y)),
-        Prim::U8Neq => const_step!([x: U8, y: U8] => Const::Bool(x != y)),
-        Prim::U8Gt => const_step!([x: U8, y: U8] => Const::Bool(x > y)),
-        Prim::U8Lt => const_step!([x: U8, y: U8] => Const::Bool(x < y)),
-        Prim::U8Gte => const_step!([x: U8, y: U8] => Const::Bool(x >= y)),
-        Prim::U8Lte => const_step!([x: U8, y: U8] => Const::Bool(x <= y)),
-        Prim::U8Add => const_step!([x, xst: U8, y, yst: U8] => Const::U8(u8::checked_add(*x, *y)?, UIntStyle::merge(*xst, *yst))),
-        Prim::U8Sub => const_step!([x, xst: U8, y, yst: U8] => Const::U8(u8::checked_sub(*x, *y)?, UIntStyle::merge(*xst, *yst))),
-        Prim::U8Mul => const_step!([x, xst: U8, y, yst: U8] => Const::U8(u8::checked_mul(*x, *y)?, UIntStyle::merge(*xst, *yst))),
-        Prim::U8Div => const_step!([x, xst: U8, y, yst: U8] => Const::U8(u8::checked_div(*x, *y)?, UIntStyle::merge(*xst, *yst))),
-        Prim::U8Not => const_step!([x, style: U8] => Const::U8(u8::not(*x), *style)),
-        Prim::U8Shl => const_step!([x, xst: U8, y, _yst: U8] => Const::U8(u8::checked_shl(*x, u32::from(*y))?, *xst)),
-        Prim::U8Shr => const_step!([x, xst: U8, y, _yst: U8] => Const::U8(u8::checked_shr(*x, u32::from(*y))?, *xst)),
-        Prim::U8And => const_step!([x, xst: U8, y, yst: U8] => Const::U8(u8::bitand(*x, *y), UIntStyle::merge(*xst, *yst))),
-        Prim::U8Or => const_step!([x, xst: U8, y, yst: U8] => Const::U8(u8::bitor(*x, *y), UIntStyle::merge(*xst, *yst))),
-        Prim::U8Xor => const_step!([x, xst: U8, y, yst: U8] => Const::U8(u8::bitxor(*x, *y), UIntStyle::merge(*xst, *yst))),
-
-        Prim::U16Eq => const_step!([x: U16, y: U16] => Const::Bool(x == y)),
-        Prim::U16Neq => const_step!([x: U16, y: U16] => Const::Bool(x != y)),
-        Prim::U16Gt => const_step!([x: U16, y: U16] => Const::Bool(x > y)),
-        Prim::U16Lt => const_step!([x: U16, y: U16] => Const::Bool(x < y)),
-        Prim::U16Gte => const_step!([x: U16, y: U16] => Const::Bool(x >= y)),
-        Prim::U16Lte => const_step!([x: U16, y: U16] => Const::Bool(x <= y)),
-        Prim::U16Add => const_step!([x, xst: U16, y, yst: U16] => Const::U16(u16::checked_add(*x, *y)?, UIntStyle::merge(*xst, *yst))),
-        Prim::U16Sub => const_step!([x, xst: U16, y, yst: U16] => Const::U16(u16::checked_sub(*x, *y)?, UIntStyle::merge(*xst, *yst))),
-        Prim::U16Mul => const_step!([x, xst: U16, y, yst: U16] => Const::U16(u16::checked_mul(*x, *y)?, UIntStyle::merge(*xst, *yst))),
-        Prim::U16Div => const_step!([x, xst: U16, y, yst: U16] => Const::U16(u16::checked_div(*x, *y)?, UIntStyle::merge(*xst, *yst))),
-        Prim::U16Not => const_step!([x: U16] => Const::U16(u16::not(*x), UIntStyle::Decimal)),
-        Prim::U16Shl => const_step!([x, xst: U16, y, _yst: U8] => Const::U16(u16::checked_shl(*x, u32::from(*y))?, *xst)),
-        Prim::U16Shr => const_step!([x, xst: U16, y, _yst: U8] => Const::U16(u16::checked_shr(*x, u32::from(*y))?, *xst)),
-        Prim::U16And => const_step!([x, xst: U16, y, yst: U16] => Const::U16(u16::bitand(*x, *y), UIntStyle::merge(*xst, *yst))),
-        Prim::U16Or => const_step!([x, xst: U16, y, yst: U16] => Const::U16(u16::bitor(*x, *y), UIntStyle::merge(*xst, *yst))),
-        Prim::U16Xor => const_step!([x, xst: U16, y, yst: U16] => Const::U16(u16::bitxor(*x, *y), UIntStyle::merge(*xst, *yst))),
-
-        Prim::U32Eq => const_step!([x: U32, y: U32] => Const::Bool(x == y)),
-        Prim::U32Neq => const_step!([x: U32, y: U32] => Const::Bool(x != y)),
-        Prim::U32Gt => const_step!([x: U32, y: U32] => Const::Bool(x > y)),
-        Prim::U32Lt => const_step!([x: U32, y: U32] => Const::Bool(x < y)),
-        Prim::U32Gte => const_step!([x: U32, y: U32] => Const::Bool(x >= y)),
-        Prim::U32Lte => const_step!([x: U32, y: U32] => Const::Bool(x <= y)),
-        Prim::U32Add => const_step!([x, xst: U32, y, yst: U32] => Const::U32(u32::checked_add(*x, *y)?, UIntStyle::merge(*xst, *yst))),
-        Prim::U32Sub => const_step!([x, xst: U32, y, yst: U32] => Const::U32(u32::checked_sub(*x, *y)?, UIntStyle::merge(*xst, *yst))),
-        Prim::U32Mul => const_step!([x, xst: U32, y, yst: U32] => Const::U32(u32::checked_mul(*x, *y)?, UIntStyle::merge(*xst, *yst))),
-        Prim::U32Div => const_step!([x, xst: U32, y, yst: U32] => Const::U32(u32::checked_div(*x, *y)?, UIntStyle::merge(*xst, *yst))),
-        Prim::U32Not => const_step!([x: U32] => Const::U32(u32::not(*x), UIntStyle::Decimal)),
-        Prim::U32Shl => const_step!([x, xst: U32, y, _yst: U8] => Const::U32(u32::checked_shl(*x, u32::from(*y))?, *xst)),
-        Prim::U32Shr => const_step!([x, xst: U32, y, _yst: U8] => Const::U32(u32::checked_shr(*x, u32::from(*y))?, *xst)),
-        Prim::U32And => const_step!([x, xst: U32, y, yst: U32] => Const::U32(u32::bitand(*x, *y), UIntStyle::merge(*xst, *yst))),
-        Prim::U32Or => const_step!([x, xst: U32, y, yst: U32] => Const::U32(u32::bitor(*x, *y), UIntStyle::merge(*xst, *yst))),
-        Prim::U32Xor => const_step!([x, xst: U32, y, yst: U32] => Const::U32(u32::bitxor(*x, *y), UIntStyle::merge(*xst, *yst))),
-
-        Prim::U64Eq => const_step!([x: U64, y: U64] => Const::Bool(x == y)),
-        Prim::U64Neq => const_step!([x: U64, y: U64] => Const::Bool(x != y)),
-        Prim::U64Gt => const_step!([x: U64, y: U64] => Const::Bool(x > y)),
-        Prim::U64Lt => const_step!([x: U64, y: U64] => Const::Bool(x < y)),
-        Prim::U64Gte => const_step!([x: U64, y: U64] => Const::Bool(x >= y)),
-        Prim::U64Lte => const_step!([x: U64, y: U64] => Const::Bool(x <= y)),
-        Prim::U64Add => const_step!([x, xst: U64, y, yst: U64] => Const::U64(u64::checked_add(*x, *y)?, UIntStyle::merge(*xst, *yst))),
-        Prim::U64Sub => const_step!([x, xst: U64, y, yst: U64] => Const::U64(u64::checked_sub(*x, *y)?, UIntStyle::merge(*xst, *yst))),
-        Prim::U64Mul => const_step!([x, xst: U64, y, yst: U64] => Const::U64(u64::checked_mul(*x, *y)?, UIntStyle::merge(*xst, *yst))),
-        Prim::U64Div => const_step!([x, xst: U64, y, yst: U64] => Const::U64(u64::checked_div(*x, *y)?, UIntStyle::merge(*xst, *yst))),
-        Prim::U64Not => const_step!([x: U64] => Const::U64(u64::not(*x), UIntStyle::Decimal)),
-        Prim::U64Shl => const_step!([x, xst: U64, y, _yst: U8] => Const::U64(u64::checked_shl(*x, u32::from(*y))?, *xst)),
-        Prim::U64Shr => const_step!([x, xst: U64, y, _yst: U8] => Const::U64(u64::checked_shr(*x, u32::from(*y))?, *xst)),
-        Prim::U64And => const_step!([x, xst: U64, y, yst: U64] => Const::U64(u64::bitand(*x, *y), UIntStyle::merge(*xst, *yst))),
-        Prim::U64Or => const_step!([x, xst: U64, y, yst: U64] => Const::U64(u64::bitor(*x, *y), UIntStyle::merge(*xst, *yst))),
-        Prim::U64Xor => const_step!([x, xst: U64, y, yst: U64] => Const::U64(u64::bitxor(*x, *y), UIntStyle::merge(*xst, *yst))),
-
-        Prim::S8Eq => const_step!([x: S8, y: S8] => Const::Bool(x == y)),
-        Prim::S8Neq => const_step!([x: S8, y: S8] => Const::Bool(x != y)),
-        Prim::S8Gt => const_step!([x: S8, y: S8] => Const::Bool(x > y)),
-        Prim::S8Lt => const_step!([x: S8, y: S8] => Const::Bool(x < y)),
-        Prim::S8Gte => const_step!([x: S8, y: S8] => Const::Bool(x >= y)),
-        Prim::S8Lte => const_step!([x: S8, y: S8] => Const::Bool(x <= y)),
-        Prim::S8Neg => const_step!([x: S8] => Const::S8(i8::checked_neg(*x)?)),
-        Prim::S8Add => const_step!([x: S8, y: S8] => Const::S8(i8::checked_add(*x, *y)?)),
-        Prim::S8Sub => const_step!([x: S8, y: S8] => Const::S8(i8::checked_sub(*x, *y)?)),
-        Prim::S8Mul => const_step!([x: S8, y: S8] => Const::S8(i8::checked_mul(*x, *y)?)),
-        Prim::S8Div => const_step!([x: S8, y: S8] => Const::S8(i8::checked_div(*x, *y)?)),
-        Prim::S8Abs => const_step!([x: S8] => Const::S8(i8::abs(*x))),
-        Prim::S8UAbs => const_step!([x: S8] => Const::U8(i8::unsigned_abs(*x), UIntStyle::Decimal)),
-
-        Prim::S16Eq => const_step!([x: S16, y: S16] => Const::Bool(x == y)),
-        Prim::S16Neq => const_step!([x: S16, y: S16] => Const::Bool(x != y)),
-        Prim::S16Gt => const_step!([x: S16, y: S16] => Const::Bool(x > y)),
-        Prim::S16Lt => const_step!([x: S16, y: S16] => Const::Bool(x < y)),
-        Prim::S16Gte => const_step!([x: S16, y: S16] => Const::Bool(x >= y)),
-        Prim::S16Lte => const_step!([x: S16, y: S16] => Const::Bool(x <= y)),
-        Prim::S16Neg => const_step!([x: S16] => Const::S16(i16::checked_neg(*x)?)),
-        Prim::S16Add => const_step!([x: S16, y: S16] => Const::S16(i16::checked_add(*x, *y)?)),
-        Prim::S16Sub => const_step!([x: S16, y: S16] => Const::S16(i16::checked_sub(*x, *y)?)),
-        Prim::S16Mul => const_step!([x: S16, y: S16] => Const::S16(i16::checked_mul(*x, *y)?)),
-        Prim::S16Div => const_step!([x: S16, y: S16] => Const::S16(i16::checked_div(*x, *y)?)),
-        Prim::S16Abs => const_step!([x: S16] => Const::S16(i16::abs(*x))),
-        Prim::S16UAbs => const_step!([x: S16] => Const::U16(i16::unsigned_abs(*x), UIntStyle::Decimal)),
-
-        Prim::S32Eq => const_step!([x: S32, y: S32] => Const::Bool(x == y)),
-        Prim::S32Neq => const_step!([x: S32, y: S32] => Const::Bool(x != y)),
-        Prim::S32Gt => const_step!([x: S32, y: S32] => Const::Bool(x > y)),
-        Prim::S32Lt => const_step!([x: S32, y: S32] => Const::Bool(x < y)),
-        Prim::S32Gte => const_step!([x: S32, y: S32] => Const::Bool(x >= y)),
-        Prim::S32Lte => const_step!([x: S32, y: S32] => Const::Bool(x <= y)),
-        Prim::S32Neg => const_step!([x: S32] => Const::S32(i32::checked_neg(*x)?)),
-        Prim::S32Add => const_step!([x: S32, y: S32] => Const::S32(i32::checked_add(*x, *y)?)),
-        Prim::S32Sub => const_step!([x: S32, y: S32] => Const::S32(i32::checked_sub(*x, *y)?)),
-        Prim::S32Mul => const_step!([x: S32, y: S32] => Const::S32(i32::checked_mul(*x, *y)?)),
-        Prim::S32Div => const_step!([x: S32, y: S32] => Const::S32(i32::checked_div(*x, *y)?)),
-        Prim::S32Abs => const_step!([x: S32] => Const::S32(i32::abs(*x))),
-        Prim::S32UAbs => const_step!([x: S32] => Const::U32(i32::unsigned_abs(*x), UIntStyle::Decimal)),
-
-        Prim::S64Eq => const_step!([x: S64, y: S64] => Const::Bool(x == y)),
-        Prim::S64Neq => const_step!([x: S64, y: S64] => Const::Bool(x != y)),
-        Prim::S64Gt => const_step!([x: S64, y: S64] => Const::Bool(x > y)),
-        Prim::S64Lt => const_step!([x: S64, y: S64] => Const::Bool(x < y)),
-        Prim::S64Gte => const_step!([x: S64, y: S64] => Const::Bool(x >= y)),
-        Prim::S64Lte => const_step!([x: S64, y: S64] => Const::Bool(x <= y)),
-        Prim::S64Neg => const_step!([x: S64] => Const::S64(i64::checked_neg(*x)?)),
-        Prim::S64Add => const_step!([x: S64, y: S64] => Const::S64(i64::checked_add(*x, *y)?)),
-        Prim::S64Sub => const_step!([x: S64, y: S64] => Const::S64(i64::checked_sub(*x, *y)?)),
-        Prim::S64Mul => const_step!([x: S64, y: S64] => Const::S64(i64::checked_mul(*x, *y)?)),
-        Prim::S64Div => const_step!([x: S64, y: S64] => Const::S64(i64::checked_div(*x, *y)?)),
-        Prim::S64Abs => const_step!([x: S64] => Const::S64(i64::abs(*x))),
-        Prim::S64UAbs => const_step!([x: S64] => Const::U64(i64::unsigned_abs(*x), UIntStyle::Decimal)),
-
-        Prim::OptionFold => step!(env, [_, _, on_none, on_some, option] => {
-            match option.match_prim_spine()? {
-                (Prim::OptionSome, [Elim::FunApp(value)]) => env.fun_app(on_some.clone(), value.clone()),
-                (Prim::OptionNone, []) => on_none.clone(),
-                _ => return None,
-            }
-        }),
-
-        Prim::Array8Find | Prim::Array16Find | Prim::Array32Find | Prim::Array64Find => {
-            step!(env, [_, _, pred, array] => match array.as_ref() {
-                Value::ArrayLit(elems) => {
-                    for elem in elems {
-                        match env.fun_app(pred.clone(), elem.clone()).as_ref() {
-                            Value::ConstLit(Const::Bool(true)) => {
-                                // TODO: Is elem.span right here?
-                                return Some(Spanned::new(elem.span(), Arc::new(Value::prim(Prim::OptionSome, [elem.clone()]))))
-                            },
-                            Value::ConstLit(Const::Bool(false)) => {}
-                            _ => return None,
-                        }
-                    }
-                    Spanned::empty(Arc::new(Value::prim(Prim::OptionNone, [])))
-                }
-                _ => return None,
-            })
-        }
-
-        Prim::Array8Index | Prim::Array16Index | Prim::Array32Index | Prim::Array64Index => {
-            step!(_, [_, _, index, array] => match array.as_ref() {
-                Value::ArrayLit(elems) => {
-                    let index = match (index).as_ref() {
-                        Value::ConstLit(Const::U8(index, _)) => Some(usize::from(*index)),
-                        Value::ConstLit(Const::U16(index, _)) => Some(usize::from(*index)),
-                        Value::ConstLit(Const::U32(index, _)) => usize::try_from(*index).ok(),
-                        Value::ConstLit(Const::U64(index, _)) => usize::try_from(*index).ok(),
-                        _ => return None,
-                    }?;
-                    elems.get(index).cloned()?
-                }
-                _ => return None,
-            })
-        }
-
-        Prim::PosAddU8 => const_step!([x: Pos, y: U8] => Const::Pos(usize::checked_add(*x, usize::from(*y))?)),
-        Prim::PosAddU16 => const_step!([x: Pos, y: U16] => Const::Pos(usize::checked_add(*x, usize::from(*y))?)),
-        Prim::PosAddU32 => const_step!([x: Pos, y: U32] => Const::Pos(usize::checked_add(*x, usize::try_from(*y).ok()?)?)),
-        Prim::PosAddU64 => const_step!([x: Pos, y: U64] => Const::Pos(usize::checked_add(*x, usize::try_from(*y).ok()?)?)),
-
-        _ => |_, _| None,
-    }
-}
-
 /// Elimination environment.
 ///
 /// Contains enough state to run computations, but does not contain a local
@@ -724,7 +504,7 @@ impl<'arena, 'env> ElimEnv<'arena, 'env> {
                 spine.push(Elim::FunApp(arg_expr));
 
                 match head {
-                    Head::Prim(prim) => prim_step(*prim)(self, spine).unwrap_or(head_expr),
+                    Head::Prim(prim) => prim::step(*prim)(self, spine).unwrap_or(head_expr),
                     _ => head_expr,
                 }
             }
@@ -806,54 +586,9 @@ impl<'arena, 'env> ElimEnv<'arena, 'env> {
                 Value::RecordType(labels, formats.clone().apply_repr())
             }
             Value::FormatCond(_, format, _) => return self.format_repr(format),
-            Value::Stuck(Head::Prim(prim), spine) => match (prim, &spine[..]) {
-                (Prim::FormatU8, []) => Value::prim(Prim::U8Type, []),
-                (Prim::FormatU16Be, []) => Value::prim(Prim::U16Type, []),
-                (Prim::FormatU16Le, []) => Value::prim(Prim::U16Type, []),
-                (Prim::FormatU32Be, []) => Value::prim(Prim::U32Type, []),
-                (Prim::FormatU32Le, []) => Value::prim(Prim::U32Type, []),
-                (Prim::FormatU64Be, []) => Value::prim(Prim::U64Type, []),
-                (Prim::FormatU64Le, []) => Value::prim(Prim::U64Type, []),
-                (Prim::FormatS8, []) => Value::prim(Prim::S8Type, []),
-                (Prim::FormatS16Be, []) => Value::prim(Prim::S16Type, []),
-                (Prim::FormatS16Le, []) => Value::prim(Prim::S16Type, []),
-                (Prim::FormatS32Be, []) => Value::prim(Prim::S32Type, []),
-                (Prim::FormatS32Le, []) => Value::prim(Prim::S32Type, []),
-                (Prim::FormatS64Be, []) => Value::prim(Prim::S64Type, []),
-                (Prim::FormatS64Le, []) => Value::prim(Prim::S64Type, []),
-                (Prim::FormatF32Be, []) => Value::prim(Prim::F32Type, []),
-                (Prim::FormatF32Le, []) => Value::prim(Prim::F32Type, []),
-                (Prim::FormatF64Be, []) => Value::prim(Prim::F64Type, []),
-                (Prim::FormatF64Le, []) => Value::prim(Prim::F64Type, []),
-                (Prim::FormatArray8, [Elim::FunApp(len), Elim::FunApp(elem)]) => {
-                    Value::prim(Prim::Array8Type, [len.clone(), self.format_repr(elem)])
-                }
-                (Prim::FormatArray16, [Elim::FunApp(len), Elim::FunApp(elem)]) => {
-                    Value::prim(Prim::Array16Type, [len.clone(), self.format_repr(elem)])
-                }
-                (Prim::FormatArray32, [Elim::FunApp(len), Elim::FunApp(elem)]) => {
-                    Value::prim(Prim::Array32Type, [len.clone(), self.format_repr(elem)])
-                }
-                (Prim::FormatArray64, [Elim::FunApp(len), Elim::FunApp(elem)]) => {
-                    Value::prim(Prim::Array64Type, [len.clone(), self.format_repr(elem)])
-                }
-                (Prim::FormatLimit8, [_, Elim::FunApp(elem)]) => return self.format_repr(elem),
-                (Prim::FormatLimit16, [_, Elim::FunApp(elem)]) => return self.format_repr(elem),
-                (Prim::FormatLimit32, [_, Elim::FunApp(elem)]) => return self.format_repr(elem),
-                (Prim::FormatLimit64, [_, Elim::FunApp(elem)]) => return self.format_repr(elem),
-                (Prim::FormatRepeatUntilEnd, [Elim::FunApp(elem)]) => {
-                    Value::prim(Prim::ArrayType, [self.format_repr(elem)])
-                }
-                (Prim::FormatLink, [_, Elim::FunApp(elem)]) => {
-                    Value::prim(Prim::RefType, [elem.clone()])
-                }
-                (Prim::FormatDeref, [Elim::FunApp(elem), _]) => return self.format_repr(elem),
-                (Prim::FormatStreamPos, []) => Value::prim(Prim::PosType, []),
-                (Prim::FormatSucceed, [Elim::FunApp(elem), _]) => return elem.clone(),
-                (Prim::FormatFail, []) => Value::prim(Prim::VoidType, []),
-                (Prim::FormatUnwrap, [Elim::FunApp(elem), _]) => return elem.clone(),
-                (Prim::ReportedError, []) => Value::prim(Prim::ReportedError, []),
-                _ => Value::prim(Prim::FormatRepr, [format.clone()]),
+            Value::Stuck(Head::Prim(prim), spine) => match prim::repr(*prim)(self, spine) {
+                Some(r#type) => return r#type,
+                None => Value::prim(Prim::FormatRepr, [format.clone()]),
             },
             Value::Stuck(_, _) => Value::prim(Prim::FormatRepr, [format.clone()]),
             _ => panic_any(Error::InvalidFormatRepr),

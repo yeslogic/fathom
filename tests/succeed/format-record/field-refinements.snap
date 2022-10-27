@@ -1,7 +1,7 @@
 stdout = '''
 let format : Format = {
-    magic <- u64le where u64_eq magic 0xffffffffffff00,
-    len <- u8 where u8_lte len 16,
+    magic <- u64le where magic == (0xffffffffffff00 : U64),
+    len <- u8 where len <= (16 : U8),
     data <- array8 len u8,
 };
 let _ : { magic : U64, len : U8, data : Array8 len U8 } -> {
