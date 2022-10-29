@@ -1,4 +1,4 @@
-use pretty::{Doc, DocAllocator, DocBuilder, DocPtr, RefDoc};
+use pretty::{docs, Doc, DocAllocator, DocBuilder, DocPtr, RefDoc};
 use scoped_arena::Scope;
 use std::cell::RefCell;
 
@@ -332,7 +332,23 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 ]),
             ),
             Term::ReportedError(_) => self.text("#error"),
-            Term::If(_, _, _, _) => todo!(),
+            Term::If(_, cond_expr, then_expr, else_expr) => self.paren(
+                prec > Prec::Let,
+                docs![
+                    self,
+                    "if",
+                    self.space(),
+                    self.term_prec(Prec::Let, cond_expr),
+                    self.space(),
+                    "then",
+                    self.space(),
+                    self.term_prec(Prec::Let, then_expr),
+                    self.space(),
+                    "else",
+                    self.space(),
+                    self.term_prec(Prec::Let, else_expr),
+                ],
+            ),
         }
     }
 
