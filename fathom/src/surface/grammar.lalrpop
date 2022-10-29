@@ -24,11 +24,14 @@ extern {
         "number literal" => Token::NumberLiteral(<&'source str>),
 
         "def" => Token::KeywordDef,
+        "else" => Token::KeywordElse,
         "fun" => Token::KeywordFun,
+        "if" => Token::KeywordIf,
         "let" => Token::KeywordLet,
         "match" => Token::KeywordMatch,
         "overlap" => Token::KeywordOverlap,
         "Type" => Token::KeywordType,
+        "then" => Token::KeywordThen,
         "true" => Token::KeywordTrue,
         "false" => Token::KeywordFalse,
         "where" => Token::KeywordWhere,
@@ -122,6 +125,9 @@ LetTerm: Term<'arena, ByteRange> = {
             scope.to_scope(def_expr),
             scope.to_scope(body_expr),
         )
+    },
+    <start: @L> "if" <cond_expr: EqExpr> "then" <then_expr: LetTerm> "else" <else_expr: LetTerm> <end: @R> => {
+        Term::If(ByteRange::new(file_id, start, end), scope.to_scope(cond_expr), scope.to_scope(then_expr), scope.to_scope(else_expr))
     },
 };
 

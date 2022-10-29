@@ -1863,6 +1863,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
             }
             Term::BinOp(range, lhs, op, rhs) => self.synth_bin_op(*range, lhs, *op, rhs),
             Term::ReportedError(range) => self.synth_reported_error(*range),
+            Term::If(_, _, _, _) => todo!(),
         }
     }
 

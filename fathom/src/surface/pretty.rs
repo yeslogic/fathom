@@ -332,6 +332,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 ]),
             ),
             Term::ReportedError(_) => self.text("#error"),
+            Term::If(_, _, _, _) => todo!(),
         }
     }
 

@@ -269,6 +269,7 @@ fn term_deps(
         | Term::NumberLiteral(_, _)
         | Term::BooleanLiteral(_, _)
         | Term::ReportedError(_) => {}
+        Term::If(_, _, _, _) => todo!(),
     }
 }
 
