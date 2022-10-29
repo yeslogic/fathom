@@ -190,6 +190,11 @@ fn term_deps(
             term_deps(body_expr, item_names, local_names, deps);
             pop_pattern(pattern, local_names);
         }
+        Term::If(_, cond_expr, then_expr, else_expr) => {
+            term_deps(cond_expr, item_names, local_names, deps);
+            term_deps(then_expr, item_names, local_names, deps);
+            term_deps(else_expr, item_names, local_names, deps);
+        }
         Term::Match(_, scrutinee, equations) => {
             let initial_locals_names_len = local_names.len();
             term_deps(scrutinee, item_names, local_names, deps);
@@ -269,7 +274,6 @@ fn term_deps(
         | Term::NumberLiteral(_, _)
         | Term::BooleanLiteral(_, _)
         | Term::ReportedError(_) => {}
-        Term::If(_, _, _, _) => todo!(),
     }
 }
 
