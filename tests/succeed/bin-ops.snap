@@ -2,10 +2,7 @@ stdout = '''
 let device_table : _ = let u16_div_ceil : _ =
 fun numerator denominator => let quotient : _ numerator denominator =
 numerator / denominator;
-match ((quotient * denominator) < numerator) {
-    false => quotient,
-    true => quotient + (1 : U16),
-};
+if (quotient * denominator) < numerator then quotient + (1 : U16) else quotient;
 let delta_bits : _ = fun delta_format num_sizes => match delta_format {
     0x1 => num_sizes * (2 : U16),
     0x2 => num_sizes * (4 : U16),
