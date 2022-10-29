@@ -175,6 +175,23 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                     self.term_prec(Prec::Let, body_expr),
                 ]),
             ),
+            Term::If(_, cond_expr, then_expr, else_expr) => self.paren(
+                prec > Prec::Let,
+                docs![
+                    self,
+                    "if",
+                    self.space(),
+                    self.term_prec(Prec::Let, cond_expr),
+                    self.space(),
+                    "then",
+                    self.space(),
+                    self.term_prec(Prec::Let, then_expr),
+                    self.space(),
+                    "else",
+                    self.space(),
+                    self.term_prec(Prec::Let, else_expr),
+                ],
+            ),
             Term::Match(_, scrutinee, equations) => self.sequence(
                 self.concat([
                     self.text("match"),
@@ -332,23 +349,6 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 ]),
             ),
             Term::ReportedError(_) => self.text("#error"),
-            Term::If(_, cond_expr, then_expr, else_expr) => self.paren(
-                prec > Prec::Let,
-                docs![
-                    self,
-                    "if",
-                    self.space(),
-                    self.term_prec(Prec::Let, cond_expr),
-                    self.space(),
-                    "then",
-                    self.space(),
-                    self.term_prec(Prec::Let, then_expr),
-                    self.space(),
-                    "else",
-                    self.space(),
-                    self.term_prec(Prec::Let, else_expr),
-                ],
-            ),
         }
     }
 
