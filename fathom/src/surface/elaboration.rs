@@ -1359,6 +1359,21 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                     self.scope.to_scope(body_expr),
                 )
             }
+            (Term::If(range, cond_expr, then_expr, else_expr), _) => {
+                let cond_expr = self.check(cond_expr, &self.bool_type.clone());
+                let then_expr = self.check(then_expr, &expected_type);
+                let else_expr = self.check(else_expr, &expected_type);
+                let match_expr = core::Term::ConstMatch(
+                    range.into(),
+                    self.scope.to_scope(cond_expr),
+                    self.scope.to_scope_from_iter([
+                        (Const::Bool(true), then_expr),
+                        (Const::Bool(false), else_expr),
+                    ]),
+                    None,
+                );
+                match_expr
+            }
             (Term::Match(range, scrutinee_expr, equations), _) => {
                 self.check_match(*range, scrutinee_expr, equations, &expected_type)
             }
@@ -1599,6 +1614,21 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 );
 
                 (let_expr, body_type)
+            }
+            Term::If(range, cond_expr, then_expr, else_expr) => {
+                let cond_expr = self.check(cond_expr, &self.bool_type.clone());
+                let (then_expr, r#type) = self.synth(then_expr);
+                let else_expr = self.check(else_expr, &r#type);
+                let match_expr = core::Term::ConstMatch(
+                    range.into(),
+                    self.scope.to_scope(cond_expr),
+                    self.scope.to_scope_from_iter([
+                        (Const::Bool(true), then_expr),
+                        (Const::Bool(false), else_expr),
+                    ]),
+                    None,
+                );
+                (match_expr, r#type)
             }
             Term::Match(range, scrutinee_expr, equations) => {
                 // Create a single metavariable representing the overall
@@ -1863,7 +1893,6 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
             }
             Term::BinOp(range, lhs, op, rhs) => self.synth_bin_op(*range, lhs, *op, rhs),
             Term::ReportedError(range) => self.synth_reported_error(*range),
-            Term::If(_, _, _, _) => todo!(),
         }
     }
 
