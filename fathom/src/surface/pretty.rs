@@ -443,6 +443,17 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
     }
 }
 
+macro_rules! borrowed_text {
+    (match $doc:expr, {$($text:literal),*}, _ => $default:expr) => {
+        match $doc {
+            $(
+            Doc::BorrowedText($text) => &Doc::BorrowedText($text),
+            )*
+            _ => $default,
+        }
+    };
+}
+
 impl<'interner, 'arena, A: 'arena> DocAllocator<'arena, A> for Context<'interner, 'arena> {
     type Doc = RefDoc<'arena, A>;
 
@@ -481,28 +492,17 @@ impl<'interner, 'arena, A: 'arena> DocAllocator<'arena, A> for Context<'interner
             }
 
             // Language tokens
-            Doc::BorrowedText("fun") => &Doc::BorrowedText("fun"),
-            Doc::BorrowedText("let") => &Doc::BorrowedText("let"),
-            Doc::BorrowedText("overlap") => &Doc::BorrowedText("overlap"),
-            Doc::BorrowedText("Type") => &Doc::BorrowedText("Type"),
-            Doc::BorrowedText("where") => &Doc::BorrowedText("where"),
-            Doc::BorrowedText(":") => &Doc::BorrowedText(":"),
-            Doc::BorrowedText(",") => &Doc::BorrowedText(","),
-            Doc::BorrowedText("=") => &Doc::BorrowedText("="),
-            Doc::BorrowedText("=>") => &Doc::BorrowedText("=>"),
-            Doc::BorrowedText(".") => &Doc::BorrowedText("."),
-            Doc::BorrowedText("->") => &Doc::BorrowedText("->"),
-            Doc::BorrowedText("<-") => &Doc::BorrowedText("<-"),
-            Doc::BorrowedText(";") => &Doc::BorrowedText(";"),
-            Doc::BorrowedText("_") => &Doc::BorrowedText("_"),
-            Doc::BorrowedText("{") => &Doc::BorrowedText("{"),
-            Doc::BorrowedText("}") => &Doc::BorrowedText("}"),
-            Doc::BorrowedText("[") => &Doc::BorrowedText("["),
-            Doc::BorrowedText("]") => &Doc::BorrowedText("]"),
-            Doc::BorrowedText("(") => &Doc::BorrowedText("("),
-            Doc::BorrowedText(")") => &Doc::BorrowedText(")"),
-
-            _ => self.scope.to_scope(doc),
+            _ => {
+                borrowed_text!(
+                    match doc, {
+                        "def", "else", "false", "fun", "if", "let", "match", "overlap", "then",
+                        "true", "Type", "where", ":", ",", "=", "!=", "==", "=>", ">=", ">", "<=",
+                        "<", ".", "/", "->", "<-", "-", "|", "+", ";", "*", "_", "{", "}", "[",
+                        "]", "(", ")"
+                    },
+                    _ => self.scope.to_scope(doc)
+                )
+            }
         })
     }
 
