@@ -1,0 +1,4 @@
+stdout = '''
+match true { true => 1, false => 0 } : U8
+'''
+stderr = ''
