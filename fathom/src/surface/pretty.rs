@@ -175,23 +175,39 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                     self.term_prec(Prec::Let, body_expr),
                 ]),
             ),
-            Term::If(_, cond_expr, then_expr, else_expr) => self.paren(
-                prec > Prec::Let,
-                docs![
+            Term::If(_, cond_expr, then_expr, else_expr) => {
+                let cond = docs![
                     self,
                     "if",
                     self.space(),
                     self.term_prec(Prec::Let, cond_expr),
-                    self.space(),
+                ];
+                let then = docs![
+                    self,
                     "then",
                     self.space(),
                     self.term_prec(Prec::Let, then_expr),
-                    self.space(),
+                ];
+                let r#else = docs![
+                    self,
                     "else",
                     self.space(),
                     self.term_prec(Prec::Let, else_expr),
-                ],
-            ),
+                ];
+                self.paren(
+                    prec > Prec::Let,
+                    DocBuilder::flat_alt(
+                        docs![
+                            self,
+                            cond.clone(),
+                            docs![self, self.hardline(), then.clone()].nest(INDENT),
+                            docs![self, self.hardline(), r#else.clone()].nest(INDENT),
+                        ],
+                        docs![self, cond, self.space(), then, self.space(), r#else],
+                    )
+                    .group(),
+                )
+            }
             Term::Match(_, scrutinee, equations) => self.sequence(
                 self.concat([
                     self.text("match"),
