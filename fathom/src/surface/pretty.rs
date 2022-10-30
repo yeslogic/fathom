@@ -274,7 +274,12 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 self.text("}"),
             ),
             Term::UnitLiteral(_) => self.text("{}"),
-            Term::Tuple(_, _) => todo!(),
+            Term::Tuple(_, terms) => self.sequence(
+                self.text("("),
+                terms.iter().map(|term| self.term(term)),
+                self.text(","),
+                self.text(")"),
+            ),
             Term::Proj(_, head_expr, labels) => self.concat([
                 self.term_prec(Prec::Atomic, head_expr),
                 self.concat(
