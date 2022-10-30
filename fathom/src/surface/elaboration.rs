@@ -1747,6 +1747,7 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                     Telescope::new(SharedEnv::new(), &[]),
                 ))),
             ),
+            Term::Tuple(_, _) => todo!(),
             Term::Proj(range, head_expr, labels) => {
                 let head_range = head_expr.range();
                 let (mut head_expr, mut head_type) = self.synth(head_expr);

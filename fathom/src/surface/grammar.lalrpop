@@ -199,7 +199,7 @@ ProjTerm: Term<'arena, ByteRange> = {
 };
 
 AtomicTerm: Term<'arena, ByteRange> = {
-    "(" <term: Term> ")" => term,
+    <start: @L> "(" <terms: Seq<Term, ",">> ")" <end: @R> => if terms.len() == 1 { terms[0].clone() } else { Term::Tuple(ByteRange::new(file_id, start, end), terms) },
 
     <start: @L> <name: Name> <end: @R> => Term::Name(ByteRange::new(file_id, start, end), name),
     <start: @L> "_" <end: @R> => Term::Placeholder(ByteRange::new(file_id, start, end)),

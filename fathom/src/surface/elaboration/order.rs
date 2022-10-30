@@ -237,6 +237,7 @@ fn term_deps(
             }
             local_names.truncate(initial_locals_names_len);
         }
+        Term::Tuple(_, _) => todo!(),
         Term::Proj(_, head_expr, _) => {
             term_deps(head_expr, item_names, local_names, deps);
         }
