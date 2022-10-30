@@ -1,4 +1,4 @@
 stdout = '''
-{} : Format
+() : Format
 '''
 stderr = ''

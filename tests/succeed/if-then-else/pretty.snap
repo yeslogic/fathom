@@ -21,6 +21,6 @@ let _ : U32 = if false
     else if false then 0
     else if false then 0
     else 0;
-{} : {}
+() : ()
 '''
 stderr = ''

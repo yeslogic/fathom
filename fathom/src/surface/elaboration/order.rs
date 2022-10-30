@@ -242,6 +242,9 @@ fn term_deps(
             }
             local_names.truncate(initial_locals_names_len);
         }
+        Term::Tuple(_, terms) => terms
+            .iter()
+            .for_each(|term| term_deps(term, item_names, local_names, deps)),
         Term::Proj(_, head_expr, _) => {
             term_deps(head_expr, item_names, local_names, deps);
         }
@@ -269,7 +272,6 @@ fn term_deps(
         Term::Hole(_, _)
         | Term::Placeholder(_)
         | Term::Universe(_)
-        | Term::UnitLiteral(_)
         | Term::StringLiteral(_, _)
         | Term::NumberLiteral(_, _)
         | Term::BooleanLiteral(_, _)

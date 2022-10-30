@@ -205,7 +205,8 @@ ProjTerm: Term<'arena, ByteRange> = {
 };
 
 AtomicTerm: Term<'arena, ByteRange> = {
-    "(" <term: Term> ")" => term,
+    <start: @L> "(" <term: Term> ")" <end: @R> => term,
+    <start: @L> <terms: Tuple<Term>> <end: @R> => Term::Tuple(ByteRange::new(file_id, start, end), terms),
 
     <start: @L> <name: Name> <end: @R> => Term::Name(ByteRange::new(file_id, start, end), name),
     <start: @L> "_" <end: @R> => Term::Placeholder(ByteRange::new(file_id, start, end)),
@@ -218,20 +219,20 @@ AtomicTerm: Term<'arena, ByteRange> = {
     <start: @L> <number: NumberLiteral> <end: @R> => Term::NumberLiteral(ByteRange::new(file_id, start, end), number),
     <start: @L> "true" <end: @R> => Term::BooleanLiteral(ByteRange::new(file_id, start, end), true),
     <start: @L> "false" <end: @R> => Term::BooleanLiteral(ByteRange::new(file_id, start, end), false),
-    <start: @L> "{" "}" <end: @R> => Term::UnitLiteral(ByteRange::new(file_id, start, end)),
-    <start: @L> "{" <fields: NonEmptySeq<TypeField, ",">> "}" <end: @R> => {
+    <start: @L> "{" "}" <end: @R> => Term::Tuple(ByteRange::new(file_id, start, end), &[]),
+    <start: @L> "{" <fields: Seq1<TypeField, ",">> "}" <end: @R> => {
         Term::RecordType(ByteRange::new(file_id, start, end), fields)
     },
-    <start: @L> "{" <fields: NonEmptySeq<ExprField, ",">> "}" <end: @R> => {
+    <start: @L> "{" <fields: Seq1<ExprField, ",">> "}" <end: @R> => {
         Term::RecordLiteral(ByteRange::new(file_id, start, end), fields)
     },
-    <start: @L> "{" <fields: NonEmptySeq<FormatField, ",">> "}" <end: @R> => {
+    <start: @L> "{" <fields: Seq1<FormatField, ",">> "}" <end: @R> => {
         Term::FormatRecord(ByteRange::new(file_id, start, end), fields)
     },
     <start: @L> "{" <name: RangedName> "<-" <format:Term> "|" <cond:Term> "}" <end: @R> => {
         Term::FormatCond(ByteRange::new(file_id, start, end), name, scope.to_scope(format), scope.to_scope(cond))
     },
-    <start: @L> "overlap" "{" <fields: NonEmptySeq<FormatField, ",">> "}" <end: @R> => {
+    <start: @L> "overlap" "{" <fields: Seq1<FormatField, ",">> "}" <end: @R> => {
         Term::FormatOverlap(ByteRange::new(file_id, start, end), fields)
     },
     <start: @L> "[" <exprs: Seq<Term, ",">> "]" <end: @R> => {
@@ -288,6 +289,12 @@ BinOpGte: BinOp<ByteRange> = <start: @L> ">=" <end: @R> => BinOp::Gte(ByteRange:
 #[inline] StringLiteral: StringId = { <"string literal"> => interner.borrow_mut().get_or_intern(<>) };
 #[inline] NumberLiteral: StringId = { <"number literal"> => interner.borrow_mut().get_or_intern(<>) };
 
+Tuple<Elem>: &'arena [Elem] = {
+    "(" ")" => &[],
+    "(" <term: Term> "," ")" => scope.to_scope_from_iter([term]),
+    "(" <terms: Seq2<Term, ",">> ")" => terms,
+};
+
 #[inline]
 RangedName: (ByteRange, StringId) = {
     <start: @L> <name: Name> <end: @R> => (ByteRange::new(file_id, start, end), name),
@@ -299,8 +306,14 @@ Seq<Elem, Sep>: &'arena [Elem] = {
     }
 };
 
-NonEmptySeq<Elem, Sep>: &'arena [Elem] = {
+Seq1<Elem, Sep>: &'arena [Elem] = {
     <first: Elem> <elems: (Sep <Elem>)*> Sep? => {
         scope.to_scope_from_iter(std::iter::once(first).chain(elems))
+    },
+};
+
+Seq2<Elem, Sep>: &'arena [Elem] = {
+    <first: Elem> Sep <second: Elem> <elems: (Sep <Elem>)*> Sep? => {
+        scope.to_scope_from_iter(std::iter::once(first).chain(std::iter::once(second)).chain(elems))
     },
 };

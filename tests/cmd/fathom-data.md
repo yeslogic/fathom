@@ -128,8 +128,8 @@ $ fathom data --module formats/edid.fathom formats/data/edid/dell-P2415Q.edid
             white_x_msb = 80,
             white_y_msb = 84,
         },
-        established_timing = { mode_bitmap = [ 165, 75, 0 ] },
-        standard_timing_information = {},
+        established_timing = { mode_bitmap = [165, 75, 0] },
+        standard_timing_information = (),
     },
 ]
 
@@ -305,4 +305,3 @@ error: unwrapped none
 
 
 ```
-
