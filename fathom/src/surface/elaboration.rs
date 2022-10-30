@@ -1395,6 +1395,15 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
 
                 core::Term::RecordLit(range.into(), labels, exprs.into())
             }
+            (Term::Tuple(range, elem_exprs), _)
+                if elem_exprs.is_empty()
+                    && matches!(
+                        expected_type.match_prim_spine(),
+                        Some((Prim::FormatType, [])),
+                    ) =>
+            {
+                core::Term::FormatRecord(range.into(), &[], &[])
+            }
             (Term::Tuple(range, elem_exprs), Value::Universe) => {
                 let labels = (0..elem_exprs.len())
                     .map(|idx| self.interner.borrow_mut().get_or_intern(format!("_{idx}")));
@@ -1452,17 +1461,6 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                 }
 
                 core::Term::RecordLit(range.into(), labels, exprs.into())
-            }
-            (Term::UnitLiteral(range), Value::Universe) => {
-                core::Term::RecordType(range.into(), &[], &[])
-            }
-            (Term::UnitLiteral(range), _)
-                if matches!(
-                    expected_type.match_prim_spine(),
-                    Some((Prim::FormatType, [])),
-                ) =>
-            {
-                core::Term::FormatRecord(range.into(), &[], &[])
             }
             (Term::ArrayLiteral(range, elem_exprs), _) => {
                 use crate::core::semantics::Elim::FunApp as App;
@@ -1798,13 +1796,6 @@ impl<'interner, 'arena, 'error> Context<'interner, 'arena, 'error> {
                     Spanned::empty(Arc::new(Value::RecordType(labels, types))),
                 )
             }
-            Term::UnitLiteral(range) => (
-                core::Term::RecordLit(range.into(), &[], &[]),
-                Spanned::empty(Arc::new(Value::RecordType(
-                    &[],
-                    Telescope::new(SharedEnv::new(), &[]),
-                ))),
-            ),
             Term::Tuple(range, elem_exprs) => {
                 let labels = (0..elem_exprs.len())
                     .map(|idx| self.interner.borrow_mut().get_or_intern(format!("_{idx}")));

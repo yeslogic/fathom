@@ -212,7 +212,7 @@ AtomicTerm: Term<'arena, ByteRange> = {
     <start: @L> <number: NumberLiteral> <end: @R> => Term::NumberLiteral(ByteRange::new(file_id, start, end), number),
     <start: @L> "true" <end: @R> => Term::BooleanLiteral(ByteRange::new(file_id, start, end), true),
     <start: @L> "false" <end: @R> => Term::BooleanLiteral(ByteRange::new(file_id, start, end), false),
-    <start: @L> "{" "}" <end: @R> => Term::UnitLiteral(ByteRange::new(file_id, start, end)),
+    <start: @L> "{" "}" <end: @R> => Term::Tuple(ByteRange::new(file_id, start, end), &[]),
     <start: @L> "{" <fields: NonEmptySeq<TypeField, ",">> "}" <end: @R> => {
         Term::RecordType(ByteRange::new(file_id, start, end), fields)
     },

@@ -244,8 +244,9 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                     self.scope.to_scope(body_expr),
                 )
             }
-            core::Term::RecordType(_span, labels, _) if labels.is_empty() => Term::UnitLiteral(()),
-            core::Term::RecordLit(_span, labels, _) if labels.is_empty() => Term::UnitLiteral(()),
+            core::Term::RecordType(_span, labels, _) if labels.is_empty() => {
+                Term::RecordType((), &[])
+            }
             core::Term::RecordLit(_span, labels, exprs) => {
                 let scope = self.scope;
                 let expr_fields =
@@ -263,7 +264,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 Term::ArrayLiteral((), scope.to_scope_from_iter(elem_exprs))
             }
             core::Term::FormatRecord(_span, labels, _) if labels.is_empty() => {
-                Term::UnitLiteral(())
+                Term::FormatRecord((), &[])
             }
             core::Term::ConstLit(_span, r#const) => match r#const {
                 core::Const::Bool(boolean) => Term::BooleanLiteral((), *boolean),
@@ -489,7 +490,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 }
             },
             core::Term::RecordType(_span, labels, _) if labels.is_empty() => {
-                Term::Ann((), &Term::UnitLiteral(()), &Term::Universe(()))
+                Term::Ann((), &Term::RecordType((), &[]), &Term::Universe(()))
             }
             core::Term::RecordType(_span, labels, types) => {
                 let initial_local_len = self.local_len();
@@ -507,7 +508,6 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
 
                 Term::RecordType((), type_fields)
             }
-            core::Term::RecordLit(_span, labels, _) if labels.is_empty() => Term::UnitLiteral(()),
             core::Term::RecordLit(_span, labels, exprs) => {
                 let scope = self.scope;
                 let expr_fields =
@@ -543,7 +543,11 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
             }
             core::Term::FormatRecord(_span, labels, _) if labels.is_empty() => {
                 let format_type = self.synth_prim(core::Prim::FormatType);
-                Term::Ann((), &Term::UnitLiteral(()), self.scope.to_scope(format_type))
+                Term::Ann(
+                    (),
+                    &Term::FormatRecord((), &[]),
+                    self.scope.to_scope(format_type),
+                )
             }
             core::Term::FormatRecord(_span, labels, formats) => {
                 Term::FormatRecord((), self.synth_format_fields(labels, formats))

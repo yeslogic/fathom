@@ -223,8 +223,6 @@ pub enum Term<'arena, Range> {
     RecordType(Range, &'arena [TypeField<'arena, Range>]),
     /// Record literals.
     RecordLiteral(Range, &'arena [ExprField<'arena, Range>]),
-    /// Unit literals.
-    UnitLiteral(Range),
     Tuple(Range, &'arena [Term<'arena, Range>]),
     /// Projections.
     Proj(
@@ -285,7 +283,6 @@ impl<'arena, Range: Clone> Term<'arena, Range> {
             | Term::App(range, _, _)
             | Term::RecordType(range, _)
             | Term::RecordLiteral(range, _)
-            | Term::UnitLiteral(range)
             | Term::Tuple(range, _)
             | Term::Proj(range, _, _)
             | Term::ArrayLiteral(range, _)

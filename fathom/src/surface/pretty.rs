@@ -273,7 +273,6 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 self.text(","),
                 self.text("}"),
             ),
-            Term::UnitLiteral(_) => self.text("{}"),
             Term::Tuple(_, terms) => self.sequence(
                 self.text("("),
                 terms.iter().map(|term| self.term(term)),

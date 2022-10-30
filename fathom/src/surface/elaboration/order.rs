@@ -267,7 +267,6 @@ fn term_deps(
         Term::Hole(_, _)
         | Term::Placeholder(_)
         | Term::Universe(_)
-        | Term::UnitLiteral(_)
         | Term::StringLiteral(_, _)
         | Term::NumberLiteral(_, _)
         | Term::BooleanLiteral(_, _)
