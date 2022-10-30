@@ -1,0 +1,6 @@
+let unit = ();
+let single = (false);
+let pair = (false, true);
+let triple = (false, true, false);
+
+()

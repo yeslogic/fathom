@@ -1,0 +1,66 @@
+stdout = ''
+stderr = '''
+error: mismatched field labels in record literal
+  ┌─ tests/fail/elaboration/mismatched-field-labels/tuple.fathom:7:32
+  │
+7 │ let too_short_triple: Triple = (0, 1);
+  │                                ^^^^^^ missing fields `_2`
+  │
+  = expected fields `_0`, `_1`, `_2`
+  =    found fields `_0`, `_1`
+
+error: mismatched field labels in record literal
+  ┌─ tests/fail/elaboration/mismatched-field-labels/tuple.fathom:8:42
+  │
+8 │ let too_long_triple:  Triple = (0, 1, 2, 3);
+  │                                ----------^-
+  │                                │         │
+  │                                │         unexpected field `_3`
+  │                                the record literal
+  │
+  = expected fields `_0`, `_1`, `_2`
+  =    found fields `_0`, `_1`, `_2`, `_3`
+
+error: mismatched field labels in record literal
+   ┌─ tests/fail/elaboration/mismatched-field-labels/tuple.fathom:10:30
+   │
+10 │ let too_short_point: Point = (0, 1);
+   │                              ^^^^^^ missing fields `z`
+   │
+   = expected fields `x`, `y`, `z`
+   =    found fields `x`, `y`
+
+error: mismatched field labels in record literal
+   ┌─ tests/fail/elaboration/mismatched-field-labels/tuple.fathom:11:40
+   │
+11 │ let too_long_point:  Point = (0, 1, 2, 3);
+   │                              ----------^-
+   │                              │         │
+   │                              │         unexpected field `_3`
+   │                              the record literal
+   │
+   = expected fields `x`, `y`, `z`
+   =    found fields `x`, `y`, `z`, `_3`
+
+error: mismatched field labels in record literal
+   ┌─ tests/fail/elaboration/mismatched-field-labels/tuple.fathom:13:26
+   │
+13 │ let too_short_any: Any = ();
+   │                          ^^ missing fields `A`, `a`
+   │
+   = expected fields `A`, `a`
+   =    found fields 
+
+error: mismatched field labels in record literal
+   ┌─ tests/fail/elaboration/mismatched-field-labels/tuple.fathom:14:40
+   │
+14 │ let too_long_any:  Any = (Bool, false, true);
+   │                          --------------^^^^-
+   │                          │             │
+   │                          │             unexpected field `_2`
+   │                          the record literal
+   │
+   = expected fields `A`, `a`
+   =    found fields `A`, `a`, `_2`
+
+'''

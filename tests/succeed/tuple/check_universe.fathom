@@ -1,0 +1,6 @@
+let Unit: Type = ();
+let Single: Type = (Bool);
+let Pair: Type = (Bool, U8);
+let Triple: Type = (Bool, U8, U16);
+
+Unit

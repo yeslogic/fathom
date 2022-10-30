@@ -1,0 +1,8 @@
+stdout = '''
+let unit : _ = {};
+let single : _ = false;
+let pair : _ = { _0 = false, _1 = true };
+let triple : _ = { _0 = false, _1 = true, _2 = false };
+{} : {}
+'''
+stderr = ''
