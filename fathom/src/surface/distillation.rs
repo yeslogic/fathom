@@ -345,7 +345,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 let head_expr = self.synth(&core::Term::MetaVar(*span, *var));
                 let num_params = local_infos
                     .iter()
-                    .filter(|info| matches!(info, core::LocalInfo::Parameter))
+                    .filter(|info| matches!(info, core::LocalInfo::Param))
                     .count();
 
                 if num_params == 0 {
@@ -356,8 +356,8 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
 
                     for (var, info) in Iterator::zip(env::levels(), local_infos.iter()) {
                         match info {
-                            core::LocalInfo::Definition => {}
-                            core::LocalInfo::Parameter => {
+                            core::LocalInfo::Def => {}
+                            core::LocalInfo::Param => {
                                 let var = self.local_len().level_to_index(var).unwrap();
                                 arg_exprs.push(self.check(&core::Term::LocalVar(Span::Empty, var)));
                             }

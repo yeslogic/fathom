@@ -204,17 +204,13 @@ impl<Entry> std::ops::Deref for UniqueEnv<Entry> {
     type Target = SliceEnv<Entry>;
 
     fn deref(&self) -> &SliceEnv<Entry> {
-        // SAFETY:
-        // - `SliceEnv<Entry>` is equivalent to an `[Entry]` internally
-        unsafe { std::mem::transmute::<&[_], &SliceEnv<_>>(&self.entries[..]) }
+        self.entries[..].into()
     }
 }
 
 impl<Entry> std::ops::DerefMut for UniqueEnv<Entry> {
     fn deref_mut(&mut self) -> &mut SliceEnv<Entry> {
-        // SAFETY:
-        // - `SliceEnv<Entry>` is equivalent to an `[Entry]` internally
-        unsafe { std::mem::transmute::<&mut [_], &mut SliceEnv<_>>(&mut self.entries[..]) }
+        (&mut self.entries[..]).into()
     }
 }
 
@@ -262,6 +258,22 @@ impl<Entry: PartialEq> SliceEnv<Entry> {
 
     pub fn elem_index(&self, entry: &Entry) -> Option<Index> {
         Iterator::zip(indices(), self.iter().rev()).find_map(|(var, e)| (entry == e).then(|| var))
+    }
+}
+
+impl<'a, Entry> From<&'a [Entry]> for &'a SliceEnv<Entry> {
+    fn from(entries: &'a [Entry]) -> &'a SliceEnv<Entry> {
+        // SAFETY:
+        // - `SliceEnv<Entry>` is equivalent to an `[Entry]` internally
+        unsafe { std::mem::transmute::<&[_], &SliceEnv<_>>(entries) }
+    }
+}
+
+impl<'a, Entry> From<&'a mut [Entry]> for &'a mut SliceEnv<Entry> {
+    fn from(entries: &'a mut [Entry]) -> &'a mut SliceEnv<Entry> {
+        // SAFETY:
+        // - `SliceEnv<Entry>` is equivalent to an `[Entry]` internally
+        unsafe { std::mem::transmute::<&mut [_], &mut SliceEnv<_>>(entries) }
     }
 }
 

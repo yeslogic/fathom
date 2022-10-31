@@ -1,4 +1,4 @@
 stdout = '''
-u32_add "nope" 0xcafe : U32
+("nope" : U32) + (0xcafe : U32) : U32
 '''
 stderr = ''
