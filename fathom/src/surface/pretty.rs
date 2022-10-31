@@ -94,8 +94,35 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 true => self.text("true"),
                 false => self.text("false"),
             },
-            Pattern::RecordLiteral(_, _) => todo!(),
-            Pattern::Tuple(_, _) => todo!(),
+            Pattern::RecordLiteral(_, pattern_fields) => self.sequence(
+                false,
+                self.text("{"),
+                pattern_fields.iter().map(|field| match &field.pattern {
+                    Some(pattern) => self.concat([
+                        self.string_id(field.label.1),
+                        self.space(),
+                        self.text("="),
+                        self.space(),
+                        self.pattern(&pattern),
+                    ]),
+                    None => self.string_id(field.label.1),
+                }),
+                self.text(","),
+                self.text("}"),
+            ),
+            Pattern::Tuple(_, patterns) if patterns.len() == 1 => self.concat([
+                self.text("("),
+                self.pattern(&patterns[0]),
+                self.text(","),
+                self.text(")"),
+            ]),
+            Pattern::Tuple(_, patterns) => self.sequence(
+                false,
+                self.text("("),
+                patterns.iter().map(|pattern| self.pattern(pattern)),
+                self.text(","),
+                self.text(")"),
+            ),
         }
     }
 
