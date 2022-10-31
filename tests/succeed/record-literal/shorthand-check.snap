@@ -1,0 +1,9 @@
+stdout = '''
+let id : fun (_ : Type) -> _ -> _ = fun _ a => a;
+let always : fun (_ : Type) (_ : Type) -> _ -> _ -> _ = fun _ _ a _ => a;
+{ id, always } : {
+    id : fun (A : Type) -> A -> A,
+    always : fun (A : Type) (B : Type) -> A -> B -> A,
+}
+'''
+stderr = ''

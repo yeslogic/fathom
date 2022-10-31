@@ -41,8 +41,8 @@ pub enum Message {
     },
     MismatchedFieldLabels {
         range: ByteRange,
-        expr_labels: Vec<(ByteRange, StringId)>,
-        type_labels: Vec<StringId>,
+        actual_labels: Vec<(ByteRange, StringId)>,
+        expected_labels: Vec<StringId>,
         // TODO: add expected type
         // expected_type: Doc<_>,
     },
@@ -199,45 +199,42 @@ impl Message {
             }
             Message::MismatchedFieldLabels {
                 range,
-                expr_labels,
-                type_labels,
+                actual_labels,
+                expected_labels,
             } => {
                 let interner = interner.borrow();
                 let mut diagnostic_labels = Vec::new();
                 {
-                    let mut type_labels = type_labels.iter().peekable();
+                    let mut expected_labels = expected_labels.iter().peekable();
 
-                    'expr_labels: for (range, expr_label) in expr_labels.iter() {
+                    'expr_labels: for (range, actual_label) in actual_labels.iter() {
                         'type_labels: loop {
-                            match type_labels.next() {
+                            match expected_labels.next() {
                                 None => {
-                                    let expr_label = interner.resolve(*expr_label).unwrap();
+                                    let actual_label = interner.resolve(*actual_label).unwrap();
                                     diagnostic_labels.push(primary_label(range).with_message(
-                                        format!("unexpected field `{}`", expr_label,),
+                                        format!("unexpected field `{}`", actual_label,),
                                     ));
                                     continue 'expr_labels;
                                 }
-                                Some(type_label) if expr_label == type_label => {
+                                Some(expected_label) if actual_label == expected_label => {
                                     continue 'expr_labels;
                                 }
-                                Some(type_label) => {
-                                    let type_label = interner.resolve(*type_label).unwrap();
-                                    diagnostic_labels.push(
-                                        primary_label(range).with_message(format!(
-                                            "expected field `{}`",
-                                            type_label,
-                                        )),
-                                    );
+                                Some(expected_label) => {
+                                    let expected_label = interner.resolve(*expected_label).unwrap();
+                                    diagnostic_labels.push(primary_label(range).with_message(
+                                        format!("expected field `{}`", expected_label,),
+                                    ));
                                     continue 'type_labels;
                                 }
                             }
                         }
                     }
 
-                    if type_labels.peek().is_some() {
+                    if expected_labels.peek().is_some() {
                         diagnostic_labels.push(primary_label(range).with_message(format!(
                             "missing fields {}",
-                            type_labels
+                            expected_labels
                                 .map(|label| interner.resolve(*label).unwrap())
                                 .format_with(", ", |label, f| f(&format_args!("`{}`", label))),
                         )));
@@ -247,10 +244,10 @@ impl Message {
                     }
                 }
 
-                let found_labels = (expr_labels.iter())
+                let found_labels = (actual_labels.iter())
                     .map(|(_, label)| interner.resolve(*label).unwrap())
                     .format_with(", ", |label, f| f(&format_args!("`{}`", label)));
-                let expected_labels = (type_labels.iter())
+                let expected_labels = (expected_labels.iter())
                     .map(|label| interner.resolve(*label).unwrap())
                     .format_with(", ", |label, f| f(&format_args!("`{}`", label)));
 

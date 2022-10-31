@@ -1,0 +1,4 @@
+let x = false;
+let y = true;
+let z = false;
+{x, y, z}

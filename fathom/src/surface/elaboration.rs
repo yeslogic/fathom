@@ -450,6 +450,47 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         (labels.into(), filtered_fields)
     }
 
+    fn check_tuple_fields<'fields, F>(
+        &mut self,
+        range: ByteRange,
+        fields: &'fields [F],
+        get_range: fn(&F) -> ByteRange,
+        expected_labels: &[StringId],
+    ) -> Result<(), ()> {
+        if fields.len() == expected_labels.len() {
+            return Ok(());
+        }
+
+        let mut actual_labels = Vec::with_capacity(fields.len());
+        let mut fields_iter = fields.iter().enumerate().peekable();
+        let mut expected_labels_iter = expected_labels.iter();
+
+        // use the label names from the expected labels
+        while let Some(((_, field), label)) =
+            Option::zip(fields_iter.peek(), expected_labels_iter.next())
+        {
+            actual_labels.push((get_range(field), *label));
+            fields_iter.next();
+        }
+
+        // use numeric labels for excess fields
+        for (idx, field) in fields_iter {
+            actual_labels.push((
+                get_range(field),
+                self.interner
+                    .borrow_mut()
+                    .get_or_intern(format!("_{}", idx)),
+            ));
+        }
+
+        self.push_message(Message::MismatchedFieldLabels {
+            range,
+            actual_labels,
+            expected_labels: expected_labels.to_vec(),
+        });
+        Err(())
+    }
+
     /// Parse a source string into number, assuming an ASCII encoding.
     fn parse_ascii<T>(
         &mut self,
@@ -687,11 +728,11 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         &mut self,
         pattern: &Pattern<ByteRange>,
         expected_type: &ArcValue<'arena>,
-    ) -> CheckedPattern {
-        match pattern {
-            Pattern::Name(range, name) => CheckedPattern::Binder(*range, *name),
-            Pattern::Placeholder(range) => CheckedPattern::Placeholder(*range),
-            Pattern::StringLiteral(range, lit) => {
+    ) -> CheckedPattern<'arena> {
+        match (pattern, expected_type.as_ref()) {
+            (Pattern::Name(range, name), _) => CheckedPattern::Binder(*range, *name),
+            (Pattern::Placeholder(range), _) => CheckedPattern::Placeholder(*range),
+            (Pattern::StringLiteral(range, lit), _) => {
                 let constant = match expected_type.match_prim_spine() {
                     Some((Prim::U8Type, [])) => self.parse_ascii(*range, *lit, Const::U8),
                     Some((Prim::U16Type, [])) => self.parse_ascii(*range, *lit, Const::U16),
@@ -717,7 +758,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                     None => CheckedPattern::ReportedError(*range),
                 }
             }
-            Pattern::NumberLiteral(range, lit) => {
+            (Pattern::NumberLiteral(range, lit), _) => {
                 let constant = match expected_type.match_prim_spine() {
                     Some((Prim::U8Type, [])) => self.parse_number_radix(*range, *lit, Const::U8),
                     Some((Prim::U16Type, [])) => self.parse_number_radix(*range, *lit, Const::U16),
@@ -745,7 +786,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                     None => CheckedPattern::ReportedError(*range),
                 }
             }
-            Pattern::BooleanLiteral(range, boolean) => {
+            (Pattern::BooleanLiteral(range, boolean), _) => {
                 let constant = match expected_type.match_prim_spine() {
                     Some((Prim::BoolType, [])) => match *boolean {
                         true => Some(Const::Bool(true)),
@@ -762,8 +803,92 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                     None => CheckedPattern::ReportedError(*range),
                 }
             }
-            Pattern::RecordLiteral(_, _) => todo!(),
-            Pattern::Tuple(_, _) => todo!(),
+            (
+                Pattern::RecordLiteral(range, pattern_fields),
+                Value::RecordType(labels, telescope),
+            ) => {
+                // TODO: improve handling of duplicate labels
+                if pattern_fields.len() != labels.len()
+                    || Iterator::zip(pattern_fields.iter(), labels.iter())
+                        .any(|(expr_field, type_label)| expr_field.label.1 != *type_label)
+                {
+                    self.push_message(Message::MismatchedFieldLabels {
+                        range: *range,
+                        actual_labels: (pattern_fields.iter())
+                            .map(|expr_field| expr_field.label)
+                            .collect(),
+                        expected_labels: labels.to_vec(),
+                    });
+                    return CheckedPattern::ReportedError(*range);
+                }
+
+                let mut telescope = telescope.clone();
+                let mut pattern_fields = pattern_fields.iter();
+                let mut patterns = SliceVec::new(self.scope, labels.len());
+
+                while let Some((pattern_field, (r#type, next_telescope))) = Option::zip(
+                    pattern_fields.next(),
+                    self.elim_env().split_telescope(telescope.clone()),
+                ) {
+                    let pattern = match &pattern_field.pattern {
+                        Some(pattern) => self.check_pattern(pattern, &r#type),
+                        None => {
+                            CheckedPattern::Binder(pattern_field.label.0, pattern_field.label.1)
+                        }
+                    };
+                    telescope = next_telescope(Spanned::empty(Arc::new(Value::local_var(
+                        self.local_env.len().next_level(),
+                    ))));
+                    patterns.push(pattern);
+                }
+                CheckedPattern::RecordLit(*range, labels, patterns.into())
+            }
+            (Pattern::Tuple(range, elem_patterns), Value::RecordType(labels, telescope)) => {
+                match self.check_tuple_fields(
+                    *range,
+                    elem_patterns,
+                    |pattern| pattern.range(),
+                    labels,
+                ) {
+                    Ok(_) => {}
+                    Err(_) => return CheckedPattern::ReportedError(*range),
+                }
+
+                let mut telescope = telescope.clone();
+                let mut elem_patterns = elem_patterns.iter();
+                let mut patterns = SliceVec::new(self.scope, elem_patterns.len());
+
+                while let Some((pattern, (r#type, next_telescope))) = Option::zip(
+                    elem_patterns.next(),
+                    self.elim_env().split_telescope(telescope.clone()),
+                ) {
+                    let pattern = self.check_pattern(pattern, &r#type);
+                    telescope = next_telescope(Spanned::empty(Arc::new(Value::local_var(
+                        self.local_env.len().next_level(),
+                    ))));
+                    patterns.push(pattern);
+                }
+
+                CheckedPattern::RecordLit(*range, labels, patterns.into())
+            }
+            _ => {
+                let range = pattern.range();
+                let (pattern, r#type) = self.synth_pattern(pattern);
+                match self.unification_context().unify(&r#type, expected_type) {
+                    Ok(()) => pattern,
+                    Err(error) => {
+                        let lhs = self.pretty_print_value(&r#type);
+                        let rhs = self.pretty_print_value(expected_type);
+                        self.push_message(Message::FailedToUnify {
+                            range,
+                            lhs,
+                            rhs,
+                            error,
+                        });
+                        CheckedPattern::ReportedError(range)
+                    }
+                }
+            }
         }
     }
 
@@ -771,7 +896,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
     fn synth_pattern(
         &mut self,
         pattern: &Pattern<ByteRange>,
-    ) -> (CheckedPattern, ArcValue<'arena>) {
+    ) -> (CheckedPattern<'arena>, ArcValue<'arena>) {
         match pattern {
             Pattern::Name(range, name) => {
                 let source = MetaSource::NamedPatternType(*range, *name);
@@ -800,8 +925,57 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 let r#type = self.bool_type.clone();
                 (CheckedPattern::ConstLit(*range, r#const), r#type)
             }
-            Pattern::RecordLiteral(_, _) => todo!(),
-            Pattern::Tuple(_, _) => todo!(),
+            Pattern::RecordLiteral(range, pattern_fields) => {
+                let (labels, pattern_fields) =
+                    self.report_duplicate_labels(*range, pattern_fields, |f| f.label);
+                let mut patterns = SliceVec::new(self.scope, labels.len());
+                let mut types = SliceVec::new(self.scope, labels.len());
+                for field in pattern_fields {
+                    match &field.pattern {
+                        Some(pattern) => {
+                            let (pattern, r#type) = self.synth_pattern(pattern);
+                            patterns.push(pattern);
+                            types.push(self.quote_env().quote(self.scope, &r#type));
+                        }
+                        None => {
+                            let label = field.label.1;
+                            let source = MetaSource::NamedPatternType(*range, label);
+                            let r#type = self.push_unsolved_type(source);
+                            let pattern = CheckedPattern::Binder(*range, label);
+                            patterns.push(pattern);
+                            types.push(self.quote_env().quote(self.scope, &r#type));
+                        }
+                    }
+                }
+                let telescope = Telescope::new(self.local_env.exprs.clone(), types.into());
+                (
+                    CheckedPattern::RecordLit(*range, labels, patterns.into()),
+                    Spanned::new(range.into(), Arc::new(Value::RecordType(labels, telescope))),
+                )
+            }
+            Pattern::Tuple(range, elem_patterns) => {
+                let labels = (0..elem_patterns.len()).map(|idx| {
+                    self.interner
+                        .borrow_mut()
+                        .get_or_intern(format!("_{}", idx))
+                });
+                let labels = self.scope.to_scope_from_iter(labels);
+
+                let mut patterns = SliceVec::new(self.scope, labels.len());
+                let mut types = SliceVec::new(self.scope, labels.len());
+
+                for pattern in elem_patterns.iter() {
+                    let (pattern, r#type) = self.synth_pattern(pattern);
+                    patterns.push(pattern);
+                    types.push(self.quote_env().quote(self.scope, &r#type));
+                }
+
+                let telescope = Telescope::new(self.local_env.exprs.clone(), types.into());
+                (
+                    CheckedPattern::RecordLit(*range, labels, patterns.into()),
+                    Spanned::new(range.into(), Arc::new(Value::RecordType(labels, telescope))),
+                )
+            }
         }
     }
 
@@ -811,7 +985,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         pattern: &Pattern<ByteRange>,
         r#type: Option<&Term<'_, ByteRange>>,
         expected_type: &ArcValue<'arena>,
-    ) -> CheckedPattern {
+    ) -> CheckedPattern<'arena> {
         match r#type {
             None => self.check_pattern(pattern, expected_type),
             Some(r#type) => {
@@ -842,7 +1016,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         &mut self,
         pattern: &Pattern<ByteRange>,
         r#type: Option<&Term<'_, ByteRange>>,
-    ) -> (CheckedPattern, ArcValue<'arena>) {
+    ) -> (CheckedPattern<'arena>, ArcValue<'arena>) {
         match r#type {
             None => self.synth_pattern(pattern),
             Some(r#type) => {
@@ -857,7 +1031,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
     /// The supplied `pattern` is expected to be irrefutable.
     fn push_local_def(
         &mut self,
-        pattern: CheckedPattern,
+        pattern: CheckedPattern<'arena>,
         expr: ArcValue<'arena>,
         r#type: ArcValue<'arena>,
     ) -> Option<StringId> {
@@ -872,6 +1046,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 None
             }
             CheckedPattern::ReportedError(_) => None,
+            CheckedPattern::RecordLit(_, _, _) => None,
         };
 
         self.local_env.push_def(name, expr, r#type);
@@ -883,7 +1058,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
     /// The supplied `pattern` is expected to be irrefutable.
     fn push_local_param(
         &mut self,
-        pattern: CheckedPattern,
+        pattern: CheckedPattern<'arena>,
         r#type: ArcValue<'arena>,
     ) -> (Option<StringId>, ArcValue<'arena>) {
         let name = match pattern {
@@ -897,6 +1072,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 None
             }
             CheckedPattern::ReportedError(_) => None,
+            CheckedPattern::RecordLit(_, _, _) => todo!(),
         };
 
         let expr = self.local_env.push_param(name, r#type);
@@ -963,10 +1139,10 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 {
                     self.push_message(Message::MismatchedFieldLabels {
                         range: *range,
-                        expr_labels: (expr_fields.iter())
+                        actual_labels: (expr_fields.iter())
                             .map(|expr_field| expr_field.label)
                             .collect(),
-                        type_labels: labels.to_vec(),
+                        expected_labels: labels.to_vec(),
                     });
                     return core::Term::Prim(range.into(), Prim::ReportedError);
                 }
@@ -1012,35 +1188,9 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 core::Term::RecordType(range.into(), labels, types)
             }
             (Term::Tuple(range, elem_exprs), Value::RecordType(labels, types)) => {
-                if elem_exprs.len() != labels.len() {
-                    let mut expr_labels = Vec::with_capacity(elem_exprs.len());
-                    let mut elem_exprs = elem_exprs.iter().enumerate().peekable();
-                    let mut label_iter = labels.iter();
-
-                    // use the label names from the expected type
-                    while let Some(((_, elem_expr), label)) =
-                        Option::zip(elem_exprs.peek(), label_iter.next())
-                    {
-                        expr_labels.push((elem_expr.range(), *label));
-                        elem_exprs.next();
-                    }
-
-                    // use numeric labels for excess elems
-                    for (idx, elem_expr) in elem_exprs {
-                        expr_labels.push((
-                            elem_expr.range(),
-                            self.interner
-                                .borrow_mut()
-                                .get_or_intern(format!("_{}", idx)),
-                        ));
-                    }
-
-                    self.push_message(Message::MismatchedFieldLabels {
-                        range: *range,
-                        expr_labels,
-                        type_labels: labels.to_vec(),
-                    });
-                    return core::Term::Prim(range.into(), Prim::ReportedError);
+                match self.check_tuple_fields(*range, elem_exprs, |expr| expr.range(), labels) {
+                    Ok(_) => {}
+                    Err(_) => return core::Term::Prim(range.into(), Prim::ReportedError),
                 }
 
                 let mut types = types.clone();
@@ -2039,6 +2189,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                         self.elab_match_unreachable(match_info, equations);
                         core::Term::Prim(range.into(), Prim::ReportedError)
                     }
+                    CheckedPattern::RecordLit(_, _, _) => todo!(),
                 }
             }
             None => self.elab_match_absurd(is_reachable, match_info),
@@ -2124,6 +2275,9 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                     self.check(body_expr, &match_info.expected_type);
                     default_expr = core::Term::Prim(range.into(), Prim::ReportedError);
                 }
+                // unreachable because `check_pattern` will always return an error when
+                // checking a record pattern against a literal
+                CheckedPattern::RecordLit(_, _, _) => unreachable!(),
             };
 
             // A default pattern was found, check any unreachable patterns.
@@ -2204,13 +2358,19 @@ impl_from_str_radix!(u64);
 
 /// Simple patterns that have had some initial elaboration performed on them
 #[derive(Debug)]
-enum CheckedPattern {
+enum CheckedPattern<'arena> {
     /// Pattern that binds local variable
     Binder(ByteRange, StringId),
     /// Placeholder patterns that match everything
     Placeholder(ByteRange),
     /// Constant literals
     ConstLit(ByteRange, Const),
+    /// Record literals
+    RecordLit(
+        ByteRange,
+        &'arena [StringId],
+        &'arena [CheckedPattern<'arena>],
+    ),
     /// Error sentinel
     ReportedError(ByteRange),
 }

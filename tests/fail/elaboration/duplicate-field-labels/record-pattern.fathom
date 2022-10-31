@@ -1,0 +1,4 @@
+//~ exit-code = 1
+
+let {x, y, x} = {x = false, y = true};
+{}

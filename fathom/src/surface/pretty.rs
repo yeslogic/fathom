@@ -103,7 +103,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                         self.space(),
                         self.text("="),
                         self.space(),
-                        self.pattern(&pattern),
+                        self.pattern(pattern),
                     ]),
                     None => self.string_id(field.label.1),
                 }),

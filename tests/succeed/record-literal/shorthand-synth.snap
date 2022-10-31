@@ -1,0 +1,8 @@
+stdout = '''
+let x : Bool = false; let y : Bool = true; let z : Bool = false; { x, y, z } : {
+    x : Bool,
+    y : Bool,
+    z : Bool,
+}
+'''
+stderr = ''
