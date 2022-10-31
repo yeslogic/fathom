@@ -1,8 +1,8 @@
 stdout = '''
-let Triple : Type = { _0 : U16, _1 : U32, _2 : U64 };
+let Triple : Type = { _0 : U16, _1 : U16, _2 : U16 };
 let Point : Type = { x : U16, y : U16, z : U16 };
 let Any : Type = { A : Type, a : A };
-let triple : { _0 : U16, _1 : U32, _2 : U64 } = { _0 = 0, _1 = 1, _2 = 2 };
+let triple : { _0 : U16, _1 : U16, _2 : U16 } = { _0 = 0, _1 = 1, _2 = 2 };
 let point : { x : U16, y : U16, z : U16 } = { x = 0, y = 1, z = 2 };
 let any : { A : Type, a : A } = { A = Bool, a = false };
 {} : {}

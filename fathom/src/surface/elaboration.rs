@@ -1379,7 +1379,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
 
                 for elem_exprs in elem_exprs.iter() {
                     let (expr, r#type) = self.synth(elem_exprs);
-                    types.push(self.quote_env(self.scope).quote(&r#type));
+                    types.push(self.quote_env().quote(self.scope, &r#type));
                     exprs.push(expr);
                 }
 

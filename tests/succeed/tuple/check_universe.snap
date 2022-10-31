@@ -1,8 +1,8 @@
 stdout = '''
 let Unit : Type = {};
 let Single : Type = Bool;
-let Pair : Type = { _0 : Bool, _1 : U16 };
-let Triple : Type = { _0 : Bool, _1 : U16, _2 : U64 };
+let Pair : Type = { _0 : Bool, _1 : U8 };
+let Triple : Type = { _0 : Bool, _1 : U8, _2 : U16 };
 Unit : Type
 '''
 stderr = ''
