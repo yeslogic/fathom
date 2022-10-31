@@ -1,6 +1,6 @@
 stdout = '''
 def header : Format = {
-    magic <- u64le where u64_eq magic 0xffffffffffff00,
+    magic <- u64le where magic == (0xffffffffffff00 : U64),
     manufacturer_id <- u16le,
     product_code <- u16le,
     serial <- u32le,

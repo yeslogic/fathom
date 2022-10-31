@@ -1,5 +1,5 @@
 stdout = '''
-(fun a => a : ?fun_type) Type : Type
+(fun a => a : Type -> Type) Type : Type
 '''
 stderr = '''
 note: solution found for hole `?fun_type`

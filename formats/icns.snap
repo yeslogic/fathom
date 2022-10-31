@@ -1,6 +1,6 @@
 stdout = '''
 def header : Format = {
-    magic <- u32be where u32_eq magic "icns",
+    magic <- u32be where magic == ("icns" : U32),
     file_length <- u32be,
 };
 def icon_data : Format = {
