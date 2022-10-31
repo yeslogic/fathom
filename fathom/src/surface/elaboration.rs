@@ -762,6 +762,8 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                     None => CheckedPattern::ReportedError(*range),
                 }
             }
+            Pattern::RecordLiteral(_, _) => todo!(),
+            Pattern::Tuple(_, _) => todo!(),
         }
     }
 
@@ -798,6 +800,8 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 let r#type = self.bool_type.clone();
                 (CheckedPattern::ConstLit(*range, r#const), r#type)
             }
+            Pattern::RecordLiteral(_, _) => todo!(),
+            Pattern::Tuple(_, _) => todo!(),
         }
     }
 
@@ -974,7 +978,10 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 while let Some((expr_field, (r#type, next_types))) =
                     Option::zip(expr_fields.next(), self.elim_env().split_telescope(types))
                 {
-                    let expr = self.check(&expr_field.expr, &r#type);
+                    let expr = match &expr_field.expr {
+                        Some(expr) => self.check(expr, &r#type),
+                        None => self.check_name(expr_field.label.0, expr_field.label.1, &r#type),
+                    };
                     types = next_types(self.eval_env().eval(&expr));
                     exprs.push(expr);
                 }
@@ -1103,7 +1110,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                     Some(Value::ConstLit(Const::U8(len, _))) => Some(*len as u64),
                     Some(Value::ConstLit(Const::U16(len, _))) => Some(*len as u64),
                     Some(Value::ConstLit(Const::U32(len, _))) => Some(*len as u64),
-                    Some(Value::ConstLit(Const::U64(len, _))) => Some(*len as u64),
+                    Some(Value::ConstLit(Const::U64(len, _))) => Some(*len),
                     Some(Value::Stuck(Head::Prim(Prim::ReportedError), _)) => {
                         return core::Term::Prim(range.into(), Prim::ReportedError);
                     }
@@ -1205,23 +1212,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         surface_term: &Term<'_, ByteRange>,
     ) -> (core::Term<'arena>, ArcValue<'arena>) {
         match surface_term {
-            Term::Name(range, name) => {
-                if let Some((term, r#type)) = self.get_local_name(*name) {
-                    return (core::Term::LocalVar(range.into(), term), r#type.clone());
-                }
-                if let Some((term, r#type)) = self.get_item_name(*name) {
-                    return (core::Term::ItemVar(range.into(), term), r#type.clone());
-                }
-                if let Some((prim, r#type)) = self.prim_env.get_name(*name) {
-                    return (core::Term::Prim(range.into(), prim), r#type.clone());
-                }
-
-                self.push_message(Message::UnboundName {
-                    range: *range,
-                    name: *name,
-                });
-                self.synth_reported_error(*range)
-            }
+            Term::Name(range, name) => self.synth_name(*range, *name),
             Term::Hole(range, name) => {
                 let type_source = MetaSource::HoleType(*range, *name);
                 let expr_source = MetaSource::HoleExpr(*range, *name);
@@ -1419,7 +1410,10 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 let mut exprs = SliceVec::new(self.scope, labels.len());
 
                 for expr_field in expr_fields {
-                    let (expr, r#type) = self.synth(&expr_field.expr);
+                    let (expr, r#type) = match &expr_field.expr {
+                        Some(expr) => self.synth(expr),
+                        None => self.synth_name(expr_field.label.0, expr_field.label.1),
+                    };
                     types.push(self.quote_env().quote(self.scope, &r#type));
                     exprs.push(expr);
                 }
@@ -1570,6 +1564,35 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
             Term::BinOp(range, lhs, op, rhs) => self.synth_bin_op(*range, lhs, *op, rhs),
             Term::ReportedError(range) => self.synth_reported_error(*range),
         }
+    }
+
+    fn synth_name(
+        &mut self,
+        range: ByteRange,
+        name: StringId,
+    ) -> (core::Term<'arena>, ArcValue<'arena>) {
+        if let Some((term, r#type)) = self.get_local_name(name) {
+            return (core::Term::LocalVar(range.into(), term), r#type.clone());
+        }
+        if let Some((term, r#type)) = self.get_item_name(name) {
+            return (core::Term::ItemVar(range.into(), term), r#type.clone());
+        }
+        if let Some((prim, r#type)) = self.prim_env.get_name(name) {
+            return (core::Term::Prim(range.into(), prim), r#type.clone());
+        }
+
+        self.push_message(Message::UnboundName { range, name });
+        self.synth_reported_error(range)
+    }
+
+    fn check_name(
+        &mut self,
+        range: ByteRange,
+        name: StringId,
+        expected_type: &ArcValue<'arena>,
+    ) -> core::Term<'arena> {
+        let (term, r#type) = self.synth_name(range, name);
+        self.convert(range, term, &r#type, expected_type)
     }
 
     fn check_fun_lit(
@@ -1959,7 +1982,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         &mut self,
         match_info: &MatchInfo<'arena>,
         is_reachable: bool,
-        mut equations: impl Iterator<Item = &'a (Pattern<ByteRange>, Term<'a, ByteRange>)>,
+        mut equations: impl Iterator<Item = &'a (Pattern<'a, ByteRange>, Term<'a, ByteRange>)>,
     ) -> core::Term<'arena> {
         match equations.next() {
             Some((pattern, body_expr)) => {
@@ -2036,7 +2059,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         match_info: &MatchInfo<'arena>,
         is_reachable: bool,
         (const_range, r#const, body_expr): (ByteRange, Const, core::Term<'arena>),
-        mut equations: impl Iterator<Item = &'a (Pattern<ByteRange>, Term<'a, ByteRange>)>,
+        mut equations: impl Iterator<Item = &'a (Pattern<'a, ByteRange>, Term<'a, ByteRange>)>,
     ) -> core::Term<'arena> {
         // The full range of this series of patterns
         let mut full_span = Span::merge(&const_range.into(), &body_expr.span());
@@ -2136,7 +2159,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
     fn elab_match_unreachable<'a>(
         &mut self,
         match_info: &MatchInfo<'arena>,
-        equations: impl Iterator<Item = &'a (Pattern<ByteRange>, Term<'a, ByteRange>)>,
+        equations: impl Iterator<Item = &'a (Pattern<'a, ByteRange>, Term<'a, ByteRange>)>,
     ) {
         self.elab_match(match_info, false, equations);
     }

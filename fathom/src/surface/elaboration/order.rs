@@ -161,6 +161,21 @@ fn item_dependencies(
     deps
 }
 
+fn name_deps(
+    name: StringId,
+    item_names: &FxHashMap<StringId, usize>,
+    local_names: &[StringId],
+    deps: &mut Vec<StringId>,
+) {
+    if local_names.iter().rev().any(|local| name == *local) {
+        // local binding, do nothing
+    } else if item_names.contains_key(&name) && deps.last() != Some(&name) {
+        // Only push if it's not a duplicate of the last item. This is a basic way
+        // to reduce the number of duplicate dependencies that are pushed.
+        deps.push(name);
+    }
+}
+
 fn term_deps(
     term: &Term<ByteRange>,
     item_names: &FxHashMap<StringId, usize>,
@@ -168,15 +183,7 @@ fn term_deps(
     deps: &mut Vec<StringId>,
 ) {
     match term {
-        Term::Name(_, name) => {
-            if local_names.iter().rev().any(|local| name == local) {
-                // local binding, do nothing
-            } else if item_names.contains_key(name) && deps.last() != Some(name) {
-                // Only push if it's not a duplicate of the last item. This is a basic way
-                // to reduce the number of duplicate dependencies that are pushed.
-                deps.push(*name);
-            }
-        }
+        Term::Name(_, name) => name_deps(*name, item_names, local_names, deps),
         Term::Ann(_, expr, r#type) => {
             term_deps(expr, item_names, local_names, deps);
             term_deps(r#type, item_names, local_names, deps);
@@ -210,13 +217,13 @@ fn term_deps(
         }
         Term::FunType(_, patterns, body_type) => {
             let initial_locals_names_len = local_names.len();
-            push_pattern_deps(*patterns, item_names, local_names, deps);
+            push_pattern_deps(patterns, item_names, local_names, deps);
             term_deps(body_type, item_names, local_names, deps);
             local_names.truncate(initial_locals_names_len);
         }
         Term::FunLiteral(_, patterns, body_type) => {
             let initial_locals_names_len = local_names.len();
-            push_pattern_deps(*patterns, item_names, local_names, deps);
+            push_pattern_deps(patterns, item_names, local_names, deps);
             term_deps(body_type, item_names, local_names, deps);
             local_names.truncate(initial_locals_names_len);
         }
@@ -237,8 +244,13 @@ fn term_deps(
         Term::RecordLiteral(_, expr_fields) => {
             let initial_locals_names_len = local_names.len();
             for expr_field in *expr_fields {
-                term_deps(&expr_field.expr, item_names, local_names, deps);
-                local_names.push(expr_field.label.1);
+                match &expr_field.expr {
+                    Some(expr) => {
+                        term_deps(expr, item_names, local_names, deps);
+                        local_names.push(expr_field.label.1);
+                    }
+                    None => name_deps(expr_field.label.1, item_names, local_names, deps),
+                }
             }
             local_names.truncate(initial_locals_names_len);
         }
@@ -333,6 +345,13 @@ fn push_pattern(pattern: &Pattern<ByteRange>, local_names: &mut Vec<StringId>) {
         Pattern::StringLiteral(_, _) => {}
         Pattern::NumberLiteral(_, _) => {}
         Pattern::BooleanLiteral(_, _) => {}
+        Pattern::RecordLiteral(_, fields) => fields.iter().for_each(|field| match &field.pattern {
+            Some(pattern) => push_pattern(pattern, local_names),
+            None => local_names.push(field.label.1),
+        }),
+        Pattern::Tuple(_, patterns) => patterns
+            .iter()
+            .for_each(|pattern| push_pattern(pattern, local_names)),
     }
 }
 
@@ -345,5 +364,14 @@ fn pop_pattern(pattern: &Pattern<ByteRange>, local_names: &mut Vec<StringId>) {
         Pattern::StringLiteral(_, _) => {}
         Pattern::NumberLiteral(_, _) => {}
         Pattern::BooleanLiteral(_, _) => {}
+        Pattern::RecordLiteral(_, fields) => fields.iter().for_each(|field| match &field.pattern {
+            Some(pattern) => pop_pattern(pattern, local_names),
+            None => {
+                local_names.pop();
+            }
+        }),
+        Pattern::Tuple(_, patterns) => patterns
+            .iter()
+            .for_each(|pattern| pop_pattern(pattern, local_names)),
     }
 }

@@ -67,7 +67,7 @@ pub struct ItemDef<'arena, Range> {
     /// The label that identifies this definition
     label: (Range, StringId),
     /// Parameter patterns
-    patterns: &'arena [(Pattern<Range>, Option<&'arena Term<'arena, Range>>)],
+    patterns: &'arena [(Pattern<'arena, Range>, Option<&'arena Term<'arena, Range>>)],
     /// An optional type annotation for the defined expression
     // FIXME: raw identifiers in LALRPOP grammars https://github.com/lalrpop/lalrpop/issues/613
     type_: Option<&'arena Term<'arena, Range>>,
@@ -77,7 +77,7 @@ pub struct ItemDef<'arena, Range> {
 
 /// Surface patterns.
 #[derive(Debug, Clone)]
-pub enum Pattern<Range> {
+pub enum Pattern<'arena, Range> {
     /// Named patterns, eg. `x`, `true`, `false`
     Name(Range, StringId),
     /// Placeholder patterns, eg. `_`
@@ -94,8 +94,9 @@ pub enum Pattern<Range> {
     NumberLiteral(Range, StringId),
     /// Boolean literal patterns
     BooleanLiteral(Range, bool),
-    // TODO: Record literal patterns
-    // RecordLiteral(Range, &'arena [((ByteRange, StringId), Pattern<'arena, Range>)]),
+    // Record literal patterns
+    RecordLiteral(Range, &'arena [PatternField<'arena, Range>]),
+    Tuple(Range, &'arena [Pattern<'arena, Range>]),
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -152,14 +153,16 @@ impl<Range> fmt::Display for BinOp<Range> {
     }
 }
 
-impl<Range: Clone> Pattern<Range> {
+impl<'arena, Range: Clone> Pattern<'arena, Range> {
     pub fn range(&self) -> Range {
         match self {
             Pattern::Name(range, _)
             | Pattern::Placeholder(range)
             | Pattern::StringLiteral(range, _)
             | Pattern::NumberLiteral(range, _)
-            | Pattern::BooleanLiteral(range, _) => range.clone(),
+            | Pattern::BooleanLiteral(range, _)
+            | Pattern::RecordLiteral(range, _)
+            | Pattern::Tuple(range, _) => range.clone(),
         }
     }
 }
@@ -182,7 +185,7 @@ pub enum Term<'arena, Range> {
     /// Let expressions.
     Let(
         Range,
-        Pattern<Range>,
+        Pattern<'arena, Range>,
         Option<&'arena Term<'arena, Range>>,
         &'arena Term<'arena, Range>,
         &'arena Term<'arena, Range>,
@@ -198,7 +201,7 @@ pub enum Term<'arena, Range> {
     Match(
         Range,
         &'arena Term<'arena, Range>,
-        &'arena [(Pattern<Range>, Term<'arena, Range>)],
+        &'arena [(Pattern<'arena, Range>, Term<'arena, Range>)],
     ),
     /// The type of types.
     Universe(Range),
@@ -211,13 +214,13 @@ pub enum Term<'arena, Range> {
     /// Dependent function types.
     FunType(
         Range,
-        &'arena [(Pattern<Range>, Option<&'arena Term<'arena, Range>>)],
+        &'arena [(Pattern<'arena, Range>, Option<&'arena Term<'arena, Range>>)],
         &'arena Term<'arena, Range>,
     ),
     /// Function literals.
     FunLiteral(
         Range,
-        &'arena [(Pattern<Range>, Option<&'arena Term<'arena, Range>>)],
+        &'arena [(Pattern<'arena, Range>, Option<&'arena Term<'arena, Range>>)],
         &'arena Term<'arena, Range>,
     ),
     /// Applications.
@@ -370,8 +373,19 @@ pub struct TypeField<'arena, Range> {
 pub struct ExprField<'arena, Range> {
     /// Label identifying the field
     label: (Range, StringId),
-    /// The expression that this field will store
-    expr: Term<'arena, Range>,
+    /// The expression that this field will store.
+    /// If `None`, `label` is used as the expression
+    expr: Option<Term<'arena, Range>>,
+}
+
+/// A field definition in a record pattern
+#[derive(Debug, Clone)]
+pub struct PatternField<'arena, Range> {
+    /// Label identifying the field
+    label: (Range, StringId),
+    /// The pattern that this field will match against.
+    /// If `None`, `label` is used as the pattern
+    pattern: Option<Pattern<'arena, Range>>,
 }
 
 /// Messages produced during parsing

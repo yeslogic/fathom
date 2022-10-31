@@ -129,7 +129,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
         Term::NumberLiteral((), number)
     }
 
-    fn check_boolean_pattern(&mut self, boolean: bool) -> Pattern<()> {
+    fn check_boolean_pattern(&mut self, boolean: bool) -> Pattern<'arena, ()> {
         let name = match boolean {
             true => self.interner.borrow_mut().get_or_intern("true"),
             false => self.interner.borrow_mut().get_or_intern("false"),
@@ -137,7 +137,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
         Pattern::Name((), name)
     }
 
-    fn check_number_pattern<T: std::fmt::Display>(&mut self, number: T) -> Pattern<()> {
+    fn check_number_pattern<T: std::fmt::Display>(&mut self, number: T) -> Pattern<'arena, ()> {
         let number = self.interner.borrow_mut().get_or_intern(number.to_string());
         Pattern::NumberLiteral((), number)
     }
@@ -146,14 +146,14 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
         &mut self,
         number: T,
         style: UIntStyle,
-    ) -> Pattern<()> {
+    ) -> Pattern<'arena, ()> {
         // TODO: Share with check_number_literal_styled
         let string = style.format(number);
         let number = self.interner.borrow_mut().get_or_intern(string);
         Pattern::NumberLiteral((), number)
     }
 
-    fn check_constant_pattern(&mut self, r#const: &core::Const) -> Pattern<()> {
+    fn check_constant_pattern(&mut self, r#const: &core::Const) -> Pattern<'arena, ()> {
         match r#const {
             core::Const::Bool(boolean) => self.check_boolean_pattern(*boolean),
             core::Const::U8(number, style) => self.check_number_pattern_styled(number, *style),
@@ -263,7 +263,19 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 let expr_fields =
                     Iterator::zip(labels.iter(), exprs.iter()).map(|(label, expr)| ExprField {
                         label: ((), *label),
-                        expr: self.check(expr),
+                        expr: match expr {
+                            core::Term::ItemVar(_, var)
+                                if self.get_item_name(*var) == Some(*label) =>
+                            {
+                                None
+                            }
+                            core::Term::LocalVar(_, var)
+                                if self.get_local_name(*var) == Some(*label) =>
+                            {
+                                None
+                            }
+                            _ => Some(self.check(expr)),
+                        },
                     });
 
                 Term::RecordLiteral((), scope.to_scope_from_iter(expr_fields))
@@ -562,7 +574,19 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 let expr_fields =
                     Iterator::zip(labels.iter(), exprs.iter()).map(|(label, expr)| ExprField {
                         label: ((), *label),
-                        expr: self.synth(expr),
+                        expr: match expr {
+                            core::Term::LocalVar(_, var)
+                                if self.get_local_name(*var) == Some(*label) =>
+                            {
+                                None
+                            }
+                            core::Term::ItemVar(_, var)
+                                if self.get_item_name(*var) == Some(*label) =>
+                            {
+                                None
+                            }
+                            _ => Some(self.synth(expr)),
+                        },
                     });
 
                 // TODO: type annotations?

@@ -94,6 +94,8 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 true => self.text("true"),
                 false => self.text("false"),
             },
+            Pattern::RecordLiteral(_, _) => todo!(),
+            Pattern::Tuple(_, _) => todo!(),
         }
     }
 
@@ -278,14 +280,15 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
             Term::RecordLiteral(_, expr_fields) => self.sequence(
                 true,
                 self.text("{"),
-                expr_fields.iter().map(|field| {
-                    self.concat([
+                expr_fields.iter().map(|field| match &field.expr {
+                    Some(expr) => self.concat([
                         self.string_id(field.label.1),
                         self.space(),
                         self.text("="),
                         self.space(),
-                        self.term_prec(Prec::Top, &field.expr),
-                    ])
+                        self.term_prec(Prec::Top, expr),
+                    ]),
+                    None => self.string_id(field.label.1),
                 }),
                 self.text(","),
                 self.text("}"),
