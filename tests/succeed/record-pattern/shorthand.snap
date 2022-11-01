@@ -1,0 +1,13 @@
+stdout = '''
+let r : { x1 : Bool, x2 : Bool, x3 : { y1 : Bool, y2 : Bool } } = {
+    x1 = false,
+    x2 = false,
+    x3 = { y1 = true, y2 = true },
+};
+let x1 : Bool = r.x1;
+let x2 : Bool = r.x2;
+let y1 : Bool = r.x3.y1;
+let y2 : Bool = r.x3.y2;
+() : ()
+'''
+stderr = ''

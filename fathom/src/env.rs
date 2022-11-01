@@ -42,7 +42,7 @@ type RawVar = u16;
 /// [de Bruijn index]: https://en.wikipedia.org/wiki/De_Bruijn_index
 /// [alpha-equivalence]: https://ncatlab.org/nlab/show/alpha-equivalence
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub struct Index(RawVar);
+pub struct Index(pub RawVar);
 
 impl Index {
     /// The last variable to be bound in the environment.
@@ -83,7 +83,7 @@ pub fn indices() -> impl Iterator<Item = Index> {
 /// Because of this, we're able to sidestep the need for expensive variable
 /// shifting during [normalisation][crate::core::semantics::EvalEnv::normalise].
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub struct Level(RawVar);
+pub struct Level(pub RawVar);
 
 impl Level {
     /// The first variable to be bound in the environment.
@@ -112,7 +112,7 @@ pub fn levels() -> impl Iterator<Item = Level> {
 
 /// The length of an environment.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub struct EnvLen(RawVar);
+pub struct EnvLen(pub RawVar);
 
 impl EnvLen {
     /// Construct a new, empty environment.
@@ -153,6 +153,10 @@ impl EnvLen {
     /// Truncate the environment to the given length.
     pub fn truncate(&mut self, len: EnvLen) {
         *self = len;
+    }
+
+    pub fn next(self) -> EnvLen {
+        Self(self.0 + 1)
     }
 }
 
@@ -197,6 +201,14 @@ impl<Entry> UniqueEnv<Entry> {
     /// Truncate the environment to the given length.
     pub fn truncate(&mut self, len: EnvLen) {
         self.entries.truncate(len.0 as usize);
+    }
+}
+
+impl<Entry> IntoIterator for UniqueEnv<Entry> {
+    type Item = Entry;
+    type IntoIter = <Vec<Entry> as IntoIterator>::IntoIter;
+    fn into_iter(self) -> Self::IntoIter {
+        self.entries.into_iter()
     }
 }
 

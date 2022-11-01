@@ -1,6 +1,8 @@
 //! Core language.
 
-use crate::env::{Index, Level};
+use scoped_arena::Scope;
+
+use crate::env::{EnvLen, Index, Level};
 use crate::source::Span;
 use crate::StringId;
 
@@ -254,6 +256,135 @@ impl<'arena> Term<'arena> {
                     || branches.iter().any(|(_, term)| term.binds_local(var))
                     || default_expr.map_or(false, |term| term.binds_local(var.prev()))
             }
+        }
+    }
+
+    /// Increment all `LocalVar`s greater than or equal to `min` by `amount`
+    pub fn shift(
+        &self,
+        scope: &'arena Scope<'arena>,
+        mut min: EnvLen,
+        amount: EnvLen,
+    ) -> Term<'arena> {
+        // Skip traversing and rebuilding the term if it would make no change. Increases sharing.
+        if amount.0 == 0 {
+            return self.clone();
+        }
+
+        match self {
+            Term::LocalVar(span, var) if var.0 >= min.0 => {
+                Term::LocalVar(*span, Index(var.0 + amount.0))
+            }
+            Term::LocalVar(..)
+            | Term::ItemVar(..)
+            | Term::MetaVar(..)
+            | Term::InsertedMeta(..)
+            | Term::Prim(..)
+            | Term::ConstLit(..)
+            | Term::Universe(..) => self.clone(),
+            Term::Ann(span, expr, r#type) => Term::Ann(
+                *span,
+                scope.to_scope(expr.shift(scope, min, amount)),
+                scope.to_scope(r#type.shift(scope, min, amount)),
+            ),
+            Term::Let(span, name, def_type, def_expr, body) => Term::Let(
+                *span,
+                *name,
+                scope.to_scope(def_type.shift(scope, min, amount)),
+                scope.to_scope(def_expr.shift(scope, min, amount)),
+                scope.to_scope(body.shift(scope, min.next(), amount)),
+            ),
+            Term::FunType(span, name, input, output) => Term::FunType(
+                *span,
+                *name,
+                scope.to_scope(input.shift(scope, min, amount)),
+                scope.to_scope(output.shift(scope, min.next(), amount)),
+            ),
+            Term::FunLit(span, name, body) => Term::FunLit(
+                *span,
+                *name,
+                scope.to_scope(body.shift(scope, min.next(), amount)),
+            ),
+            Term::FunApp(span, fun, arg) => Term::FunApp(
+                *span,
+                scope.to_scope(fun.shift(scope, min, amount)),
+                scope.to_scope(arg.shift(scope, min, amount)),
+            ),
+            Term::RecordType(span, labels, types) => Term::RecordType(
+                *span,
+                labels,
+                scope.to_scope_from_iter(types.iter().map(|r#type| {
+                    let ret = r#type.shift(scope, min, amount);
+                    min = min.next();
+                    ret
+                })),
+            ),
+            Term::RecordLit(span, labels, exprs) => Term::RecordLit(
+                *span,
+                labels,
+                scope.to_scope_from_iter(exprs.iter().map(|expr| expr.shift(scope, min, amount))),
+            ),
+            Term::RecordProj(span, head, label) => Term::RecordProj(
+                *span,
+                scope.to_scope(head.shift(scope, min, amount)),
+                *label,
+            ),
+            Term::ArrayLit(span, terms) => Term::ArrayLit(
+                *span,
+                scope.to_scope_from_iter(terms.iter().map(|term| term.shift(scope, min, amount))),
+            ),
+            Term::FormatRecord(span, labels, terms) => Term::FormatRecord(
+                *span,
+                labels,
+                scope.to_scope_from_iter(terms.iter().map(|term| {
+                    let ret = term.shift(scope, min, amount);
+                    min = min.next();
+                    ret
+                })),
+            ),
+            Term::FormatCond(span, name, format, pred) => Term::FormatCond(
+                *span,
+                *name,
+                scope.to_scope(format.shift(scope, min, amount)),
+                scope.to_scope(pred.shift(scope, min.next(), amount)),
+            ),
+            Term::FormatOverlap(span, labels, terms) => Term::FormatOverlap(
+                *span,
+                labels,
+                scope.to_scope_from_iter(terms.iter().map(|term| {
+                    let ret = term.shift(scope, min, amount);
+                    min = min.next();
+                    ret
+                })),
+            ),
+            Term::ConstMatch(span, scrut, branches, default) => Term::ConstMatch(
+                *span,
+                scope.to_scope(scrut.shift(scope, min, amount)),
+                scope.to_scope_from_iter(
+                    branches
+                        .iter()
+                        .map(|(r#const, term)| (*r#const, term.shift(scope, min, amount))),
+                ),
+                default.map(|term| scope.to_scope(term.shift(scope, min.next(), amount)) as &_),
+            ),
+        }
+    }
+
+    pub fn is_trivial(&self) -> bool {
+        match self {
+            Term::ItemVar(_, _)
+            | Term::LocalVar(_, _)
+            | Term::MetaVar(_, _)
+            | Term::InsertedMeta(_, _, _)
+            | Term::Prim(_, _)
+            | Term::ConstLit(_, _)
+            | Term::Universe(_) => true,
+            Term::RecordProj(_, head, _) => head.is_trivial(),
+            Term::RecordType(_, labels, _)
+            | Term::RecordLit(_, labels, _)
+            | Term::FormatRecord(_, labels, _) => labels.is_empty(),
+            Term::ArrayLit(_, exprs) => exprs.is_empty(),
+            _ => false,
         }
     }
 }

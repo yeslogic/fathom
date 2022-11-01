@@ -28,7 +28,7 @@ use std::sync::Arc;
 use crate::alloc::SliceVec;
 use crate::core::semantics::{self, ArcValue, Head, Telescope, Value};
 use crate::core::{self, prim, Const, Prim, UIntStyle};
-use crate::env::{self, EnvLen, Level, SharedEnv, UniqueEnv};
+use crate::env::{self, EnvLen, Index, Level, SharedEnv, UniqueEnv};
 use crate::source::{ByteRange, Span, Spanned};
 use crate::surface::elaboration::reporting::Message;
 use crate::surface::{distillation, pretty, BinOp, FormatField, Item, Module, Pattern, Term};
@@ -1027,59 +1027,6 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         }
     }
 
-    /// Push a local definition onto the context.
-    /// The supplied `pattern` is expected to be irrefutable.
-    fn push_local_def(
-        &mut self,
-        pattern: CheckedPattern<'arena>,
-        expr: ArcValue<'arena>,
-        r#type: ArcValue<'arena>,
-    ) -> Option<StringId> {
-        let name = match pattern {
-            CheckedPattern::Binder(_, name) => Some(name),
-            CheckedPattern::Placeholder(_) => None,
-            // FIXME: generate failing parameter expressions?
-            CheckedPattern::ConstLit(range, _) => {
-                self.push_message(Message::RefutablePattern {
-                    pattern_range: range,
-                });
-                None
-            }
-            CheckedPattern::ReportedError(_) => None,
-            CheckedPattern::RecordLit(_, _, _) => None,
-        };
-
-        self.local_env.push_def(name, expr, r#type);
-
-        name
-    }
-
-    /// Push a local parameter onto the context.
-    /// The supplied `pattern` is expected to be irrefutable.
-    fn push_local_param(
-        &mut self,
-        pattern: CheckedPattern<'arena>,
-        r#type: ArcValue<'arena>,
-    ) -> (Option<StringId>, ArcValue<'arena>) {
-        let name = match pattern {
-            CheckedPattern::Binder(_, name) => Some(name),
-            CheckedPattern::Placeholder(_) => None,
-            // FIXME: generate failing parameter expressions?
-            CheckedPattern::ConstLit(range, _) => {
-                self.push_message(Message::RefutablePattern {
-                    pattern_range: range,
-                });
-                None
-            }
-            CheckedPattern::ReportedError(_) => None,
-            CheckedPattern::RecordLit(_, _, _) => todo!(),
-        };
-
-        let expr = self.local_env.push_param(name, r#type);
-
-        (name, expr)
-    }
-
     /// Check that a surface term conforms to the given type.
     ///
     /// Returns the elaborated term in the core language.
@@ -1092,22 +1039,25 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
 
         match (surface_term, expected_type.as_ref()) {
             (Term::Let(range, def_pattern, def_type, def_expr, body_expr), _) => {
-                let (def_pattern, def_type_value) = self.synth_ann_pattern(def_pattern, *def_type);
-                let def_type = self.quote_env().quote(self.scope, &def_type_value);
-                let def_expr = self.check(def_expr, &def_type_value);
-                let def_expr_value = self.eval_env().eval(&def_expr);
-
-                let def_name = self.push_local_def(def_pattern, def_expr_value, def_type_value); // TODO: split on constants
+                let len = self.local_env.len();
+                let (def_pattern, def_type) = self.synth_ann_pattern(def_pattern, *def_type);
+                let scrut = self.check_scrutinee(def_expr, def_type);
+                let bindings = self.bind_pattern(PatternMode::Let, &def_pattern, scrut);
                 let body_expr = self.check(body_expr, &expected_type);
-                self.local_env.pop();
-
-                core::Term::Let(
-                    range.into(),
-                    def_name,
-                    self.scope.to_scope(def_type),
-                    self.scope.to_scope(def_expr),
-                    self.scope.to_scope(body_expr),
-                )
+                let let_expr = bindings.into_iter().rev().fold(
+                    body_expr,
+                    |acc, (name, type_expr, def_expr)| {
+                        core::Term::Let(
+                            range.into(),
+                            name,
+                            self.scope.to_scope(type_expr),
+                            self.scope.to_scope(def_expr),
+                            self.scope.to_scope(acc),
+                        )
+                    },
+                );
+                self.local_env.truncate(len);
+                let_expr
             }
             (Term::If(range, cond_expr, then_expr, else_expr), _) => {
                 let cond_expr = self.check(cond_expr, &self.bool_type.clone());
@@ -1395,23 +1345,24 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 (ann_expr, type_value)
             }
             Term::Let(range, def_pattern, def_type, def_expr, body_expr) => {
-                let (def_pattern, def_type_value) = self.synth_ann_pattern(def_pattern, *def_type);
-                let def_type = self.quote_env().quote(self.scope, &def_type_value);
-                let def_expr = self.check(def_expr, &def_type_value);
-                let def_expr_value = self.eval_env().eval(&def_expr);
-
-                let def_name = self.push_local_def(def_pattern, def_expr_value, def_type_value);
+                let len = self.local_env.len();
+                let (def_pattern, def_type) = self.synth_ann_pattern(def_pattern, *def_type);
+                let scrut = self.check_scrutinee(def_expr, def_type);
+                let bindings = self.bind_pattern(PatternMode::Let, &def_pattern, scrut);
                 let (body_expr, body_type) = self.synth(body_expr);
-                self.local_env.pop();
-
-                let let_expr = core::Term::Let(
-                    range.into(),
-                    def_name,
-                    self.scope.to_scope(def_type),
-                    self.scope.to_scope(def_expr),
-                    self.scope.to_scope(body_expr),
+                let let_expr = bindings.into_iter().rev().fold(
+                    body_expr,
+                    |acc, (name, type_expr, def_expr)| {
+                        core::Term::Let(
+                            range.into(),
+                            name,
+                            self.scope.to_scope(type_expr),
+                            self.scope.to_scope(def_expr),
+                            self.scope.to_scope(acc),
+                        )
+                    },
                 );
-
+                self.local_env.truncate(len);
                 (let_expr, body_type)
             }
             Term::If(range, cond_expr, then_expr, else_expr) => {
@@ -1462,25 +1413,42 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
             Term::FunType(range, patterns, body_type) => {
                 let initial_local_len = self.local_env.len();
 
-                // Elaborate the parameters, collecting them in a stack
                 let mut params = Vec::with_capacity(patterns.len());
-                for (pattern, r#type) in *patterns {
-                    let (pattern, type_value) = self.synth_ann_pattern(pattern, *r#type);
-                    let r#type = self.quote_env().quote(self.scope, &type_value);
-                    let (name, _) = self.push_local_param(pattern, type_value);
-                    params.push((name, r#type));
+                for (idx, (pattern, r#type)) in patterns.iter().enumerate() {
+                    let range = match idx {
+                        0 => *range, // The first pattern uses the range of the full function type
+                        _ => ByteRange::merge(&pattern.range(), &body_type.range()).unwrap(),
+                    };
+
+                    let (pattern, scrut) = self.synth_scrutinee_arg(pattern, *r#type);
+                    let r#type = self.quote_env().quote(self.scope, &scrut.r#type);
+                    let name = pattern.name();
+                    self.local_env.push_param(name, scrut.r#type.clone());
+                    let bindings = self.bind_pattern(PatternMode::Fun, &pattern, scrut);
+                    params.push((range, name, r#type, bindings));
                 }
 
                 let mut fun_type = self.check(body_type, &self.universe.clone());
                 self.local_env.truncate(initial_local_len);
 
                 // Construct the function type from the parameters in reverse
-                for (name, r#type) in params.into_iter().rev() {
+                for (range, name, r#type, bindings) in params.into_iter().rev() {
                     fun_type = core::Term::FunType(
-                        range.into(), // FIXME
+                        range.into(),
                         name,
                         self.scope.to_scope(r#type),
-                        self.scope.to_scope(fun_type),
+                        self.scope.to_scope(bindings.into_iter().rev().fold(
+                            fun_type,
+                            |acc, (name, type_expr, def_expr)| {
+                                core::Term::Let(
+                                    range.into(),
+                                    name,
+                                    self.scope.to_scope(type_expr),
+                                    self.scope.to_scope(def_expr),
+                                    self.scope.to_scope(acc),
+                                )
+                            },
+                        )),
                     );
                 }
 
@@ -1757,16 +1725,40 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 let body_type = self.elim_env().force(expected_type);
                 match body_type.as_ref() {
                     Value::FunType(_, param_type, next_body_type) => {
-                        let range = ByteRange::merge(&pattern.range(), &body_expr.range()).unwrap();
-                        let pattern = self.check_ann_pattern(pattern, *r#type, param_type);
-                        let (name, arg_expr) = self.push_local_param(pattern, param_type.clone());
+                        let initial_local_len = self.local_env.len();
 
-                        let body_type = self.elim_env().apply_closure(next_body_type, arg_expr);
+                        let range = ByteRange::merge(&pattern.range(), &body_expr.range()).unwrap();
+                        let (pattern, scrut) =
+                            self.check_scrutinee_arg(pattern, *r#type, param_type);
+                        let arg_value = self
+                            .local_env
+                            .push_param(pattern.name(), param_type.clone());
+                        let bindings = self.bind_pattern(PatternMode::Fun, &pattern, scrut);
+
+                        let body_type = self.elim_env().apply_closure(next_body_type, arg_value);
                         let body_expr =
                             self.check_fun_lit(range, next_patterns, body_expr, &body_type);
-                        self.local_env.pop();
 
-                        core::Term::FunLit(range.into(), name, self.scope.to_scope(body_expr))
+                        self.local_env.truncate(initial_local_len);
+
+                        let let_expr = bindings.into_iter().rev().fold(
+                            body_expr,
+                            |acc, (name, type_expr, def_expr)| {
+                                core::Term::Let(
+                                    range.into(),
+                                    name,
+                                    self.scope.to_scope(type_expr),
+                                    self.scope.to_scope(def_expr),
+                                    self.scope.to_scope(acc),
+                                )
+                            },
+                        );
+
+                        core::Term::FunLit(
+                            range.into(),
+                            pattern.name(),
+                            self.scope.to_scope(let_expr),
+                        )
                     }
                     // Attempt to elaborate the the body of the function in synthesis
                     // mode if we are checking against a metavariable.
@@ -1809,10 +1801,12 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 0 => range, // The first pattern uses the range of the full function literal
                 _ => ByteRange::merge(&pattern.range(), &body_expr.range()).unwrap(),
             };
-            let (pattern, type_value) = self.synth_ann_pattern(pattern, *r#type);
-            let r#type = self.quote_env().quote(self.scope, &type_value);
-            let (name, _) = self.push_local_param(pattern, type_value);
-            params.push((range, name, r#type));
+            let (pattern, scrut) = self.synth_scrutinee_arg(pattern, *r#type);
+            let r#type = self.quote_env().quote(self.scope, &scrut.r#type);
+            let name = pattern.name();
+            self.local_env.push_param(name, scrut.r#type.clone());
+            let bindings = self.bind_pattern(PatternMode::Fun, &pattern, scrut);
+            params.push((range, name, r#type, bindings));
         }
 
         let (mut fun_lit, mut fun_type) = match body_type {
@@ -1830,13 +1824,40 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         self.local_env.truncate(initial_local_len);
 
         // Construct the function literal and type from the parameters in reverse
-        for (range, name, r#type) in params.into_iter().rev() {
-            fun_lit = core::Term::FunLit(range.into(), name, self.scope.to_scope(fun_lit));
+        for (range, name, r#type, bindings) in params.into_iter().rev() {
+            fun_lit = core::Term::FunLit(
+                range.into(),
+                name,
+                self.scope.to_scope(bindings.iter().rev().fold(
+                    fun_lit,
+                    |acc, (name, type_expr, def_expr)| {
+                        core::Term::Let(
+                            range.into(),
+                            *name,
+                            self.scope.to_scope(type_expr.clone()),
+                            self.scope.to_scope(def_expr.clone()),
+                            self.scope.to_scope(acc),
+                        )
+                    },
+                )),
+            );
+
             fun_type = core::Term::FunType(
                 Span::Empty,
                 name,
                 self.scope.to_scope(r#type),
-                self.scope.to_scope(fun_type),
+                self.scope.to_scope(bindings.into_iter().rev().fold(
+                    fun_type,
+                    |acc, (name, type_expr, def_expr)| {
+                        core::Term::Let(
+                            range.into(),
+                            name,
+                            self.scope.to_scope(type_expr),
+                            self.scope.to_scope(def_expr),
+                            self.scope.to_scope(acc),
+                        )
+                    },
+                )),
             );
         }
 
@@ -2122,6 +2143,50 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         }
     }
 
+    fn check_scrutinee(
+        &mut self,
+        scrutinee_expr: &Term<'_, ByteRange>,
+        r#type: ArcValue<'arena>,
+    ) -> Scrutinee<'arena> {
+        let expr = self.check(scrutinee_expr, &r#type);
+        Scrutinee {
+            range: scrutinee_expr.range(),
+            expr: self.scope.to_scope(expr),
+            r#type,
+        }
+    }
+
+    fn synth_scrutinee_arg(
+        &mut self,
+        pattern: &Pattern<ByteRange>,
+        r#type: Option<&Term<'_, ByteRange>>,
+    ) -> (CheckedPattern<'arena>, Scrutinee<'arena>) {
+        let (pattern, r#type) = self.synth_ann_pattern(pattern, r#type);
+        let expr = core::Term::LocalVar(pattern.range().into(), env::Index(0));
+        let scrut = Scrutinee {
+            range: pattern.range(),
+            expr: self.scope.to_scope(expr),
+            r#type,
+        };
+        (pattern, scrut)
+    }
+
+    fn check_scrutinee_arg(
+        &mut self,
+        pattern: &Pattern<ByteRange>,
+        r#type: Option<&Term<'_, ByteRange>>,
+        expected_type: &ArcValue<'arena>,
+    ) -> (CheckedPattern<'arena>, Scrutinee<'arena>) {
+        let pattern = self.check_ann_pattern(pattern, r#type, expected_type);
+        let expr = core::Term::LocalVar(pattern.range().into(), env::Index(0));
+        let scrut = Scrutinee {
+            range: pattern.range(),
+            expr: self.scope.to_scope(expr),
+            r#type: expected_type.clone(),
+        };
+        (pattern, scrut)
+    }
+
     /// Elaborate a pattern match into a case tree in the core language.
     ///
     /// The implementation is based on the algorithm described in Section 5 of
@@ -2334,6 +2399,119 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         }
         core::Term::Prim(match_info.range.into(), Prim::ReportedError)
     }
+
+    /// Push a definition onto the local environment for each variable in `pattern`,
+    /// and return a triple of `(name, type_expr, value_expr)` for each new definition,
+    /// which can be used to build up a nested `let` expression binding each new definition.
+    fn bind_pattern(
+        &mut self,
+        mode: PatternMode,
+        pattern: &CheckedPattern<'arena>,
+        mut scrut: Scrutinee<'arena>,
+    ) -> UniqueEnv<(Option<StringId>, core::Term<'arena>, core::Term<'arena>)> {
+        let mut defs = UniqueEnv::new();
+        let mut depth = EnvLen(0);
+
+        let scrut_expr = match (scrut.expr.is_trivial(), pattern.is_trivial()) {
+            // Do not add an extra binding if the scrut is a function argument
+            // Avoids results like `fun x => x` elaborating to `fun x => let x = x; x`
+            (true, true) if mode == PatternMode::Fun => return defs,
+
+            // Compound patterns (only record literals for now) may bind `scrut_expr` several times.
+            // Therefore it is necessary to first bind `scrut_expr` to a fresh variable to ensure it
+            // is not evaluated several times.
+            // We can generate slightly nicer code by not introducing a fresh variable if `scrut_expr` is "trivial"
+            (false, false) => {
+                let name = pattern.name();
+                let range = pattern.range();
+                let scrut_value = self.eval_env().eval(scrut.expr);
+                let type_expr = self.quote_env().quote(self.scope, &scrut.r#type);
+
+                self.local_env
+                    .push_def(name, scrut_value, scrut.r#type.clone());
+                defs.push((name, type_expr, scrut.expr.clone()));
+                self.scope
+                    .to_scope(core::Term::LocalVar(range.into(), Index::last()))
+            }
+            _ => scrut.expr,
+        };
+        scrut.expr = scrut_expr;
+
+        self.bind_pattern_rec(mode, pattern, scrut, &mut defs, &mut depth);
+        defs
+    }
+
+    fn bind_pattern_rec(
+        &mut self,
+        mode: PatternMode,
+        pattern: &CheckedPattern<'arena>,
+        scrut: Scrutinee<'arena>,
+        defs: &mut UniqueEnv<(Option<StringId>, core::Term<'arena>, core::Term<'arena>)>,
+        depth: &mut EnvLen,
+    ) {
+        match pattern {
+            CheckedPattern::Binder(_, name) => self.bind_var(Some(*name), scrut, defs, depth),
+            CheckedPattern::Placeholder(_) | CheckedPattern::ReportedError(_) => {
+                self.bind_var(None, scrut, defs, depth)
+            }
+            CheckedPattern::ConstLit(range, _) => {
+                if mode != PatternMode::Match {
+                    self.messages.push(Message::RefutablePattern {
+                        pattern_range: *range,
+                    });
+                }
+                self.bind_var(None, scrut, defs, depth)
+            }
+            CheckedPattern::RecordLit(_, labels, patterns) => {
+                let mut telescope = match scrut.r#type.as_ref() {
+                    Value::RecordType(_, telescope) => telescope.clone(),
+                    _ => unreachable!(),
+                };
+                let scrut_expr = self.scope.to_scope(scrut.expr);
+                let mut iter = Iterator::zip(labels.iter(), patterns.iter());
+                while let Some(((label, pattern), (scrut_type, next_telescope))) = Option::zip(
+                    iter.next(),
+                    self.elim_env().split_telescope(telescope.clone()),
+                ) {
+                    telescope = next_telescope(Spanned::empty(Arc::new(Value::local_var(
+                        self.local_env.len().next_level(),
+                    ))));
+                    let scrut_expr = core::Term::RecordProj(Span::Empty, scrut_expr, *label);
+                    let scrut = Scrutinee {
+                        range: scrut.range,
+                        expr: self.scope.to_scope(scrut_expr),
+                        r#type: scrut_type,
+                    };
+                    self.bind_pattern_rec(mode, pattern, scrut, defs, depth);
+                }
+            }
+        }
+    }
+
+    fn bind_var(
+        &mut self,
+        name: Option<StringId>,
+        scrut: Scrutinee<'arena>,
+        defs: &mut UniqueEnv<(Option<StringId>, core::Term<'arena>, core::Term<'arena>)>,
+        depth: &mut EnvLen,
+    ) {
+        let scrut_expr = scrut.expr.shift(self.scope, EnvLen(0), *depth);
+        let scrut_value = self.eval_env().eval(&scrut_expr);
+
+        let scrut_type_expr = self.quote_env().quote(self.scope, &scrut.r#type);
+
+        self.local_env
+            .push_def(name, scrut_value, scrut.r#type.clone());
+        defs.push((name, scrut_type_expr, scrut_expr));
+        depth.push();
+    }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum PatternMode {
+    Let,
+    Fun,
+    Match,
 }
 
 trait FromStrRadix: Sized {
@@ -2373,6 +2551,29 @@ enum CheckedPattern<'arena> {
     ),
     /// Error sentinel
     ReportedError(ByteRange),
+}
+impl<'arena> CheckedPattern<'arena> {
+    fn name(&self) -> Option<StringId> {
+        match self {
+            CheckedPattern::Binder(_, name) => Some(*name),
+            CheckedPattern::RecordLit(..) => None, // FIXME: generate a fresh name?
+            _ => None,
+        }
+    }
+
+    fn is_trivial(&self) -> bool {
+        !matches!(self, CheckedPattern::RecordLit(_, _, _))
+    }
+
+    fn range(&self) -> ByteRange {
+        match self {
+            CheckedPattern::Binder(range, _)
+            | CheckedPattern::Placeholder(range)
+            | CheckedPattern::ConstLit(range, _)
+            | CheckedPattern::RecordLit(range, _, _)
+            | CheckedPattern::ReportedError(range) => *range,
+        }
+    }
 }
 
 /// Scrutinee of a match expression

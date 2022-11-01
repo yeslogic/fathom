@@ -1,0 +1,3 @@
+let r = {x1 = false, x2 = false, x3 = {y1 = true, y2 = true}};
+let {x1, x2, x3 = {y1, y2}} = r;
+{}

@@ -1,0 +1,3 @@
+let fst = (fun (A: Type) (B: Type) ({x, y}: {x: A, y: B}) => x) : _;
+let snd = (fun (A: Type) (B: Type) ({x, y}: {x: A, y: B}) => y) : _;
+{}

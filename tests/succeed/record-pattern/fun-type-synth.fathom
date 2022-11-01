@@ -1,0 +1,4 @@
+let f   = fun ({}: {}) -> Bool;
+let get = fun ({x = a} : {x: Type}) -> a;
+let fst = fun ({x = a, y = b} : {x: Type, y: U16}) -> a;
+{}

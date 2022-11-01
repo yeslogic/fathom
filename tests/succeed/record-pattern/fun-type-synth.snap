@@ -1,0 +1,9 @@
+stdout = '''
+let f : Type = () -> Bool;
+let get : Type = fun (_ : { x : Type }) -> (let a : Type = _.x; a);
+let fst : Type = fun (_ : { x : Type, y : U16 }) -> (let a : Type = _.x;
+let b : U16 = _.y;
+a);
+() : ()
+'''
+stderr = ''
