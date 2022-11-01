@@ -450,7 +450,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
             self,
             "if",
             self.space(),
-            self.term_prec(Prec::Let, cond_expr),
+            self.term_prec(Prec::Fun, cond_expr),
         ];
         let then = docs![
             self,
@@ -492,7 +492,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 self,
                 "if",
                 self.space(),
-                self.term_prec(Prec::Let, cond_expr),
+                self.term_prec(Prec::Fun, cond_expr),
             ];
             let then = docs![
                 self,
@@ -535,7 +535,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 self,
                 "if",
                 self.space(),
-                self.term_prec(Prec::Let, cond_expr),
+                self.term_prec(Prec::Fun, cond_expr),
             ];
             let then = docs![
                 self,
@@ -570,6 +570,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
             docs![self, cond, then, self.concat(branches), r#else]
         };
         self.paren(prec > Prec::Let, DocBuilder::flat_alt(multi, single))
+            .group()
     }
 }
 

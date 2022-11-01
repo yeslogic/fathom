@@ -126,7 +126,7 @@ LetTerm: Term<'arena, ByteRange> = {
             scope.to_scope(body_expr),
         )
     },
-    <start: @L> "if" <cond_expr: LetTerm> "then" <then_expr: LetTerm> "else" <else_expr: LetTerm> <end: @R> => {
+    <start: @L> "if" <cond_expr: FunTerm> "then" <then_expr: LetTerm> "else" <else_expr: LetTerm> <end: @R> => {
         Term::If(ByteRange::new(file_id, start, end), scope.to_scope(cond_expr), scope.to_scope(then_expr), scope.to_scope(else_expr))
     },
 };
