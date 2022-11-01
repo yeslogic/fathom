@@ -175,38 +175,19 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                     self.term_prec(Prec::Let, body_expr),
                 ]),
             ),
-            Term::If(_, cond_expr, then_expr, else_expr) => {
-                let cond = docs![
-                    self,
-                    "if",
-                    self.space(),
-                    self.term_prec(Prec::Let, cond_expr),
-                ];
-                let then = docs![
-                    self,
-                    "then",
-                    self.space(),
-                    self.term_prec(Prec::Let, then_expr),
-                ];
-                let r#else = docs![
-                    self,
-                    "else",
-                    self.space(),
-                    self.term_prec(Prec::Let, else_expr),
-                ];
-                self.paren(
-                    prec > Prec::Let,
-                    DocBuilder::flat_alt(
-                        docs![
-                            self,
-                            cond.clone(),
-                            docs![self, self.hardline(), then.clone()].nest(INDENT),
-                            docs![self, self.hardline(), r#else.clone()].nest(INDENT),
-                        ],
-                        docs![self, cond, self.space(), then, self.space(), r#else],
-                    )
-                    .group(),
-                )
+            Term::If(_, cond_expr, then_expr, mut else_expr) => {
+                let mut branches = Vec::new();
+
+                while let Term::If(_, cond_expr, then_expr, next_else) = else_expr {
+                    branches.push((*cond_expr, *then_expr));
+                    else_expr = next_else;
+                }
+
+                if branches.is_empty() {
+                    self.pretty_if(prec, cond_expr, then_expr, else_expr)
+                } else {
+                    self.pretty_if_else_chain(prec, cond_expr, then_expr, branches, else_expr)
+                }
             }
             Term::Match(_, scrutinee, equations) => self.sequence(
                 self.concat([
@@ -456,6 +437,139 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
             )
             .group()
         }
+    }
+
+    fn pretty_if<Range>(
+        &'arena self,
+        prec: Prec,
+        cond_expr: &Term<'_, Range>,
+        then_expr: &Term<'_, Range>,
+        else_expr: &Term<'_, Range>,
+    ) -> DocBuilder<'arena, Self> {
+        let cond = docs![
+            self,
+            "if",
+            self.space(),
+            self.term_prec(Prec::Let, cond_expr),
+        ];
+        let then = docs![
+            self,
+            "then",
+            self.space(),
+            self.term_prec(Prec::Let, then_expr),
+        ];
+        let r#else = docs![
+            self,
+            "else",
+            self.space(),
+            self.term_prec(Prec::Let, else_expr),
+        ];
+        self.paren(
+            prec > Prec::Let,
+            DocBuilder::flat_alt(
+                docs![
+                    self,
+                    cond.clone(),
+                    docs![self, self.hardline(), then.clone()].nest(INDENT),
+                    docs![self, self.hardline(), r#else.clone()].nest(INDENT),
+                ],
+                docs![self, cond, self.space(), then, self.space(), r#else],
+            )
+            .group(),
+        )
+    }
+
+    fn pretty_if_else_chain<Range>(
+        &'arena self,
+        prec: Prec,
+        cond_expr: &Term<'_, Range>,
+        then_expr: &Term<'_, Range>,
+        branches: Vec<(&Term<'_, Range>, &Term<'_, Range>)>,
+        else_expr: &Term<'_, Range>,
+    ) -> DocBuilder<'arena, Self> {
+        let single = {
+            let cond = docs![
+                self,
+                "if",
+                self.space(),
+                self.term_prec(Prec::Let, cond_expr),
+            ];
+            let then = docs![
+                self,
+                "then",
+                self.space(),
+                self.term_prec(Prec::Let, then_expr),
+            ];
+            let r#else = docs![
+                self,
+                "else",
+                self.space(),
+                self.term_prec(Prec::Let, else_expr),
+            ];
+            let branches = branches.iter().map(|(cond_expr, then_expr)| {
+                docs![
+                    self,
+                    self.space(),
+                    "else if",
+                    self.space(),
+                    self.term_prec(Prec::Let, cond_expr),
+                    self.space(),
+                    "then",
+                    self.space(),
+                    self.term_prec(Prec::Let, then_expr)
+                ]
+            });
+            docs![
+                self,
+                cond,
+                self.space(),
+                then,
+                self.space(),
+                self.concat(branches),
+                self.space(),
+                r#else
+            ]
+        };
+        let multi = {
+            let cond = docs![
+                self,
+                "if",
+                self.space(),
+                self.term_prec(Prec::Let, cond_expr),
+            ];
+            let then = docs![
+                self,
+                self.hardline(),
+                "then",
+                self.space(),
+                self.term_prec(Prec::Let, then_expr),
+            ]
+            .nest(INDENT);
+            let r#else = docs![
+                self,
+                self.hardline(),
+                "else",
+                self.space(),
+                self.term_prec(Prec::Let, else_expr),
+            ]
+            .nest(INDENT);
+            let branches = branches.iter().map(|(cond_expr, then_expr)| {
+                docs![
+                    self,
+                    self.hardline(),
+                    "else if",
+                    self.space(),
+                    self.term_prec(Prec::Let, cond_expr),
+                    self.space(),
+                    "then",
+                    self.space(),
+                    self.term_prec(Prec::Let, then_expr)
+                ]
+                .nest(INDENT)
+            });
+            docs![self, cond, then, self.concat(branches), r#else]
+        };
+        self.paren(prec > Prec::Let, DocBuilder::flat_alt(multi, single))
     }
 }
 

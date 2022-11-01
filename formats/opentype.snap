@@ -362,7 +362,8 @@ def glyph_header : Format = {
 def args_are_signed : U16 -> Bool = fun flags => u16_and flags 0x2 != (0 : U16);
 def arg_format : U16 -> Format = fun flags => if u16_and flags 0x1 != (0 : U16)
     then if args_are_signed flags then s16be else u16be
-    else if args_are_signed flags then s8 else u8;
+    else if args_are_signed flags then s8
+    else u8;
 def composite_glyph : Format = {
     flags <- u16be,
     glyphIndex <- u16be,
