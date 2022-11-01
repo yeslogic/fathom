@@ -975,8 +975,11 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 core::Term::FormatRecord(range.into(), &[], &[])
             }
             (Term::Tuple(range, elem_exprs), Value::Universe) => {
-                let labels = (0..elem_exprs.len())
-                    .map(|idx| self.interner.borrow_mut().get_or_intern(format!("_{idx}")));
+                let labels = (0..elem_exprs.len()).map(|idx| {
+                    self.interner
+                        .borrow_mut()
+                        .get_or_intern(format!("_{}", idx))
+                });
                 let labels = self.scope.to_scope_from_iter(labels);
 
                 let universe = &self.universe.clone();
@@ -1006,7 +1009,9 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                     for (idx, elem_expr) in elem_exprs {
                         expr_labels.push((
                             elem_expr.range(),
-                            self.interner.borrow_mut().get_or_intern(format!("_{idx}")),
+                            self.interner
+                                .borrow_mut()
+                                .get_or_intern(format!("_{}", idx)),
                         ));
                     }
 
@@ -1370,8 +1375,11 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 )
             }
             Term::Tuple(range, elem_exprs) => {
-                let labels = (0..elem_exprs.len())
-                    .map(|idx| self.interner.borrow_mut().get_or_intern(format!("_{idx}")));
+                let labels = (0..elem_exprs.len()).map(|idx| {
+                    self.interner
+                        .borrow_mut()
+                        .get_or_intern(format!("_{}", idx))
+                });
                 let labels = self.scope.to_scope_from_iter(labels);
 
                 let mut exprs = SliceVec::new(self.scope, labels.len());
