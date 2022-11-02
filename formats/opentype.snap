@@ -321,10 +321,7 @@ def os2_table : U32 -> Format = fun table_length => {
     us_first_char_index <- u16be,
     us_last_char_index <- u16be,
     data <- match version {
-        0 => match (table_length >= (78 : U32)) {
-            false => {},
-            true => os2_version_0,
-        },
+        0 => if table_length >= (78 : U32) then os2_version_0 else {},
         1 => os2_version_1,
         2 => os2_version_2_3_4,
         3 => os2_version_2_3_4,
@@ -363,11 +360,10 @@ def glyph_header : Format = {
     y_max <- s16be,
 };
 def args_are_signed : U16 -> Bool = fun flags => u16_and flags 0x2 != (0 : U16);
-def arg_format : U16 -> Format = fun flags => match (u16_and flags 0x1 != (0 :
-U16)) {
-    false => match (args_are_signed flags) { false => u8, true => s8 },
-    true => match (args_are_signed flags) { false => u16be, true => s16be },
-};
+def arg_format : U16 -> Format = fun flags => if u16_and flags 0x1 != (0 : U16)
+    then if args_are_signed flags then s16be else u16be
+    else if args_are_signed flags then s8
+    else u8;
 def composite_glyph : Format = {
     flags <- u16be,
     glyphIndex <- u16be,
@@ -384,10 +380,9 @@ def simple_glyph : U16 -> Format = fun number_of_contours => {
 };
 def glyph : Format = {
     header <- glyph_header,
-    data <- match (header.number_of_contours < (0 : S16)) {
-        false => simple_glyph (s16_unsigned_abs header.number_of_contours),
-        true => composite_glyph,
-    },
+    data <- if header.number_of_contours < (0 : S16)
+        then composite_glyph
+        else simple_glyph (s16_unsigned_abs header.number_of_contours),
 };
 def glyf_table : U16 -> Format = fun num_glyphs => {
     glyphs <- array16 num_glyphs glyph,
@@ -458,10 +453,7 @@ def attach_list : Format = let attach_point_table : Format = {
 };
 def device_table : Format = let u16_div_ceil : U16 -> U16 -> U16 =
 fun numerator denominator => let quotient : U16 = numerator / denominator;
-match ((quotient * denominator) < numerator) {
-    false => quotient,
-    true => quotient + (1 : U16),
-};
+if (quotient * denominator) < numerator then quotient + (1 : U16) else quotient;
 let delta_bits : U16 -> U16 -> U16 =
 fun delta_format num_sizes => match delta_format {
     0x1 => num_sizes * (2 : U16),
@@ -772,10 +764,7 @@ let Y_PLACEMENT_DEVICE : U16 = 0x20;
 let X_ADVANCE_DEVICE : U16 = 0x40;
 let Y_ADVANCE_DEVICE : U16 = 0x80;
 let optional_field : U16 -> Format -> Format =
-fun field format => match (u16_and flags field != (0 : U16)) {
-    false => empty,
-    true => format,
-};
+fun field format => if u16_and flags field != (0 : U16) then format else empty;
 {
     x_placement <- optional_field X_PLACEMENT s16be,
     y_placement <- optional_field Y_PLACEMENT s16be,
@@ -808,10 +797,9 @@ let single_pos_format2 : Pos -> Format = fun table_start => {
     },
 };
 def optional_value_record : Pos -> U16 -> Format =
-fun table_start flags => match (flags == (0 : U16)) {
-    false => value_record table_start flags,
-    true => empty,
-};
+fun table_start flags => if flags == (0 : U16)
+    then empty
+    else value_record table_start flags;
 def pair_adjustment : Format = let pair_value_record : Pos -> U16 -> U16 ->
 Format = fun table_start value_format1 value_format2 => {
     second_glyph <- u16be,
@@ -1017,11 +1005,10 @@ let lookup_subtable : U32 -> U16 -> Format = fun tag lookup_type => match tag {
     lookup_flag <- u16be,
     sub_table_count <- u16be,
     subtables <- array16 sub_table_count (offset16 table_start (lookup_subtable tag lookup_type)),
-    mark_filtering_set <- match (u16_and lookup_flag USE_MARK_FILTERING_SET != (0 :
-    U16)) {
-        false => empty,
-        true => u16be,
-    },
+    mark_filtering_set <- if u16_and lookup_flag USE_MARK_FILTERING_SET != (0 :
+    U16)
+        then u16be
+        else empty,
 };
 def lookup_list : U32 -> Format = fun tag => {
     table_start <- stream_pos,

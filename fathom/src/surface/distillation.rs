@@ -4,7 +4,7 @@ use scoped_arena::Scope;
 use std::cell::RefCell;
 
 use crate::alloc::SliceVec;
-use crate::core::UIntStyle;
+use crate::core::{Const, UIntStyle};
 use crate::env::{self, EnvLen, Index, Level, UniqueEnv};
 use crate::source::Span;
 use crate::surface::elaboration::MetaSource;
@@ -281,6 +281,18 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 core::Const::Ref(number) => self.check_number_literal(number),
             },
             core::Term::ConstMatch(_span, head_expr, branches, default_expr) => {
+                if let Some((then_expr, else_expr)) = match_if_then_else(branches, *default_expr) {
+                    let cond_expr = self.check(head_expr);
+                    let then_expr = self.check(then_expr);
+                    let else_expr = self.check(else_expr);
+                    return Term::If(
+                        (),
+                        self.scope.to_scope(cond_expr),
+                        self.scope.to_scope(then_expr),
+                        self.scope.to_scope(else_expr),
+                    );
+                }
+
                 let head_expr = self.synth(head_expr);
                 match default_expr {
                     Some(default_expr) => {
@@ -588,6 +600,18 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 core::Const::Ref(number) => self.synth_number_literal(number, core::Prim::RefType),
             },
             core::Term::ConstMatch(_span, head_expr, branches, default_expr) => {
+                if let Some((then_expr, else_expr)) = match_if_then_else(branches, *default_expr) {
+                    let cond_expr = self.check(head_expr);
+                    let then_expr = self.synth(then_expr);
+                    let else_expr = self.synth(else_expr);
+                    return Term::If(
+                        (),
+                        self.scope.to_scope(cond_expr),
+                        self.scope.to_scope(then_expr),
+                        self.scope.to_scope(else_expr),
+                    );
+                }
+
                 let head_expr = self.synth(head_expr);
                 match default_expr {
                     Some(default_expr) => {
@@ -701,6 +725,19 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
         self.truncate_local(initial_local_len);
 
         format_fields
+    }
+}
+
+fn match_if_then_else<'arena>(
+    branches: &'arena [(Const, core::Term<'arena>)],
+    default_expr: Option<&'arena core::Term<'arena>>,
+) -> Option<(&'arena core::Term<'arena>, &'arena core::Term<'arena>)> {
+    match (branches, default_expr) {
+        ([(Const::Bool(true), then_expr), (Const::Bool(false), else_expr)], None)
+        | ([(Const::Bool(false), else_expr), (Const::Bool(true), then_expr)], None)
+        | ([(Const::Bool(true), then_expr)], Some(else_expr))
+        | ([(Const::Bool(false), else_expr)], Some(then_expr)) => Some((then_expr, else_expr)),
+        _ => None,
     }
 }
 
