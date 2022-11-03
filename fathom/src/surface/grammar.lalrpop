@@ -214,19 +214,19 @@ AtomicTerm: Term<'arena, ByteRange> = {
     <start: @L> "true" <end: @R> => Term::BooleanLiteral(ByteRange::new(file_id, start, end), true),
     <start: @L> "false" <end: @R> => Term::BooleanLiteral(ByteRange::new(file_id, start, end), false),
     <start: @L> "{" "}" <end: @R> => Term::Tuple(ByteRange::new(file_id, start, end), &[]),
-    <start: @L> "{" <fields: NonEmptySeq<TypeField, ",">> "}" <end: @R> => {
+    <start: @L> "{" <fields: Seq1<TypeField, ",">> "}" <end: @R> => {
         Term::RecordType(ByteRange::new(file_id, start, end), fields)
     },
-    <start: @L> "{" <fields: NonEmptySeq<ExprField, ",">> "}" <end: @R> => {
+    <start: @L> "{" <fields: Seq1<ExprField, ",">> "}" <end: @R> => {
         Term::RecordLiteral(ByteRange::new(file_id, start, end), fields)
     },
-    <start: @L> "{" <fields: NonEmptySeq<FormatField, ",">> "}" <end: @R> => {
+    <start: @L> "{" <fields: Seq1<FormatField, ",">> "}" <end: @R> => {
         Term::FormatRecord(ByteRange::new(file_id, start, end), fields)
     },
     <start: @L> "{" <name: RangedName> "<-" <format:Term> "|" <cond:Term> "}" <end: @R> => {
         Term::FormatCond(ByteRange::new(file_id, start, end), name, scope.to_scope(format), scope.to_scope(cond))
     },
-    <start: @L> "overlap" "{" <fields: NonEmptySeq<FormatField, ",">> "}" <end: @R> => {
+    <start: @L> "overlap" "{" <fields: Seq1<FormatField, ",">> "}" <end: @R> => {
         Term::FormatOverlap(ByteRange::new(file_id, start, end), fields)
     },
     <start: @L> "[" <exprs: Seq<Term, ",">> "]" <end: @R> => {
@@ -300,7 +300,7 @@ Seq<Elem, Sep>: &'arena [Elem] = {
     }
 };
 
-NonEmptySeq<Elem, Sep>: &'arena [Elem] = {
+Seq1<Elem, Sep>: &'arena [Elem] = {
     <first: Elem> <elems: (Sep <Elem>)*> Sep? => {
         scope.to_scope_from_iter(std::iter::once(first).chain(elems))
     },
