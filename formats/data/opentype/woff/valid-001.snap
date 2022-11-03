@@ -245,7 +245,7 @@ stdout = '''
         y_strikeout_size = 50,
         y_strikeout_position = 300,
         s_family_class = 0,
-        panose = [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ],
+        panose = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
         ul_unicode_range1 = 1,
         ul_unicode_range2 = 0,
         ul_unicode_range3 = 0,
@@ -397,7 +397,7 @@ stdout = '''
         data = (),
     },
 ]
-539 = [ [ 82, 101, 103, 117, 108, 97, 114 ] ]
+539 = [ [82, 101, 103, 117, 108, 97, 114] ]
 546 = [
     [
         49,
@@ -587,7 +587,7 @@ stdout = '''
         70,
     ],
 ]
-715 = [ [ 0, 82, 0, 101, 0, 103, 0, 117, 0, 108, 0, 97, 0, 114 ] ]
+715 = [ [0, 82, 0, 101, 0, 103, 0, 117, 0, 108, 0, 97, 0, 114] ]
 729 = [
     [
         0,
@@ -926,11 +926,11 @@ stdout = '''
             search_range = 8,
             entry_selector = 2,
             range_shift = 0,
-            end_code = [ 32, 70, 80, 65535 ],
+            end_code = [32, 70, 80, 65535],
             _reserved_pad = 0,
-            start_code = [ 32, 70, 80, 65535 ],
-            id_delta = [ -31, -68, -77, 1 ],
-            id_range_offsets = [ 0, 0, 0, 0 ],
+            start_code = [32, 70, 80, 65535],
+            id_delta = [-31, -68, -77, 1],
+            id_range_offsets = [0, 0, 0, 0],
         },
     },
 ]

@@ -205,7 +205,7 @@ stdout = '''
         y_strikeout_size = 50,
         y_strikeout_position = 500,
         s_family_class = 0,
-        panose = [ 2, 10, 6, 3, 6, 5, 11, 2, 2, 4 ],
+        panose = [2, 10, 6, 3, 6, 5, 11, 2, 2, 4],
         ul_unicode_range1 = 1,
         ul_unicode_range2 = 0,
         ul_unicode_range3 = 0,
@@ -260,11 +260,11 @@ stdout = '''
             search_range = 8,
             entry_selector = 2,
             range_shift = 65534,
-            end_code = [ 1000, 45100, 65100 ],
+            end_code = [1000, 45100, 65100],
             _reserved_pad = 0,
-            start_code = [ 100, 45000, 65000 ],
-            id_delta = [ -500, -500, 500 ],
-            id_range_offsets = [ 0, 0, 0 ],
+            start_code = [100, 45000, 65000],
+            id_delta = [-500, -500, 500],
+            id_range_offsets = [0, 0, 0],
         },
     },
 ]
@@ -331,7 +331,7 @@ stdout = '''
         },
         maxp = { version = 20480, num_glyphs = 100, data = () },
         table = {
-            h_metrics = [ { advance_width = 1500, left_side_bearing = 300 } ],
+            h_metrics = [{ advance_width = 1500, left_side_bearing = 300 }],
             left_side_bearings = [
                 300,
                 300,
@@ -496,7 +496,7 @@ stdout = '''
         data = (),
     },
 ]
-4840 = [ [ 0, 82, 0, 101, 0, 103, 0, 117, 0, 108, 0, 97, 0, 114 ] ]
+4840 = [ [0, 82, 0, 101, 0, 103, 0, 117, 0, 108, 0, 97, 0, 114] ]
 4854 = [
     [
         0,

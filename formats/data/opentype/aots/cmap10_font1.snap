@@ -205,7 +205,7 @@ stdout = '''
         y_strikeout_size = 50,
         y_strikeout_position = 500,
         s_family_class = 0,
-        panose = [ 2, 10, 6, 3, 6, 5, 11, 2, 2, 4 ],
+        panose = [2, 10, 6, 3, 6, 5, 11, 2, 2, 4],
         ul_unicode_range1 = 1,
         ul_unicode_range2 = 0,
         ul_unicode_range3 = 0,
@@ -258,7 +258,7 @@ stdout = '''
             language = 0,
             start_char_code = 1086499,
             num_chars = 3,
-            glyph_id_array = [ 26, 27, 32 ],
+            glyph_id_array = [26, 27, 32],
         },
     },
 ]
@@ -325,7 +325,7 @@ stdout = '''
         },
         maxp = { version = 20480, num_glyphs = 100, data = () },
         table = {
-            h_metrics = [ { advance_width = 1500, left_side_bearing = 300 } ],
+            h_metrics = [{ advance_width = 1500, left_side_bearing = 300 }],
             left_side_bearings = [
                 300,
                 300,
@@ -490,7 +490,7 @@ stdout = '''
         data = (),
     },
 ]
-4830 = [ [ 0, 82, 0, 101, 0, 103, 0, 117, 0, 108, 0, 97, 0, 114 ] ]
+4830 = [ [0, 82, 0, 101, 0, 103, 0, 117, 0, 108, 0, 97, 0, 114] ]
 4844 = [
     [
         0,
