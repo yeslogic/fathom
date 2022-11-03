@@ -42,7 +42,7 @@ type RawVar = u16;
 /// [de Bruijn index]: https://en.wikipedia.org/wiki/De_Bruijn_index
 /// [alpha-equivalence]: https://ncatlab.org/nlab/show/alpha-equivalence
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub struct Index(RawVar);
+pub struct Index(pub RawVar);
 
 impl Index {
     /// The last variable to be bound in the environment.

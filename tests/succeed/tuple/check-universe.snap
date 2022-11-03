@@ -1,9 +1,9 @@
 stdout = '''
-let Unit : Type = {};
+let Unit : Type = ();
 let Paren : Type = Bool;
-let Single : Type = { _0 : Bool };
-let Pair : Type = { _0 : Bool, _1 : U8 };
-let Triple : Type = { _0 : Bool, _1 : U8, _2 : U16 };
+let Single : Type = (Bool,);
+let Pair : Type = ( Bool, U8 );
+let Triple : Type = ( Bool, U8, U16 );
 Unit : Type
 '''
 stderr = ''

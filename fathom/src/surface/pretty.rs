@@ -273,6 +273,12 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 self.text(","),
                 self.text("}"),
             ),
+            Term::Tuple(_, terms) if terms.len() == 1 => self.concat([
+                self.text("("),
+                self.term(&terms[0]),
+                self.text(","),
+                self.text(")"),
+            ]),
             Term::Tuple(_, terms) => self.sequence(
                 self.text("("),
                 terms.iter().map(|term| self.term(term)),

@@ -18,6 +18,6 @@ let _ : {
 } = fun x => x;
 let format : Format = { let x : U32 = 256 };
 let _ : { x : U32 } -> { x : U32 } = fun x => x;
-{} : {}
+() : ()
 '''
 stderr = ''

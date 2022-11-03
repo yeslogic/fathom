@@ -27,7 +27,7 @@ def link_table : Pos -> {
 fun file_start table_record table_format => link (file_start + table_record.offset) (limit32 table_record.length table_format);
 def platform_id : Format = u16be;
 def encoding_id : U16 -> Format = fun platform => u16be;
-def empty : Format = {};
+def empty : Format = ();
 def offset32 : Pos -> Format -> Format = fun base format => {
     offset <- u32be,
     link <- match offset { 0 => empty, _ => link (base + offset) format },
@@ -131,7 +131,7 @@ fun platform table_start => {
     num_var_selector_records <- u32be,
     var_selector <- array32 num_var_selector_records (variation_selector table_start),
 };
-def unknown_table : Format = {};
+def unknown_table : Format = ();
 def cmap_subtable : U16 -> Format = fun platform => {
     table_start <- stream_pos,
     format <- u16be,
@@ -264,7 +264,7 @@ def name_table : Format = {
     storage_offset <- u16be,
     name_records <- array16 name_count (name_record (table_start + storage_offset)),
     data <- match version {
-        0 => {},
+        0 => (),
         1 => name_version_1 (table_start + storage_offset),
         _ => unknown_table,
     },
@@ -322,7 +322,7 @@ def os2_table : U32 -> Format = fun table_length => {
     us_last_char_index <- u16be,
     data <- match version {
         0 => match (table_length >= (78 : U32)) {
-            false => {},
+            false => (),
             true => os2_version_0,
         },
         1 => os2_version_1,
@@ -344,15 +344,15 @@ def post_table : Format = {
     min_mem_type1 <- u32be,
     max_mem_type1 <- u32be,
     names <- match version {
-        0x10000 => {},
+        0x10000 => (),
         0x20000 => {
             num_glyphs <- u16be,
             glyph_name_index <- array16 num_glyphs u16be,
             string_data <- stream_pos,
         },
         0x25000 => { num_glyphs <- u16be, offset <- array16 num_glyphs s8 },
-        0x30000 => {},
-        _ => {},
+        0x30000 => (),
+        _ => (),
     },
 };
 def glyph_header : Format = {
@@ -537,8 +537,8 @@ let gdef_header_version_1_3 : Pos -> Format = fun gdef_start => {
     lig_caret_list <- offset16 table_start lig_caret_list,
     mark_attach_class_def <- offset16 table_start class_def,
     data <- match minor_version {
-        0 => {},
-        1 => {},
+        0 => (),
+        1 => (),
         2 => gdef_header_version_1_2 table_start,
         3 => gdef_header_version_1_3 table_start,
         _ => gdef_header_version_1_3 table_start,
@@ -1059,7 +1059,7 @@ def table_directory : Pos -> Format = fun file_start => {
         link <- link_table file_start table_record (table_format table_record.length),
     };
     let optional_table : U32 -> Format -> Format =
-    fun table_id table_format => option_fold (Repr table_record) Format {} (fun record => link_table file_start record table_format) (find_table num_tables table_records table_id);
+    fun table_id table_format => option_fold (Repr table_record) Format () (fun record => link_table file_start record table_format) (find_table num_tables table_records table_id);
     {
         cmap <- required_table "cmap" cmap_table,
         head <- required_table "head" head_table,

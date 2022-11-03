@@ -4,9 +4,9 @@ error: mismatched types
   ┌─ tests/fail/elaboration/unification/mismatch/record-literal-singleton.fathom:6:11
   │
 6 │ { thing = unit } : { thing : Type }
-  │           ^^^^ type mismatch, expected `{}`, found `Type`
+  │           ^^^^ type mismatch, expected `()`, found `Type`
   │
-  = expected `{}`
+  = expected `()`
        found `Type`
 
 '''

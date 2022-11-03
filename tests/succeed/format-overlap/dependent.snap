@@ -15,6 +15,6 @@ let _ : {
     record0 : { length : U8 },
     record1 : { _length : U8, data : Array8 record0.length U8 },
 } = fun silly => silly;
-{} : {}
+() : ()
 '''
 stderr = ''

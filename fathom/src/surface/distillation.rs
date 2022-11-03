@@ -208,7 +208,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 self.check(expr)
             }
             core::Term::Let(_span, def_name, def_type, def_expr, body_expr) => {
-                let def_type = self.synth(def_type);
+                let def_type = self.check(def_type);
                 let def_expr = self.check(def_expr);
 
                 let def_name = self.push_local(*def_name);
@@ -244,8 +244,19 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                     self.scope.to_scope(body_expr),
                 )
             }
-            core::Term::RecordType(_span, labels, _) if labels.is_empty() => {
-                Term::RecordType((), &[])
+            core::Term::RecordType(_span, labels, exprs)
+                if is_tuple_type(labels, exprs, &self.interner.borrow()) =>
+            {
+                let scope = self.scope;
+                let exprs = exprs.iter().map(|expr| self.check(expr));
+                Term::Tuple((), scope.to_scope_from_iter(exprs))
+            }
+            core::Term::RecordLit(_span, labels, exprs)
+                if is_tuple_expr(labels, &self.interner.borrow()) =>
+            {
+                let scope = self.scope;
+                let exprs = exprs.iter().map(|expr| self.check(expr));
+                Term::Tuple((), scope.to_scope_from_iter(exprs))
             }
             core::Term::RecordLit(_span, labels, exprs) => {
                 let scope = self.scope;
@@ -263,9 +274,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
 
                 Term::ArrayLiteral((), scope.to_scope_from_iter(elem_exprs))
             }
-            core::Term::FormatRecord(_span, labels, _) if labels.is_empty() => {
-                Term::FormatRecord((), &[])
-            }
+            core::Term::FormatRecord(_span, labels, _) if labels.is_empty() => Term::Tuple((), &[]),
             core::Term::ConstLit(_span, r#const) => match r#const {
                 core::Const::Bool(boolean) => Term::BooleanLiteral((), *boolean),
                 core::Const::U8(number, style) => self.check_number_literal_styled(number, *style),
@@ -374,7 +383,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 Term::Ann((), self.scope.to_scope(expr), self.scope.to_scope(r#type))
             }
             core::Term::Let(_span, def_name, def_type, def_expr, body_expr) => {
-                let def_type = self.synth(def_type);
+                let def_type = self.check(def_type);
                 let def_expr = self.check(def_expr);
 
                 let def_name = self.push_local(*def_name);
@@ -489,8 +498,23 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                     )
                 }
             },
-            core::Term::RecordType(_span, labels, _) if labels.is_empty() => {
-                Term::Ann((), &Term::RecordType((), &[]), &Term::Universe(()))
+            core::Term::RecordType(_span, labels, exprs)
+                if is_tuple_type(labels, exprs, &self.interner.borrow()) =>
+            {
+                let initial_local_len = self.local_len();
+                let types = (self.scope).to_scope_from_iter(
+                    Iterator::zip(labels.iter(), exprs.iter()).map(|(label, r#type)| {
+                        let r#type = self.check(r#type);
+                        self.push_local(Some(*label));
+                        r#type
+                    }),
+                );
+                self.truncate_local(initial_local_len);
+                Term::Ann(
+                    (),
+                    self.scope.to_scope(Term::Tuple((), types)),
+                    &Term::Universe(()),
+                )
             }
             core::Term::RecordType(_span, labels, types) => {
                 let initial_local_len = self.local_len();
@@ -507,6 +531,13 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 self.truncate_local(initial_local_len);
 
                 Term::RecordType((), type_fields)
+            }
+            core::Term::RecordLit(_span, labels, exprs)
+                if is_tuple_expr(labels, &self.interner.borrow()) =>
+            {
+                let scope = self.scope;
+                let exprs = exprs.iter().map(|expr| self.synth(expr));
+                Term::Tuple((), scope.to_scope_from_iter(exprs))
             }
             core::Term::RecordLit(_span, labels, exprs) => {
                 let scope = self.scope;
@@ -706,6 +737,28 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
 
         format_fields
     }
+}
+
+fn is_tuple_expr(labels: &[StringId], interner: &StringInterner) -> bool {
+    labels
+        .iter()
+        .enumerate()
+        .all(|(idx, label)| interner.resolve(*label) == Some(&format!("_{}", idx)))
+}
+
+fn is_tuple_type(labels: &[StringId], exprs: &[core::Term<'_>], interner: &StringInterner) -> bool {
+    let suffixes = (1..=exprs.len()).rev().map(move |idx| &exprs[idx..]);
+    labels
+        .iter()
+        .zip(suffixes)
+        .enumerate()
+        .all(|(idx, (label, suffix))| {
+            interner.resolve(*label) == Some(&format!("_{}", idx))
+                && suffix
+                    .iter()
+                    .zip(env::indices())
+                    .all(|(expr, idx)| !expr.binds_local(idx))
+        })
 }
 
 fn prim_to_bin_op(prim: &core::Prim) -> Option<BinOp<()>> {

@@ -1,13 +1,9 @@
 stdout = '''
-let unit : {} : Type = {};
+let unit : () = ();
 let paren : Bool = false;
-let single : { _0 : Bool } = { _0 = false };
-let pair : { _0 : Bool, _1 : Bool } = { _0 = false, _1 = true };
-let triple : { _0 : Bool, _1 : Bool, _2 : Bool } = {
-    _0 = false,
-    _1 = true,
-    _2 = false,
-};
-{} : {}
+let single : (Bool,) = (false,);
+let pair : ( Bool, Bool ) = ( false, true );
+let triple : ( Bool, Bool, Bool ) = ( false, true, false );
+() : ()
 '''
 stderr = ''

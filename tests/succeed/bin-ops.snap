@@ -21,6 +21,6 @@ let num_sizes : U16 -> U16 -> U16 = fun start end => end - start + (1 : U16);
     delta_bits delta_format (num_sizes start_size end_size);
     array16 (u16_div_ceil delta_bits 16) u16be,
 };
-{} : {}
+() : ()
 '''
 stderr = ''
