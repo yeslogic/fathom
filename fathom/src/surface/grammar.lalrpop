@@ -199,10 +199,8 @@ ProjTerm: Term<'arena, ByteRange> = {
 };
 
 AtomicTerm: Term<'arena, ByteRange> = {
-    <start: @L> "(" ")" <end: @R> => Term::Tuple(ByteRange::new(file_id, start, end), scope.to_scope_from_iter([])),
     <start: @L> "(" <term: Term> ")" <end: @R> => term,
-    <start: @L> "(" <term: Term> "," ")" <end: @R> => Term::Tuple(ByteRange::new(file_id, start, end), scope.to_scope_from_iter([term])),
-    <start: @L> "(" <terms: Seq2<Term, ",">> ")" <end: @R> =>  Term::Tuple(ByteRange::new(file_id, start, end), terms),
+    <start: @L> <terms: Tuple<Term>> <end: @R> => Term::Tuple(ByteRange::new(file_id, start, end), terms),
 
     <start: @L> <name: Name> <end: @R> => Term::Name(ByteRange::new(file_id, start, end), name),
     <start: @L> "_" <end: @R> => Term::Placeholder(ByteRange::new(file_id, start, end)),
@@ -284,6 +282,12 @@ BinOpGte: BinOp<ByteRange> = <start: @L> ">=" <end: @R> => BinOp::Gte(ByteRange:
 #[inline] Hole: StringId = { <"hole"> => interner.borrow_mut().get_or_intern(<>) };
 #[inline] StringLiteral: StringId = { <"string literal"> => interner.borrow_mut().get_or_intern(<>) };
 #[inline] NumberLiteral: StringId = { <"number literal"> => interner.borrow_mut().get_or_intern(<>) };
+
+Tuple<Elem>: &'arena [Elem] = {
+    "(" ")" => &[],
+    "(" <term: Term> "," ")" => scope.to_scope_from_iter([term]),
+    "(" <terms: Seq2<Term, ",">> ")" => terms,
+};
 
 #[inline]
 RangedName: (ByteRange, StringId) = {
