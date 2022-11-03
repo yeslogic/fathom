@@ -16,20 +16,26 @@ pub enum Token<'source> {
 
     #[token("def")]
     KeywordDef,
+    #[token("else")]
+    KeywordElse,
     #[token("false")]
     KeywordFalse,
     #[token("fun")]
     KeywordFun,
+    #[token("if")]
+    KeywordIf,
     #[token("let")]
     KeywordLet,
     #[token("match")]
     KeywordMatch,
     #[token("overlap")]
     KeywordOverlap,
-    #[token("Type")]
-    KeywordType,
+    #[token("then")]
+    KeywordThen,
     #[token("true")]
     KeywordTrue,
+    #[token("Type")]
+    KeywordType,
     #[token("where")]
     KeywordWhere,
 
@@ -137,11 +143,14 @@ impl<'source> Token<'source> {
             Token::StringLiteral(_) => "string literal",
             Token::NumberLiteral(_) => "number literal",
             Token::KeywordDef => "def",
+            Token::KeywordElse => "else",
             Token::KeywordFalse => "false",
             Token::KeywordFun => "fun",
+            Token::KeywordIf => "if",
             Token::KeywordLet => "let",
             Token::KeywordMatch => "match",
             Token::KeywordOverlap => "overlap",
+            Token::KeywordThen => "then",
             Token::KeywordTrue => "true",
             Token::KeywordType => "Type",
             Token::KeywordWhere => "where",

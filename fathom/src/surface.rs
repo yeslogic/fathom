@@ -187,6 +187,13 @@ pub enum Term<'arena, Range> {
         &'arena Term<'arena, Range>,
         &'arena Term<'arena, Range>,
     ),
+    /// If expressions
+    If(
+        Range,
+        &'arena Term<'arena, Range>,
+        &'arena Term<'arena, Range>,
+        &'arena Term<'arena, Range>,
+    ),
     /// Match expressions
     Match(
         Range,
@@ -275,6 +282,7 @@ impl<'arena, Range: Clone> Term<'arena, Range> {
             | Term::Placeholder(range)
             | Term::Ann(range, _, _)
             | Term::Let(range, _, _, _, _)
+            | Term::If(range, _, _, _)
             | Term::Match(range, _, _)
             | Term::Universe(range)
             | Term::Arrow(range, _, _)

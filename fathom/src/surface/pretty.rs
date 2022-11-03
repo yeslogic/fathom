@@ -175,6 +175,20 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                     self.term_prec(Prec::Let, body_expr),
                 ]),
             ),
+            Term::If(_, cond_expr, then_expr, mut else_expr) => {
+                let mut branches = Vec::new();
+
+                while let Term::If(_, cond_expr, then_expr, next_else) = else_expr {
+                    branches.push((*cond_expr, *then_expr));
+                    else_expr = next_else;
+                }
+
+                if branches.is_empty() {
+                    self.pretty_if(prec, cond_expr, then_expr, else_expr)
+                } else {
+                    self.pretty_if_else_chain(prec, cond_expr, then_expr, branches, else_expr)
+                }
+            }
             Term::Match(_, scrutinee, equations) => self.sequence(
                 self.concat([
                     self.text("match"),
@@ -435,6 +449,140 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
             .group()
         }
     }
+
+    fn pretty_if<Range>(
+        &'arena self,
+        prec: Prec,
+        cond_expr: &Term<'_, Range>,
+        then_expr: &Term<'_, Range>,
+        else_expr: &Term<'_, Range>,
+    ) -> DocBuilder<'arena, Self> {
+        let cond = self.concat([
+            self.text("if"),
+            self.space(),
+            self.term_prec(Prec::Fun, cond_expr),
+        ]);
+        let then = self.concat([
+            self.text("then"),
+            self.space(),
+            self.term_prec(Prec::Let, then_expr),
+        ]);
+        let r#else = self.concat([
+            self.text("else"),
+            self.space(),
+            self.term_prec(Prec::Let, else_expr),
+        ]);
+        self.paren(
+            prec > Prec::Let,
+            DocBuilder::flat_alt(
+                self.concat([
+                    cond.clone(),
+                    self.concat([self.hardline(), then.clone()]).nest(INDENT),
+                    self.concat([self.hardline(), r#else.clone()]).nest(INDENT),
+                ]),
+                self.concat([cond, self.space(), then, self.space(), r#else]),
+            )
+            .group(),
+        )
+    }
+
+    fn pretty_if_else_chain<Range>(
+        &'arena self,
+        prec: Prec,
+        cond_expr: &Term<'_, Range>,
+        then_expr: &Term<'_, Range>,
+        branches: Vec<(&Term<'_, Range>, &Term<'_, Range>)>,
+        else_expr: &Term<'_, Range>,
+    ) -> DocBuilder<'arena, Self> {
+        let single = {
+            let cond = self.concat([
+                self.text("if"),
+                self.space(),
+                self.term_prec(Prec::Fun, cond_expr),
+            ]);
+            let then = self.concat([
+                self.text("then"),
+                self.space(),
+                self.term_prec(Prec::Let, then_expr),
+            ]);
+            let r#else = self.concat([
+                self.text("else"),
+                self.space(),
+                self.term_prec(Prec::Let, else_expr),
+            ]);
+            let branches = branches.iter().map(|(cond_expr, then_expr)| {
+                self.concat([
+                    self.space(),
+                    self.text("else if"),
+                    self.space(),
+                    self.term_prec(Prec::Let, cond_expr),
+                    self.space(),
+                    self.text("then"),
+                    self.space(),
+                    self.term_prec(Prec::Let, then_expr),
+                ])
+            });
+            self.concat([
+                cond,
+                self.space(),
+                then,
+                self.space(),
+                self.concat(branches),
+                self.space(),
+                r#else,
+            ])
+        };
+        let multi = {
+            let cond = self.concat([
+                self.text("if"),
+                self.space(),
+                self.term_prec(Prec::Fun, cond_expr),
+            ]);
+            let then = self
+                .concat([
+                    self.hardline(),
+                    self.text("then"),
+                    self.space(),
+                    self.term_prec(Prec::Let, then_expr),
+                ])
+                .nest(INDENT);
+            let r#else = self
+                .concat([
+                    self.hardline(),
+                    self.text("else"),
+                    self.space(),
+                    self.term_prec(Prec::Let, else_expr),
+                ])
+                .nest(INDENT);
+            let branches = branches.iter().map(|(cond_expr, then_expr)| {
+                self.concat([
+                    self.hardline(),
+                    self.text("else if"),
+                    self.space(),
+                    self.term_prec(Prec::Let, cond_expr),
+                    self.space(),
+                    self.text("then"),
+                    self.space(),
+                    self.term_prec(Prec::Let, then_expr),
+                ])
+                .nest(INDENT)
+            });
+            self.concat([cond, then, self.concat(branches), r#else])
+        };
+        self.paren(prec > Prec::Let, DocBuilder::flat_alt(multi, single))
+            .group()
+    }
+}
+
+macro_rules! borrowed_text {
+    (match $doc:expr, {$($text:literal),*}, _ => $default:expr) => {
+        match $doc {
+            $(
+            Doc::BorrowedText($text) => &Doc::BorrowedText($text),
+            )*
+            _ => $default,
+        }
+    };
 }
 
 impl<'interner, 'arena, A: 'arena> DocAllocator<'arena, A> for Context<'interner, 'arena> {
@@ -475,28 +623,17 @@ impl<'interner, 'arena, A: 'arena> DocAllocator<'arena, A> for Context<'interner
             }
 
             // Language tokens
-            Doc::BorrowedText("fun") => &Doc::BorrowedText("fun"),
-            Doc::BorrowedText("let") => &Doc::BorrowedText("let"),
-            Doc::BorrowedText("overlap") => &Doc::BorrowedText("overlap"),
-            Doc::BorrowedText("Type") => &Doc::BorrowedText("Type"),
-            Doc::BorrowedText("where") => &Doc::BorrowedText("where"),
-            Doc::BorrowedText(":") => &Doc::BorrowedText(":"),
-            Doc::BorrowedText(",") => &Doc::BorrowedText(","),
-            Doc::BorrowedText("=") => &Doc::BorrowedText("="),
-            Doc::BorrowedText("=>") => &Doc::BorrowedText("=>"),
-            Doc::BorrowedText(".") => &Doc::BorrowedText("."),
-            Doc::BorrowedText("->") => &Doc::BorrowedText("->"),
-            Doc::BorrowedText("<-") => &Doc::BorrowedText("<-"),
-            Doc::BorrowedText(";") => &Doc::BorrowedText(";"),
-            Doc::BorrowedText("_") => &Doc::BorrowedText("_"),
-            Doc::BorrowedText("{") => &Doc::BorrowedText("{"),
-            Doc::BorrowedText("}") => &Doc::BorrowedText("}"),
-            Doc::BorrowedText("[") => &Doc::BorrowedText("["),
-            Doc::BorrowedText("]") => &Doc::BorrowedText("]"),
-            Doc::BorrowedText("(") => &Doc::BorrowedText("("),
-            Doc::BorrowedText(")") => &Doc::BorrowedText(")"),
-
-            _ => self.scope.to_scope(doc),
+            _ => {
+                borrowed_text!(
+                    match doc, {
+                        "def", "else", "false", "fun", "if", "let", "match", "overlap", "then",
+                        "true", "Type", "where", ":", ",", "=", "!=", "==", "=>", ">=", ">", "<=",
+                        "<", ".", "/", "->", "<-", "-", "|", "+", ";", "*", "_", "{", "}", "[",
+                        "]", "(", ")"
+                    },
+                    _ => self.scope.to_scope(doc)
+                )
+            }
         })
     }
 
