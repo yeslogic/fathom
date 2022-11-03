@@ -1,5 +1,6 @@
 let unit = ();
-let single = (false);
+let paren = (false); // A parenthesised expression, NOT a 1-element tuple!
+let single = (false,);
 let pair = (false, true);
 let triple = (false, true, false);
 

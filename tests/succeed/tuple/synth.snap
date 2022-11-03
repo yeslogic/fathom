@@ -1,6 +1,7 @@
 stdout = '''
 let unit : {} : Type = {};
-let single : Bool = false;
+let paren : Bool = false;
+let single : { _0 : Bool } = { _0 = false };
 let pair : { _0 : Bool, _1 : Bool } = { _0 = false, _1 = true };
 let triple : { _0 : Bool, _1 : Bool, _2 : Bool } = {
     _0 = false,
