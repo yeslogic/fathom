@@ -1,0 +1,4 @@
+let get1 = fun (A: Type) (B: Type) (C: Type) (p: {x: A, y: B, z: C}) => p.x;
+let get2 = fun (A: Type) (B: Type) (C: Type) (p: {x: A, y: B, z: C}) => p.y;
+let get3 = fun (A: Type) (B: Type) (C: Type) (p: {x: A, y: B, z: C}) => p.z;
+{}

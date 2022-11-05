@@ -1,0 +1,6 @@
+stdout = '''
+let fst : fun (A : Type) (B : Type) -> { x : A, y : B } -> A = fun A B p => p.x;
+let snd : fun (A : Type) (B : Type) -> { x : A, y : B } -> B = fun A B p => p.y;
+{} : {}
+'''
+stderr = ''
