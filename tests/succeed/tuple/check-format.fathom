@@ -1,0 +1,7 @@
+let Unit: Format = ();
+let Paren: Format = (u8); // A parenthesised expression, NOT a 1-element tuple!
+let Single: Format = (u8,);
+let Pair: Format = (u8, u8);
+let Triple: Format = (u8, u8, u8);
+
+Unit

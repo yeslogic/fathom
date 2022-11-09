@@ -274,7 +274,13 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
 
                 Term::ArrayLiteral((), scope.to_scope_from_iter(elem_exprs))
             }
-            core::Term::FormatRecord(_span, labels, _) if labels.is_empty() => Term::Tuple((), &[]),
+            core::Term::FormatRecord(_span, labels, formats)
+                if is_tuple_type(labels, formats, &self.interner.borrow()) =>
+            {
+                let scope = self.scope;
+                let formats = formats.iter().map(|format| self.check(format));
+                Term::Tuple((), scope.to_scope_from_iter(formats))
+            }
             core::Term::ConstLit(_span, r#const) => match r#const {
                 core::Const::Bool(boolean) => Term::BooleanLiteral((), *boolean),
                 core::Const::U8(number, style) => self.check_number_literal_styled(number, *style),
@@ -584,13 +590,12 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 // FIXME: Type annotations
                 Term::ArrayLiteral((), scope.to_scope_from_iter(elem_exprs))
             }
-            core::Term::FormatRecord(_span, labels, _) if labels.is_empty() => {
-                let format_type = self.synth_prim(core::Prim::FormatType);
-                Term::Ann(
-                    (),
-                    &Term::FormatRecord((), &[]),
-                    self.scope.to_scope(format_type),
-                )
+            core::Term::FormatRecord(_span, labels, formats)
+                if is_tuple_type(labels, formats, &self.interner.borrow()) =>
+            {
+                let scope = self.scope;
+                let formats = formats.iter().map(|format| self.synth(format));
+                Term::Tuple((), scope.to_scope_from_iter(formats))
             }
             core::Term::FormatRecord(_span, labels, formats) => {
                 Term::FormatRecord((), self.synth_format_fields(labels, formats))
@@ -776,6 +781,7 @@ fn match_if_then_else<'arena>(
     }
 }
 
+// Return true if `labels` are all tuple labels
 fn is_tuple_expr(labels: &[StringId], interner: &StringInterner) -> bool {
     labels
         .iter()
@@ -783,6 +789,7 @@ fn is_tuple_expr(labels: &[StringId], interner: &StringInterner) -> bool {
         .all(|(idx, label)| interner.resolve(*label) == Some(&format!("_{}", idx)))
 }
 
+// Return true if `labels` are all tuple labels, and `exprs` do not depend on any of the expressions bound by `labels`
 fn is_tuple_type(labels: &[StringId], exprs: &[core::Term<'_>], interner: &StringInterner) -> bool {
     let suffixes = (1..=exprs.len()).rev().map(move |idx| &exprs[idx..]);
     labels

@@ -1,0 +1,9 @@
+stdout = '''
+let Unit : Format = ();
+let Paren : Format = u8;
+let Single : Format = (u8,);
+let Pair : Format = (u8, u8);
+let Triple : Format = (u8, u8, u8);
+Unit : Format
+'''
+stderr = ''
