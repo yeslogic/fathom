@@ -643,7 +643,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
         meta_var: Level,
         telescope: &Telescope<'arena>,
     ) -> Result<&'arena [Term<'arena>], RenameError> {
-        let initial_local_len = self.local_exprs;
+        let initial_renaming_len = self.renaming.len();
         let mut telescope = telescope.clone();
         let mut terms = SliceVec::new(self.scope, telescope.len());
 
@@ -651,19 +651,18 @@ impl<'arena, 'env> Context<'arena, 'env> {
             match self.rename(meta_var, &value) {
                 Ok(term) => {
                     terms.push(term);
-                    let var =
-                        Spanned::empty(Arc::new(Value::local_var(self.local_exprs.next_level())));
-                    telescope = next_telescope(var);
-                    self.local_exprs.push();
+                    let source_var = self.renaming.next_local_var();
+                    telescope = next_telescope(source_var);
+                    self.renaming.push_local();
                 }
                 Err(error) => {
-                    self.local_exprs.truncate(initial_local_len);
+                    self.renaming.truncate(initial_renaming_len);
                     return Err(error);
                 }
             }
         }
 
-        self.local_exprs.truncate(initial_local_len);
+        self.renaming.truncate(initial_renaming_len);
         Ok(terms.into())
     }
 }
@@ -741,5 +740,14 @@ impl PartialRenaming {
     fn get_as_index(&self, source_var: Level) -> Option<Index> {
         let target_var = self.get_as_level(source_var)?;
         Some(self.target.level_to_index(target_var).unwrap())
+    }
+
+    fn len(&self) -> (EnvLen, EnvLen) {
+        (self.source.len(), self.target)
+    }
+
+    fn truncate(&mut self, len: (EnvLen, EnvLen)) {
+        self.source.truncate(len.0);
+        self.target.truncate(len.1);
     }
 }
