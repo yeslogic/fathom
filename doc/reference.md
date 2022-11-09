@@ -309,6 +309,21 @@ the type of `array8`:
 array8 3 {}
 ```
 
+#### Tuple syntax for record formats
+
+If you do not care about the names of the fields of a record format, you can use tuple syntax.
+Each field is assigned an ascending numeric label. For example:
+
+```fathom
+let Point : Format = (U32, U32);
+```
+
+is shorthand for:
+
+```fathom
+let Point : Format = {_0 <- U32, _1 <- U32};
+```
+
 #### Field refinements
 
 The parsed representations of fields can be refined with boolean predicates
@@ -733,6 +748,21 @@ The types of later fields and depend on previous fields:
 }
 ```
 
+#### Tuple syntax for record types
+
+If you do not care about the names of the fields of a record type, you can use tuple syntax.
+Each field is assigned an ascending numeric label. For example:
+
+```fathom
+let Point : Type = (U32, U32);
+```
+
+is shorthand for:
+
+```fathom
+let Point : Type = {_0: U32, _1: U32};
+```
+
 ### Record literals
 
 Records literals consist of a sequence of field definitions. For example:
@@ -763,6 +793,36 @@ let Data = {
     //        ▲
     //        └─── error: expected `Array 3 S32`, found `Array 2 S32`
 } : Data
+```
+
+### Tuple syntax for record literals
+
+Like record types, record literals can also be written in tuple syntax.
+For example:
+
+```fathom
+let Point : Type = {x : U32, y : U32};
+let origin : Point = (0, 0);
+```
+
+is shorthand for
+
+```fathom
+let Point : Type = {x : U32, y : U32};
+let origin : Point = {x = 0, y = 0};
+```
+
+If the field labels cannot be inferred from the expected type, they will be
+assigned ascending numeric labels. For example:
+
+```fathom
+(true, false)
+```
+
+is shorthand for:
+
+```fathom
+{_0 = true, _1 = false}
 ```
 
 ### Record projections
