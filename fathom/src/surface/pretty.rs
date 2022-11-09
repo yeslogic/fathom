@@ -424,6 +424,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
 
     /// Pretty prints a delimited sequence of documents with a trailing
     /// separator if it is formatted over multiple lines.
+    /// If `space` is true, extra spaces are added before and after the delimiters
     pub fn sequence(
         &'arena self,
         space: bool,
