@@ -20,7 +20,7 @@ use std::sync::Arc;
 
 use crate::alloc::SliceVec;
 use crate::core::semantics::{
-    self, ArcValue, Closure, Elim, Head, SplitBranches, Telescope, Value,
+    self, ArcValue, Branches, Closure, Elim, Head, SplitBranches, Telescope, Value,
 };
 use crate::core::{Prim, Term};
 use crate::env::{EnvLen, Index, Level, SharedEnv, SliceEnv, UniqueEnv};
@@ -316,6 +316,9 @@ impl<'arena, 'env> Context<'arena, 'env> {
                     self.unify(arg_expr0, arg_expr1)?;
                 }
                 (Elim::RecordProj(label0), Elim::RecordProj(label1)) if label0 == label1 => {}
+                (Elim::ConstMatch(branches0), Elim::ConstMatch(branches1)) => {
+                    self.unify_branches(branches0, branches1)?;
+                }
                 (_, _) => {
                     return Err(Error::Mismatch);
                 }
@@ -372,6 +375,41 @@ impl<'arena, 'env> Context<'arena, 'env> {
 
         self.local_exprs.truncate(initial_local_len);
         Ok(())
+    }
+
+    /// Unify two [constant branches][Branches].
+    fn unify_branches<P: PartialEq + Copy>(
+        &mut self,
+        branches0: &Branches<'arena, P>,
+        branches1: &Branches<'arena, P>,
+    ) -> Result<(), Error> {
+        use SplitBranches::*;
+
+        let mut branches0 = branches0.clone();
+        let mut branches1 = branches1.clone();
+
+        loop {
+            match (
+                self.elim_env().split_branches(branches0),
+                self.elim_env().split_branches(branches1),
+            ) {
+                (
+                    Branch((const0, body_expr0), next_branches0),
+                    Branch((const1, body_expr1), next_branches1),
+                ) if const0 == const1 => match self.unify(&body_expr0, &body_expr1) {
+                    Err(err) => return Err(err),
+                    Ok(()) => {
+                        branches0 = next_branches0;
+                        branches1 = next_branches1;
+                    }
+                },
+                (Default(default_expr0), Default(default_expr1)) => {
+                    return self.unify_closures(&default_expr0, &default_expr1);
+                }
+                (None, None) => return Ok(()),
+                (_, _) => return Err(Error::Mismatch),
+            }
+        }
     }
 
     /// Unify a function literal with a value, using eta-conversion.
