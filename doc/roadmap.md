@@ -3,11 +3,11 @@
 
 ## Language features
 
-- [ ] top-level items
+- [x] top-level items
 - [ ] recursive definitions
 - [x] let expressions
 - [x] dependent function types
-  - [ ] condensed syntax for multiple parameters
+  - [x] condensed syntax for multiple parameters
   - [ ] implicit parameters
 - [x] records
   - [x] non-dependent
@@ -29,7 +29,7 @@
     - [ ] conditional field sugar
     - [ ] skipped fields
   - [x] position formats
-  - [ ] link formats formats
+  - [ ] link formats
   - [ ] map formats
   - [x] numeric formats
   - [x] array formats
@@ -52,7 +52,7 @@
 ## Implementation
 
 - [x] command line interface
-  - [ ] parse arbitrary top-level items
+  - [x] parse arbitrary top-level items
   - [ ] parse from an offset
   - [ ] navigation through links and offsets
   - [ ] serialise data to JSON for use with tools like jq
@@ -60,9 +60,9 @@
 - [ ] pretty printing
   - [x] surface language
   - [ ] core language
-- [ ] source locations
+- [x] source locations
   - [x] surface language
-  - [ ] core language
+  - [x] core language
 - [x] string interning
 - [x] arena allocation
 - [ ] value interning (for commonly used values)
@@ -71,7 +71,7 @@
 - [x] elaborator
   - [x] error recovery
   - [x] unification
-  - [ ] zonking
+  - [x] zonking
 - [x] distiller
   - [ ] improve binder names
   - [ ] improve hole names
@@ -82,12 +82,12 @@
 - [ ] compiler
 - [x] codespan diagnostics
   - [x] unification solutions
-  - [ ] terms and types included in messages
+  - [x] terms and types included in messages
 - [x] integration tests
   - [x] basic error code checks
-  - [ ] snapshot testing
-  - [ ] diagnostic expectations
-  - [ ] binary parser tests
+  - [x] snapshot testing
+  - [x] diagnostic expectations
+  - [x] binary parser tests
 
 ## Ideas for future experimentation
 
