@@ -921,7 +921,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         match r#type {
             None => {
                 let (pattern, type_value) = self.synth_pattern(pattern);
-                let r#type = self.quote_env().quote(self.scope, &type_value);
+                let r#type = self.quote_env().quote(self.scope, &type_value); // FIXME: don't quote in let elaboration
                 (pattern, r#type, type_value)
             }
             Some(r#type) => {
@@ -1014,7 +1014,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         match (surface_term, expected_type.as_ref()) {
             (Term::Paren(_, term), _) => self.check(term, &expected_type),
             (Term::Let(_, def_pattern, def_type, def_expr, body_expr), _) => {
-                let (def_pattern, def_type, def_type_value) =
+                let (def_pattern, _, def_type_value) =
                     self.synth_ann_pattern(def_pattern, *def_type);
                 let def_expr = self.check(def_expr, &def_type_value);
                 let def_expr_value = self.eval_env().eval(&def_expr);
@@ -1026,7 +1026,6 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 core::Term::Let(
                     file_range.into(),
                     def_name,
-                    self.scope.to_scope(def_type),
                     self.scope.to_scope(def_expr),
                     self.scope.to_scope(body_expr),
                 )
@@ -1344,7 +1343,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
     ) -> (core::Term<'arena>, ArcValue<'arena>) {
         let (term, r#type) = self.synth(surface_term);
         match term {
-            core::Term::FunLit(_, Plicity::Implicit, _, _) => (term, r#type),
+            core::Term::FunLit(_, Plicity::Implicit, ..) => (term, r#type),
             term => self.insert_implicit_apps(surface_term.range(), term, r#type),
         }
     }
@@ -1410,18 +1409,11 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
             Term::Ann(_, expr, r#type) => {
                 let r#type = self.check(r#type, &self.universe.clone());
                 let type_value = self.eval_env().eval(&r#type);
-                let expr = self.check(expr, &type_value);
 
-                let ann_expr = core::Term::Ann(
-                    file_range.into(),
-                    self.scope.to_scope(expr),
-                    self.scope.to_scope(r#type),
-                );
-
-                (ann_expr, type_value)
+                (self.check(expr, &type_value), type_value)
             }
             Term::Let(_, def_pattern, def_type, def_expr, body_expr) => {
-                let (def_pattern, def_type, def_type_value) =
+                let (def_pattern, _, def_type_value) =
                     self.synth_ann_pattern(def_pattern, *def_type);
                 let def_expr = self.check(def_expr, &def_type_value);
                 let def_expr_value = self.eval_env().eval(&def_expr);
@@ -1433,7 +1425,6 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 let let_expr = core::Term::Let(
                     file_range.into(),
                     def_name,
-                    self.scope.to_scope(def_type),
                     self.scope.to_scope(def_expr),
                     self.scope.to_scope(body_expr),
                 );
@@ -1783,16 +1774,18 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
             Some((param, next_params)) => {
                 let body_type = self.elim_env().force(expected_type);
                 match body_type.as_ref() {
-                    Value::FunType(param_plicity, _, param_type, next_body_type)
+                    Value::FunType(param_plicity, _, param_type_value, next_body_type)
                         if param.plicity == *param_plicity =>
                     {
                         let range = ByteRange::merge(param.pattern.range(), body_expr.range());
                         let pattern = self.check_ann_pattern(
                             &param.pattern,
                             param.r#type.as_ref(),
-                            param_type,
+                            param_type_value,
                         );
-                        let (name, arg_expr) = self.push_local_param(pattern, param_type.clone());
+                        let param_type = self.quote_env().quote(self.scope, param_type_value);
+                        let (name, arg_expr) =
+                            self.push_local_param(pattern, param_type_value.clone());
 
                         let body_type = self.elim_env().apply_closure(next_body_type, arg_expr);
                         let body_expr =
@@ -1803,22 +1796,31 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                             self.file_range(range).into(),
                             param.plicity,
                             name,
+                            self.scope.to_scope(param_type),
                             self.scope.to_scope(body_expr),
                         )
                     }
                     // If an implicit function is expected, try to generalize the
                     // function literal by wrapping it in an implicit function
-                    Value::FunType(Plicity::Implicit, param_name, param_type, next_body_type)
-                        if param.plicity == Plicity::Explicit =>
-                    {
-                        let arg_expr = self.local_env.push_param(*param_name, param_type.clone());
+                    Value::FunType(
+                        Plicity::Implicit,
+                        param_name,
+                        param_type_value,
+                        next_body_type,
+                    ) if param.plicity == Plicity::Explicit => {
+                        let param_type = self.quote_env().quote(self.scope, param_type_value);
+                        let arg_expr = self
+                            .local_env
+                            .push_param(*param_name, param_type_value.clone());
                         let body_type = self.elim_env().apply_closure(next_body_type, arg_expr);
                         let body_expr = self.check_fun_lit(range, params, body_expr, &body_type);
                         self.local_env.pop();
+
                         core::Term::FunLit(
                             file_range.into(),
                             Plicity::Implicit,
                             *param_name,
+                            self.scope.to_scope(param_type),
                             self.scope.to_scope(body_expr),
                         )
                     }
@@ -1881,17 +1883,19 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 _ => ByteRange::merge(param_range, body_expr.range()),
             };
 
+            let r#type = self.scope.to_scope(r#type);
             fun_lit = core::Term::FunLit(
                 self.file_range(range).into(),
                 plicity,
                 name,
+                r#type,
                 self.scope.to_scope(fun_lit),
             );
             fun_type = core::Term::FunType(
                 Span::Empty,
                 plicity,
                 name,
-                self.scope.to_scope(r#type),
+                r#type,
                 self.scope.to_scope(fun_type),
             );
         }
@@ -2210,7 +2214,6 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                         let def_name = Some(name);
                         let def_expr = self.eval_env().eval(match_info.scrutinee.expr);
                         let def_type_value = match_info.scrutinee.r#type.clone();
-                        let def_type = self.quote_env().quote(self.scope, &def_type_value);
 
                         self.local_env.push_def(def_name, def_expr, def_type_value);
                         let body_expr = self.check(body_expr, &match_info.expected_type);
@@ -2221,7 +2224,6 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                         core::Term::Let(
                             Span::merge(&range.into(), &body_expr.span()),
                             def_name,
-                            self.scope.to_scope(def_type),
                             match_info.scrutinee.expr,
                             self.scope.to_scope(body_expr),
                         )

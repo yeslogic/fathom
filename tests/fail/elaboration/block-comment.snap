@@ -1,4 +1,4 @@
 stdout = '''
-let x : Bool = false; () : ()
+let x = false; () : ()
 '''
 stderr = ''

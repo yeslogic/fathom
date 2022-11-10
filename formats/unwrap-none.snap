@@ -1,7 +1,8 @@
 stdout = '''
 def main : Format = {
     let ary : Array16 3 U16 = [1, 2, 3],
-    x <- unwrap @U16 (array16_find @3 @U16 (fun el => el == (4 : U16)) ary),
+    x <- unwrap @U16 (array16_find @3 @U16 (fun (el : U16) => el == (4 :
+    U16)) ary),
 };
 '''
 stderr = ''

@@ -1,5 +1,5 @@
 stdout = '''
-fun A a b => a : fun (A : Type) -> ?2 A -> A -> ?2 A
+fun (A : Type) (a : ?2 A) (b : A) => a : fun (A : Type) -> ?2 A -> A -> ?2 A
 '''
 stderr = '''
 error: failed to infer named pattern type

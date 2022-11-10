@@ -40,7 +40,7 @@ Terms can be normalised with `--term`
 
 ```console
 $ fathom norm --term tests/succeed/fun-elim/ann-identity-poly-1.fathom
-fun a => a : Type -> Type
+fun (a : Type) => a : Type -> Type
 
 ```
 

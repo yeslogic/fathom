@@ -16,7 +16,7 @@ error: mismatched types
   ┌─ tests/fail/elaboration/unification/mismatch/match-equation-body-exprs.fathom:5:10
   │
 5 │     _ => 4 : U64,
-  │          ^^^^^^^ type mismatch, expected `U32`, found `U64`
+  │          ^ type mismatch, expected `U32`, found `U64`
   │
   = expected `U32`
        found `U64`

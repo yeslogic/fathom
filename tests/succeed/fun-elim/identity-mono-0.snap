@@ -1,4 +1,4 @@
 stdout = '''
-(fun a => a) Type : Type
+(fun (a : Type) => a) Type : Type
 '''
 stderr = ''

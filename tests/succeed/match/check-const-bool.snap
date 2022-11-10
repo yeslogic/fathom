@@ -1,4 +1,4 @@
 stdout = '''
-let x : Bool = false; if x then 1 else 0 : U8
+let x = false; if x then 1 else 0 : U8
 '''
 stderr = ''

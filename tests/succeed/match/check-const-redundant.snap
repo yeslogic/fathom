@@ -1,5 +1,5 @@
 stdout = '''
-let x : U8 = 3; match x { 1 => 0, 3 => 7, x => x } : U8
+let x = 3; match x { 1 => 0, 3 => 7, x => x } : U8
 '''
 stderr = '''
 warning: unreachable pattern

@@ -1,12 +1,7 @@
 stdout = '''
-let x : U32 = 4660;
-let _ : U16 = match x {
-    0b1111 => 0b10,
-    0x1234 => 0b1,
-    "head" => 0b100,
-    _ => 0xffff,
-};
-let beef : U16 = 0xbeef;
+let x = 4660;
+let _ = match x { 0b1111 => 0b10, 0x1234 => 0b1, "head" => 0b100, _ => 0xffff };
+let beef = 0xbeef;
 Void : Type
 '''
 stderr = ''

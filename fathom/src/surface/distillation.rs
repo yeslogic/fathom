@@ -276,14 +276,8 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
 
     fn check_prec(&mut self, prec: Prec, core_term: &core::Term<'_>) -> Term<'arena, ()> {
         match core_term {
-            core::Term::Ann(_span, expr, _) => {
-                // Avoid adding extraneous type annotations!
-                self.check_prec(prec, expr)
-            }
-            core::Term::Let(_span, def_name, def_type, def_expr, body_expr) => {
-                let def_type = self.check_prec(Prec::Top, def_type);
-                let def_expr = self.check_prec(Prec::Let, def_expr);
-
+            core::Term::Let(_, def_name, def_expr, body_expr) => {
+                let def_expr = self.check_prec(Prec::Top, def_expr);
                 let def_name = self.freshen_name(*def_name, body_expr);
                 let def_name = self.push_local(def_name);
                 let def_pattern = name_to_pattern(def_name);
@@ -295,7 +289,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                     Term::Let(
                         (),
                         def_pattern,
-                        Some(self.scope.to_scope(def_type)),
+                        None,
                         self.scope.to_scope(def_expr),
                         self.scope.to_scope(body_expr),
                     ),
@@ -303,21 +297,24 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
             }
             core::Term::FunLit(..) => {
                 let initial_local_len = self.local_len();
+
                 let mut params = Vec::new();
                 let mut body_expr = core_term;
-                while let core::Term::FunLit(_, plicity, param_name, next_body_expr) = body_expr {
-                    let param_name = self.freshen_name(*param_name, next_body_expr);
-                    params.push((*plicity, self.push_local(param_name)));
+
+                while let core::Term::FunLit(_, plicity, name, r#type, next_body_expr) = body_expr {
+                    let r#type = self.check(r#type);
+                    let name = self.freshen_name(*name, next_body_expr);
+                    params.push((*plicity, self.push_local(name), r#type));
                     body_expr = next_body_expr;
                 }
 
                 let body_expr = self.check_prec(Prec::Let, body_expr);
                 self.truncate_local(initial_local_len);
 
-                let params = params.into_iter().map(|(plicity, name)| Param {
+                let params = params.into_iter().map(|(plicity, name, r#type)| Param {
                     plicity,
                     pattern: name_to_pattern(name),
-                    r#type: None,
+                    r#type: Some(r#type),
                 });
 
                 self.paren(
@@ -492,21 +489,11 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                     self.paren(prec > Prec::App, Term::App((), head_expr, args.into()))
                 }
             }
-            core::Term::Ann(_span, expr, r#type) => {
-                let expr = self.check_prec(Prec::Let, expr);
-                let r#type = self.check_prec(Prec::Top, r#type);
-
-                self.paren(
-                    prec > Prec::Top,
-                    Term::Ann((), self.scope.to_scope(expr), self.scope.to_scope(r#type)),
-                )
-            }
-            core::Term::Let(_span, def_name, def_type, def_expr, body_expr) => {
-                let def_type = self.check_prec(Prec::Top, def_type);
-                let def_expr = self.check_prec(Prec::Let, def_expr);
-
+            core::Term::Let(_, def_name, def_expr, body_expr) => {
+                let def_expr = self.check_prec(Prec::Top, def_expr);
                 let def_name = self.freshen_name(*def_name, body_expr);
                 let def_name = self.push_local(def_name);
+                let def_pattern = name_to_pattern(def_name);
                 let body_expr = self.synth_prec(Prec::Let, body_expr);
                 self.pop_local();
 
@@ -514,8 +501,8 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                     prec > Prec::Let,
                     Term::Let(
                         (),
-                        name_to_pattern(def_name),
-                        Some(self.scope.to_scope(def_type)),
+                        def_pattern,
+                        None,
                         self.scope.to_scope(def_expr),
                         self.scope.to_scope(body_expr),
                     ),
@@ -581,22 +568,24 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
             }
             core::Term::FunLit(..) => {
                 let initial_local_len = self.local_len();
+
                 let mut params = Vec::new();
                 let mut body_expr = core_term;
 
-                while let core::Term::FunLit(_, plicity, param_name, next_body_expr) = body_expr {
-                    let param_name = self.freshen_name(*param_name, next_body_expr);
-                    params.push((*plicity, self.push_local(param_name)));
+                while let core::Term::FunLit(_, plicity, name, r#type, next_body_expr) = body_expr {
+                    let r#type = self.check(r#type);
+                    let name = self.freshen_name(*name, next_body_expr);
+                    params.push((*plicity, self.push_local(name), r#type));
                     body_expr = next_body_expr;
                 }
 
                 let body_expr = self.synth_prec(Prec::Let, body_expr);
                 self.truncate_local(initial_local_len);
 
-                let params = params.into_iter().map(|(plicity, name)| Param {
+                let params = params.into_iter().map(|(plicity, name, r#type)| Param {
                     plicity,
                     pattern: name_to_pattern(name),
-                    r#type: None,
+                    r#type: Some(r#type),
                 });
 
                 self.paren(

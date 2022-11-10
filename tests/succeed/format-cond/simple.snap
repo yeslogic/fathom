@@ -1,8 +1,8 @@
 stdout = '''
-let format : Format = {
+let format = {
     sfnt_version <- { version <- u32be | version == (0xffff : U32) },
 };
-let _ : Repr format -> { sfnt_version : Repr u32be } = fun x => x;
+let _ = fun (x : { sfnt_version : U32 }) => x;
 () : ()
 '''
 stderr = ''
