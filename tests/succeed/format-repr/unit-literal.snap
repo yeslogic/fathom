@@ -1,7 +1,7 @@
 stdout = '''
-let unit : Format = {};
-let test_unit : {} -> {} = fun p => p;
-let test_unit : {} -> {} = fun p => {};
+let unit : Format = ();
+let test_unit : () -> () = fun p => p;
+let test_unit : () -> () = fun p => ();
 unit : Format
 '''
 stderr = ''

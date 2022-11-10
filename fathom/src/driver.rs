@@ -365,6 +365,7 @@ impl<'surface, 'core> Driver<'surface, 'core> {
                 context.text("="),
                 context.space(),
                 context.sequence(
+                    true,
                     context.text("["),
                     exprs.iter().map(|expr| context.term(expr)),
                     context.text(","),

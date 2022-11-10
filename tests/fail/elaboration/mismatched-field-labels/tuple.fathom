@@ -1,0 +1,16 @@
+//~ exit-code = 1
+
+let Triple: Type = (U16, U16, U16);
+let Point: Type = {x: U16, y: U16, z: U16};
+let Any: Type = {A: Type, a: A};
+
+let too_short_triple: Triple = (0, 1);
+let too_long_triple:  Triple = (0, 1, 2, 3);
+
+let too_short_point: Point = (0, 1);
+let too_long_point:  Point = (0, 1, 2, 3);
+
+let too_short_any: Any = ();
+let too_long_any:  Any = (Bool, false, true);
+
+()

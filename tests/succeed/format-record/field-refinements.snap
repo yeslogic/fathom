@@ -9,6 +9,6 @@ let _ : { magic : U64, len : U8, data : Array8 len U8 } -> {
     len : U8,
     data : Array8 len U8,
 } = fun x => x;
-{} : {}
+() : ()
 '''
 stderr = ''

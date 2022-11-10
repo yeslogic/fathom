@@ -1,4 +1,4 @@
 stdout = '''
-[ 1, 2, 3 ] : Array32 3 U32
+[1, 2, 3] : Array32 3 U32
 '''
 stderr = ''

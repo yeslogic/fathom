@@ -1,4 +1,4 @@
 stdout = '''
-{ first = {}, second = Type } : { first : Type, second : Type }
+{ first = (), second = Type } : { first : Type, second : Type }
 '''
 stderr = ''

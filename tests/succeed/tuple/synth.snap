@@ -1,0 +1,9 @@
+stdout = '''
+let unit : () = ();
+let paren : Bool = false;
+let single : (Bool,) = (false,);
+let pair : (Bool, Bool) = (false, true);
+let triple : (Bool, Bool, Bool) = (false, true, false);
+() : ()
+'''
+stderr = ''

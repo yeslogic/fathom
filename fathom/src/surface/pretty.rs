@@ -190,6 +190,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 }
             }
             Term::Match(_, scrutinee, equations) => self.sequence(
+                true,
                 self.concat([
                     self.text("match"),
                     self.space(),
@@ -260,6 +261,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 ]),
             ),
             Term::RecordType(_, type_fields) => self.sequence(
+                true,
                 self.text("{"),
                 type_fields.iter().map(|field| {
                     self.concat([
@@ -274,6 +276,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 self.text("}"),
             ),
             Term::RecordLiteral(_, expr_fields) => self.sequence(
+                true,
                 self.text("{"),
                 expr_fields.iter().map(|field| {
                     self.concat([
@@ -287,7 +290,19 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 self.text(","),
                 self.text("}"),
             ),
-            Term::UnitLiteral(_) => self.text("{}"),
+            Term::Tuple(_, terms) if terms.len() == 1 => self.concat([
+                self.text("("),
+                self.term(&terms[0]),
+                self.text(","),
+                self.text(")"),
+            ]),
+            Term::Tuple(_, terms) => self.sequence(
+                false,
+                self.text("("),
+                terms.iter().map(|term| self.term(term)),
+                self.text(","),
+                self.text(")"),
+            ),
             Term::Proj(_, head_expr, labels) => self.concat([
                 self.term_prec(Prec::Atomic, head_expr),
                 self.concat(
@@ -295,6 +310,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 ),
             ]),
             Term::ArrayLiteral(_, exprs) => self.sequence(
+                false,
                 self.text("["),
                 exprs.iter().map(|expr| self.term_prec(Prec::Top, expr)),
                 self.text(","),
@@ -309,6 +325,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 false => self.text("false"),
             },
             Term::FormatRecord(_, format_fields) => self.sequence(
+                true,
                 self.text("{"),
                 format_fields.iter().map(|field| self.format_field(field)),
                 self.text(","),
@@ -330,6 +347,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 self.text("}"),
             ]),
             Term::FormatOverlap(_, format_fields) => self.sequence(
+                true,
                 self.concat([self.text("overlap"), self.space(), self.text("{")]),
                 format_fields.iter().map(|field| self.format_field(field)),
                 self.text(","),
@@ -406,8 +424,10 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
 
     /// Pretty prints a delimited sequence of documents with a trailing
     /// separator if it is formatted over multiple lines.
+    /// If `space` is true, extra spaces are added before and after the delimiters
     pub fn sequence(
         &'arena self,
+        space: bool,
         start_delim: DocBuilder<'arena, Self>,
         docs: impl ExactSizeIterator<Item = DocBuilder<'arena, Self>> + Clone,
         separator: DocBuilder<'arena, Self>,
@@ -429,9 +449,9 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 ]),
                 self.concat([
                     start_delim,
-                    self.space(),
+                    if space { self.space() } else { self.nil() },
                     self.intersperse(docs, self.concat([separator, self.space()])),
-                    self.space(),
+                    if space { self.space() } else { self.nil() },
                     end_delim,
                 ]),
             )

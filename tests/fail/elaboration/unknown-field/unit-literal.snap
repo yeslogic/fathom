@@ -6,6 +6,6 @@ error: cannot find `goodbye` in expression
 3 │ {}.goodbye
   │ -- ^^^^^^^ unknown label
   │ │   
-  │ expression of type {}
+  │ expression of type ()
 
 '''
