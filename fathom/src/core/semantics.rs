@@ -1,5 +1,5 @@
-//! The operational semantics of the core language, implemented using
-//! [normalisation by evaluation](https://en.wikipedia.org/wiki/Normalisation_by_evaluation).
+//! The semantics of the core language, implemented using [normalisation by
+//! evaluation](https://en.wikipedia.org/wiki/Normalisation_by_evaluation).
 
 use scoped_arena::Scope;
 use std::panic::panic_any;
