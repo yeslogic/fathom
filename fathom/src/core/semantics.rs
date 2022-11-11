@@ -7,7 +7,7 @@ use std::sync::Arc;
 
 use crate::alloc::SliceVec;
 use crate::core::{prim, Const, LocalInfo, Prim, Term};
-use crate::env::{EnvLen, Level, SharedEnv, SliceEnv};
+use crate::env::{EnvLen, Index, Level, SharedEnv, SliceEnv};
 use crate::source::{Span, Spanned};
 use crate::StringId;
 
@@ -256,6 +256,11 @@ impl<'arena, 'env> EvalEnv<'arena, 'env> {
         QuoteEnv::new(self.elim_env, self.local_exprs.len())
     }
 
+    fn get_local_expr<'this: 'env>(&'this self, var: Index) -> &'env ArcValue<'arena> {
+        let value = self.local_exprs.get_index(var);
+        value.unwrap_or_else(|| panic_any(Error::UnboundLocalVar))
+    }
+
     /// Fully normalise a term by first [evaluating][EvalEnv::eval] it into
     /// a [value][Value], then [quoting it back][QuoteEnv::quote] into a
     /// [term][Term].
@@ -274,19 +279,14 @@ impl<'arena, 'env> EvalEnv<'arena, 'env> {
     /// twitter thread](https://twitter.com/brendanzab/status/1423536653658771457)).
     pub fn eval(&mut self, term: &Term<'arena>) -> ArcValue<'arena> {
         match term {
-            Term::ItemVar(span, var) => match self.elim_env.item_exprs.get_level(*var) {
+            Term::ItemVar(span, var) => {
+                Spanned::new(*span, Arc::clone(self.elim_env.get_item_expr(*var)))
+            }
+            Term::MetaVar(span, var) => match self.elim_env.get_meta_expr(*var) {
                 Some(value) => Spanned::new(*span, Arc::clone(value)),
-                None => panic_any(Error::UnboundItemVar),
+                None => Spanned::new(*span, Arc::new(Value::meta_var(*var))),
             },
-            Term::LocalVar(span, var) => match self.local_exprs.get_index(*var) {
-                Some(value) => Spanned::new(*span, Arc::clone(value)),
-                None => panic_any(Error::UnboundLocalVar),
-            },
-            Term::MetaVar(span, var) => match self.elim_env.meta_exprs.get_level(*var) {
-                Some(Some(value)) => Spanned::new(*span, Arc::clone(value)),
-                Some(None) => Spanned::new(*span, Arc::new(Value::meta_var(*var))),
-                None => panic_any(Error::UnboundMetaVar),
-            },
+            Term::LocalVar(span, var) => Spanned::new(*span, Arc::clone(self.get_local_expr(*var))),
             Term::InsertedMeta(span, var, local_infos) => {
                 let head_expr = self.eval(&Term::MetaVar(*span, *var));
                 self.apply_local_infos(head_expr, local_infos)
@@ -415,20 +415,29 @@ impl<'arena, 'env> ElimEnv<'arena, 'env> {
         ConversionEnv::new(*self, local_exprs)
     }
 
+    fn get_item_expr(&self, var: Level) -> &'env ArcValue<'arena> {
+        let value = self.item_exprs.get_level(var);
+        value.unwrap_or_else(|| panic_any(Error::UnboundItemVar))
+    }
+
+    fn get_meta_expr(&self, var: Level) -> &'env Option<ArcValue<'arena>> {
+        let value = self.meta_exprs.get_level(var);
+        value.unwrap_or_else(|| panic_any(Error::UnboundMetaVar))
+    }
+
     /// Bring a value up-to-date with any new unification solutions that
     /// might now be present at the head of in the given value.
     pub fn force(&self, value: &ArcValue<'arena>) -> ArcValue<'arena> {
         let mut forced_value = value.clone();
         // Attempt to force metavariables until we don't see any more.
         while let Value::Stuck(Head::MetaVar(var), spine) = forced_value.as_ref() {
-            match self.meta_exprs.get_level(*var) {
+            match self.get_meta_expr(*var) {
                 // Apply the spine to the solution. This might uncover another
                 // metavariable so we'll continue looping.
-                Some(Some(expr)) => forced_value = self.apply_spine(expr.clone(), spine),
+                Some(expr) => forced_value = self.apply_spine(expr.clone(), spine),
                 // There's no solution for this metavariable yet, meaning
                 // that we've forced the value as much as possible for now
-                Some(None) => break,
-                None => panic_any(Error::UnboundMetaVar), // TODO: Pass span into this error?
+                None => break,
             }
         }
         forced_value
@@ -743,12 +752,11 @@ impl<'in_arena, 'env> QuoteEnv<'in_arena, 'env> {
                 None => panic_any(Error::UnboundLocalVar),
             },
             Head::MetaVar(var) if self.unfold_metas => {
-                match self.elim_env.meta_exprs.get_level(*var) {
+                match self.elim_env.get_meta_expr(*var) {
                     // The metavariable has a solution, so unfold it.
-                    Some(Some(value)) => self.quote(scope, value),
+                    Some(value) => self.quote(scope, value),
                     // NOTE: We might want to replace this with `ReportedError`.
-                    Some(None) => Term::MetaVar(span, *var),
-                    None => panic_any(Error::UnboundMetaVar),
+                    None => Term::MetaVar(span, *var),
                 }
             }
             Head::MetaVar(var) => Term::MetaVar(span, *var),
@@ -829,19 +837,16 @@ impl<'arena, 'env> EvalEnv<'arena, 'env> {
                 }
             }
 
-            Term::InsertedMeta(span, var, infos) => {
-                match self.elim_env.meta_exprs.get_level(*var) {
-                    Some(Some(value)) => {
-                        let value = self.apply_local_infos(value.clone(), infos);
-                        self.quote_env().quote(scope, &value)
-                    }
-                    Some(None) => {
-                        let infos = scope.to_scope_from_iter(infos.iter().copied());
-                        Term::InsertedMeta(*span, *var, infos)
-                    }
-                    None => panic_any(Error::UnboundMetaVar),
+            Term::InsertedMeta(span, var, infos) => match self.elim_env.get_meta_expr(*var) {
+                Some(value) => {
+                    let value = self.apply_local_infos(value.clone(), infos);
+                    self.quote_env().quote(scope, &value)
                 }
-            }
+                None => {
+                    let infos = scope.to_scope_from_iter(infos.iter().copied());
+                    Term::InsertedMeta(*span, *var, infos)
+                }
+            },
             Term::Ann(span, expr, r#type) => Term::Ann(
                 *span,
                 scope.to_scope(self.unfold_metas(scope, expr)),
@@ -918,27 +923,23 @@ impl<'arena, 'env> EvalEnv<'arena, 'env> {
         // metavariable. If so, check if it has a solution, and then apply
         // eliminations to the solution in turn on our way back out.
         match term {
-            Term::MetaVar(span, var) => match self.elim_env.meta_exprs.get_level(*var) {
+            Term::MetaVar(span, var) => match self.elim_env.get_meta_expr(*var) {
                 // The metavariable has a solution, so unfold it.
-                Some(Some(value)) => TermOrValue::Value(value.clone()),
+                Some(value) => TermOrValue::Value(value.clone()),
                 // No solution was found for the metavariable.
                 // NOTE: We might want to replace this with `ReportedError`.
-                Some(None) => TermOrValue::Term(Term::MetaVar(*span, *var)),
-                None => panic_any(Error::UnboundMetaVar),
+                None => TermOrValue::Term(Term::MetaVar(*span, *var)),
             },
             Term::InsertedMeta(span, var, infos) => {
-                match self.elim_env.meta_exprs.get_level(*var) {
+                match self.elim_env.get_meta_expr(*var) {
                     // The metavariable has a solution, so unfold it.
-                    Some(Some(value)) => {
-                        TermOrValue::Value(self.apply_local_infos(value.clone(), infos))
-                    }
+                    Some(value) => TermOrValue::Value(self.apply_local_infos(value.clone(), infos)),
                     // No solution was found for the metavariable.
                     // NOTE: We might want to replace this with `ReportedError`.
-                    Some(None) => {
+                    None => {
                         let infos = scope.to_scope_from_iter(infos.iter().copied());
                         TermOrValue::Term(Term::InsertedMeta(*span, *var, infos))
                     }
-                    None => panic_any(Error::UnboundMetaVar),
                 }
             }
 
