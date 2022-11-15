@@ -933,16 +933,17 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 let cond_expr = self.check(cond_expr, &self.bool_type.clone());
                 let then_expr = self.check(then_expr, &expected_type);
                 let else_expr = self.check(else_expr, &expected_type);
-                let match_expr = core::Term::ConstMatch(
+
+                core::Term::ConstMatch(
                     range.into(),
                     self.scope.to_scope(cond_expr),
+                    // NOTE: in lexicographic order: in Rust, `false < true`
                     self.scope.to_scope_from_iter([
-                        (Const::Bool(true), then_expr),
                         (Const::Bool(false), else_expr),
+                        (Const::Bool(true), then_expr),
                     ]),
                     None,
-                );
-                match_expr
+                )
             }
             (Term::Match(range, scrutinee_expr, equations), _) => {
                 self.check_match(*range, scrutinee_expr, equations, &expected_type)
@@ -1276,15 +1277,18 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 let cond_expr = self.check(cond_expr, &self.bool_type.clone());
                 let (then_expr, r#type) = self.synth(then_expr);
                 let else_expr = self.check(else_expr, &r#type);
+
                 let match_expr = core::Term::ConstMatch(
                     range.into(),
                     self.scope.to_scope(cond_expr),
+                    // NOTE: in lexicographic order: in Rust, `false < true`
                     self.scope.to_scope_from_iter([
-                        (Const::Bool(true), then_expr),
                         (Const::Bool(false), else_expr),
+                        (Const::Bool(true), then_expr),
                     ]),
                     None,
                 );
+
                 (match_expr, r#type)
             }
             Term::Match(range, scrutinee_expr, equations) => {
@@ -2078,6 +2082,10 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 CheckedPattern::Binder(range, name) => {
                     self.check_match_reachable(is_reachable, range);
 
+                    // TODO: If we know this is an exhaustive match, bind the
+                    // scrutinee to a let binding with the elaborated body, and
+                    // add it to the branches. This will simplify the
+                    // distillation of if expressions.
                     (self.local_env).push_param(Some(name), match_info.scrutinee.r#type.clone());
                     default_expr = self.check(body_expr, &match_info.expected_type);
                     self.local_env.pop();

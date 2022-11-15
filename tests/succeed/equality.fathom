@@ -36,4 +36,15 @@ let four_chars : Eq U32 "beng" 1650814567 = refl _ _;
 let three_chars : Eq U32 "BEN " 1111838240 = refl _ _;
 
 
+// Branches
+
+let foo = fun (x : U32) =>
+  match x {
+    1 => 0 : U32,
+    x => x
+  };
+
+let eq_foo : Eq _ foo foo =
+  refl _ _;
+
 Type

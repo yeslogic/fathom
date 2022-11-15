@@ -1,5 +1,5 @@
-//! The operational semantics of the core language, implemented using
-//! [normalisation by evaluation](https://en.wikipedia.org/wiki/Normalisation_by_evaluation).
+//! The semantics of the core language, implemented using [normalisation by
+//! evaluation](https://en.wikipedia.org/wiki/Normalisation_by_evaluation).
 
 use scoped_arena::Scope;
 use std::panic::panic_any;
@@ -1072,20 +1072,7 @@ impl<'arena, 'env> ConversionEnv<'arena, 'env> {
             | (_, Value::Stuck(Head::Prim(Prim::ReportedError), _)) => true,
 
             (Value::Stuck(head0, spine0), Value::Stuck(head1, spine1)) => {
-                use Elim::*;
-
-                head0 == head1
-                    && spine0.len() == spine1.len()
-                    && Iterator::zip(spine0.iter(), spine1.iter()).all(|(elim0, elim1)| {
-                        match (elim0, elim1) {
-                            (FunApp(expr0), FunApp(expr1)) => self.is_equal(expr0, expr1),
-                            (RecordProj(label0), RecordProj(label1)) => label0 == label1,
-                            (ConstMatch(branches0), ConstMatch(branches1)) => {
-                                self.is_equal_branches(branches0, branches1)
-                            }
-                            (_, _) => false,
-                        }
-                    })
+                head0 == head1 && self.is_equal_spines(spine0, spine1)
             }
             (Value::Universe, Value::Universe) => true,
 
@@ -1140,6 +1127,21 @@ impl<'arena, 'env> ConversionEnv<'arena, 'env> {
 
             (_, _) => false,
         }
+    }
+
+    /// Check that two elimination spines are equal.
+    pub fn is_equal_spines(&mut self, spine0: &[Elim<'_>], spine1: &[Elim<'_>]) -> bool {
+        spine0.len() == spine1.len()
+            && Iterator::zip(spine0.iter(), spine1.iter()).all(|(elim0, elim1)| {
+                match (elim0, elim1) {
+                    (Elim::FunApp(expr0), Elim::FunApp(expr1)) => self.is_equal(expr0, expr1),
+                    (Elim::RecordProj(label0), Elim::RecordProj(label1)) => label0 == label1,
+                    (Elim::ConstMatch(branches0), Elim::ConstMatch(branches1)) => {
+                        self.is_equal_branches(branches0, branches1)
+                    }
+                    (_, _) => false,
+                }
+            })
     }
 
     /// Check that two [closures][Closure] are equal.
@@ -1258,32 +1260,46 @@ impl<'arena, 'env> ConversionEnv<'arena, 'env> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::Const;
 
-    #[test]
-    fn value_has_unify_and_is_equal_impls() {
-        let value = Arc::new(Value::ConstLit(Const::Bool(false)));
-
-        // This test exists in order to cause a test failure when `Value` is changed. If this test
-        // has failed and you have added a new variant to Value it is a prompt to ensure that
-        // variant is handled in:
+    #[allow(dead_code)]
+    fn value_has_unify_and_is_equal_impls(value: Value<'_>) {
+        // The following match will fail to be exhaustive after new variants
+        // are added to `Value`. When this happens, it’s a prompt to make sure
+        // that the variants are handled in:
         //
-        // - surface::elaboration::Env::unify
+        // - surface::elaboration::Context::unify
         // - core::semantics::is_equal
         //
         // NOTE: Only update the match below when you've updated the above functions.
-        match value.as_ref() {
-            Value::Stuck(_, _) => {}
+        match value {
+            Value::Stuck(..) => {}
             Value::Universe => {}
-            Value::FunType(_, _, _) => {}
-            Value::FunLit(_, _) => {}
-            Value::RecordType(_, _) => {}
-            Value::RecordLit(_, _) => {}
-            Value::ArrayLit(_) => {}
-            Value::FormatRecord(_, _) => {}
-            Value::FormatCond(_, _, _) => {}
-            Value::FormatOverlap(_, _) => {}
-            Value::ConstLit(_) => {}
+            Value::FunType(..) => {}
+            Value::FunLit(..) => {}
+            Value::RecordType(..) => {}
+            Value::RecordLit(..) => {}
+            Value::ArrayLit(..) => {}
+            Value::FormatRecord(..) => {}
+            Value::FormatCond(..) => {}
+            Value::FormatOverlap(..) => {}
+            Value::ConstLit(..) => {}
+        }
+    }
+
+    #[allow(dead_code)]
+    fn elim_has_unify_and_is_equal_impls(elim: Elim<'_>) {
+        // The following match will fail to be exhaustive after new variants
+        // are added to `Elim`. When this happens, it’s a prompt to make sure
+        // that the variants are handled in:
+        //
+        // - surface::elaboration::Context::unify
+        // - core::semantics::is_equal
+        //
+        // NOTE: Only update the match below when you've updated the above functions.
+        match elim {
+            Elim::FunApp(..) => {}
+            Elim::RecordProj(..) => {}
+            Elim::ConstMatch(..) => {}
         }
     }
 }

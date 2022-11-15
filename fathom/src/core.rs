@@ -175,9 +175,8 @@ pub enum Term<'arena> {
 
     /// Constant literals.
     ConstLit(Span, Const),
-    /// Match on a constant.
-    ///
-    /// (head_expr, pattern_branches, default_expr)
+    /// Match on a constant. The pattern branches should be unique, and listed
+    /// in lexicographic order.
     ConstMatch(
         Span,
         &'arena Term<'arena>,
