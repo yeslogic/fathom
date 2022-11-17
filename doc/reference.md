@@ -22,6 +22,7 @@ elaboration, and core language is forthcoming.
 - [Formats](#formats)
   - [Format types](#format-types)
   - [Format representations](#format-representations)
+  - [Format coercions](#format-coercions)
   - [Record formats](#record-formats)
   - [Conditional formats](#conditional-formats)
   - [Overlap formats](#overlap-formats)
@@ -264,6 +265,18 @@ Every binary format has a unique host representation, which is accessed via the
 built-in `Repr` operator:
 
 - `Repr : Format -> Type`
+
+### Format coercions
+
+Format descriptions can sometimes be coerced to their representation types
+through the application of `Repr`. For example:
+
+```fathom
+let tag : Format = u32be;
+let table_format = tag -> Format;
+//                  ▲
+//                  └─── coerced to `Repr tag`
+```
 
 ### Record formats
 

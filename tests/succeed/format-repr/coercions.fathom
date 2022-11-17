@@ -1,0 +1,10 @@
+let num : Format = s32be;
+
+let x : num = 3;
+
+let Point : Type = {
+    x : num,
+    y : num,
+};
+
+x : S32

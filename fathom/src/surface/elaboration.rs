@@ -605,12 +605,9 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         }
     }
 
-    /// Conversion checking for `expr` under the types `from` and `to`.
-    /// This will trigger unification, recording a unification error on failure.
-    //
-    // NOTE: We could eventually call this method `coerce` if we end up adding
-    //       coercions to the core language.
-    fn convert(
+    /// Coerce an expression from one type to another type. This will trigger
+    /// unification, recording a unification error on failure.
+    fn coerce(
         &mut self,
         surface_range: ByteRange, /* TODO: could be removed if we never encounter empty spans in
                                    * the core term */
@@ -619,27 +616,48 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         to: &ArcValue<'arena>,
     ) -> core::Term<'arena> {
         let span = expr.span();
-        let range = match span {
-            Span::Range(range) => range,
-            Span::Empty => {
-                let range = self.file_range(surface_range);
-                self.push_message(Message::MissingSpan { range });
-                range
+        let from = self.elim_env().force(from);
+        let to = self.elim_env().force(to);
+
+        match (from.as_ref(), to.as_ref()) {
+            // Coerce format descriptions to their representation types by
+            // applying `Repr`.
+            (Value::Stuck(Head::Prim(Prim::FormatType), elims), Value::Universe)
+                if elims.is_empty() =>
+            {
+                core::Term::FunApp(
+                    span,
+                    Plicity::Explicit,
+                    self.scope
+                        .to_scope(core::Term::Prim(span, core::Prim::FormatRepr)),
+                    self.scope.to_scope(expr),
+                )
             }
-        };
-        match self.unification_context().unify(from, to) {
-            Ok(()) => expr,
-            Err(error) => {
-                let from = self.pretty_print_value(from);
-                let to = self.pretty_print_value(to);
-                self.push_message(Message::FailedToUnify {
-                    range,
-                    found: from,
-                    expected: to,
-                    error,
-                });
-                core::Term::Prim(span, Prim::ReportedError)
-            }
+
+            // Otherwise, unify the types
+            (_, _) => match self.unification_context().unify(&from, &to) {
+                Ok(()) => expr,
+                Err(error) => {
+                    let range = match span {
+                        Span::Range(range) => range,
+                        Span::Empty => {
+                            let range = self.file_range(surface_range);
+                            self.push_message(Message::MissingSpan { range });
+                            range
+                        }
+                    };
+
+                    let from = self.pretty_print_value(&from);
+                    let to = self.pretty_print_value(&to);
+                    self.push_message(Message::FailedToUnify {
+                        range,
+                        found: from,
+                        expected: to,
+                        error,
+                    });
+                    core::Term::Prim(span, Prim::ReportedError)
+                }
+            },
         }
     }
 
@@ -1039,7 +1057,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
             (_, Value::FunType(Plicity::Explicit, ..)) => {
                 let surface_range = surface_term.range();
                 let (synth_term, synth_type) = self.synth_and_insert_implicit_apps(surface_term);
-                self.convert(surface_range, synth_term, &synth_type, &expected_type)
+                self.coerce(surface_range, synth_term, &synth_type, &expected_type)
             }
             (Term::RecordLiteral(_, expr_fields), Value::RecordType(labels, types)) => {
                 // TODO: improve handling of duplicate labels
@@ -1285,7 +1303,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
             (_, _) => {
                 let surface_range = surface_term.range();
                 let (synth_term, synth_type) = self.synth(surface_term);
-                self.convert(surface_range, synth_term, &synth_type, &expected_type)
+                self.coerce(surface_range, synth_term, &synth_type, &expected_type)
             }
         }
     }
@@ -1808,7 +1826,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                         let range = ByteRange::merge(param.pattern.range(), body_expr.range());
                         let (expr, r#type) = self.synth_fun_lit(range, params, body_expr, None);
                         let type_value = self.eval_env().eval(&r#type);
-                        self.convert(range, expr, &type_value, expected_type)
+                        self.coerce(range, expr, &type_value, expected_type)
                     }
                     Value::Stuck(Head::Prim(Prim::ReportedError), _) => {
                         core::Term::Prim(file_range.into(), Prim::ReportedError)
