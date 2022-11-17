@@ -6,10 +6,56 @@ use std::ops::{Deref, DerefMut};
 pub type StringId = string_interner::symbol::SymbolU16;
 
 /// String interner.
-pub type StringInterner = string_interner::StringInterner<
-    string_interner::backend::BucketBackend<StringId>,
-    std::hash::BuildHasherDefault<fxhash::FxHasher32>,
->;
+pub struct StringInterner {
+    tuple_labels: Vec<StringId>,
+    strings: string_interner::StringInterner<
+        string_interner::backend::BucketBackend<StringId>,
+        std::hash::BuildHasherDefault<fxhash::FxHasher32>,
+    >,
+}
+
+impl Deref for StringInterner {
+    type Target = string_interner::StringInterner<
+        string_interner::backend::BucketBackend<StringId>,
+        std::hash::BuildHasherDefault<fxhash::FxHasher32>,
+    >;
+
+    fn deref(&self) -> &Self::Target {
+        &self.strings
+    }
+}
+
+impl DerefMut for StringInterner {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.strings
+    }
+}
+
+impl StringInterner {
+    /// Construct an empty string interner.
+    pub fn new() -> StringInterner {
+        StringInterner {
+            tuple_labels: Vec::new(),
+            strings: string_interner::StringInterner::new(),
+        }
+    }
+
+    /// Get or intern a string in the form `_{index}`.
+    pub fn get_tuple_label(&mut self, index: usize) -> StringId {
+        (self.tuple_labels.get(index).copied())
+            .unwrap_or_else(|| self.get_or_intern(format!("_{}", index)))
+    }
+
+    /// Returns true if `label` refers to a string in the form `_{index}`.
+    pub fn is_tuple_label(&mut self, index: usize, label: StringId) -> bool {
+        label == self.get_tuple_label(index)
+    }
+
+    /// Returns true if `labels` is a sequence of tuple labels: `_0`, `_1`, ...
+    pub fn is_tuple_labels(&mut self, labels: &[StringId]) -> bool {
+        (labels.iter().enumerate()).all(|(index, label)| self.is_tuple_label(index, *label))
+    }
+}
 
 /// File id.
 pub type FileId = usize; // TODO: use wrapper struct

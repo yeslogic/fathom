@@ -244,21 +244,21 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                     self.scope.to_scope(body_expr),
                 )
             }
-            core::Term::RecordType(_span, labels, exprs)
-                if is_tuple_type(labels, exprs, &self.interner.borrow()) =>
+            core::Term::RecordType(_, labels, types)
+                if is_tuple_type(&mut self.interner.borrow_mut(), labels, types) =>
+            {
+                let scope = self.scope;
+                let types = types.iter().map(|expr| self.check(expr));
+                Term::Tuple((), scope.to_scope_from_iter(types))
+            }
+            core::Term::RecordLit(_, labels, exprs)
+                if self.interner.borrow_mut().is_tuple_labels(labels) =>
             {
                 let scope = self.scope;
                 let exprs = exprs.iter().map(|expr| self.check(expr));
                 Term::Tuple((), scope.to_scope_from_iter(exprs))
             }
-            core::Term::RecordLit(_span, labels, exprs)
-                if is_tuple_expr(labels, &self.interner.borrow()) =>
-            {
-                let scope = self.scope;
-                let exprs = exprs.iter().map(|expr| self.check(expr));
-                Term::Tuple((), scope.to_scope_from_iter(exprs))
-            }
-            core::Term::RecordLit(_span, labels, exprs) => {
+            core::Term::RecordLit(_, labels, exprs) => {
                 let scope = self.scope;
                 let expr_fields =
                     Iterator::zip(labels.iter(), exprs.iter()).map(|(label, expr)| ExprField {
@@ -274,8 +274,8 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
 
                 Term::ArrayLiteral((), scope.to_scope_from_iter(elem_exprs))
             }
-            core::Term::FormatRecord(_span, labels, formats)
-                if is_tuple_type(labels, formats, &self.interner.borrow()) =>
+            core::Term::FormatRecord(_, labels, formats)
+                if is_tuple_type(&mut self.interner.borrow_mut(), labels, formats) =>
             {
                 let scope = self.scope;
                 let formats = formats.iter().map(|format| self.check(format));
@@ -516,12 +516,12 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                     )
                 }
             },
-            core::Term::RecordType(_span, labels, exprs)
-                if is_tuple_type(labels, exprs, &self.interner.borrow()) =>
+            core::Term::RecordType(_, labels, types)
+                if is_tuple_type(&mut self.interner.borrow_mut(), labels, types) =>
             {
                 let initial_local_len = self.local_len();
                 let types = (self.scope).to_scope_from_iter(
-                    Iterator::zip(labels.iter(), exprs.iter()).map(|(label, r#type)| {
+                    Iterator::zip(labels.iter(), types.iter()).map(|(label, r#type)| {
                         let r#type = self.check(r#type);
                         self.push_local(Some(*label));
                         r#type
@@ -550,8 +550,8 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
 
                 Term::RecordType((), type_fields)
             }
-            core::Term::RecordLit(_span, labels, exprs)
-                if is_tuple_expr(labels, &self.interner.borrow()) =>
+            core::Term::RecordLit(_, labels, exprs)
+                if self.interner.borrow_mut().is_tuple_labels(labels) =>
             {
                 let scope = self.scope;
                 let exprs = exprs.iter().map(|expr| self.synth(expr));
@@ -591,7 +591,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 Term::ArrayLiteral((), scope.to_scope_from_iter(elem_exprs))
             }
             core::Term::FormatRecord(_span, labels, formats)
-                if is_tuple_type(labels, formats, &self.interner.borrow()) =>
+                if is_tuple_type(&mut self.interner.borrow_mut(), labels, formats) =>
             {
                 let scope = self.scope;
                 let formats = formats.iter().map(|format| self.synth(format));
@@ -781,27 +781,19 @@ fn match_if_then_else<'arena>(
     }
 }
 
-// Return true if `labels` are all tuple labels
-fn is_tuple_expr(labels: &[StringId], interner: &StringInterner) -> bool {
-    labels
-        .iter()
-        .enumerate()
-        .all(|(idx, label)| interner.resolve(*label) == Some(&format!("_{}", idx)))
-}
-
-// Return true if `labels` are all tuple labels, and `exprs` do not depend on any of the expressions bound by `labels`
-fn is_tuple_type(labels: &[StringId], exprs: &[core::Term<'_>], interner: &StringInterner) -> bool {
-    let suffixes = (1..=exprs.len()).rev().map(move |idx| &exprs[idx..]);
-    labels
-        .iter()
-        .zip(suffixes)
-        .enumerate()
-        .all(|(idx, (label, suffix))| {
-            interner.resolve(*label) == Some(&format!("_{}", idx))
-                && suffix
-                    .iter()
-                    .zip(env::indices())
-                    .all(|(expr, idx)| !expr.binds_local(idx))
+/// Returns true if `labels` is a sequence of tuple labels (`_0`, `_1`, ...),
+/// and a telescope of `types` contains independent entries.
+fn is_tuple_type(
+    interner: &mut StringInterner,
+    labels: &[StringId],
+    types: &[core::Term<'_>],
+) -> bool {
+    interner.is_tuple_labels(labels)
+        // For each type in the telescope, ensure that the subsequent types in
+        // the telescope do not depend on the current field.
+        && (1..=types.len()).all(|index| {
+            Iterator::zip(types[index..].iter(), env::indices())
+                .all(|(expr, var)| !expr.binds_local(var))
         })
 }
 
