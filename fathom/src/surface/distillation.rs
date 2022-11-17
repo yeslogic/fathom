@@ -4,14 +4,14 @@ use scoped_arena::Scope;
 use std::cell::RefCell;
 
 use crate::alloc::SliceVec;
+use crate::core;
 use crate::core::{Const, UIntStyle};
 use crate::env::{self, EnvLen, Index, Level, UniqueEnv};
-use crate::source::Span;
+use crate::source::{Span, StringId, StringInterner};
 use crate::surface::elaboration::MetaSource;
 use crate::surface::{
     BinOp, ExprField, FormatField, Item, ItemDef, Module, Pattern, Term, TypeField,
 };
-use crate::{core, StringId, StringInterner};
 
 /// Distillation context.
 pub struct Context<'interner, 'arena, 'env> {

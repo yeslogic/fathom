@@ -29,10 +29,9 @@ use crate::alloc::SliceVec;
 use crate::core::semantics::{self, ArcValue, Head, Telescope, Value};
 use crate::core::{self, prim, Const, Prim, UIntStyle};
 use crate::env::{self, EnvLen, Level, SharedEnv, UniqueEnv};
-use crate::source::{ByteRange, Span, Spanned};
+use crate::source::{ByteRange, Span, Spanned, StringId, StringInterner};
 use crate::surface::elaboration::reporting::Message;
 use crate::surface::{distillation, pretty, BinOp, FormatField, Item, Module, Pattern, Term};
-use crate::{StringId, StringInterner};
 
 mod order;
 mod reporting;

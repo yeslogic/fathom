@@ -6,9 +6,7 @@ use std::sync::Arc;
 use crate::core::semantics::{ArcValue, Elim, ElimEnv, Value};
 use crate::core::{self, Const, Prim, UIntStyle};
 use crate::env::{self, SharedEnv, UniqueEnv};
-use crate::source::Span;
-use crate::source::Spanned;
-use crate::{StringId, StringInterner};
+use crate::source::{Span, Spanned, StringId, StringInterner};
 
 /// Environment of primitives
 pub struct Env<'arena> {

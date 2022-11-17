@@ -7,9 +7,9 @@ use std::path::Path;
 
 use crate::core::binary;
 use crate::core::binary::{BufferError, ReadError};
-use crate::source::{ByteRange, FileId, Span};
+use crate::source::{ByteRange, FileId, Span, StringInterner};
 use crate::surface::{self, elaboration};
-use crate::{StringInterner, BUG_REPORT_URL};
+use crate::BUG_REPORT_URL;
 
 #[derive(Debug, Copy, Clone)]
 pub enum Status {

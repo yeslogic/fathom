@@ -1,6 +1,15 @@
+//! Types related to source files.
+
 use std::ops::{Deref, DerefMut};
 
-///! Types related to source files.
+// Interned strings.
+pub type StringId = string_interner::symbol::SymbolU16;
+
+/// String interner.
+pub type StringInterner = string_interner::StringInterner<
+    string_interner::backend::BucketBackend<StringId>,
+    std::hash::BuildHasherDefault<fxhash::FxHasher32>,
+>;
 
 /// File id.
 pub type FileId = usize; // TODO: use wrapper struct

@@ -19,12 +19,3 @@ pub const BUG_REPORT_URL: &str = concat!(env!("CARGO_PKG_REPOSITORY"), "/issues/
 
 // Public exports
 pub use driver::{Driver, Status};
-
-/// Interned strings.
-pub type StringId = string_interner::symbol::SymbolU16;
-
-/// String interner.
-pub type StringInterner = string_interner::StringInterner<
-    string_interner::backend::BucketBackend<StringId>,
-    std::hash::BuildHasherDefault<fxhash::FxHasher32>,
->;
