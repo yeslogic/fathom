@@ -11,6 +11,9 @@ let b2 : Bool = r.x3.y2;
 let _ : { a : Bool, b : Bool } = { a = false, b = true };
 let a : Bool = _.a;
 let b : Bool = _.b;
+let _ : (Bool, Bool) = (false, true);
+let x : Bool = _._0;
+let _ : (Bool, Bool) = (false, true);
 () : ()
 '''
 stderr = ''

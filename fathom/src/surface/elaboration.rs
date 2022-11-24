@@ -2412,33 +2412,77 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         let mut defs = UniqueEnv::new();
         let mut depth = EnvLen(0);
 
-        let scrut_expr = match (scrut.expr.is_trivial(), pattern.is_trivial()) {
+        match pattern {
             // Do not add an extra binding if the scrut is a function argument
             // Avoids results like `fun x => x` elaborating to `fun x => let x = x; x`
-            (true, true) if mode == PatternMode::Fun => return defs,
-
-            // Compound patterns (only record literals for now) may bind `scrut_expr` several times.
-            // Therefore it is necessary to first bind `scrut_expr` to a fresh variable to ensure it
-            // is not evaluated several times.
-            // We can generate slightly nicer code by not introducing a fresh variable if `scrut_expr` is "trivial"
-            (false, false) => {
-                let name = pattern.name();
-                let range = pattern.range();
-                let scrut_value = self.eval_env().eval(scrut.expr);
-                let type_expr = self.quote_env().quote(self.scope, &scrut.r#type);
-
-                self.local_env
-                    .push_def(name, scrut_value, scrut.r#type.clone());
-                defs.push((name, type_expr, scrut.expr.clone()));
-                self.scope
-                    .to_scope(core::Term::LocalVar(range.into(), Index::last()))
+            _ if pattern.is_trivial() && mode == PatternMode::Fun => {}
+            CheckedPattern::Binder(_, name) => {
+                self.bind_var(Some(*name), scrut, &mut defs, &mut depth)
             }
-            _ => scrut.expr,
-        };
-        scrut.expr = scrut_expr;
+            CheckedPattern::Placeholder(_) | CheckedPattern::ReportedError(_) => {
+                self.bind_var(None, scrut, &mut defs, &mut depth)
+            }
+            CheckedPattern::ConstLit(range, _) => {
+                if mode != PatternMode::Match {
+                    self.messages.push(Message::RefutablePattern {
+                        pattern_range: *range,
+                    });
+                    self.bind_var(None, scrut, &mut defs, &mut depth);
+                }
+            }
+            CheckedPattern::RecordLit(_, labels, patterns) => {
+                // Compound patterns may bind `scrut_expr` several times.
+                // Therefore it is necessary to first bind `scrut_expr` to a fresh variable to ensure it
+                // is not evaluated several times.
+                if !scrut.expr.is_trivial() {
+                    let name = pattern.name();
+                    let range = pattern.range();
+                    let scrut_value = self.eval_env().eval(scrut.expr);
+                    let type_expr = self.quote_env().quote(self.scope, &scrut.r#type);
 
-        self.bind_pattern_rec(mode, pattern, scrut, &mut defs, &mut depth);
+                    self.local_env
+                        .push_def(name, scrut_value, scrut.r#type.clone());
+                    defs.push((name, type_expr, scrut.expr.clone()));
+                    scrut.expr = self
+                        .scope
+                        .to_scope(core::Term::LocalVar(range.into(), Index::last()));
+                }
+                self.bind_record(mode, labels, patterns, scrut, &mut defs, &mut depth);
+            }
+        }
         defs
+    }
+
+    fn bind_record(
+        &mut self,
+        mode: PatternMode,
+        labels: &'arena [StringId],
+        patterns: &'arena [CheckedPattern<'arena>],
+        scrut: Scrutinee<'arena>,
+        defs: &mut UniqueEnv<(Option<StringId>, core::Term<'arena>, core::Term<'arena>)>,
+        depth: &mut EnvLen,
+    ) {
+        let mut telescope = match scrut.r#type.as_ref() {
+            Value::RecordType(_, telescope) => telescope.clone(),
+            _ => unreachable!(),
+        };
+        let scrut_expr = self.scope.to_scope(scrut.expr);
+        let mut iter = Iterator::zip(labels.iter(), patterns.iter());
+        while let Some(((label, pattern), (scrut_type, next_telescope))) = Option::zip(
+            iter.next(),
+            self.elim_env().split_telescope(telescope.clone()),
+        ) {
+            telescope = next_telescope(Spanned::empty(Arc::new(Value::local_var(
+                self.local_env.len().next_level(),
+            ))));
+            let scrut_expr = core::Term::RecordProj(Span::Empty, scrut_expr, *label);
+            let scrut = Scrutinee {
+                range: scrut.range,
+                expr: self.scope.to_scope(scrut_expr),
+                r#type: scrut_type,
+            };
+            self.bind_pattern_rec(mode, pattern, scrut, defs, depth);
+        }
     }
 
     fn bind_pattern_rec(
@@ -2450,40 +2494,18 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         depth: &mut EnvLen,
     ) {
         match pattern {
+            // Don't introduce useless `let _ = ...` bindings when the pattern is not at the top level
+            CheckedPattern::Placeholder(_) | CheckedPattern::ReportedError(_) => {}
             CheckedPattern::Binder(_, name) => self.bind_var(Some(*name), scrut, defs, depth),
-            CheckedPattern::Placeholder(_) | CheckedPattern::ReportedError(_) => {
-                self.bind_var(None, scrut, defs, depth)
-            }
             CheckedPattern::ConstLit(range, _) => {
                 if mode != PatternMode::Match {
                     self.messages.push(Message::RefutablePattern {
                         pattern_range: *range,
                     });
                 }
-                self.bind_var(None, scrut, defs, depth)
             }
             CheckedPattern::RecordLit(_, labels, patterns) => {
-                let mut telescope = match scrut.r#type.as_ref() {
-                    Value::RecordType(_, telescope) => telescope.clone(),
-                    _ => unreachable!(),
-                };
-                let scrut_expr = self.scope.to_scope(scrut.expr);
-                let mut iter = Iterator::zip(labels.iter(), patterns.iter());
-                while let Some(((label, pattern), (scrut_type, next_telescope))) = Option::zip(
-                    iter.next(),
-                    self.elim_env().split_telescope(telescope.clone()),
-                ) {
-                    telescope = next_telescope(Spanned::empty(Arc::new(Value::local_var(
-                        self.local_env.len().next_level(),
-                    ))));
-                    let scrut_expr = core::Term::RecordProj(Span::Empty, scrut_expr, *label);
-                    let scrut = Scrutinee {
-                        range: scrut.range,
-                        expr: self.scope.to_scope(scrut_expr),
-                        r#type: scrut_type,
-                    };
-                    self.bind_pattern_rec(mode, pattern, scrut, defs, depth);
-                }
+                self.bind_record(mode, labels, patterns, scrut, defs, depth)
             }
         }
     }

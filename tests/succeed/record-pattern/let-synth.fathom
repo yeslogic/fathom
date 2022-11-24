@@ -1,4 +1,6 @@
 let r = {x1 = false, x2 = false, x3 = {y1 = true, y2 = true}};
 let {x1 = a1, x2 = a2, x3 = {y1 = b1, y2 = b2}} = r;
 let {a, b} = {a = false, b = true};
+let (x, _) = (false, true);
+let (_, _) = (false, true);
 {}
