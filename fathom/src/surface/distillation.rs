@@ -296,8 +296,9 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 core::Const::Pos(number) => self.check_number_literal(number),
                 core::Const::Ref(number) => self.check_number_literal(number),
             },
-            core::Term::ConstMatch(_span, head_expr, branches, default_expr) => {
-                if let Some((then_expr, else_expr)) = match_if_then_else(branches, *default_expr) {
+            core::Term::ConstMatch(_span, head_expr, branches, default_branch) => {
+                if let Some((then_expr, else_expr)) = match_if_then_else(branches, *default_branch)
+                {
                     let cond_expr = self.check(head_expr);
                     let then_expr = self.check(then_expr);
                     let else_expr = self.check(else_expr);
@@ -310,10 +311,10 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 }
 
                 let head_expr = self.synth(head_expr);
-                match default_expr {
-                    Some(default_expr) => {
+                match default_branch {
+                    Some((default_name, default_expr)) => {
                         let default_branch = {
-                            let name = self.push_local(None);
+                            let name = self.push_local(*default_name);
                             let default_expr = self.check(default_expr);
                             self.pop_local();
 
@@ -654,9 +655,9 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
 
                 let head_expr = self.synth(head_expr);
                 match default_expr {
-                    Some(default_expr) => {
+                    Some((default_name, default_expr)) => {
                         let default_branch = {
-                            let name = self.push_local(None);
+                            let name = self.push_local(*default_name);
                             let default_expr = self.synth(default_expr);
                             self.pop_local();
 
@@ -770,13 +771,13 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
 
 fn match_if_then_else<'arena>(
     branches: &'arena [(Const, core::Term<'arena>)],
-    default_expr: Option<&'arena core::Term<'arena>>,
+    default_branch: Option<(Option<StringId>, &'arena core::Term<'arena>)>,
 ) -> Option<(&'arena core::Term<'arena>, &'arena core::Term<'arena>)> {
-    match (branches, default_expr) {
+    match (branches, default_branch) {
         ([(Const::Bool(false), else_expr), (Const::Bool(true), then_expr)], None)
         // TODO: Normalise boolean branches when elaborating patterns
-        | ([(Const::Bool(true), then_expr)], Some(else_expr))
-        | ([(Const::Bool(false), else_expr)], Some(then_expr)) => Some((then_expr, else_expr)),
+        | ([(Const::Bool(true), then_expr)], Some((_, else_expr)))
+        | ([(Const::Bool(false), else_expr)], Some((_, then_expr))) => Some((then_expr, else_expr)),
         _ => None,
     }
 }

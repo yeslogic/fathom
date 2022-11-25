@@ -171,7 +171,7 @@ impl<'arena> Telescope<'arena> {
 pub struct Branches<'arena, P> {
     local_exprs: SharedEnv<ArcValue<'arena>>,
     pattern_branches: &'arena [(P, Term<'arena>)],
-    default_expr: Option<&'arena Term<'arena>>,
+    default_branch: Option<(Option<StringId>, &'arena Term<'arena>)>,
 }
 
 impl<'arena, P> Branches<'arena, P> {
@@ -179,12 +179,12 @@ impl<'arena, P> Branches<'arena, P> {
     pub fn new(
         local_exprs: SharedEnv<ArcValue<'arena>>,
         pattern_branches: &'arena [(P, Term<'arena>)],
-        default_expr: Option<&'arena Term<'arena>>,
+        default_branch: Option<(Option<StringId>, &'arena Term<'arena>)>,
     ) -> Branches<'arena, P> {
         Branches {
             local_exprs,
             pattern_branches,
-            default_expr,
+            default_branch,
         }
     }
 
@@ -199,7 +199,7 @@ pub type PatternBranch<'arena, P> = (P, ArcValue<'arena>);
 #[derive(Clone, Debug)]
 pub enum SplitBranches<'arena, P> {
     Branch(PatternBranch<'arena, P>, Branches<'arena, P>),
-    Default(Closure<'arena>),
+    Default(Option<StringId>, Closure<'arena>),
     None,
 }
 
@@ -487,10 +487,11 @@ impl<'arena, 'env> ElimEnv<'arena, 'env> {
                 let mut context = self.eval_env(&mut branches.local_exprs);
                 SplitBranches::Branch((*pattern, context.eval(body_expr)), branches)
             }
-            None => match branches.default_expr {
-                Some(default_expr) => {
-                    SplitBranches::Default(Closure::new(branches.local_exprs, default_expr))
-                }
+            None => match branches.default_branch {
+                Some((default_name, default_expr)) => SplitBranches::Default(
+                    default_name,
+                    Closure::new(branches.local_exprs, default_expr),
+                ),
                 None => SplitBranches::None,
             },
         }
@@ -564,9 +565,11 @@ impl<'arena, 'env> ElimEnv<'arena, 'env> {
                 }
                 // Otherwise call default with `head_expr`
                 let mut local_exprs = branches.local_exprs.clone();
-                local_exprs.push(head_expr);
-                match branches.default_expr {
-                    Some(default_expr) => self.eval_env(&mut local_exprs).eval(default_expr),
+                match branches.default_branch {
+                    Some((_, default_expr)) => {
+                        local_exprs.push(head_expr);
+                        self.eval_env(&mut local_exprs).eval(default_expr)
+                    }
                     None => panic_any(Error::MissingConstDefault),
                 }
             }
@@ -669,13 +672,15 @@ impl<'in_arena, 'env> QuoteEnv<'in_arena, 'env> {
                         let mut branches = branches.clone();
                         let mut pattern_branches = SliceVec::new(scope, branches.num_patterns());
 
-                        let default_expr = loop {
+                        let default_branch = loop {
                             match self.elim_env.split_branches(branches) {
                                 SplitBranches::Branch((r#const, body_expr), next_branches) => {
                                     pattern_branches.push((r#const, self.quote(scope, &body_expr)));
                                     branches = next_branches;
                                 }
-                                SplitBranches::Default(default_expr) => break Some(default_expr),
+                                SplitBranches::Default(default_name, default_expr) => {
+                                    break Some((default_name, default_expr))
+                                }
                                 SplitBranches::None => break None,
                             }
                         };
@@ -684,7 +689,8 @@ impl<'in_arena, 'env> QuoteEnv<'in_arena, 'env> {
                             span,
                             scope.to_scope(head_expr),
                             pattern_branches.into(),
-                            default_expr.map(|expr| self.quote_closure(scope, &expr)),
+                            default_branch
+                                .map(|(name, expr)| (name, self.quote_closure(scope, &expr))),
                         )
                     }
                 },
@@ -968,7 +974,7 @@ impl<'arena, 'env> EvalEnv<'arena, 'env> {
                     }
                 }
             }
-            Term::ConstMatch(span, head_expr, branches, default) => {
+            Term::ConstMatch(span, head_expr, branches, default_branch) => {
                 match self.unfold_meta_var_spines(scope, head_expr) {
                     TermOrValue::Term(head_expr) => TermOrValue::Term(Term::ConstMatch(
                         *span,
@@ -977,10 +983,12 @@ impl<'arena, 'env> EvalEnv<'arena, 'env> {
                             (branches.iter())
                                 .map(|(r#const, expr)| (*r#const, self.unfold_metas(scope, expr))),
                         ),
-                        default.map(|expr| self.unfold_bound_metas(scope, expr)),
+                        default_branch
+                            .map(|(name, expr)| (name, self.unfold_bound_metas(scope, expr))),
                     )),
                     TermOrValue::Value(head_expr) => {
-                        let branches = Branches::new(self.local_exprs.clone(), branches, *default);
+                        let branches =
+                            Branches::new(self.local_exprs.clone(), branches, *default_branch);
                         TermOrValue::Value(self.elim_env.const_match(head_expr, branches))
                     }
                 }
@@ -1213,7 +1221,7 @@ impl<'arena, 'env> ConversionEnv<'arena, 'env> {
                     branches0 = next_branches0;
                     branches1 = next_branches1;
                 }
-                (Default(default_expr0), Default(default_expr1)) => {
+                (Default(_, default_expr0), Default(_, default_expr1)) => {
                     return self.is_equal_closures(&default_expr0, &default_expr1);
                 }
                 (None, None) => return true,

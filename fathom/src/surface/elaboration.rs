@@ -2049,7 +2049,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
             full_span = Span::merge(&full_span, &body_expr.range().into());
 
             // Default expression, defined if we arrive at a default case
-            let default_expr;
+            let default_branch;
 
             match self.check_pattern(pattern, &match_info.scrutinee.r#type) {
                 // Accumulate constant pattern. Search for it in the accumulated
@@ -2087,19 +2087,23 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                     // add it to the branches. This will simplify the
                     // distillation of if expressions.
                     (self.local_env).push_param(Some(name), match_info.scrutinee.r#type.clone());
-                    default_expr = self.check(body_expr, &match_info.expected_type);
+                    let default_expr = self.check(body_expr, &match_info.expected_type);
+                    default_branch = (Some(name), self.scope.to_scope(default_expr) as &_);
                     self.local_env.pop();
                 }
                 CheckedPattern::Placeholder(range) => {
                     self.check_match_reachable(is_reachable, range);
 
                     (self.local_env).push_param(None, match_info.scrutinee.r#type.clone());
-                    default_expr = self.check(body_expr, &match_info.expected_type);
+                    let default_expr = self.check(body_expr, &match_info.expected_type);
+                    default_branch = (None, self.scope.to_scope(default_expr) as &_);
                     self.local_env.pop();
                 }
                 CheckedPattern::ReportedError(range) => {
-                    self.check(body_expr, &match_info.expected_type);
-                    default_expr = core::Term::Prim(range.into(), Prim::ReportedError);
+                    (self.local_env).push_param(None, match_info.scrutinee.r#type.clone());
+                    let default_expr = core::Term::Prim(range.into(), Prim::ReportedError);
+                    default_branch = (None, self.scope.to_scope(default_expr) as &_);
+                    self.local_env.pop();
                 }
             };
 
@@ -2110,7 +2114,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 full_span,
                 match_info.scrutinee.expr,
                 self.scope.to_scope_from_iter(branches.into_iter()),
-                Some(self.scope.to_scope(default_expr)),
+                Some(default_branch),
             );
         }
 
@@ -2127,7 +2131,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
             full_span,
             match_info.scrutinee.expr,
             self.scope.to_scope_from_iter(branches.into_iter()),
-            default_expr.map(|expr| self.scope.to_scope(expr) as &_),
+            default_expr.map(|expr| (None, self.scope.to_scope(expr) as &_)),
         )
     }
 
