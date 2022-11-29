@@ -403,7 +403,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
                         branches1 = next_branches1;
                     }
                 },
-                (Default(default_expr0), Default(default_expr1)) => {
+                (Default(_, default_expr0), Default(_, default_expr1)) => {
                     return self.unify_closures(&default_expr0, &default_expr1);
                 }
                 (None, None) => return Ok(()),
@@ -559,15 +559,18 @@ impl<'arena, 'env> Context<'arena, 'env> {
                             let mut pattern_branches =
                                 SliceVec::new(self.scope, branches.num_patterns());
 
-                            let default_expr = loop {
+                            let default_branch = loop {
                                 match self.elim_env().split_branches(branches) {
                                     SplitBranches::Branch((r#const, body_expr), next_branch) => {
                                         pattern_branches
                                             .push((r#const, self.rename(meta_var, &body_expr)?));
                                         branches = next_branch;
                                     }
-                                    SplitBranches::Default(default_expr) => {
-                                        break Some(self.rename_closure(meta_var, &default_expr)?)
+                                    SplitBranches::Default(default_name, default_expr) => {
+                                        break Some((
+                                            default_name,
+                                            self.rename_closure(meta_var, &default_expr)?,
+                                        ))
                                     }
                                     SplitBranches::None => break None,
                                 }
@@ -577,7 +580,8 @@ impl<'arena, 'env> Context<'arena, 'env> {
                                 span,
                                 self.scope.to_scope(head_expr?),
                                 pattern_branches.into(),
-                                default_expr.map(|expr| self.scope.to_scope(expr) as &_),
+                                default_branch
+                                    .map(|(name, expr)| (name, self.scope.to_scope(expr) as &_)),
                             )
                         }
                     })

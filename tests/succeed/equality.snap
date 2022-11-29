@@ -41,12 +41,12 @@ let four_chars : fun (P : U32 -> Type) -> P "beng" -> P 1650814567 =
 refl U32 "beng";
 let three_chars : fun (P : U32 -> Type) -> P "BEN " -> P 1111838240 =
 refl U32 "BEN ";
-let foo : U32 -> U32 = fun x => match x { 1 => 0, _ => _ };
+let foo : U32 -> U32 = fun x => match x { 1 => 0, x => x };
 let eq_foo : fun (P : (U32 -> U32) -> Type) -> P (fun x => match x {
     1 => 0,
-    _ => _,
-}) -> P (fun x => match x { 1 => 0, _ => _ }) = refl (U32 ->
-U32) (fun _ => match _ { 1 => 0, _ => _ });
+    x => x,
+}) -> P (fun x => match x { 1 => 0, x => x }) = refl (U32 ->
+U32) (fun _ => match _ { 1 => 0, x => x });
 Type : Type
 '''
 stderr = ''

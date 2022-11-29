@@ -181,7 +181,7 @@ pub enum Term<'arena> {
         Span,
         &'arena Term<'arena>,
         &'arena [(Const, Term<'arena>)],
-        Option<&'arena Term<'arena>>,
+        Option<(Option<StringId>, &'arena Term<'arena>)>,
     ),
 }
 
@@ -252,7 +252,7 @@ impl<'arena> Term<'arena> {
             Term::ConstMatch(_, scrut, branches, default_expr) => {
                 scrut.binds_local(var)
                     || branches.iter().any(|(_, term)| term.binds_local(var))
-                    || default_expr.map_or(false, |term| term.binds_local(var.prev()))
+                    || default_expr.map_or(false, |(_, term)| term.binds_local(var.prev()))
             }
         }
     }
