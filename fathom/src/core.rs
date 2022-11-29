@@ -1,8 +1,7 @@
 //! Core language.
 
 use crate::env::{Index, Level};
-use crate::source::Span;
-use crate::StringId;
+use crate::source::{Span, StringId};
 
 pub mod binary;
 pub mod prim;

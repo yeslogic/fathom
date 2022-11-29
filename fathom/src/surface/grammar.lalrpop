@@ -1,8 +1,7 @@
 use scoped_arena::Scope;
 use std::cell::RefCell;
 
-use crate::{StringId, StringInterner};
-use crate::source::{ByteRange, FileId};
+use crate::source::{ByteRange, FileId, StringId, StringInterner};
 use crate::surface::{ExprField, FormatField, Item, ItemDef, Module, ParseMessage, Pattern, Term, TypeField, BinOp};
 use crate::surface::lexer::{Error as LexerError, Token};
 

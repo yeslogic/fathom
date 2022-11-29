@@ -20,10 +20,9 @@
 
 use fxhash::{FxHashMap, FxHashSet};
 
-use crate::source::ByteRange;
+use crate::source::{ByteRange, StringId};
 use crate::surface::elaboration::reporting::Message;
 use crate::surface::{elaboration, FormatField, Item, Module, Pattern, Term};
-use crate::StringId;
 
 enum Error {
     CycleDetected,

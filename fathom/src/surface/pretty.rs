@@ -2,8 +2,8 @@ use pretty::{Doc, DocAllocator, DocBuilder, DocPtr, RefDoc};
 use scoped_arena::Scope;
 use std::cell::RefCell;
 
+use crate::source::{StringId, StringInterner};
 use crate::surface::{BinOp, FormatField, Item, Module, Pattern, Term};
-use crate::{StringId, StringInterner};
 
 /// Term precedences
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]

@@ -8,8 +8,7 @@ use std::sync::Arc;
 use crate::alloc::SliceVec;
 use crate::core::{prim, Const, LocalInfo, Prim, Term};
 use crate::env::{EnvLen, Index, Level, SharedEnv, SliceEnv};
-use crate::source::{Span, Spanned};
-use crate::StringId;
+use crate::source::{Span, Spanned, StringId};
 
 /// Atomically reference counted values. We use reference counting to increase
 /// the amount of sharing we can achieve during evaluation.

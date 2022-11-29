@@ -24,8 +24,7 @@ use crate::core::semantics::{
 };
 use crate::core::{Prim, Term};
 use crate::env::{EnvLen, Index, Level, SharedEnv, SliceEnv, UniqueEnv};
-use crate::source::Spanned;
-use crate::StringId;
+use crate::source::{Spanned, StringId};
 
 /// Errors encountered during unification.
 ///

@@ -29,10 +29,9 @@ use crate::alloc::SliceVec;
 use crate::core::semantics::{self, ArcValue, Head, Telescope, Value};
 use crate::core::{self, prim, Const, Prim, UIntStyle};
 use crate::env::{self, EnvLen, Level, SharedEnv, UniqueEnv};
-use crate::source::{ByteRange, Span, Spanned};
+use crate::source::{ByteRange, Span, Spanned, StringId, StringInterner};
 use crate::surface::elaboration::reporting::Message;
 use crate::surface::{distillation, pretty, BinOp, FormatField, Item, Module, Pattern, Term};
-use crate::{StringId, StringInterner};
 
 mod order;
 mod reporting;
@@ -982,11 +981,8 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 core::Term::RecordLit(range.into(), labels, exprs.into())
             }
             (Term::Tuple(range, elem_exprs), Value::Universe) => {
-                let labels = (0..elem_exprs.len()).map(|idx| {
-                    self.interner
-                        .borrow_mut()
-                        .get_or_intern(format!("_{}", idx))
-                });
+                let labels = (0..elem_exprs.len())
+                    .map(|index| self.interner.borrow_mut().get_tuple_label(index));
                 let labels = self.scope.to_scope_from_iter(labels);
 
                 let initial_local_len = self.local_env.len();
@@ -1019,12 +1015,10 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                     }
 
                     // use numeric labels for excess elems
-                    for (idx, elem_expr) in elem_exprs {
+                    for (index, elem_expr) in elem_exprs {
                         expr_labels.push((
                             elem_expr.range(),
-                            self.interner
-                                .borrow_mut()
-                                .get_or_intern(format!("_{}", idx)),
+                            self.interner.borrow_mut().get_tuple_label(index),
                         ));
                     }
 
@@ -1056,11 +1050,8 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 let initial_local_len = self.local_env.len();
                 let format_type = self.format_type.clone();
 
-                let labels = (0..elem_exprs.len()).map(|idx| {
-                    self.interner
-                        .borrow_mut()
-                        .get_or_intern(format!("_{}", idx))
-                });
+                let labels = (0..elem_exprs.len())
+                    .map(|index| self.interner.borrow_mut().get_tuple_label(index));
                 let labels = self.scope.to_scope_from_iter(labels);
 
                 let mut formats = SliceVec::new(self.scope, elem_exprs.len());
@@ -1432,11 +1423,8 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 )
             }
             Term::Tuple(range, elem_exprs) => {
-                let labels = (0..elem_exprs.len()).map(|idx| {
-                    self.interner
-                        .borrow_mut()
-                        .get_or_intern(format!("_{}", idx))
-                });
+                let labels = (0..elem_exprs.len())
+                    .map(|index| self.interner.borrow_mut().get_tuple_label(index));
                 let labels = self.scope.to_scope_from_iter(labels);
 
                 let mut exprs = SliceVec::new(self.scope, labels.len());
