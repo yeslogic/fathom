@@ -981,24 +981,47 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 core::Term::RecordLit(range.into(), labels, exprs.into())
             }
             (Term::Tuple(range, elem_exprs), Value::Universe) => {
-                let labels = (0..elem_exprs.len())
-                    .map(|index| self.interner.borrow_mut().get_tuple_label(index));
-                let labels = self.scope.to_scope_from_iter(labels);
+                let mut interner = self.interner.borrow_mut();
+                let labels = interner.get_tuple_labels(0..elem_exprs.len());
+                let labels = self.scope.to_scope_from_iter(labels.iter().copied());
 
                 let initial_local_len = self.local_env.len();
                 let universe = &self.universe.clone();
-                let types = self
-                    .scope
-                    .to_scope_from_iter(elem_exprs.iter().map(|elem_expr| {
+                let types = self.scope.to_scope_from_iter(
+                    Iterator::zip(labels.iter(), elem_exprs.iter()).map(|(label, elem_expr)| {
                         let r#type = self.check(elem_expr, universe);
                         let type_value = self.eval_env().eval(&r#type);
-                        self.local_env.push_param(None, type_value);
+                        self.local_env.push_param(Some(*label), type_value);
                         r#type
-                    }));
+                    }),
+                );
 
                 self.local_env.truncate(initial_local_len);
 
                 core::Term::RecordType(range.into(), labels, types)
+            }
+            (Term::Tuple(range, elem_exprs), Value::Stuck(Head::Prim(Prim::FormatType), args))
+                if args.is_empty() =>
+            {
+                let mut interner = self.interner.borrow_mut();
+                let labels = interner.get_tuple_labels(0..elem_exprs.len());
+                let labels = self.scope.to_scope_from_iter(labels.iter().copied());
+
+                let initial_local_len = self.local_env.len();
+                let format_type = self.format_type.clone();
+                let formats = self.scope.to_scope_from_iter(
+                    Iterator::zip(labels.iter(), elem_exprs.iter()).map(|(label, elem_expr)| {
+                        let format = self.check(elem_expr, &format_type);
+                        let format_value = self.eval_env().eval(&format);
+                        let r#type = self.elim_env().format_repr(&format_value);
+                        self.local_env.push_param(Some(*label), r#type);
+                        format
+                    }),
+                );
+
+                self.local_env.truncate(initial_local_len);
+
+                core::Term::FormatRecord(range.into(), labels, formats)
             }
             (Term::Tuple(range, elem_exprs), Value::RecordType(labels, types)) => {
                 if elem_exprs.len() != labels.len() {
@@ -1043,29 +1066,6 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 }
 
                 core::Term::RecordLit(range.into(), labels, exprs.into())
-            }
-            (Term::Tuple(range, elem_exprs), Value::Stuck(Head::Prim(Prim::FormatType), args))
-                if args.is_empty() =>
-            {
-                let initial_local_len = self.local_env.len();
-                let format_type = self.format_type.clone();
-
-                let labels = (0..elem_exprs.len())
-                    .map(|index| self.interner.borrow_mut().get_tuple_label(index));
-                let labels = self.scope.to_scope_from_iter(labels);
-
-                let mut formats = SliceVec::new(self.scope, elem_exprs.len());
-                for elem_expr in elem_exprs.iter() {
-                    let format = self.check(elem_expr, &format_type);
-                    let format_value = self.eval_env().eval(&format);
-                    let r#type = self.elim_env().format_repr(&format_value);
-                    self.local_env.push_param(None, r#type);
-                    formats.push(format);
-                }
-
-                self.local_env.truncate(initial_local_len);
-
-                core::Term::FormatRecord(range.into(), labels, formats.into())
             }
             (Term::ArrayLiteral(range, elem_exprs), _) => {
                 use crate::core::semantics::Elim::FunApp as App;
@@ -1423,9 +1423,9 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 )
             }
             Term::Tuple(range, elem_exprs) => {
-                let labels = (0..elem_exprs.len())
-                    .map(|index| self.interner.borrow_mut().get_tuple_label(index));
-                let labels = self.scope.to_scope_from_iter(labels);
+                let mut interner = self.interner.borrow_mut();
+                let labels = interner.get_tuple_labels(0..elem_exprs.len());
+                let labels = self.scope.to_scope_from_iter(labels.iter().copied());
 
                 let mut exprs = SliceVec::new(self.scope, labels.len());
                 let mut types = SliceVec::new(self.scope, labels.len());

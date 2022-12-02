@@ -200,6 +200,23 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
         Term::Ann((), self.scope.to_scope(expr), self.scope.to_scope(r#type))
     }
 
+    fn check_dependent_tuple(
+        &mut self,
+        labels: &[StringId],
+        exprs: &[core::Term<'_>],
+    ) -> Term<'arena, ()> {
+        let initial_local_len = self.local_len();
+        let exprs = (self.scope).to_scope_from_iter(
+            Iterator::zip(labels.iter(), exprs.iter()).map(|(label, expr)| {
+                let expr = self.check(expr);
+                self.push_local(Some(*label));
+                expr
+            }),
+        );
+        self.truncate_local(initial_local_len);
+        Term::Tuple((), exprs)
+    }
+
     /// Distill a core term into a surface term, in a 'checkable' context.
     pub fn check(&mut self, core_term: &core::Term<'_>) -> Term<'arena, ()> {
         match core_term {
@@ -247,9 +264,12 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
             core::Term::RecordType(_, labels, types)
                 if is_tuple_type(&mut self.interner.borrow_mut(), labels, types) =>
             {
-                let scope = self.scope;
-                let types = types.iter().map(|expr| self.check(expr));
-                Term::Tuple((), scope.to_scope_from_iter(types))
+                self.check_dependent_tuple(labels, types)
+            }
+            core::Term::FormatRecord(_, labels, formats)
+                if is_tuple_type(&mut self.interner.borrow_mut(), labels, formats) =>
+            {
+                self.check_dependent_tuple(labels, formats)
             }
             core::Term::RecordLit(_, labels, exprs)
                 if self.interner.borrow_mut().is_tuple_labels(labels) =>
@@ -273,13 +293,6 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 let elem_exprs = elem_exprs.iter().map(|elem_exprs| self.check(elem_exprs));
 
                 Term::ArrayLiteral((), scope.to_scope_from_iter(elem_exprs))
-            }
-            core::Term::FormatRecord(_, labels, formats)
-                if is_tuple_type(&mut self.interner.borrow_mut(), labels, formats) =>
-            {
-                let scope = self.scope;
-                let formats = formats.iter().map(|format| self.check(format));
-                Term::Tuple((), scope.to_scope_from_iter(formats))
             }
             core::Term::ConstLit(_span, r#const) => match r#const {
                 core::Const::Bool(boolean) => Term::BooleanLiteral((), *boolean),
@@ -520,20 +533,13 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
             core::Term::RecordType(_, labels, types)
                 if is_tuple_type(&mut self.interner.borrow_mut(), labels, types) =>
             {
-                let initial_local_len = self.local_len();
-                let types = (self.scope).to_scope_from_iter(
-                    Iterator::zip(labels.iter(), types.iter()).map(|(label, r#type)| {
-                        let r#type = self.check(r#type);
-                        self.push_local(Some(*label));
-                        r#type
-                    }),
-                );
-                self.truncate_local(initial_local_len);
-                Term::Ann(
-                    (),
-                    self.scope.to_scope(Term::Tuple((), types)),
-                    &Term::Universe(()),
-                )
+                let tuple = self.check_dependent_tuple(labels, types);
+                Term::Ann((), self.scope.to_scope(tuple), &Term::Universe(()))
+            }
+            core::Term::FormatRecord(_span, labels, formats)
+                if is_tuple_type(&mut self.interner.borrow_mut(), labels, formats) =>
+            {
+                self.check_dependent_tuple(labels, formats)
             }
             core::Term::RecordType(_span, labels, types) => {
                 let initial_local_len = self.local_len();
@@ -591,13 +597,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 // FIXME: Type annotations
                 Term::ArrayLiteral((), scope.to_scope_from_iter(elem_exprs))
             }
-            core::Term::FormatRecord(_span, labels, formats)
-                if is_tuple_type(&mut self.interner.borrow_mut(), labels, formats) =>
-            {
-                let scope = self.scope;
-                let formats = formats.iter().map(|format| self.synth(format));
-                Term::Tuple((), scope.to_scope_from_iter(formats))
-            }
+
             core::Term::FormatRecord(_span, labels, formats) => {
                 Term::FormatRecord((), self.synth_format_fields(labels, formats))
             }

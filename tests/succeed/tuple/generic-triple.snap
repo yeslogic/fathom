@@ -1,0 +1,10 @@
+stdout = '''
+let get1 : fun (A : Type) (B : Type) (C : Type) -> (A, B, C) -> A =
+fun A B C p => p._0;
+let get2 : fun (A : Type) (B : Type) (C : Type) -> (A, B, C) -> B =
+fun A B C p => p._1;
+let get3 : fun (A : Type) (B : Type) (C : Type) -> (A, B, C) -> C =
+fun A B C p => p._2;
+() : ()
+'''
+stderr = ''

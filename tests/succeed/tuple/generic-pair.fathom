@@ -1,0 +1,3 @@
+let fst = fun (A: Type) (B: Type) (p: {_0: A, _1: B}) => p._0;
+let snd = fun (A: Type) (B: Type) (p: (A, B)) => p._1;
+{}
