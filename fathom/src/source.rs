@@ -1,6 +1,6 @@
 //! Types related to source files.
 
-use std::ops::{Deref, DerefMut};
+use std::ops::{Deref, DerefMut, Range};
 
 // Interned strings.
 pub type StringId = string_interner::symbol::SymbolU16;
@@ -40,10 +40,29 @@ impl StringInterner {
         }
     }
 
+    /// Allocate and intern all tuple labels upto `max_index` if they are not already present
+    pub fn reserve_tuple_labels(&mut self, max_index: usize) {
+        let len = self.tuple_labels.len();
+        let cap = self.tuple_labels.capacity();
+        if max_index >= len {
+            self.tuple_labels.reserve(max_index.saturating_sub(cap));
+            for index in len..=max_index {
+                let label = self.get_or_intern(format!("_{}", index));
+                self.tuple_labels.push(label);
+            }
+        }
+    }
+
     /// Get or intern a string in the form `_{index}`.
     pub fn get_tuple_label(&mut self, index: usize) -> StringId {
-        (self.tuple_labels.get(index).copied())
-            .unwrap_or_else(|| self.get_or_intern(format!("_{}", index)))
+        self.reserve_tuple_labels(index);
+        self.tuple_labels[index]
+    }
+
+    /// Get or intern a slice of strings in the form `_{index}` for each index in `range`.
+    pub fn get_tuple_labels(&mut self, range: Range<usize>) -> &[StringId] {
+        self.reserve_tuple_labels(range.end);
+        &self.tuple_labels[range]
     }
 
     /// Returns true if `label` refers to a string in the form `_{index}`.
@@ -53,7 +72,7 @@ impl StringInterner {
 
     /// Returns true if `labels` is a sequence of tuple labels: `_0`, `_1`, ...
     pub fn is_tuple_labels(&mut self, labels: &[StringId]) -> bool {
-        (labels.iter().enumerate()).all(|(index, label)| self.is_tuple_label(index, *label))
+        labels == self.get_tuple_labels(0..labels.len())
     }
 }
 
