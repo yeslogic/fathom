@@ -599,8 +599,8 @@ impl<'arena, 'data> Context<'arena, 'data> {
     }
 }
 
-fn read_stream_pos<'arena, 'data>(
-    reader: &mut BufferReader<'data>,
+fn read_stream_pos<'arena>(
+    reader: &mut BufferReader<'_>,
     span: Span,
 ) -> Result<ArcValue<'arena>, ReadError<'arena>> {
     Ok(Spanned::new(
