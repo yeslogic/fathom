@@ -611,13 +611,11 @@ impl<'arena, 'env> Context<'arena, 'env> {
             }
 
             Value::RecordType(labels, types) => {
-                let labels = self.scope.to_scope(labels); // FIXME: avoid copy if this is the same arena?
                 let types = self.rename_telescope(meta_var, types)?;
 
                 Ok(Term::RecordType(span, labels, types))
             }
             Value::RecordLit(labels, exprs) => {
-                let labels = self.scope.to_scope(labels); // FIXME: avoid copy if this is the same arena?
                 let mut new_exprs = SliceVec::new(self.scope, exprs.len());
                 for expr in exprs {
                     new_exprs.push(self.rename(meta_var, expr)?);
@@ -636,7 +634,6 @@ impl<'arena, 'env> Context<'arena, 'env> {
             }
 
             Value::FormatRecord(labels, formats) => {
-                let labels = self.scope.to_scope(labels); // FIXME: avoid copy if this is the same arena?
                 let formats = self.rename_telescope(meta_var, formats)?;
 
                 Ok(Term::FormatRecord(span, labels, formats))
@@ -652,7 +649,6 @@ impl<'arena, 'env> Context<'arena, 'env> {
                 ))
             }
             Value::FormatOverlap(labels, formats) => {
-                let labels = self.scope.to_scope(labels); // FIXME: avoid copy if this is the same arena?
                 let formats = self.rename_telescope(meta_var, formats)?;
 
                 Ok(Term::FormatOverlap(span, labels, formats))
