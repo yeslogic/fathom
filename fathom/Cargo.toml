@@ -3,7 +3,7 @@ name = "fathom"
 version = "0.1.0"
 authors = ["YesLogic Pty. Ltd. <info@yeslogic.com>"]
 repository = "https://github.com/yeslogic/fathom"
-edition = "2018"
+edition = "2021"
 rust-version = "1.56.0"
 publish = false
 
