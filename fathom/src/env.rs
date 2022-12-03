@@ -198,6 +198,10 @@ impl<Entry> UniqueEnv<Entry> {
     pub fn truncate(&mut self, len: EnvLen) {
         self.entries.truncate(len.0 as usize);
     }
+
+    pub fn reserve(&mut self, additional: usize) {
+        self.entries.reserve(additional);
+    }
 }
 
 impl<Entry> std::ops::Deref for UniqueEnv<Entry> {
@@ -339,6 +343,10 @@ impl<Entry> SharedEnv<Entry> {
     /// Iterate over the elements in the environment.
     pub fn iter(&self) -> impl DoubleEndedIterator<Item = &Entry> {
         self.entries.iter()
+    }
+
+    pub fn reserve(&mut self, _additional: usize) {
+        // FIXME: `rpds::VectorSync<Entry>` has no method to reserve extra space
     }
 }
 

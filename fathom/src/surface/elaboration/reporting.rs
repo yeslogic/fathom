@@ -203,7 +203,7 @@ impl Message {
                 type_labels,
             } => {
                 let interner = interner.borrow();
-                let mut diagnostic_labels = Vec::new();
+                let mut diagnostic_labels = Vec::with_capacity(expr_labels.len());
                 {
                     let mut type_labels = type_labels.iter().peekable();
 
