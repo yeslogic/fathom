@@ -1094,7 +1094,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                     Some(Value::ConstLit(Const::U8(len, _))) => Some(*len as u64),
                     Some(Value::ConstLit(Const::U16(len, _))) => Some(*len as u64),
                     Some(Value::ConstLit(Const::U32(len, _))) => Some(*len as u64),
-                    Some(Value::ConstLit(Const::U64(len, _))) => Some(*len as u64),
+                    Some(Value::ConstLit(Const::U64(len, _))) => Some(*len),
                     Some(Value::Stuck(Head::Prim(Prim::ReportedError), _)) => {
                         return core::Term::Prim(range.into(), Prim::ReportedError);
                     }

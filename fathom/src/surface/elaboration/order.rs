@@ -209,13 +209,13 @@ fn term_deps(
         }
         Term::FunType(_, patterns, body_type) => {
             let initial_locals_names_len = local_names.len();
-            push_pattern_deps(*patterns, item_names, local_names, deps);
+            push_pattern_deps(patterns, item_names, local_names, deps);
             term_deps(body_type, item_names, local_names, deps);
             local_names.truncate(initial_locals_names_len);
         }
         Term::FunLiteral(_, patterns, body_type) => {
             let initial_locals_names_len = local_names.len();
-            push_pattern_deps(*patterns, item_names, local_names, deps);
+            push_pattern_deps(patterns, item_names, local_names, deps);
             term_deps(body_type, item_names, local_names, deps);
             local_names.truncate(initial_locals_names_len);
         }
