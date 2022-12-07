@@ -58,8 +58,10 @@ struct HostField {
 #[derive(Clone)]
 enum HostPrim {
     S16,
+    U8,
     U16,
     U32,
+    Pos,
     // An array with length and element type
     // The length can be another item or a const
     Array(Val, Box<HostType>), // Perhaps array with const length and array with non-const length should be separated
@@ -77,6 +79,7 @@ enum Const {
     U8(u8),
     U16(u16),
     U32(u32),
+    Pos(u64),
 }
 
 struct ReadFn {
@@ -104,6 +107,7 @@ enum Pattern {
 enum ReadPrim {
     S16Be,
     S16Le,
+    U8,
     U16Be,
     U16Le,
     U32Be,
@@ -313,6 +317,78 @@ mod tests {
         };
 
         let item = Item::Format(offset_table);
+        let module = Module { items: vec![item] };
+    }
+
+    #[test]
+    fn test_match() {
+        /*
+
+        // cut-down kern version 0 sub-table
+        def subtable0 = {
+            /// The start of this sub-table
+            format <- u8,
+            data <- match format {
+                0 => subtable_format0,
+                // 2 => limit16 (u16_sub length 8) (subtable_format2 table_start),
+                // Unsupported format, read the raw bytes so that we stay synchronised with other sub-tables
+                _ => array16 (u16_sub length 6) u8,
+            }
+        };
+
+        def subtable_format0 = {
+            example <- u16be
+        };
+         */
+        let fixme_u16_sub_length_6 = 0;
+        let host_type_8 = CustomType::Enum(Enum {
+            name: 3, // Subtable0Data
+            variants: vec![
+                Variant {
+                    name: 4, // how to name variants?
+                    data: Some(HostType::CustomType(1 /* subtable_format0 */)),
+                },
+                Variant {
+                    name: 5,
+                    data: Some(HostType::Prim(HostPrim::Array(
+                        Val::Item(fixme_u16_sub_length_6),
+                        Box::new(HostType::Prim(HostPrim::U8)),
+                    ))),
+                },
+            ],
+        });
+        let format = Format {
+            name: 4,
+            fields: vec![
+                Field {
+                    name: 1, // format
+                    host_type: HostType::Prim(HostPrim::U8),
+                    read: ReadExpr::Prim(ReadPrim::U8),
+                },
+                Field {
+                    name: 2, // data
+                    host_type: HostType::CustomType(8 /* host_type_8 in context */),
+                    read: ReadExpr::Match(
+                        Val::Item(1), /* format */
+                        vec![
+                            Branch {
+                                pattern: Pattern::Const(Const::U8(0)),
+                                expr: Box::new(ReadExpr::CustomType(1 /* subtable_format0 */)),
+                            },
+                            Branch {
+                                pattern: Pattern::Var(0 /* _ */),
+                                expr: Box::new(ReadExpr::Prim(ReadPrim::Array(
+                                    Val::Item(fixme_u16_sub_length_6),
+                                    Box::new(ReadExpr::Prim(ReadPrim::U8)),
+                                ))),
+                            },
+                        ],
+                    ),
+                },
+            ],
+        };
+
+        let item = Item::Format(format);
         let module = Module { items: vec![item] };
     }
 }
