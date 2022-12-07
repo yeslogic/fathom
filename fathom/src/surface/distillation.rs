@@ -205,6 +205,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
         labels: &[StringId],
         exprs: &[core::Term<'_>],
     ) -> Term<'arena, ()> {
+        self.local_names.reserve(labels.len());
         let initial_local_len = self.local_len();
         let exprs = (self.scope).to_scope_from_iter(
             Iterator::zip(labels.iter(), exprs.iter()).map(|(label, expr)| {
@@ -542,6 +543,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 self.check_dependent_tuple(labels, formats)
             }
             core::Term::RecordType(_span, labels, types) => {
+                self.local_names.reserve(labels.len());
                 let initial_local_len = self.local_len();
                 let type_fields = (self.scope).to_scope_from_iter(
                     Iterator::zip(labels.iter(), types.iter()).map(|(label, r#type)| {
@@ -718,6 +720,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
     ) -> &'arena [FormatField<'arena, ()>] {
         use crate::core::Prim::FormatSucceed;
 
+        self.local_names.reserve(labels.len());
         let initial_local_len = self.local_len();
         let core_fields = Iterator::zip(labels.iter().copied(), core_formats.iter());
         let format_fields =

@@ -285,6 +285,7 @@ impl<'arena, 'data> Context<'arena, 'data> {
     }
 
     pub fn add_module(&mut self, module: &Module<'arena>) {
+        self.item_exprs.reserve(module.items.len());
         for item in module.items {
             match item {
                 Item::Def { expr, .. } => {

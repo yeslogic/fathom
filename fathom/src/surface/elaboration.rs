@@ -67,6 +67,12 @@ impl<'arena> ItemEnv<'arena> {
         self.types.push(r#type);
         self.exprs.push(expr);
     }
+
+    fn reserve(&mut self, additional: usize) {
+        self.names.reserve(additional);
+        self.types.reserve(additional);
+        self.exprs.reserve(additional);
+    }
 }
 
 /// Local variable environment.
@@ -108,6 +114,13 @@ impl<'arena> LocalEnv<'arena> {
     /// Get the length of the local environment.
     fn len(&self) -> EnvLen {
         self.names.len()
+    }
+
+    fn reserve(&mut self, additional: usize) {
+        self.names.reserve(additional);
+        self.types.reserve(additional);
+        self.infos.reserve(additional);
+        self.exprs.reserve(additional);
     }
 
     /// Push a local definition onto the context.
@@ -595,6 +608,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
     ) -> core::Module<'out_arena> {
         let elab_order = order::elaboration_order(self, surface_module);
         let mut items = Vec::with_capacity(surface_module.items.len());
+        self.item_env.reserve(surface_module.items.len());
 
         for item in elab_order.iter().copied().map(|i| &surface_module.items[i]) {
             match item {
@@ -981,6 +995,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 core::Term::RecordLit(range.into(), labels, exprs.into())
             }
             (Term::Tuple(range, elem_exprs), Value::Universe) => {
+                self.local_env.reserve(elem_exprs.len());
                 let mut interner = self.interner.borrow_mut();
                 let labels = interner.get_tuple_labels(0..elem_exprs.len());
                 let labels = self.scope.to_scope_from_iter(labels.iter().copied());
@@ -1003,6 +1018,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
             (Term::Tuple(range, elem_exprs), Value::Stuck(Head::Prim(Prim::FormatType), args))
                 if args.is_empty() =>
             {
+                self.local_env.reserve(elem_exprs.len());
                 let mut interner = self.interner.borrow_mut();
                 let labels = interner.get_tuple_labels(0..elem_exprs.len());
                 let labels = self.scope.to_scope_from_iter(labels.iter().copied());
@@ -1310,6 +1326,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 (fun_type, self.universe.clone())
             }
             Term::FunType(range, patterns, body_type) => {
+                self.local_env.reserve(patterns.len());
                 let initial_local_len = self.local_env.len();
 
                 // Elaborate the parameters, collecting them in a stack
@@ -1615,6 +1632,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         body_expr: &Term<'_, ByteRange>,
         body_type: Option<&Term<'_, ByteRange>>,
     ) -> (core::Term<'arena>, ArcValue<'arena>) {
+        self.local_env.reserve(patterns.len());
         let initial_local_len = self.local_env.len();
 
         // Elaborate the parameters, collecting them into a stack

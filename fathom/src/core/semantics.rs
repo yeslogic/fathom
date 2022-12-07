@@ -1016,6 +1016,7 @@ impl<'arena, 'env> EvalEnv<'arena, 'env> {
         scope: &'out_arena Scope<'out_arena>,
         terms: &[Term<'arena>],
     ) -> &'out_arena [Term<'out_arena>] {
+        self.local_exprs.reserve(terms.len());
         let initial_locals = self.local_exprs.len();
 
         let terms = scope.to_scope_from_iter(terms.iter().map(|term| {
