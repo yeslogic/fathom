@@ -1,140 +1,153 @@
 /// An interned string
 type StringId = u16;
 
-struct Module {
-    items: Vec<Item>,
-}
-
-enum Item {
-    Format(Format),
-}
-
-struct Format {
-    name: StringId,
-    fields: Vec<Field>,
-}
-
-struct Field {
-    name: StringId,
-    host_type: HostType,
-    read: ReadExpr,
-}
-
 #[derive(Clone)]
-enum HostType {
-    /// A built in type
-    Prim(HostPrim),
-    /// A custom type that lives in the context
-    CustomType(usize),
-}
-
-// A host side custom type
-enum CustomType {
-    Record(Record),
-    Enum(Enum),
-}
-
-struct Record {
-    name: StringId,
-    fields: Vec<HostField>,
-}
-
-// a match that can yield different types compiles into an enum
-struct Enum {
-    name: StringId,
-    variants: Vec<Variant>,
-}
-
-struct Variant {
-    name: StringId,
-    data: Option<HostType>,
-}
-
-struct HostField {
-    name: StringId,
-    host_type: HostType, // in theory there could also be write: WriteExpr
-}
-
-#[derive(Clone)]
-enum HostPrim {
-    S16,
-    U8,
-    U16,
-    U32,
-    Pos,
-    // An array with length and element type
-    // The length can be another item or a const
-    Array(Val, Box<HostType>), // Perhaps array with const length and array with non-const length should be separated
-}
-
-#[derive(Clone)]
-enum Val {
-    /// Item in the context
-    Item(usize),
-    Const(Const),
-}
-
-#[derive(Clone)]
-enum Const {
+pub enum Const {
     U8(u8),
     U16(u16),
     U32(u32),
     Pos(u64),
 }
 
-struct ReadFn {
-    exprs: Vec<ReadExpr>,
+// TODO: better name
+mod host {
+    use super::{Const, StringId};
+
+    #[derive(Clone)]
+    pub enum HostType {
+        /// A built in type
+        Prim(HostPrim),
+        /// A custom type that lives in the context
+        CustomType(usize),
+    }
+
+    // A host side custom type
+    pub enum CustomType {
+        Record(Record),
+        Enum(Enum),
+    }
+
+    pub struct Record {
+        pub name: StringId,
+        pub fields: Vec<HostField>,
+    }
+
+    // a match that can yield different types compiles into an enum
+    pub struct Enum {
+        pub name: StringId,
+        pub variants: Vec<Variant>,
+    }
+
+    pub struct Variant {
+        pub name: StringId,
+        pub data: Option<HostType>,
+    }
+
+    pub struct HostField {
+        pub name: StringId,
+        pub host_type: HostType, // in theory there could also be write: WriteExpr
+    }
+
+    #[derive(Clone)]
+    pub enum HostPrim {
+        S16,
+        U8,
+        U16,
+        U32,
+        Pos,
+        // An array with length and element type
+        // The length can be another item or a const
+        Array(Val, Box<HostType>), // Perhaps array with const length and array with non-const length should be separated
+    }
+
+    // It seems this probably needs to be an expression to caption function calls
+    #[derive(Clone)]
+    pub enum Val {
+        /// Item in the context
+        Item(usize),
+        Const(Const),
+    }
 }
 
-enum ReadExpr {
-    Prim(ReadPrim),
-    /// A custom type that lives in the context
-    CustomType(usize),
-    /// A match expression, cond, branches, default?
-    Match(Val, Vec<Branch>),
-}
+// TODO: better name
+mod format {
+    use super::{host, Const, StringId};
 
-struct Branch {
-    pattern: Pattern,
-    expr: Box<ReadExpr>,
-}
+    pub struct Module {
+        pub items: Vec<Item>,
+    }
 
-enum Pattern {
-    Var(StringId),
-    Const(Const),
-}
+    pub enum Item {
+        Format(Format),
+    }
 
-enum ReadPrim {
-    S16Be,
-    S16Le,
-    U8,
-    U16Be,
-    U16Le,
-    U32Be,
-    U32Le,
-    Array(Val, Box<ReadExpr>),
-}
+    pub struct Format {
+        pub name: StringId,
+        pub fields: Vec<Field>,
+    }
 
-impl Format {
-    fn repr(&self) -> CustomType {
-        let fields = self
-            .fields
-            .iter()
-            .map(|field| HostField {
-                name: field.name,
-                host_type: field.host_type.clone(),
+    pub struct Field {
+        pub name: StringId,
+        pub host_type: host::HostType,
+        pub read: ReadExpr,
+    }
+
+    pub struct ReadFn {
+        pub exprs: Vec<ReadExpr>,
+    }
+
+    pub enum ReadExpr {
+        Prim(ReadPrim),
+        /// A custom type that lives in the context
+        CustomType(usize),
+        /// A match expression, cond, branches, default?
+        Match(host::Val, Vec<Branch>),
+    }
+
+    pub struct Branch {
+        pub pattern: Pattern,
+        pub expr: Box<ReadExpr>,
+    }
+
+    pub enum Pattern {
+        Var(StringId),
+        Const(Const),
+    }
+
+    pub enum ReadPrim {
+        S16Be,
+        S16Le,
+        U8,
+        U16Be,
+        U16Le,
+        U32Be,
+        U32Le,
+        Array(host::Val, Box<ReadExpr>),
+    }
+
+    impl Format {
+        fn repr(&self) -> host::CustomType {
+            let fields = self
+                .fields
+                .iter()
+                .map(|field| host::HostField {
+                    name: field.name,
+                    host_type: field.host_type.clone(),
+                })
+                .collect();
+            host::CustomType::Record(host::Record {
+                name: self.name,
+                fields,
             })
-            .collect();
-        CustomType::Record(Record {
-            name: self.name,
-            fields,
-        })
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use format::*;
+    use host::Val;
 
     #[test]
     fn test_f2dot14() {
@@ -151,7 +164,7 @@ mod tests {
             name: 1,
             fields: vec![Field {
                 name: 1,
-                host_type: HostType::Prim(HostPrim::U16),
+                host_type: host::HostType::Prim(host::HostPrim::U16),
                 read: ReadExpr::Prim(ReadPrim::U16Be),
             }],
         };
@@ -206,22 +219,22 @@ mod tests {
             fields: vec![
                 Field {
                     name: 1, // table_tag
-                    host_type: HostType::Prim(HostPrim::U32),
+                    host_type: host::HostType::Prim(host::HostPrim::U32),
                     read: ReadExpr::Prim(ReadPrim::U32Be),
                 },
                 Field {
                     name: 2, // checksum
-                    host_type: HostType::Prim(HostPrim::U32),
+                    host_type: host::HostType::Prim(host::HostPrim::U32),
                     read: ReadExpr::Prim(ReadPrim::U32Be),
                 },
                 Field {
                     name: 3, // offset
-                    host_type: HostType::Prim(HostPrim::U32),
+                    host_type: host::HostType::Prim(host::HostPrim::U32),
                     read: ReadExpr::Prim(ReadPrim::U32Be),
                 },
                 Field {
                     name: 3, // length
-                    host_type: HostType::Prim(HostPrim::U32),
+                    host_type: host::HostType::Prim(host::HostPrim::U32),
                     read: ReadExpr::Prim(ReadPrim::U32Be),
                 },
             ],
@@ -244,7 +257,7 @@ mod tests {
         }
 
         impl<'a> ReadBinary<'a> for OffsetTable<'a> {
-            type HostType = Self;
+            type host::HostType = Self;
 
             fn read(ctxt: &mut ReadCtxt<'a>) -> Result<Self, ParseError> {
                 let sfnt_version = ctxt.read_u32be()?;
@@ -276,36 +289,36 @@ mod tests {
             fields: vec![
                 Field {
                     name: 1, // num_tables
-                    host_type: HostType::Prim(HostPrim::U32),
+                    host_type: host::HostType::Prim(host::HostPrim::U32),
                     read: ReadExpr::Prim(ReadPrim::U32Be),
                 },
                 Field {
                     name: 2, // sfnt_version
-                    host_type: HostType::Prim(HostPrim::U32),
+                    host_type: host::HostType::Prim(host::HostPrim::U32),
                     read: ReadExpr::Prim(ReadPrim::U32Be),
                 },
                 Field {
                     name: 3, // search_range
-                    host_type: HostType::Prim(HostPrim::U32),
+                    host_type: host::HostType::Prim(host::HostPrim::U32),
                     read: ReadExpr::Prim(ReadPrim::U32Be),
                 },
                 Field {
                     name: 4, // entry_selector
-                    host_type: HostType::Prim(HostPrim::U32),
+                    host_type: host::HostType::Prim(host::HostPrim::U32),
                     read: ReadExpr::Prim(ReadPrim::U32Be),
                 },
                 Field {
                     name: 5, // range_shift
-                    host_type: HostType::Prim(HostPrim::U32),
+                    host_type: host::HostType::Prim(host::HostPrim::U32),
                     read: ReadExpr::Prim(ReadPrim::U32Be),
                 },
                 Field {
                     name: 6, // table_records
-                    host_type: HostType::Prim(HostPrim::Array(
+                    host_type: host::HostType::Prim(host::HostPrim::Array(
                         Val::Item(5 /* num_tables */),
                         // This one is referring to a custom type in the host env
                         // Or is it just referring to the format?
-                        Box::new(HostType::CustomType(0)),
+                        Box::new(host::HostType::CustomType(0)),
                     )),
                     read: ReadExpr::Prim(ReadPrim::Array(
                         Val::Item(5 /* num_tables */),
@@ -341,18 +354,18 @@ mod tests {
         };
          */
         let fixme_u16_sub_length_6 = 0;
-        let host_type_8 = CustomType::Enum(Enum {
+        let host_type_8 = host::CustomType::Enum(host::Enum {
             name: 3, // Subtable0Data
             variants: vec![
-                Variant {
+                host::Variant {
                     name: 4, // how to name variants?
-                    data: Some(HostType::CustomType(1 /* subtable_format0 */)),
+                    data: Some(host::HostType::CustomType(1 /* subtable_format0 */)),
                 },
-                Variant {
+                host::Variant {
                     name: 5,
-                    data: Some(HostType::Prim(HostPrim::Array(
+                    data: Some(host::HostType::Prim(host::HostPrim::Array(
                         Val::Item(fixme_u16_sub_length_6),
-                        Box::new(HostType::Prim(HostPrim::U8)),
+                        Box::new(host::HostType::Prim(host::HostPrim::U8)),
                     ))),
                 },
             ],
@@ -362,12 +375,12 @@ mod tests {
             fields: vec![
                 Field {
                     name: 1, // format
-                    host_type: HostType::Prim(HostPrim::U8),
+                    host_type: host::HostType::Prim(host::HostPrim::U8),
                     read: ReadExpr::Prim(ReadPrim::U8),
                 },
                 Field {
                     name: 2, // data
-                    host_type: HostType::CustomType(8 /* host_type_8 in context */),
+                    host_type: host::HostType::CustomType(8 /* host_type_8 in context */),
                     read: ReadExpr::Match(
                         Val::Item(1), /* format */
                         vec![
