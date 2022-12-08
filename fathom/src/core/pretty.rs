@@ -119,9 +119,9 @@ impl<'interner, 'arena> Context<'interner> {
         // FIXME: indentation and grouping
 
         match term {
-            Term::ItemVar(_, level) => RcDoc::text(format!("ItemVar({:?})", level)),
-            Term::LocalVar(_, index) => RcDoc::text(format!("LocalVar({:?})", index)),
-            Term::MetaVar(_, index) => RcDoc::text(format!("MetaVar({:?})", index)),
+            Term::ItemVar(_, level) => RcDoc::text(format!("Item({})", level)),
+            Term::LocalVar(_, index) => RcDoc::text(format!("Local({})", index)),
+            Term::MetaVar(_, index) => RcDoc::text(format!("Meta({})", index)),
             Term::InsertedMeta(_, level, info) => {
                 RcDoc::text(format!("InsertedMeta({:?}, {:?})", level, info))
             }
