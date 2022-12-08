@@ -13,20 +13,18 @@
 //! use std::io::Write;
 //!
 //! // These are created for demonstration
-//! let mut scope = scoped_arena::Scope::new();
 //! let interner = RefCell::new(StringInterner::new());
 //! let module = Module { items: &[] };
 //!
-//! let pp = Context::new(&interner, &mut scope);
-//! let doc = pp.module(&module).into_doc();
+//! let pp = Context::new(&interner);
+//! let doc = pp.module(&module);
 //! let mut stream = BufferedStandardStream::stdout(ColorChoice::Auto);
 //! let emit_width = 100;
 //! writeln!(stream, "{}", doc.pretty(emit_width)).unwrap();
 //! stream.flush().unwrap();
 //! ```
 
-use pretty::{Doc, DocAllocator, DocBuilder, DocPtr, RefDoc};
-use scoped_arena::Scope;
+use pretty::RcDoc;
 use std::cell::RefCell;
 
 use crate::core::{Item, Module, Term};
@@ -46,59 +44,54 @@ enum Prec {
 
 const INDENT: isize = 4;
 
-pub struct Context<'interner, 'arena> {
+pub struct Context<'interner> {
     interner: &'interner RefCell<StringInterner>,
-    scope: &'arena Scope<'arena>,
 }
 
-impl<'interner, 'arena> Context<'interner, 'arena> {
-    pub fn new(
-        interner: &'interner RefCell<StringInterner>,
-        scope: &'arena Scope<'arena>,
-    ) -> Context<'interner, 'arena> {
-        Context { interner, scope }
+impl<'interner, 'arena> Context<'interner> {
+    pub fn new(interner: &'interner RefCell<StringInterner>) -> Context<'interner> {
+        Context { interner }
     }
 
-    fn string_id(&'arena self, name: StringId) -> DocBuilder<'arena, Self> {
+    fn string_id(&'arena self, name: StringId) -> RcDoc {
         match self.interner.borrow().resolve(name) {
-            Some(name) => self.text(name.to_owned()),
-            None => self.text("#error"),
+            Some(name) => RcDoc::text(name.to_owned()),
+            None => RcDoc::text("#error"),
         }
     }
 
-    pub fn module(&'arena self, module: &Module<'arena>) -> DocBuilder<'arena, Self> {
-        self.intersperse(
+    pub fn module(&'arena self, module: &Module<'arena>) -> RcDoc {
+        RcDoc::intersperse(
             module.items.iter().map(|item| self.item(item)),
-            self.hardline(),
+            RcDoc::hardline(),
         )
     }
 
-    fn item(&'arena self, item: &Item<'arena>) -> DocBuilder<'arena, Self> {
+    fn item(&'arena self, item: &Item<'arena>) -> RcDoc {
         match item {
             Item::Def {
                 label,
                 r#type,
                 expr,
-            } => self
-                .concat([
-                    self.text("def"),
-                    self.space(),
-                    self.ann_pattern(Prec::Top, Some(*label), r#type),
-                    self.space(),
-                    self.text("="),
-                    self.softline(),
-                    self.term_prec(Prec::Group, expr),
-                    self.text(";"),
-                    self.hardline(),
-                ])
-                .group(),
+            } => RcDoc::concat([
+                RcDoc::text("def"),
+                RcDoc::space(),
+                self.ann_pattern(Prec::Top, Some(*label), r#type),
+                RcDoc::space(),
+                RcDoc::text("="),
+                RcDoc::softline(),
+                self.term_prec(Prec::Group, expr),
+                RcDoc::text(";"),
+                RcDoc::hardline(),
+            ])
+            .group(),
         }
     }
 
-    fn pattern(&'arena self, pattern: Option<StringId>) -> DocBuilder<'arena, Self> {
+    fn pattern(&'arena self, pattern: Option<StringId>) -> RcDoc {
         match pattern {
             Some(name) => self.string_id(name),
-            None => self.text("_"),
+            None => RcDoc::text("_"),
         }
     }
 
@@ -107,249 +100,244 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         prec: Prec,
         pattern: Option<StringId>,
         r#type: &Term<'arena>,
-    ) -> DocBuilder<'arena, Self> {
+    ) -> RcDoc {
         self.paren(
             prec > Prec::Top,
-            self.concat([
-                self.concat([self.pattern(pattern), self.space(), self.text(":")])
-                    .group(),
-                self.softline(),
+            RcDoc::concat([
+                RcDoc::concat([self.pattern(pattern), RcDoc::space(), RcDoc::text(":")]).group(),
+                RcDoc::softline(),
                 self.term_prec(Prec::Top, r#type),
             ]),
         )
     }
 
-    pub fn term(&'arena self, term: &Term<'arena>) -> DocBuilder<'arena, Self> {
+    pub fn term(&'arena self, term: &Term<'arena>) -> RcDoc {
         self.term_prec(Prec::Top, term)
     }
 
-    fn term_prec(&'arena self, prec: Prec, term: &Term<'arena>) -> DocBuilder<'arena, Self> {
+    fn term_prec(&'arena self, prec: Prec, term: &Term<'arena>) -> RcDoc {
         // FIXME: indentation and grouping
 
         match term {
-            Term::ItemVar(_, level) => self.text(format!("ItemVar({:?})", level)),
-            Term::LocalVar(_, index) => self.text(format!("LocalVar({:?})", index)),
-            Term::MetaVar(_, index) => self.text(format!("MetaVar({:?})", index)),
+            Term::ItemVar(_, level) => RcDoc::text(format!("ItemVar({:?})", level)),
+            Term::LocalVar(_, index) => RcDoc::text(format!("LocalVar({:?})", index)),
+            Term::MetaVar(_, index) => RcDoc::text(format!("MetaVar({:?})", index)),
             Term::InsertedMeta(_, level, info) => {
-                self.text(format!("InsertedMeta({:?}, {:?})", level, info))
+                RcDoc::text(format!("InsertedMeta({:?}, {:?})", level, info))
             }
             Term::Ann(_, expr, r#type) => self.paren(
                 prec > Prec::Top,
-                self.concat([
-                    self.concat([
+                RcDoc::concat([
+                    RcDoc::concat([
                         self.term_prec(Prec::Let, expr),
-                        self.space(),
-                        self.text(":"),
+                        RcDoc::space(),
+                        RcDoc::text(":"),
                     ])
                     .group(),
-                    self.softline(),
+                    RcDoc::softline(),
                     self.term_prec(Prec::Top, r#type),
                 ]),
             ),
             Term::Let(_, def_pattern, def_type, def_expr, body_expr) => self.paren(
                 prec > Prec::Let,
-                self.concat([
-                    self.concat([
-                        self.text("let"),
-                        self.space(),
+                RcDoc::concat([
+                    RcDoc::concat([
+                        RcDoc::text("let"),
+                        RcDoc::space(),
                         self.ann_pattern(Prec::Top, *def_pattern, *def_type),
-                        self.space(),
-                        self.text("="),
-                        self.softline(),
+                        RcDoc::space(),
+                        RcDoc::text("="),
+                        RcDoc::softline(),
                         self.term_prec(Prec::Let, def_expr),
-                        self.text(";"),
+                        RcDoc::text(";"),
                     ])
                     .group(),
-                    self.line(),
+                    RcDoc::line(),
                     self.term_prec(Prec::Let, body_expr),
                 ]),
             ),
-            Term::Universe(_) => self.text("Type"),
+            Term::Universe(_) => RcDoc::text("Type"),
             Term::FunType(_, param_name, param_type, body_type) => self.paren(
                 prec > Prec::Fun,
-                self.concat([
-                    self.concat([
-                        self.text("fun"),
+                RcDoc::concat([
+                    RcDoc::concat([
+                        RcDoc::text("fun"),
                         // TODO: Share with Term::Ann
                         self.paren(
                             prec > Prec::Top,
-                            self.concat([
-                                self.concat([
+                            RcDoc::concat([
+                                RcDoc::concat([
                                     if let Some(name) = param_name {
                                         self.string_id(*name)
                                     } else {
-                                        self.nil()
+                                        RcDoc::nil()
                                     },
-                                    self.space(),
-                                    self.text(":"),
+                                    RcDoc::space(),
+                                    RcDoc::text(":"),
                                 ])
                                 .group(),
-                                self.softline(),
+                                RcDoc::softline(),
                                 self.term_prec(Prec::Top, param_type),
                             ]),
                         ),
-                        self.space(),
-                        self.text("->"),
+                        RcDoc::space(),
+                        RcDoc::text("->"),
                     ])
                     .group(),
-                    self.softline(),
+                    RcDoc::softline(),
                     self.term_prec(Prec::Fun, body_type),
                 ]),
             ),
             Term::FunLit(_, param_name, body_expr) => self.paren(
                 prec > Prec::Fun,
-                self.concat([
-                    self.concat([
-                        self.text("fun"),
+                RcDoc::concat([
+                    RcDoc::concat([
+                        RcDoc::text("fun"),
                         if let Some(name) = param_name {
                             self.string_id(*name)
                         } else {
-                            self.nil()
+                            RcDoc::nil()
                         },
-                        self.space(),
-                        self.text("=>"),
+                        RcDoc::space(),
+                        RcDoc::text("=>"),
                     ])
                     .group(),
-                    self.space(),
+                    RcDoc::space(),
                     self.term_prec(Prec::Let, body_expr),
                 ]),
             ),
             Term::FunApp(_, head_expr, arg_expr) => self.paren(
                 prec > Prec::App,
-                self.concat([
+                RcDoc::concat([
                     self.term_prec(Prec::Proj, head_expr),
-                    self.space(),
+                    RcDoc::space(),
                     self.term_prec(Prec::Proj, arg_expr),
                 ]),
             ),
             Term::RecordType(_, labels, types) => self.sequence(
-                self.text("{"),
+                RcDoc::text("{"),
                 labels.iter().zip(types.iter()).map(|(&label, type_)| {
-                    self.concat([
+                    RcDoc::concat([
                         self.string_id(label),
-                        self.space(),
-                        self.text(":"),
-                        self.space(),
+                        RcDoc::space(),
+                        RcDoc::text(":"),
+                        RcDoc::space(),
                         self.term_prec(Prec::Top, type_),
                     ])
                 }),
-                self.text(","),
-                self.text("}"),
+                RcDoc::text(","),
+                RcDoc::text("}"),
             ),
             Term::RecordLit(_, labels, exprs) => self.sequence(
-                self.text("{"),
+                RcDoc::text("{"),
                 labels.iter().zip(exprs.iter()).map(|(&label, expr)| {
-                    self.concat([
+                    RcDoc::concat([
                         self.string_id(label),
-                        self.space(),
-                        self.text("="),
-                        self.space(),
+                        RcDoc::space(),
+                        RcDoc::text("="),
+                        RcDoc::space(),
                         self.term_prec(Prec::Top, expr),
                     ])
                 }),
-                self.text(","),
-                self.text("}"),
+                RcDoc::text(","),
+                RcDoc::text("}"),
             ),
-            // Term::UnitLiteral(_) => self.text("{}"),
-            Term::RecordProj(_, head_expr, label) => self.concat([
+            // Term::UnitLiteral(_) => RcDoc::text("{}"),
+            Term::RecordProj(_, head_expr, label) => RcDoc::concat([
                 self.term_prec(Prec::Atomic, head_expr),
-                self.text(".").append(self.string_id(*label)),
+                RcDoc::text(".").append(self.string_id(*label)),
             ]),
             Term::ArrayLit(_, exprs) => self.sequence(
-                self.text("["),
+                RcDoc::text("["),
                 exprs.iter().map(|expr| self.term_prec(Prec::Top, expr)),
-                self.text(","),
-                self.text("]"),
+                RcDoc::text(","),
+                RcDoc::text("]"),
             ),
-            Term::ConstLit(_, const_) => self.text(format!("{:?}", const_)),
+            Term::ConstLit(_, const_) => RcDoc::text(format!("{:?}", const_)),
             Term::FormatRecord(_, labels, formats) => self.sequence(
-                self.text("{"),
+                RcDoc::text("{"),
                 labels
                     .iter()
                     .zip(formats.iter())
                     .map(|(&label, format)| self.format_field(label, format)),
-                self.text(","),
-                self.text("}"),
+                RcDoc::text(","),
+                RcDoc::text("}"),
             ),
-            Term::FormatCond(_, label, format, cond) => self.concat([
-                self.text("{"),
-                self.space(),
+            Term::FormatCond(_, label, format, cond) => RcDoc::concat([
+                RcDoc::text("{"),
+                RcDoc::space(),
                 self.string_id(*label),
-                self.space(),
-                self.text("<-"),
-                self.space(),
+                RcDoc::space(),
+                RcDoc::text("<-"),
+                RcDoc::space(),
                 self.term_prec(Prec::Top, format),
-                self.space(),
-                self.text("|"),
-                self.space(),
+                RcDoc::space(),
+                RcDoc::text("|"),
+                RcDoc::space(),
                 self.term_prec(Prec::Top, cond),
-                self.space(),
-                self.text("}"),
+                RcDoc::space(),
+                RcDoc::text("}"),
             ]),
             Term::FormatOverlap(_, labels, formats) => self.sequence(
-                self.concat([self.text("overlap"), self.space(), self.text("{")]),
+                RcDoc::concat([RcDoc::text("overlap"), RcDoc::space(), RcDoc::text("{")]),
                 labels
                     .iter()
                     .zip(formats.iter())
                     .map(|(&label, format)| self.format_field(label, format)),
-                self.text(","),
-                self.text("}"),
+                RcDoc::text(","),
+                RcDoc::text("}"),
             ),
-            Term::Prim(_, prim) => self.text(format!("{:?}", prim)),
+            Term::Prim(_, prim) => RcDoc::text(format!("{:?}", prim)),
             Term::ConstMatch(_, scrutinee, branches, default_expr) => self.sequence(
-                self.concat([
-                    self.text("match"),
-                    self.space(),
+                RcDoc::concat([
+                    RcDoc::text("match"),
+                    RcDoc::space(),
                     self.term_prec(Prec::Proj, scrutinee),
-                    self.space(),
-                    self.text("{"),
+                    RcDoc::space(),
+                    RcDoc::text("{"),
                 ]),
                 branches
                     .iter()
                     .map(|(pattern, body_expr)| {
-                        self.concat([
-                            self.text(format!("{:?}", pattern)),
-                            self.space(),
-                            self.text("=>"),
-                            self.space(),
+                        RcDoc::concat([
+                            RcDoc::text(format!("{:?}", pattern)),
+                            RcDoc::space(),
+                            RcDoc::text("=>"),
+                            RcDoc::space(),
                             self.term_prec(Prec::Top, body_expr),
                         ])
                     })
                     .chain(default_expr.iter().map(|default| {
-                        self.concat([
-                            self.text("_"),
-                            self.space(),
-                            self.text("=>"),
-                            self.space(),
+                        RcDoc::concat([
+                            RcDoc::text("_"),
+                            RcDoc::space(),
+                            RcDoc::text("=>"),
+                            RcDoc::space(),
                             self.term_prec(Prec::Top, default),
                         ])
                     }))
                     .collect::<Vec<_>>()
                     .into_iter(),
-                self.text(","),
-                self.text("}"),
+                RcDoc::text(","),
+                RcDoc::text("}"),
             ),
         }
     }
 
-    fn format_field(
-        &'arena self,
-        label: StringId,
-        format: &Term<'arena>,
-    ) -> DocBuilder<'arena, Self> {
-        self.concat([
+    fn format_field(&'arena self, label: StringId, format: &Term<'arena>) -> RcDoc {
+        RcDoc::concat([
             self.string_id(label),
-            self.space(),
-            self.text("<-"),
-            self.space(),
+            RcDoc::space(),
+            RcDoc::text("<-"),
+            RcDoc::space(),
             self.term_prec(Prec::Top, format),
         ])
     }
 
     /// Wrap a document in parens.
-    fn paren(&'arena self, wrap: bool, doc: DocBuilder<'arena, Self>) -> DocBuilder<'arena, Self> {
+    fn paren(&'arena self, wrap: bool, doc: RcDoc<'arena>) -> RcDoc {
         if wrap {
-            self.concat([self.text("("), doc, self.text(")")])
+            RcDoc::concat([RcDoc::text("("), doc, RcDoc::text(")")])
         } else {
             doc
         }
@@ -359,112 +347,34 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
     /// separator if it is formatted over multiple lines.
     pub fn sequence(
         &'arena self,
-        start_delim: DocBuilder<'arena, Self>,
-        docs: impl ExactSizeIterator<Item = DocBuilder<'arena, Self>> + Clone,
-        separator: DocBuilder<'arena, Self>,
-        end_delim: DocBuilder<'arena, Self>,
-    ) -> DocBuilder<'arena, Self> {
+        start_delim: RcDoc<'arena>,
+        docs: impl ExactSizeIterator<Item = RcDoc<'arena, ()>> + Clone,
+        separator: RcDoc<'arena>,
+        end_delim: RcDoc<'arena>,
+    ) -> RcDoc {
         if docs.len() == 0 {
-            self.concat([start_delim, end_delim])
+            RcDoc::concat([start_delim, end_delim])
         } else {
-            DocBuilder::flat_alt(
-                self.concat([
+            RcDoc::flat_alt(
+                RcDoc::concat([
                     start_delim.clone(),
-                    self.concat(
+                    RcDoc::concat(
                         docs.clone()
-                            .map(|doc| self.concat([self.hardline(), doc, separator.clone()])),
+                            .map(|doc| RcDoc::concat([RcDoc::hardline(), doc, separator.clone()])),
                     )
                     .nest(INDENT),
-                    self.hardline(),
+                    RcDoc::hardline(),
                     end_delim.clone(),
                 ]),
-                self.concat([
+                RcDoc::concat([
                     start_delim,
-                    self.space(),
-                    self.intersperse(docs, self.concat([separator, self.space()])),
-                    self.space(),
+                    RcDoc::space(),
+                    RcDoc::intersperse(docs, RcDoc::concat([separator, RcDoc::space()])),
+                    RcDoc::space(),
                     end_delim,
                 ]),
             )
             .group()
         }
-    }
-}
-
-impl<'interner, 'arena, A: 'arena> DocAllocator<'arena, A> for Context<'interner, 'arena> {
-    type Doc = RefDoc<'arena, A>;
-
-    #[inline]
-    fn alloc(&'arena self, doc: Doc<'arena, Self::Doc, A>) -> Self::Doc {
-        // Based on the `DocAllocator` implementation for `pretty::Arena`
-        RefDoc(match doc {
-            // Return 'static references for common variants to avoid some allocations
-            Doc::Nil => &Doc::Nil,
-            Doc::Hardline => &Doc::Hardline,
-            Doc::Fail => &Doc::Fail,
-            // space()
-            Doc::BorrowedText(" ") => &Doc::BorrowedText(" "),
-            // line()
-            Doc::FlatAlt(RefDoc(Doc::Hardline), RefDoc(Doc::BorrowedText(" "))) => {
-                &Doc::FlatAlt(RefDoc(&Doc::Hardline), RefDoc(&Doc::BorrowedText(" ")))
-            }
-            // line_()
-            Doc::FlatAlt(RefDoc(Doc::Hardline), RefDoc(Doc::Nil)) => {
-                &Doc::FlatAlt(RefDoc(&Doc::Hardline), RefDoc(&Doc::Nil))
-            }
-            // softline()
-            Doc::Group(RefDoc(Doc::FlatAlt(
-                RefDoc(Doc::Hardline),
-                RefDoc(Doc::BorrowedText(" ")),
-            ))) => &Doc::Group(RefDoc(&Doc::FlatAlt(
-                RefDoc(&Doc::Hardline),
-                RefDoc(&Doc::BorrowedText(" ")),
-            ))),
-            // softline_()
-            Doc::Group(RefDoc(Doc::FlatAlt(RefDoc(Doc::Hardline), RefDoc(Doc::Nil)))) => {
-                &Doc::Group(RefDoc(&Doc::FlatAlt(
-                    RefDoc(&Doc::Hardline),
-                    RefDoc(&Doc::Nil),
-                )))
-            }
-
-            // Language tokens
-            Doc::BorrowedText("fun") => &Doc::BorrowedText("fun"),
-            Doc::BorrowedText("let") => &Doc::BorrowedText("let"),
-            Doc::BorrowedText("overlap") => &Doc::BorrowedText("overlap"),
-            Doc::BorrowedText("Type") => &Doc::BorrowedText("Type"),
-            Doc::BorrowedText("where") => &Doc::BorrowedText("where"),
-            Doc::BorrowedText(":") => &Doc::BorrowedText(":"),
-            Doc::BorrowedText(",") => &Doc::BorrowedText(","),
-            Doc::BorrowedText("=") => &Doc::BorrowedText("="),
-            Doc::BorrowedText("=>") => &Doc::BorrowedText("=>"),
-            Doc::BorrowedText(".") => &Doc::BorrowedText("."),
-            Doc::BorrowedText("->") => &Doc::BorrowedText("->"),
-            Doc::BorrowedText("<-") => &Doc::BorrowedText("<-"),
-            Doc::BorrowedText(";") => &Doc::BorrowedText(";"),
-            Doc::BorrowedText("_") => &Doc::BorrowedText("_"),
-            Doc::BorrowedText("{") => &Doc::BorrowedText("{"),
-            Doc::BorrowedText("}") => &Doc::BorrowedText("}"),
-            Doc::BorrowedText("[") => &Doc::BorrowedText("["),
-            Doc::BorrowedText("]") => &Doc::BorrowedText("]"),
-            Doc::BorrowedText("(") => &Doc::BorrowedText("("),
-            Doc::BorrowedText(")") => &Doc::BorrowedText(")"),
-
-            _ => self.scope.to_scope(doc),
-        })
-    }
-
-    fn alloc_column_fn(
-        &'arena self,
-        f: impl 'arena + Fn(usize) -> Self::Doc,
-    ) -> <Self::Doc as DocPtr<'arena, A>>::ColumnFn {
-        self.scope.to_scope(f)
-    }
-
-    fn alloc_width_fn(
-        &'arena self,
-        f: impl 'arena + Fn(isize) -> Self::Doc,
-    ) -> <Self::Doc as DocPtr<'arena, A>>::WidthFn {
-        self.scope.to_scope(f)
     }
 }
