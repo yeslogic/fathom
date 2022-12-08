@@ -8,7 +8,7 @@
 //! use codespan_reporting::term::termcolor::{BufferedStandardStream, ColorChoice};
 //! use fathom::core::pretty::Context;
 //! use fathom::core::Module;
-//! use fathom::StringInterner;
+//! use fathom::source::StringInterner;
 //! use std::cell::RefCell;
 //! use std::io::Write;
 //!
@@ -28,7 +28,7 @@ use pretty::RcDoc;
 use std::cell::RefCell;
 
 use crate::core::{Item, Module, Term};
-use crate::{StringId, StringInterner};
+use crate::source::{StringId, StringInterner};
 
 /// Term precedences
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
@@ -307,9 +307,12 @@ impl<'interner, 'arena> Context<'interner> {
                             self.term_prec(Prec::Top, body_expr),
                         ])
                     })
-                    .chain(default_expr.iter().map(|default| {
+                    .chain(default_expr.iter().map(|&(name, default)| {
                         RcDoc::concat([
-                            RcDoc::text("_"),
+                            match name {
+                                Some(name) => self.string_id(name),
+                                None => RcDoc::text("_"),
+                            },
                             RcDoc::space(),
                             RcDoc::text("=>"),
                             RcDoc::space(),

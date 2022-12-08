@@ -5,8 +5,8 @@ use std::cell::RefCell;
 use std::io::Read;
 use std::path::Path;
 
-use crate::core::binary;
-use crate::core::binary::{BufferError, ReadError};
+use crate::core;
+use crate::core::binary::{self, BufferError, ReadError};
 use crate::source::{ByteRange, FileId, Span, StringInterner};
 use crate::surface::{self, elaboration};
 use crate::BUG_REPORT_URL;
@@ -189,7 +189,7 @@ impl<'surface, 'core> Driver<'surface, 'core> {
         }
     }
 
-    pub fn elaborate_and_emit_module(&mut self, file_id: FileId) -> Status {
+    pub fn elaborate_and_emit_module(&mut self, file_id: FileId, pretty_core: bool) -> Status {
         let mut context = elaboration::Context::new(&self.interner, &self.core_scope);
 
         let surface_module = self.parse_module(file_id);
@@ -200,6 +200,9 @@ impl<'surface, 'core> Driver<'surface, 'core> {
         // Return early if we’ve seen any errors, unless `allow_errors` is enabled
         if *self.seen_errors.borrow() && !self.allow_errors {
             return Status::Error;
+        }
+        if pretty_core {
+            self.emit_core_module(&module);
         }
 
         self.surface_scope.reset(); // Reuse the surface scope for distillation
@@ -346,6 +349,15 @@ impl<'surface, 'core> Driver<'surface, 'core> {
     fn emit_module(&self, module: &surface::Module<'_, ()>) {
         let context = surface::pretty::Context::new(&self.interner, &self.surface_scope);
         self.emit_doc(context.module(module).into_doc());
+    }
+
+    fn emit_core_module(&self, module: &core::Module<'_>) {
+        let context = core::pretty::Context::new(&self.interner);
+        // TODO: Ideally this would be a call to emit_doc
+        let doc = context.module(module);
+        let mut emit_writer = self.emit_writer.borrow_mut();
+        writeln!(emit_writer, "{}", doc.pretty(self.emit_width)).unwrap();
+        emit_writer.flush().unwrap();
     }
 
     fn emit_term(&self, term: &surface::Term<'_, ()>) {

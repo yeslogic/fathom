@@ -17,6 +17,7 @@ OPTIONS:
         --term <TERM_FILE>        Path to a term to elaborate
         --allow-errors            Continue even if errors were encountered
     -h, --help                    Print help information
+        --pretty-core             Pretty print core module
 
 ```
 
@@ -35,6 +36,7 @@ OPTIONS:
         --term <TERM_FILE>        Path to a term to elaborate
         --allow-errors            Continue even if errors were encountered
     -h, --help                    Print help information
+        --pretty-core             Pretty print core module
 
 ```
 

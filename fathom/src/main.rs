@@ -28,6 +28,9 @@ enum Cli {
         /// Continue even if errors were encountered
         #[clap(long = "allow-errors")]
         allow_errors: bool,
+        /// Pretty print core module
+        #[clap(long = "pretty-core", conflicts_with("TERM_FILE"))]
+        pretty_core: bool,
     },
     /// Normalise a Fathom term, printing its normal form and type
     Norm {
@@ -139,6 +142,7 @@ fn main() -> ! {
             module_file,
             term_file,
             allow_errors,
+            pretty_core,
         } => {
             let mut driver = fathom::Driver::new();
             driver.install_panic_hook();
@@ -148,7 +152,7 @@ fn main() -> ! {
             let status = match (module_file, term_file) {
                 (Some(module_file), None) => {
                     let file_id = load_file_or_exit(&mut driver, module_file);
-                    driver.elaborate_and_emit_module(file_id)
+                    driver.elaborate_and_emit_module(file_id, pretty_core)
                 }
                 (None, Some(term_file)) => {
                     let file_id = load_file_or_exit(&mut driver, term_file);
