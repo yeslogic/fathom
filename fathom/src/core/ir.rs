@@ -48,6 +48,7 @@ mod host {
         pub host_type: Type, // in theory there could also be write: WriteExpr
     }
 
+    /// Primitive types
     #[derive(Clone)]
     pub enum Prim {
         S16,
@@ -57,15 +58,37 @@ mod host {
         Pos,
         // An array with length and element type
         // The length can be another item or a const
-        Array(Val, Box<Type>), // Perhaps array with const length and array with non-const length should be separated
+        Array(Expr, Box<Type>), // Perhaps array with const length and array with non-const length should be separated
+    }
+
+    // Primitive functions... is it sensible to seperate these from Prim?
+    #[derive(Clone)]
+    pub enum PrimFn {
+        U16Sub,
     }
 
     // It seems this probably needs to be an expression to caption function calls
     #[derive(Clone)]
-    pub enum Val {
+    pub enum Expr {
         /// Item in the context
         Item(usize),
         Const(Const),
+        // Prim(Prim),
+        PrimFn(PrimFn),
+
+        /// A function literal
+        Func(Function),
+        // TODO: Does there need to be a counterpart to this in the `format` module?
+        /// Uncurried function application (fn, arguments)
+        App(Box<Expr>, Vec<Expr>),
+    }
+
+    #[derive(Clone)]
+    pub struct Function {
+        /// Argument names
+        arguments: Vec<StringId>,
+        /// Body expression
+        body: Box<Expr>,
     }
 }
 
@@ -101,7 +124,7 @@ mod format {
         /// A custom type that lives in the context
         CustomType(usize),
         /// A match expression, cond, branches, default?
-        Match(host::Val, Vec<Branch>),
+        Match(host::Expr, Vec<Branch>),
     }
 
     pub struct Branch {
@@ -122,7 +145,7 @@ mod format {
         U16Le,
         U32Be,
         U32Le,
-        Array(host::Val, Box<ReadExpr>),
+        Array(host::Expr, Box<ReadExpr>),
     }
 
     impl Format {
@@ -147,7 +170,7 @@ mod format {
 mod tests {
     use super::*;
     use format::*;
-    use host::Val;
+    use host::Expr;
 
     #[test]
     fn test_f2dot14() {
@@ -315,13 +338,13 @@ mod tests {
                 Field {
                     name: 6, // table_records
                     host_type: host::Type::Prim(host::Prim::Array(
-                        Val::Item(5 /* num_tables */),
+                        Expr::Item(5 /* num_tables */),
                         // This one is referring to a custom type in the host env
                         // Or is it just referring to the format?
                         Box::new(host::Type::CustomType(0)),
                     )),
                     read: ReadExpr::Prim(ReadPrim::Array(
-                        Val::Item(5 /* num_tables */),
+                        Expr::Item(5 /* num_tables */),
                         // This one is referring to a custom type in the "format" env
                         Box::new(ReadExpr::CustomType(0)),
                     )),
@@ -334,12 +357,12 @@ mod tests {
     }
 
     #[test]
-    fn test_match() {
+    fn test_match_and_fn_app() {
         /*
 
         // cut-down kern version 0 sub-table
         def subtable0 = {
-            /// The start of this sub-table
+            length <- u16be,
             format <- u8,
             data <- match format {
                 0 => subtable_format0,
@@ -353,7 +376,12 @@ mod tests {
             example <- u16be
         };
          */
-        let fixme_u16_sub_length_6 = 0;
+        let u16_sub_length_6 = Expr::App(
+            Box::new(Expr::PrimFn(host::PrimFn::U16Sub)),
+            vec![Expr::Item(0 /* length */), Expr::Const(Const::U16(6))],
+        );
+        // represents the item storing the value resulting from evaluating the expression
+        let u16_sub_length_6_item = 6;
         let host_type_8 = host::CustomType::Enum(host::Enum {
             name: 3, // Subtable0Data
             variants: vec![
@@ -364,7 +392,7 @@ mod tests {
                 host::Variant {
                     name: 5,
                     data: Some(host::Type::Prim(host::Prim::Array(
-                        Val::Item(fixme_u16_sub_length_6),
+                        u16_sub_length_6,
                         Box::new(host::Type::Prim(host::Prim::U8)),
                     ))),
                 },
@@ -382,7 +410,7 @@ mod tests {
                     name: 2, // data
                     host_type: host::Type::CustomType(8 /* host_type_8 in context */),
                     read: ReadExpr::Match(
-                        Val::Item(1), /* format */
+                        Expr::Item(1), /* format */
                         vec![
                             Branch {
                                 pattern: Pattern::Const(Const::U8(0)),
@@ -391,7 +419,7 @@ mod tests {
                             Branch {
                                 pattern: Pattern::Var(0 /* _ */),
                                 expr: Box::new(ReadExpr::Prim(ReadPrim::Array(
-                                    Val::Item(fixme_u16_sub_length_6),
+                                    Expr::Item(u16_sub_length_6_item),
                                     Box::new(ReadExpr::Prim(ReadPrim::U8)),
                                 ))),
                             },
