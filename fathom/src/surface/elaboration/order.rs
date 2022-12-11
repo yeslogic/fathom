@@ -336,6 +336,12 @@ fn push_pattern(pattern: &Pattern<ByteRange>, local_names: &mut Vec<Symbol>) {
         Pattern::StringLiteral(_, _) => {}
         Pattern::NumberLiteral(_, _) => {}
         Pattern::BooleanLiteral(_, _) => {}
+        Pattern::RecordLiteral(_, fields) => fields
+            .iter()
+            .for_each(|field| push_pattern(&field.pattern, local_names)),
+        Pattern::TupleLiteral(_, patterns) => patterns
+            .iter()
+            .for_each(|pattern| push_pattern(pattern, local_names)),
     }
 }
 
@@ -348,5 +354,11 @@ fn pop_pattern(pattern: &Pattern<ByteRange>, local_names: &mut Vec<Symbol>) {
         Pattern::StringLiteral(_, _) => {}
         Pattern::NumberLiteral(_, _) => {}
         Pattern::BooleanLiteral(_, _) => {}
+        Pattern::RecordLiteral(_, fields) => fields
+            .iter()
+            .for_each(|field| pop_pattern(&field.pattern, local_names)),
+        Pattern::TupleLiteral(_, patterns) => patterns
+            .iter()
+            .for_each(|pattern| pop_pattern(pattern, local_names)),
     }
 }

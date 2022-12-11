@@ -1,0 +1,10 @@
+stdout = '''
+let fst : fun (A : Type) (B : Type) -> (A, B) -> A = fun A B p => let x : A =
+p._0;
+x;
+let snd : fun (A : Type) (B : Type) -> (A, B) -> B = fun A B p => let y : B =
+p._1;
+y;
+() : ()
+'''
+stderr = ''

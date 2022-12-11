@@ -1,12 +1,12 @@
 stdout = '''
-let test : Array8 ((1 : U8) + (2 : U8)) () -> Array8 3 () = fun x => x;
-let test : Array16 ((1 : U16) + (2 : U16)) () -> Array16 3 () = fun x => x;
-let test : Array32 ((1 : U32) + (2 : U32)) () -> Array32 3 () = fun x => x;
-let test : Array64 ((1 : U64) + (2 : U64)) () -> Array64 3 () = fun x => x;
-let test : Array8 ((3 : U8) - (1 : U8)) () -> Array8 2 () = fun x => x;
-let test : Array16 ((3 : U16) - (1 : U16)) () -> Array16 2 () = fun x => x;
-let test : Array32 ((3 : U32) - (1 : U32)) () -> Array32 2 () = fun x => x;
-let test : Array64 ((3 : U64) - (1 : U64)) () -> Array64 2 () = fun x => x;
+let test : Array8 3 () -> Array8 3 () = fun x => x;
+let test : Array16 3 () -> Array16 3 () = fun x => x;
+let test : Array32 3 () -> Array32 3 () = fun x => x;
+let test : Array64 3 () -> Array64 3 () = fun x => x;
+let test : Array8 2 () -> Array8 2 () = fun x => x;
+let test : Array16 2 () -> Array16 2 () = fun x => x;
+let test : Array32 2 () -> Array32 2 () = fun x => x;
+let test : Array64 2 () -> Array64 2 () = fun x => x;
 Type : Type
 '''
 stderr = ''

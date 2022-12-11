@@ -18,6 +18,7 @@
 //! [`SharedEnv`] to increase the amount of sharing at the expense of locality.
 
 use std::fmt;
+use std::ops::Add;
 
 /// Underlying variable representation.
 type RawVar = usize;
@@ -53,6 +54,13 @@ impl Index {
     /// Returns the previously bound variable, relative to this one.
     pub const fn prev(self) -> Index {
         Index(self.0 + 1)
+    }
+}
+
+impl Add<EnvLen> for Index {
+    type Output = Self;
+    fn add(self, rhs: EnvLen) -> Self::Output {
+        Self(self.0 + rhs.0) // FIXME: check overflow?
     }
 }
 
@@ -126,6 +134,13 @@ pub fn levels() -> impl Iterator<Item = Level> {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct EnvLen(RawVar);
 
+impl Add<Index> for EnvLen {
+    type Output = Self;
+    fn add(self, rhs: Index) -> Self::Output {
+        Self(self.0 + rhs.0) // FIXME: check overflow?
+    }
+}
+
 impl EnvLen {
     /// Construct a new, empty environment.
     pub fn new() -> EnvLen {
@@ -150,6 +165,10 @@ impl EnvLen {
     /// The next level that will be bound in this environment.
     pub fn next_level(self) -> Level {
         Level(self.0)
+    }
+
+    pub fn next(&self) -> EnvLen {
+        Self(self.0 + 1) // FIXME: check overflow?
     }
 
     /// Push an entry onto the environment.

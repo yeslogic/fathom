@@ -1,0 +1,9 @@
+let () : () = ();
+let _ : () = ();
+
+let (x, y) : (Bool, Bool) = (false, true);
+let (a, _) : (Bool, Bool) = (false, true);
+let (_, b) : (Bool, Bool) = (false, true);
+let (_, _) : (Bool, Bool) = (false, true);
+let _ : (Bool, Bool) = (false, true);
+{}

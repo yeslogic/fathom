@@ -81,6 +81,18 @@ impl<'arena> Context<'arena> {
                 true => self.text("true"),
                 false => self.text("false"),
             },
+            Pattern::RecordLiteral(_, pattern_fields) => {
+                self.pretty_record(pattern_fields, |field| {
+                    self.concat([
+                        self.ident(field.label.1),
+                        self.text(" = "),
+                        self.pattern(&field.pattern),
+                    ])
+                })
+            }
+            Pattern::TupleLiteral(_, patterns) => {
+                self.pretty_tuple(patterns, |pattern| self.pattern(pattern))
+            }
         }
     }
 
@@ -245,31 +257,23 @@ impl<'arena> Context<'arena> {
                 self.space(),
                 self.intersperse((args.iter()).map(|arg| self.arg(arg)), self.space()),
             ]),
-            Term::RecordType(_, fields) => {
-                let fields = fields.iter().map(|field| {
-                    self.ident(field.label.1)
-                        .append(" : ")
-                        .append(self.term(&field.r#type))
-                });
-                self.sequence(true, self.text("{"), fields, self.text(","), self.text("}"))
-            }
-            Term::RecordLiteral(_, fields) => {
-                let fields = fields.iter().map(|field| match field.expr.as_ref() {
+            Term::RecordType(_, type_fields) => self.pretty_record(type_fields, |field| {
+                self.concat([
+                    self.ident(field.label.1),
+                    self.text(" : "),
+                    self.term(&field.r#type),
+                ])
+            }),
+            Term::RecordLiteral(_, expr_fields) => {
+                self.pretty_record(expr_fields, |field| match field.expr.as_ref() {
                     None => self.ident(field.label.1),
                     Some(expr) => self
                         .ident(field.label.1)
                         .append(" = ")
                         .append(self.term(expr)),
-                });
-                self.sequence(true, self.text("{"), fields, self.text(","), self.text("}"))
+                })
             }
-            Term::Tuple(_, terms) if terms.len() == 1 => {
-                self.text("(").append(self.term(&terms[0]).append(",)"))
-            }
-            Term::Tuple(_, terms) => {
-                let terms = terms.iter().map(|term| self.term(term));
-                self.sequence(false, self.text("("), terms, self.text(","), self.text(")"))
-            }
+            Term::Tuple(_, terms) => self.pretty_tuple(terms, |term| self.term(term)),
             Term::Proj(_, head_expr, labels) => self.concat([
                 self.term(head_expr),
                 self.concat(
@@ -412,6 +416,40 @@ impl<'arena> Context<'arena> {
             end_delim,
         ])
         .group()
+    }
+
+    fn pretty_tuple<T>(
+        &'arena self,
+        terms: &[T],
+        pretty: impl Fn(&T) -> DocBuilder<'arena>,
+    ) -> DocBuilder<'arena> {
+        if terms.len() == 1 {
+            self.concat([self.text("("), pretty(&terms[0]), self.text(",)")])
+        } else {
+            #[allow(clippy::redundant_closure)]
+            self.sequence(
+                false,
+                self.text("("),
+                terms.iter().map(|term| pretty(term)),
+                self.text(","),
+                self.text(")"),
+            )
+        }
+    }
+
+    fn pretty_record<T>(
+        &'arena self,
+        fields: &[T],
+        pretty: impl Fn(&T) -> DocBuilder<'arena>,
+    ) -> DocBuilder<'arena> {
+        #[allow(clippy::redundant_closure)]
+        self.sequence(
+            true,
+            self.text("{"),
+            fields.iter().map(|field| pretty(field)),
+            self.text(","),
+            self.text("}"),
+        )
     }
 }
 

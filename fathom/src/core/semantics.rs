@@ -54,6 +54,8 @@ pub enum Value<'arena> {
 }
 
 impl<'arena> Value<'arena> {
+    pub const ERROR: Self = Self::Stuck(Head::Prim(Prim::ReportedError), Vec::new());
+
     pub fn prim(prim: Prim, params: impl IntoIterator<Item = ArcValue<'arena>>) -> Value<'arena> {
         let params = params
             .into_iter()
@@ -73,6 +75,13 @@ impl<'arena> Value<'arena> {
     pub fn match_prim_spine(&self) -> Option<(Prim, &[Elim<'arena>])> {
         match self {
             Value::Stuck(Head::Prim(prim), spine) => Some((*prim, spine)),
+            _ => None,
+        }
+    }
+
+    pub fn match_record_type(&self) -> Option<&Telescope<'arena>> {
+        match self {
+            Value::RecordType(_, telescope) => Some(telescope),
             _ => None,
         }
     }

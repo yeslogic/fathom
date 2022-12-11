@@ -1,0 +1,56 @@
+let and1 : Bool -> Bool -> Bool
+= fun x y => match (x, y) {
+    (true, true) => true,
+    _ => false,
+};
+let and2 : Bool -> Bool -> Bool
+= fun x y => match (x, y) {
+    (true, true) => true,
+    (_, _) => false,
+};
+let and3 : Bool -> Bool -> Bool
+= fun x y => match (x, y) {
+    (true, true) => true,
+    (false, true) => false,
+    (true, false) => false,
+    (false, false) => false,
+};
+
+let or1 : Bool -> Bool -> Bool
+= fun x y => match (x, y) {
+    (false, false) => false,
+    _ => true,
+};
+let or2 : Bool -> Bool -> Bool
+= fun x y => match (x, y) {
+    (false, false) => false,
+    (_, _) => true,
+};
+let or3 : Bool -> Bool -> Bool
+= fun x y => match (x, y) {
+    (false, false) => false,
+    (false, true) => true,
+    (true, false) => true,
+    (true, true) => true,
+};
+
+let xor1 : Bool -> Bool -> Bool
+= fun x y => match (x, y) {
+    (true, false) => true,
+    (false, true) => true,
+    _ => false,
+};
+let xor2 : Bool -> Bool -> Bool
+= fun x y => match (x, y) {
+    (true, false) => true,
+    (false, true) => true,
+    (_, _) => false,
+};
+let xor3 : Bool -> Bool -> Bool
+= fun x y => match (x, y) {
+    (true, false) => true,
+    (false, true) => true,
+    (false, false) => false,
+    (true, true) => false,
+};
+{}

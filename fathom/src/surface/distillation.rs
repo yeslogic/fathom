@@ -165,7 +165,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
         Term::NumberLiteral((), number)
     }
 
-    fn check_number_pattern<T: std::fmt::Display>(&mut self, number: T) -> Pattern<()> {
+    fn check_number_pattern<T: std::fmt::Display>(&mut self, number: T) -> Pattern<'arena, ()> {
         let number = Symbol::intern(number.to_string());
         Pattern::NumberLiteral((), number)
     }
@@ -174,14 +174,14 @@ impl<'arena, 'env> Context<'arena, 'env> {
         &mut self,
         number: T,
         style: UIntStyle,
-    ) -> Pattern<()> {
+    ) -> Pattern<'arena, ()> {
         // TODO: Share with check_number_literal_styled
         let string = style.format(number);
         let number = Symbol::intern(string);
         Pattern::NumberLiteral((), number)
     }
 
-    fn check_constant_pattern(&mut self, r#const: &Const) -> Pattern<()> {
+    fn check_constant_pattern(&mut self, r#const: &Const) -> Pattern<'arena, ()> {
         match r#const {
             Const::Bool(boolean) => Pattern::BooleanLiteral((), *boolean),
             Const::U8(number, style) => self.check_number_pattern_styled(number, *style),
@@ -391,7 +391,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
                     prec > Prec::Let,
                     Term::Let(
                         (),
-                        pattern,
+                        self.scope.to_scope(pattern),
                         Some(self.scope.to_scope(r#type)),
                         self.scope.to_scope(expr),
                         self.scope.to_scope(body),
@@ -651,12 +651,33 @@ impl<'arena, 'env> Context<'arena, 'env> {
                 Const::Ref(number) => self.check_number_literal(number),
             },
             (core::Term::ConstMatch(_, head_expr, const_branches, default_expr), _) => {
-                if let Some((then_expr, else_expr)) =
+                if let Some(((then_name, then_expr), (else_name, else_expr))) =
                     match_if_then_else(const_branches, *default_expr)
                 {
                     let cond_expr = self.check_prec(Prec::Fun, head_expr);
-                    let then_expr = self.term_prec(mode, Prec::Let, then_expr);
-                    let else_expr = self.term_prec(mode, Prec::Let, else_expr);
+
+                    let then_expr = match then_name {
+                        None => self.term_prec(mode, Prec::Let, then_expr),
+                        Some(name) => {
+                            let name = self.freshen_name(name, then_expr);
+                            self.push_local(name);
+                            let then_expr = self.term_prec(mode, Prec::Let, then_expr);
+                            self.pop_local();
+                            then_expr
+                        }
+                    };
+
+                    let else_expr = match else_name {
+                        None => self.term_prec(mode, Prec::Let, else_expr),
+                        Some(name) => {
+                            let name = self.freshen_name(name, else_expr);
+                            self.push_local(name);
+                            let else_expr = self.term_prec(mode, Prec::Let, else_expr);
+                            self.pop_local();
+                            else_expr
+                        }
+                    };
+
                     return self.paren(
                         prec > Prec::Let,
                         Term::If(
@@ -713,22 +734,30 @@ impl<'arena, 'env> Context<'arena, 'env> {
     }
 }
 
-fn name_to_pattern(name: Option<Symbol>) -> Pattern<()> {
+fn name_to_pattern<'arena>(name: Option<Symbol>) -> Pattern<'arena, ()> {
     match name {
         Some(name) => Pattern::Name((), name),
         None => Pattern::Placeholder(()),
     }
 }
-
+#[allow(clippy::type_complexity)]
 fn match_if_then_else<'arena>(
     branches: &'arena [(Const, core::Term<'arena>)],
     default_branch: Option<(Option<Symbol>, &'arena core::Term<'arena>)>,
-) -> Option<(&'arena core::Term<'arena>, &'arena core::Term<'arena>)> {
+) -> Option<(
+    (Option<Option<Symbol>>, &'arena core::Term<'arena>),
+    (Option<Option<Symbol>>, &'arena core::Term<'arena>),
+)> {
     match (branches, default_branch) {
-        ([(Const::Bool(false), else_expr), (Const::Bool(true), then_expr)], None)
-        // TODO: Normalize boolean branches when elaborating patterns
-        | ([(Const::Bool(true), then_expr)], Some((_, else_expr)))
-        | ([(Const::Bool(false), else_expr)], Some((_, then_expr))) => Some((then_expr, else_expr)),
+        ([(Const::Bool(false), else_expr), (Const::Bool(true), then_expr)], None) => {
+            Some(((None, then_expr), (None, else_expr)))
+        }
+        ([(Const::Bool(true), then_expr)], Some((name, else_expr))) => {
+            Some(((None, then_expr), (Some(name), else_expr)))
+        }
+        ([(Const::Bool(false), else_expr)], Some((name, then_expr))) => {
+            Some(((Some(name), then_expr), (None, else_expr)))
+        }
         _ => None,
     }
 }

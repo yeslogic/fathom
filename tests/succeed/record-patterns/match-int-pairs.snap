@@ -1,0 +1,24 @@
+stdout = '''
+let f : U32 -> U32 -> U32 = fun x y => let p : (U32, U32) = (x, y);
+match p._0 {
+    0 => let a : U32 = p._1;
+    a + (1 : U32),
+    1 => match p._1 {
+        0 => let b : U32 = p._0;
+        b + (2 : U32),
+        1 => let c : U32 = p._1;
+        c + (3 : U32),
+        _ => let c : U32 = p._1;
+        c + (3 : U32),
+    },
+    _ => match p._1 {
+        0 => let b : U32 = p._0;
+        b + (2 : U32),
+        1 => let d : U32 = p._0;
+        d + (4 : U32),
+        _ => 5,
+    },
+};
+() : ()
+'''
+stderr = ''

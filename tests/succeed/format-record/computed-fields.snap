@@ -5,14 +5,19 @@ let format : Format = {
     start_code <- repeat_len16 seg_count u16be,
     id_delta <- repeat_len16 seg_count s16be,
 };
-let _ : Repr format -> {
+let _ : {
+    seg_count_x2 : U16,
+    seg_count : U16,
+    start_code : Array16 seg_count U16,
+    id_delta : Array16 seg_count S16,
+} -> {
     seg_count_x2 : U16,
     seg_count : U16,
     start_code : Array16 seg_count U16,
     id_delta : Array16 seg_count S16,
 } = fun x => x;
 let format : Format = { let x : U32 = 256 };
-let _ : Repr format -> { x : U32 } = fun x => x;
+let _ : { x : U32 } -> { x : U32 } = fun x => x;
 () : ()
 '''
 stderr = ''

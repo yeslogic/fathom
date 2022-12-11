@@ -1,0 +1,1 @@
+fun ((A, B) : (Type, Type)) ((x, y) : (A, B)) => x

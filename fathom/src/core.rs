@@ -2,7 +2,9 @@
 
 use std::fmt;
 
-use crate::env::{Index, Level};
+use scoped_arena::Scope;
+
+use crate::env::{EnvLen, Index, Level};
 use crate::source::Span;
 use crate::symbol::Symbol;
 
@@ -206,6 +208,10 @@ pub enum Term<'arena> {
 }
 
 impl<'arena> Term<'arena> {
+    pub fn error(span: impl Into<Span>) -> Self {
+        Self::Prim(span.into(), Prim::ReportedError)
+    }
+
     /// Get the source span of the term.
     pub fn span(&self) -> Span {
         match self {
@@ -279,6 +285,155 @@ impl<'arena> Term<'arena> {
 
     pub fn is_error(&self) -> bool {
         matches!(self, Term::Prim(_, Prim::ReportedError))
+    }
+
+    // TODO: Add a new `Weaken` variant to `core::Term` instead of eagerly
+    // traversing the term? See [Andras Kovacs’ staged language](https://github.com/AndrasKovacs/staged/blob/9e381eb162f44912d70fb843c4ca6567b0d1683a/demo/Syntax.hs#L52) for an example
+    pub fn shift(&self, scope: &'arena Scope<'arena>, amount: EnvLen) -> Term<'arena> {
+        self.shift_inner(scope, Index::last(), amount)
+    }
+
+    /// Increment all `LocalVar`s greater than or equal to `min` by `amount`
+    fn shift_inner(
+        &self,
+        scope: &'arena Scope<'arena>,
+        mut min: Index,
+        amount: EnvLen,
+    ) -> Term<'arena> {
+        // Skip traversing and rebuilding the term if it would make no change. Increases
+        // sharing.
+        if amount == EnvLen::new() {
+            return self.clone();
+        }
+
+        match self {
+            Term::LocalVar(span, var) if *var >= min => Term::LocalVar(*span, *var + amount),
+            Term::LocalVar(..)
+            | Term::ItemVar(..)
+            | Term::MetaVar(..)
+            | Term::InsertedMeta(..)
+            | Term::Prim(..)
+            | Term::ConstLit(..)
+            | Term::Universe(..) => self.clone(),
+            Term::Ann(span, expr, r#type) => Term::Ann(
+                *span,
+                scope.to_scope(expr.shift_inner(scope, min, amount)),
+                scope.to_scope(r#type.shift_inner(scope, min, amount)),
+            ),
+            Term::Let(span, name, def_type, def_expr, body) => Term::Let(
+                *span,
+                *name,
+                scope.to_scope(def_type.shift_inner(scope, min, amount)),
+                scope.to_scope(def_expr.shift_inner(scope, min, amount)),
+                scope.to_scope(body.shift_inner(scope, min.prev(), amount)),
+            ),
+            Term::FunType(span, plicity, name, input, output) => Term::FunType(
+                *span,
+                *plicity,
+                *name,
+                scope.to_scope(input.shift_inner(scope, min, amount)),
+                scope.to_scope(output.shift_inner(scope, min.prev(), amount)),
+            ),
+            Term::FunLit(span, plicity, name, body) => Term::FunLit(
+                *span,
+                *plicity,
+                *name,
+                scope.to_scope(body.shift_inner(scope, min.prev(), amount)),
+            ),
+            Term::FunApp(span, plicity, fun, arg) => Term::FunApp(
+                *span,
+                *plicity,
+                scope.to_scope(fun.shift_inner(scope, min, amount)),
+                scope.to_scope(arg.shift_inner(scope, min, amount)),
+            ),
+            Term::RecordType(span, labels, types) => Term::RecordType(
+                *span,
+                labels,
+                scope.to_scope_from_iter(types.iter().map(|r#type| {
+                    let ret = r#type.shift_inner(scope, min, amount);
+                    min = min.prev();
+                    ret
+                })),
+            ),
+            Term::RecordLit(span, labels, exprs) => Term::RecordLit(
+                *span,
+                labels,
+                scope.to_scope_from_iter(
+                    exprs
+                        .iter()
+                        .map(|expr| expr.shift_inner(scope, min, amount)),
+                ),
+            ),
+            Term::RecordProj(span, head, label) => Term::RecordProj(
+                *span,
+                scope.to_scope(head.shift_inner(scope, min, amount)),
+                *label,
+            ),
+            Term::ArrayLit(span, terms) => Term::ArrayLit(
+                *span,
+                scope.to_scope_from_iter(
+                    terms
+                        .iter()
+                        .map(|term| term.shift_inner(scope, min, amount)),
+                ),
+            ),
+            Term::FormatRecord(span, labels, terms) => Term::FormatRecord(
+                *span,
+                labels,
+                scope.to_scope_from_iter(terms.iter().map(|term| {
+                    let ret = term.shift_inner(scope, min, amount);
+                    min = min.prev();
+                    ret
+                })),
+            ),
+            Term::FormatCond(span, name, format, pred) => Term::FormatCond(
+                *span,
+                *name,
+                scope.to_scope(format.shift_inner(scope, min, amount)),
+                scope.to_scope(pred.shift_inner(scope, min.prev(), amount)),
+            ),
+            Term::FormatOverlap(span, labels, terms) => Term::FormatOverlap(
+                *span,
+                labels,
+                scope.to_scope_from_iter(terms.iter().map(|term| {
+                    let ret = term.shift_inner(scope, min, amount);
+                    min = min.prev();
+                    ret
+                })),
+            ),
+            Term::ConstMatch(span, scrut, branches, default) => Term::ConstMatch(
+                *span,
+                scope.to_scope(scrut.shift_inner(scope, min, amount)),
+                scope.to_scope_from_iter(
+                    branches
+                        .iter()
+                        .map(|(r#const, term)| (*r#const, term.shift_inner(scope, min, amount))),
+                ),
+                default.map(|(name, term)| {
+                    (
+                        name,
+                        scope.to_scope(term.shift_inner(scope, min.prev(), amount)) as &_,
+                    )
+                }),
+            ),
+        }
+    }
+
+    /// Returns `true` if `self` can be evaluated in a single step.
+    /// Used as a heuristic to prevent increase in runtime when expanding
+    /// pattern matches
+    pub fn is_atomic(&self) -> bool {
+        match self {
+            Term::ItemVar(_, _)
+            | Term::LocalVar(_, _)
+            | Term::MetaVar(_, _)
+            | Term::InsertedMeta(_, _, _)
+            | Term::Universe(_)
+            | Term::Prim(_, _)
+            | Term::ConstLit(_, _) => true,
+            Term::RecordProj(_, head, _) => head.is_atomic(),
+            _ => false,
+        }
     }
 }
 
@@ -598,6 +753,21 @@ pub enum Const {
     F64(f64),
     Pos(usize),
     Ref(usize),
+}
+
+impl Const {
+    /// Return the number of inhabitants of `self`.
+    /// `None` represents infinity
+    pub fn num_inhabitants(&self) -> Option<u128> {
+        match self {
+            Const::Bool(_) => Some(2),
+            Const::U8(_, _) | Const::S8(_) => Some(1 << 8),
+            Const::U16(_, _) | Const::S16(_) => Some(1 << 16),
+            Const::U32(_, _) | Const::S32(_) => Some(1 << 32),
+            Const::U64(_, _) | Const::S64(_) => Some(1 << 64),
+            Const::F32(_) | Const::F64(_) | Const::Pos(_) | Const::Ref(_) => None,
+        }
+    }
 }
 
 impl PartialEq for Const {

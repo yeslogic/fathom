@@ -75,7 +75,7 @@ pub struct ItemDef<'arena, Range> {
 
 /// Surface patterns.
 #[derive(Debug, Clone)]
-pub enum Pattern<Range> {
+pub enum Pattern<'arena, Range> {
     /// Named patterns, eg. `x`, `true`, `false`
     Name(Range, Symbol),
     /// Placeholder patterns, eg. `_`
@@ -92,8 +92,10 @@ pub enum Pattern<Range> {
     NumberLiteral(Range, Symbol),
     /// Boolean literal patterns
     BooleanLiteral(Range, bool),
-    // TODO: Record literal patterns
-    // RecordLiteral(Range, &'arena [((Range, StringId), Pattern<'arena, Range>)]),
+    /// Record literal patterns
+    RecordLiteral(Range, &'arena [PatternField<'arena, Range>]),
+    /// Tuple literal patterns
+    TupleLiteral(Range, &'arena [Pattern<'arena, Range>]),
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -166,14 +168,16 @@ impl<Range> fmt::Display for BinOp<Range> {
     }
 }
 
-impl<Range: Clone> Pattern<Range> {
+impl<'arena, Range: Clone> Pattern<'arena, Range> {
     pub fn range(&self) -> Range {
         match self {
             Pattern::Name(range, _)
             | Pattern::Placeholder(range)
             | Pattern::StringLiteral(range, _)
             | Pattern::NumberLiteral(range, _)
-            | Pattern::BooleanLiteral(range, _) => range.clone(),
+            | Pattern::BooleanLiteral(range, _)
+            | Pattern::RecordLiteral(range, _)
+            | Pattern::TupleLiteral(range, _) => range.clone(),
         }
     }
 }
@@ -198,7 +202,7 @@ pub enum Term<'arena, Range> {
     /// Let expressions.
     Let(
         Range,
-        Pattern<Range>,
+        &'arena Pattern<'arena, Range>,
         Option<&'arena Term<'arena, Range>>,
         &'arena Term<'arena, Range>,
         &'arena Term<'arena, Range>,
@@ -214,7 +218,7 @@ pub enum Term<'arena, Range> {
     Match(
         Range,
         &'arena Term<'arena, Range>,
-        &'arena [(Pattern<Range>, Term<'arena, Range>)],
+        &'arena [(Pattern<'arena, Range>, Term<'arena, Range>)],
     ),
     /// The type of types.
     Universe(Range),
@@ -350,7 +354,7 @@ impl<'arena> Term<'arena, FileRange> {
 #[derive(Debug, Clone)]
 pub struct Param<'arena, Range> {
     pub plicity: Plicity,
-    pub pattern: Pattern<Range>,
+    pub pattern: Pattern<'arena, Range>,
     pub r#type: Option<Term<'arena, Range>>,
 }
 
@@ -400,6 +404,15 @@ pub struct ExprField<'arena, Range> {
     /// The expression that this field will store.
     /// If it is `None`, it is the same as `label.1`
     expr: Option<Term<'arena, Range>>,
+}
+
+/// A field definition in a record pattern
+#[derive(Debug, Clone)]
+pub struct PatternField<'arena, Range> {
+    /// Label identifying the field
+    label: (Range, Symbol),
+    /// The pattern that this field will match
+    pattern: Pattern<'arena, Range>,
 }
 
 /// Messages produced during parsing
@@ -527,14 +540,14 @@ mod tests {
     #[test]
     #[cfg(target_pointer_width = "64")]
     fn term_size() {
-        assert_eq!(std::mem::size_of::<Term<()>>(), 32);
+        assert_eq!(std::mem::size_of::<Term<()>>(), 40);
         assert_eq!(std::mem::size_of::<Term<ByteRange>>(), 48);
     }
 
     #[test]
     #[cfg(target_pointer_width = "64")]
     fn pattern_size() {
-        assert_eq!(std::mem::size_of::<Pattern<()>>(), 8);
-        assert_eq!(std::mem::size_of::<Pattern<ByteRange>>(), 16);
+        assert_eq!(std::mem::size_of::<Pattern<()>>(), 24);
+        assert_eq!(std::mem::size_of::<Pattern<ByteRange>>(), 32);
     }
 }

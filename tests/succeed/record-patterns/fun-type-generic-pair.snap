@@ -1,0 +1,14 @@
+stdout = '''
+let FstType : Type = fun (a : (Type, Type)) -> (let A : Type = a._0;
+let B : Type = a._1;
+fun (b : (a._0, a._1)) -> (let a : a._0 = b._0;
+let b : a._1 = b._1;
+A));
+let SndType : Type = fun (a : (Type, Type)) -> (let A : Type = a._0;
+let B : Type = a._1;
+fun (b : (a._0, a._1)) -> (let a : a._0 = b._0;
+let b : a._1 = b._1;
+B));
+() : ()
+'''
+stderr = ''

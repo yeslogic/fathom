@@ -4,8 +4,11 @@ let format : Format = {
     len <- u8 where len <= (16 : U8),
     data <- repeat_len8 len u8,
 };
-let _ : Repr format -> { magic : U64, len : U8, data : Array8 len U8 } =
-fun x => x;
+let _ : { magic : U64, len : U8, data : Array8 len U8 } -> {
+    magic : U64,
+    len : U8,
+    data : Array8 len U8,
+} = fun x => x;
 () : ()
 '''
 stderr = ''

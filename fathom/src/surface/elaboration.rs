@@ -25,19 +25,21 @@ use std::sync::Arc;
 
 use scoped_arena::Scope;
 
+use self::patterns::{Body, CheckedPattern, PatMatrix, PatternMode};
 use crate::alloc::SliceVec;
-use crate::core::semantics::{self, ArcValue, Head, Telescope, Value};
+use crate::core::semantics::{self, ArcValue, Closure, Head, Telescope, Value};
 use crate::core::{self, prim, Const, Plicity, Prim, UIntStyle};
 use crate::env::{self, EnvLen, Level, SharedEnv, UniqueEnv};
 use crate::files::FileId;
 use crate::source::{BytePos, ByteRange, FileRange, Span, Spanned};
 use crate::surface::elaboration::reporting::Message;
 use crate::surface::{
-    distillation, pretty, BinOp, ExprField, FormatField, Item, Module, Param, Pattern, Term,
+    distillation, pretty, BinOp, FormatField, Item, Module, Param, Pattern, Term,
 };
 use crate::symbol::Symbol;
 
 mod order;
+mod patterns;
 mod reporting;
 mod unification;
 
@@ -116,6 +118,10 @@ impl<'arena> LocalEnv<'arena> {
         self.names.len()
     }
 
+    fn next_var(&self) -> ArcValue<'arena> {
+        Spanned::empty(Arc::new(Value::local_var(self.exprs.len().next_level())))
+    }
+
     fn reserve(&mut self, additional: usize) {
         self.names.reserve(additional);
         self.types.reserve(additional);
@@ -132,17 +138,15 @@ impl<'arena> LocalEnv<'arena> {
     }
 
     /// Push a local parameter onto the context.
-    fn push_param(&mut self, name: Option<Symbol>, r#type: ArcValue<'arena>) -> ArcValue<'arena> {
+    fn push_param(&mut self, name: Option<Symbol>, r#type: ArcValue<'arena>) {
         // An expression that refers to itself once it is pushed onto the local
         // expression environment.
-        let expr = Spanned::empty(Arc::new(Value::local_var(self.exprs.len().next_level())));
+        let expr = self.next_var();
 
         self.names.push(name);
         self.types.push(r#type);
         self.infos.push(core::LocalInfo::Param);
-        self.exprs.push(expr.clone());
-
-        expr
+        self.exprs.push(expr);
     }
 
     /// Pop a local binder off the context.
@@ -465,6 +469,76 @@ impl<'arena> Context<'arena> {
         (labels.into(), filtered_fields)
     }
 
+    fn check_tuple_fields<F>(
+        &mut self,
+        range: ByteRange,
+        fields: &[F],
+        get_range: fn(&F) -> ByteRange,
+        expected_labels: &[Symbol],
+    ) -> Result<(), ()> {
+        if fields.len() == expected_labels.len() {
+            return Ok(());
+        }
+
+        let mut found_labels = Vec::with_capacity(fields.len());
+        let mut fields_iter = fields.iter().enumerate().peekable();
+        let mut expected_labels_iter = expected_labels.iter();
+
+        // use the label names from the expected labels
+        while let Some(((_, field), label)) =
+            Option::zip(fields_iter.peek(), expected_labels_iter.next())
+        {
+            found_labels.push((self.file_range(get_range(field)), *label));
+            fields_iter.next();
+        }
+
+        // use numeric labels for excess fields
+        for (index, field) in fields_iter {
+            found_labels.push((
+                self.file_range(get_range(field)),
+                Symbol::get_tuple_label(index),
+            ));
+        }
+
+        self.push_message(Message::MismatchedFieldLabels {
+            range: self.file_range(range),
+            found_labels,
+            expected_labels: expected_labels.to_vec(),
+        });
+        Err(())
+    }
+
+    fn check_record_fields<F>(
+        &mut self,
+        range: ByteRange,
+        fields: &[F],
+        get_label: impl Fn(&F) -> (ByteRange, Symbol),
+        labels: &'arena [Symbol],
+    ) -> Result<(), ()> {
+        if fields.len() == labels.len()
+            && fields
+                .iter()
+                .zip(labels.iter())
+                .all(|(field, type_label)| get_label(field).1 == *type_label)
+        {
+            return Ok(());
+        }
+
+        // TODO: improve handling of duplicate labels
+        self.push_message(Message::MismatchedFieldLabels {
+            range: self.file_range(range),
+            found_labels: fields
+                .iter()
+                .map(|field| {
+                    let (range, label) = get_label(field);
+                    (self.file_range(range), label)
+                })
+                .collect(),
+            expected_labels: labels.to_vec(),
+        });
+        Err(())
+    }
+
     /// Parse a source string into number, assuming an ASCII encoding.
     fn parse_ascii<T>(
         &mut self,
@@ -636,17 +710,17 @@ impl<'arena> Context<'arena> {
         for item in elab_order.iter().copied().map(|i| &surface_module.items[i]) {
             match item {
                 Item::Def(item) => {
-                    let (expr, r#type) =
+                    let (expr, type_value) =
                         self.synth_fun_lit(item.range, item.params, item.expr, item.r#type);
                     let expr_value = self.eval_env().eval(&expr);
-                    let type_value = self.eval_env().eval(&r#type);
+                    let type_expr = self.quote_env().quote(self.scope, &type_value);
 
                     self.item_env
                         .push_definition(item.label.1, type_value, expr_value);
 
                     items.push(core::Item::Def {
                         label: item.label.1,
-                        r#type: self.scope.to_scope(r#type),
+                        r#type: self.scope.to_scope(type_expr),
                         expr: self.scope.to_scope(expr),
                     });
                 }
@@ -718,243 +792,24 @@ impl<'arena> Context<'arena> {
         term
     }
 
-    /// Check that a pattern matches an expected type.
-    fn check_pattern(
-        &mut self,
-        pattern: &Pattern<ByteRange>,
-        expected_type: &ArcValue<'arena>,
-    ) -> CheckedPattern {
-        let file_range = self.file_range(pattern.range());
-        match pattern {
-            Pattern::Name(_, name) => CheckedPattern::Binder(file_range, *name),
-            Pattern::Placeholder(_) => CheckedPattern::Placeholder(file_range),
-            Pattern::StringLiteral(range, lit) => {
-                let constant = match expected_type.match_prim_spine() {
-                    Some((Prim::U8Type, [])) => self.parse_ascii(*range, *lit, Const::U8),
-                    Some((Prim::U16Type, [])) => self.parse_ascii(*range, *lit, Const::U16),
-                    Some((Prim::U32Type, [])) => self.parse_ascii(*range, *lit, Const::U32),
-                    Some((Prim::U64Type, [])) => self.parse_ascii(*range, *lit, Const::U64),
-                    // Some((Prim::Array8Type, [len, _])) => todo!(),
-                    // Some((Prim::Array16Type, [len, _])) => todo!(),
-                    // Some((Prim::Array32Type, [len, _])) => todo!(),
-                    // Some((Prim::Array64Type, [len, _])) => todo!(),
-                    Some((Prim::ReportedError, _)) => None,
-                    _ => {
-                        self.push_message(Message::StringLiteralNotSupported {
-                            range: file_range,
-                            expected_type: self.pretty_value(expected_type),
-                        });
-                        None
-                    }
-                };
-
-                match constant {
-                    Some(constant) => CheckedPattern::ConstLit(file_range, constant),
-                    None => CheckedPattern::ReportedError(file_range),
-                }
-            }
-            Pattern::NumberLiteral(range, lit) => {
-                let constant = match expected_type.match_prim_spine() {
-                    Some((Prim::U8Type, [])) => self.parse_number_radix(*range, *lit, Const::U8),
-                    Some((Prim::U16Type, [])) => self.parse_number_radix(*range, *lit, Const::U16),
-                    Some((Prim::U32Type, [])) => self.parse_number_radix(*range, *lit, Const::U32),
-                    Some((Prim::U64Type, [])) => self.parse_number_radix(*range, *lit, Const::U64),
-                    Some((Prim::S8Type, [])) => self.parse_number(*range, *lit, Const::S8),
-                    Some((Prim::S16Type, [])) => self.parse_number(*range, *lit, Const::S16),
-                    Some((Prim::S32Type, [])) => self.parse_number(*range, *lit, Const::S32),
-                    Some((Prim::S64Type, [])) => self.parse_number(*range, *lit, Const::S64),
-                    Some((Prim::F32Type, [])) => self.parse_number(*range, *lit, Const::F32),
-                    Some((Prim::F64Type, [])) => self.parse_number(*range, *lit, Const::F64),
-                    Some((Prim::ReportedError, _)) => None,
-                    _ => {
-                        self.push_message(Message::NumericLiteralNotSupported {
-                            range: file_range,
-                            expected_type: self.pretty_value(expected_type),
-                        });
-                        None
-                    }
-                };
-
-                match constant {
-                    Some(constant) => CheckedPattern::ConstLit(file_range, constant),
-                    None => CheckedPattern::ReportedError(file_range),
-                }
-            }
-            Pattern::BooleanLiteral(_, boolean) => {
-                let constant = match expected_type.match_prim_spine() {
-                    Some((Prim::BoolType, [])) => match *boolean {
-                        true => Some(Const::Bool(true)),
-                        false => Some(Const::Bool(false)),
-                    },
-                    _ => {
-                        self.push_message(Message::BooleanLiteralNotSupported {
-                            range: file_range,
-                        });
-                        None
-                    }
-                };
-
-                match constant {
-                    Some(constant) => CheckedPattern::ConstLit(file_range, constant),
-                    None => CheckedPattern::ReportedError(file_range),
-                }
-            }
-        }
-    }
-
-    /// Synthesize the type of a pattern.
-    fn synth_pattern(
-        &mut self,
-        pattern: &Pattern<ByteRange>,
-    ) -> (CheckedPattern, ArcValue<'arena>) {
-        let file_range = self.file_range(pattern.range());
-        match pattern {
-            Pattern::Name(_, name) => {
-                let source = MetaSource::NamedPatternType(file_range, *name);
-                let r#type = self.push_unsolved_type(source);
-                (CheckedPattern::Binder(file_range, *name), r#type)
-            }
-            Pattern::Placeholder(_) => {
-                let source = MetaSource::PlaceholderPatternType(file_range);
-                let r#type = self.push_unsolved_type(source);
-                (CheckedPattern::Placeholder(file_range), r#type)
-            }
-            Pattern::StringLiteral(_, _) => {
-                self.push_message(Message::AmbiguousStringLiteral { range: file_range });
-                let source = MetaSource::ReportedErrorType(file_range);
-                let r#type = self.push_unsolved_type(source);
-                (CheckedPattern::ReportedError(file_range), r#type)
-            }
-            Pattern::NumberLiteral(_, _) => {
-                self.push_message(Message::AmbiguousNumericLiteral { range: file_range });
-                let source = MetaSource::ReportedErrorType(file_range);
-                let r#type = self.push_unsolved_type(source);
-                (CheckedPattern::ReportedError(file_range), r#type)
-            }
-            Pattern::BooleanLiteral(_, val) => {
-                let r#const = Const::Bool(*val);
-                let r#type = self.bool_type.clone();
-                (CheckedPattern::ConstLit(file_range, r#const), r#type)
-            }
-        }
-    }
-
-    /// Check that the type of an annotated pattern matches an expected type.
-    fn check_ann_pattern(
-        &mut self,
-        pattern: &Pattern<ByteRange>,
-        r#type: Option<&Term<'_, ByteRange>>,
-        expected_type: &ArcValue<'arena>,
-    ) -> CheckedPattern {
-        match r#type {
-            None => self.check_pattern(pattern, expected_type),
-            Some(r#type) => {
-                let file_range = self.file_range(r#type.range());
-                let r#type = self.check(r#type, &self.universe.clone());
-                let r#type = self.eval_env().eval(&r#type);
-
-                match self.unification_context().unify(&r#type, expected_type) {
-                    Ok(()) => self.check_pattern(pattern, &r#type),
-                    Err(error) => {
-                        self.push_message(Message::FailedToUnify {
-                            range: file_range,
-                            found: self.pretty_value(&r#type),
-                            expected: self.pretty_value(expected_type),
-                            error,
-                        });
-                        CheckedPattern::ReportedError(file_range)
-                    }
-                }
-            }
-        }
-    }
-
-    /// Synthesize the type of an annotated pattern.
-    fn synth_ann_pattern(
-        &mut self,
-        pattern: &Pattern<ByteRange>,
-        r#type: Option<&Term<'_, ByteRange>>,
-    ) -> (CheckedPattern, core::Term<'arena>, ArcValue<'arena>) {
-        match r#type {
-            None => {
-                let (pattern, type_value) = self.synth_pattern(pattern);
-                let r#type = self.quote_env().quote(self.scope, &type_value);
-                (pattern, r#type, type_value)
-            }
-            Some(r#type) => {
-                let r#type = self.check(r#type, &self.universe.clone());
-                let type_value = self.eval_env().eval(&r#type);
-                (self.check_pattern(pattern, &type_value), r#type, type_value)
-            }
-        }
-    }
-
     /// Push a local definition onto the context.
-    /// The supplied `pattern` is expected to be irrefutable.
     fn push_local_def(
         &mut self,
-        pattern: CheckedPattern,
-        expr: ArcValue<'arena>,
-        r#type: ArcValue<'arena>,
-    ) -> Option<Symbol> {
-        let name = match pattern {
-            CheckedPattern::Binder(_, name) => Some(name),
-            CheckedPattern::Placeholder(_) => None,
-            // FIXME: generate failing parameter expressions?
-            CheckedPattern::ConstLit(range, _) => {
-                self.push_message(Message::RefutablePattern {
-                    pattern_range: range,
-                });
-                None
-            }
-            CheckedPattern::ReportedError(_) => None,
-        };
-
-        self.local_env.push_def(name, expr, r#type);
-
-        name
+        pattern: &CheckedPattern<'arena>,
+        scrut: Scrutinee<'arena>,
+        value: ArcValue<'arena>,
+    ) -> Vec<(Option<Symbol>, Scrutinee<'arena>)> {
+        self.push_pattern(pattern, scrut, value, PatternMode::Let, true)
     }
 
     /// Push a local parameter onto the context.
-    /// The supplied `pattern` is expected to be irrefutable.
     fn push_local_param(
         &mut self,
-        pattern: CheckedPattern,
-        r#type: ArcValue<'arena>,
-    ) -> (Option<Symbol>, ArcValue<'arena>) {
-        let name = match pattern {
-            CheckedPattern::Binder(_, name) => Some(name),
-            CheckedPattern::Placeholder(_) => None,
-            // FIXME: generate failing parameter expressions?
-            CheckedPattern::ConstLit(range, _) => {
-                self.push_message(Message::RefutablePattern {
-                    pattern_range: range,
-                });
-                None
-            }
-            CheckedPattern::ReportedError(_) => None,
-        };
-
-        let expr = self.local_env.push_param(name, r#type);
-
-        (name, expr)
-    }
-
-    /// Elaborate a list of parameters, pushing them onto the context.
-    fn synth_and_push_params(
-        &mut self,
-        params: &[Param<ByteRange>],
-    ) -> Vec<(ByteRange, Plicity, Option<Symbol>, core::Term<'arena>)> {
-        self.local_env.reserve(params.len());
-
-        Vec::from_iter(params.iter().map(|param| {
-            let range = param.pattern.range();
-            let (pattern, r#type, type_value) =
-                self.synth_ann_pattern(&param.pattern, param.r#type.as_ref());
-            let (name, _) = self.push_local_param(pattern, type_value);
-
-            (range, param.plicity, name, r#type)
-        }))
+        pattern: &CheckedPattern<'arena>,
+        scrut: Scrutinee<'arena>,
+    ) -> Vec<(Option<Symbol>, Scrutinee<'arena>)> {
+        let value = self.local_env.next_var();
+        self.push_pattern(pattern, scrut, value, PatternMode::Fun, true)
     }
 
     /// Check that a surface term conforms to the given type.
@@ -970,23 +825,26 @@ impl<'arena> Context<'arena> {
 
         match (surface_term, expected_type.as_ref()) {
             (Term::Paren(_, term), _) => self.check(term, &expected_type),
-            (Term::Let(_, def_pattern, def_type, def_expr, body_expr), _) => {
-                let (def_pattern, def_type, def_type_value) =
+            (Term::Let(range, def_pattern, def_type, def_expr, body_expr), _) => {
+                let (def_pattern, _, def_type_value) =
                     self.synth_ann_pattern(def_pattern, *def_type);
-                let def_expr = self.check(def_expr, &def_type_value);
-                let def_expr_value = self.eval_env().eval(&def_expr);
+                let scrut = self.check_scrutinee(def_expr, def_type_value);
+                let value = self.eval_env().eval(scrut.expr);
+                let (scrut, extra_def) = self.freshen_scrutinee(scrut, &value, [&def_pattern]);
 
-                let def_name = self.push_local_def(def_pattern, def_expr_value, def_type_value); // TODO: split on constants
+                let initial_len = self.local_env.len();
+                let defs = self.push_local_def(&def_pattern, scrut.clone(), value);
                 let body_expr = self.check(body_expr, &expected_type);
-                self.local_env.pop();
+                self.local_env.truncate(initial_len);
 
-                core::Term::Let(
-                    file_range.into(),
-                    def_name,
-                    self.scope.to_scope(def_type),
-                    self.scope.to_scope(def_expr),
-                    self.scope.to_scope(body_expr),
-                )
+                let matrix = PatMatrix::singleton(scrut, def_pattern);
+                let body = self.elab_match(
+                    matrix,
+                    &[Body::new(body_expr, defs)],
+                    *range,
+                    def_expr.range(),
+                );
+                self.insert_extra_let(*range, body, extra_def)
             }
             (Term::If(_, cond_expr, then_expr, else_expr), _) => {
                 let cond_expr = self.check(cond_expr, &self.bool_type.clone());
@@ -1007,8 +865,8 @@ impl<'arena> Context<'arena> {
             (Term::Match(range, scrutinee_expr, equations), _) => {
                 self.check_match(*range, scrutinee_expr, equations, &expected_type)
             }
-            (Term::FunLiteral(range, patterns, body_expr), _) => {
-                self.check_fun_lit(*range, patterns, body_expr, &expected_type)
+            (Term::FunLiteral(range, params, body_expr), _) => {
+                self.check_fun_lit(*range, params, body_expr, &expected_type)
             }
             // Attempt to specialize terms with freshly inserted implicit
             // arguments if an explicit function was expected.
@@ -1017,19 +875,11 @@ impl<'arena> Context<'arena> {
                 let (synth_term, synth_type) = self.synth_and_insert_implicit_apps(surface_term);
                 self.coerce(surface_range, synth_term, &synth_type, &expected_type)
             }
-            (Term::RecordLiteral(_, expr_fields), Value::RecordType(labels, types)) => {
-                // TODO: improve handling of duplicate labels
-                if expr_fields.len() != labels.len()
-                    || Iterator::zip(expr_fields.iter(), labels.iter())
-                        .any(|(expr_field, type_label)| expr_field.label.1 != *type_label)
+            (Term::RecordLiteral(range, expr_fields), Value::RecordType(labels, types)) => {
+                if self
+                    .check_record_fields(*range, expr_fields, |field| field.label, labels)
+                    .is_err()
                 {
-                    self.push_message(Message::MismatchedFieldLabels {
-                        range: file_range,
-                        expr_labels: (expr_fields.iter())
-                            .map(|ExprField { label, .. }| (self.file_range(label.0), label.1))
-                            .collect(),
-                        type_labels: labels.to_vec(),
-                    });
                     return core::Term::Prim(file_range.into(), Prim::ReportedError);
                 }
 
@@ -1092,34 +942,12 @@ impl<'arena> Context<'arena> {
 
                 core::Term::FormatRecord(file_range.into(), labels, formats)
             }
-            (Term::Tuple(_, elem_exprs), Value::RecordType(labels, types)) => {
-                if elem_exprs.len() != labels.len() {
-                    let mut expr_labels = Vec::with_capacity(elem_exprs.len());
-                    let mut elem_exprs = elem_exprs.iter().enumerate().peekable();
-                    let mut label_iter = labels.iter();
-
-                    // use the label names from the expected type
-                    while let Some(((_, elem_expr), label)) =
-                        Option::zip(elem_exprs.peek(), label_iter.next())
-                    {
-                        expr_labels.push((self.file_range(elem_expr.range()), *label));
-                        elem_exprs.next();
-                    }
-
-                    // use numeric labels for excess elems
-                    for (index, elem_expr) in elem_exprs {
-                        expr_labels.push((
-                            self.file_range(elem_expr.range()),
-                            Symbol::get_tuple_label(index),
-                        ));
-                    }
-
-                    self.push_message(Message::MismatchedFieldLabels {
-                        range: file_range,
-                        expr_labels,
-                        type_labels: labels.to_vec(),
-                    });
-                    return core::Term::Prim(file_range.into(), Prim::ReportedError);
+            (Term::Tuple(range, elem_exprs), Value::RecordType(labels, types)) => {
+                if self
+                    .check_tuple_fields(*range, elem_exprs, |expr| expr.range(), labels)
+                    .is_err()
+                {
+                    return core::Term::error(self.file_range(*range));
                 }
 
                 let mut types = types.clone();
@@ -1372,24 +1200,26 @@ impl<'arena> Context<'arena> {
 
                 (ann_expr, type_value)
             }
-            Term::Let(_, def_pattern, def_type, def_expr, body_expr) => {
-                let (def_pattern, def_type, def_type_value) =
+            Term::Let(range, def_pattern, def_type, def_expr, body_expr) => {
+                let (def_pattern, _, def_type_value) =
                     self.synth_ann_pattern(def_pattern, *def_type);
-                let def_expr = self.check(def_expr, &def_type_value);
-                let def_expr_value = self.eval_env().eval(&def_expr);
+                let scrut = self.check_scrutinee(def_expr, def_type_value);
+                let value = self.eval_env().eval(scrut.expr);
+                let (scrut, extra_def) = self.freshen_scrutinee(scrut, &value, [&def_pattern]);
 
-                let def_name = self.push_local_def(def_pattern, def_expr_value, def_type_value);
+                let initial_len = self.local_env.len();
+                let defs = self.push_local_def(&def_pattern, scrut.clone(), value);
                 let (body_expr, body_type) = self.synth(body_expr);
-                self.local_env.pop();
+                self.local_env.truncate(initial_len);
 
-                let let_expr = core::Term::Let(
-                    file_range.into(),
-                    def_name,
-                    self.scope.to_scope(def_type),
-                    self.scope.to_scope(def_expr),
-                    self.scope.to_scope(body_expr),
+                let matrix = patterns::PatMatrix::singleton(scrut, def_pattern);
+                let body = self.elab_match(
+                    matrix,
+                    &[Body::new(body_expr, defs)],
+                    *range,
+                    def_expr.range(),
                 );
-
+                let let_expr = self.insert_extra_let(*range, body, extra_def);
                 (let_expr, body_type)
             }
             Term::If(_, cond_expr, then_expr, else_expr) => {
@@ -1439,38 +1269,13 @@ impl<'arena> Context<'arena> {
                     self.scope.to_scope(body_type),
                 );
 
-                (fun_type, self.universe.clone())
+                (fun_type, universe)
             }
-            Term::FunType(range, params, body_type) => {
-                let initial_local_len = self.local_env.len();
-
-                let params = self.synth_and_push_params(params);
-                let mut fun_type = self.check(body_type, &self.universe.clone());
-                self.local_env.truncate(initial_local_len);
-
-                // Construct the function type from the parameters in reverse
-                for (i, (param_range, plicity, name, r#type)) in
-                    params.into_iter().enumerate().rev()
-                {
-                    let range = match i {
-                        0 => *range, // Use the range of the full function type
-                        _ => ByteRange::merge(param_range, body_type.range()),
-                    };
-
-                    fun_type = core::Term::FunType(
-                        self.file_range(range).into(),
-                        plicity,
-                        name,
-                        self.scope.to_scope(r#type),
-                        self.scope.to_scope(fun_type),
-                    );
-                }
-
-                (fun_type, self.universe.clone())
+            Term::FunType(range, patterns, body_type) => {
+                self.synth_fun_type(*range, patterns, body_type)
             }
             Term::FunLiteral(range, params, body_expr) => {
-                let (expr, r#type) = self.synth_fun_lit(*range, params, body_expr, None);
-                (expr, self.eval_env().eval(&r#type))
+                self.synth_fun_lit(*range, params, body_expr, None)
             }
             Term::App(range, head_expr, args) => {
                 let mut head_range = head_expr.range();
@@ -1716,6 +1521,7 @@ impl<'arena> Context<'arena> {
         }
     }
 
+    // TODO: use iteration instead of recursion
     fn check_fun_lit(
         &mut self,
         range: ByteRange,
@@ -1725,38 +1531,63 @@ impl<'arena> Context<'arena> {
     ) -> core::Term<'arena> {
         let file_range = self.file_range(range);
         match params.split_first() {
+            None => self.check(body_expr, expected_type),
             Some((param, next_params)) => {
-                let body_type = self.elim_env().force(expected_type);
-                match body_type.as_ref() {
-                    Value::FunType(param_plicity, _, param_type, next_body_type)
-                        if param.plicity == *param_plicity =>
+                let expected_type = self.elim_env().force(expected_type);
+                match expected_type.as_ref() {
+                    Value::FunType(expected_plicity, _, expected_type, next_body_type)
+                        if param.plicity == *expected_plicity =>
                     {
-                        let range = ByteRange::merge(param.pattern.range(), body_expr.range());
-                        let pattern = self.check_ann_pattern(
-                            &param.pattern,
-                            param.r#type.as_ref(),
-                            param_type,
-                        );
-                        let (name, arg_expr) = self.push_local_param(pattern, param_type.clone());
+                        let initial_len = self.local_env.len();
+                        let (pattern, scrut) = self.check_param(param, expected_type);
+                        let name = pattern.name();
+                        let scrut_type = scrut.r#type.clone();
+                        let scrut_range = scrut.range;
 
-                        let body_type = self.elim_env().apply_closure(next_body_type, arg_expr);
-                        let body_expr =
-                            self.check_fun_lit(range, next_params, body_expr, &body_type);
-                        self.local_env.pop();
+                        let (defs, body_term) = {
+                            let arg_expr = self.local_env.next_var();
+                            let expected_type =
+                                self.elim_env().apply_closure(next_body_type, arg_expr);
+
+                            let defs = self.push_local_param(&pattern, scrut.clone());
+                            let body_term =
+                                self.check_fun_lit(range, next_params, body_expr, &expected_type);
+                            self.local_env.truncate(initial_len);
+                            (defs, body_term)
+                        };
+
+                        let matrix = PatMatrix::singleton(scrut, pattern);
+
+                        let body_term = {
+                            self.local_env.push_param(name, scrut_type);
+                            let body_term = self.elab_match(
+                                matrix,
+                                &[Body::new(body_term, defs)],
+                                range,
+                                scrut_range,
+                            );
+                            self.local_env.truncate(initial_len);
+                            body_term
+                        };
 
                         core::Term::FunLit(
-                            self.file_range(range).into(),
+                            file_range.into(),
                             param.plicity,
                             name,
-                            self.scope.to_scope(body_expr),
+                            self.scope.to_scope(body_term),
                         )
                     }
-                    // If an implicit function is expected, try to generalize the
+
+                    // If an implicit function is expected, try to generalise the
                     // function literal by wrapping it in an implicit function
-                    Value::FunType(Plicity::Implicit, param_name, param_type, next_body_type)
-                        if param.plicity == Plicity::Explicit =>
-                    {
-                        let arg_expr = self.local_env.push_param(*param_name, param_type.clone());
+                    Value::FunType(
+                        Plicity::Implicit,
+                        param_name,
+                        expected_type,
+                        next_body_type,
+                    ) if param.plicity == Plicity::Explicit => {
+                        let arg_expr = self.local_env.next_var();
+                        (self.local_env).push_param(*param_name, expected_type.clone());
                         let body_type = self.elim_env().apply_closure(next_body_type, arg_expr);
                         let body_expr = self.check_fun_lit(range, params, body_expr, &body_type);
                         self.local_env.pop();
@@ -1767,17 +1598,15 @@ impl<'arena> Context<'arena> {
                             self.scope.to_scope(body_expr),
                         )
                     }
+
                     // Attempt to elaborate the the body of the function in synthesis
                     // mode if we are checking against a metavariable.
                     Value::Stuck(Head::MetaVar(_), _) => {
                         let range = ByteRange::merge(param.pattern.range(), body_expr.range());
                         let (expr, r#type) = self.synth_fun_lit(range, params, body_expr, None);
-                        let type_value = self.eval_env().eval(&r#type);
-                        self.coerce(range, expr, &type_value, expected_type)
+                        self.coerce(range, expr, &r#type, &expected_type)
                     }
-                    Value::Stuck(Head::Prim(Prim::ReportedError), _) => {
-                        core::Term::Prim(file_range.into(), Prim::ReportedError)
-                    }
+                    r#type if r#type.is_error() => core::Term::error(file_range),
                     _ => {
                         self.push_message(Message::UnexpectedParameter {
                             param_range: self.file_range(param.pattern.range()),
@@ -1785,63 +1614,131 @@ impl<'arena> Context<'arena> {
                         // TODO: For improved error recovery, bind the rest of
                         // the parameters, and check the body of the function
                         // literal using the expected body type.
-                        core::Term::Prim(file_range.into(), Prim::ReportedError)
+                        core::Term::error(file_range)
                     }
                 }
             }
-            None => self.check(body_expr, expected_type),
         }
     }
 
+    // TODO: use iteration instead of recursion
     fn synth_fun_lit(
         &mut self,
         range: ByteRange,
         params: &[Param<'_, ByteRange>],
         body_expr: &Term<'_, ByteRange>,
         body_type: Option<&Term<'_, ByteRange>>,
-    ) -> (core::Term<'arena>, core::Term<'arena>) {
-        self.local_env.reserve(params.len());
-        let initial_local_len = self.local_env.len();
+    ) -> (core::Term<'arena>, ArcValue<'arena>) {
+        match params.split_first() {
+            None => match body_type {
+                None => self.synth(body_expr),
+                Some(body_type) => {
+                    let body_type = self.check(body_type, &self.universe.clone());
+                    let body_type = self.eval_env().eval(&body_type);
+                    let term = self.check(body_expr, &body_type);
+                    (term, body_type)
+                }
+            },
+            Some((param, next_params)) => {
+                let initial_len = self.local_env.len();
+                let (pattern, scrut) = self.synth_param(param);
+                let name = pattern.name();
+                let scrut_type = scrut.r#type.clone();
+                let scrut_range = scrut.range;
 
-        let params = self.synth_and_push_params(params);
+                let (defs, body_term, body_type) = {
+                    let defs = self.push_local_param(&pattern, scrut.clone());
+                    let (body_term, body_type_value) =
+                        self.synth_fun_lit(range, next_params, body_expr, body_type);
+                    let body_type = self.quote_env().quote(self.scope, &body_type_value);
+                    self.local_env.truncate(initial_len);
+                    (defs, body_term, body_type)
+                };
 
-        let (mut fun_lit, mut fun_type) = match body_type {
-            Some(body_type) => {
-                let body_type = self.check(body_type, &self.universe.clone());
-                let body_type_value = self.eval_env().eval(&body_type);
-                (self.check(body_expr, &body_type_value), body_type)
+                let matrix = PatMatrix::singleton(scrut, pattern);
+
+                let term = {
+                    self.local_env.push_param(name, scrut_type.clone());
+                    let body_term = self.elab_match(
+                        matrix.clone(),
+                        &[Body::new(body_term, defs.clone())],
+                        range,
+                        scrut_range,
+                    );
+                    self.local_env.truncate(initial_len);
+                    core::Term::FunLit(
+                        self.file_range(range).into(),
+                        param.plicity,
+                        name,
+                        self.scope.to_scope(body_term),
+                    )
+                };
+
+                let r#type = {
+                    self.local_env.push_param(name, scrut_type.clone());
+                    let body_type = self.elab_match(
+                        matrix,
+                        &[Body::new(body_type, defs.clone())],
+                        range,
+                        scrut_range,
+                    );
+                    self.local_env.truncate(initial_len);
+                    Spanned::empty(Arc::new(Value::FunType(
+                        param.plicity,
+                        name,
+                        scrut_type,
+                        Closure::new(self.local_env.exprs.clone(), self.scope.to_scope(body_type)),
+                    )))
+                };
+
+                (term, r#type)
             }
-            None => {
-                let (body_expr, body_type) = self.synth(body_expr);
-                (body_expr, self.quote_env().quote(self.scope, &body_type))
-            }
-        };
-
-        self.local_env.truncate(initial_local_len);
-
-        // Construct the function literal and type from the parameters in reverse
-        for (i, (param_range, plicity, name, r#type)) in params.into_iter().enumerate().rev() {
-            let range = match i {
-                0 => range, // Use the range of the full function literal
-                _ => ByteRange::merge(param_range, body_expr.range()),
-            };
-
-            fun_lit = core::Term::FunLit(
-                self.file_range(range).into(),
-                plicity,
-                name,
-                self.scope.to_scope(fun_lit),
-            );
-            fun_type = core::Term::FunType(
-                Span::Empty,
-                plicity,
-                name,
-                self.scope.to_scope(r#type),
-                self.scope.to_scope(fun_type),
-            );
         }
+    }
 
-        (fun_lit, fun_type)
+    // TODO: use iteration instead of recursion
+    fn synth_fun_type(
+        &mut self,
+        range: ByteRange,
+        params: &[Param<'_, ByteRange>],
+        body_type: &Term<'_, ByteRange>,
+    ) -> (core::Term<'arena>, ArcValue<'arena>) {
+        let universe = self.universe.clone();
+        match params.split_first() {
+            None => {
+                let term = self.check(body_type, &universe);
+                (term, universe)
+            }
+            Some((param, next_params)) => {
+                let (pattern, scrut) = self.synth_param(param);
+                let name = pattern.name();
+                let input_type_expr = self.quote_env().quote(self.scope, &scrut.r#type);
+
+                let initial_len = self.local_env.len();
+                let defs = self.push_local_param(&pattern, scrut.clone());
+                let (body_expr, _) = self.synth_fun_type(range, next_params, body_type);
+                self.local_env.truncate(initial_len);
+
+                let body_expr = {
+                    self.local_env.push_param(name, scrut.r#type.clone());
+                    let matrix = PatMatrix::singleton(scrut, pattern);
+                    let body_expr =
+                        self.elab_match(matrix, &[Body::new(body_expr, defs)], range, range);
+                    self.local_env.truncate(initial_len);
+                    body_expr
+                };
+
+                let term = core::Term::FunType(
+                    self.file_range(range).into(),
+                    param.plicity,
+                    name,
+                    self.scope.to_scope(input_type_expr),
+                    self.scope.to_scope(body_expr),
+                );
+
+                (term, universe)
+            }
+        }
     }
 
     fn synth_bin_op(
@@ -2197,13 +2094,38 @@ impl<'arena> Context<'arena> {
         equations: &[(Pattern<ByteRange>, Term<'_, ByteRange>)],
         expected_type: &ArcValue<'arena>,
     ) -> core::Term<'arena> {
-        let match_info = MatchInfo {
-            range,
-            scrutinee: self.synth_scrutinee(scrutinee_expr),
-            expected_type: self.elim_env().force(expected_type),
-        };
+        let expected_type = self.elim_env().force(expected_type);
+        let scrut = self.synth_scrutinee(scrutinee_expr);
+        let value = self.eval_env().eval(scrut.expr);
 
-        self.elab_match(&match_info, true, equations.iter())
+        let patterns: Vec<_> = equations
+            .iter()
+            .map(|(pat, _)| self.check_pattern(pat, &scrut.r#type))
+            .collect();
+        let (scrut, extra_def) = self.freshen_scrutinee(scrut, &value, &patterns);
+
+        let mut rows = Vec::with_capacity(equations.len());
+        let mut bodies = Vec::with_capacity(equations.len());
+
+        for (pattern, (_, expr)) in patterns.into_iter().zip(equations) {
+            let initial_len = self.local_env.len();
+            let defs = self.push_pattern(
+                &pattern,
+                scrut.clone(),
+                value.clone(),
+                PatternMode::Match,
+                true,
+            );
+            let expr = self.check(expr, &expected_type);
+            self.local_env.truncate(initial_len);
+
+            rows.push(patterns::PatRow::singleton((pattern, scrut.clone())));
+            bodies.push(Body::new(expr, defs));
+        }
+
+        let matrix = patterns::PatMatrix::new(rows);
+        let body = self.elab_match(matrix, &bodies, range, scrut.range);
+        self.insert_extra_let(range, body, extra_def)
     }
 
     fn synth_scrutinee(&mut self, scrutinee_expr: &Term<'_, ByteRange>) -> Scrutinee<'arena> {
@@ -2216,220 +2138,114 @@ impl<'arena> Context<'arena> {
         }
     }
 
-    /// Elaborate a pattern match into a case tree in the core language.
-    ///
-    /// The implementation is based on the algorithm described in Section 5 of
-    /// [“The Implementation of Functional Programming Languages”][impl-fpl].
-    ///
-    /// [impl-fpl]: https://www.microsoft.com/en-us/research/publication/the-implementation-of-functional-programming-languages/
-    fn elab_match<'a>(
+    fn check_scrutinee(
         &mut self,
-        match_info: &MatchInfo<'arena>,
-        is_reachable: bool,
-        mut equations: impl Iterator<Item = &'a (Pattern<ByteRange>, Term<'a, ByteRange>)>,
-    ) -> core::Term<'arena> {
-        match equations.next() {
-            Some((pattern, body_expr)) => {
-                match self.check_pattern(pattern, &match_info.scrutinee.r#type) {
-                    // Named patterns are elaborated to let bindings, where the
-                    // scrutinee is bound as a definition in the body expression.
-                    // Subsequent patterns are unreachable.
-                    CheckedPattern::Binder(range, name) => {
-                        self.check_match_reachable(is_reachable, range);
-
-                        let def_name = Some(name);
-                        let def_expr = self.eval_env().eval(match_info.scrutinee.expr);
-                        let def_type_value = match_info.scrutinee.r#type.clone();
-                        let def_type = self.quote_env().quote(self.scope, &def_type_value);
-
-                        self.local_env.push_def(def_name, def_expr, def_type_value);
-                        let body_expr = self.check(body_expr, &match_info.expected_type);
-                        self.local_env.pop();
-
-                        self.elab_match_unreachable(match_info, equations);
-
-                        core::Term::Let(
-                            Span::merge(&range.into(), &body_expr.span()),
-                            def_name,
-                            self.scope.to_scope(def_type),
-                            match_info.scrutinee.expr,
-                            self.scope.to_scope(body_expr),
-                        )
-                    }
-                    // Placeholder patterns just elaborate to the body
-                    // expression. Subsequent patterns are unreachable.
-                    CheckedPattern::Placeholder(range) => {
-                        self.check_match_reachable(is_reachable, range);
-
-                        let body_expr = self.check(body_expr, &match_info.expected_type);
-                        self.elab_match_unreachable(match_info, equations);
-
-                        body_expr
-                    }
-                    // If we see a constant pattern we should expect a run of
-                    // constants, elaborating to a constant elimination.
-                    CheckedPattern::ConstLit(range, r#const) => {
-                        self.check_match_reachable(is_reachable, range);
-
-                        let body_expr = self.check(body_expr, &match_info.expected_type);
-                        let const_equation = (range, r#const, body_expr);
-
-                        self.elab_match_const(match_info, is_reachable, const_equation, equations)
-                    }
-                    // If we hit an error, propagate it, while still checking
-                    // the body expression and the subsequent branches.
-                    CheckedPattern::ReportedError(range) => {
-                        self.check(body_expr, &match_info.expected_type);
-                        self.elab_match_unreachable(match_info, equations);
-                        core::Term::Prim(range.into(), Prim::ReportedError)
-                    }
-                }
-            }
-            None => self.elab_match_absurd(is_reachable, match_info),
+        scrutinee_expr: &Term<'_, ByteRange>,
+        expected_type: ArcValue<'arena>,
+    ) -> Scrutinee<'arena> {
+        let expr = self.check(scrutinee_expr, &expected_type);
+        Scrutinee {
+            range: scrutinee_expr.range(),
+            expr: self.scope.to_scope(expr),
+            r#type: expected_type,
         }
     }
 
-    /// Ensure that this part of a match expression is reachable, reporting
-    /// a message if it is not.
-    fn check_match_reachable(&mut self, is_reachable: bool, range: FileRange) {
-        if !is_reachable {
-            self.push_message(Message::UnreachablePattern { range });
-        }
-    }
-
-    /// Elaborate the equations, expecting a series of constant patterns
-    fn elab_match_const<'a>(
+    // Bind `scrut` to a fresh variable if it is unsafe to evaluate multiple times,
+    // and may be evaluated multiple times by any of `patterns`
+    // Don't forget to wrap the body in a `Term::Let` with `insert_extra_let`!
+    fn freshen_scrutinee<'a>(
         &mut self,
-        match_info: &MatchInfo<'arena>,
-        is_reachable: bool,
-        (const_range, r#const, body_expr): (FileRange, Const, core::Term<'arena>),
-        mut equations: impl Iterator<Item = &'a (Pattern<ByteRange>, Term<'a, ByteRange>)>,
-    ) -> core::Term<'arena> {
-        // The full range of this series of patterns
-        let mut full_span = Span::merge(&const_range.into(), &body_expr.span());
-        // Temporary vector for accumulating branches
-        let mut branches = vec![(r#const, body_expr)];
-
-        // Elaborate a run of constant patterns.
-        'patterns: while let Some((pattern, body_expr)) = equations.next() {
-            // Update the range up to the end of the next body expression
-            full_span = Span::merge(&full_span, &self.file_range(body_expr.range()).into());
-
-            // Default expression, defined if we arrive at a default case
-            let default_branch;
-
-            match self.check_pattern(pattern, &match_info.scrutinee.r#type) {
-                // Accumulate constant pattern. Search for it in the accumulated
-                // branches and insert it in order.
-                CheckedPattern::ConstLit(range, r#const) => {
-                    let body_expr = self.check(body_expr, &match_info.expected_type);
-
-                    // Find insertion index of the branch
-                    let insertion_index = branches.binary_search_by(|(probe_const, _)| {
-                        Const::partial_cmp(probe_const, &r#const)
-                            .expect("attempt to compare non-ordered value")
-                    });
-
-                    match insertion_index {
-                        Ok(_) => self.push_message(Message::UnreachablePattern { range }),
-                        Err(index) => {
-                            // This has not yet been covered, so it should be reachable.
-                            self.check_match_reachable(is_reachable, range);
-                            branches.insert(index, (r#const, body_expr));
-                        }
-                    }
-
-                    // No default case yet, continue looking for constant patterns.
-                    continue 'patterns;
-                }
-
-                // Time to elaborate the default pattern. The default case of
-                // `core::Term::ConstMatch` binds a variable, so both
-                // the named and  placeholder patterns should bind this.
-                CheckedPattern::Binder(range, name) => {
-                    self.check_match_reachable(is_reachable, range);
-
-                    // TODO: If we know this is an exhaustive match, bind the
-                    // scrutinee to a let binding with the elaborated body, and
-                    // add it to the branches. This will simplify the
-                    // distillation of if expressions.
-                    (self.local_env).push_param(Some(name), match_info.scrutinee.r#type.clone());
-                    let default_expr = self.check(body_expr, &match_info.expected_type);
-                    default_branch = (Some(name), self.scope.to_scope(default_expr) as &_);
-                    self.local_env.pop();
-                }
-                CheckedPattern::Placeholder(range) => {
-                    self.check_match_reachable(is_reachable, range);
-
-                    (self.local_env).push_param(None, match_info.scrutinee.r#type.clone());
-                    let default_expr = self.check(body_expr, &match_info.expected_type);
-                    default_branch = (None, self.scope.to_scope(default_expr) as &_);
-                    self.local_env.pop();
-                }
-                CheckedPattern::ReportedError(range) => {
-                    (self.local_env).push_param(None, match_info.scrutinee.r#type.clone());
-                    let default_expr = core::Term::Prim(range.into(), Prim::ReportedError);
-                    default_branch = (None, self.scope.to_scope(default_expr) as &_);
-                    self.local_env.pop();
-                }
-            };
-
-            // A default pattern was found, check any unreachable patterns.
-            self.elab_match_unreachable(match_info, equations);
-
-            return core::Term::ConstMatch(
-                full_span,
-                match_info.scrutinee.expr,
-                self.scope.to_scope_from_iter(branches.into_iter()),
-                Some(default_branch),
-            );
-        }
-
-        // Finished all the constant patterns without encountering a default
-        // case. This should have been an exhaustive match, so check to see if
-        // all the cases were covered.
-        let default_expr = match match_info.scrutinee.r#type.match_prim_spine() {
-            // No need for a default case if all the values were covered
-            Some((Prim::BoolType, [])) if branches.len() >= 2 => None,
-            _ => Some(self.elab_match_absurd(is_reachable, match_info)),
-        };
-
-        core::Term::ConstMatch(
-            full_span,
-            match_info.scrutinee.expr,
-            self.scope.to_scope_from_iter(branches.into_iter()),
-            default_expr.map(|expr| (None, self.scope.to_scope(expr) as &_)),
-        )
-    }
-
-    /// Elaborate unreachable match cases. This is useful for that these cases
-    /// are correctly typed, even if they are never actually needed.
-    fn elab_match_unreachable<'a>(
-        &mut self,
-        match_info: &MatchInfo<'arena>,
-        equations: impl Iterator<Item = &'a (Pattern<ByteRange>, Term<'a, ByteRange>)>,
+        mut scrut: Scrutinee<'arena>,
+        value: &ArcValue<'arena>,
+        patterns: impl IntoIterator<Item = &'a CheckedPattern<'a>>,
+    ) -> (
+        Scrutinee<'arena>,
+        Option<(Option<Symbol>, core::Term<'arena>, core::Term<'arena>)>,
     ) {
-        self.elab_match(match_info, false, equations);
+        if scrut.expr.is_atomic() || patterns.into_iter().all(|pat| pat.is_atomic()) {
+            return (scrut, None);
+        }
+
+        let def_name = None; // TODO: generate a fresh name
+        let def_type = self.quote_env().quote(self.scope, &scrut.r#type);
+        let def_expr = scrut.expr.clone();
+
+        let var = core::Term::LocalVar(def_expr.span(), env::Index::last());
+        scrut.expr = self.scope.to_scope(var);
+        (self.local_env).push_def(def_name, value.clone(), scrut.r#type.clone());
+        let extra_def = Some((def_name, def_type, def_expr));
+        (scrut, extra_def)
     }
 
-    /// All the equations have been consumed.
-    fn elab_match_absurd(
+    /// Wrap `body` in a `Term::Let` binding `extra_def` if it is `Some`.
+    /// Used in conjunction with `freshen_scrutinee`
+    fn insert_extra_let(
         &mut self,
-        is_reachable: bool,
-        match_info: &MatchInfo<'arena>,
+        range: ByteRange,
+        body: core::Term<'arena>,
+        extra_def: Option<(Option<Symbol>, core::Term<'arena>, core::Term<'arena>)>,
     ) -> core::Term<'arena> {
-        // Report if we can still reach this point
-        if is_reachable {
-            // TODO: this should be admitted if the scrutinee type is uninhabited
-            self.push_message(Message::NonExhaustiveMatchExpr {
-                match_expr_range: self.file_range(match_info.range),
-                scrutinee_expr_range: self.file_range(match_info.scrutinee.range),
-            });
+        match extra_def {
+            None => body,
+            Some((def_name, def_type, def_expr)) => {
+                self.local_env.pop();
+                core::Term::Let(
+                    self.file_range(range).into(),
+                    def_name,
+                    self.scope.to_scope(def_type),
+                    self.scope.to_scope(def_expr),
+                    self.scope.to_scope(body),
+                )
+            }
         }
-        core::Term::Prim(
-            self.file_range(match_info.range).into(),
-            Prim::ReportedError,
-        )
+    }
+
+    fn synth_param(
+        &mut self,
+        param: &Param<'_, ByteRange>,
+    ) -> (CheckedPattern<'arena>, Scrutinee<'arena>) {
+        let (pattern, _, r#type) = self.synth_ann_pattern(&param.pattern, param.r#type.as_ref());
+        let expr =
+            core::Term::LocalVar(self.file_range(pattern.range()).into(), env::Index::last());
+        let scrut = Scrutinee {
+            range: pattern.range(),
+            expr: self.scope.to_scope(expr),
+            r#type,
+        };
+        (pattern, scrut)
+    }
+
+    fn check_param(
+        &mut self,
+        param: &Param<'_, ByteRange>,
+        expected_type: &ArcValue<'arena>,
+    ) -> (CheckedPattern<'arena>, Scrutinee<'arena>) {
+        let pattern = self.check_ann_pattern(&param.pattern, param.r#type.as_ref(), expected_type);
+        let expr =
+            core::Term::LocalVar(self.file_range(pattern.range()).into(), env::Index::last());
+        let scrut = Scrutinee {
+            range: pattern.range(),
+            expr: self.scope.to_scope(expr),
+            r#type: expected_type.clone(),
+        };
+        (pattern, scrut)
+    }
+
+    fn elab_match(
+        &mut self,
+        mut matrix: PatMatrix<'arena>,
+        bodies: &[Body<'arena>],
+        match_range: ByteRange,
+        scrut_range: ByteRange,
+    ) -> core::Term<'arena> {
+        debug_assert_eq!(
+            matrix.num_rows(),
+            bodies.len(),
+            "Must have one body for each row"
+        );
+        patterns::check_coverage(self, &matrix, match_range, scrut_range);
+        patterns::compile_match(self, &mut matrix, bodies, EnvLen::new())
     }
 }
 
@@ -2453,42 +2269,10 @@ impl_from_str_radix!(u16);
 impl_from_str_radix!(u32);
 impl_from_str_radix!(u64);
 
-/// Simple patterns that have had some initial elaboration performed on them
-#[derive(Debug)]
-enum CheckedPattern {
-    /// Pattern that binds local variable
-    Binder(FileRange, Symbol),
-    /// Placeholder patterns that match everything
-    Placeholder(FileRange),
-    /// Constant literals
-    ConstLit(FileRange, Const),
-    /// Error sentinel
-    ReportedError(FileRange),
-}
-
 /// Scrutinee of a match expression
-struct Scrutinee<'arena> {
+#[derive(Debug, Clone)]
+pub struct Scrutinee<'arena> {
     range: ByteRange,
     expr: &'arena core::Term<'arena>,
     r#type: ArcValue<'arena>,
-}
-
-struct MatchInfo<'arena> {
-    /// The full range of the match expression
-    range: ByteRange,
-    /// The expression being matched on
-    scrutinee: Scrutinee<'arena>,
-    /// The expected type of the match arms
-    expected_type: ArcValue<'arena>,
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    #[cfg(target_pointer_width = "64")]
-    fn checked_pattern_size() {
-        assert_eq!(std::mem::size_of::<CheckedPattern>(), 32);
-    }
 }

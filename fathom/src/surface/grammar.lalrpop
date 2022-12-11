@@ -3,10 +3,11 @@ use scoped_arena::Scope;
 use crate::source::{ByteRange, BytePos};
 use crate::surface::{
     Arg, BinOp, ExprField, FormatField, Item, ItemDef, Module, ParseMessage,
-    Pattern, Param, Plicity, Term, TypeField,
+    Pattern, PatternField, Param, Plicity, Term, TypeField,
 };
 use crate::surface::lexer::{Error as LexerError, Token};
 use crate::symbol::Symbol;
+
 
 grammar<'arena, 'source>(
     scope: &'arena Scope<'arena>,
@@ -90,13 +91,15 @@ Item: Item<'arena, ByteRange> = {
     },
 };
 
-Pattern: Pattern<ByteRange> = {
+Pattern: Pattern<'arena, ByteRange> = {
     <start: @L> <name: Name> <end: @R> => Pattern::Name(ByteRange::new(start, end), name),
     <start: @L> "_" <end: @R> => Pattern::Placeholder(ByteRange::new(start, end)),
     <start: @L> <string: StringLiteral> <end: @R> => Pattern::StringLiteral(ByteRange::new(start, end), string),
     <start: @L> <number: NumberLiteral> <end: @R> => Pattern::NumberLiteral(ByteRange::new(start, end), number),
     <start: @L> "true" <end: @R> => Pattern::BooleanLiteral(ByteRange::new(start, end), true),
     <start: @L> "false" <end: @R> => Pattern::BooleanLiteral(ByteRange::new(start, end), false),
+    <start: @L> "{" <fields: Seq<PatternField,",">> "}" <end: @R> => Pattern::RecordLiteral(ByteRange::new(start, end), fields),
+    <start: @L> <patterns: Tuple<Pattern>> <end: @R> => Pattern::TupleLiteral(ByteRange::new(start, end), patterns),
 };
 
 pub Term: Term<'arena, ByteRange> = {
@@ -115,7 +118,7 @@ LetTerm: Term<'arena, ByteRange> = {
     <start: @L> "let" <def_pattern: Pattern> <def_type: (":" <LetTerm>)?> "=" <def_expr: Term> ";" <body_expr: LetTerm> <end: @R> => {
         Term::Let(
             ByteRange::new(start, end),
-            def_pattern,
+            scope.to_scope(def_pattern),
             def_type.map(|def_type| scope.to_scope(def_type) as &_),
             scope.to_scope(def_expr),
             scope.to_scope(body_expr),
@@ -257,6 +260,10 @@ ExprField: ExprField<'arena, ByteRange> = {
     <label: RangedName> <expr: ("=" <Term>)?> => ExprField { label, expr },
 };
 
+PatternField: PatternField<'arena, ByteRange> = {
+    <label: RangedName> "=" <pattern: Pattern> => PatternField { label, pattern },
+};
+
 BinExpr<Lhs, Op, Rhs>: Term<'arena, ByteRange> = {
     <start: @L> <lhs: Lhs> <op: Op> <rhs: Rhs> <end: @R> => {
         Term::BinOp(
@@ -287,8 +294,8 @@ BinOpGte: BinOp<ByteRange> = <start: @L> ">=" <end: @R> => BinOp::Gte(ByteRange:
 
 Tuple<Elem>: &'arena [Elem] = {
     "(" ")" => &[],
-    "(" <term: Term> "," ")" => scope.to_scope_from_iter([term]),
-    "(" <terms: Seq2<Term, ",">> ")" => terms,
+    "(" <term: Elem> "," ")" => scope.to_scope_from_iter([term]),
+    "(" <terms: Seq2<Elem, ",">> ")" => terms,
 };
 
 #[inline]
