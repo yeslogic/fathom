@@ -555,7 +555,7 @@ pub enum UIntStyle {
 }
 
 /// Constants
-#[derive(Debug, Copy, Clone, PartialOrd)]
+#[derive(Debug, Copy, Clone)]
 pub enum Const {
     Bool(bool),
     U8(u8, UIntStyle),
@@ -566,7 +566,6 @@ pub enum Const {
     S16(i16),
     S32(i32),
     S64(i64),
-    // TODO: use logical equality for floating point numbers
     F32(f32),
     F64(f64),
     Pos(usize),
@@ -585,11 +584,62 @@ impl PartialEq for Const {
             (Const::S16(a), Const::S16(b)) => a == b,
             (Const::S32(a), Const::S32(b)) => a == b,
             (Const::S64(a), Const::S64(b)) => a == b,
-            (Const::F32(a), Const::F32(b)) => a == b,
-            (Const::F64(a), Const::F64(b)) => a == b,
+            (Const::F32(a), Const::F32(b)) => a.total_cmp(&b).is_eq(),
+            (Const::F64(a), Const::F64(b)) => a.total_cmp(&b).is_eq(),
             (Const::Pos(a), Const::Pos(b)) => a == b,
             (Const::Ref(a), Const::Ref(b)) => a == b,
             _ => false,
+        }
+    }
+}
+
+impl Eq for Const {}
+
+impl PartialOrd for Const {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for Const {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        match (*self, *other) {
+            (Const::Bool(a), Const::Bool(b)) => a.cmp(&b),
+            (Const::U8(a, _), Const::U8(b, _)) => a.cmp(&b),
+            (Const::U16(a, _), Const::U16(b, _)) => a.cmp(&b),
+            (Const::U32(a, _), Const::U32(b, _)) => a.cmp(&b),
+            (Const::U64(a, _), Const::U64(b, _)) => a.cmp(&b),
+            (Const::S8(a), Const::S8(b)) => a.cmp(&b),
+            (Const::S16(a), Const::S16(b)) => a.cmp(&b),
+            (Const::S32(a), Const::S32(b)) => a.cmp(&b),
+            (Const::S64(a), Const::S64(b)) => a.cmp(&b),
+            (Const::F32(a), Const::F32(b)) => a.total_cmp(&b),
+            (Const::F64(a), Const::F64(b)) => a.total_cmp(&b),
+            (Const::Pos(a), Const::Pos(b)) => a.cmp(&b),
+            (Const::Ref(a), Const::Ref(b)) => a.cmp(&b),
+            _ => {
+                fn discriminant(r#const: &Const) -> usize {
+                    match r#const {
+                        Const::Bool(_) => 0,
+                        Const::U8(_, _) => 1,
+                        Const::U16(_, _) => 2,
+                        Const::U32(_, _) => 3,
+                        Const::U64(_, _) => 4,
+                        Const::S8(_) => 5,
+                        Const::S16(_) => 6,
+                        Const::S32(_) => 7,
+                        Const::S64(_) => 8,
+                        Const::F32(_) => 9,
+                        Const::F64(_) => 10,
+                        Const::Pos(_) => 11,
+                        Const::Ref(_) => 12,
+                    }
+                }
+
+                let tag1 = discriminant(self);
+                let tag2 = discriminant(other);
+                tag1.cmp(&tag2)
+            }
         }
     }
 }
