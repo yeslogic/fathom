@@ -140,7 +140,7 @@ impl Message {
                 let name = interner.resolve(*name).unwrap();
 
                 Diagnostic::error()
-                    .with_message(format!("cannot find `{}` in scope", name))
+                    .with_message(format!("cannot find `{name}` in scope"))
                     .with_labels(vec![primary_label(range).with_message("unbound name")])
                 // TODO: list suggestions
             }
@@ -177,7 +177,7 @@ impl Message {
                 .with_labels(vec![
                     primary_label(arg_range).with_message("unexpected argument"),
                     secondary_label(head_range)
-                        .with_message(format!("expression of type {}", head_type)),
+                        .with_message(format!("expression of type {head_type}")),
                 ]),
             Message::UnknownField {
                 head_range,
@@ -189,11 +189,11 @@ impl Message {
                 let label = interner.resolve(*label).unwrap();
 
                 Diagnostic::error()
-                    .with_message(format!("cannot find `{}` in expression", label))
+                    .with_message(format!("cannot find `{label}` in expression"))
                     .with_labels(vec![
                         primary_label(label_range).with_message("unknown label"),
                         secondary_label(head_range)
-                            .with_message(format!("expression of type {}", head_type)),
+                            .with_message(format!("expression of type {head_type}")),
                     ])
                 // TODO: list suggestions
             }
@@ -213,7 +213,7 @@ impl Message {
                                 None => {
                                     let expr_label = interner.resolve(*expr_label).unwrap();
                                     diagnostic_labels.push(primary_label(range).with_message(
-                                        format!("unexpected field `{}`", expr_label,),
+                                        format!("unexpected field `{expr_label}`",),
                                     ));
                                     continue 'expr_labels;
                                 }
@@ -224,8 +224,7 @@ impl Message {
                                     let type_label = interner.resolve(*type_label).unwrap();
                                     diagnostic_labels.push(
                                         primary_label(range).with_message(format!(
-                                            "expected field `{}`",
-                                            type_label,
+                                            "expected field `{type_label}`",
                                         )),
                                     );
                                     continue 'type_labels;
@@ -239,7 +238,7 @@ impl Message {
                             "missing fields {}",
                             type_labels
                                 .map(|label| interner.resolve(*label).unwrap())
-                                .format_with(", ", |label, f| f(&format_args!("`{}`", label))),
+                                .format_with(", ", |label, f| f(&format_args!("`{label}`"))),
                         )));
                     } else {
                         diagnostic_labels
@@ -249,17 +248,17 @@ impl Message {
 
                 let found_labels = (expr_labels.iter())
                     .map(|(_, label)| interner.resolve(*label).unwrap())
-                    .format_with(", ", |label, f| f(&format_args!("`{}`", label)));
+                    .format_with(", ", |label, f| f(&format_args!("`{label}`")));
                 let expected_labels = (type_labels.iter())
                     .map(|label| interner.resolve(*label).unwrap())
-                    .format_with(", ", |label, f| f(&format_args!("`{}`", label)));
+                    .format_with(", ", |label, f| f(&format_args!("`{label}`")));
 
                 Diagnostic::error()
                     .with_message("mismatched field labels in record literal")
                     .with_labels(diagnostic_labels)
                     .with_notes(vec![
-                        format!("expected fields {}", expected_labels),
-                        format!("   found fields {}", found_labels),
+                        format!("expected fields {expected_labels}"),
+                        format!("   found fields {found_labels}"),
                     ])
             }
             Message::DuplicateFieldLabels { range, labels } => {
@@ -278,7 +277,7 @@ impl Message {
                         "duplicate fields {}",
                         (labels.iter())
                             .map(|(_, label)| interner.resolve(*label).unwrap())
-                            .format_with(", ", |label, f| f(&format_args!("`{}`", label)))
+                            .format_with(", ", |label, f| f(&format_args!("`{label}`")))
                     )])
             }
             Message::ArrayLiteralNotSupported {
@@ -287,9 +286,9 @@ impl Message {
             } => Diagnostic::error()
                 .with_message("array literal not supported")
                 .with_labels(vec![
-                    primary_label(range).with_message(format!("expected `{}`", expected_type))
+                    primary_label(range).with_message(format!("expected `{expected_type}`"))
                 ])
-                .with_notes(vec![format!("expected `{}`", expected_type)]),
+                .with_notes(vec![format!("expected `{expected_type}`")]),
             Message::MismatchedArrayLength {
                 range,
                 found_len,
@@ -300,8 +299,8 @@ impl Message {
                     primary_label(range).with_message("array with invalid length")
                 ])
                 .with_notes(vec![
-                    format!("expected length {}", expected_len),
-                    format!("   found length {}", found_len),
+                    format!("expected length {expected_len}"),
+                    format!("   found length {found_len}"),
                 ]),
             Message::AmbiguousArrayLiteral { range } => Diagnostic::error()
                 .with_message("ambiguous array literal")
@@ -318,8 +317,8 @@ impl Message {
                     primary_label(range).with_message("invalid string literal")
                 ])
                 .with_notes(vec![
-                    format!("expected byte length {}", expected_len),
-                    format!("   found byte length {}", found_len),
+                    format!("expected byte length {expected_len}"),
+                    format!("   found byte length {found_len}"),
                 ]),
             Message::NonAsciiStringLiteral { invalid_range } => Diagnostic::error()
                 .with_message("non-ASCII character found in string literal")
@@ -332,9 +331,9 @@ impl Message {
             } => Diagnostic::error()
                 .with_message("string literal not supported")
                 .with_labels(vec![
-                    primary_label(range).with_message(format!("expected `{}`", expected_type))
+                    primary_label(range).with_message(format!("expected `{expected_type}`"))
                 ])
-                .with_notes(vec![format!("expected `{}`", expected_type)]),
+                .with_notes(vec![format!("expected `{expected_type}`")]),
             Message::AmbiguousStringLiteral { range } => Diagnostic::error()
                 .with_message("ambiguous string literal")
                 .with_labels(vec![
@@ -349,9 +348,9 @@ impl Message {
             } => Diagnostic::error()
                 .with_message("numeric literal not supported")
                 .with_labels(vec![
-                    primary_label(range).with_message(format!("expected `{}`", expected_type))
+                    primary_label(range).with_message(format!("expected `{expected_type}`"))
                 ])
-                .with_notes(vec![format!("expected `{}`", expected_type)]),
+                .with_notes(vec![format!("expected `{expected_type}`")]),
             Message::AmbiguousNumericLiteral { range } => Diagnostic::error()
                 .with_message("ambiguous numeric literal")
                 .with_labels(vec![
@@ -370,10 +369,10 @@ impl Message {
             } => Diagnostic::error()
                 .with_message("mismatched types")
                 .with_labels(vec![
-                    primary_label(lhs_range).with_message(format!("has type `{}`", lhs)),
-                    primary_label(rhs_range).with_message(format!("has type `{}`", rhs)),
+                    primary_label(lhs_range).with_message(format!("has type `{lhs}`")),
+                    primary_label(rhs_range).with_message(format!("has type `{rhs}`")),
                     secondary_label(&op.range())
-                        .with_message(format!("no implementation for `{} {} {}`", lhs, op, rhs)),
+                        .with_message(format!("no implementation for `{lhs} {op} {rhs}`")),
                 ]),
             Message::FailedToUnify {
                 range,
@@ -388,12 +387,11 @@ impl Message {
                     Error::Mismatch => Diagnostic::error()
                         .with_message("mismatched types")
                         .with_labels(vec![primary_label(range).with_message(format!(
-                            "type mismatch, expected `{}`, found `{}`",
-                            lhs, rhs
+                            "type mismatch, expected `{lhs}`, found `{rhs}`"
                         ))])
                         .with_notes(vec![[
-                            format!("expected `{}`", lhs),
-                            format!("   found `{}`", rhs),
+                            format!("expected `{lhs}`"),
+                            format!("   found `{rhs}`"),
                         ]
                         .join("\n")]),
                     // TODO: reduce confusion around ‘problem spines’
@@ -426,11 +424,10 @@ impl Message {
                 let name = interner.resolve(*name).unwrap();
 
                 Diagnostic::note()
-                    .with_message(format!("solution found for hole `?{}`", name))
+                    .with_message(format!("solution found for hole `?{name}`"))
                     .with_labels(vec![primary_label(range).with_message("solution found")])
                     .with_notes(vec![format!(
-                        "hole `?{}` can be replaced with `{}`",
-                        name, expr,
+                        "hole `?{name}` can be replaced with `{expr}`",
                     )])
             }
             Message::UnsolvedMetaVar { source } => {
@@ -448,9 +445,9 @@ impl Message {
                 };
 
                 Diagnostic::error()
-                    .with_message(format!("failed to infer {}", source_name))
+                    .with_message(format!("failed to infer {source_name}"))
                     .with_labels(vec![
-                        primary_label(range).with_message(format!("unsolved {}", source_name))
+                        primary_label(range).with_message(format!("unsolved {source_name}"))
                     ])
             }
             Message::CycleDetected { names } => {
@@ -468,8 +465,7 @@ impl Message {
                 .with_message("produced core term without span")
                 .with_labels(vec![primary_label(range)])
                 .with_notes(vec![format!(
-                    "please file a bug report at: {}",
-                    BUG_REPORT_URL
+                    "please file a bug report at: {BUG_REPORT_URL}"
                 )]),
         }
     }

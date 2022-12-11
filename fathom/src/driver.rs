@@ -93,13 +93,13 @@ impl<'surface, 'core> Driver<'surface, 'core> {
             };
 
             let diagnostic = Diagnostic::bug()
-                .with_message(format!("compiler panicked at '{}'", message))
+                .with_message(format!("compiler panicked at '{message}'"))
                 .with_notes(vec![
                     match location {
-                        Some(location) => format!("panicked at: {}", location),
+                        Some(location) => format!("panicked at: {location}"),
                         None => "panicked at: unknown location".to_owned(),
                     },
-                    format!("please file a bug report at: {}", BUG_REPORT_URL),
+                    format!("please file a bug report at: {BUG_REPORT_URL}"),
                     // TODO: print rust backtrace
                     // TODO: print fathom backtrace
                 ]);
@@ -403,7 +403,7 @@ impl<'surface, 'core> Driver<'surface, 'core> {
 
     fn emit_read_diagnostic(&self, name: impl std::fmt::Display, error: std::io::Error) {
         let diagnostic =
-            Diagnostic::error().with_message(format!("couldn't read `{}`: {}", name, error));
+            Diagnostic::error().with_message(format!("couldn't read `{name}`: {error}"));
         self.emit_diagnostic(diagnostic);
     }
 
@@ -450,7 +450,7 @@ impl<'surface, 'core> Driver<'surface, 'core> {
                 .with_notes(vec![format!("option_unwrap was called on a none value.")]),
             ReadError::BufferError(span, err) => self.buffer_error_to_diagnostic(err, span),
             ReadError::InvalidFormat(span) | ReadError::InvalidValue(span) => Diagnostic::bug()
-                .with_message(format!("unexpected error '{}'", err))
+                .with_message(format!("unexpected error '{err}'"))
                 .with_labels(
                     IntoIterator::into_iter([label_for_span(&span)])
                         .into_iter()
@@ -458,14 +458,12 @@ impl<'surface, 'core> Driver<'surface, 'core> {
                         .collect(),
                 )
                 .with_notes(vec![format!(
-                    "please file a bug report at: {}",
-                    BUG_REPORT_URL
+                    "please file a bug report at: {BUG_REPORT_URL}"
                 )]),
             ReadError::UnknownItem => Diagnostic::bug()
-                .with_message(format!("unexpected error '{}'", err))
+                .with_message(format!("unexpected error '{err}'"))
                 .with_notes(vec![format!(
-                    "please file a bug report at: {}",
-                    BUG_REPORT_URL
+                    "please file a bug report at: {BUG_REPORT_URL}"
                 )]),
         }
     }
@@ -492,8 +490,7 @@ impl<'surface, 'core> Driver<'surface, 'core> {
                         .collect(),
                 )
                 .with_notes(vec![format!(
-                    "The offset {} is before the start of the buffer.",
-                    offset
+                    "The offset {offset} is before the start of the buffer."
                 )]),
             BufferError::SetOffsetAfterEndOfBuffer {
                 offset: Some(offset),
@@ -506,8 +503,7 @@ impl<'surface, 'core> Driver<'surface, 'core> {
                         .collect(),
                 )
                 .with_notes(vec![format!(
-                    "The offset {} is beyond the end of the buffer.",
-                    offset
+                    "The offset {offset} is beyond the end of the buffer."
                 )]),
             BufferError::SetOffsetAfterEndOfBuffer { offset: None } => Diagnostic::error()
                 .with_message(err.to_string())
@@ -521,7 +517,7 @@ impl<'surface, 'core> Driver<'surface, 'core> {
                     "The offset is beyond the end of the buffer (overflow).",
                 )]),
             BufferError::PositionOverflow => Diagnostic::bug()
-                .with_message(format!("unexpected error '{}'", err))
+                .with_message(format!("unexpected error '{err}'"))
                 .with_labels(
                     IntoIterator::into_iter([label_for_span(&span)])
                         .into_iter()
@@ -529,8 +525,7 @@ impl<'surface, 'core> Driver<'surface, 'core> {
                         .collect(),
                 )
                 .with_notes(vec![format!(
-                    "please file a bug report at: {}",
-                    BUG_REPORT_URL
+                    "please file a bug report at: {BUG_REPORT_URL}"
                 )]),
         }
     }

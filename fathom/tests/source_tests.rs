@@ -267,9 +267,9 @@ fn failures_to_outcome(failures: &[TestFailure]) -> libtest_mimic::Outcome {
         for failure in failures {
             writeln!(msg, "    {}:", failure.name).unwrap();
             for (name, data) in &failure.details {
-                writeln!(msg, "        ---- {} ----", name).unwrap();
+                writeln!(msg, "        ---- {name} ----").unwrap();
                 for line in data.lines() {
-                    writeln!(msg, "        {}", line).unwrap();
+                    writeln!(msg, "        {line}").unwrap();
                 }
             }
             writeln!(msg).unwrap();
@@ -349,7 +349,7 @@ impl<'a> TestCommand<'a> {
                     let mut details = Vec::new();
 
                     // TODO: Improve output
-                    details.push(("command", format!("{:?}", exe)));
+                    details.push(("command", format!("{exe:?}")));
 
                     if output.status.code() != Some(self.config.exit_code) {
                         details.push(("status", output.status.to_string()));
@@ -524,10 +524,6 @@ fn make_diff(actual: &str, expected: &str) -> Option<String> {
 
 fn diff_line(sign: char, line_number: usize, line_width: usize, line: &str) -> String {
     format!(
-        "{:>width$}| {} {}\n",
-        line_number,
-        sign,
-        line,
-        width = line_width
+        "{line_number:>line_width$}| {sign} {line}\n"
     )
 }

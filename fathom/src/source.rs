@@ -47,7 +47,7 @@ impl StringInterner {
         if max_index >= len {
             self.tuple_labels.reserve(max_index.saturating_sub(cap));
             for index in len..=max_index {
-                let label = self.get_or_intern(format!("_{}", index));
+                let label = self.get_or_intern(format!("_{index}"));
                 self.tuple_labels.push(label);
             }
         }

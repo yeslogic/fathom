@@ -457,7 +457,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         }
 
         let filtered_fields = (fields.iter().enumerate())
-            .filter_map(move |(index, field)| (!duplicate_indices.contains(&index)).then(|| field));
+            .filter_map(move |(index, field)| (!duplicate_indices.contains(&index)).then_some(field));
 
         (labels.into(), filtered_fields)
     }

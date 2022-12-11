@@ -672,16 +672,16 @@ pub trait UIntStyled<const N: usize>:
 impl UIntStyle {
     pub fn format<T: UIntStyled<N>, const N: usize>(&self, number: T) -> String {
         match self {
-            UIntStyle::Binary => format!("0b{:b}", number),
+            UIntStyle::Binary => format!("0b{number:b}"),
             UIntStyle::Decimal => number.to_string(),
-            UIntStyle::Hexadecimal => format!("0x{:x}", number),
+            UIntStyle::Hexadecimal => format!("0x{number:x}"),
             UIntStyle::Ascii => {
                 let bytes = number.to_be_bytes();
                 if bytes.iter().all(|c| c.is_ascii() && !c.is_ascii_control()) {
                     let s = std::str::from_utf8(&bytes).unwrap(); // unwrap safe due to above check
-                    format!("\"{}\"", s)
+                    format!("\"{s}\"")
                 } else {
-                    format!("0x{:x}", number)
+                    format!("0x{number:x}")
                 }
             }
         }

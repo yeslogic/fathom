@@ -459,11 +459,11 @@ impl ParseMessage {
                 token,
                 expected,
             } => Diagnostic::error()
-                .with_message(format!("unexpected token {}", token))
+                .with_message(format!("unexpected token {token}"))
                 .with_labels(vec![primary_label(range).with_message("unexpected token")])
                 .with_notes(format_expected(expected).map_or(Vec::new(), |message| vec![message])),
             ParseMessage::ExtraToken { range, token } => Diagnostic::error()
-                .with_message(format!("extra token {}", token))
+                .with_message(format!("extra token {token}"))
                 .with_labels(vec![primary_label(range).with_message("extra token")]),
         }
     }
@@ -479,7 +479,7 @@ fn format_expected(expected: &[impl std::fmt::Display]) -> Option<String> {
     use itertools::Itertools;
 
     expected.split_last().map(|items| match items {
-        (last, []) => format!("expected {}", last),
+        (last, []) => format!("expected {last}"),
         (last, expected) => format!("expected {} or {}", expected.iter().format(", "), last),
     })
 }

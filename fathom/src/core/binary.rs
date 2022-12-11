@@ -584,7 +584,7 @@ impl<'arena, 'data> Context<'arena, 'data> {
         // especially without succumbing to non-termination, but we'll panic
         // here just in case.
         if self.lookup_ref(pos, format).is_some() {
-            panic!("recursion found when storing cached reference {}", pos);
+            panic!("recursion found when storing cached reference {pos}");
         }
 
         // Store the parsed reference in the reference cache
