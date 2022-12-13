@@ -257,11 +257,11 @@ impl<Entry> SliceEnv<Entry> {
 
 impl<Entry: PartialEq> SliceEnv<Entry> {
     pub fn elem_level(&self, entry: &Entry) -> Option<Level> {
-        Iterator::zip(levels(), self.iter()).find_map(|(var, e)| (entry == e).then(|| var))
+        Iterator::zip(levels(), self.iter()).find_map(|(var, e)| (entry == e).then_some(var))
     }
 
     pub fn elem_index(&self, entry: &Entry) -> Option<Index> {
-        Iterator::zip(indices(), self.iter().rev()).find_map(|(var, e)| (entry == e).then(|| var))
+        Iterator::zip(indices(), self.iter().rev()).find_map(|(var, e)| (entry == e).then_some(var))
     }
 }
 
