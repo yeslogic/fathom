@@ -67,7 +67,6 @@ mod host {
         U16Sub,
     }
 
-    // It seems this probably needs to be an expression to caption function calls
     #[derive(Clone)]
     pub enum Expr {
         /// Item in the context
@@ -97,15 +96,24 @@ mod format {
     use super::{host, Const, StringId};
 
     pub struct Module {
-        pub items: Vec<Item>,
+        pub definitions: Vec<Def>,
     }
 
+    pub struct Def {
+        pub name: StringId,
+        pub expr: Item,
+    }
+
+    // TODO: This probably needs to be more like the core language where
     pub enum Item {
         Format(Format),
+        /// A let expression
+        ///
+        /// name, def expression, body expression
+        Let(StringId, Box<Item>, Box<Item>),
     }
 
     pub struct Format {
-        pub name: StringId,
         pub fields: Vec<Field>,
     }
 
@@ -148,22 +156,22 @@ mod format {
         Array(host::Expr, Box<ReadExpr>),
     }
 
-    impl Format {
-        fn repr(&self) -> host::CustomType {
-            let fields = self
-                .fields
-                .iter()
-                .map(|field| host::Field {
-                    name: field.name,
-                    host_type: field.host_type.clone(),
-                })
-                .collect();
-            host::CustomType::Record(host::Record {
-                name: self.name,
-                fields,
-            })
-        }
-    }
+    // impl Format {
+    //     fn repr(&self) -> host::CustomType {
+    //         let fields = self
+    //             .fields
+    //             .iter()
+    //             .map(|field| host::Field {
+    //                 name: field.name,
+    //                 host_type: field.host_type.clone(),
+    //             })
+    //             .collect();
+    //         host::CustomType::Record(host::Record {
+    //             name: self.name,
+    //             fields,
+    //         })
+    //     }
+    // }
 }
 
 #[cfg(test)]
@@ -184,7 +192,6 @@ mod tests {
         //
         // def f2dot14 : Format = s16be;
         let format = Format {
-            name: 1,
             fields: vec![Field {
                 name: 1,
                 host_type: host::Type::Prim(host::Prim::U16),
@@ -193,7 +200,13 @@ mod tests {
         };
 
         let item = Item::Format(format);
-        let module = Module { items: vec![item] };
+        let def = Def {
+            name: 1,
+            expr: item,
+        };
+        let module = Module {
+            definitions: vec![def],
+        };
     }
 
     #[test]
@@ -238,7 +251,6 @@ mod tests {
         // In order to be able to generate a ReadFrom impl we need to know/generate the ReadType as well as the host representation of that
         // Each field will eventually need a name too. Although in this case the tuple fields can be accessed by index
         let format = Format {
-            name: 2,
             fields: vec![
                 Field {
                     name: 1, // table_tag
@@ -264,7 +276,13 @@ mod tests {
         };
 
         let item = Item::Format(format);
-        let module = Module { items: vec![item] };
+        let def = Def {
+            name: 2,
+            expr: item,
+        };
+        let module = Module {
+            definitions: vec![def],
+        };
     }
 
     #[test]
@@ -308,7 +326,6 @@ mod tests {
         // Assume table_record above is in the context at index 0
 
         let offset_table = Format {
-            name: 3,
             fields: vec![
                 Field {
                     name: 1, // num_tables
@@ -353,7 +370,13 @@ mod tests {
         };
 
         let item = Item::Format(offset_table);
-        let module = Module { items: vec![item] };
+        let def = Def {
+            name: 3,
+            expr: item,
+        };
+        let module = Module {
+            definitions: vec![def],
+        };
     }
 
     #[test]
@@ -399,7 +422,6 @@ mod tests {
             ],
         });
         let format = Format {
-            name: 4,
             fields: vec![
                 Field {
                     name: 1, // format
@@ -430,6 +452,80 @@ mod tests {
         };
 
         let item = Item::Format(format);
-        let module = Module { items: vec![item] };
+        let def = Def {
+            name: 4,
+            expr: item,
+        };
+        let module = Module {
+            definitions: vec![def],
+        };
+    }
+
+    #[test]
+    fn test_let() {
+        /*
+
+        def subtable_format0 = (
+            let kerning_pair = {
+                left <- u16be,
+                right <- u16be,
+            };
+
+            {
+                num_pairs <- u16be,
+                pairs <- array16 num_pairs kerning_pair,
+            }
+        );
+         */
+
+        let kerning_pair = Format {
+            fields: vec![
+                Field {
+                    name: 1, // left
+                    host_type: host::Type::Prim(host::Prim::U16),
+                    read: ReadExpr::Prim(ReadPrim::U16Be),
+                },
+                Field {
+                    name: 2, // right
+                    host_type: host::Type::Prim(host::Prim::U16),
+                    read: ReadExpr::Prim(ReadPrim::U16Be),
+                },
+            ],
+        };
+
+        let format = Format {
+            fields: vec![
+                Field {
+                    name: 3, // num_pairs
+                    host_type: host::Type::Prim(host::Prim::U8),
+                    read: ReadExpr::Prim(ReadPrim::U8),
+                },
+                Field {
+                    name: 4, // pairs
+                    host_type: host::Type::Prim(host::Prim::Array(
+                        Expr::Item(3 /* num_pairs */),
+                        Box::new(host::Type::CustomType(0)), // kerning_pair
+                    )),
+                    read: ReadExpr::Prim(ReadPrim::Array(
+                        Expr::Item(3 /* num_pairs */),
+                        // This one is referring to a custom type in the "format" env
+                        Box::new(ReadExpr::CustomType(0)), // kerning_pair
+                    )),
+                },
+            ],
+        };
+
+        let item = Item::Let(
+            5, /* subtable_format0 */
+            Box::new(Item::Format(kerning_pair)),
+            Box::new(Item::Format(format)),
+        );
+        let def = Def {
+            name: 5,
+            expr: item,
+        };
+        let module = Module {
+            definitions: vec![def],
+        };
     }
 }
