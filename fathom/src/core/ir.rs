@@ -104,7 +104,6 @@ mod format {
         pub expr: Item,
     }
 
-    // TODO: This probably needs to be more like the core language where
     pub enum Item {
         Format(Format),
         /// A let expression
@@ -114,8 +113,13 @@ mod format {
     }
 
     pub struct Format {
-        pub params: Vec<host::Type>,
+        pub params: Vec<Param>,
         pub fields: Vec<Field>,
+    }
+
+    pub struct Param {
+        pub name: StringId,
+        pub host_type: host::Type,
     }
 
     pub struct Field {
@@ -155,6 +159,7 @@ mod format {
         U32Be,
         U32Le,
         Array(host::Expr, Box<ReadExpr>),
+        StreamPos,
     }
 
     // impl Format {
@@ -535,4 +540,74 @@ mod tests {
             definitions: vec![def],
         };
     }
+
+    #[test]
+    fn test_pos() {
+        /*
+        def kerning_pair = {
+            left <- stream_pos,
+            right <- u16be,
+        };
+         */
+
+        let kerning_pair = Format {
+            params: vec![],
+            fields: vec![
+                Field {
+                    name: 1, // left
+                    host_type: host::Type::Prim(host::Prim::Pos),
+                    read: ReadExpr::Prim(ReadPrim::StreamPos),
+                },
+                Field {
+                    name: 2, // right
+                    host_type: host::Type::Prim(host::Prim::U16),
+                    read: ReadExpr::Prim(ReadPrim::U16Be),
+                },
+            ],
+        };
+    }
+
+    #[test]
+    fn test_format_params() {
+        /*
+
+        def offset16 = fun (base : Pos) => fun (format : Format) => {
+            offset <- u16be,
+            link <- match offset {
+                0 => empty,
+                _ => link (pos_add_u16 base offset) format, // TODO: Use an option type?
+            },
+        };
+
+
+        def example = fun (table_start : Pos) => {
+               /// Offset from beginning of this subtable to right-hand class table.
+               right_class_table <- offset16 table_start u32be,
+        };
+        */
+
+        // How should offset16 be represented
+
+        let format = Format {
+            params: vec![Param {name: 3, host_type: host::Type::Prim(host::Prim::Pos)}],
+            fields: vec![
+                Field {
+                    name: 1, // right_class_table
+                    host_type: host::Type::Prim(host::Prim::U16),
+                    read: ReadExpr::Prim(ReadPrim::U16Be),
+                },
+            ],
+        };
+
+
+        let item = Item::Format(format);
+        let def = Def {
+            name: 5,
+            expr: item,
+        };
+        let module = Module {
+            definitions: vec![def],
+        };
+    }
 }
+
