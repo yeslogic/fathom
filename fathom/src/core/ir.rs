@@ -114,6 +114,7 @@ mod format {
     }
 
     pub struct Format {
+        pub params: Vec<host::Type>,
         pub fields: Vec<Field>,
     }
 
@@ -192,6 +193,7 @@ mod tests {
         //
         // def f2dot14 : Format = s16be;
         let format = Format {
+            params: vec![],
             fields: vec![Field {
                 name: 1,
                 host_type: host::Type::Prim(host::Prim::U16),
@@ -251,6 +253,7 @@ mod tests {
         // In order to be able to generate a ReadFrom impl we need to know/generate the ReadType as well as the host representation of that
         // Each field will eventually need a name too. Although in this case the tuple fields can be accessed by index
         let format = Format {
+            params: vec![],
             fields: vec![
                 Field {
                     name: 1, // table_tag
@@ -326,6 +329,7 @@ mod tests {
         // Assume table_record above is in the context at index 0
 
         let offset_table = Format {
+            params: vec![],
             fields: vec![
                 Field {
                     name: 1, // num_tables
@@ -422,6 +426,7 @@ mod tests {
             ],
         });
         let format = Format {
+            params: vec![],
             fields: vec![
                 Field {
                     name: 1, // format
@@ -479,6 +484,7 @@ mod tests {
          */
 
         let kerning_pair = Format {
+            params: vec![],
             fields: vec![
                 Field {
                     name: 1, // left
@@ -494,6 +500,7 @@ mod tests {
         };
 
         let format = Format {
+            params: vec![],
             fields: vec![
                 Field {
                     name: 3, // num_pairs
