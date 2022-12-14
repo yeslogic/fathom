@@ -4,6 +4,7 @@ use crate::env::{Index, Level};
 use crate::source::{Span, StringId};
 
 pub mod binary;
+pub mod pretty;
 pub mod prim;
 pub mod semantics;
 

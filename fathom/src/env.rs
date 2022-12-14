@@ -64,6 +64,12 @@ impl fmt::Debug for Index {
     }
 }
 
+impl fmt::Display for Index {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
 /// An iterator over indices, listed from the most recently bound.
 pub fn indices() -> impl Iterator<Item = Index> {
     (0..).map(Index)
@@ -102,6 +108,12 @@ impl fmt::Debug for Level {
         write!(f, "Level(")?;
         self.0.fmt(f)?;
         write!(f, ")")
+    }
+}
+
+impl fmt::Display for Level {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.0.fmt(f)
     }
 }
 
