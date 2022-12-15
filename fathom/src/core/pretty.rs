@@ -162,6 +162,7 @@ impl<'interner, 'arena> Context<'interner> {
                 RcDoc::concat([
                     RcDoc::concat([
                         RcDoc::text("fun"),
+                        RcDoc::space(),
                         // TODO: Share with Term::Ann
                         self.paren(
                             prec > Prec::Top,
@@ -193,6 +194,7 @@ impl<'interner, 'arena> Context<'interner> {
                 RcDoc::concat([
                     RcDoc::concat([
                         RcDoc::text("fun"),
+                        RcDoc::space(),
                         if let Some(name) = param_name {
                             self.string_id(*name)
                         } else {
