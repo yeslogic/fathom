@@ -1,0 +1,14 @@
+stdout = ''
+stderr = '''
+error: unclosed block comment
+  ┌─ tests/fail/parse/unclosed-block-comment.fathom:4:1
+  │
+4 │ /* a
+  │ ^^ first `/*`
+  ·
+9 │ */ b
+  │ ^^ last `*/`
+  │
+  = Help: 1 more `*/` needed
+
+'''

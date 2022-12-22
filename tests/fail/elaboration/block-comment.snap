@@ -1,0 +1,4 @@
+stdout = '''
+let x : Bool = false; () : ()
+'''
+stderr = ''
