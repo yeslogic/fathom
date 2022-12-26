@@ -23,15 +23,27 @@ pub struct TestData {
     mode: TestMode,
 }
 
+#[derive(Deserialize, Debug, Copy, Clone)]
+#[serde(rename_all = "kebab-case")]
 pub enum TestMode {
-    ElabModule,
-    ElabTerm,
+    Module,
+    Term,
+}
+
+impl TestMode {
+    fn to_command<'a>(self) -> Command<'a> {
+        match self {
+            TestMode::Module => Command::ElabModule,
+            TestMode::Term => Command::ElabTerm,
+        }
+    }
 }
 
 #[derive(Deserialize, Debug)]
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "kebab-case")]
 struct Config {
+    mode: Option<TestMode>,
     #[serde(default = "DEFAULT_IGNORE")]
     ignore: bool,
     #[serde(default = "DEFAULT_EXIT_CODE")]
@@ -134,7 +146,7 @@ fn extract_module_test(path: PathBuf) -> libtest_mimic::Test<TestData> {
         is_bench: false,
         data: TestData {
             input_file: path,
-            mode: TestMode::ElabModule,
+            mode: TestMode::Module,
         },
     }
 }
@@ -147,7 +159,7 @@ fn extract_term_test(path: PathBuf) -> libtest_mimic::Test<TestData> {
         is_bench: false,
         data: TestData {
             input_file: path,
-            mode: TestMode::ElabTerm,
+            mode: TestMode::Term,
         },
     }
 }
@@ -188,9 +200,9 @@ fn run_test(test: &libtest_mimic::Test<TestData>) -> libtest_mimic::Outcome {
         return libtest_mimic::Outcome::Ignored;
     }
 
-    let command = match test.data.mode {
-        TestMode::ElabModule => Command::ElabModule,
-        TestMode::ElabTerm => Command::ElabTerm,
+    let command = match config.mode {
+        Some(mode) => mode.to_command(),
+        None => test.data.mode.to_command(),
     };
     let test_command = TestCommand::new(command, &config, &test.data.input_file);
     match test_command.run() {
@@ -523,7 +535,5 @@ fn make_diff(actual: &str, expected: &str) -> Option<String> {
 }
 
 fn diff_line(sign: char, line_number: usize, line_width: usize, line: &str) -> String {
-    format!(
-        "{line_number:>line_width$}| {sign} {line}\n"
-    )
+    format!("{line_number:>line_width$}| {sign} {line}\n")
 }

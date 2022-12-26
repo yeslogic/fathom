@@ -1,0 +1,9 @@
+stdout = ''
+stderr = '''
+error: cycle detected
+ = first → second → third → first
+
+error: cycle detected
+ = a → b → c → d → b
+
+'''
