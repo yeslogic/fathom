@@ -58,7 +58,7 @@ P a0 -> P a2 =
 fun _ a0 a1 a2 p0 p1 P => compose (P a0) (P a1) (P a2) (p0 P) (p1 P);
 let sym : fun (A : Type) (a0 : A) (a1 : A) -> (fun (P : A -> Type) -> P a0 ->
 P a1) -> fun (P : A -> Type) -> P a1 -> P a0 =
-fun _ a0 a1 p => p (fun a1 => Eq _ a1 a0) (refl _ a0);
+fun a a0 a1 p => p (fun a1 => Eq a a1 a0) (refl a a0);
 let id_apply_type : Type = (fun a => a) Type;
 let list1 : fun (List : Type) -> List -> (Bool -> List -> List) -> List =
 cons Bool (id Bool true) (nil Bool);
@@ -73,7 +73,7 @@ P (fun Nat succ zero => succ (succ (succ (succ (succ (succ (succ (succ (succ (su
 ->
 P (fun Nat succ zero => succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ zero)))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))) =
 refl (fun (Nat : Type) -> (Nat -> Nat) -> Nat ->
-Nat) (fun _ _ _ => _ (_ (_ (_ (_ (_ (_ (_ (_ (_ (_ (_ (_ (_ (_ (_ (_ (_ (_ (_ (_ (_ (_ (_ (_ (_ (_ (_ (_ (_ (_ (_ (_ (_ (_ (_ (_ (_ (_ (_ (_ (_ (_ (_ (_ (_ (_ (_ (_ (_ (_ (_ (_ (_ (_ (_ (_ (_ (_ (_ (_ (_ (_ (_ (_ (_ (_ (_ (_ (_ (_ (_ (_ (_ (_ (_ (_ (_ (_ (_ (_ (_ (_ (_ (_ (_ (_ (_ (_ (_ (_ (_ (_ (_ (_ (_ (_ (_ (_ (_ _))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))));
+Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a b))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))));
 let eq_id_apply_type : fun (P : Type -> Type) -> P Type -> P Type =
 refl Type Type;
 let eq_id_apply_true : fun (P : Bool -> Type) -> P true -> P true =

@@ -46,7 +46,7 @@ let eq_foo : fun (P : (U32 -> U32) -> Type) -> P (fun x => match x {
     1 => 0,
     x => x,
 }) -> P (fun x => match x { 1 => 0, x => x }) = refl (U32 ->
-U32) (fun _ => match _ { 1 => 0, x => x });
+U32) (fun a => match a { 1 => 0, x => x });
 Type : Type
 '''
 stderr = ''
