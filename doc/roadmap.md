@@ -73,7 +73,7 @@
   - [x] unification
   - [x] zonking
 - [x] distiller
-  - [ ] improve binder names
+  - [x] improve binder names
   - [ ] improve hole names
 - [ ] core language validation
 - [x] binary format interpreter
