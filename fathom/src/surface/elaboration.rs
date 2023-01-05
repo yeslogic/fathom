@@ -301,7 +301,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
     }
 
     /// Lookup an item name in the context.
-    fn get_item_name(&self, name: StringId) -> Option<(env::Level, &ArcValue<'arena>)> {
+    fn get_item_name(&self, name: StringId) -> Option<(Level, &ArcValue<'arena>)> {
         let item_var = self.item_env.names.elem_level(&name)?;
         let item_type = self.item_env.types.get_level(item_var)?;
 

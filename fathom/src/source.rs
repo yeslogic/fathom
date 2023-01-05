@@ -206,7 +206,7 @@ impl ByteRange {
     }
 }
 
-impl From<ByteRange> for std::ops::Range<usize> {
+impl From<ByteRange> for Range<usize> {
     fn from(range: ByteRange) -> Self {
         range.start..range.end
     }

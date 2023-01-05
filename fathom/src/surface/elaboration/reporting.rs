@@ -214,7 +214,7 @@ impl Message {
                                     let expr_label = interner.resolve(*expr_label).unwrap();
                                     diagnostic_labels.push(
                                         primary_label(range).with_message(format!(
-                                            "unexpected field `{expr_label}`",
+                                            "unexpected field `{expr_label}`"
                                         )),
                                     );
                                     continue 'expr_labels;
