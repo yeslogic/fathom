@@ -27,7 +27,7 @@
 use pretty::RcDoc;
 use std::cell::RefCell;
 
-use crate::core::{Item, Module, Term};
+use crate::core::{Item, Module, Plicity, Term};
 use crate::source::{StringId, StringInterner};
 use crate::surface::lexer::is_keyword;
 
@@ -113,6 +113,13 @@ impl<'interner, 'arena> Context<'interner> {
         )
     }
 
+    fn plicity(&'arena self, plicity: Plicity) -> RcDoc {
+        match plicity {
+            Plicity::Explicit => RcDoc::nil(),
+            Plicity::Implicit => RcDoc::text("@"),
+        }
+    }
+
     pub fn term(&'arena self, term: &Term<'arena>) -> RcDoc {
         self.term_prec(Prec::Top, term)
     }
@@ -159,7 +166,7 @@ impl<'interner, 'arena> Context<'interner> {
                 ]),
             ),
             Term::Universe(_) => RcDoc::text("Type"),
-            Term::FunType(_, param_name, param_type, body_type) => self.paren(
+            Term::FunType(_, plicity, param_name, param_type, body_type) => self.paren(
                 prec > Prec::Fun,
                 RcDoc::concat([
                     RcDoc::concat([
@@ -170,6 +177,7 @@ impl<'interner, 'arena> Context<'interner> {
                             prec > Prec::Top,
                             RcDoc::concat([
                                 RcDoc::concat([
+                                    self.plicity(*plicity),
                                     if let Some(name) = param_name {
                                         self.string_id(*name)
                                     } else {
@@ -191,12 +199,13 @@ impl<'interner, 'arena> Context<'interner> {
                     self.term_prec(Prec::Fun, body_type),
                 ]),
             ),
-            Term::FunLit(_, param_name, body_expr) => self.paren(
+            Term::FunLit(_, plicity, param_name, body_expr) => self.paren(
                 prec > Prec::Fun,
                 RcDoc::concat([
                     RcDoc::concat([
                         RcDoc::text("fun"),
                         RcDoc::space(),
+                        self.plicity(*plicity),
                         if let Some(name) = param_name {
                             self.string_id(*name)
                         } else {
@@ -210,9 +219,10 @@ impl<'interner, 'arena> Context<'interner> {
                     self.term_prec(Prec::Let, body_expr),
                 ]),
             ),
-            Term::FunApp(_, head_expr, arg_expr) => self.paren(
+            Term::FunApp(_, plicity, head_expr, arg_expr) => self.paren(
                 prec > Prec::App,
                 RcDoc::concat([
+                    self.plicity(*plicity),
                     self.term_prec(Prec::Proj, head_expr),
                     RcDoc::space(),
                     self.term_prec(Prec::Proj, arg_expr),

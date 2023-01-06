@@ -4,7 +4,7 @@ use std::cell::RefCell;
 use std::sync::Arc;
 
 use crate::core::semantics::{ArcValue, Elim, ElimEnv, Value};
-use crate::core::{self, Const, Prim, UIntStyle};
+use crate::core::{self, Const, Plicity, Prim, UIntStyle};
 use crate::env::{self, SharedEnv, UniqueEnv};
 use crate::source::{Span, Spanned, StringId, StringInterner};
 
@@ -109,12 +109,19 @@ impl<'arena> Env<'arena> {
             FormatDeref,
             &core::Term::FunType(
                 Span::Empty,
+                Plicity::Explicit,
                 env.name("A"),
                 &FORMAT_TYPE,
                 &Term::FunType(
                     Span::Empty,
+                    Plicity::Explicit,
                     None,
-                    &Term::FunApp(Span::Empty, &Term::Prim(Span::Empty, RefType), &VAR0),
+                    &Term::FunApp(
+                        Span::Empty,
+                        Plicity::Explicit,
+                        &Term::Prim(Span::Empty, RefType),
+                        &VAR0,
+                    ),
                     &FORMAT_TYPE,
                 ),
             ),
@@ -124,9 +131,10 @@ impl<'arena> Env<'arena> {
             FormatSucceed,
             &core::Term::FunType(
                 Span::Empty,
+                Plicity::Explicit,
                 env.name("A"),
                 &UNIVERSE,
-                &Term::FunType(Span::Empty, None, &VAR0, &FORMAT_TYPE),
+                &Term::FunType(Span::Empty, Plicity::Explicit, None, &VAR0, &FORMAT_TYPE),
             ),
         );
         env.define_prim(FormatFail, &FORMAT_TYPE);
@@ -136,12 +144,19 @@ impl<'arena> Env<'arena> {
             // fun (A : Type) -> Option A@0 -> Format
             &core::Term::FunType(
                 Span::Empty,
+                Plicity::Explicit,
                 env.name("A"),
                 &UNIVERSE,
                 &Term::FunType(
                     Span::Empty,
+                    Plicity::Explicit,
                     None,
-                    &Term::FunApp(Span::Empty, &Term::Prim(Span::Empty, OptionType), &VAR0),
+                    &Term::FunApp(
+                        Span::Empty,
+                        Plicity::Explicit,
+                        &Term::Prim(Span::Empty, OptionType),
+                        &VAR0,
+                    ),
                     &FORMAT_TYPE,
                 ),
             ),
@@ -285,13 +300,20 @@ impl<'arena> Env<'arena> {
             // fun (A : Type) -> A@0 -> Option A@1
             &core::Term::FunType(
                 Span::Empty,
+                Plicity::Explicit,
                 env.name("A"),
                 &UNIVERSE,
                 &Term::FunType(
                     Span::Empty,
+                    Plicity::Explicit,
                     None,
                     &VAR0,
-                    &Term::FunApp(Span::Empty, &Term::Prim(Span::Empty, OptionType), &VAR1),
+                    &Term::FunApp(
+                        Span::Empty,
+                        Plicity::Explicit,
+                        &Term::Prim(Span::Empty, OptionType),
+                        &VAR1,
+                    ),
                 ),
             ),
         );
@@ -301,9 +323,15 @@ impl<'arena> Env<'arena> {
             // fun (A : Type) -> Option A@0
             &core::Term::FunType(
                 Span::Empty,
+                Plicity::Explicit,
                 env.name("A"),
                 &UNIVERSE,
-                &Term::FunApp(Span::Empty, &Term::Prim(Span::Empty, OptionType), &VAR0),
+                &Term::FunApp(
+                    Span::Empty,
+                    Plicity::Explicit,
+                    &Term::Prim(Span::Empty, OptionType),
+                    &VAR0,
+                ),
             ),
         );
         env.define_prim(
@@ -312,25 +340,31 @@ impl<'arena> Env<'arena> {
             // fun (A : Type) (B : Type) -> B@0 -> (A@2 -> B@2) -> Option A@3 -> B@3
             scope.to_scope(core::Term::FunType(
                 Span::Empty,
+                Plicity::Explicit,
                 env.name("A"),
                 &UNIVERSE,
                 scope.to_scope(core::Term::FunType(
                     Span::Empty,
+                    Plicity::Explicit,
                     env.name("B"),
                     &UNIVERSE,
                     scope.to_scope(core::Term::FunType(
                         Span::Empty,
+                        Plicity::Explicit,
                         None,
                         &VAR0, // B@0
                         scope.to_scope(core::Term::FunType(
                             Span::Empty,
+                            Plicity::Explicit,
                             None,
-                            &Term::FunType(Span::Empty, None, &VAR2, &VAR2), // A@2 -> B@2
+                            &Term::FunType(Span::Empty, Plicity::Explicit, None, &VAR2, &VAR2), // A@2 -> B@2
                             scope.to_scope(core::Term::FunType(
                                 Span::Empty,
+                                Plicity::Explicit,
                                 None,
                                 &Term::FunApp(
                                     Span::Empty,
+                                    Plicity::Explicit,
                                     &Term::Prim(Span::Empty, OptionType),
                                     &VAR3,
                                 ), // Option A@3
@@ -347,26 +381,41 @@ impl<'arena> Env<'arena> {
         let find_type = |index_type, array_type| {
             scope.to_scope(core::Term::FunType(
                 Span::Empty,
+                Plicity::Explicit,
                 env.name("len"),
                 index_type,
                 scope.to_scope(core::Term::FunType(
                     Span::Empty,
+                    Plicity::Explicit,
                     env.name("A"),
                     &UNIVERSE,
                     scope.to_scope(core::Term::FunType(
                         Span::Empty,
+                        Plicity::Explicit,
                         None,
-                        &Term::FunType(Span::Empty, None, &VAR0, &BOOL_TYPE), // (A@0 -> Bool)
+                        &Term::FunType(Span::Empty, Plicity::Explicit, None, &VAR0, &BOOL_TYPE), // (A@0 -> Bool)
                         scope.to_scope(core::Term::FunType(
                             Span::Empty,
+                            Plicity::Explicit,
                             None,
                             // ArrayN len@2 A@1
                             scope.to_scope(Term::FunApp(
                                 Span::Empty,
-                                scope.to_scope(Term::FunApp(Span::Empty, array_type, &VAR2)),
+                                Plicity::Explicit,
+                                scope.to_scope(Term::FunApp(
+                                    Span::Empty,
+                                    Plicity::Explicit,
+                                    array_type,
+                                    &VAR2,
+                                )),
                                 &VAR1,
                             )),
-                            &Term::FunApp(Span::Empty, &Term::Prim(Span::Empty, OptionType), &VAR2), // Option A@2
+                            &Term::FunApp(
+                                Span::Empty,
+                                Plicity::Explicit,
+                                &Term::Prim(Span::Empty, OptionType),
+                                &VAR2,
+                            ), // Option A@2
                         )),
                     )),
                 )),
@@ -386,23 +435,33 @@ impl<'arena> Env<'arena> {
         let array_index_type = |index_type, array_type| {
             scope.to_scope(core::Term::FunType(
                 Span::Empty,
+                Plicity::Explicit,
                 env.name("len"),
                 index_type,
                 scope.to_scope(core::Term::FunType(
                     Span::Empty,
+                    Plicity::Explicit,
                     env.name("A"),
                     &UNIVERSE,
                     scope.to_scope(core::Term::FunType(
                         Span::Empty,
+                        Plicity::Explicit,
                         env.name("index"),
                         index_type,
                         scope.to_scope(core::Term::FunType(
                             Span::Empty,
+                            Plicity::Explicit,
                             None,
                             // ArrayN len@2 A@1
                             scope.to_scope(Term::FunApp(
                                 Span::Empty,
-                                scope.to_scope(Term::FunApp(Span::Empty, array_type, &VAR2)),
+                                Plicity::Explicit,
+                                scope.to_scope(Term::FunApp(
+                                    Span::Empty,
+                                    Plicity::Explicit,
+                                    array_type,
+                                    &VAR2,
+                                )),
                                 &VAR1,
                             )),
                             &VAR2, // A@2
@@ -474,8 +533,13 @@ impl<'interner, 'arena> EnvBuilder<'interner, 'arena> {
         self.define_prim(
             prim,
             (param_types.iter().rev()).fold(body_type, |r#type, param_type| {
-                self.scope
-                    .to_scope(core::Term::FunType(Span::Empty, None, param_type, r#type))
+                self.scope.to_scope(core::Term::FunType(
+                    Span::Empty,
+                    Plicity::Explicit,
+                    None,
+                    param_type,
+                    r#type,
+                ))
             }),
         );
     }
@@ -493,7 +557,7 @@ pub type Step = for<'arena> fn(&ElimEnv<'arena, '_>, &[Elim<'arena>]) -> Option<
 macro_rules! step {
     ($env:pat, [$($param:pat),*] => $body:expr) => {
         |$env, spine| match spine {
-            [$(Elim::FunApp($param)),*] => Some($body),
+            [$(Elim::FunApp(Plicity::Explicit, $param)),*] => Some($body),
             _ => return None,
         }
     };
@@ -698,7 +762,7 @@ pub fn step(prim: Prim) -> Step {
 
         Prim::OptionFold => step!(env, [_, _, on_none, on_some, option] => {
             match option.match_prim_spine()? {
-                (Prim::OptionSome, [Elim::FunApp(value)]) => env.fun_app(on_some.clone(), value.clone()),
+                (Prim::OptionSome, [Elim::FunApp(Plicity::Explicit, value)]) => env.fun_app(Plicity::Explicit,on_some.clone(), value.clone()),
                 (Prim::OptionNone, []) => on_none.clone(),
                 _ => return None,
             }
@@ -708,7 +772,7 @@ pub fn step(prim: Prim) -> Step {
             step!(env, [_, _, pred, array] => match array.as_ref() {
                 Value::ArrayLit(elems) => {
                     for elem in elems {
-                        match env.fun_app(pred.clone(), elem.clone()).as_ref() {
+                        match env.fun_app(Plicity::Explicit, pred.clone(), elem.clone()).as_ref() {
                             Value::ConstLit(Const::Bool(true)) => {
                                 // TODO: Is elem.span right here?
                                 return Some(Spanned::new(elem.span(), Arc::new(Value::prim(Prim::OptionSome, [elem.clone()]))))

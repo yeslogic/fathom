@@ -6,7 +6,7 @@ use std::panic::panic_any;
 use std::sync::Arc;
 
 use crate::alloc::SliceVec;
-use crate::core::{prim, Const, LocalInfo, Prim, Term};
+use crate::core::{prim, Const, LocalInfo, Plicity, Prim, Term};
 use crate::env::{EnvLen, Index, Level, SharedEnv, SliceEnv};
 use crate::source::{Span, Spanned, StringId};
 
@@ -27,9 +27,9 @@ pub enum Value<'arena> {
     Universe,
 
     /// Dependent function types.
-    FunType(Option<StringId>, ArcValue<'arena>, Closure<'arena>),
+    FunType(Plicity, Option<StringId>, ArcValue<'arena>, Closure<'arena>),
     /// Function literals.
-    FunLit(Option<StringId>, Closure<'arena>),
+    FunLit(Plicity, Option<StringId>, Closure<'arena>),
 
     /// Record types.
     RecordType(&'arena [StringId], Telescope<'arena>),
@@ -53,7 +53,10 @@ pub enum Value<'arena> {
 
 impl<'arena> Value<'arena> {
     pub fn prim(prim: Prim, params: impl IntoIterator<Item = ArcValue<'arena>>) -> Value<'arena> {
-        let params = params.into_iter().map(Elim::FunApp).collect();
+        let params = params
+            .into_iter()
+            .map(|arg| Elim::FunApp(Plicity::Explicit, arg))
+            .collect();
         Value::Stuck(Head::Prim(prim), params)
     }
 
@@ -70,6 +73,10 @@ impl<'arena> Value<'arena> {
             Value::Stuck(Head::Prim(prim), spine) => Some((*prim, spine)),
             _ => None,
         }
+    }
+
+    pub fn is_error(&self) -> bool {
+        matches!(self, Value::Stuck(Head::Prim(Prim::ReportedError), _))
     }
 }
 
@@ -89,7 +96,7 @@ pub enum Head {
 #[derive(Debug, Clone)]
 pub enum Elim<'arena> {
     /// Function applications.
-    FunApp(ArcValue<'arena>),
+    FunApp(Plicity, ArcValue<'arena>),
     /// Record projections.
     RecordProj(StringId),
     /// Match on a constant.
@@ -301,25 +308,27 @@ impl<'arena, 'env> EvalEnv<'arena, 'env> {
 
             Term::Universe(span) => Spanned::new(*span, Arc::new(Value::Universe)),
 
-            Term::FunType(span, param_name, param_type, body_type) => Spanned::new(
+            Term::FunType(span, plicity, param_name, param_type, body_type) => Spanned::new(
                 *span,
                 Arc::new(Value::FunType(
+                    *plicity,
                     *param_name,
                     self.eval(param_type),
                     Closure::new(self.local_exprs.clone(), body_type),
                 )),
             ),
-            Term::FunLit(span, param_name, body_expr) => Spanned::new(
+            Term::FunLit(span, plicity, param_name, body_expr) => Spanned::new(
                 *span,
                 Arc::new(Value::FunLit(
+                    *plicity,
                     *param_name,
                     Closure::new(self.local_exprs.clone(), body_expr),
                 )),
             ),
-            Term::FunApp(span, head_expr, arg_expr) => {
+            Term::FunApp(span, plicity, head_expr, arg_expr) => {
                 let head_expr = self.eval(head_expr);
                 let arg_expr = self.eval(arg_expr);
-                Spanned::merge(*span, self.elim_env.fun_app(head_expr, arg_expr))
+                Spanned::merge(*span, self.elim_env.fun_app(*plicity, head_expr, arg_expr))
             }
 
             Term::RecordType(span, labels, types) => {
@@ -375,7 +384,10 @@ impl<'arena, 'env> EvalEnv<'arena, 'env> {
         for (info, expr) in Iterator::zip(infos.iter(), self.local_exprs.iter()) {
             head_expr = match info {
                 LocalInfo::Def => head_expr,
-                LocalInfo::Param => self.elim_env.fun_app(head_expr, expr.clone()),
+                LocalInfo::Param => {
+                    self.elim_env
+                        .fun_app(Plicity::Explicit, head_expr, expr.clone())
+                }
             };
         }
         head_expr
@@ -502,16 +514,19 @@ impl<'arena, 'env> ElimEnv<'arena, 'env> {
     /// [beta-reduction]: https://ncatlab.org/nlab/show/beta-reduction
     pub fn fun_app(
         &self,
+        arg_plicity: Plicity,
         mut head_expr: ArcValue<'arena>,
         arg_expr: ArcValue<'arena>,
     ) -> ArcValue<'arena> {
         match Arc::make_mut(&mut head_expr) {
             // Beta-reduction
-            Value::FunLit(_, body_expr) => self.apply_closure(body_expr, arg_expr), // FIXME: use span from head/arg exprs?
+            Value::FunLit(fun_plicity, _, body_expr) => {
+                assert_eq!(arg_plicity, *fun_plicity, "Plicities must be equal");
+                self.apply_closure(body_expr, arg_expr) // FIXME: use span from head/arg exprs?
+            }
             // The computation is stuck, preventing further reduction
             Value::Stuck(head, spine) => {
-                spine.push(Elim::FunApp(arg_expr));
-
+                spine.push(Elim::FunApp(arg_plicity, arg_expr));
                 match head {
                     Head::Prim(prim) => prim::step(*prim)(self, spine).unwrap_or(head_expr),
                     _ => head_expr,
@@ -584,7 +599,7 @@ impl<'arena, 'env> ElimEnv<'arena, 'env> {
     /// Apply an expression to an elimination spine.
     fn apply_spine(&self, head_expr: ArcValue<'arena>, spine: &[Elim<'arena>]) -> ArcValue<'arena> {
         spine.iter().fold(head_expr, |head_expr, elim| match elim {
-            Elim::FunApp(arg_expr) => self.fun_app(head_expr, arg_expr.clone()),
+            Elim::FunApp(plicity, arg_expr) => self.fun_app(*plicity, head_expr, arg_expr.clone()),
             Elim::RecordProj(label) => self.record_proj(head_expr, *label),
             Elim::ConstMatch(split) => self.const_match(head_expr, split.clone()),
         })
@@ -659,8 +674,9 @@ impl<'in_arena, 'env> QuoteEnv<'in_arena, 'env> {
             Value::Stuck(head, spine) => spine.iter().fold(
                 self.quote_head(scope, span, head),
                 |head_expr, elim| match elim {
-                    Elim::FunApp(arg_expr) => Term::FunApp(
+                    Elim::FunApp(plicity, arg_expr) => Term::FunApp(
                         span,
+                        *plicity,
                         scope.to_scope(head_expr),
                         scope.to_scope(self.quote(scope, arg_expr)),
                     ),
@@ -697,15 +713,19 @@ impl<'in_arena, 'env> QuoteEnv<'in_arena, 'env> {
 
             Value::Universe => Term::Universe(span),
 
-            Value::FunType(param_name, param_type, body_type) => Term::FunType(
+            Value::FunType(plicity, param_name, param_type, body_type) => Term::FunType(
                 span,
+                *plicity,
                 *param_name,
                 scope.to_scope(self.quote(scope, param_type)),
                 self.quote_closure(scope, body_type),
             ),
-            Value::FunLit(param_name, body_expr) => {
-                Term::FunLit(span, *param_name, self.quote_closure(scope, body_expr))
-            }
+            Value::FunLit(plicity, param_name, body_expr) => Term::FunLit(
+                span,
+                *plicity,
+                *param_name,
+                self.quote_closure(scope, body_expr),
+            ),
 
             Value::RecordType(labels, types) => Term::RecordType(
                 span,
@@ -867,14 +887,16 @@ impl<'arena, 'env> EvalEnv<'arena, 'env> {
 
             Term::Universe(span) => Term::Universe(*span),
 
-            Term::FunType(span, param_name, param_type, body_type) => Term::FunType(
+            Term::FunType(span, plicity, param_name, param_type, body_type) => Term::FunType(
                 *span,
+                *plicity,
                 *param_name,
                 scope.to_scope(self.unfold_metas(scope, param_type)),
                 self.unfold_bound_metas(scope, body_type),
             ),
-            Term::FunLit(span, param_name, body_expr) => Term::FunLit(
+            Term::FunLit(span, plicity, param_name, body_expr) => Term::FunLit(
                 *span,
+                *plicity,
                 *param_name,
                 self.unfold_bound_metas(scope, body_expr),
             ),
@@ -948,16 +970,17 @@ impl<'arena, 'env> EvalEnv<'arena, 'env> {
                 }
             }
 
-            Term::FunApp(span, head_expr, arg_expr) => {
+            Term::FunApp(span, plicity, head_expr, arg_expr) => {
                 match self.unfold_meta_var_spines(scope, head_expr) {
                     TermOrValue::Term(head_expr) => TermOrValue::Term(Term::FunApp(
                         *span,
+                        *plicity,
                         scope.to_scope(head_expr),
                         scope.to_scope(self.unfold_metas(scope, arg_expr)),
                     )),
                     TermOrValue::Value(head_expr) => {
                         let arg_expr = self.eval(arg_expr);
-                        TermOrValue::Value(self.elim_env.fun_app(head_expr, arg_expr))
+                        TermOrValue::Value(self.elim_env.fun_app(*plicity, head_expr, arg_expr))
                     }
                 }
             }
@@ -1085,17 +1108,22 @@ impl<'arena, 'env> ConversionEnv<'arena, 'env> {
             (Value::Universe, Value::Universe) => true,
 
             (
-                Value::FunType(_, param_type0, body_type0),
-                Value::FunType(_, param_type1, body_type1),
+                Value::FunType(plicity0, _, param_type0, body_type0),
+                Value::FunType(plicity1, _, param_type1, body_type1),
             ) => {
-                self.is_equal(param_type0, param_type1)
+                plicity0 == plicity1
+                    && self.is_equal(param_type0, param_type1)
                     && self.is_equal_closures(body_type0, body_type1)
             }
-            (Value::FunLit(_, body_expr0), Value::FunLit(_, body_expr1)) => {
-                self.is_equal_closures(body_expr0, body_expr1)
+            (Value::FunLit(plicity0, _, body_expr0), Value::FunLit(plicity1, _, body_expr1)) => {
+                plicity0 == plicity1 && self.is_equal_closures(body_expr0, body_expr1)
             }
-            (Value::FunLit(_, body_expr), _) => self.is_equal_fun_lit(body_expr, &value1),
-            (_, Value::FunLit(_, body_expr)) => self.is_equal_fun_lit(body_expr, &value0),
+            (Value::FunLit(plicity, _, body_expr), _) => {
+                self.is_equal_fun_lit(*plicity, body_expr, &value1)
+            }
+            (_, Value::FunLit(plicity, _, body_expr)) => {
+                self.is_equal_fun_lit(*plicity, body_expr, &value0)
+            }
 
             (Value::RecordType(labels0, types0), Value::RecordType(labels1, types1)) => {
                 labels0 == labels1 && self.is_equal_telescopes(types0, types1)
@@ -1142,7 +1170,9 @@ impl<'arena, 'env> ConversionEnv<'arena, 'env> {
         spine0.len() == spine1.len()
             && Iterator::zip(spine0.iter(), spine1.iter()).all(|(elim0, elim1)| {
                 match (elim0, elim1) {
-                    (Elim::FunApp(expr0), Elim::FunApp(expr1)) => self.is_equal(expr0, expr1),
+                    (Elim::FunApp(plicity0, expr0), Elim::FunApp(plicity1, expr1)) => {
+                        plicity0 == plicity1 && self.is_equal(expr0, expr1)
+                    }
                     (Elim::RecordProj(label0), Elim::RecordProj(label1)) => label0 == label1,
                     (Elim::ConstMatch(branches0), Elim::ConstMatch(branches1)) => {
                         self.is_equal_branches(branches0, branches1)
@@ -1235,9 +1265,14 @@ impl<'arena, 'env> ConversionEnv<'arena, 'env> {
     /// ```fathom
     /// (fun x => f x) = f
     /// ```
-    fn is_equal_fun_lit(&mut self, body_expr: &Closure<'_>, value: &ArcValue<'_>) -> bool {
+    fn is_equal_fun_lit(
+        &mut self,
+        plicity: Plicity,
+        body_expr: &Closure<'_>,
+        value: &ArcValue<'_>,
+    ) -> bool {
         let var = Spanned::empty(Arc::new(Value::local_var(self.local_exprs.next_level())));
-        let value = self.elim_env.fun_app(value.clone(), var.clone());
+        let value = self.elim_env.fun_app(plicity, value.clone(), var.clone());
         let body_expr = self.elim_env.apply_closure(body_expr, var);
 
         self.push_local();

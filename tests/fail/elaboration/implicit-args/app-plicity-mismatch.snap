@@ -1,0 +1,19 @@
+stdout = ''
+stderr = '''
+error: implicit argument was applied to an explicit function
+  ┌─ tests/fail/elaboration/implicit-args/app-plicity-mismatch.fathom:6:21
+  │
+6 │ let _ : Bool = id1 @Bool true;
+  │                ---  ^^^^ implicit argument
+  │                │     
+  │                explicit function of type fun (A : Type) -> A -> A
+
+error: implicit argument was applied to an explicit function
+  ┌─ tests/fail/elaboration/implicit-args/app-plicity-mismatch.fathom:7:27
+  │
+7 │ let _ : Bool = id2 @Bool @true;
+  │                ---------  ^^^^ implicit argument
+  │                │           
+  │                explicit function of type Bool -> Bool
+
+'''

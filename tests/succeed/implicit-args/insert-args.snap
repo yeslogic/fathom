@@ -1,0 +1,8 @@
+stdout = '''
+let id : fun (@A : Type) -> A -> A = fun @A a => a;
+let always : fun (@A : Type) (@B : Type) -> A -> B -> A = fun @A @B a b => a;
+let _ : Bool = id @Bool false;
+let _ : U32 = always @U32 @Bool 0 false;
+() : ()
+'''
+stderr = ''

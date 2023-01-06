@@ -381,8 +381,8 @@ impl<'arena, 'data> Context<'arena, 'data> {
             Value::Stuck(Head::LocalVar(_), _)
             | Value::Stuck(Head::MetaVar(_), _)
             | Value::Universe
-            | Value::FunType(_, _, _)
-            | Value::FunLit(_, _)
+            | Value::FunType(..)
+            | Value::FunLit(..)
             | Value::RecordType(_, _)
             | Value::RecordLit(_, _)
             | Value::ArrayLit(_)
@@ -419,22 +419,22 @@ impl<'arena, 'data> Context<'arena, 'data> {
             (Prim::FormatF32Le, []) => read_const(reader, span, read_f32le, Const::F32),
             (Prim::FormatF64Be, []) => read_const(reader, span, read_f64be, Const::F64),
             (Prim::FormatF64Le, []) => read_const(reader, span, read_f64le, Const::F64),
-            (Prim::FormatArray8, [FunApp(len), FunApp(format)]) => self.read_array(reader, span, len, format),
-            (Prim::FormatArray16, [FunApp(len), FunApp(format)]) => self.read_array(reader, span, len, format),
-            (Prim::FormatArray32, [FunApp(len), FunApp(format)]) => self.read_array(reader, span, len, format),
-            (Prim::FormatArray64, [FunApp(len), FunApp(format)]) => self.read_array(reader, span, len, format),
-            (Prim::FormatRepeatUntilEnd, [FunApp(format)]) => self.read_repeat_until_end(reader, format),
-            (Prim::FormatLimit8, [FunApp(limit), FunApp(format)]) => self.read_limit(reader, limit, format),
-            (Prim::FormatLimit16, [FunApp(limit), FunApp(format)]) => self.read_limit(reader, limit, format),
-            (Prim::FormatLimit32, [FunApp(limit), FunApp(format)]) => self.read_limit(reader, limit, format),
-            (Prim::FormatLimit64, [FunApp(limit), FunApp(format)]) => self.read_limit(reader, limit, format),
-            (Prim::FormatLink, [FunApp(pos), FunApp(format)]) => self.read_link(span, pos, format),
-            (Prim::FormatDeref, [FunApp(format), FunApp(r#ref)]) => self.read_deref(format, r#ref),
+            (Prim::FormatArray8, [FunApp(_, len), FunApp(_, format)]) => self.read_array(reader, span, len, format),
+            (Prim::FormatArray16, [FunApp(_, len), FunApp(_, format)]) => self.read_array(reader, span, len, format),
+            (Prim::FormatArray32, [FunApp(_, len), FunApp(_, format)]) => self.read_array(reader, span, len, format),
+            (Prim::FormatArray64, [FunApp(_, len), FunApp(_, format)]) => self.read_array(reader, span, len, format),
+            (Prim::FormatRepeatUntilEnd, [FunApp(_,format)]) => self.read_repeat_until_end(reader, format),
+            (Prim::FormatLimit8, [FunApp(_, limit), FunApp(_, format)]) => self.read_limit(reader, limit, format),
+            (Prim::FormatLimit16, [FunApp(_, limit), FunApp(_, format)]) => self.read_limit(reader, limit, format),
+            (Prim::FormatLimit32, [FunApp(_, limit), FunApp(_, format)]) => self.read_limit(reader, limit, format),
+            (Prim::FormatLimit64, [FunApp(_, limit), FunApp(_, format)]) => self.read_limit(reader, limit, format),
+            (Prim::FormatLink, [FunApp(_, pos), FunApp(_, format)]) => self.read_link(span, pos, format),
+            (Prim::FormatDeref, [FunApp(_, format), FunApp(_, r#ref)]) => self.read_deref(format, r#ref),
             (Prim::FormatStreamPos, []) => read_stream_pos(reader, span),
-            (Prim::FormatSucceed, [_, FunApp(elem)]) => Ok(elem.clone()),
+            (Prim::FormatSucceed, [_, FunApp(_, elem)]) => Ok(elem.clone()),
             (Prim::FormatFail, []) => Err(ReadError::ReadFailFormat(span)),
-            (Prim::FormatUnwrap, [_, FunApp(option)]) => match option.match_prim_spine() {
-                Some((Prim::OptionSome, [FunApp(elem)])) => Ok(elem.clone()),
+            (Prim::FormatUnwrap, [_, FunApp(_, option)]) => match option.match_prim_spine() {
+                Some((Prim::OptionSome, [FunApp(_, elem)])) => Ok(elem.clone()),
                 Some((Prim::OptionNone, [])) => Err(ReadError::UnwrappedNone(span)),
                 _ => Err(ReadError::InvalidValue(span)),
             },

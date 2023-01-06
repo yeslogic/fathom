@@ -1,0 +1,8 @@
+//~ exit-code = 1
+
+let id1 = fun (A : Type) (a : A) => a;
+let id2 = fun (@A : Type) (a : A) => a;
+
+let _ : Bool = id1 @Bool true;
+let _ : Bool = id2 @Bool @true;
+{}

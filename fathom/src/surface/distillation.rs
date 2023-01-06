@@ -263,20 +263,19 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
             }
             core::Term::FunLit(..) => {
                 let initial_local_len = self.local_len();
-                let mut param_names = Vec::new();
+                let mut params = Vec::new();
                 let mut body_expr = core_term;
-
-                while let core::Term::FunLit(_, param_name, next_body_expr) = body_expr {
+                while let core::Term::FunLit(_, plicity, param_name, next_body_expr) = body_expr {
                     let param_name = self.freshen_name(*param_name, next_body_expr);
-                    param_names.push(self.push_local(param_name));
+                    params.push((*plicity, self.push_local(param_name)));
                     body_expr = next_body_expr;
                 }
 
                 let body_expr = self.check(body_expr);
                 self.truncate_local(initial_local_len);
 
-                let params = param_names.into_iter().map(|name| FunParam {
-                    plicity: Plicity::Explicit,
+                let params = params.into_iter().map(|(plicity, name)| FunParam {
+                    plicity,
                     pattern: Pattern::Name((), name),
                     r#type: None,
                 });
@@ -472,21 +471,21 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 let body_type = loop {
                     match body_type {
                         // Use an explicit parameter if it is referenced in the body
-                        core::Term::FunType(_, param_name, param_type, next_body_type)
+                        core::Term::FunType(_, plicity, param_name, param_type, next_body_type)
                             if next_body_type.binds_local(Index::last()) =>
                         {
                             let param_type = self.check(param_type);
                             let param_name = self.freshen_name(*param_name, next_body_type);
                             let param_name = self.push_local(param_name);
                             params.push(FunParam {
-                                plicity: Plicity::Explicit,
+                                plicity: *plicity,
                                 pattern: Pattern::Name((), param_name),
                                 r#type: Some(param_type),
                             });
                             body_type = next_body_type;
                         }
                         // Use arrow sugar if the parameter is not referenced in the body type.
-                        core::Term::FunType(_, _, param_type, body_type) => {
+                        core::Term::FunType(_, plicity, _, param_type, body_type) => {
                             let param_type = self.check(param_type);
 
                             self.push_local(None);
@@ -495,7 +494,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
 
                             break Term::Arrow(
                                 (),
-                                Plicity::Explicit,
+                                *plicity,
                                 self.scope.to_scope(param_type),
                                 self.scope.to_scope(body_type),
                             );
@@ -519,20 +518,20 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
 
             core::Term::FunLit(..) => {
                 let initial_local_len = self.local_len();
-                let mut param_names = Vec::new();
+                let mut params = Vec::new();
                 let mut body_expr = core_term;
 
-                while let core::Term::FunLit(_, param_name, next_body_expr) = body_expr {
+                while let core::Term::FunLit(_, plicity, param_name, next_body_expr) = body_expr {
                     let param_name = self.freshen_name(*param_name, next_body_expr);
-                    param_names.push(self.push_local(param_name));
+                    params.push((*plicity, self.push_local(param_name)));
                     body_expr = next_body_expr;
                 }
 
                 let body_expr = self.synth(body_expr);
                 self.truncate_local(initial_local_len);
 
-                let params = param_names.into_iter().map(|name| FunParam {
-                    plicity: Plicity::Explicit,
+                let params = params.into_iter().map(|(plicity, name)| FunParam {
+                    plicity,
                     pattern: Pattern::Name((), name),
                     r#type: None,
                 });
@@ -544,8 +543,8 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 )
             }
             core::Term::FunApp(
-                _,
-                core::Term::FunApp(_, core::Term::Prim(_, prim), lhs),
+                ..,
+                core::Term::FunApp(.., core::Term::Prim(_, prim), lhs),
                 arg_expr,
             ) if prim_to_bin_op(prim).is_some() => {
                 self.synth_bin_op(lhs, arg_expr, prim_to_bin_op(prim).unwrap())
@@ -555,10 +554,10 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 let mut head_expr = core_term;
                 let mut args = Vec::new();
 
-                while let core::Term::FunApp(_, next_head_expr, arg_expr) = head_expr {
+                while let core::Term::FunApp(_, plicity, next_head_expr, arg_expr) = head_expr {
                     head_expr = next_head_expr;
                     args.push(AppArg {
-                        plicity: Plicity::Explicit,
+                        plicity: *plicity,
                         term: self.check(arg_expr),
                     });
                 }
@@ -768,8 +767,8 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
             (self.scope).to_scope_from_iter(core_fields.map(|(label, format)| match format {
                 // Distill succeed formats back to computed formats
                 core::Term::FunApp(
-                    _,
-                    core::Term::FunApp(_span, core::Term::Prim(_prim_span, FormatSucceed), r#type),
+                    ..,
+                    core::Term::FunApp(.., core::Term::Prim(_prim_span, FormatSucceed), r#type),
                     expr,
                 ) => {
                     let r#type = self.check(r#type);

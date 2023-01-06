@@ -8,6 +8,7 @@ use lalrpop_util::lalrpop_mod;
 use scoped_arena::Scope;
 
 use crate::{
+    core::Plicity,
     files::FileId,
     source::{BytePos, ByteRange, StringId, StringInterner},
 };
@@ -331,12 +332,6 @@ impl<'arena> Term<'arena, ByteRange> {
 
         (term, messages)
     }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Plicity {
-    Explicit,
-    Implicit,
 }
 
 #[derive(Debug, Clone)]
