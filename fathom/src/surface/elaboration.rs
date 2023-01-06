@@ -33,6 +33,8 @@ use crate::source::{BytePos, ByteRange, Span, Spanned, StringId, StringInterner}
 use crate::surface::elaboration::reporting::Message;
 use crate::surface::{distillation, pretty, BinOp, FormatField, Item, Module, Pattern, Term};
 
+use super::FunParam;
+
 mod order;
 mod reporting;
 mod unification;
@@ -615,7 +617,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
             match item {
                 Item::Def(item) => {
                     let (expr, type_value) =
-                        self.synth_fun_lit(item.range, item.patterns, item.expr, item.r#type);
+                        self.synth_fun_lit(item.range, item.params, item.expr, item.r#type);
                     let expr_value = self.eval_env().eval(&expr);
                     let r#type = self.quote_env().quote(self.scope, &type_value);
 
@@ -1308,7 +1310,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 (expr, r#type)
             }
             Term::Universe(range) => (core::Term::Universe(range.into()), self.universe.clone()),
-            Term::Arrow(range, param_type, body_type) => {
+            Term::Arrow(range, _, param_type, body_type) => {
                 let universe = self.universe.clone();
                 let param_type = self.check(param_type, &universe);
                 let param_type_value = self.eval_env().eval(&param_type);
@@ -1326,18 +1328,21 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
 
                 (fun_type, self.universe.clone())
             }
-            Term::FunType(range, patterns, body_type) => {
-                self.local_env.reserve(patterns.len());
+            Term::FunType(range, params, body_type) => {
+                self.local_env.reserve(params.len());
                 let initial_local_len = self.local_env.len();
 
                 // Elaborate the parameters, collecting them in a stack
-                let mut params = Vec::with_capacity(patterns.len());
-                for (pattern, r#type) in *patterns {
-                    let (pattern, type_value) = self.synth_ann_pattern(pattern, *r#type);
-                    let r#type = self.quote_env().quote(self.scope, &type_value);
-                    let (name, _) = self.push_local_param(pattern, type_value);
-                    params.push((name, r#type));
-                }
+                let params: Vec<_> = params
+                    .iter()
+                    .map(|param| {
+                        let (pattern, type_value) =
+                            self.synth_ann_pattern(&param.pattern, param.r#type.as_ref());
+                        let r#type = self.quote_env().quote(self.scope, &type_value);
+                        let (name, _) = self.push_local_param(pattern, type_value);
+                        (name, r#type)
+                    })
+                    .collect();
 
                 let mut fun_type = self.check(body_type, &self.universe.clone());
                 self.local_env.truncate(initial_local_len);
@@ -1354,21 +1359,21 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
 
                 (fun_type, self.universe.clone())
             }
-            Term::FunLiteral(range, patterns, body_expr) => {
-                self.synth_fun_lit(*range, patterns, body_expr, None)
+            Term::FunLiteral(range, params, body_expr) => {
+                self.synth_fun_lit(*range, params, body_expr, None)
             }
-            Term::App(range, head_expr, arg_exprs) => {
+            Term::App(range, head_expr, args) => {
                 let head_range = head_expr.range();
                 let (mut head_expr, mut head_type) = self.synth(head_expr);
 
-                for arg_expr in *arg_exprs {
+                for arg in *args {
                     head_type = self.elim_env().force(&head_type);
                     match (&head_expr, head_type.as_ref()) {
                         // Ensure that the head of the application is a function
                         (_, Value::FunType(_, param_type, body_type)) => {
                             // Check the argument and apply it to the body type
-                            let param_range = arg_expr.range();
-                            let arg_expr = self.check(arg_expr, param_type);
+                            let param_range = arg.term.range();
+                            let arg_expr = self.check(&arg.term, param_type);
                             let arg_expr_value = self.eval_env().eval(&arg_expr);
 
                             head_expr = core::Term::FunApp(
@@ -1392,7 +1397,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                             self.push_message(Message::UnexpectedArgument {
                                 head_range,
                                 head_type,
-                                arg_range: arg_expr.range(),
+                                arg_range: arg.term.range(),
                             });
                             return self.synth_reported_error(*range);
                         }
@@ -1581,22 +1586,27 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
     fn check_fun_lit(
         &mut self,
         range: ByteRange,
-        patterns: &[(Pattern<ByteRange>, Option<&Term<'_, ByteRange>>)],
+        params: &[FunParam<'_, ByteRange>],
         body_expr: &Term<'_, ByteRange>,
         expected_type: &ArcValue<'arena>,
     ) -> core::Term<'arena> {
-        match patterns.split_first() {
-            Some(((pattern, r#type), next_patterns)) => {
+        match params.split_first() {
+            Some((param, next_params)) => {
                 let body_type = self.elim_env().force(expected_type);
                 match body_type.as_ref() {
                     Value::FunType(_, param_type, next_body_type) => {
-                        let range = ByteRange::merge(&pattern.range(), &body_expr.range()).unwrap();
-                        let pattern = self.check_ann_pattern(pattern, *r#type, param_type);
+                        let range =
+                            ByteRange::merge(&param.pattern.range(), &body_expr.range()).unwrap();
+                        let pattern = self.check_ann_pattern(
+                            &param.pattern,
+                            param.r#type.as_ref(),
+                            param_type,
+                        );
                         let (name, arg_expr) = self.push_local_param(pattern, param_type.clone());
 
                         let body_type = self.elim_env().apply_closure(next_body_type, arg_expr);
                         let body_expr =
-                            self.check_fun_lit(range, next_patterns, body_expr, &body_type);
+                            self.check_fun_lit(range, next_params, body_expr, &body_type);
                         self.local_env.pop();
 
                         core::Term::FunLit(range.into(), name, self.scope.to_scope(body_expr))
@@ -1604,8 +1614,9 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                     // Attempt to elaborate the the body of the function in synthesis
                     // mode if we are checking against a metavariable.
                     Value::Stuck(Head::MetaVar(_), _) => {
-                        let range = ByteRange::merge(&pattern.range(), &body_expr.range()).unwrap();
-                        let (expr, r#type) = self.synth_fun_lit(range, patterns, body_expr, None);
+                        let range =
+                            ByteRange::merge(&param.pattern.range(), &body_expr.range()).unwrap();
+                        let (expr, r#type) = self.synth_fun_lit(range, params, body_expr, None);
                         self.convert(range, expr, &r#type, expected_type)
                     }
                     Value::Stuck(Head::Prim(Prim::ReportedError), _) => {
@@ -1613,7 +1624,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                     }
                     _ => {
                         self.push_message(Message::UnexpectedParameter {
-                            param_range: pattern.range(),
+                            param_range: param.pattern.range(),
                         });
                         // TODO: For improved error recovery, bind the rest of
                         // the parameters, and check the body of the function
@@ -1629,25 +1640,29 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
     fn synth_fun_lit(
         &mut self,
         range: ByteRange,
-        patterns: &[(Pattern<ByteRange>, Option<&Term<ByteRange>>)],
+        params: &[FunParam<'_, ByteRange>],
         body_expr: &Term<'_, ByteRange>,
         body_type: Option<&Term<'_, ByteRange>>,
     ) -> (core::Term<'arena>, ArcValue<'arena>) {
-        self.local_env.reserve(patterns.len());
+        self.local_env.reserve(params.len());
         let initial_local_len = self.local_env.len();
 
         // Elaborate the parameters, collecting them into a stack
-        let mut params = Vec::with_capacity(patterns.len());
-        for (i, (pattern, r#type)) in patterns.iter().enumerate() {
-            let range = match i {
-                0 => range, // The first pattern uses the range of the full function literal
-                _ => ByteRange::merge(&pattern.range(), &body_expr.range()).unwrap(),
-            };
-            let (pattern, type_value) = self.synth_ann_pattern(pattern, *r#type);
-            let r#type = self.quote_env().quote(self.scope, &type_value);
-            let (name, _) = self.push_local_param(pattern, type_value);
-            params.push((range, name, r#type));
-        }
+        let params: Vec<_> = params
+            .iter()
+            .enumerate()
+            .map(|(i, param)| {
+                let range = match i {
+                    0 => range, // The first pattern uses the range of the full function literal
+                    _ => ByteRange::merge(&param.pattern.range(), &body_expr.range()).unwrap(),
+                };
+                let (pattern, type_value) =
+                    self.synth_ann_pattern(&param.pattern, param.r#type.as_ref());
+                let r#type = self.quote_env().quote(self.scope, &type_value);
+                let (name, _) = self.push_local_param(pattern, type_value);
+                (range, name, r#type)
+            })
+            .collect();
 
         let (mut fun_lit, mut fun_type) = match body_type {
             Some(body_type) => {

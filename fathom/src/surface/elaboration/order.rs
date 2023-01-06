@@ -22,7 +22,7 @@ use fxhash::{FxHashMap, FxHashSet};
 
 use crate::source::{ByteRange, StringId};
 use crate::surface::elaboration::reporting::Message;
-use crate::surface::{elaboration, FormatField, Item, Module, Pattern, Term};
+use crate::surface::{elaboration, FormatField, FunParam, Item, Module, Pattern, Term};
 
 enum Error {
     CycleDetected,
@@ -148,7 +148,7 @@ fn item_dependencies(
     match item {
         Item::Def(item) => {
             let initial_locals_names_len = local_names.len();
-            push_pattern_deps(item.patterns, item_names, local_names, &mut deps);
+            push_param_deps(item.params, item_names, local_names, &mut deps);
             if let Some(r#type) = item.r#type {
                 term_deps(r#type, item_names, local_names, &mut deps);
             }
@@ -203,26 +203,26 @@ fn term_deps(
             }
             local_names.truncate(initial_locals_names_len);
         }
-        Term::Arrow(_, param_type, body_type) => {
+        Term::Arrow(.., param_type, body_type) => {
             term_deps(param_type, item_names, local_names, deps);
             term_deps(body_type, item_names, local_names, deps);
         }
         Term::FunType(_, patterns, body_type) => {
             let initial_locals_names_len = local_names.len();
-            push_pattern_deps(patterns, item_names, local_names, deps);
+            push_param_deps(patterns, item_names, local_names, deps);
             term_deps(body_type, item_names, local_names, deps);
             local_names.truncate(initial_locals_names_len);
         }
         Term::FunLiteral(_, patterns, body_type) => {
             let initial_locals_names_len = local_names.len();
-            push_pattern_deps(patterns, item_names, local_names, deps);
+            push_param_deps(patterns, item_names, local_names, deps);
             term_deps(body_type, item_names, local_names, deps);
             local_names.truncate(initial_locals_names_len);
         }
-        Term::App(_, head_expr, arg_exprs) => {
+        Term::App(_, head_expr, args) => {
             term_deps(head_expr, item_names, local_names, deps);
-            for arg_expr in *arg_exprs {
-                term_deps(arg_expr, item_names, local_names, deps);
+            for arg in *args {
+                term_deps(&arg.term, item_names, local_names, deps);
             }
         }
         Term::RecordType(_, type_fields) => {
@@ -278,17 +278,17 @@ fn term_deps(
     }
 }
 
-fn push_pattern_deps(
-    patterns: &[(Pattern<ByteRange>, Option<&Term<'_, ByteRange>>)],
+fn push_param_deps(
+    params: &[FunParam<'_, ByteRange>],
     item_names: &FxHashMap<StringId, usize>,
     local_names: &mut Vec<StringId>,
     deps: &mut Vec<StringId>,
 ) {
-    for (pattern, r#type) in patterns {
-        if let Some(r#type) = r#type {
+    for param in params {
+        if let Some(r#type) = &param.r#type {
             term_deps(r#type, item_names, local_names, deps);
         }
-        push_pattern(pattern, local_names);
+        push_pattern(&param.pattern, local_names);
     }
 }
 

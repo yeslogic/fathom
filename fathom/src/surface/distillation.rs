@@ -13,6 +13,8 @@ use crate::surface::{
     BinOp, ExprField, FormatField, Item, ItemDef, Module, Pattern, Term, TypeField,
 };
 
+use super::{AppArg, FunParam, Plicity};
+
 /// Distillation context.
 pub struct Context<'interner, 'arena, 'env> {
     interner: &'interner RefCell<StringInterner>,
@@ -129,7 +131,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 Item::Def(ItemDef {
                     range: (),
                     label: ((), *label),
-                    patterns: &[],
+                    params: &[],
                     r#type: Some(r#type),
                     expr,
                 })
@@ -273,13 +275,15 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 let body_expr = self.check(body_expr);
                 self.truncate_local(initial_local_len);
 
-                let patterns = param_names
-                    .into_iter()
-                    .map(|name| (Pattern::Name((), name), None));
+                let params = param_names.into_iter().map(|name| FunParam {
+                    plicity: Plicity::Explicit,
+                    pattern: Pattern::Name((), name),
+                    r#type: None,
+                });
 
                 Term::FunLiteral(
                     (),
-                    self.scope.to_scope_from_iter(patterns),
+                    self.scope.to_scope_from_iter(params),
                     self.scope.to_scope(body_expr),
                 )
             }
@@ -416,19 +420,22 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                     head_expr
                 } else {
                     let head_expr = self.scope.to_scope(head_expr);
-                    let mut arg_exprs = SliceVec::new(self.scope, num_params);
+                    let mut args = SliceVec::new(self.scope, num_params);
 
                     for (var, info) in Iterator::zip(env::levels(), local_infos.iter()) {
                         match info {
                             core::LocalInfo::Def => {}
                             core::LocalInfo::Param => {
                                 let var = self.local_len().level_to_index(var).unwrap();
-                                arg_exprs.push(self.check(&core::Term::LocalVar(Span::Empty, var)));
+                                args.push(AppArg {
+                                    plicity: Plicity::Explicit,
+                                    term: self.check(&core::Term::LocalVar(Span::Empty, var)),
+                                });
                             }
                         }
                     }
 
-                    Term::App((), head_expr, arg_exprs.into())
+                    Term::App((), head_expr, args.into())
                 }
             }
             core::Term::Ann(_span, expr, r#type) => {
@@ -459,7 +466,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
             core::Term::FunType(..) => {
                 let initial_local_len = self.local_len();
 
-                let mut patterns = Vec::new();
+                let mut params = Vec::new();
                 let mut body_type = core_term;
 
                 let body_type = loop {
@@ -471,10 +478,11 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                             let param_type = self.check(param_type);
                             let param_name = self.freshen_name(*param_name, next_body_type);
                             let param_name = self.push_local(param_name);
-                            patterns.push((
-                                Pattern::Name((), param_name),
-                                Some(self.scope.to_scope(param_type) as &_),
-                            ));
+                            params.push(FunParam {
+                                plicity: Plicity::Explicit,
+                                pattern: Pattern::Name((), param_name),
+                                r#type: Some(param_type),
+                            });
                             body_type = next_body_type;
                         }
                         // Use arrow sugar if the parameter is not referenced in the body type.
@@ -487,6 +495,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
 
                             break Term::Arrow(
                                 (),
+                                Plicity::Explicit,
                                 self.scope.to_scope(param_type),
                                 self.scope.to_scope(body_type),
                             );
@@ -497,12 +506,12 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
 
                 self.truncate_local(initial_local_len);
 
-                if patterns.is_empty() {
+                if params.is_empty() {
                     body_type
                 } else {
                     Term::FunType(
                         (),
-                        self.scope.to_scope_from_iter(patterns),
+                        self.scope.to_scope_from_iter(params),
                         self.scope.to_scope(body_type),
                     )
                 }
@@ -522,40 +531,46 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 let body_expr = self.synth(body_expr);
                 self.truncate_local(initial_local_len);
 
-                let patterns = param_names
-                    .into_iter()
-                    .map(|name| (Pattern::Name((), name), None));
+                let params = param_names.into_iter().map(|name| FunParam {
+                    plicity: Plicity::Explicit,
+                    pattern: Pattern::Name((), name),
+                    r#type: None,
+                });
 
                 Term::FunLiteral(
                     (),
-                    self.scope.to_scope_from_iter(patterns),
+                    self.scope.to_scope_from_iter(params),
                     self.scope.to_scope(body_expr),
                 )
             }
-            core::Term::FunApp(_, mut head_expr, arg_expr) => match head_expr {
-                core::Term::FunApp(_, core::Term::Prim(_, prim), lhs)
-                    if prim_to_bin_op(prim).is_some() =>
-                {
-                    // unwrap is safe due to is_some check above
-                    self.synth_bin_op(lhs, arg_expr, prim_to_bin_op(prim).unwrap())
+            core::Term::FunApp(
+                _,
+                core::Term::FunApp(_, core::Term::Prim(_, prim), lhs),
+                arg_expr,
+            ) if prim_to_bin_op(prim).is_some() => {
+                self.synth_bin_op(lhs, arg_expr, prim_to_bin_op(prim).unwrap())
+            }
+
+            core::Term::FunApp(..) => {
+                let mut head_expr = core_term;
+                let mut args = Vec::new();
+
+                while let core::Term::FunApp(_, next_head_expr, arg_expr) = head_expr {
+                    head_expr = next_head_expr;
+                    args.push(AppArg {
+                        plicity: Plicity::Explicit,
+                        term: self.check(arg_expr),
+                    });
                 }
-                _ => {
-                    let mut arg_exprs = vec![self.check(arg_expr)];
 
-                    while let core::Term::FunApp(_, next_head_expr, arg_expr) = head_expr {
-                        head_expr = next_head_expr;
-                        arg_exprs.push(self.check(arg_expr));
-                    }
+                let head_expr = self.synth(head_expr);
 
-                    let head_expr = self.synth(head_expr);
-
-                    Term::App(
-                        (),
-                        self.scope.to_scope(head_expr),
-                        self.scope.to_scope_from_iter(arg_exprs.into_iter().rev()),
-                    )
-                }
-            },
+                Term::App(
+                    (),
+                    self.scope.to_scope(head_expr),
+                    self.scope.to_scope_from_iter(args.into_iter().rev()),
+                )
+            }
             core::Term::RecordType(_, labels, types)
                 if is_tuple_type(&mut self.interner.borrow_mut(), labels, types) =>
             {
