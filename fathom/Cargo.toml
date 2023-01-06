@@ -32,7 +32,7 @@ string-interner = "0.14.0"
 termsize = "0.1.6"
 
 [build-dependencies]
-lalrpop = "0.19.5"
+lalrpop = { git = "https://github.com/kmeakin/lalrpop", branch = "raw-identifiers" }
 
 [dev-dependencies]
 diff = "0.1.12"

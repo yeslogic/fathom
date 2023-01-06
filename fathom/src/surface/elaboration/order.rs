@@ -149,7 +149,7 @@ fn item_dependencies(
         Item::Def(item) => {
             let initial_locals_names_len = local_names.len();
             push_pattern_deps(item.patterns, item_names, local_names, &mut deps);
-            if let Some(r#type) = item.type_ {
+            if let Some(r#type) = item.r#type {
                 term_deps(r#type, item_names, local_names, &mut deps);
             }
             term_deps(item.expr, item_names, local_names, &mut deps);
@@ -228,7 +228,7 @@ fn term_deps(
         Term::RecordType(_, type_fields) => {
             let initial_locals_names_len = local_names.len();
             for type_field in *type_fields {
-                term_deps(&type_field.type_, item_names, local_names, deps);
+                term_deps(&type_field.r#type, item_names, local_names, deps);
                 local_names.push(type_field.label.1);
             }
             local_names.truncate(initial_locals_names_len);
@@ -311,10 +311,10 @@ fn field_deps(
             }
             FormatField::Computed {
                 label: (_, label),
-                type_,
+                r#type,
                 expr,
             } => {
-                if let Some(r#type) = type_ {
+                if let Some(r#type) = r#type {
                     term_deps(r#type, item_names, local_names, deps);
                 }
                 term_deps(expr, item_names, local_names, deps);

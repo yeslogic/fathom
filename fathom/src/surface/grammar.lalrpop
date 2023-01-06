@@ -73,12 +73,12 @@ pub Module: Module<'arena, ByteRange> = {
 };
 
 Item: Item<'arena, ByteRange> = {
-    <start: @L> "def" <label: RangedName> <patterns: AnnPattern*> <type_: (":" <LetTerm>)?> "=" <expr: Term> ";" <end: @R> => {
+    <start: @L> "def" <label: RangedName> <patterns: AnnPattern*> <r#type: (":" <LetTerm>)?> "=" <expr: Term> ";" <end: @R> => {
         Item::Def(ItemDef {
             range: ByteRange::new(file_id, start, end),
             label,
             patterns: scope.to_scope_from_iter(patterns),
-            type_: type_.map(|type_| scope.to_scope(type_) as &_),
+            r#type: r#type.map(|r#type| scope.to_scope(r#type) as &_),
             expr: scope.to_scope(expr),
         })
     },
@@ -99,17 +99,16 @@ Pattern: Pattern<ByteRange> = {
 
 AnnPattern: (Pattern<ByteRange>, Option<&'arena Term<'arena, ByteRange>>) = {
     <pattern: Pattern> => (pattern, None),
-    "(" <pattern: Pattern> ":" <type_: LetTerm> ")" => (pattern, Some(scope.to_scope(type_))),
+    "(" <pattern: Pattern> ":" <r#type: LetTerm> ")" => (pattern, Some(scope.to_scope(r#type))),
 };
 
 pub Term: Term<'arena, ByteRange> = {
     LetTerm,
-    // FIXME: LALRPOP does not accept raw identifiers (see: https://github.com/lalrpop/lalrpop/issues/613)
-    <start: @L> <expr: LetTerm> ":" <type_: LetTerm> <end: @R> => {
+    <start: @L> <expr: LetTerm> ":" <r#type: LetTerm> <end: @R> => {
         Term::Ann(
             ByteRange::new(file_id, start, end),
             scope.to_scope(expr),
-            scope.to_scope(type_),
+            scope.to_scope(r#type),
         )
     },
 };
@@ -247,13 +246,13 @@ FormatField: FormatField<'arena, ByteRange> = {
     <label: RangedName> "<-" <format: Term> <pred: ("where" <Term>)?> => {
         FormatField::Format { label, format, pred }
     },
-    "let" <label: RangedName> <type_: (":" <Term>)?> "=" <expr: Term> => {
-        FormatField::Computed { label, type_, expr }
+    "let" <label: RangedName> <r#type: (":" <Term>)?> "=" <expr: Term> => {
+        FormatField::Computed { label, r#type, expr }
     },
 };
 
 TypeField: TypeField<'arena, ByteRange> = {
-    <label: RangedName> ":" <type_: Term> => TypeField { label, type_ },
+    <label: RangedName> ":" <r#type: Term> => TypeField { label, r#type },
 };
 
 ExprField: ExprField<'arena, ByteRange> = {
