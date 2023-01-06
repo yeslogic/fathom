@@ -6,11 +6,21 @@ use crate::{
     source::{BytePos, ByteRange},
 };
 
+pub const KEYWORDS: &[&str] = &[
+    "def", "else", "false", "fun", "if", "let", "match", "overlap", "then", "true", "Type", "where",
+];
+
+pub fn is_keyword(word: &str) -> bool {
+    KEYWORDS.iter().any(|keyword| word == *keyword)
+}
+
 #[derive(Clone, Debug, Logos)]
 pub enum Token<'source> {
     #[regex(r"[a-zA-Z_][a-zA-Z0-9_]*")]
+    #[regex(r"r#[a-zA-Z_][a-zA-Z0-9_]*", |lex| &lex.slice()[2..])]
     Name(&'source str),
     #[regex(r"\?[a-zA-Z_][a-zA-Z0-9_]*", |lex| &lex.slice()[1..])]
+    #[regex(r"\?r#[a-zA-Z_][a-zA-Z0-9_]*", |lex| &lex.slice()[3..])]
     Hole(&'source str),
     #[regex(r#""([^"\\]|\\.)*""#, |lex| &lex.slice()[1..(lex.slice().len() - 1)])]
     StringLiteral(&'source str),

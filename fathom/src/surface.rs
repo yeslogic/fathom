@@ -17,7 +17,7 @@ lalrpop_mod!(
     grammar,
     "/surface/grammar.rs"
 );
-mod lexer;
+pub mod lexer;
 pub mod pretty;
 
 pub mod distillation;

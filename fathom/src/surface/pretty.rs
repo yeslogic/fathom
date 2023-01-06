@@ -5,6 +5,8 @@ use std::cell::RefCell;
 use crate::source::{StringId, StringInterner};
 use crate::surface::{BinOp, FormatField, Item, Module, Pattern, Term};
 
+use super::lexer::is_keyword;
+
 /// Term precedences
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 enum Prec {
@@ -42,6 +44,14 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         }
     }
 
+    fn ident(&'arena self, name: StringId) -> DocBuilder<'arena, Self> {
+        match self.interner.borrow().resolve(name) {
+            Some(name) if is_keyword(name) => self.text(format!("r#{name}")),
+            Some(name) => self.text(name.to_owned()),
+            None => self.text("#error"),
+        }
+    }
+
     pub fn module<Range>(&'arena self, module: &Module<'_, Range>) -> DocBuilder<'arena, Self> {
         self.intersperse(
             module.items.iter().map(|item| self.item(item)),
@@ -57,13 +67,13 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                     self.space(),
                     match item.r#type {
                         None => self.concat([
-                            self.string_id(item.label.1),
+                            self.ident(item.label.1),
                             self.ann_patterns(item.patterns),
                             self.space(),
                         ]),
                         Some(r#type) => self.concat([
                             self.concat([
-                                self.string_id(item.label.1),
+                                self.ident(item.label.1),
                                 self.ann_patterns(item.patterns),
                                 self.space(),
                                 self.text(":"),
@@ -87,7 +97,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
     fn pattern<Range>(&'arena self, pattern: &Pattern<Range>) -> DocBuilder<'arena, Self> {
         match pattern {
             Pattern::Placeholder(_) => self.text("_"),
-            Pattern::Name(_, name) => self.string_id(*name),
+            Pattern::Name(_, name) => self.ident(*name),
             Pattern::StringLiteral(_, number) => self.string_id(*number),
             Pattern::NumberLiteral(_, number) => self.string_id(*number),
             Pattern::BooleanLiteral(_, boolean) => match *boolean {
@@ -141,8 +151,8 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         // FIXME: indentation and grouping
 
         match term {
-            Term::Name(_, name) => self.string_id(*name),
-            Term::Hole(_, name) => self.concat([self.text("?"), self.string_id(*name)]),
+            Term::Name(_, name) => self.ident(*name),
+            Term::Hole(_, name) => self.concat([self.text("?"), self.ident(*name)]),
             Term::Placeholder(_) => self.text("_"),
             Term::Ann(_, expr, r#type) => self.paren(
                 prec > Prec::Top,
@@ -265,7 +275,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 self.text("{"),
                 type_fields.iter().map(|field| {
                     self.concat([
-                        self.string_id(field.label.1),
+                        self.ident(field.label.1),
                         self.space(),
                         self.text(":"),
                         self.space(),
@@ -280,7 +290,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 self.text("{"),
                 expr_fields.iter().map(|field| {
                     self.concat([
-                        self.string_id(field.label.1),
+                        self.ident(field.label.1),
                         self.space(),
                         self.text("="),
                         self.space(),
@@ -306,7 +316,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
             Term::Proj(_, head_expr, labels) => self.concat([
                 self.term_prec(Prec::Atomic, head_expr),
                 self.concat(
-                    (labels.iter()).map(|(_, label)| self.text(".").append(self.string_id(*label))),
+                    (labels.iter()).map(|(_, label)| self.text(".").append(self.ident(*label))),
                 ),
             ]),
             Term::ArrayLiteral(_, exprs) => self.sequence(
@@ -334,7 +344,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
             Term::FormatCond(_, (_, label), format, cond) => self.concat([
                 self.text("{"),
                 self.space(),
-                self.string_id(*label),
+                self.ident(*label),
                 self.space(),
                 self.text("<-"),
                 self.space(),
@@ -377,7 +387,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 format,
                 pred,
             } => self.concat([
-                self.string_id(label.1),
+                self.ident(label.1),
                 self.space(),
                 self.text("<-"),
                 self.space(),
@@ -399,7 +409,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
             } => self.concat([
                 self.text("let"),
                 self.space(),
-                self.string_id(label.1),
+                self.ident(label.1),
                 match r#type {
                     Some(r#type) => self.concat([
                         self.space(),
