@@ -8,7 +8,7 @@
 - [x] let expressions
 - [x] dependent function types
   - [x] condensed syntax for multiple parameters
-  - [ ] implicit parameters
+  - [x] implicit parameters
 - [x] records
   - [x] non-dependent
   - [x] dependent
