@@ -4,9 +4,9 @@ error: mismatched types
   ┌─ tests/fail/elaboration/unification/mismatch/fun-type-param-type.fathom:3:43
   │
 3 │ fun (A : Type) -> fun (a : A) -> fun (b : a) -> A
-  │                                           ^ type mismatch, expected `A`, found `Type`
+  │                                           ^ type mismatch, expected `Type`, found `A`
   │
-  = expected `A`
-       found `Type`
+  = expected `Type`
+       found `A`
 
 '''

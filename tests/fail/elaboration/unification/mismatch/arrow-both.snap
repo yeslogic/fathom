@@ -4,18 +4,18 @@ error: mismatched types
   ┌─ tests/fail/elaboration/unification/mismatch/arrow-both.fathom:3:34
   │
 3 │ fun (A : Type) -> fun (a : A) -> a -> a
-  │                                  ^ type mismatch, expected `A`, found `Type`
+  │                                  ^ type mismatch, expected `Type`, found `A`
   │
-  = expected `A`
-       found `Type`
+  = expected `Type`
+       found `A`
 
 error: mismatched types
   ┌─ tests/fail/elaboration/unification/mismatch/arrow-both.fathom:3:39
   │
 3 │ fun (A : Type) -> fun (a : A) -> a -> a
-  │                                       ^ type mismatch, expected `A`, found `Type`
+  │                                       ^ type mismatch, expected `Type`, found `A`
   │
-  = expected `A`
-       found `Type`
+  = expected `Type`
+       found `A`
 
 '''

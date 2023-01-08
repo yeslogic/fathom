@@ -12,9 +12,9 @@ error: mismatched types
   ┌─ tests/fail/parse/error-recovery.fathom:5:1
   │
 5 │ x : Type -> Type
-  │ ^ type mismatch, expected `Type`, found `Type -> Type`
+  │ ^ type mismatch, expected `Type -> Type`, found `Type`
   │
-  = expected `Type`
-       found `Type -> Type`
+  = expected `Type -> Type`
+       found `Type`
 
 '''
