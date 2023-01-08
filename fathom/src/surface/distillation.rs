@@ -108,7 +108,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                     range: (),
                     label: ((), *label),
                     patterns: &[],
-                    type_: Some(r#type),
+                    r#type: Some(r#type),
                     expr,
                 })
             }
@@ -546,7 +546,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                         self.push_local(Some(*label));
                         TypeField {
                             label: ((), *label), // TODO: range from span
-                            type_: r#type,
+                            r#type,
                         }
                     }),
                 );
@@ -732,7 +732,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
 
                     FormatField::Computed {
                         label: ((), label),
-                        type_: Some(r#type),
+                        r#type: Some(r#type),
                         expr,
                     }
                 }

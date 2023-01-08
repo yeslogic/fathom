@@ -68,8 +68,7 @@ pub struct ItemDef<'arena, Range> {
     /// Parameter patterns
     patterns: &'arena [(Pattern<Range>, Option<&'arena Term<'arena, Range>>)],
     /// An optional type annotation for the defined expression
-    // FIXME: raw identifiers in LALRPOP grammars https://github.com/lalrpop/lalrpop/issues/613
-    type_: Option<&'arena Term<'arena, Range>>,
+    r#type: Option<&'arena Term<'arena, Range>>,
     /// The defined expression
     expr: &'arena Term<'arena, Range>,
 }
@@ -347,8 +346,7 @@ pub enum FormatField<'arena, Range> {
         /// Label identifying the field
         label: (Range, StringId),
         /// Optional type annotation
-        // FIXME: raw identifiers in LALRPOP grammars https://github.com/lalrpop/lalrpop/issues/613
-        type_: Option<Term<'arena, Range>>,
+        r#type: Option<Term<'arena, Range>>,
         /// The expression that this field compute
         expr: Term<'arena, Range>,
     },
@@ -360,8 +358,7 @@ pub struct TypeField<'arena, Range> {
     /// Label identifying the field
     label: (Range, StringId),
     /// The type that is expected for this field
-    // FIXME: raw identifiers in LALRPOP grammars https://github.com/lalrpop/lalrpop/issues/613
-    type_: Term<'arena, Range>,
+    r#type: Term<'arena, Range>,
 }
 
 /// A field definition in a record literal

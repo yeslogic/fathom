@@ -55,7 +55,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 .concat([
                     self.text("def"),
                     self.space(),
-                    match item.type_ {
+                    match item.r#type {
                         None => self.concat([
                             self.string_id(item.label.1),
                             self.ann_patterns(item.patterns),
@@ -269,7 +269,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                         self.space(),
                         self.text(":"),
                         self.space(),
-                        self.term_prec(Prec::Top, &field.type_),
+                        self.term_prec(Prec::Top, &field.r#type),
                     ])
                 }),
                 self.text(","),
@@ -392,11 +392,15 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                     None => self.nil(),
                 },
             ]),
-            FormatField::Computed { label, type_, expr } => self.concat([
+            FormatField::Computed {
+                label,
+                r#type,
+                expr,
+            } => self.concat([
                 self.text("let"),
                 self.space(),
                 self.string_id(label.1),
-                match type_ {
+                match r#type {
                     Some(r#type) => self.concat([
                         self.space(),
                         self.text(":"),

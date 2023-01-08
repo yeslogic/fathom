@@ -615,7 +615,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
             match item {
                 Item::Def(item) => {
                     let (expr, type_value) =
-                        self.synth_fun_lit(item.range, item.patterns, item.expr, item.type_);
+                        self.synth_fun_lit(item.range, item.patterns, item.expr, item.r#type);
                     let expr_value = self.eval_env().eval(&expr);
                     let r#type = self.quote_env().quote(self.scope, &type_value);
 
@@ -1409,7 +1409,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 let mut types = SliceVec::new(self.scope, labels.len());
 
                 for type_field in type_fields {
-                    let r#type = self.check(&type_field.type_, &universe);
+                    let r#type = self.check(&type_field.r#type, &universe);
                     let type_value = self.eval_env().eval(&r#type);
                     self.local_env
                         .push_param(Some(type_field.label.1), type_value);
@@ -1890,7 +1890,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 }
                 FormatField::Computed {
                     label: (label_range, label),
-                    type_: r#type,
+                    r#type,
                     expr,
                 } => {
                     let (expr, r#type, type_value) = match r#type {
