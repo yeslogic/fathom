@@ -94,8 +94,8 @@ pub enum Message {
     /// Unification errors.
     FailedToUnify {
         range: ByteRange,
-        lhs: String,
-        rhs: String,
+        found: String,
+        expected: String,
         error: unification::Error,
     },
     BinOpMismatchedTypes {
@@ -212,9 +212,11 @@ impl Message {
                             match type_labels.next() {
                                 None => {
                                     let expr_label = interner.resolve(*expr_label).unwrap();
-                                    diagnostic_labels.push(primary_label(range).with_message(
-                                        format!("unexpected field `{expr_label}`",),
-                                    ));
+                                    diagnostic_labels.push(
+                                        primary_label(range).with_message(format!(
+                                            "unexpected field `{expr_label}`",
+                                        )),
+                                    );
                                     continue 'expr_labels;
                                 }
                                 Some(type_label) if expr_label == type_label => {
@@ -376,8 +378,8 @@ impl Message {
                 ]),
             Message::FailedToUnify {
                 range,
-                lhs,
-                rhs,
+                found,
+                expected,
                 error,
             } => {
                 use unification::{Error, RenameError, SpineError};
@@ -387,11 +389,11 @@ impl Message {
                     Error::Mismatch => Diagnostic::error()
                         .with_message("mismatched types")
                         .with_labels(vec![primary_label(range).with_message(format!(
-                            "type mismatch, expected `{lhs}`, found `{rhs}`"
+                            "type mismatch, expected `{expected}`, found `{found}`"
                         ))])
                         .with_notes(vec![[
-                            format!("expected `{lhs}`"),
-                            format!("   found `{rhs}`"),
+                            format!("expected `{expected}`"),
+                            format!("   found `{found}`"),
                         ]
                         .join("\n")]),
                     // TODO: reduce confusion around ‘problem spines’

@@ -456,8 +456,9 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
             });
         }
 
-        let filtered_fields = (fields.iter().enumerate())
-            .filter_map(move |(index, field)| (!duplicate_indices.contains(&index)).then_some(field));
+        let filtered_fields = (fields.iter().enumerate()).filter_map(move |(index, field)| {
+            (!duplicate_indices.contains(&index)).then_some(field)
+        });
 
         (labels.into(), filtered_fields)
     }
@@ -561,7 +562,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         }
     }
 
-    /// Conversion checking for `expr` under the types `type0` and `type1`.
+    /// Conversion checking for `expr` under the types `from` and `to`.
     /// This will trigger unification, recording a unification error on failure.
     //
     // NOTE: We could eventually call this method `coerce` if we end up adding
@@ -570,8 +571,8 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         &mut self,
         surface_range: ByteRange, // TODO: could be removed if we never encounter empty spans in the core term
         expr: core::Term<'arena>,
-        type0: &ArcValue<'arena>,
-        type1: &ArcValue<'arena>,
+        from: &ArcValue<'arena>,
+        to: &ArcValue<'arena>,
     ) -> core::Term<'arena> {
         let span = expr.span();
         let range = match span {
@@ -583,15 +584,15 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 surface_range
             }
         };
-        match self.unification_context().unify(type0, type1) {
+        match self.unification_context().unify(from, to) {
             Ok(()) => expr,
             Err(error) => {
-                let lhs = self.pretty_print_value(type0);
-                let rhs = self.pretty_print_value(type1);
+                let from = self.pretty_print_value(from);
+                let to = self.pretty_print_value(to);
                 self.push_message(Message::FailedToUnify {
                     range,
-                    lhs,
-                    rhs,
+                    found: from,
+                    expected: to,
                     error,
                 });
                 core::Term::Prim(span, Prim::ReportedError)
@@ -835,8 +836,8 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                         let rhs = self.pretty_print_value(expected_type);
                         self.push_message(Message::FailedToUnify {
                             range,
-                            lhs,
-                            rhs,
+                            found: lhs,
+                            expected: rhs,
                             error,
                         });
                         CheckedPattern::ReportedError(range)

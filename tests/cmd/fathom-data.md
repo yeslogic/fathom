@@ -266,10 +266,10 @@ error: mismatched types
   ┌─ <FORMAT>:1:1
   │
 1 │ { x : U64 }
-  │ ^^^^^^^^^^^ type mismatch, expected `Type`, found `Format`
+  │ ^^^^^^^^^^^ type mismatch, expected `Format`, found `Type`
   │
-  = expected `Type`
-       found `Format`
+  = expected `Format`
+       found `Type`
 
 
 ```
@@ -284,10 +284,10 @@ error: mismatched types
   ┌─ <FORMAT>:1:1
   │
 1 │ offset16
-  │ ^^^^^^^^ type mismatch, expected `Pos -> Format -> Format`, found `Format`
+  │ ^^^^^^^^ type mismatch, expected `Format`, found `Pos -> Format -> Format`
   │
-  = expected `Pos -> Format -> Format`
-       found `Format`
+  = expected `Format`
+       found `Pos -> Format -> Format`
 
 
 ```
