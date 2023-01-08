@@ -360,7 +360,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                     let surface_term = distillation::Context::new(
                         self.interner,
                         self.scope,
-                        &mut self.item_env.names,
+                        &self.item_env.names,
                         &mut self.local_env.names,
                         &self.meta_env.sources,
                     )
@@ -408,7 +408,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         distillation::Context::new(
             self.interner,
             scope,
-            &mut self.item_env.names,
+            &self.item_env.names,
             &mut self.local_env.names,
             &self.meta_env.sources,
         )

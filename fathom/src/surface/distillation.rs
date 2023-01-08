@@ -19,7 +19,7 @@ pub struct Context<'interner, 'arena, 'env> {
     /// Scoped arena for storing distilled terms.
     scope: &'arena Scope<'arena>,
     /// Item name environment.
-    item_names: &'env mut UniqueEnv<StringId>,
+    item_names: &'env UniqueEnv<StringId>,
     /// Local name environment.
     local_names: &'env mut UniqueEnv<Option<StringId>>,
     /// Metavariable sources.
@@ -31,7 +31,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
     pub fn new(
         interner: &'interner RefCell<StringInterner>,
         scope: &'arena Scope<'arena>,
-        item_names: &'env mut UniqueEnv<StringId>,
+        item_names: &'env UniqueEnv<StringId>,
         local_names: &'env mut UniqueEnv<Option<StringId>>,
         meta_sources: &'env UniqueEnv<MetaSource>,
     ) -> Context<'interner, 'arena, 'env> {
@@ -50,10 +50,6 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
 
     fn get_item_name(&self, var: Level) -> Option<StringId> {
         self.item_names.get_level(var).copied()
-    }
-
-    fn push_item(&mut self, name: StringId) {
-        self.item_names.push(name);
     }
 
     fn get_local_name(&self, var: Index) -> Option<StringId> {
@@ -107,7 +103,6 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
             } => {
                 let r#type = scope.to_scope(self.synth(r#type));
                 let expr = scope.to_scope(self.check(expr));
-                self.push_item(*label);
 
                 Item::Def(ItemDef {
                     range: (),
