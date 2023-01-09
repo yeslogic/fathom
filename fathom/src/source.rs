@@ -101,7 +101,7 @@ impl StringInterner {
 
     /// Get or intern a slice of strings in the form `_{index}` for each index in `range`.
     pub fn get_tuple_labels(&mut self, range: Range<usize>) -> &[StringId] {
-        self.reserve_tuple_labels(range.end);
+        self.reserve_tuple_labels(range.end.saturating_sub(1));
         &self.tuple_labels[range]
     }
 
