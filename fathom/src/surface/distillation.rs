@@ -84,26 +84,13 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
 
     /// Generate a fresh name that does not appear in `self.local_names`
     fn gen_fresh_name(&mut self) -> StringId {
-        fn to_str(x: u32) -> String {
-            let base = x / 26;
-            let letter = x % 26;
-            let letter = (letter as u8 + b'a') as char;
-            if base == 0 {
-                format!("{letter}")
-            } else {
-                format!("{letter}{base}")
-            }
-        }
-
         let mut counter = 0;
         loop {
-            let name = to_str(counter);
-            let name = self.interner.borrow_mut().get_or_intern(name);
+            let name = self.interner.borrow_mut().get_alphabetic_name(counter);
             match self.local_names.iter().any(|symbol| *symbol == Some(name)) {
-                true => {}
+                true => counter += 1,
                 false => return name,
             }
-            counter += 1;
         }
     }
 
@@ -111,10 +98,9 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
     fn freshen_name(&mut self, name: Option<StringId>, body: &core::Term<'_>) -> Option<StringId> {
         match name {
             Some(name) => Some(name),
-            None => match body.binds_local(Index::last()) {
-                false => None,
-                true => Some(self.gen_fresh_name()),
-            },
+            None => body
+                .binds_local(Index::last())
+                .then(|| self.gen_fresh_name()),
         }
     }
 
