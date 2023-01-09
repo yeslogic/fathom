@@ -1,4 +1,5 @@
-//~ ignore = true
+//~ exit-code = 1
+//~ mode = "module"
 
 def first = second;
 def second = third;
