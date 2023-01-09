@@ -372,7 +372,7 @@ impl<'surface, 'core> Driver<'surface, 'core> {
         let pos = pos.to_string();
         let doc = context
             .concat([
-                context.text(&pos),
+                context.text(pos),
                 context.space(),
                 context.text("="),
                 context.space(),
@@ -427,12 +427,7 @@ impl<'surface, 'core> Driver<'surface, 'core> {
         match err {
             ReadError::ReadFailFormat(span) => Diagnostic::error()
                 .with_message(err.to_string())
-                .with_labels(
-                    IntoIterator::into_iter([label_for_span(&span)])
-                        .into_iter()
-                        .flatten()
-                        .collect(),
-                )
+                .with_labels(label_for_span(&span).into_iter().collect())
                 .with_notes(vec![format!(
                     "A fail format was encountered when reading this file."
                 )]),
@@ -446,12 +441,7 @@ impl<'surface, 'core> Driver<'surface, 'core> {
 
                 Diagnostic::error()
                     .with_message(err.to_string())
-                    .with_labels(
-                        IntoIterator::into_iter([label_for_span(&span)])
-                            .into_iter()
-                            .flatten()
-                            .collect(),
-                    )
+                    .with_labels(label_for_span(&span).into_iter().collect())
                     .with_notes(vec![
                         "The predicate on a conditional format did not succeed.".to_string(),
                         format!("failed value: {}", doc.pretty(self.emit_width)),
@@ -463,12 +453,7 @@ impl<'surface, 'core> Driver<'surface, 'core> {
             ReadError::BufferError(span, err) => self.buffer_error_to_diagnostic(err, span),
             ReadError::InvalidFormat(span) | ReadError::InvalidValue(span) => Diagnostic::bug()
                 .with_message(format!("unexpected error '{err}'"))
-                .with_labels(
-                    IntoIterator::into_iter([label_for_span(&span)])
-                        .into_iter()
-                        .flatten()
-                        .collect(),
-                )
+                .with_labels(label_for_span(&span).into_iter().collect())
                 .with_notes(vec![format!(
                     "please file a bug report at: {BUG_REPORT_URL}"
                 )]),
@@ -484,23 +469,13 @@ impl<'surface, 'core> Driver<'surface, 'core> {
         match err {
             BufferError::UnexpectedEndOfBuffer => Diagnostic::error()
                 .with_message(err.to_string())
-                .with_labels(
-                    IntoIterator::into_iter([label_for_span(&span)])
-                        .into_iter()
-                        .flatten()
-                        .collect(),
-                )
+                .with_labels(label_for_span(&span).into_iter().collect())
                 .with_notes(vec![format!(
                     "The end of the buffer was reached before all data could be read."
                 )]),
             BufferError::SetOffsetBeforeStartOfBuffer { offset } => Diagnostic::error()
                 .with_message(err.to_string())
-                .with_labels(
-                    IntoIterator::into_iter([label_for_span(&span)])
-                        .into_iter()
-                        .flatten()
-                        .collect(),
-                )
+                .with_labels(label_for_span(&span).into_iter().collect())
                 .with_notes(vec![format!(
                     "The offset {offset} is before the start of the buffer."
                 )]),
@@ -508,34 +483,19 @@ impl<'surface, 'core> Driver<'surface, 'core> {
                 offset: Some(offset),
             } => Diagnostic::error()
                 .with_message(err.to_string())
-                .with_labels(
-                    IntoIterator::into_iter([label_for_span(&span)])
-                        .into_iter()
-                        .flatten()
-                        .collect(),
-                )
+                .with_labels(label_for_span(&span).into_iter().collect())
                 .with_notes(vec![format!(
                     "The offset {offset} is beyond the end of the buffer."
                 )]),
             BufferError::SetOffsetAfterEndOfBuffer { offset: None } => Diagnostic::error()
                 .with_message(err.to_string())
-                .with_labels(
-                    IntoIterator::into_iter([label_for_span(&span)])
-                        .into_iter()
-                        .flatten()
-                        .collect(),
-                )
+                .with_labels(label_for_span(&span).into_iter().collect())
                 .with_notes(vec![format!(
                     "The offset is beyond the end of the buffer (overflow).",
                 )]),
             BufferError::PositionOverflow => Diagnostic::bug()
                 .with_message(format!("unexpected error '{err}'"))
-                .with_labels(
-                    IntoIterator::into_iter([label_for_span(&span)])
-                        .into_iter()
-                        .flatten()
-                        .collect(),
-                )
+                .with_labels(label_for_span(&span).into_iter().collect())
                 .with_notes(vec![format!(
                     "please file a bug report at: {BUG_REPORT_URL}"
                 )]),

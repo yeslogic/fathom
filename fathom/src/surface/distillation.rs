@@ -184,21 +184,21 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
         Pattern::NumberLiteral((), number)
     }
 
-    fn check_constant_pattern(&mut self, r#const: &core::Const) -> Pattern<()> {
+    fn check_constant_pattern(&mut self, r#const: &Const) -> Pattern<()> {
         match r#const {
-            core::Const::Bool(boolean) => self.check_boolean_pattern(*boolean),
-            core::Const::U8(number, style) => self.check_number_pattern_styled(number, *style),
-            core::Const::U16(number, style) => self.check_number_pattern_styled(number, *style),
-            core::Const::U32(number, style) => self.check_number_pattern_styled(number, *style),
-            core::Const::U64(number, style) => self.check_number_pattern_styled(number, *style),
-            core::Const::S8(number) => self.check_number_pattern(number),
-            core::Const::S16(number) => self.check_number_pattern(number),
-            core::Const::S32(number) => self.check_number_pattern(number),
-            core::Const::S64(number) => self.check_number_pattern(number),
-            core::Const::F32(number) => self.check_number_pattern(number),
-            core::Const::F64(number) => self.check_number_pattern(number),
-            core::Const::Pos(number) => self.check_number_pattern(number),
-            core::Const::Ref(number) => self.check_number_pattern(number),
+            Const::Bool(boolean) => self.check_boolean_pattern(*boolean),
+            Const::U8(number, style) => self.check_number_pattern_styled(number, *style),
+            Const::U16(number, style) => self.check_number_pattern_styled(number, *style),
+            Const::U32(number, style) => self.check_number_pattern_styled(number, *style),
+            Const::U64(number, style) => self.check_number_pattern_styled(number, *style),
+            Const::S8(number) => self.check_number_pattern(number),
+            Const::S16(number) => self.check_number_pattern(number),
+            Const::S32(number) => self.check_number_pattern(number),
+            Const::S64(number) => self.check_number_pattern(number),
+            Const::F32(number) => self.check_number_pattern(number),
+            Const::F64(number) => self.check_number_pattern(number),
+            Const::Pos(number) => self.check_number_pattern(number),
+            Const::Ref(number) => self.check_number_pattern(number),
         }
     }
 

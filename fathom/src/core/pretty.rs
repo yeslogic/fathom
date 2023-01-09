@@ -119,11 +119,11 @@ impl<'interner, 'arena> Context<'interner> {
         // FIXME: indentation and grouping
 
         match term {
-            Term::ItemVar(_, level) => RcDoc::text(format!("Item({})", level)),
-            Term::LocalVar(_, index) => RcDoc::text(format!("Local({})", index)),
-            Term::MetaVar(_, index) => RcDoc::text(format!("Meta({})", index)),
+            Term::ItemVar(_, level) => RcDoc::text(format!("Item({level})")),
+            Term::LocalVar(_, index) => RcDoc::text(format!("Local({index})")),
+            Term::MetaVar(_, index) => RcDoc::text(format!("Meta({index})")),
             Term::InsertedMeta(_, level, info) => {
-                RcDoc::text(format!("InsertedMeta({:?}, {:?})", level, info))
+                RcDoc::text(format!("InsertedMeta({level:?}, {info:?})"))
             }
             Term::Ann(_, expr, r#type) => self.paren(
                 prec > Prec::Top,
@@ -144,7 +144,7 @@ impl<'interner, 'arena> Context<'interner> {
                     RcDoc::concat([
                         RcDoc::text("let"),
                         RcDoc::space(),
-                        self.ann_pattern(Prec::Top, *def_pattern, *def_type),
+                        self.ann_pattern(Prec::Top, *def_pattern, def_type),
                         RcDoc::space(),
                         RcDoc::text("="),
                         RcDoc::softline(),
@@ -255,7 +255,7 @@ impl<'interner, 'arena> Context<'interner> {
                 RcDoc::text(","),
                 RcDoc::text("]"),
             ),
-            Term::ConstLit(_, const_) => RcDoc::text(format!("{:?}", const_)),
+            Term::ConstLit(_, const_) => RcDoc::text(format!("{const_:?}")),
             Term::FormatRecord(_, labels, formats) => self.sequence(
                 RcDoc::text("{"),
                 labels
@@ -289,7 +289,7 @@ impl<'interner, 'arena> Context<'interner> {
                 RcDoc::text(","),
                 RcDoc::text("}"),
             ),
-            Term::Prim(_, prim) => RcDoc::text(format!("{:?}", prim)),
+            Term::Prim(_, prim) => RcDoc::text(format!("{prim:?}")),
             Term::ConstMatch(_, scrutinee, branches, default_expr) => self.sequence(
                 RcDoc::concat([
                     RcDoc::text("match"),
@@ -302,7 +302,7 @@ impl<'interner, 'arena> Context<'interner> {
                     .iter()
                     .map(|(pattern, body_expr)| {
                         RcDoc::concat([
-                            RcDoc::text(format!("{:?}", pattern)),
+                            RcDoc::text(format!("{pattern:?}")),
                             RcDoc::space(),
                             RcDoc::text("=>"),
                             RcDoc::space(),
