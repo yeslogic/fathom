@@ -1,7 +1,10 @@
 use codespan_reporting::diagnostic::{Diagnostic, Label};
 use logos::Logos;
 
-use crate::source::{ByteRange, FileId};
+use crate::{
+    files::FileId,
+    source::{BytePos, ByteRange},
+};
 
 #[derive(Clone, Debug, Logos)]
 pub enum Token<'source> {
@@ -124,15 +127,22 @@ impl Error {
 pub fn tokens(
     file_id: FileId,
     source: &str,
-) -> impl Iterator<Item = Result<Spanned<Token<'_>, usize>, Error>> {
-    Token::lexer(source)
-        .spanned()
-        .map(move |(token, range)| match token {
+) -> impl Iterator<Item = Result<Spanned<Token<'_>, BytePos>, Error>> {
+    assert!(
+        source.len() <= u32::MAX as usize,
+        "`source` must be less than 4GiB in length"
+    );
+
+    Token::lexer(source).spanned().map(move |(token, range)| {
+        let start = range.start as BytePos;
+        let end = range.end as BytePos;
+        match token {
             Token::Error => Err(Error::UnexpectedCharacter {
-                range: ByteRange::new(file_id, range.start, range.end),
+                range: ByteRange::new(file_id, start, end),
             }),
-            token => Ok((range.start, token, range.end)),
-        })
+            token => Ok((start, token, end)),
+        }
+    })
 }
 
 impl<'source> Token<'source> {

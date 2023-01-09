@@ -6,6 +6,7 @@
 // Supporting modules
 mod alloc;
 pub mod env;
+pub mod files;
 pub mod source;
 
 // Intermediate languages

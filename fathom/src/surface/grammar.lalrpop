@@ -1,9 +1,10 @@
 use scoped_arena::Scope;
 use std::cell::RefCell;
 
-use crate::source::{ByteRange, FileId, StringId, StringInterner};
+use crate::source::{ByteRange, BytePos, StringId, StringInterner};
 use crate::surface::{ExprField, FormatField, Item, ItemDef, Module, ParseMessage, Pattern, Term, TypeField, BinOp};
 use crate::surface::lexer::{Error as LexerError, Token};
+use crate::files::FileId;
 
 grammar<'arena, 'source>(
     interner: &RefCell<StringInterner>,
@@ -13,7 +14,7 @@ grammar<'arena, 'source>(
 );
 
 extern {
-    type Location = usize;
+    type Location = BytePos;
     type Error = LexerError;
 
     enum Token<'source> {

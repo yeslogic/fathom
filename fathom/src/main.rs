@@ -115,7 +115,7 @@ fn unwrap_or_exit<T>(option: Option<T>) -> T {
     option.unwrap_or_else(|| std::process::exit(fathom::Status::Error.exit_code()))
 }
 
-fn load_file_or_exit(driver: &mut fathom::Driver, file: PathOrStdin) -> fathom::source::FileId {
+fn load_file_or_exit(driver: &mut fathom::Driver, file: PathOrStdin) -> fathom::files::FileId {
     unwrap_or_exit(match file {
         PathOrStdin::StdIn => driver.load_source("<stdin>".to_owned(), std::io::stdin()),
         PathOrStdin::Path(path) => driver.load_source_path(&path),
@@ -124,7 +124,7 @@ fn load_file_or_exit(driver: &mut fathom::Driver, file: PathOrStdin) -> fathom::
 
 fn read_bytes_or_exit(driver: &mut fathom::Driver, file: PathOrStdin) -> Vec<u8> {
     unwrap_or_exit(match file {
-        PathOrStdin::StdIn => driver.read_bytes("<stdio>".to_owned(), std::io::stdin()),
+        PathOrStdin::StdIn => driver.read_bytes("<stdin>".to_owned(), std::io::stdin()),
         PathOrStdin::Path(path) => driver.read_bytes_path(&path),
     })
 }

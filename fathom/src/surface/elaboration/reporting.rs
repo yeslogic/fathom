@@ -2,7 +2,8 @@ use codespan_reporting::diagnostic::{Diagnostic, Label};
 use itertools::Itertools;
 use std::cell::RefCell;
 
-use crate::source::{ByteRange, FileId, StringId, StringInterner};
+use crate::files::FileId;
+use crate::source::{ByteRange, StringId, StringInterner};
 use crate::surface::elaboration::{unification, MetaSource};
 use crate::surface::BinOp;
 use crate::BUG_REPORT_URL;

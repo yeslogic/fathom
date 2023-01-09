@@ -29,7 +29,7 @@ use crate::alloc::SliceVec;
 use crate::core::semantics::{self, ArcValue, Head, Telescope, Value};
 use crate::core::{self, prim, Const, Prim, UIntStyle};
 use crate::env::{self, EnvLen, Level, SharedEnv, UniqueEnv};
-use crate::source::{ByteRange, Span, Spanned, StringId, StringInterner};
+use crate::source::{BytePos, ByteRange, Span, Spanned, StringId, StringInterner};
 use crate::surface::elaboration::reporting::Message;
 use crate::surface::{distillation, pretty, BinOp, FormatField, Item, Module, Pattern, Term};
 
@@ -484,8 +484,8 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
 
         for (offset, ch) in source.char_indices() {
             if !ch.is_ascii() {
-                let ch_start = range.start() + 1 + offset;
-                let ch_end = ch_start + ch.len_utf8();
+                let ch_start = range.start() + 1 + offset as BytePos;
+                let ch_end = ch_start + ch.len_utf8() as BytePos;
 
                 self.push_message(Message::NonAsciiStringLiteral {
                     invalid_range: ByteRange::new(range.file_id(), ch_start, ch_end),
@@ -2217,4 +2217,15 @@ struct MatchInfo<'arena> {
     scrutinee: Scrutinee<'arena>,
     /// The expected type of the match arms
     expected_type: ArcValue<'arena>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    #[cfg(target_pointer_width = "64")]
+    fn checked_pattern_size() {
+        assert_eq!(std::mem::size_of::<CheckedPattern>(), 32);
+    }
 }

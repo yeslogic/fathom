@@ -713,4 +713,10 @@ mod tests {
         assert!(!std::mem::needs_drop::<Term<'_>>());
         assert!(!std::mem::needs_drop::<Term<'_>>());
     }
+
+    #[test]
+    #[cfg(target_pointer_width = "64")]
+    fn term_size() {
+        assert_eq!(std::mem::size_of::<Term>(), 56);
+    }
 }

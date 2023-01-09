@@ -7,7 +7,8 @@ use std::path::Path;
 
 use crate::core;
 use crate::core::binary::{self, BufferError, ReadError};
-use crate::source::{ByteRange, FileId, Span, StringInterner};
+use crate::files::{FileId, Files};
+use crate::source::{ByteRange, Span, StringInterner};
 use crate::surface::{self, elaboration};
 use crate::BUG_REPORT_URL;
 
@@ -27,7 +28,7 @@ impl Status {
 }
 
 pub struct Driver<'surface, 'core> {
-    files: SimpleFiles<String, String>,
+    files: Files<String, String>,
     interner: RefCell<StringInterner>,
     surface_scope: scoped_arena::Scope<'surface>,
     core_scope: scoped_arena::Scope<'core>,
@@ -47,7 +48,7 @@ impl<'surface, 'core> Driver<'surface, 'core> {
             interner: RefCell::new(StringInterner::new()),
             surface_scope: scoped_arena::Scope::new(),
             core_scope: scoped_arena::Scope::new(),
-            files: SimpleFiles::new(),
+            files: Files::new(),
 
             allow_errors: false,
             seen_errors: RefCell::new(false),

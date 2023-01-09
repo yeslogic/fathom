@@ -7,7 +7,10 @@ use codespan_reporting::diagnostic::{Diagnostic, Label};
 use lalrpop_util::lalrpop_mod;
 use scoped_arena::Scope;
 
-use crate::source::{ByteRange, FileId, StringId, StringInterner};
+use crate::{
+    files::FileId,
+    source::{BytePos, ByteRange, StringId, StringInterner},
+};
 
 lalrpop_mod!(
     #[allow(clippy::all)]
@@ -467,10 +470,10 @@ impl ParseMessage {
 }
 
 type LalrpopParseError<'source> =
-    lalrpop_util::ParseError<usize, lexer::Token<'source>, lexer::Error>;
+    lalrpop_util::ParseError<BytePos, lexer::Token<'source>, lexer::Error>;
 
 type LalrpopErrorRecovery<'source> =
-    lalrpop_util::ErrorRecovery<usize, lexer::Token<'source>, lexer::Error>;
+    lalrpop_util::ErrorRecovery<BytePos, lexer::Token<'source>, lexer::Error>;
 
 fn format_expected(expected: &[impl std::fmt::Display]) -> Option<String> {
     use itertools::Itertools;
@@ -490,5 +493,19 @@ mod tests {
         assert!(!std::mem::needs_drop::<Term<'_, ()>>());
         assert!(!std::mem::needs_drop::<Term<'_, StringId>>());
         assert!(!std::mem::needs_drop::<Pattern<StringId>>());
+    }
+
+    #[test]
+    #[cfg(target_pointer_width = "64")]
+    fn term_size() {
+        assert_eq!(std::mem::size_of::<Term<()>>(), 32);
+        assert_eq!(std::mem::size_of::<Term<ByteRange>>(), 56);
+    }
+
+    #[test]
+    #[cfg(target_pointer_width = "64")]
+    fn pattern_size() {
+        assert_eq!(std::mem::size_of::<Pattern<()>>(), 4);
+        assert_eq!(std::mem::size_of::<Pattern<ByteRange>>(), 16);
     }
 }
