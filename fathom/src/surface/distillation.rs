@@ -82,6 +82,42 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
         }
     }
 
+    /// Generate a fresh name that does not appear in `self.local_names`
+    fn gen_fresh_name(&mut self) -> StringId {
+        fn to_str(x: u32) -> String {
+            let base = x / 26;
+            let letter = x % 26;
+            let letter = (letter as u8 + b'a') as char;
+            if base == 0 {
+                format!("{letter}")
+            } else {
+                format!("{letter}{base}")
+            }
+        }
+
+        let mut counter = 0;
+        loop {
+            let name = to_str(counter);
+            let name = self.interner.borrow_mut().get_or_intern(name);
+            match self.local_names.iter().any(|symbol| *symbol == Some(name)) {
+                true => {}
+                false => return name,
+            }
+            counter += 1;
+        }
+    }
+
+    /// Replace `name` with a fresh name if it is `_` and occurs in `body`
+    fn freshen_name(&mut self, name: Option<StringId>, body: &core::Term<'_>) -> Option<StringId> {
+        match name {
+            Some(name) => Some(name),
+            None => match body.binds_local(Index::last()) {
+                false => None,
+                true => Some(self.gen_fresh_name()),
+            },
+        }
+    }
+
     fn check_number_literal_styled<T: core::UIntStyled<N>, const N: usize>(
         &mut self,
         number: T,
@@ -224,7 +260,8 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 let def_type = self.check(def_type);
                 let def_expr = self.check(def_expr);
 
-                let def_name = self.push_local(*def_name);
+                let def_name = self.freshen_name(*def_name, body_expr);
+                let def_name = self.push_local(def_name);
                 let body_expr = self.check(body_expr);
                 self.pop_local();
 
@@ -236,11 +273,14 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                     self.scope.to_scope(body_expr),
                 )
             }
-            core::Term::FunLit(_, param_name, mut body_expr) => {
+            core::Term::FunLit(..) => {
                 let initial_local_len = self.local_len();
-                let mut param_names = vec![self.push_local(*param_name)];
+                let mut param_names = Vec::new();
+                let mut body_expr = core_term;
+
                 while let core::Term::FunLit(_, param_name, next_body_expr) = body_expr {
-                    param_names.push(self.push_local(*param_name));
+                    let param_name = self.freshen_name(*param_name, next_body_expr);
+                    param_names.push(self.push_local(param_name));
                     body_expr = next_body_expr;
                 }
 
@@ -323,7 +363,8 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 match default_branch {
                     Some((default_name, default_expr)) => {
                         let default_branch = {
-                            let name = self.push_local(*default_name);
+                            let name = self.freshen_name(*default_name, default_expr);
+                            let name = self.push_local(name);
                             let default_expr = self.check(default_expr);
                             self.pop_local();
 
@@ -414,7 +455,8 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 let def_type = self.check(def_type);
                 let def_expr = self.check(def_expr);
 
-                let def_name = self.push_local(*def_name);
+                let def_name = self.freshen_name(*def_name, body_expr);
+                let def_name = self.push_local(def_name);
                 let body_expr = self.synth(body_expr);
                 self.pop_local();
 
@@ -441,7 +483,8 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                             if next_body_type.binds_local(Index::last()) =>
                         {
                             let param_type = self.check(param_type);
-                            let param_name = self.push_local(*param_name);
+                            let param_name = self.freshen_name(*param_name, next_body_type);
+                            let param_name = self.push_local(param_name);
                             patterns.push((
                                 Pattern::Name((), param_name),
                                 Some(self.scope.to_scope(param_type) as &_),
@@ -485,7 +528,8 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 let mut body_expr = core_term;
 
                 while let core::Term::FunLit(_, param_name, next_body_expr) = body_expr {
-                    param_names.push(self.push_local(*param_name));
+                    let param_name = self.freshen_name(*param_name, next_body_expr);
+                    param_names.push(self.push_local(param_name));
                     body_expr = next_body_expr;
                 }
 
@@ -654,7 +698,8 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 match default_expr {
                     Some((default_name, default_expr)) => {
                         let default_branch = {
-                            let name = self.push_local(*default_name);
+                            let name = self.freshen_name(*default_name, default_expr);
+                            let name = self.push_local(name);
                             let default_expr = self.synth(default_expr);
                             self.pop_local();
 
