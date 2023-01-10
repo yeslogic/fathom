@@ -2,6 +2,8 @@
 
 use std::ops::{Deref, DerefMut, Range};
 
+use crate::files::FileId;
+
 // Interned strings.
 pub type StringId = string_interner::symbol::SymbolU16;
 
@@ -75,9 +77,6 @@ impl StringInterner {
         labels == self.get_tuple_labels(0..labels.len())
     }
 }
-
-/// File id.
-pub type FileId = usize; // TODO: use wrapper struct
 
 #[derive(Debug, Clone)]
 pub struct Spanned<T> {
@@ -162,7 +161,7 @@ impl From<Option<ByteRange>> for Span {
 }
 
 /// Byte offsets into source files.
-pub type BytePos = usize;
+pub type BytePos = u32;
 
 /// Byte ranges in source files.
 #[derive(Debug, Copy, Clone)]
@@ -208,6 +207,23 @@ impl ByteRange {
 
 impl From<ByteRange> for Range<usize> {
     fn from(range: ByteRange) -> Self {
-        range.start..range.end
+        (range.start as usize)..(range.end as usize)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    /// `ByteRange` is used a lot. Ensure it doesn't grow accidentally.
+    fn byte_range_size() {
+        assert_eq!(std::mem::size_of::<ByteRange>(), 12);
+    }
+
+    #[test]
+    /// `Span` is used a lot. Ensure it doesn't grow accidentally.
+    fn span_size() {
+        assert_eq!(std::mem::size_of::<Span>(), 12);
     }
 }

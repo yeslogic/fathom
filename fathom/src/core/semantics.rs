@@ -1310,4 +1310,10 @@ mod tests {
             Elim::ConstMatch(..) => {}
         }
     }
+
+    #[test]
+    #[cfg(target_pointer_width = "64")]
+    fn value_size() {
+        assert_eq!(std::mem::size_of::<Value>(), 72);
+    }
 }
