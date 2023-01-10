@@ -9,6 +9,7 @@ pub type StringId = string_interner::symbol::SymbolU16;
 
 /// String interner.
 pub struct StringInterner {
+    alphabetic_names: Vec<StringId>,
     tuple_labels: Vec<StringId>,
     strings: string_interner::StringInterner<
         string_interner::backend::BucketBackend<StringId>,
@@ -37,25 +38,62 @@ impl StringInterner {
     /// Construct an empty string interner.
     pub fn new() -> StringInterner {
         StringInterner {
+            alphabetic_names: Vec::new(),
             tuple_labels: Vec::new(),
             strings: string_interner::StringInterner::new(),
         }
     }
 
-    /// Allocate and intern all tuple labels upto `max_index` if they are not already present
+    /// Allocate and intern all alphabetic names up-to and including `max_index`
+    /// if they are not already present.
+    pub fn reserve_alphabetic_names(&mut self, max_index: usize) {
+        fill_vec(&mut self.alphabetic_names, max_index, |index| {
+            self.strings.get_or_intern(alphabetic_name(index))
+        })
+    }
+
+    /// Retrieve an alphabetic name based on a numeric count. This is useful for
+    /// producing human-readable names for unnamed binders.
+    ///
+    /// ## Example
+    ///
+    /// ```rust
+    /// use fathom::source::StringInterner;
+    ///
+    /// let mut interner = StringInterner::new();
+    /// assert_eq!(interner.get_alphabetic_name(0), interner.get_or_intern("a"));
+    /// // ...
+    /// assert_eq!(interner.get_alphabetic_name(25), interner.get_or_intern("z"));
+    /// assert_eq!(interner.get_alphabetic_name(26), interner.get_or_intern("a1"));
+    /// // ...
+    /// assert_eq!(interner.get_alphabetic_name(51), interner.get_or_intern("z1"));
+    /// assert_eq!(interner.get_alphabetic_name(52), interner.get_or_intern("a2"));
+    /// // ...
+    /// ```
+    pub fn get_alphabetic_name(&mut self, index: usize) -> StringId {
+        self.reserve_alphabetic_names(index);
+        self.alphabetic_names[index]
+    }
+
+    /// Allocate and intern all tuple labels up-to and including `max_index`
+    /// if they are not already present.
     pub fn reserve_tuple_labels(&mut self, max_index: usize) {
-        let len = self.tuple_labels.len();
-        let cap = self.tuple_labels.capacity();
-        if max_index >= len {
-            self.tuple_labels.reserve(max_index.saturating_sub(cap));
-            for index in len..=max_index {
-                let label = self.get_or_intern(format!("_{index}"));
-                self.tuple_labels.push(label);
-            }
-        }
+        fill_vec(&mut self.tuple_labels, max_index, |index| {
+            self.strings.get_or_intern(format!("_{index}"))
+        })
     }
 
     /// Get or intern a string in the form `_{index}`.
+    ///
+    /// ## Example
+    ///
+    /// ```rust
+    /// use fathom::source::StringInterner;
+    ///
+    /// let mut interner = StringInterner::new();
+    /// assert_eq!(interner.get_tuple_label(0), interner.get_or_intern("_0"));
+    /// assert_eq!(interner.get_tuple_label(1), interner.get_or_intern("_1"));
+    /// ```
     pub fn get_tuple_label(&mut self, index: usize) -> StringId {
         self.reserve_tuple_labels(index);
         self.tuple_labels[index]
@@ -63,7 +101,7 @@ impl StringInterner {
 
     /// Get or intern a slice of strings in the form `_{index}` for each index in `range`.
     pub fn get_tuple_labels(&mut self, range: Range<usize>) -> &[StringId] {
-        self.reserve_tuple_labels(range.end);
+        self.reserve_tuple_labels(range.end.saturating_sub(1));
         &self.tuple_labels[range]
     }
 
@@ -76,6 +114,21 @@ impl StringInterner {
     pub fn is_tuple_labels(&mut self, labels: &[StringId]) -> bool {
         labels == self.get_tuple_labels(0..labels.len())
     }
+}
+
+fn alphabetic_name(index: usize) -> String {
+    let base = index / 26;
+    let letter = index % 26;
+    let letter = (letter as u8 + b'a') as char;
+    if base == 0 {
+        format!("{letter}")
+    } else {
+        format!("{letter}{base}")
+    }
+}
+
+fn fill_vec<T>(vec: &mut Vec<T>, max_index: usize, f: impl FnMut(usize) -> T) {
+    vec.extend((vec.len()..=max_index).map(f))
 }
 
 #[derive(Debug, Clone)]
