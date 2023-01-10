@@ -63,11 +63,23 @@ impl StringInterner {
     /// let mut interner = StringInterner::new();
     /// assert_eq!(interner.get_alphabetic_name(0), interner.get_or_intern("a"));
     /// // ...
-    /// assert_eq!(interner.get_alphabetic_name(25), interner.get_or_intern("z"));
-    /// assert_eq!(interner.get_alphabetic_name(26), interner.get_or_intern("a1"));
+    /// assert_eq!(
+    ///     interner.get_alphabetic_name(25),
+    ///     interner.get_or_intern("z")
+    /// );
+    /// assert_eq!(
+    ///     interner.get_alphabetic_name(26),
+    ///     interner.get_or_intern("a1")
+    /// );
     /// // ...
-    /// assert_eq!(interner.get_alphabetic_name(51), interner.get_or_intern("z1"));
-    /// assert_eq!(interner.get_alphabetic_name(52), interner.get_or_intern("a2"));
+    /// assert_eq!(
+    ///     interner.get_alphabetic_name(51),
+    ///     interner.get_or_intern("z1")
+    /// );
+    /// assert_eq!(
+    ///     interner.get_alphabetic_name(52),
+    ///     interner.get_or_intern("a2")
+    /// );
     /// // ...
     /// ```
     pub fn get_alphabetic_name(&mut self, index: usize) -> StringId {
@@ -99,7 +111,8 @@ impl StringInterner {
         self.tuple_labels[index]
     }
 
-    /// Get or intern a slice of strings in the form `_{index}` for each index in `range`.
+    /// Get or intern a slice of strings in the form `_{index}` for each index
+    /// in `range`.
     pub fn get_tuple_labels(&mut self, range: Range<usize>) -> &[StringId] {
         self.reserve_tuple_labels(range.end.saturating_sub(1));
         &self.tuple_labels[range]
@@ -153,7 +166,8 @@ impl<T> Spanned<T> {
         self.span
     }
 
-    /// Merge the supplied span with the span of `other` and return `other` wrapped in that span.
+    /// Merge the supplied span with the span of `other` and return `other`
+    /// wrapped in that span.
     pub fn merge(span: Span, other: Spanned<T>) -> Spanned<T> {
         let Spanned {
             span: other_span,

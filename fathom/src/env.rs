@@ -187,7 +187,8 @@ impl<Entry> UniqueEnv<Entry> {
         self.entries.clear()
     }
 
-    /// Resize the environment to the desired length, filling new entries with `entry`.
+    /// Resize the environment to the desired length, filling new entries with
+    /// `entry`.
     pub fn resize(&mut self, new_len: EnvLen, entry: Entry)
     where
         Entry: Clone,
@@ -240,9 +241,9 @@ impl<Entry> SliceEnv<Entry> {
     /// The length of the environment.
     pub fn len(&self) -> EnvLen {
         // SAFETY:
-        // - The only way to construct a `SliceEnv` is via `UniqueEnv`. We
-        //   ensure that the length of the environment never exceeds the the
-        //   maximum `RawVar`, so this should never overflow.
+        // - The only way to construct a `SliceEnv` is via `UniqueEnv`. We ensure that
+        //   the length of the environment never exceeds the the maximum `RawVar`, so
+        //   this should never overflow.
         EnvLen(self.entries.len() as RawVar)
     }
 
@@ -321,8 +322,8 @@ impl<Entry> SharedEnv<Entry> {
     /// The length of the environment.
     pub fn len(&self) -> EnvLen {
         // SAFETY:
-        // - We ensure that the length of the environment never exceeds the the
-        //   maximum `RawVar`, so this should never overflow.
+        // - We ensure that the length of the environment never exceeds the the maximum
+        //   `RawVar`, so this should never overflow.
         EnvLen(self.entries.len() as RawVar)
     }
 

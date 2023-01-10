@@ -66,7 +66,8 @@ impl<'arena> From<BufferError> for ReadError<'arena> {
 pub struct Buffer<'data> {
     /// Offset from the starting position.
     start_offset: usize,
-    /// A slice of data, starting from an offset from the start of a larger buffer.
+    /// A slice of data, starting from an offset from the start of a larger
+    /// buffer.
     data: &'data [u8],
 }
 
@@ -99,7 +100,8 @@ impl<'data> Buffer<'data> {
         })
     }
 
-    /// Get a slice of the bytes in the buffer, relative to the start of the buffer.
+    /// Get a slice of the bytes in the buffer, relative to the start of the
+    /// buffer.
     fn get_relative<I: SliceIndex<[u8]>>(&self, index: I) -> Result<&'data I::Output, BufferError> {
         self.data
             .get(index)
@@ -155,7 +157,8 @@ impl<'data> BufferReader<'data> {
             .ok_or(BufferError::PositionOverflow)
     }
 
-    /// Remaining number of bytes from the current position to the end of the buffer.
+    /// Remaining number of bytes from the current position to the end of the
+    /// buffer.
     pub fn remaining_len(&self) -> usize {
         self.buffer.remaining_len() - self.relative_offset
     }
@@ -168,7 +171,8 @@ impl<'data> BufferReader<'data> {
         ))
     }
 
-    /// Set the offset of the reader relative to the start of the backing buffer.
+    /// Set the offset of the reader relative to the start of the backing
+    /// buffer.
     pub fn set_relative_offset(&mut self, relative_offset: usize) -> Result<(), BufferError> {
         (relative_offset <= self.buffer.remaining_len())
             .then(|| self.relative_offset = relative_offset)
@@ -184,7 +188,8 @@ impl<'data> BufferReader<'data> {
             .and_then(|relative_offset| self.set_relative_offset(relative_offset))
     }
 
-    /// Get a slice of the bytes in the buffer, relative to the current offset in the buffer.
+    /// Get a slice of the bytes in the buffer, relative to the current offset
+    /// in the buffer.
     fn get_relative<I: SliceIndex<[u8]>>(&self, index: I) -> Result<&'data I::Output, BufferError> {
         let data = self.buffer.get_relative(self.relative_offset..)?;
         data.get(index).ok_or(BufferError::UnexpectedEndOfBuffer)
@@ -200,7 +205,8 @@ impl<'data> BufferReader<'data> {
     /// Read an array of bytes and advance the offset into the buffer.
     pub fn read_byte_array<const N: usize>(&mut self) -> Result<&'data [u8; N], BufferError> {
         let slice = self.get_relative(..N)?;
-        // SAFETY: slice points to [u8; N]? Yes it's [u8] of length N (checked by BufferReader::get_relative)
+        // SAFETY: slice points to [u8; N]? Yes it's [u8] of length N (checked by
+        // BufferReader::get_relative)
         let array = unsafe { &*(slice.as_ptr() as *const [u8; N]) };
         self.relative_offset += N;
         Ok(array)

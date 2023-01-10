@@ -5,8 +5,9 @@ use codespan_reporting::files::{Error, SimpleFile};
 use std::{num::NonZeroU32, ops::Range};
 
 /// File id.
-// 4 billion files should be enough for anyone, and `u16` doesn't save any size in `ByteRange` or `Span`.
-// `NonZeroU32` saves 4 bytes on the size of `Span` compared to `u32`.
+// - Use `u32` over `usize` because 4 billion files should be enough for anyone
+// - `u16` doesn't save any size in `ByteRange` or `Span` compared to `u32`
+// - `NonZeroU32` saves 4 bytes on the size of `Span` compared to `u32`
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct FileId(NonZeroU32);
 

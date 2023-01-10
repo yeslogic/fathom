@@ -78,7 +78,8 @@ impl<'surface, 'core> Driver<'surface, 'core> {
 
         // Use the currently set codespan configuration
         let term_config = self.codespan_config.clone();
-        // Fetch the default hook (which prints the panic message and an optional backtrace)
+        // Fetch the default hook (which prints the panic message and an optional
+        // backtrace)
         let default_hook = std::panic::take_hook();
 
         std::panic::set_hook(Box::new(move |info| {
