@@ -177,11 +177,11 @@ fn term_deps(
                 deps.push(*name);
             }
         }
-        Term::Ann(_, expr, r#type) => {
+        Term::Ann(_, (expr, r#type)) => {
             term_deps(expr, item_names, local_names, deps);
             term_deps(r#type, item_names, local_names, deps);
         }
-        Term::Let(_, pattern, r#type, def_expr, body_expr) => {
+        Term::Let(_, (pattern, r#type, def_expr, body_expr)) => {
             push_pattern(pattern, local_names);
             if let Some(r#type) = r#type {
                 term_deps(r#type, item_names, local_names, deps);
@@ -190,7 +190,7 @@ fn term_deps(
             term_deps(body_expr, item_names, local_names, deps);
             pop_pattern(pattern, local_names);
         }
-        Term::If(_, cond_expr, then_expr, else_expr) => {
+        Term::If(_, (cond_expr, then_expr, else_expr)) => {
             term_deps(cond_expr, item_names, local_names, deps);
             term_deps(then_expr, item_names, local_names, deps);
             term_deps(else_expr, item_names, local_names, deps);
@@ -204,7 +204,7 @@ fn term_deps(
             }
             local_names.truncate(initial_locals_names_len);
         }
-        Term::Arrow(.., param_type, body_type) => {
+        Term::Arrow(.., (param_type, body_type)) => {
             term_deps(param_type, item_names, local_names, deps);
             term_deps(body_type, item_names, local_names, deps);
         }
@@ -259,13 +259,13 @@ fn term_deps(
         Term::FormatOverlap(_, format_fields) => {
             field_deps(format_fields, item_names, local_names, deps);
         }
-        Term::FormatCond(_, (_, name), format, cond) => {
+        Term::FormatCond(_, (_, name), (format, cond)) => {
             local_names.push(*name);
             term_deps(format, item_names, local_names, deps);
             term_deps(cond, item_names, local_names, deps);
             local_names.pop();
         }
-        Term::BinOp(_, lhs, _, rhs) => {
+        Term::BinOp(_, _, (lhs, rhs)) => {
             term_deps(lhs, item_names, local_names, deps);
             term_deps(rhs, item_names, local_names, deps);
         }

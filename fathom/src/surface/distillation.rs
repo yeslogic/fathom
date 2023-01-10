@@ -219,10 +219,9 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
     ) -> Term<'arena, ()> {
         let expr = self.check_number_literal(number);
         let r#type = self.synth_prim(prim_type);
-
         self.paren(
             prec > Prec::Top,
-            Term::Ann((), self.scope.to_scope(expr), self.scope.to_scope(r#type)),
+            Term::Ann((), self.scope.to_scope((expr, r#type))),
         )
     }
 
@@ -235,10 +234,9 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
     ) -> Term<'arena, ()> {
         let expr = self.check_number_literal_styled(number, style);
         let r#type = self.synth_prim(prim_type);
-
         self.paren(
             prec > Prec::Top,
-            Term::Ann((), self.scope.to_scope(expr), self.scope.to_scope(r#type)),
+            Term::Ann((), self.scope.to_scope((expr, r#type))),
         )
     }
 
@@ -286,7 +284,6 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
 
                 let def_name = self.freshen_name(*def_name, body_expr);
                 let def_name = self.push_local(def_name);
-                let def_pattern = name_to_pattern(def_name);
                 let body_expr = self.check_prec(Prec::Let, body_expr);
                 self.pop_local();
 
@@ -294,10 +291,12 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                     prec > Prec::Let,
                     Term::Let(
                         (),
-                        def_pattern,
-                        Some(self.scope.to_scope(def_type)),
-                        self.scope.to_scope(def_expr),
-                        self.scope.to_scope(body_expr),
+                        (self.scope).to_scope((
+                            name_to_pattern(def_name),
+                            Some(def_type),
+                            (def_expr),
+                            (body_expr),
+                        )),
                     ),
                 )
             }
@@ -387,12 +386,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                     let else_expr = self.check_prec(Prec::Let, else_expr);
                     return self.paren(
                         prec > Prec::Let,
-                        Term::If(
-                            (),
-                            self.scope.to_scope(cond_expr),
-                            self.scope.to_scope(then_expr),
-                            self.scope.to_scope(else_expr),
-                        ),
+                        Term::If((), self.scope.to_scope((cond_expr, then_expr, else_expr))),
                     );
                 }
 
@@ -498,7 +492,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
 
                 self.paren(
                     prec > Prec::Top,
-                    Term::Ann((), self.scope.to_scope(expr), self.scope.to_scope(r#type)),
+                    Term::Ann((), self.scope.to_scope((expr, r#type))),
                 )
             }
             core::Term::Let(_span, def_name, def_type, def_expr, body_expr) => {
@@ -514,10 +508,12 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                     prec > Prec::Let,
                     Term::Let(
                         (),
-                        name_to_pattern(def_name),
-                        Some(self.scope.to_scope(def_type)),
-                        self.scope.to_scope(def_expr),
-                        self.scope.to_scope(body_expr),
+                        self.scope.to_scope((
+                            name_to_pattern(def_name),
+                            Some(def_type),
+                            (def_expr),
+                            (body_expr),
+                        )),
                     ),
                 )
             }
@@ -556,8 +552,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                             break Term::Arrow(
                                 (),
                                 *plicity,
-                                self.scope.to_scope(param_type),
-                                self.scope.to_scope(body_type),
+                                self.scope.to_scope((param_type, body_type)),
                             );
                         }
                         body_type => break self.check_prec(Prec::Fun, body_type),
@@ -621,9 +616,12 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 // Distill appropriate primitives to binary operator expressions
                 if let (core::Term::Prim(_, prim), [(_, rhs), (_, lhs)]) = (head_expr, &args[..]) {
                     if let Some(op) = prim_to_bin_op(prim) {
-                        let lhs = (self.scope).to_scope(self.synth_prec(op.lhs_prec(), lhs));
-                        let rhs = (self.scope).to_scope(self.synth_prec(op.rhs_prec(), rhs));
-                        return self.paren(prec > op.precedence(), Term::BinOp((), lhs, op, rhs));
+                        let lhs = self.synth_prec(op.lhs_prec(), lhs);
+                        let rhs = self.synth_prec(op.rhs_prec(), rhs);
+                        return self.paren(
+                            prec > op.precedence(),
+                            Term::BinOp((), op, self.scope.to_scope((lhs, rhs))),
+                        );
                     }
                 }
 
@@ -643,7 +641,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 if is_tuple_type(&mut self.interner.borrow_mut(), labels, types) =>
             {
                 let tuple = self.check_dependent_tuple(labels, types);
-                Term::Ann((), self.scope.to_scope(tuple), &Term::Universe(()))
+                Term::Ann((), self.scope.to_scope((tuple, Term::Universe(()))))
             }
             core::Term::FormatRecord(_span, labels, formats)
                 if is_tuple_type(&mut self.interner.borrow_mut(), labels, formats) =>
@@ -718,12 +716,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 self.push_local(Some(*label));
                 let cond = self.check_prec(Prec::Top, cond);
                 self.pop_local();
-                Term::FormatCond(
-                    (),
-                    ((), *label),
-                    self.scope.to_scope(format),
-                    self.scope.to_scope(cond),
-                )
+                Term::FormatCond((), ((), *label), self.scope.to_scope((format, cond)))
             }
             core::Term::FormatOverlap(_span, labels, formats) => {
                 Term::FormatOverlap((), self.synth_format_fields(labels, formats))
@@ -773,12 +766,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                     let cond_expr = self.check_prec(Prec::Fun, head_expr);
                     let then_expr = self.synth_prec(Prec::Let, then_expr);
                     let else_expr = self.synth_prec(Prec::Let, else_expr);
-                    return Term::If(
-                        (),
-                        self.scope.to_scope(cond_expr),
-                        self.scope.to_scope(then_expr),
-                        self.scope.to_scope(else_expr),
-                    );
+                    return Term::If((), self.scope.to_scope((cond_expr, then_expr, else_expr)));
                 }
 
                 let head_expr = self.synth_prec(Prec::Proj, head_expr);

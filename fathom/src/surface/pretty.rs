@@ -150,17 +150,17 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
             Term::Name(_, name) => self.ident(*name),
             Term::Hole(_, name) => self.concat([self.text("?"), self.ident(*name)]),
             Term::Placeholder(_) => self.text("_"),
-            Term::Ann(_, expr, r#type) => self.concat([
+            Term::Ann(_, (expr, r#type)) => self.concat([
                 self.concat([self.term(expr), self.space(), self.text(":")])
                     .group(),
                 self.softline(),
                 self.term(r#type),
             ]),
-            Term::Let(_, def_pattern, def_type, def_expr, body_expr) => self.concat([
+            Term::Let(_, (def_pattern, def_type, def_expr, body_expr)) => self.concat([
                 self.concat([
                     self.text("let"),
                     self.space(),
-                    self.ann_pattern(def_pattern, *def_type),
+                    self.ann_pattern(def_pattern, def_type.as_ref()),
                     self.space(),
                     self.text("="),
                     self.softline(),
@@ -171,11 +171,12 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 self.line(),
                 self.term(body_expr),
             ]),
-            Term::If(_, cond_expr, then_expr, mut else_expr) => {
+            Term::If(_, (cond_expr, then_expr, else_expr)) => {
+                let mut else_expr = else_expr;
                 let mut branches = Vec::new();
 
-                while let Term::If(_, cond_expr, then_expr, next_else) = else_expr {
-                    branches.push((*cond_expr, *then_expr));
+                while let Term::If(_, (cond_expr, then_expr, next_else)) = else_expr {
+                    branches.push((cond_expr, then_expr));
                     else_expr = next_else;
                 }
 
@@ -218,7 +219,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 self.softline(),
                 self.term(body_type),
             ]),
-            Term::Arrow(_, plicity, param_type, body_type) => self.concat([
+            Term::Arrow(_, plicity, (param_type, body_type)) => self.concat([
                 self.plicity(*plicity),
                 self.term(param_type),
                 self.softline(),
@@ -313,7 +314,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 self.text(","),
                 self.text("}"),
             ),
-            Term::FormatCond(_, (_, label), format, cond) => self.concat([
+            Term::FormatCond(_, (_, label), (format, cond)) => self.concat([
                 self.text("{"),
                 self.space(),
                 self.ident(*label),
@@ -335,7 +336,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 self.text(","),
                 self.text("}"),
             ),
-            Term::BinOp(_, lhs, op, rhs) => self.concat([
+            Term::BinOp(_, op, (lhs, rhs)) => self.concat([
                 self.term(lhs),
                 self.space(),
                 self.text(op.as_str()),

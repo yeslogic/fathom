@@ -1013,9 +1013,9 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
 
         match (surface_term, expected_type.as_ref()) {
             (Term::Paren(_, term), _) => self.check(term, &expected_type),
-            (Term::Let(_, def_pattern, def_type, def_expr, body_expr), _) => {
+            (Term::Let(_, (def_pattern, def_type, def_expr, body_expr)), _) => {
                 let (def_pattern, def_type, def_type_value) =
-                    self.synth_ann_pattern(def_pattern, *def_type);
+                    self.synth_ann_pattern(def_pattern, def_type.as_ref());
                 let def_expr = self.check(def_expr, &def_type_value);
                 let def_expr_value = self.eval_env().eval(&def_expr);
 
@@ -1031,7 +1031,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                     self.scope.to_scope(body_expr),
                 )
             }
-            (Term::If(_, cond_expr, then_expr, else_expr), _) => {
+            (Term::If(_, (cond_expr, then_expr, else_expr)), _) => {
                 let cond_expr = self.check(cond_expr, &self.bool_type.clone());
                 let then_expr = self.check(then_expr, &expected_type);
                 let else_expr = self.check(else_expr, &expected_type);
@@ -1407,7 +1407,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
 
                 (expr, r#type)
             }
-            Term::Ann(_, expr, r#type) => {
+            Term::Ann(_, (expr, r#type)) => {
                 let r#type = self.check(r#type, &self.universe.clone());
                 let type_value = self.eval_env().eval(&r#type);
                 let expr = self.check(expr, &type_value);
@@ -1420,9 +1420,9 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
 
                 (ann_expr, type_value)
             }
-            Term::Let(_, def_pattern, def_type, def_expr, body_expr) => {
+            Term::Let(_, (def_pattern, def_type, def_expr, body_expr)) => {
                 let (def_pattern, def_type, def_type_value) =
-                    self.synth_ann_pattern(def_pattern, *def_type);
+                    self.synth_ann_pattern(def_pattern, def_type.as_ref());
                 let def_expr = self.check(def_expr, &def_type_value);
                 let def_expr_value = self.eval_env().eval(&def_expr);
 
@@ -1440,7 +1440,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
 
                 (let_expr, body_type)
             }
-            Term::If(_, cond_expr, then_expr, else_expr) => {
+            Term::If(_, (cond_expr, then_expr, else_expr)) => {
                 let cond_expr = self.check(cond_expr, &self.bool_type.clone());
                 let (then_expr, r#type) = self.synth(then_expr);
                 let else_expr = self.check(else_expr, &r#type);
@@ -1470,7 +1470,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 core::Term::Universe(file_range.into()),
                 self.universe.clone(),
             ),
-            Term::Arrow(_, plicity, param_type, body_type) => {
+            Term::Arrow(_, plicity, (param_type, body_type)) => {
                 let universe = self.universe.clone();
                 let param_type = self.check(param_type, &universe);
                 let param_type_value = self.eval_env().eval(&param_type);
@@ -1740,7 +1740,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 let format_record = core::Term::FormatRecord(file_range.into(), labels, formats);
                 (format_record, self.format_type.clone())
             }
-            Term::FormatCond(_, (_, name), format, pred) => {
+            Term::FormatCond(_, (_, name), (format, pred)) => {
                 let format_type = self.format_type.clone();
                 let format = self.check(format, &format_type);
                 let format_value = self.eval_env().eval(&format);
@@ -1766,7 +1766,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
 
                 (overlap_format, self.format_type.clone())
             }
-            Term::BinOp(range, lhs, op, rhs) => self.synth_bin_op(*range, lhs, *op, rhs),
+            Term::BinOp(range, op, (lhs, rhs)) => self.synth_bin_op(*range, lhs, *op, rhs),
             Term::ReportedError(range) => self.synth_reported_error(*range),
         }
     }

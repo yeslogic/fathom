@@ -103,27 +103,17 @@ Pattern: Pattern<ByteRange> = {
 pub Term: Term<'arena, ByteRange> = {
     LetTerm,
     <start: @L> <expr: LetTerm> ":" <r#type: LetTerm> <end: @R> => {
-        Term::Ann(
-            ByteRange::new(start, end),
-            scope.to_scope(expr),
-            scope.to_scope(r#type),
-        )
+        Term::Ann(ByteRange::new(start, end), scope.to_scope((expr, r#type)))
     },
 };
 
 LetTerm: Term<'arena, ByteRange> = {
     FunTerm,
     <start: @L> "let" <def_pattern: Pattern> <def_type: (":" <LetTerm>)?> "=" <def_expr: Term> ";" <body_expr: LetTerm> <end: @R> => {
-        Term::Let(
-            ByteRange::new(start, end),
-            def_pattern,
-            def_type.map(|def_type| scope.to_scope(def_type) as &_),
-            scope.to_scope(def_expr),
-            scope.to_scope(body_expr),
-        )
+        Term::Let(ByteRange::new(start, end), scope.to_scope((def_pattern, def_type, def_expr, body_expr)))
     },
     <start: @L> "if" <cond_expr: FunTerm> "then" <then_expr: LetTerm> "else" <else_expr: LetTerm> <end: @R> => {
-        Term::If(ByteRange::new(start, end), scope.to_scope(cond_expr), scope.to_scope(then_expr), scope.to_scope(else_expr))
+        Term::If(ByteRange::new(start, end), scope.to_scope((cond_expr, then_expr, else_expr)))
     },
 };
 
@@ -133,8 +123,7 @@ FunTerm: Term<'arena, ByteRange> = {
         Term::Arrow(
             ByteRange::new(start, end),
             plicity,
-            scope.to_scope(param_type),
-            scope.to_scope(body_type),
+            scope.to_scope((param_type, body_type)),
         )
     },
     <start: @L> "fun" <params: Param+> "->"  <output_type: FunTerm> <end: @R> => {
@@ -227,7 +216,7 @@ AtomicTerm: Term<'arena, ByteRange> = {
         Term::FormatRecord(ByteRange::new(start, end), fields)
     },
     <start: @L> "{" <name: RangedName> "<-" <format:Term> "|" <cond:Term> "}" <end: @R> => {
-        Term::FormatCond(ByteRange::new(start, end), name, scope.to_scope(format), scope.to_scope(cond))
+        Term::FormatCond(ByteRange::new(start, end), name, scope.to_scope((format, cond)))
     },
     <start: @L> "overlap" "{" <fields: Seq1<FormatField, ",">> "}" <end: @R> => {
         Term::FormatOverlap(ByteRange::new(start, end), fields)
@@ -262,9 +251,8 @@ BinExpr<Lhs, Op, Rhs>: Term<'arena, ByteRange> = {
     <start: @L> <lhs: Lhs> <op: Op> <rhs: Rhs> <end: @R> => {
         Term::BinOp(
             ByteRange::new(start, end),
-            scope.to_scope(lhs),
             op,
-            scope.to_scope(rhs),
+            scope.to_scope((lhs, rhs)),
         )
     },
 };

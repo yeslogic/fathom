@@ -249,7 +249,7 @@ impl<'surface, 'core> Driver<'surface, 'core> {
         let term = context.check(&term);
         let r#type = context.check(&r#type);
 
-        self.emit_term(&surface::Term::Ann((), &term, &r#type));
+        self.emit_term(&surface::Term::Ann((), &(term, r#type)));
 
         Status::Ok
     }
@@ -277,7 +277,7 @@ impl<'surface, 'core> Driver<'surface, 'core> {
         let term = context.check(&term);
         let r#type = context.check(&r#type);
 
-        self.emit_term(&surface::Term::Ann((), &term, &r#type));
+        self.emit_term(&surface::Term::Ann((), &(term, r#type)));
 
         Status::Ok
     }

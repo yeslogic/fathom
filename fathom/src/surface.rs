@@ -181,6 +181,7 @@ impl<Range: Clone> Pattern<Range> {
 
 /// Surface terms.
 #[derive(Debug, Clone)]
+#[allow(clippy::type_complexity)]
 pub enum Term<'arena, Range> {
     /// Parenthesized term
     Paren(Range, &'arena Term<'arena, Range>),
@@ -191,25 +192,25 @@ pub enum Term<'arena, Range> {
     /// Placeholder expressions.
     Placeholder(Range),
     /// Annotated expressions.
-    Ann(
-        Range,
-        &'arena Term<'arena, Range>,
-        &'arena Term<'arena, Range>,
-    ),
+    Ann(Range, &'arena (Term<'arena, Range>, Term<'arena, Range>)),
     /// Let expressions.
     Let(
         Range,
-        Pattern<Range>,
-        Option<&'arena Term<'arena, Range>>,
-        &'arena Term<'arena, Range>,
-        &'arena Term<'arena, Range>,
+        &'arena (
+            Pattern<Range>,
+            Option<Term<'arena, Range>>,
+            Term<'arena, Range>,
+            Term<'arena, Range>,
+        ),
     ),
     /// If expressions
     If(
         Range,
-        &'arena Term<'arena, Range>,
-        &'arena Term<'arena, Range>,
-        &'arena Term<'arena, Range>,
+        &'arena (
+            Term<'arena, Range>,
+            Term<'arena, Range>,
+            Term<'arena, Range>,
+        ),
     ),
     /// Match expressions
     Match(
@@ -223,8 +224,7 @@ pub enum Term<'arena, Range> {
     Arrow(
         Range,
         Plicity,
-        &'arena Term<'arena, Range>,
-        &'arena Term<'arena, Range>,
+        &'arena (Term<'arena, Range>, Term<'arena, Range>),
     ),
     /// Dependent function types.
     FunType(
@@ -277,15 +277,13 @@ pub enum Term<'arena, Range> {
     FormatCond(
         Range,
         (Range, StringId),
-        &'arena Term<'arena, Range>,
-        &'arena Term<'arena, Range>,
+        &'arena (Term<'arena, Range>, Term<'arena, Range>),
     ),
     /// Binary operator expressions.
     BinOp(
         Range,
-        &'arena Term<'arena, Range>,
         BinOp<Range>,
-        &'arena Term<'arena, Range>,
+        &'arena (Term<'arena, Range>, Term<'arena, Range>),
     ),
     /// Reported error sentinel.
     ReportedError(Range),
@@ -295,32 +293,32 @@ impl<'arena, Range: Clone> Term<'arena, Range> {
     /// Get the source range of the term.
     pub fn range(&self) -> Range {
         match self {
-            Term::Paren(range, _)
-            | Term::Name(range, _)
-            | Term::Hole(range, _)
+            Term::Paren(range, ..)
+            | Term::Name(range, ..)
+            | Term::Hole(range, ..)
             | Term::Placeholder(range)
-            | Term::Ann(range, _, _)
-            | Term::Let(range, _, _, _, _)
-            | Term::If(range, _, _, _)
-            | Term::Match(range, _, _)
+            | Term::Ann(range, ..)
+            | Term::Let(range, ..)
+            | Term::If(range, ..)
+            | Term::Match(range, ..)
             | Term::Universe(range)
             | Term::Arrow(range, ..)
-            | Term::FunType(range, _, _)
-            | Term::FunLiteral(range, _, _)
-            | Term::App(range, _, _)
-            | Term::RecordType(range, _)
-            | Term::RecordLiteral(range, _)
-            | Term::Tuple(range, _)
-            | Term::Proj(range, _, _)
-            | Term::ArrayLiteral(range, _)
-            | Term::StringLiteral(range, _)
-            | Term::NumberLiteral(range, _)
-            | Term::BooleanLiteral(range, _)
-            | Term::FormatRecord(range, _)
-            | Term::FormatCond(range, _, _, _)
-            | Term::FormatOverlap(range, _)
-            | Term::BinOp(range, _, _, _)
-            | Term::ReportedError(range) => range.clone(),
+            | Term::FunType(range, ..)
+            | Term::FunLiteral(range, ..)
+            | Term::App(range, ..)
+            | Term::RecordType(range, ..)
+            | Term::RecordLiteral(range, ..)
+            | Term::Tuple(range, ..)
+            | Term::Proj(range, ..)
+            | Term::ArrayLiteral(range, ..)
+            | Term::StringLiteral(range, ..)
+            | Term::NumberLiteral(range, ..)
+            | Term::BooleanLiteral(range, ..)
+            | Term::FormatRecord(range, ..)
+            | Term::FormatCond(range, ..)
+            | Term::FormatOverlap(range, ..)
+            | Term::BinOp(range, ..)
+            | Term::ReportedError(range, ..) => range.clone(),
         }
     }
 }
@@ -530,8 +528,8 @@ mod tests {
     #[cfg(target_pointer_width = "64")]
     fn term_size() {
         assert_eq!(std::mem::size_of::<Term<()>>(), 32);
-        assert_eq!(std::mem::size_of::<Term<ByteRange>>(), 56);
-        assert_eq!(std::mem::size_of::<Term<FileRange>>(), 64);
+        assert_eq!(std::mem::size_of::<Term<ByteRange>>(), 40);
+        assert_eq!(std::mem::size_of::<Term<FileRange>>(), 40);
     }
 
     #[test]
