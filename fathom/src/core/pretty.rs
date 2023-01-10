@@ -29,6 +29,7 @@ use std::cell::RefCell;
 
 use crate::core::{Item, Module, Term};
 use crate::source::{StringId, StringInterner};
+use crate::surface::lexer::is_keyword;
 
 /// Term precedences
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
@@ -55,6 +56,7 @@ impl<'interner, 'arena> Context<'interner> {
 
     fn string_id(&'arena self, name: StringId) -> RcDoc {
         match self.interner.borrow().resolve(name) {
+            Some(name) if is_keyword(name) => RcDoc::text(format!("r#{name}")),
             Some(name) => RcDoc::text(name.to_owned()),
             None => RcDoc::text("#error"),
         }
