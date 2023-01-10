@@ -292,10 +292,10 @@ impl<'a> TestCommand<'a> {
 
     fn run(&self) -> Result<Vec<TestFailure>, io::Error> {
         let mut failures = Vec::new();
-        let mut exe = process::Command::from(self.command);
-        exe.arg(self.input_file);
+        let mut command = process::Command::from(self.command);
+        command.arg(self.input_file);
 
-        match exe.output() {
+        match command.output() {
             Ok(output) => {
                 let mut snapshot = Snapshot::new(self.command, self.input_file, &output)?;
 
@@ -345,8 +345,7 @@ impl<'a> TestCommand<'a> {
                 ) {
                     let mut details = Vec::new();
 
-                    // TODO: Improve output
-                    details.push(("command", format!("{exe:?}")));
+                    details.push(("command", command_to_string(&command)));
 
                     if output.status.code() != Some(self.config.exit_code) {
                         details.push(("status", output.status.to_string()));
@@ -407,6 +406,24 @@ impl<'a> From<Command<'a>> for process::Command {
         }
         exe
     }
+}
+
+fn strip_current_dir(path: &Path) -> &Path {
+    path.strip_prefix(std::env::current_dir().unwrap())
+        .unwrap_or(path)
+}
+
+fn command_to_string(command: &process::Command) -> String {
+    use itertools::Itertools;
+
+    format!(
+        "{program} {args}",
+        program = strip_current_dir(Path::new(command.get_program())).to_string_lossy(),
+        args = command
+            .get_args()
+            .map(|arg| arg.to_string_lossy())
+            .format(" "),
+    )
 }
 
 impl Snapshot {
