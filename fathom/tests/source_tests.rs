@@ -20,7 +20,7 @@ fn main() {
 
 #[derive(Deserialize, Debug, Copy, Clone)]
 #[serde(rename_all = "kebab-case")]
-pub enum TestMode {
+enum TestMode {
     Module,
     Term,
 }
@@ -106,7 +106,7 @@ enum ExpectedOutcome {
 }
 
 impl<'a> Command<'a> {
-    pub fn snap_name(&self) -> &'static str {
+    fn snap_name(&self) -> &'static str {
         match self {
             Command::Normalise => "norm",
             Command::ElabModule | Command::ElabTerm | Command::ParseData(_, _) => "",
@@ -124,7 +124,7 @@ impl<'a> Command<'a> {
 }
 
 /// Recursively walk over test files under a file path.
-pub fn find_source_files(root: impl AsRef<Path>) -> impl Iterator<Item = PathBuf> {
+fn find_source_files(root: impl AsRef<Path>) -> impl Iterator<Item = PathBuf> {
     WalkDir::new(root)
         .into_iter()
         .filter_map(|entry| entry.ok())
