@@ -307,8 +307,10 @@ impl<'a> TestCommand<'a> {
                 match snapshot.outcome() {
                     SnapshotOutcome::Equal => {}
                     SnapshotOutcome::Different => {
-                        let mut details =
-                            vec![("path", snapshot.path.to_string_lossy().into_owned())];
+                        let mut details = vec![
+                            ("path", snapshot.path.to_string_lossy().into()),
+                            ("command", command_to_string(&command)),
+                        ];
                         if let Some(diff) = snapshot.stdout_diff() {
                             details.push(("stdout diff", diff));
                         }
@@ -322,8 +324,10 @@ impl<'a> TestCommand<'a> {
                         });
                     }
                     SnapshotOutcome::Missing => {
-                        let mut details =
-                            vec![("path", snapshot.path.to_string_lossy().into_owned())];
+                        let mut details = vec![
+                            ("path", snapshot.path.to_string_lossy().into()),
+                            ("command", command_to_string(&command)),
+                        ];
                         if !snapshot.stdout().is_empty() {
                             details.push(("stdout", snapshot.stdout().to_string()));
                         }
@@ -343,9 +347,7 @@ impl<'a> TestCommand<'a> {
                     output.status.code(),
                     self.config.exit_code,
                 ) {
-                    let mut details = Vec::new();
-
-                    details.push(("command", command_to_string(&command)));
+                    let mut details = vec![("command", command_to_string(&command))];
 
                     if output.status.code() != Some(self.config.exit_code) {
                         details.push(("status", output.status.to_string()));
@@ -356,6 +358,7 @@ impl<'a> TestCommand<'a> {
                     if !snapshot.stderr().is_empty() {
                         details.push(("stderr", snapshot.stderr().to_string()));
                     }
+
                     failures.push(TestFailure {
                         name: "unexpected command output",
                         details,
@@ -365,7 +368,10 @@ impl<'a> TestCommand<'a> {
             Err(error) => {
                 failures.push(TestFailure {
                     name: "unexpected command error",
-                    details: vec![("std::io::Error", error.to_string())],
+                    details: vec![
+                        ("command", command_to_string(&command)),
+                        ("std::io::Error", error.to_string()),
+                    ],
                 });
             }
         }
