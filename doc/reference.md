@@ -117,6 +117,8 @@ Names start with a an ASCII letter (`a`..`z` or `A`..`Z`), and end with a
 sequence of ASCII letters (`a`..`z` or `A`..`Z`), numbers (`0`..`9`), or
 underscores (`_`).
 
+Names can be prefixed with `r#` to avoid clashing with keywords, for example `r#let`.
+
 During elaboration, names are resolved to variables bound by:
 
 - [let expressions](#let-expressions)
