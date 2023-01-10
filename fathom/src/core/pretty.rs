@@ -137,7 +137,7 @@ impl<'interner, 'arena> Context<'interner> {
             Term::InsertedMeta(_, level, info) => {
                 RcDoc::text(format!("InsertedMeta({level:?}, {info:?})"))
             }
-            Term::Ann(_, expr, r#type) => self.paren(
+            Term::Ann(_, (expr, r#type)) => self.paren(
                 prec > Prec::Top,
                 RcDoc::concat([
                     RcDoc::concat([
@@ -150,7 +150,7 @@ impl<'interner, 'arena> Context<'interner> {
                     self.term_prec(Prec::Top, r#type),
                 ]),
             ),
-            Term::Let(_, def_pattern, def_type, def_expr, body_expr) => self.paren(
+            Term::Let(_, def_pattern, (def_type, def_expr, body_expr)) => self.paren(
                 prec > Prec::Let,
                 RcDoc::concat([
                     RcDoc::concat([
@@ -169,7 +169,7 @@ impl<'interner, 'arena> Context<'interner> {
                 ]),
             ),
             Term::Universe(_) => RcDoc::text("Type"),
-            Term::FunType(_, plicity, param_name, param_type, body_type) => self.paren(
+            Term::FunType(_, plicity, param_name, (param_type, body_type)) => self.paren(
                 prec > Prec::Fun,
                 RcDoc::concat([
                     RcDoc::concat([
@@ -220,7 +220,7 @@ impl<'interner, 'arena> Context<'interner> {
                     self.term_prec(Prec::Let, body_expr),
                 ]),
             ),
-            Term::FunApp(_, plicity, head_expr, arg_expr) => self.paren(
+            Term::FunApp(_, plicity, (head_expr, arg_expr)) => self.paren(
                 prec > Prec::App,
                 RcDoc::concat([
                     self.plicity(*plicity),
@@ -278,7 +278,7 @@ impl<'interner, 'arena> Context<'interner> {
                 RcDoc::text(","),
                 RcDoc::text("}"),
             ),
-            Term::FormatCond(_, label, format, cond) => RcDoc::concat([
+            Term::FormatCond(_, label, (format, cond)) => RcDoc::concat([
                 RcDoc::text("{"),
                 RcDoc::space(),
                 self.string_id(*label),
@@ -325,7 +325,7 @@ impl<'interner, 'arena> Context<'interner> {
                     .chain(default_expr.iter().map(|&(name, default)| {
                         RcDoc::concat([
                             match name {
-                                Some(name) => self.string_id(name),
+                                Some(name) => self.string_id(*name),
                                 None => RcDoc::text("_"),
                             },
                             RcDoc::space(),

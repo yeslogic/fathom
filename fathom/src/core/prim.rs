@@ -57,451 +57,499 @@ impl<'arena> Env<'arena> {
 
         let mut env = EnvBuilder::new(interner, scope);
 
-        env.define_prim(VoidType, &UNIVERSE);
-        env.define_prim(BoolType, &UNIVERSE);
-        env.define_prim(U8Type, &UNIVERSE);
-        env.define_prim(U16Type, &UNIVERSE);
-        env.define_prim(U32Type, &UNIVERSE);
-        env.define_prim(U64Type, &UNIVERSE);
-        env.define_prim(S8Type, &UNIVERSE);
-        env.define_prim(S16Type, &UNIVERSE);
-        env.define_prim(S32Type, &UNIVERSE);
-        env.define_prim(S64Type, &UNIVERSE);
-        env.define_prim(F32Type, &UNIVERSE);
-        env.define_prim(F64Type, &UNIVERSE);
-        env.define_prim_fun(OptionType, [&UNIVERSE], &UNIVERSE);
-        env.define_prim_fun(ArrayType, [&UNIVERSE], &UNIVERSE);
-        env.define_prim_fun(Array8Type, [&U8_TYPE, &UNIVERSE], &UNIVERSE);
-        env.define_prim_fun(Array16Type, [&U16_TYPE, &UNIVERSE], &UNIVERSE);
-        env.define_prim_fun(Array32Type, [&U32_TYPE, &UNIVERSE], &UNIVERSE);
-        env.define_prim_fun(Array64Type, [&U64_TYPE, &UNIVERSE], &UNIVERSE);
-        env.define_prim(PosType, &UNIVERSE);
-        env.define_prim_fun(RefType, [&FORMAT_TYPE], &UNIVERSE);
-        env.define_prim(FormatType, &UNIVERSE);
+        env.define_prim(VoidType, UNIVERSE);
+        env.define_prim(BoolType, UNIVERSE);
+        env.define_prim(U8Type, UNIVERSE);
+        env.define_prim(U16Type, UNIVERSE);
+        env.define_prim(U32Type, UNIVERSE);
+        env.define_prim(U64Type, UNIVERSE);
+        env.define_prim(S8Type, UNIVERSE);
+        env.define_prim(S16Type, UNIVERSE);
+        env.define_prim(S32Type, UNIVERSE);
+        env.define_prim(S64Type, UNIVERSE);
+        env.define_prim(F32Type, UNIVERSE);
+        env.define_prim(F64Type, UNIVERSE);
+        env.define_prim_fun(OptionType, [UNIVERSE], UNIVERSE);
+        env.define_prim_fun(ArrayType, [UNIVERSE], UNIVERSE);
+        env.define_prim_fun(Array8Type, [U8_TYPE, UNIVERSE], UNIVERSE);
+        env.define_prim_fun(Array16Type, [U16_TYPE, UNIVERSE], UNIVERSE);
+        env.define_prim_fun(Array32Type, [U32_TYPE, UNIVERSE], UNIVERSE);
+        env.define_prim_fun(Array64Type, [U64_TYPE, UNIVERSE], UNIVERSE);
+        env.define_prim(PosType, UNIVERSE);
+        env.define_prim_fun(RefType, [FORMAT_TYPE], UNIVERSE);
+        env.define_prim(FormatType, UNIVERSE);
 
-        env.define_prim(FormatU8, &FORMAT_TYPE);
-        env.define_prim(FormatU16Be, &FORMAT_TYPE);
-        env.define_prim(FormatU16Le, &FORMAT_TYPE);
-        env.define_prim(FormatU32Be, &FORMAT_TYPE);
-        env.define_prim(FormatU32Le, &FORMAT_TYPE);
-        env.define_prim(FormatU64Be, &FORMAT_TYPE);
-        env.define_prim(FormatU64Le, &FORMAT_TYPE);
-        env.define_prim(FormatS8, &FORMAT_TYPE);
-        env.define_prim(FormatS16Be, &FORMAT_TYPE);
-        env.define_prim(FormatS16Le, &FORMAT_TYPE);
-        env.define_prim(FormatS32Be, &FORMAT_TYPE);
-        env.define_prim(FormatS32Le, &FORMAT_TYPE);
-        env.define_prim(FormatS64Be, &FORMAT_TYPE);
-        env.define_prim(FormatS64Le, &FORMAT_TYPE);
-        env.define_prim(FormatF32Be, &FORMAT_TYPE);
-        env.define_prim(FormatF32Le, &FORMAT_TYPE);
-        env.define_prim(FormatF64Be, &FORMAT_TYPE);
-        env.define_prim(FormatF64Le, &FORMAT_TYPE);
-        env.define_prim_fun(FormatRepeatLen8, [&U8_TYPE, &FORMAT_TYPE], &FORMAT_TYPE);
-        env.define_prim_fun(FormatRepeatLen16, [&U16_TYPE, &FORMAT_TYPE], &FORMAT_TYPE);
-        env.define_prim_fun(FormatRepeatLen32, [&U32_TYPE, &FORMAT_TYPE], &FORMAT_TYPE);
-        env.define_prim_fun(FormatRepeatLen64, [&U64_TYPE, &FORMAT_TYPE], &FORMAT_TYPE);
-        env.define_prim_fun(FormatRepeatUntilEnd, [&FORMAT_TYPE], &FORMAT_TYPE);
-        env.define_prim_fun(FormatLimit8, [&U8_TYPE, &FORMAT_TYPE], &FORMAT_TYPE);
-        env.define_prim_fun(FormatLimit16, [&U16_TYPE, &FORMAT_TYPE], &FORMAT_TYPE);
-        env.define_prim_fun(FormatLimit32, [&U32_TYPE, &FORMAT_TYPE], &FORMAT_TYPE);
-        env.define_prim_fun(FormatLimit64, [&U64_TYPE, &FORMAT_TYPE], &FORMAT_TYPE);
-        env.define_prim_fun(FormatLink, [&POS_TYPE, &FORMAT_TYPE], &FORMAT_TYPE);
+        env.define_prim(FormatU8, FORMAT_TYPE);
+        env.define_prim(FormatU16Be, FORMAT_TYPE);
+        env.define_prim(FormatU16Le, FORMAT_TYPE);
+        env.define_prim(FormatU32Be, FORMAT_TYPE);
+        env.define_prim(FormatU32Le, FORMAT_TYPE);
+        env.define_prim(FormatU64Be, FORMAT_TYPE);
+        env.define_prim(FormatU64Le, FORMAT_TYPE);
+        env.define_prim(FormatS8, FORMAT_TYPE);
+        env.define_prim(FormatS16Be, FORMAT_TYPE);
+        env.define_prim(FormatS16Le, FORMAT_TYPE);
+        env.define_prim(FormatS32Be, FORMAT_TYPE);
+        env.define_prim(FormatS32Le, FORMAT_TYPE);
+        env.define_prim(FormatS64Be, FORMAT_TYPE);
+        env.define_prim(FormatS64Le, FORMAT_TYPE);
+        env.define_prim(FormatF32Be, FORMAT_TYPE);
+        env.define_prim(FormatF32Le, FORMAT_TYPE);
+        env.define_prim(FormatF64Be, FORMAT_TYPE);
+        env.define_prim(FormatF64Le, FORMAT_TYPE);
+        env.define_prim_fun(FormatRepeatLen8, [U8_TYPE, FORMAT_TYPE], FORMAT_TYPE);
+        env.define_prim_fun(FormatRepeatLen16, [U16_TYPE, FORMAT_TYPE], FORMAT_TYPE);
+        env.define_prim_fun(FormatRepeatLen32, [U32_TYPE, FORMAT_TYPE], FORMAT_TYPE);
+        env.define_prim_fun(FormatRepeatLen64, [U64_TYPE, FORMAT_TYPE], FORMAT_TYPE);
+        env.define_prim_fun(FormatRepeatUntilEnd, [FORMAT_TYPE], FORMAT_TYPE);
+        env.define_prim_fun(FormatLimit8, [U8_TYPE, FORMAT_TYPE], FORMAT_TYPE);
+        env.define_prim_fun(FormatLimit16, [U16_TYPE, FORMAT_TYPE], FORMAT_TYPE);
+        env.define_prim_fun(FormatLimit32, [U32_TYPE, FORMAT_TYPE], FORMAT_TYPE);
+        env.define_prim_fun(FormatLimit64, [U64_TYPE, FORMAT_TYPE], FORMAT_TYPE);
+        env.define_prim_fun(FormatLink, [POS_TYPE, FORMAT_TYPE], FORMAT_TYPE);
         env.define_prim(
             FormatDeref,
-            &core::Term::FunType(
+            core::Term::FunType(
                 Span::Empty,
                 Plicity::Implicit,
-                env.name("f"),
-                &FORMAT_TYPE,
-                &Term::FunType(
-                    Span::Empty,
-                    Plicity::Explicit,
-                    None,
-                    &Term::FunApp(
+                env.name("A"),
+                &(
+                    FORMAT_TYPE,
+                    Term::FunType(
                         Span::Empty,
                         Plicity::Explicit,
-                        &Term::Prim(Span::Empty, RefType),
-                        &VAR0,
+                        None,
+                        &(
+                            Term::FunApp(
+                                Span::Empty,
+                                Plicity::Explicit,
+                                &(Term::Prim(Span::Empty, RefType), VAR0),
+                            ),
+                            FORMAT_TYPE,
+                        ),
                     ),
-                    &FORMAT_TYPE,
                 ),
             ),
         );
-        env.define_prim(FormatStreamPos, &FORMAT_TYPE);
+        env.define_prim(FormatStreamPos, FORMAT_TYPE);
         env.define_prim(
             FormatSucceed,
-            &core::Term::FunType(
+            core::Term::FunType(
                 Span::Empty,
                 Plicity::Implicit,
                 env.name("A"),
-                &UNIVERSE,
-                &Term::FunType(Span::Empty, Plicity::Explicit, None, &VAR0, &FORMAT_TYPE),
-            ),
-        );
-        env.define_prim(FormatFail, &FORMAT_TYPE);
-        env.define_prim(
-            FormatUnwrap,
-            // fun (@A : Type) -> Option A   -> Format
-            // fun (@A : Type) -> Option A@0 -> Format
-            &core::Term::FunType(
-                Span::Empty,
-                Plicity::Implicit,
-                env.name("A"),
-                &UNIVERSE,
-                &Term::FunType(
-                    Span::Empty,
-                    Plicity::Explicit,
-                    None,
-                    &Term::FunApp(
-                        Span::Empty,
-                        Plicity::Explicit,
-                        &Term::Prim(Span::Empty, OptionType),
-                        &VAR0,
-                    ),
-                    &FORMAT_TYPE,
+                &(
+                    UNIVERSE,
+                    Term::FunType(Span::Empty, Plicity::Explicit, None, &(VAR0, FORMAT_TYPE)),
                 ),
             ),
         );
-        env.define_prim_fun(FormatRepr, [&FORMAT_TYPE], &UNIVERSE);
+        env.define_prim(FormatFail, FORMAT_TYPE);
+        env.define_prim(
+            FormatUnwrap,
+            // fun (A : Type) -> Option A   -> Format
+            // fun (A : Type) -> Option A@0 -> Format
+            core::Term::FunType(
+                Span::Empty,
+                Plicity::Implicit,
+                env.name("A"),
+                &(
+                    UNIVERSE,
+                    Term::FunType(
+                        Span::Empty,
+                        Plicity::Explicit,
+                        None,
+                        &(
+                            Term::FunApp(
+                                Span::Empty,
+                                Plicity::Explicit,
+                                &(Term::Prim(Span::Empty, OptionType), VAR0),
+                            ),
+                            FORMAT_TYPE,
+                        ),
+                    ),
+                ),
+            ),
+        );
+        env.define_prim_fun(FormatRepr, [FORMAT_TYPE], UNIVERSE);
 
         // fun (@A : Type) -> Void -> A
         env.define_prim(
             Absurd,
-            &core::Term::FunType(
+            core::Term::FunType(
                 Span::Empty,
                 Plicity::Implicit,
                 env.name("A"),
-                &UNIVERSE,
-                &core::Term::FunType(Span::Empty, Plicity::Explicit, None, &VOID_TYPE, &VAR1),
+                &(
+                    UNIVERSE,
+                    core::Term::FunType(Span::Empty, Plicity::Explicit, None, &(VOID_TYPE, VAR1)),
+                ),
             ),
         );
 
-        env.define_prim_fun(BoolEq, [&BOOL_TYPE, &BOOL_TYPE], &BOOL_TYPE);
-        env.define_prim_fun(BoolNeq, [&BOOL_TYPE, &BOOL_TYPE], &BOOL_TYPE);
-        env.define_prim_fun(BoolNot, [&BOOL_TYPE], &BOOL_TYPE);
-        env.define_prim_fun(BoolAnd, [&BOOL_TYPE, &BOOL_TYPE], &BOOL_TYPE);
-        env.define_prim_fun(BoolOr, [&BOOL_TYPE, &BOOL_TYPE], &BOOL_TYPE);
-        env.define_prim_fun(BoolXor, [&BOOL_TYPE, &BOOL_TYPE], &BOOL_TYPE);
+        env.define_prim_fun(BoolEq, [BOOL_TYPE, BOOL_TYPE], BOOL_TYPE);
+        env.define_prim_fun(BoolNeq, [BOOL_TYPE, BOOL_TYPE], BOOL_TYPE);
+        env.define_prim_fun(BoolNot, [BOOL_TYPE], BOOL_TYPE);
+        env.define_prim_fun(BoolAnd, [BOOL_TYPE, BOOL_TYPE], BOOL_TYPE);
+        env.define_prim_fun(BoolOr, [BOOL_TYPE, BOOL_TYPE], BOOL_TYPE);
+        env.define_prim_fun(BoolXor, [BOOL_TYPE, BOOL_TYPE], BOOL_TYPE);
 
-        env.define_prim_fun(U8Eq, [&U8_TYPE, &U8_TYPE], &BOOL_TYPE);
-        env.define_prim_fun(U8Neq, [&U8_TYPE, &U8_TYPE], &BOOL_TYPE);
-        env.define_prim_fun(U8Lt, [&U8_TYPE, &U8_TYPE], &BOOL_TYPE);
-        env.define_prim_fun(U8Gt, [&U8_TYPE, &U8_TYPE], &BOOL_TYPE);
-        env.define_prim_fun(U8Lte, [&U8_TYPE, &U8_TYPE], &BOOL_TYPE);
-        env.define_prim_fun(U8Gte, [&U8_TYPE, &U8_TYPE], &BOOL_TYPE);
-        env.define_prim_fun(U8Add, [&U8_TYPE, &U8_TYPE], &U8_TYPE);
-        env.define_prim_fun(U8Sub, [&U8_TYPE, &U8_TYPE], &U8_TYPE);
-        env.define_prim_fun(U8Mul, [&U8_TYPE, &U8_TYPE], &U8_TYPE);
-        env.define_prim_fun(U8Div, [&U8_TYPE, &U8_TYPE], &U8_TYPE);
-        env.define_prim_fun(U8Not, [&U8_TYPE], &U8_TYPE);
-        env.define_prim_fun(U8Shl, [&U8_TYPE, &U8_TYPE], &U8_TYPE);
-        env.define_prim_fun(U8Shr, [&U8_TYPE, &U8_TYPE], &U8_TYPE);
-        env.define_prim_fun(U8And, [&U8_TYPE, &U8_TYPE], &U8_TYPE);
-        env.define_prim_fun(U8Or, [&U8_TYPE, &U8_TYPE], &U8_TYPE);
-        env.define_prim_fun(U8Xor, [&U8_TYPE, &U8_TYPE], &U8_TYPE);
+        env.define_prim_fun(U8Eq, [U8_TYPE, U8_TYPE], BOOL_TYPE);
+        env.define_prim_fun(U8Neq, [U8_TYPE, U8_TYPE], BOOL_TYPE);
+        env.define_prim_fun(U8Lt, [U8_TYPE, U8_TYPE], BOOL_TYPE);
+        env.define_prim_fun(U8Gt, [U8_TYPE, U8_TYPE], BOOL_TYPE);
+        env.define_prim_fun(U8Lte, [U8_TYPE, U8_TYPE], BOOL_TYPE);
+        env.define_prim_fun(U8Gte, [U8_TYPE, U8_TYPE], BOOL_TYPE);
+        env.define_prim_fun(U8Add, [U8_TYPE, U8_TYPE], U8_TYPE);
+        env.define_prim_fun(U8Sub, [U8_TYPE, U8_TYPE], U8_TYPE);
+        env.define_prim_fun(U8Mul, [U8_TYPE, U8_TYPE], U8_TYPE);
+        env.define_prim_fun(U8Div, [U8_TYPE, U8_TYPE], U8_TYPE);
+        env.define_prim_fun(U8Not, [U8_TYPE], U8_TYPE);
+        env.define_prim_fun(U8Shl, [U8_TYPE, U8_TYPE], U8_TYPE);
+        env.define_prim_fun(U8Shr, [U8_TYPE, U8_TYPE], U8_TYPE);
+        env.define_prim_fun(U8And, [U8_TYPE, U8_TYPE], U8_TYPE);
+        env.define_prim_fun(U8Or, [U8_TYPE, U8_TYPE], U8_TYPE);
+        env.define_prim_fun(U8Xor, [U8_TYPE, U8_TYPE], U8_TYPE);
 
-        env.define_prim_fun(U16Eq, [&U16_TYPE, &U16_TYPE], &BOOL_TYPE);
-        env.define_prim_fun(U16Neq, [&U16_TYPE, &U16_TYPE], &BOOL_TYPE);
-        env.define_prim_fun(U16Lt, [&U16_TYPE, &U16_TYPE], &BOOL_TYPE);
-        env.define_prim_fun(U16Gt, [&U16_TYPE, &U16_TYPE], &BOOL_TYPE);
-        env.define_prim_fun(U16Lte, [&U16_TYPE, &U16_TYPE], &BOOL_TYPE);
-        env.define_prim_fun(U16Gte, [&U16_TYPE, &U16_TYPE], &BOOL_TYPE);
-        env.define_prim_fun(U16Add, [&U16_TYPE, &U16_TYPE], &U16_TYPE);
-        env.define_prim_fun(U16Sub, [&U16_TYPE, &U16_TYPE], &U16_TYPE);
-        env.define_prim_fun(U16Mul, [&U16_TYPE, &U16_TYPE], &U16_TYPE);
-        env.define_prim_fun(U16Div, [&U16_TYPE, &U16_TYPE], &U16_TYPE);
-        env.define_prim_fun(U16Not, [&U16_TYPE], &U16_TYPE);
-        env.define_prim_fun(U16Shl, [&U16_TYPE, &U8_TYPE], &U16_TYPE);
-        env.define_prim_fun(U16Shr, [&U16_TYPE, &U8_TYPE], &U16_TYPE);
-        env.define_prim_fun(U16And, [&U16_TYPE, &U16_TYPE], &U16_TYPE);
-        env.define_prim_fun(U16Or, [&U16_TYPE, &U16_TYPE], &U16_TYPE);
-        env.define_prim_fun(U16Xor, [&U16_TYPE, &U16_TYPE], &U16_TYPE);
+        env.define_prim_fun(U16Eq, [U16_TYPE, U16_TYPE], BOOL_TYPE);
+        env.define_prim_fun(U16Neq, [U16_TYPE, U16_TYPE], BOOL_TYPE);
+        env.define_prim_fun(U16Lt, [U16_TYPE, U16_TYPE], BOOL_TYPE);
+        env.define_prim_fun(U16Gt, [U16_TYPE, U16_TYPE], BOOL_TYPE);
+        env.define_prim_fun(U16Lte, [U16_TYPE, U16_TYPE], BOOL_TYPE);
+        env.define_prim_fun(U16Gte, [U16_TYPE, U16_TYPE], BOOL_TYPE);
+        env.define_prim_fun(U16Add, [U16_TYPE, U16_TYPE], U16_TYPE);
+        env.define_prim_fun(U16Sub, [U16_TYPE, U16_TYPE], U16_TYPE);
+        env.define_prim_fun(U16Mul, [U16_TYPE, U16_TYPE], U16_TYPE);
+        env.define_prim_fun(U16Div, [U16_TYPE, U16_TYPE], U16_TYPE);
+        env.define_prim_fun(U16Not, [U16_TYPE], U16_TYPE);
+        env.define_prim_fun(U16Shl, [U16_TYPE, U8_TYPE], U16_TYPE);
+        env.define_prim_fun(U16Shr, [U16_TYPE, U8_TYPE], U16_TYPE);
+        env.define_prim_fun(U16And, [U16_TYPE, U16_TYPE], U16_TYPE);
+        env.define_prim_fun(U16Or, [U16_TYPE, U16_TYPE], U16_TYPE);
+        env.define_prim_fun(U16Xor, [U16_TYPE, U16_TYPE], U16_TYPE);
 
-        env.define_prim_fun(U32Eq, [&U32_TYPE, &U32_TYPE], &BOOL_TYPE);
-        env.define_prim_fun(U32Neq, [&U32_TYPE, &U32_TYPE], &BOOL_TYPE);
-        env.define_prim_fun(U32Lt, [&U32_TYPE, &U32_TYPE], &BOOL_TYPE);
-        env.define_prim_fun(U32Gt, [&U32_TYPE, &U32_TYPE], &BOOL_TYPE);
-        env.define_prim_fun(U32Lte, [&U32_TYPE, &U32_TYPE], &BOOL_TYPE);
-        env.define_prim_fun(U32Gte, [&U32_TYPE, &U32_TYPE], &BOOL_TYPE);
-        env.define_prim_fun(U32Add, [&U32_TYPE, &U32_TYPE], &U32_TYPE);
-        env.define_prim_fun(U32Sub, [&U32_TYPE, &U32_TYPE], &U32_TYPE);
-        env.define_prim_fun(U32Mul, [&U32_TYPE, &U32_TYPE], &U32_TYPE);
-        env.define_prim_fun(U32Div, [&U32_TYPE, &U32_TYPE], &U32_TYPE);
-        env.define_prim_fun(U32Not, [&U32_TYPE], &U32_TYPE);
-        env.define_prim_fun(U32Shl, [&U32_TYPE, &U8_TYPE], &U32_TYPE);
-        env.define_prim_fun(U32Shr, [&U32_TYPE, &U8_TYPE], &U32_TYPE);
-        env.define_prim_fun(U32And, [&U32_TYPE, &U32_TYPE], &U32_TYPE);
-        env.define_prim_fun(U32Or, [&U32_TYPE, &U32_TYPE], &U32_TYPE);
-        env.define_prim_fun(U32Xor, [&U32_TYPE, &U32_TYPE], &U32_TYPE);
+        env.define_prim_fun(U32Eq, [U32_TYPE, U32_TYPE], BOOL_TYPE);
+        env.define_prim_fun(U32Neq, [U32_TYPE, U32_TYPE], BOOL_TYPE);
+        env.define_prim_fun(U32Lt, [U32_TYPE, U32_TYPE], BOOL_TYPE);
+        env.define_prim_fun(U32Gt, [U32_TYPE, U32_TYPE], BOOL_TYPE);
+        env.define_prim_fun(U32Lte, [U32_TYPE, U32_TYPE], BOOL_TYPE);
+        env.define_prim_fun(U32Gte, [U32_TYPE, U32_TYPE], BOOL_TYPE);
+        env.define_prim_fun(U32Add, [U32_TYPE, U32_TYPE], U32_TYPE);
+        env.define_prim_fun(U32Sub, [U32_TYPE, U32_TYPE], U32_TYPE);
+        env.define_prim_fun(U32Mul, [U32_TYPE, U32_TYPE], U32_TYPE);
+        env.define_prim_fun(U32Div, [U32_TYPE, U32_TYPE], U32_TYPE);
+        env.define_prim_fun(U32Not, [U32_TYPE], U32_TYPE);
+        env.define_prim_fun(U32Shl, [U32_TYPE, U8_TYPE], U32_TYPE);
+        env.define_prim_fun(U32Shr, [U32_TYPE, U8_TYPE], U32_TYPE);
+        env.define_prim_fun(U32And, [U32_TYPE, U32_TYPE], U32_TYPE);
+        env.define_prim_fun(U32Or, [U32_TYPE, U32_TYPE], U32_TYPE);
+        env.define_prim_fun(U32Xor, [U32_TYPE, U32_TYPE], U32_TYPE);
 
-        env.define_prim_fun(U64Eq, [&U64_TYPE, &U64_TYPE], &BOOL_TYPE);
-        env.define_prim_fun(U64Neq, [&U64_TYPE, &U64_TYPE], &BOOL_TYPE);
-        env.define_prim_fun(U64Lt, [&U64_TYPE, &U64_TYPE], &BOOL_TYPE);
-        env.define_prim_fun(U64Gt, [&U64_TYPE, &U64_TYPE], &BOOL_TYPE);
-        env.define_prim_fun(U64Lte, [&U64_TYPE, &U64_TYPE], &BOOL_TYPE);
-        env.define_prim_fun(U64Gte, [&U64_TYPE, &U64_TYPE], &BOOL_TYPE);
-        env.define_prim_fun(U64Add, [&U64_TYPE, &U64_TYPE], &U64_TYPE);
-        env.define_prim_fun(U64Sub, [&U64_TYPE, &U64_TYPE], &U64_TYPE);
-        env.define_prim_fun(U64Mul, [&U64_TYPE, &U64_TYPE], &U64_TYPE);
-        env.define_prim_fun(U64Div, [&U64_TYPE, &U64_TYPE], &U64_TYPE);
-        env.define_prim_fun(U64Not, [&U64_TYPE], &U64_TYPE);
-        env.define_prim_fun(U64Shl, [&U64_TYPE, &U8_TYPE], &U64_TYPE);
-        env.define_prim_fun(U64Shr, [&U64_TYPE, &U8_TYPE], &U64_TYPE);
-        env.define_prim_fun(U64And, [&U64_TYPE, &U64_TYPE], &U64_TYPE);
-        env.define_prim_fun(U64Or, [&U64_TYPE, &U64_TYPE], &U64_TYPE);
-        env.define_prim_fun(U64Xor, [&U64_TYPE, &U64_TYPE], &U64_TYPE);
+        env.define_prim_fun(U64Eq, [U64_TYPE, U64_TYPE], BOOL_TYPE);
+        env.define_prim_fun(U64Neq, [U64_TYPE, U64_TYPE], BOOL_TYPE);
+        env.define_prim_fun(U64Lt, [U64_TYPE, U64_TYPE], BOOL_TYPE);
+        env.define_prim_fun(U64Gt, [U64_TYPE, U64_TYPE], BOOL_TYPE);
+        env.define_prim_fun(U64Lte, [U64_TYPE, U64_TYPE], BOOL_TYPE);
+        env.define_prim_fun(U64Gte, [U64_TYPE, U64_TYPE], BOOL_TYPE);
+        env.define_prim_fun(U64Add, [U64_TYPE, U64_TYPE], U64_TYPE);
+        env.define_prim_fun(U64Sub, [U64_TYPE, U64_TYPE], U64_TYPE);
+        env.define_prim_fun(U64Mul, [U64_TYPE, U64_TYPE], U64_TYPE);
+        env.define_prim_fun(U64Div, [U64_TYPE, U64_TYPE], U64_TYPE);
+        env.define_prim_fun(U64Not, [U64_TYPE], U64_TYPE);
+        env.define_prim_fun(U64Shl, [U64_TYPE, U8_TYPE], U64_TYPE);
+        env.define_prim_fun(U64Shr, [U64_TYPE, U8_TYPE], U64_TYPE);
+        env.define_prim_fun(U64And, [U64_TYPE, U64_TYPE], U64_TYPE);
+        env.define_prim_fun(U64Or, [U64_TYPE, U64_TYPE], U64_TYPE);
+        env.define_prim_fun(U64Xor, [U64_TYPE, U64_TYPE], U64_TYPE);
 
-        env.define_prim_fun(S8Eq, [&S8_TYPE, &S8_TYPE], &BOOL_TYPE);
-        env.define_prim_fun(S8Neq, [&S8_TYPE, &S8_TYPE], &BOOL_TYPE);
-        env.define_prim_fun(S8Lt, [&S8_TYPE, &S8_TYPE], &BOOL_TYPE);
-        env.define_prim_fun(S8Gt, [&S8_TYPE, &S8_TYPE], &BOOL_TYPE);
-        env.define_prim_fun(S8Lte, [&S8_TYPE, &S8_TYPE], &BOOL_TYPE);
-        env.define_prim_fun(S8Gte, [&S8_TYPE, &S8_TYPE], &BOOL_TYPE);
-        env.define_prim_fun(S8Neg, [&S8_TYPE], &S8_TYPE);
-        env.define_prim_fun(S8Add, [&S8_TYPE, &S8_TYPE], &S8_TYPE);
-        env.define_prim_fun(S8Sub, [&S8_TYPE, &S8_TYPE], &S8_TYPE);
-        env.define_prim_fun(S8Mul, [&S8_TYPE, &S8_TYPE], &S8_TYPE);
-        env.define_prim_fun(S8Div, [&S8_TYPE, &S8_TYPE], &S8_TYPE);
-        env.define_prim_fun(S8Abs, [&S8_TYPE], &S8_TYPE);
-        env.define_prim_fun(S8UAbs, [&S8_TYPE], &U8_TYPE);
+        env.define_prim_fun(S8Eq, [S8_TYPE, S8_TYPE], BOOL_TYPE);
+        env.define_prim_fun(S8Neq, [S8_TYPE, S8_TYPE], BOOL_TYPE);
+        env.define_prim_fun(S8Lt, [S8_TYPE, S8_TYPE], BOOL_TYPE);
+        env.define_prim_fun(S8Gt, [S8_TYPE, S8_TYPE], BOOL_TYPE);
+        env.define_prim_fun(S8Lte, [S8_TYPE, S8_TYPE], BOOL_TYPE);
+        env.define_prim_fun(S8Gte, [S8_TYPE, S8_TYPE], BOOL_TYPE);
+        env.define_prim_fun(S8Neg, [S8_TYPE], S8_TYPE);
+        env.define_prim_fun(S8Add, [S8_TYPE, S8_TYPE], S8_TYPE);
+        env.define_prim_fun(S8Sub, [S8_TYPE, S8_TYPE], S8_TYPE);
+        env.define_prim_fun(S8Mul, [S8_TYPE, S8_TYPE], S8_TYPE);
+        env.define_prim_fun(S8Div, [S8_TYPE, S8_TYPE], S8_TYPE);
+        env.define_prim_fun(S8Abs, [S8_TYPE], S8_TYPE);
+        env.define_prim_fun(S8UAbs, [S8_TYPE], U8_TYPE);
 
-        env.define_prim_fun(S16Eq, [&S16_TYPE, &S16_TYPE], &BOOL_TYPE);
-        env.define_prim_fun(S16Neq, [&S16_TYPE, &S16_TYPE], &BOOL_TYPE);
-        env.define_prim_fun(S16Lt, [&S16_TYPE, &S16_TYPE], &BOOL_TYPE);
-        env.define_prim_fun(S16Gt, [&S16_TYPE, &S16_TYPE], &BOOL_TYPE);
-        env.define_prim_fun(S16Lte, [&S16_TYPE, &S16_TYPE], &BOOL_TYPE);
-        env.define_prim_fun(S16Gte, [&S16_TYPE, &S16_TYPE], &BOOL_TYPE);
-        env.define_prim_fun(S16Neg, [&S16_TYPE], &S16_TYPE);
-        env.define_prim_fun(S16Add, [&S16_TYPE, &S16_TYPE], &S16_TYPE);
-        env.define_prim_fun(S16Sub, [&S16_TYPE, &S16_TYPE], &S16_TYPE);
-        env.define_prim_fun(S16Mul, [&S16_TYPE, &S16_TYPE], &S16_TYPE);
-        env.define_prim_fun(S16Div, [&S16_TYPE, &S16_TYPE], &S16_TYPE);
-        env.define_prim_fun(S16Abs, [&S16_TYPE], &S16_TYPE);
-        env.define_prim_fun(S16UAbs, [&S16_TYPE], &U16_TYPE);
+        env.define_prim_fun(S16Eq, [S16_TYPE, S16_TYPE], BOOL_TYPE);
+        env.define_prim_fun(S16Neq, [S16_TYPE, S16_TYPE], BOOL_TYPE);
+        env.define_prim_fun(S16Lt, [S16_TYPE, S16_TYPE], BOOL_TYPE);
+        env.define_prim_fun(S16Gt, [S16_TYPE, S16_TYPE], BOOL_TYPE);
+        env.define_prim_fun(S16Lte, [S16_TYPE, S16_TYPE], BOOL_TYPE);
+        env.define_prim_fun(S16Gte, [S16_TYPE, S16_TYPE], BOOL_TYPE);
+        env.define_prim_fun(S16Neg, [S16_TYPE], S16_TYPE);
+        env.define_prim_fun(S16Add, [S16_TYPE, S16_TYPE], S16_TYPE);
+        env.define_prim_fun(S16Sub, [S16_TYPE, S16_TYPE], S16_TYPE);
+        env.define_prim_fun(S16Mul, [S16_TYPE, S16_TYPE], S16_TYPE);
+        env.define_prim_fun(S16Div, [S16_TYPE, S16_TYPE], S16_TYPE);
+        env.define_prim_fun(S16Abs, [S16_TYPE], S16_TYPE);
+        env.define_prim_fun(S16UAbs, [S16_TYPE], U16_TYPE);
 
-        env.define_prim_fun(S32Eq, [&S32_TYPE, &S32_TYPE], &BOOL_TYPE);
-        env.define_prim_fun(S32Neq, [&S32_TYPE, &S32_TYPE], &BOOL_TYPE);
-        env.define_prim_fun(S32Lt, [&S32_TYPE, &S32_TYPE], &BOOL_TYPE);
-        env.define_prim_fun(S32Gt, [&S32_TYPE, &S32_TYPE], &BOOL_TYPE);
-        env.define_prim_fun(S32Lte, [&S32_TYPE, &S32_TYPE], &BOOL_TYPE);
-        env.define_prim_fun(S32Gte, [&S32_TYPE, &S32_TYPE], &BOOL_TYPE);
-        env.define_prim_fun(S32Neg, [&S32_TYPE], &S32_TYPE);
-        env.define_prim_fun(S32Add, [&S32_TYPE, &S32_TYPE], &S32_TYPE);
-        env.define_prim_fun(S32Sub, [&S32_TYPE, &S32_TYPE], &S32_TYPE);
-        env.define_prim_fun(S32Mul, [&S32_TYPE, &S32_TYPE], &S32_TYPE);
-        env.define_prim_fun(S32Div, [&S32_TYPE, &S32_TYPE], &S32_TYPE);
-        env.define_prim_fun(S32Abs, [&S32_TYPE], &S32_TYPE);
-        env.define_prim_fun(S32UAbs, [&S32_TYPE], &U32_TYPE);
+        env.define_prim_fun(S32Eq, [S32_TYPE, S32_TYPE], BOOL_TYPE);
+        env.define_prim_fun(S32Neq, [S32_TYPE, S32_TYPE], BOOL_TYPE);
+        env.define_prim_fun(S32Lt, [S32_TYPE, S32_TYPE], BOOL_TYPE);
+        env.define_prim_fun(S32Gt, [S32_TYPE, S32_TYPE], BOOL_TYPE);
+        env.define_prim_fun(S32Lte, [S32_TYPE, S32_TYPE], BOOL_TYPE);
+        env.define_prim_fun(S32Gte, [S32_TYPE, S32_TYPE], BOOL_TYPE);
+        env.define_prim_fun(S32Neg, [S32_TYPE], S32_TYPE);
+        env.define_prim_fun(S32Add, [S32_TYPE, S32_TYPE], S32_TYPE);
+        env.define_prim_fun(S32Sub, [S32_TYPE, S32_TYPE], S32_TYPE);
+        env.define_prim_fun(S32Mul, [S32_TYPE, S32_TYPE], S32_TYPE);
+        env.define_prim_fun(S32Div, [S32_TYPE, S32_TYPE], S32_TYPE);
+        env.define_prim_fun(S32Abs, [S32_TYPE], S32_TYPE);
+        env.define_prim_fun(S32UAbs, [S32_TYPE], U32_TYPE);
 
-        env.define_prim_fun(S64Eq, [&S64_TYPE, &S64_TYPE], &BOOL_TYPE);
-        env.define_prim_fun(S64Neq, [&S64_TYPE, &S64_TYPE], &BOOL_TYPE);
-        env.define_prim_fun(S64Lt, [&S64_TYPE, &S64_TYPE], &BOOL_TYPE);
-        env.define_prim_fun(S64Gt, [&S64_TYPE, &S64_TYPE], &BOOL_TYPE);
-        env.define_prim_fun(S64Lte, [&S64_TYPE, &S64_TYPE], &BOOL_TYPE);
-        env.define_prim_fun(S64Gte, [&S64_TYPE, &S64_TYPE], &BOOL_TYPE);
-        env.define_prim_fun(S64Neg, [&S64_TYPE], &S64_TYPE);
-        env.define_prim_fun(S64Add, [&S64_TYPE, &S64_TYPE], &S64_TYPE);
-        env.define_prim_fun(S64Sub, [&S64_TYPE, &S64_TYPE], &S64_TYPE);
-        env.define_prim_fun(S64Mul, [&S64_TYPE, &S64_TYPE], &S64_TYPE);
-        env.define_prim_fun(S64Div, [&S64_TYPE, &S64_TYPE], &S64_TYPE);
-        env.define_prim_fun(S64Abs, [&S64_TYPE], &S64_TYPE);
-        env.define_prim_fun(S64UAbs, [&S64_TYPE], &U64_TYPE);
+        env.define_prim_fun(S64Eq, [S64_TYPE, S64_TYPE], BOOL_TYPE);
+        env.define_prim_fun(S64Neq, [S64_TYPE, S64_TYPE], BOOL_TYPE);
+        env.define_prim_fun(S64Lt, [S64_TYPE, S64_TYPE], BOOL_TYPE);
+        env.define_prim_fun(S64Gt, [S64_TYPE, S64_TYPE], BOOL_TYPE);
+        env.define_prim_fun(S64Lte, [S64_TYPE, S64_TYPE], BOOL_TYPE);
+        env.define_prim_fun(S64Gte, [S64_TYPE, S64_TYPE], BOOL_TYPE);
+        env.define_prim_fun(S64Neg, [S64_TYPE], S64_TYPE);
+        env.define_prim_fun(S64Add, [S64_TYPE, S64_TYPE], S64_TYPE);
+        env.define_prim_fun(S64Sub, [S64_TYPE, S64_TYPE], S64_TYPE);
+        env.define_prim_fun(S64Mul, [S64_TYPE, S64_TYPE], S64_TYPE);
+        env.define_prim_fun(S64Div, [S64_TYPE, S64_TYPE], S64_TYPE);
+        env.define_prim_fun(S64Abs, [S64_TYPE], S64_TYPE);
+        env.define_prim_fun(S64UAbs, [S64_TYPE], U64_TYPE);
 
         env.define_prim(
             OptionSome,
-            // fun (@A : Type) -> A   -> Option A
-            // fun (@A : Type) -> A@0 -> Option A@1
-            &core::Term::FunType(
+            // fun (A : Type) -> A   -> Option A
+            // fun (A : Type) -> A@0 -> Option A@1
+            core::Term::FunType(
                 Span::Empty,
                 Plicity::Implicit,
                 env.name("A"),
-                &UNIVERSE,
-                &Term::FunType(
-                    Span::Empty,
-                    Plicity::Explicit,
-                    None,
-                    &VAR0,
-                    &Term::FunApp(
+                &(
+                    UNIVERSE,
+                    Term::FunType(
                         Span::Empty,
                         Plicity::Explicit,
-                        &Term::Prim(Span::Empty, OptionType),
-                        &VAR1,
+                        None,
+                        &(
+                            VAR0,
+                            Term::FunApp(
+                                Span::Empty,
+                                Plicity::Explicit,
+                                &(Term::Prim(Span::Empty, OptionType), VAR1),
+                            ),
+                        ),
                     ),
                 ),
             ),
         );
         env.define_prim(
             OptionNone,
-            // fun (@A : Type) -> Option A
-            // fun (@A : Type) -> Option A@0
-            &core::Term::FunType(
+            // fun (A : Type) -> Option A
+            // fun (A : Type) -> Option A@0
+            core::Term::FunType(
                 Span::Empty,
                 Plicity::Implicit,
                 env.name("A"),
-                &UNIVERSE,
-                &Term::FunApp(
-                    Span::Empty,
-                    Plicity::Explicit,
-                    &Term::Prim(Span::Empty, OptionType),
-                    &VAR0,
+                &(
+                    UNIVERSE,
+                    Term::FunApp(
+                        Span::Empty,
+                        Plicity::Explicit,
+                        &(Term::Prim(Span::Empty, OptionType), VAR0),
+                    ),
                 ),
             ),
         );
         env.define_prim(
             OptionFold,
-            // fun (@A : Type) (@B : Type) -> B   -> (A   -> B  ) -> Option A   -> B
-            // fun (@A : Type) (@B : Type) -> B@0 -> (A@2 -> B@2) -> Option A@3 -> B@3
-            scope.to_scope(core::Term::FunType(
+            // fun (A : Type) (B : Type) -> B   -> (A   -> B  ) -> Option A   -> B
+            // fun (A : Type) (B : Type) -> B@0 -> (A@2 -> B@2) -> Option A@3 -> B@3
+            core::Term::FunType(
                 Span::Empty,
                 Plicity::Implicit,
                 env.name("A"),
-                &UNIVERSE,
-                scope.to_scope(core::Term::FunType(
-                    Span::Empty,
-                    Plicity::Implicit,
-                    env.name("B"),
-                    &UNIVERSE,
-                    scope.to_scope(core::Term::FunType(
+                scope.to_scope((
+                    UNIVERSE,
+                    core::Term::FunType(
                         Span::Empty,
-                        Plicity::Explicit,
-                        None,
-                        &VAR0, // B@0
-                        scope.to_scope(core::Term::FunType(
-                            Span::Empty,
-                            Plicity::Explicit,
-                            None,
-                            // A@2 -> B@2
-                            &Term::FunType(Span::Empty, Plicity::Explicit, None, &VAR2, &VAR2),
-                            scope.to_scope(core::Term::FunType(
+                        Plicity::Implicit,
+                        env.name("B"),
+                        &(
+                            UNIVERSE,
+                            core::Term::FunType(
                                 Span::Empty,
                                 Plicity::Explicit,
                                 None,
-                                // Option A@3
-                                &Term::FunApp(
-                                    Span::Empty,
-                                    Plicity::Explicit,
-                                    &Term::Prim(Span::Empty, OptionType),
-                                    &VAR3,
+                                &(
+                                    VAR0, // B@0
+                                    core::Term::FunType(
+                                        Span::Empty,
+                                        Plicity::Explicit,
+                                        None,
+                                        &(
+                                            Term::FunType(
+                                                Span::Empty,
+                                                Plicity::Explicit,
+                                                None,
+                                                &(VAR2, VAR2),
+                                            ), // A@2 -> B@2
+                                            core::Term::FunType(
+                                                Span::Empty,
+                                                Plicity::Explicit,
+                                                None,
+                                                &(
+                                                    Term::FunApp(
+                                                        Span::Empty,
+                                                        Plicity::Explicit,
+                                                        &(
+                                                            Term::Prim(Span::Empty, OptionType),
+                                                            VAR3,
+                                                        ),
+                                                    ), // Option A@3
+                                                    VAR3, // B@3
+                                                ),
+                                            ),
+                                        ),
+                                    ),
                                 ),
-                                &VAR3, // B@3
-                            )),
-                        )),
-                    )),
+                            ),
+                        ),
+                    ),
                 )),
-            )),
+            ),
         );
 
-        // fun (@len : UN) (@A : Type) -> (A   -> Bool) -> ArrayN len   A   -> Option A
-        // fun (@len : UN) (@A : Type) -> (A@0 -> Bool) -> ArrayN len@2 A@1 -> Option
-        // A@2
-        let find_type = |index_type, array_type| {
-            scope.to_scope(core::Term::FunType(
+        // fun (len : UN) (A : Type) -> (A   -> Bool) -> ArrayN len   A   -> Option A
+        // fun (len : UN) (A : Type) -> (A@0 -> Bool) -> ArrayN len@2 A@1 -> Option A@2
+        let find_type = |index_type: Term<'arena>, array_type: Term<'arena>| {
+            core::Term::FunType(
                 Span::Empty,
                 Plicity::Implicit,
                 env.name("len"),
-                index_type,
-                scope.to_scope(core::Term::FunType(
-                    Span::Empty,
-                    Plicity::Implicit,
-                    env.name("A"),
-                    &UNIVERSE,
-                    scope.to_scope(core::Term::FunType(
+                scope.to_scope((
+                    index_type,
+                    core::Term::FunType(
                         Span::Empty,
-                        Plicity::Explicit,
-                        None,
-                        // (A@0 -> Bool)
-                        &Term::FunType(Span::Empty, Plicity::Explicit, None, &VAR0, &BOOL_TYPE),
-                        scope.to_scope(core::Term::FunType(
-                            Span::Empty,
-                            Plicity::Explicit,
-                            None,
-                            // ArrayN len@2 A@1
-                            scope.to_scope(Term::FunApp(
+                        Plicity::Implicit,
+                        env.name("A"),
+                        scope.to_scope((
+                            UNIVERSE,
+                            core::Term::FunType(
                                 Span::Empty,
                                 Plicity::Explicit,
-                                scope.to_scope(Term::FunApp(
-                                    Span::Empty,
-                                    Plicity::Explicit,
-                                    array_type,
-                                    &VAR2,
+                                None,
+                                scope.to_scope((
+                                    Term::FunType(
+                                        Span::Empty,
+                                        Plicity::Explicit,
+                                        None,
+                                        &(VAR0, BOOL_TYPE),
+                                    ), // (A@0 -> Bool)
+                                    core::Term::FunType(
+                                        Span::Empty,
+                                        Plicity::Explicit,
+                                        None,
+                                        // ArrayN len@2 A@1
+                                        scope.to_scope((
+                                            Term::FunApp(
+                                                Span::Empty,
+                                                Plicity::Explicit,
+                                                scope.to_scope((
+                                                    Term::FunApp(
+                                                        Span::Empty,
+                                                        Plicity::Explicit,
+                                                        scope.to_scope((array_type, VAR2)),
+                                                    ),
+                                                    VAR1,
+                                                )),
+                                            ),
+                                            Term::FunApp(
+                                                Span::Empty,
+                                                Plicity::Explicit,
+                                                &(Term::Prim(Span::Empty, OptionType), VAR2),
+                                            ), // Option A@2
+                                        )),
+                                    ),
                                 )),
-                                &VAR1,
-                            )),
-                            // Option A@2
-                            &Term::FunApp(
-                                Span::Empty,
-                                Plicity::Explicit,
-                                &Term::Prim(Span::Empty, OptionType),
-                                &VAR2,
                             ),
                         )),
-                    )),
+                    ),
                 )),
-            ))
+            )
         };
-        let array8_find_type = find_type(&U8_TYPE, &ARRAY8_TYPE);
-        let array16_find_type = find_type(&U16_TYPE, &ARRAY16_TYPE);
-        let array32_find_type = find_type(&U32_TYPE, &ARRAY32_TYPE);
-        let array64_find_type = find_type(&U64_TYPE, &ARRAY64_TYPE);
+        let array8_find_type = find_type(U8_TYPE, ARRAY8_TYPE);
+        let array16_find_type = find_type(U16_TYPE, ARRAY16_TYPE);
+        let array32_find_type = find_type(U32_TYPE, ARRAY32_TYPE);
+        let array64_find_type = find_type(U64_TYPE, ARRAY64_TYPE);
         env.define_prim(Array8Find, array8_find_type);
         env.define_prim(Array16Find, array16_find_type);
         env.define_prim(Array32Find, array32_find_type);
         env.define_prim(Array64Find, array64_find_type);
 
-        // fun (@len : UN) (@A : Type) (index : UN) -> ArrayN len   A   -> A
-        // fun (@len : UN) (@A : Type) (index : UN) -> ArrayN len@2 A@1 -> A@2
-        let array_index_type = |index_type, array_type| {
-            scope.to_scope(core::Term::FunType(
+        // fun (len : UN) -> (A : Type) -> (index : UN) -> ArrayN len   A   -> A
+        // fun (len : UN) -> (A : Type) -> (index : UN) -> ArrayN len@2 A@1 -> A@2
+        let array_index_type = |index_type: Term<'arena>, array_type: Term<'arena>| {
+            core::Term::FunType(
                 Span::Empty,
                 Plicity::Implicit,
                 env.name("len"),
-                index_type,
-                scope.to_scope(core::Term::FunType(
-                    Span::Empty,
-                    Plicity::Implicit,
-                    env.name("A"),
-                    &UNIVERSE,
-                    scope.to_scope(core::Term::FunType(
+                scope.to_scope((
+                    index_type.clone(),
+                    core::Term::FunType(
                         Span::Empty,
-                        Plicity::Explicit,
-                        env.name("index"),
-                        index_type,
-                        scope.to_scope(core::Term::FunType(
-                            Span::Empty,
-                            Plicity::Explicit,
-                            None,
-                            // ArrayN len@2 A@1
-                            scope.to_scope(Term::FunApp(
+                        Plicity::Implicit,
+                        env.name("A"),
+                        scope.to_scope((
+                            UNIVERSE,
+                            core::Term::FunType(
                                 Span::Empty,
                                 Plicity::Explicit,
-                                scope.to_scope(Term::FunApp(
-                                    Span::Empty,
-                                    Plicity::Explicit,
-                                    array_type,
-                                    &VAR2,
+                                env.name("index"),
+                                scope.to_scope((
+                                    index_type,
+                                    core::Term::FunType(
+                                        Span::Empty,
+                                        Plicity::Explicit,
+                                        None,
+                                        // ArrayN len@2 A@1
+                                        scope.to_scope((
+                                            Term::FunApp(
+                                                Span::Empty,
+                                                Plicity::Explicit,
+                                                scope.to_scope((
+                                                    Term::FunApp(
+                                                        Span::Empty,
+                                                        Plicity::Explicit,
+                                                        scope.to_scope((array_type, VAR2)),
+                                                    ),
+                                                    VAR1,
+                                                )),
+                                            ),
+                                            VAR2, // A@2
+                                        )),
+                                    ),
                                 )),
-                                &VAR1,
-                            )),
-                            &VAR2, // A@2
+                            ),
                         )),
-                    )),
+                    ),
                 )),
-            ))
+            )
         };
-        let array8_index_type = array_index_type(&U8_TYPE, &ARRAY8_TYPE);
-        let array16_index_type = array_index_type(&U16_TYPE, &ARRAY16_TYPE);
-        let array32_index_type = array_index_type(&U32_TYPE, &ARRAY32_TYPE);
-        let array64_index_type = array_index_type(&U64_TYPE, &ARRAY64_TYPE);
+        let array8_index_type = array_index_type(U8_TYPE, ARRAY8_TYPE);
+        let array16_index_type = array_index_type(U16_TYPE, ARRAY16_TYPE);
+        let array32_index_type = array_index_type(U32_TYPE, ARRAY32_TYPE);
+        let array64_index_type = array_index_type(U64_TYPE, ARRAY64_TYPE);
         env.define_prim(Array8Index, array8_index_type);
         env.define_prim(Array16Index, array16_index_type);
         env.define_prim(Array32Index, array32_index_type);
         env.define_prim(Array64Index, array64_index_type);
 
-        env.define_prim_fun(PosAddU8, [&POS_TYPE, &U8_TYPE], &POS_TYPE);
-        env.define_prim_fun(PosAddU16, [&POS_TYPE, &U16_TYPE], &POS_TYPE);
-        env.define_prim_fun(PosAddU32, [&POS_TYPE, &U32_TYPE], &POS_TYPE);
-        env.define_prim_fun(PosAddU64, [&POS_TYPE, &U64_TYPE], &POS_TYPE);
+        env.define_prim_fun(PosAddU8, [POS_TYPE, U8_TYPE], POS_TYPE);
+        env.define_prim_fun(PosAddU16, [POS_TYPE, U16_TYPE], POS_TYPE);
+        env.define_prim_fun(PosAddU32, [POS_TYPE, U32_TYPE], POS_TYPE);
+        env.define_prim_fun(PosAddU64, [POS_TYPE, U64_TYPE], POS_TYPE);
 
         env.build()
     }
@@ -535,31 +583,33 @@ impl<'interner, 'arena> EnvBuilder<'interner, 'arena> {
         Some(self.interner.borrow_mut().get_or_intern_static(name))
     }
 
-    fn define_prim(&mut self, prim: Prim, r#type: &core::Term<'arena>) {
+    fn define_prim(&mut self, prim: Prim, r#type: core::Term<'arena>) {
         let name = self.interner.borrow_mut().get_or_intern_static(prim.name());
         let r#type = ElimEnv::new(&self.item_exprs, &self.meta_exprs)
             .eval_env(&mut self.local_exprs)
-            .eval(r#type);
+            .eval(&r#type);
         self.entries.insert(name, (prim, r#type));
     }
 
     fn define_prim_fun<const ARITY: usize>(
         &mut self,
         prim: Prim,
-        param_types: [&'arena core::Term<'arena>; ARITY],
-        body_type: &'arena core::Term<'arena>,
+        param_types: [core::Term<'arena>; ARITY],
+        body_type: core::Term<'arena>,
     ) {
         self.define_prim(
             prim,
-            (param_types.iter().rev()).fold(body_type, |r#type, param_type| {
-                self.scope.to_scope(core::Term::FunType(
-                    Span::Empty,
-                    Plicity::Explicit,
-                    None,
-                    param_type,
-                    r#type,
-                ))
-            }),
+            (IntoIterator::into_iter(param_types).rev()).fold(
+                body_type,
+                |r#type: core::Term, param_type: core::Term| {
+                    core::Term::FunType(
+                        Span::Empty,
+                        Plicity::Explicit,
+                        None,
+                        self.scope.to_scope((param_type, r#type)),
+                    )
+                },
+            ),
         );
     }
 

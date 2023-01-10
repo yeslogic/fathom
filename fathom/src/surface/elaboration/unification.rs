@@ -561,8 +561,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
                         Elim::FunApp(plicity, arg_expr) => Term::FunApp(
                             span,
                             *plicity,
-                            self.scope.to_scope(head_expr),
-                            self.scope.to_scope(self.rename(meta_var, arg_expr)?),
+                            (self.scope).to_scope((head_expr, self.rename(meta_var, arg_expr)?)),
                         ),
                         Elim::RecordProj(label) => {
                             Term::RecordProj(span, self.scope.to_scope(head_expr), *label)
@@ -594,7 +593,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
                                 self.scope.to_scope(head_expr),
                                 pattern_branches.into(),
                                 default_branch
-                                    .map(|(name, expr)| (name, self.scope.to_scope(expr) as &_)),
+                                    .map(|(name, expr)| self.scope.to_scope((name, (expr))) as &_),
                             )
                         }
                     })
@@ -611,8 +610,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
                     span,
                     *plicity,
                     *param_name,
-                    self.scope.to_scope(param_type),
-                    self.scope.to_scope(body_type),
+                    self.scope.to_scope((param_type, body_type)),
                 ))
             }
             Value::FunLit(plicity, param_name, body_expr) => {
@@ -660,8 +658,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
                 Ok(Term::FormatCond(
                     span,
                     *label,
-                    self.scope.to_scope(format),
-                    self.scope.to_scope(cond),
+                    self.scope.to_scope((format, cond)),
                 ))
             }
             Value::FormatOverlap(labels, formats) => {

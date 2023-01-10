@@ -628,9 +628,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 core::Term::FunApp(
                     span,
                     Plicity::Explicit,
-                    self.scope
-                        .to_scope(core::Term::Prim(span, core::Prim::FormatRepr)),
-                    self.scope.to_scope(expr),
+                    (self.scope).to_scope((core::Term::Prim(span, core::Prim::FormatRepr), expr)),
                 )
             }
 
@@ -1026,9 +1024,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 core::Term::Let(
                     file_range.into(),
                     def_name,
-                    self.scope.to_scope(def_type),
-                    self.scope.to_scope(def_expr),
-                    self.scope.to_scope(body_expr),
+                    self.scope.to_scope((def_type, def_expr, body_expr)),
                 )
             }
             (Term::If(_, (cond_expr, then_expr, else_expr)), _) => {
@@ -1328,8 +1324,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
             term = core::Term::FunApp(
                 file_range.into(),
                 Plicity::Implicit,
-                self.scope.to_scope(term),
-                self.scope.to_scope(arg_term),
+                self.scope.to_scope((term, arg_term)),
             );
             r#type = self.elim_env().apply_closure(body_type, arg_value);
         }
@@ -1412,11 +1407,8 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 let type_value = self.eval_env().eval(&r#type);
                 let expr = self.check(expr, &type_value);
 
-                let ann_expr = core::Term::Ann(
-                    file_range.into(),
-                    self.scope.to_scope(expr),
-                    self.scope.to_scope(r#type),
-                );
+                let ann_expr =
+                    core::Term::Ann(file_range.into(), self.scope.to_scope((expr, r#type)));
 
                 (ann_expr, type_value)
             }
@@ -1433,9 +1425,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 let let_expr = core::Term::Let(
                     file_range.into(),
                     def_name,
-                    self.scope.to_scope(def_type),
-                    self.scope.to_scope(def_expr),
-                    self.scope.to_scope(body_expr),
+                    self.scope.to_scope((def_type, def_expr, body_expr)),
                 );
 
                 (let_expr, body_type)
@@ -1483,8 +1473,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                     file_range.into(),
                     *plicity,
                     None,
-                    self.scope.to_scope(param_type),
-                    self.scope.to_scope(body_type),
+                    self.scope.to_scope((param_type, body_type)),
                 );
 
                 (fun_type, self.universe.clone())
@@ -1509,8 +1498,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                         self.file_range(range).into(),
                         plicity,
                         name,
-                        self.scope.to_scope(r#type),
-                        self.scope.to_scope(fun_type),
+                        self.scope.to_scope((r#type, fun_type)),
                     );
                 }
 
@@ -1580,8 +1568,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                     head_expr = core::Term::FunApp(
                         self.file_range(head_range).into(),
                         arg.plicity,
-                        self.scope.to_scope(head_expr),
-                        self.scope.to_scope(arg_expr),
+                        self.scope.to_scope((head_expr, arg_expr)),
                     );
                     head_type = self.elim_env().apply_closure(body_type, arg_expr_value);
                 }
@@ -1754,8 +1741,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 let cond_format = core::Term::FormatCond(
                     file_range.into(),
                     *name,
-                    self.scope.to_scope(format),
-                    self.scope.to_scope(pred_expr),
+                    self.scope.to_scope((format, pred_expr)),
                 );
 
                 (cond_format, format_type)
@@ -1891,8 +1877,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 Span::Empty,
                 plicity,
                 name,
-                self.scope.to_scope(r#type),
-                self.scope.to_scope(fun_type),
+                self.scope.to_scope((r#type, fun_type)),
             );
         }
 
@@ -2043,13 +2028,14 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         let fun_app = core::Term::FunApp(
             self.file_range(range).into(),
             Plicity::Explicit,
-            self.scope.to_scope(core::Term::FunApp(
-                Span::merge(&lhs_expr.span(), &rhs_expr.span()),
-                Plicity::Explicit,
-                self.scope.to_scope(fun_head),
-                self.scope.to_scope(lhs_expr),
+            self.scope.to_scope((
+                core::Term::FunApp(
+                    Span::merge(&lhs_expr.span(), &rhs_expr.span()),
+                    Plicity::Explicit,
+                    self.scope.to_scope((fun_head, lhs_expr)),
+                ),
+                rhs_expr,
             )),
-            self.scope.to_scope(rhs_expr),
         );
 
         // TODO: Maybe it would be good to reuse lhs_type here if body_type is the same
@@ -2108,8 +2094,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                             formats.push(core::Term::FormatCond(
                                 field_span,
                                 *label,
-                                self.scope.to_scope(format),
-                                self.scope.to_scope(cond_expr),
+                                self.scope.to_scope((format, cond_expr)),
                             ));
                         }
                     }
@@ -2134,17 +2119,21 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                     };
 
                     let field_span = Span::merge(&label_range.into(), &expr.span());
+
                     let format = core::Term::FunApp(
                         field_span,
                         Plicity::Explicit,
-                        self.scope.to_scope(core::Term::FunApp(
-                            field_span,
-                            Plicity::Explicit,
-                            self.scope
-                                .to_scope(core::Term::Prim(field_span, Prim::FormatSucceed)),
-                            self.scope.to_scope(r#type),
+                        self.scope.to_scope((
+                            core::Term::FunApp(
+                                field_span,
+                                Plicity::Explicit,
+                                self.scope.to_scope((
+                                    core::Term::Prim(field_span, Prim::FormatSucceed),
+                                    r#type,
+                                )),
+                            ),
+                            expr,
                         )),
-                        self.scope.to_scope(expr),
                     );
 
                     // Assume that `Repr ${type_value} ${expr} = ${type_value}`
@@ -2221,9 +2210,11 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                         core::Term::Let(
                             Span::merge(&range.into(), &body_expr.span()),
                             def_name,
-                            self.scope.to_scope(def_type),
-                            match_info.scrutinee.expr,
-                            self.scope.to_scope(body_expr),
+                            self.scope.to_scope((
+                                def_type,
+                                match_info.scrutinee.expr.clone(),
+                                body_expr,
+                            )),
                         )
                     }
                     // Placeholder patterns just elaborate to the body
@@ -2325,7 +2316,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                     // distillation of if expressions.
                     (self.local_env).push_param(Some(name), match_info.scrutinee.r#type.clone());
                     let default_expr = self.check(body_expr, &match_info.expected_type);
-                    default_branch = (Some(name), self.scope.to_scope(default_expr) as &_);
+                    default_branch = self.scope.to_scope((Some(name), default_expr));
                     self.local_env.pop();
                 }
                 CheckedPattern::Placeholder(range) => {
@@ -2333,13 +2324,13 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
 
                     (self.local_env).push_param(None, match_info.scrutinee.r#type.clone());
                     let default_expr = self.check(body_expr, &match_info.expected_type);
-                    default_branch = (None, self.scope.to_scope(default_expr) as &_);
+                    default_branch = self.scope.to_scope((None, default_expr));
                     self.local_env.pop();
                 }
                 CheckedPattern::ReportedError(range) => {
                     (self.local_env).push_param(None, match_info.scrutinee.r#type.clone());
                     let default_expr = core::Term::Prim(range.into(), Prim::ReportedError);
-                    default_branch = (None, self.scope.to_scope(default_expr) as &_);
+                    default_branch = self.scope.to_scope((None, default_expr));
                     self.local_env.pop();
                 }
             };
@@ -2368,7 +2359,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
             full_span,
             match_info.scrutinee.expr,
             self.scope.to_scope_from_iter(branches.into_iter()),
-            default_expr.map(|expr| (None, self.scope.to_scope(expr) as &_)),
+            default_expr.map(|expr| self.scope.to_scope((None, expr)) as &_),
         )
     }
 

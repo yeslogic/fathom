@@ -274,11 +274,11 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
 
     fn check_prec(&mut self, prec: Prec, core_term: &core::Term<'_>) -> Term<'arena, ()> {
         match core_term {
-            core::Term::Ann(_span, expr, _) => {
+            core::Term::Ann(_span, (expr, _)) => {
                 // Avoid adding extraneous type annotations!
                 self.check_prec(prec, expr)
             }
-            core::Term::Let(_span, def_name, def_type, def_expr, body_expr) => {
+            core::Term::Let(_span, def_name, (def_type, def_expr, body_expr)) => {
                 let def_type = self.check_prec(Prec::Top, def_type);
                 let def_expr = self.check_prec(Prec::Let, def_expr);
 
@@ -486,7 +486,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                     self.paren(prec > Prec::App, Term::App((), head_expr, args.into()))
                 }
             }
-            core::Term::Ann(_span, expr, r#type) => {
+            core::Term::Ann(_span, (expr, r#type)) => {
                 let expr = self.check_prec(Prec::Let, expr);
                 let r#type = self.check_prec(Prec::Top, r#type);
 
@@ -495,7 +495,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                     Term::Ann((), self.scope.to_scope((expr, r#type))),
                 )
             }
-            core::Term::Let(_span, def_name, def_type, def_expr, body_expr) => {
+            core::Term::Let(_span, def_name, (def_type, def_expr, body_expr)) => {
                 let def_type = self.check_prec(Prec::Top, def_type);
                 let def_expr = self.check_prec(Prec::Let, def_expr);
 
@@ -528,9 +528,12 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 let body_type = loop {
                     match body_type {
                         // Use an explicit parameter if it is referenced in the body
-                        core::Term::FunType(_, plicity, param_name, param_type, next_body_type)
-                            if next_body_type.binds_local(Index::last()) =>
-                        {
+                        core::Term::FunType(
+                            _,
+                            plicity,
+                            param_name,
+                            (param_type, next_body_type),
+                        ) if next_body_type.binds_local(Index::last()) => {
                             let param_type = self.check_prec(Prec::Top, param_type);
                             let param_name = self.freshen_name(*param_name, next_body_type);
                             let param_name = self.push_local(param_name);
@@ -542,7 +545,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                             body_type = next_body_type;
                         }
                         // Use arrow sugar if the parameter is not referenced in the body type.
-                        core::Term::FunType(_, plicity, _, param_type, body_type) => {
+                        core::Term::FunType(_, plicity, _, (param_type, body_type)) => {
                             let param_type = self.check_prec(Prec::App, param_type);
 
                             self.push_local(None);
@@ -608,7 +611,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 let mut args = Vec::new();
 
                 // Collect a spine of arguments in reverse order
-                while let core::Term::FunApp(_, plicity, next_head_expr, arg_expr) = *head_expr {
+                while let core::Term::FunApp(_, plicity, (next_head_expr, arg_expr)) = *head_expr {
                     head_expr = next_head_expr;
                     args.push((plicity, arg_expr));
                 }
@@ -711,7 +714,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
             core::Term::FormatRecord(_span, labels, formats) => {
                 Term::FormatRecord((), self.synth_format_fields(labels, formats))
             }
-            core::Term::FormatCond(_span, label, format, cond) => {
+            core::Term::FormatCond(_span, label, (format, cond)) => {
                 let format = self.check_prec(Prec::Top, format);
                 self.push_local(Some(*label));
                 let cond = self.check_prec(Prec::Top, cond);
@@ -827,8 +830,13 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 // Distill succeed formats back to computed formats
                 core::Term::FunApp(
                     ..,
-                    core::Term::FunApp(.., core::Term::Prim(_prim_span, FormatSucceed), r#type),
-                    expr,
+                    (
+                        core::Term::FunApp(
+                            ..,
+                            (core::Term::Prim(_prim_span, FormatSucceed), r#type),
+                        ),
+                        expr,
+                    ),
                 ) => {
                     let r#type = self.check_prec(Prec::Top, r#type);
                     let expr = self.check_prec(Prec::Top, expr);
@@ -842,7 +850,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 }
                 // Use field refinements when `format` is a conditional format
                 // that binds the same name as the current field label.
-                core::Term::FormatCond(_span, name, format, pred) if label == *name => {
+                core::Term::FormatCond(_span, name, (format, pred)) if label == *name => {
                     let format = self.check_prec(Prec::Top, format);
                     self.push_local(Some(label));
                     let pred = self.check_prec(Prec::Top, pred);
@@ -880,7 +888,7 @@ fn name_to_pattern(name: Option<StringId>) -> Pattern<()> {
 
 fn match_if_then_else<'arena>(
     branches: &'arena [(Const, core::Term<'arena>)],
-    default_branch: Option<(Option<StringId>, &'arena core::Term<'arena>)>,
+    default_branch: Option<&'arena (Option<StringId>, core::Term<'arena>)>,
 ) -> Option<(&'arena core::Term<'arena>, &'arena core::Term<'arena>)> {
     match (branches, default_branch) {
         ([(Const::Bool(false), else_expr), (Const::Bool(true), then_expr)], None)

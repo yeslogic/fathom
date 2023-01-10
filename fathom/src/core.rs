@@ -141,14 +141,12 @@ pub enum Term<'arena> {
     // - https://lib.rs/crates/bit-vec
     InsertedMeta(Span, Level, &'arena [LocalInfo]),
     /// Annotated expressions.
-    Ann(Span, &'arena Term<'arena>, &'arena Term<'arena>),
+    Ann(Span, &'arena (Term<'arena>, Term<'arena>)),
     /// Let expressions.
     Let(
         Span,
         Option<StringId>,
-        &'arena Term<'arena>,
-        &'arena Term<'arena>,
-        &'arena Term<'arena>,
+        &'arena (Term<'arena>, Term<'arena>, Term<'arena>),
     ),
 
     /// The type of types.
@@ -161,15 +159,14 @@ pub enum Term<'arena> {
         Span,
         Plicity,
         Option<StringId>,
-        &'arena Term<'arena>,
-        &'arena Term<'arena>,
+        &'arena (Term<'arena>, Term<'arena>),
     ),
     /// Function literals.
     ///
     /// Also known as: lambda expressions, anonymous functions.
     FunLit(Span, Plicity, Option<StringId>, &'arena Term<'arena>),
     /// Function applications.
-    FunApp(Span, Plicity, &'arena Term<'arena>, &'arena Term<'arena>),
+    FunApp(Span, Plicity, &'arena (Term<'arena>, Term<'arena>)),
 
     /// Dependent record types.
     RecordType(Span, &'arena [StringId], &'arena [Term<'arena>]),
@@ -184,7 +181,7 @@ pub enum Term<'arena> {
     /// Record formats, consisting of a list of dependent formats.
     FormatRecord(Span, &'arena [StringId], &'arena [Term<'arena>]),
     /// Conditional format, consisting of a format and predicate.
-    FormatCond(Span, StringId, &'arena Term<'arena>, &'arena Term<'arena>),
+    FormatCond(Span, StringId, &'arena (Term<'arena>, Term<'arena>)),
     /// Overlap formats, consisting of a list of dependent formats, overlapping
     /// in memory.
     FormatOverlap(Span, &'arena [StringId], &'arena [Term<'arena>]),
@@ -200,7 +197,7 @@ pub enum Term<'arena> {
         Span,
         &'arena Term<'arena>,
         &'arena [(Const, Term<'arena>)],
-        Option<(Option<StringId>, &'arena Term<'arena>)>,
+        Option<&'arena (Option<StringId>, Term<'arena>)>,
     ),
 }
 
@@ -208,26 +205,26 @@ impl<'arena> Term<'arena> {
     /// Get the source span of the term.
     pub fn span(&self) -> Span {
         match self {
-            Term::ItemVar(span, _)
-            | Term::LocalVar(span, _)
-            | Term::MetaVar(span, _)
-            | Term::InsertedMeta(span, _, _)
-            | Term::Ann(span, _, _)
-            | Term::Let(span, _, _, _, _)
+            Term::ItemVar(span, ..)
+            | Term::LocalVar(span, ..)
+            | Term::MetaVar(span, ..)
+            | Term::InsertedMeta(span, ..)
+            | Term::Ann(span, ..)
+            | Term::Let(span, ..)
             | Term::Universe(span)
             | Term::FunType(span, ..)
             | Term::FunLit(span, ..)
             | Term::FunApp(span, ..)
-            | Term::RecordType(span, _, _)
-            | Term::RecordLit(span, _, _)
-            | Term::RecordProj(span, _, _)
-            | Term::ArrayLit(span, _)
-            | Term::FormatRecord(span, _, _)
-            | Term::FormatCond(span, _, _, _)
-            | Term::FormatOverlap(span, _, _)
-            | Term::Prim(span, _)
-            | Term::ConstLit(span, _)
-            | Term::ConstMatch(span, _, _, _) => *span,
+            | Term::RecordType(span, ..)
+            | Term::RecordLit(span, ..)
+            | Term::RecordProj(span, ..)
+            | Term::ArrayLit(span, ..)
+            | Term::FormatRecord(span, ..)
+            | Term::FormatCond(span, ..)
+            | Term::FormatOverlap(span, ..)
+            | Term::Prim(span, ..)
+            | Term::ConstLit(span, ..)
+            | Term::ConstMatch(span, ..) => *span,
         }
     }
 
@@ -242,17 +239,17 @@ impl<'arena> Term<'arena> {
             | Term::Prim(_, _)
             | Term::ConstLit(_, _) => false,
 
-            Term::Ann(_, expr, r#type) => expr.binds_local(var) || r#type.binds_local(var),
-            Term::Let(_, _, def_type, def_expr, body_expr) => {
+            Term::Ann(_, (expr, r#type)) => expr.binds_local(var) || r#type.binds_local(var),
+            Term::Let(_, _, (def_type, def_expr, body_expr)) => {
                 def_type.binds_local(var)
                     || def_expr.binds_local(var)
                     || body_expr.binds_local(var.prev())
             }
-            Term::FunType(.., param_type, body_type) => {
+            Term::FunType(.., (param_type, body_type)) => {
                 param_type.binds_local(var) || body_type.binds_local(var.prev())
             }
             Term::FunLit(.., body_expr) => body_expr.binds_local(var.prev()),
-            Term::FunApp(.., head_expr, arg_expr) => {
+            Term::FunApp(.., (head_expr, arg_expr)) => {
                 head_expr.binds_local(var) || arg_expr.binds_local(var)
             }
             Term::RecordType(_, _, terms)
@@ -265,7 +262,7 @@ impl<'arena> Term<'arena> {
             }),
             Term::RecordProj(_, head_expr, _) => head_expr.binds_local(var),
             Term::ArrayLit(_, elem_exprs) => elem_exprs.iter().any(|term| term.binds_local(var)),
-            Term::FormatCond(_, _, format, pred) => {
+            Term::FormatCond(_, _, (format, pred)) => {
                 format.binds_local(var) || pred.binds_local(var.prev())
             }
             Term::ConstMatch(_, scrut, branches, default_expr) => {
@@ -743,6 +740,6 @@ mod tests {
     #[test]
     #[cfg(target_pointer_width = "64")]
     fn term_size() {
-        assert_eq!(std::mem::size_of::<Term>(), 56);
+        assert_eq!(std::mem::size_of::<Term>(), 48);
     }
 }
