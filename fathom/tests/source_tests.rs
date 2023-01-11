@@ -15,12 +15,7 @@ fn main() {
         .chain(find_source_files("tests").map(extract_term_test))
         .collect();
 
-    libtest_mimic::run_tests(&args, tests, run_test).exit();
-}
-
-pub struct TestData {
-    input_file: PathBuf,
-    mode: TestMode,
+    libtest_mimic::run(&args, tests).exit();
 }
 
 #[derive(Deserialize, Debug, Copy, Clone)]
@@ -138,73 +133,63 @@ pub fn find_source_files(root: impl AsRef<Path>) -> impl Iterator<Item = PathBuf
         .map(|entry| entry.into_path())
 }
 
-fn extract_module_test(path: PathBuf) -> libtest_mimic::Test<TestData> {
-    libtest_mimic::Test {
-        name: path.display().to_string(),
-        kind: String::new(),
-        is_ignored: false,
-        is_bench: false,
-        data: TestData {
-            input_file: path,
-            mode: TestMode::Module,
-        },
-    }
+fn extract_module_test(path: PathBuf) -> libtest_mimic::Trial {
+    extract_test(path, TestMode::Module)
 }
 
-fn extract_term_test(path: PathBuf) -> libtest_mimic::Test<TestData> {
-    libtest_mimic::Test {
-        name: path.display().to_string(),
-        kind: String::new(),
-        is_ignored: false,
-        is_bench: false,
-        data: TestData {
-            input_file: path,
-            mode: TestMode::Term,
-        },
-    }
+fn extract_term_test(path: PathBuf) -> libtest_mimic::Trial {
+    extract_test(path, TestMode::Term)
 }
 
-fn run_test(test: &libtest_mimic::Test<TestData>) -> libtest_mimic::Outcome {
-    let mut failures = Vec::new();
+fn extract_test(input_file: PathBuf, default_mode: TestMode) -> libtest_mimic::Trial {
+    use itertools::Itertools;
 
-    let config: Config = {
-        use itertools::Itertools;
+    let test_name = input_file.display().to_string();
 
-        const CONFIG_COMMENT_START: &str = "//~";
+    const CONFIG_COMMENT_START: &str = "//~";
 
-        let input_source = std::fs::read_to_string(&test.data.input_file).unwrap();
-        // Collect the lines with CONFIG_COMMENT_START prefix, stripping the prefix in the process
-        let config_source = input_source
-            .lines()
-            .filter_map(|line| line.split(CONFIG_COMMENT_START).nth(1))
-            .join("\n");
+    let input_source = std::fs::read_to_string(&input_file).unwrap();
+    // Collect the lines with CONFIG_COMMENT_START prefix, stripping the prefix in the process
+    let config_source = input_source
+        .lines()
+        .filter_map(|line| line.split(CONFIG_COMMENT_START).nth(1))
+        .join("\n");
 
-        // Parse those lines as TOML
-        match toml::from_str::<Config>(&config_source) {
-            Ok(mut config) => {
-                config.update_snapshots = env::var_os("FATHOM_UPDATE_SNAP").is_some();
-                config
-            }
-            Err(error) => {
-                failures.push(TestFailure {
-                    name: "config parse error",
-                    details: vec![("toml::de::Error", error.to_string())],
-                });
+    // Parse those lines as TOML
+    match toml::from_str::<Config>(&config_source) {
+        Ok(mut config) => {
+            config.update_snapshots = env::var_os("FATHOM_UPDATE_SNAP").is_some();
 
-                return failures_to_outcome(&failures);
+            if config.ignore {
+                libtest_mimic::Trial::test(test_name, || Ok(())).with_ignored_flag(true)
+            } else {
+                libtest_mimic::Trial::test(test_name, move || {
+                    run_test(input_file, default_mode, config)
+                })
             }
         }
-    };
-
-    if config.ignore {
-        return libtest_mimic::Outcome::Ignored;
+        Err(error) => libtest_mimic::Trial::test(test_name, move || {
+            failures_to_outcome(&[TestFailure {
+                name: "config parse error",
+                details: vec![("toml::de::Error", error.to_string())],
+            }])
+        }),
     }
+}
+
+fn run_test(
+    input_file: PathBuf,
+    default_mode: TestMode,
+    config: Config,
+) -> Result<(), libtest_mimic::Failed> {
+    let mut failures = Vec::new();
 
     let command = match config.mode {
         Some(mode) => mode.to_command(),
-        None => test.data.mode.to_command(),
+        None => default_mode.to_command(),
     };
-    let test_command = TestCommand::new(command, &config, &test.data.input_file);
+
+    let test_command = TestCommand::new(command, &config, &input_file);
     match test_command.run() {
         Ok(mut test_failures) => failures.append(&mut test_failures),
         Err(error) => {
@@ -216,7 +201,7 @@ fn run_test(test: &libtest_mimic::Test<TestData>) -> libtest_mimic::Outcome {
     }
 
     if config.test_normalisation {
-        let test_command = TestCommand::new(Command::Normalise, &config, &test.data.input_file);
+        let test_command = TestCommand::new(Command::Normalise, &config, &input_file);
         match test_command.run() {
             Ok(mut test_failures) => failures.append(&mut test_failures),
             Err(error) => {
@@ -228,13 +213,13 @@ fn run_test(test: &libtest_mimic::Test<TestData>) -> libtest_mimic::Outcome {
         }
     }
 
-    let base_dir = test.data.input_file.with_file_name("");
+    let base_dir = input_file.with_file_name("");
     let example_data = globwalk::GlobWalkerBuilder::from_patterns(&base_dir, &config.example_data)
         .build()
         .unwrap();
 
     for example_file in example_data.filter_map(Result::ok) {
-        let command = Command::ParseData(&test.data.input_file, ExpectedOutcome::Success);
+        let command = Command::ParseData(&input_file, ExpectedOutcome::Success);
         let test_command = TestCommand::new(command, &config, example_file.path());
         match test_command.run() {
             Ok(mut test_failures) => failures.append(&mut test_failures),
@@ -253,7 +238,7 @@ fn run_test(test: &libtest_mimic::Test<TestData>) -> libtest_mimic::Outcome {
             .unwrap();
 
     for example_file in invalid_example_data.filter_map(Result::ok) {
-        let command = Command::ParseData(&test.data.input_file, ExpectedOutcome::Failure);
+        let command = Command::ParseData(&input_file, ExpectedOutcome::Failure);
         let test_command = TestCommand::new(command, &config, example_file.path());
         match test_command.run() {
             Ok(mut test_failures) => failures.append(&mut test_failures),
@@ -269,9 +254,9 @@ fn run_test(test: &libtest_mimic::Test<TestData>) -> libtest_mimic::Outcome {
     failures_to_outcome(&failures)
 }
 
-fn failures_to_outcome(failures: &[TestFailure]) -> libtest_mimic::Outcome {
+fn failures_to_outcome(failures: &[TestFailure]) -> Result<(), libtest_mimic::Failed> {
     if failures.is_empty() {
-        libtest_mimic::Outcome::Passed
+        Ok(())
     } else {
         let mut msg = String::new();
 
@@ -292,7 +277,7 @@ fn failures_to_outcome(failures: &[TestFailure]) -> libtest_mimic::Outcome {
             writeln!(msg, "        {}", failure.name).unwrap();
         }
 
-        libtest_mimic::Outcome::Failed { msg: Some(msg) }
+        Err(msg.into())
     }
 }
 
