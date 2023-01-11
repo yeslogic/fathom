@@ -37,6 +37,7 @@ impl<'arena> Env<'arena> {
         const VAR2: Term<'_> = Term::LocalVar(Span::Empty, env::Index::last().prev().prev());
         const VAR3: Term<'_> = Term::LocalVar(Span::Empty, env::Index::last().prev().prev().prev());
         const UNIVERSE: Term<'_> = Term::Universe(Span::Empty);
+        const VOID_TYPE: Term<'_> = Term::Prim(Span::Empty, VoidType);
         const FORMAT_TYPE: Term<'_> = Term::Prim(Span::Empty, FormatType);
         const BOOL_TYPE: Term<'_> = Term::Prim(Span::Empty, BoolType);
         const U8_TYPE: Term<'_> = Term::Prim(Span::Empty, U8Type);
@@ -56,6 +57,17 @@ impl<'arena> Env<'arena> {
         let mut env = EnvBuilder::new(interner, scope);
 
         env.define_prim(VoidType, &UNIVERSE);
+        // fun (A : Type) -> Void -> A
+        env.define_prim(
+            Absurd,
+            &core::Term::FunType(
+                Span::Empty,
+                Plicity::Explicit,
+                env.name("A"),
+                &UNIVERSE,
+                &core::Term::FunType(Span::Empty, Plicity::Explicit, None, &VOID_TYPE, &VAR1),
+            ),
+        );
         env.define_prim(BoolType, &UNIVERSE);
         env.define_prim(U8Type, &UNIVERSE);
         env.define_prim(U16Type, &UNIVERSE);
@@ -627,6 +639,9 @@ pub fn step(prim: Prim) -> Step {
     use std::convert::TryFrom;
 
     match prim {
+        #[allow(unreachable_code)]
+        Prim::Absurd => step!(_, [_, _] => panic!("Constructed an element of `Void`")),
+
         Prim::FormatRepr => step!(env, [format] => env.format_repr(format)),
 
         Prim::BoolEq => const_step!([x: Bool, y: Bool] => Const::Bool(x == y)),

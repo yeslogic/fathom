@@ -302,6 +302,9 @@ def_prims! {
     /// Void type.
     VoidType => "Void",
 
+    /// Void eliminator.
+    Absurd => "absurd",
+
     /// Type of booleans.
     BoolType => "Bool",
     /// Type of unsigned, 8-bit integers.

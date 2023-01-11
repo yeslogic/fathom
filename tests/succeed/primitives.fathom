@@ -1,4 +1,5 @@
 let _ = Void : Type;
+let _ = absurd;
 
 let _ = Bool : Type;
 

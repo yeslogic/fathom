@@ -1167,6 +1167,10 @@ and can be dereferenced later on with a [deref format](#deref-formats).
 
 ## Void
 
-The void type is be used to mark terms that must never be constructed:
+The void type is be used to mark terms that can never be constructed:
 
 - `Void : Type`
+
+It can be eliminated by the `absurd` function:
+
+- `absurd : fun (A : Type) -> Void -> A`
