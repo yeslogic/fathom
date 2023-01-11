@@ -6,16 +6,14 @@ Short help can be printed with `-h`
 
 ```console
 $ fathom norm -h
-fathom-norm 
 Normalise a Fathom term, printing its normal form and type
 
-USAGE:
-    fathom norm [OPTIONS] --term <TERM_FILE>
+Usage: fathom norm [OPTIONS] --term <TERM_FILE>
 
-OPTIONS:
-        --term <TERM_FILE>    Path to a term to normalise
-        --allow-errors        Continue even if errors were encountered
-    -h, --help                Print help information
+Options:
+      --term <TERM_FILE>  Path to a term to normalise
+      --allow-errors      Continue even if errors were encountered
+  -h, --help              Print help information
 
 ```
 
@@ -23,16 +21,14 @@ Long help can be printed with `--help`
 
 ```console
 $ fathom norm --help
-fathom-norm 
 Normalise a Fathom term, printing its normal form and type
 
-USAGE:
-    fathom norm [OPTIONS] --term <TERM_FILE>
+Usage: fathom norm [OPTIONS] --term <TERM_FILE>
 
-OPTIONS:
-        --term <TERM_FILE>    Path to a term to normalise
-        --allow-errors        Continue even if errors were encountered
-    -h, --help                Print help information
+Options:
+      --term <TERM_FILE>  Path to a term to normalise
+      --allow-errors      Continue even if errors were encountered
+  -h, --help              Print help information
 
 ```
 
@@ -58,12 +54,11 @@ At least a `--term` must be provided
 $ fathom norm
 ? failed
 error: The following required arguments were not provided:
-    --term <TERM_FILE>
+  --term <TERM_FILE>
 
-USAGE:
-    fathom norm [OPTIONS] --term <TERM_FILE>
+Usage: fathom norm --term <TERM_FILE>
 
-For more information try --help
+For more information try '--help'
 
 ```
 
