@@ -30,7 +30,7 @@ use crate::alloc::SliceVec;
 use crate::core::semantics::{self, ArcValue, Head, Telescope, Value};
 use crate::core::{self, prim, Const, Plicity, Prim, UIntStyle};
 use crate::env::{self, EnvLen, Level, SharedEnv, UniqueEnv};
-use crate::source::{BytePos, ByteRange, Span, Spanned, StringId, StringInterner};
+use crate::source::{BytePos, FileRange, Span, Spanned, StringId, StringInterner};
 use crate::surface::elaboration::reporting::Message;
 use crate::surface::{
     distillation, pretty, BinOp, FormatField, Item, Module, Param, Pattern, Term,
@@ -174,27 +174,27 @@ impl<'arena> LocalEnv<'arena> {
 /// The reason why a metavariable was inserted.
 #[derive(Debug, Copy, Clone)]
 pub enum MetaSource {
-    ImplicitArg(ByteRange, Option<StringId>),
+    ImplicitArg(FileRange, Option<StringId>),
     /// The type of a hole.
-    HoleType(ByteRange, StringId),
+    HoleType(FileRange, StringId),
     /// The expression of a hole.
-    HoleExpr(ByteRange, StringId),
+    HoleExpr(FileRange, StringId),
     /// The type of a placeholder
-    PlaceholderType(ByteRange),
+    PlaceholderType(FileRange),
     /// The expression of a placeholder
-    PlaceholderExpr(ByteRange),
+    PlaceholderExpr(FileRange),
     /// The type of a placeholder pattern.
-    PlaceholderPatternType(ByteRange),
+    PlaceholderPatternType(FileRange),
     /// The type of a named pattern.
-    NamedPatternType(ByteRange, StringId),
+    NamedPatternType(FileRange, StringId),
     /// The overall type of a match expression
-    MatchExprType(ByteRange),
+    MatchExprType(FileRange),
     /// The type of a reported error.
-    ReportedErrorType(ByteRange),
+    ReportedErrorType(FileRange),
 }
 
 impl MetaSource {
-    pub fn range(&self) -> ByteRange {
+    pub fn range(&self) -> FileRange {
         match self {
             MetaSource::ImplicitArg(range, _)
             | MetaSource::HoleType(range, _)
@@ -441,9 +441,9 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
     /// of the labels unique labels and an iterator over the unique fields.
     fn report_duplicate_labels<'fields, F>(
         &mut self,
-        range: ByteRange,
+        range: FileRange,
         fields: &'fields [F],
-        get_label: fn(&F) -> (ByteRange, StringId),
+        get_label: fn(&F) -> (FileRange, StringId),
     ) -> (&'arena [StringId], impl Iterator<Item = &'fields F>) {
         let mut labels = SliceVec::new(self.scope, fields.len());
         // Will only allocate when duplicates are encountered
@@ -477,7 +477,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
     /// Parse a source string into number, assuming an ASCII encoding.
     fn parse_ascii<T>(
         &mut self,
-        range: ByteRange,
+        range: FileRange,
         string_id: StringId,
         make: fn(T, UIntStyle) -> Const,
     ) -> Option<Const>
@@ -499,7 +499,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 let ch_end = ch_start + ch.len_utf8() as BytePos;
 
                 self.push_message(Message::NonAsciiStringLiteral {
-                    invalid_range: ByteRange::new(range.file_id(), ch_start, ch_end),
+                    invalid_range: FileRange::new(range.file_id(), ch_start, ch_end),
                 });
                 num = None;
             }
@@ -528,7 +528,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
     /// Parse a source string into a number.
     fn parse_number<T: FromStr>(
         &mut self,
-        range: ByteRange,
+        range: FileRange,
         string_id: StringId,
         make: fn(T) -> Const,
     ) -> Option<Const>
@@ -549,7 +549,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
     /// Parse a source string into a number.
     fn parse_number_radix<T: FromStrRadix>(
         &mut self,
-        range: ByteRange,
+        range: FileRange,
         string_id: StringId,
         make: fn(T, UIntStyle) -> Const,
     ) -> Option<Const> {
@@ -580,8 +580,8 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
     //       coercions to the core language.
     fn convert(
         &mut self,
-        // TODO: could be removed if we never encounter empty spans in the core term
-        surface_range: ByteRange,
+        surface_range: FileRange, /* TODO: could be removed if we never encounter empty spans in
+                                   * the core term */
         expr: core::Term<'arena>,
         from: &ArcValue<'arena>,
         to: &ArcValue<'arena>,
@@ -616,7 +616,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
     pub fn elab_module<'out_arena>(
         &mut self,
         scope: &'out_arena Scope<'out_arena>,
-        surface_module: &Module<'_, ByteRange>,
+        surface_module: &Module<'_, FileRange>,
         on_message: &mut dyn FnMut(Message),
     ) -> core::Module<'out_arena> {
         let elab_order = order::elaboration_order(self, surface_module);
@@ -675,7 +675,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
     pub fn elab_term<'out_arena>(
         &mut self,
         scope: &'out_arena Scope<'out_arena>,
-        surface_term: &Term<'_, ByteRange>,
+        surface_term: &Term<'_, FileRange>,
         on_message: &mut dyn FnMut(Message),
     ) -> (core::Term<'out_arena>, core::Term<'out_arena>) {
         let (term, r#type) = self.synth(surface_term);
@@ -694,7 +694,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
     pub fn elab_format<'out_arena>(
         &mut self,
         scope: &'out_arena Scope<'out_arena>,
-        surface_term: &Term<'_, ByteRange>,
+        surface_term: &Term<'_, FileRange>,
         on_message: &mut dyn FnMut(Message),
     ) -> core::Term<'out_arena> {
         let term = self.check(surface_term, &self.format_type.clone());
@@ -711,7 +711,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
     /// Check that a pattern matches an expected type.
     fn check_pattern(
         &mut self,
-        pattern: &Pattern<ByteRange>,
+        pattern: &Pattern<FileRange>,
         expected_type: &ArcValue<'arena>,
     ) -> CheckedPattern {
         match pattern {
@@ -794,7 +794,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
     /// Synthesize the type of a pattern.
     fn synth_pattern(
         &mut self,
-        pattern: &Pattern<ByteRange>,
+        pattern: &Pattern<FileRange>,
     ) -> (CheckedPattern, ArcValue<'arena>) {
         match pattern {
             Pattern::Name(range, name) => {
@@ -830,8 +830,8 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
     /// Check that the type of an annotated pattern matches an expected type.
     fn check_ann_pattern(
         &mut self,
-        pattern: &Pattern<ByteRange>,
-        r#type: Option<&Term<'_, ByteRange>>,
+        pattern: &Pattern<FileRange>,
+        r#type: Option<&Term<'_, FileRange>>,
         expected_type: &ArcValue<'arena>,
     ) -> CheckedPattern {
         match r#type {
@@ -862,8 +862,8 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
     /// Synthesize the type of an annotated pattern.
     fn synth_ann_pattern(
         &mut self,
-        pattern: &Pattern<ByteRange>,
-        r#type: Option<&Term<'_, ByteRange>>,
+        pattern: &Pattern<FileRange>,
+        r#type: Option<&Term<'_, FileRange>>,
     ) -> (CheckedPattern, ArcValue<'arena>) {
         match r#type {
             None => self.synth_pattern(pattern),
@@ -929,8 +929,8 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
     /// Elaborate a list of parameters, pushing them onto the context.
     fn synth_and_push_params(
         &mut self,
-        params: &[Param<ByteRange>],
-    ) -> Vec<(ByteRange, Plicity, Option<StringId>, core::Term<'arena>)> {
+        params: &[Param<FileRange>],
+    ) -> Vec<(FileRange, Plicity, Option<StringId>, core::Term<'arena>)> {
         self.local_env.reserve(params.len());
 
         Vec::from_iter(params.iter().map(|param| {
@@ -949,7 +949,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
     /// Returns the elaborated term in the core language.
     fn check(
         &mut self,
-        surface_term: &Term<'_, ByteRange>,
+        surface_term: &Term<'_, FileRange>,
         expected_type: &ArcValue<'arena>,
     ) -> core::Term<'arena> {
         let expected_type = self.elim_env().force(expected_type);
@@ -1255,7 +1255,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
     /// parameters in the type provided.
     fn insert_implicit_apps(
         &mut self,
-        range: ByteRange,
+        range: FileRange,
         mut term: core::Term<'arena>,
         mut r#type: ArcValue<'arena>,
     ) -> (core::Term<'arena>, ArcValue<'arena>) {
@@ -1281,7 +1281,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
     /// applications if the term was not an implicit function literal.
     fn synth_and_insert_implicit_apps(
         &mut self,
-        surface_term: &Term<'_, ByteRange>,
+        surface_term: &Term<'_, FileRange>,
     ) -> (core::Term<'arena>, ArcValue<'arena>) {
         let (term, r#type) = self.synth(surface_term);
         match term {
@@ -1295,7 +1295,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
     /// Returns the elaborated term in the core language and its type.
     fn synth(
         &mut self,
-        surface_term: &Term<'_, ByteRange>,
+        surface_term: &Term<'_, FileRange>,
     ) -> (core::Term<'arena>, ArcValue<'arena>) {
         match surface_term {
             Term::Name(range, name) => {
@@ -1425,7 +1425,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 {
                     let range = match i {
                         0 => *range, // Use the range of the full function type
-                        _ => ByteRange::merge(&param_range, &body_type.range()).unwrap(),
+                        _ => FileRange::merge(&param_range, &body_type.range()).unwrap(),
                     };
 
                     fun_type = core::Term::FunType(
@@ -1494,7 +1494,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                     };
 
                     let arg_range = arg.term.range();
-                    head_range = ByteRange::merge(&head_range, &arg_range).unwrap();
+                    head_range = FileRange::merge(&head_range, &arg_range).unwrap();
 
                     let arg_expr = self.check(&arg.term, param_type);
                     let arg_expr_value = self.eval_env().eval(&arg_expr);
@@ -1590,7 +1590,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                                     // The field was found. Update the head expression
                                     // and continue elaborating the next projection.
                                     head_expr = core::Term::RecordProj(
-                                        ByteRange::merge(&head_range, label_range).into(),
+                                        FileRange::merge(&head_range, label_range).into(),
                                         self.scope.to_scope(head_expr),
                                         *proj_label,
                                     );
@@ -1688,9 +1688,9 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
 
     fn check_fun_lit(
         &mut self,
-        range: ByteRange,
-        params: &[Param<'_, ByteRange>],
-        body_expr: &Term<'_, ByteRange>,
+        range: FileRange,
+        params: &[Param<'_, FileRange>],
+        body_expr: &Term<'_, FileRange>,
         expected_type: &ArcValue<'arena>,
     ) -> core::Term<'arena> {
         match params.split_first() {
@@ -1701,7 +1701,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                         if param.plicity == *param_plicity =>
                     {
                         let range =
-                            ByteRange::merge(&param.pattern.range(), &body_expr.range()).unwrap();
+                            FileRange::merge(&param.pattern.range(), &body_expr.range()).unwrap();
                         let pattern = self.check_ann_pattern(
                             &param.pattern,
                             param.r#type.as_ref(),
@@ -1741,7 +1741,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                     // mode if we are checking against a metavariable.
                     Value::Stuck(Head::MetaVar(_), _) => {
                         let range =
-                            ByteRange::merge(&param.pattern.range(), &body_expr.range()).unwrap();
+                            FileRange::merge(&param.pattern.range(), &body_expr.range()).unwrap();
                         let (expr, r#type) = self.synth_fun_lit(range, params, body_expr, None);
                         self.convert(range, expr, &r#type, expected_type)
                     }
@@ -1765,10 +1765,10 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
 
     fn synth_fun_lit(
         &mut self,
-        range: ByteRange,
-        params: &[Param<'_, ByteRange>],
-        body_expr: &Term<'_, ByteRange>,
-        body_type: Option<&Term<'_, ByteRange>>,
+        range: FileRange,
+        params: &[Param<'_, FileRange>],
+        body_expr: &Term<'_, FileRange>,
+        body_type: Option<&Term<'_, FileRange>>,
     ) -> (core::Term<'arena>, ArcValue<'arena>) {
         self.local_env.reserve(params.len());
         let initial_local_len = self.local_env.len();
@@ -1793,7 +1793,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         for (i, (param_range, plicity, name, r#type)) in params.into_iter().enumerate().rev() {
             let range = match i {
                 0 => range, // Use the range of the full function literal
-                _ => ByteRange::merge(&param_range, &body_expr.range()).unwrap(),
+                _ => FileRange::merge(&param_range, &body_expr.range()).unwrap(),
             };
 
             fun_lit = core::Term::FunLit(range.into(), plicity, name, self.scope.to_scope(fun_lit));
@@ -1811,10 +1811,10 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
 
     fn synth_bin_op(
         &mut self,
-        range: ByteRange,
-        lhs: &Term<'_, ByteRange>,
-        op: BinOp<ByteRange>,
-        rhs: &Term<'_, ByteRange>,
+        range: FileRange,
+        lhs: &Term<'_, FileRange>,
+        op: BinOp<FileRange>,
+        rhs: &Term<'_, FileRange>,
     ) -> (core::Term<'arena>, ArcValue<'arena>) {
         use BinOp::*;
         use Prim::*;
@@ -1969,7 +1969,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         )
     }
 
-    fn synth_reported_error(&mut self, range: ByteRange) -> (core::Term<'arena>, ArcValue<'arena>) {
+    fn synth_reported_error(&mut self, range: FileRange) -> (core::Term<'arena>, ArcValue<'arena>) {
         let expr = core::Term::Prim(range.into(), Prim::ReportedError);
         let r#type = self.push_unsolved_type(MetaSource::ReportedErrorType(range));
         (expr, r#type)
@@ -1978,8 +1978,8 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
     /// Check a series of format fields
     fn check_format_fields(
         &mut self,
-        range: ByteRange,
-        format_fields: &[FormatField<'_, ByteRange>],
+        range: FileRange,
+        format_fields: &[FormatField<'_, FileRange>],
     ) -> (&'arena [StringId], &'arena [core::Term<'arena>]) {
         let universe = self.universe.clone();
         let format_type = self.format_type.clone();
@@ -2069,9 +2069,9 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
     /// Elaborate a match expression in checking mode
     fn check_match(
         &mut self,
-        range: ByteRange,
-        scrutinee_expr: &Term<'_, ByteRange>,
-        equations: &[(Pattern<ByteRange>, Term<'_, ByteRange>)],
+        range: FileRange,
+        scrutinee_expr: &Term<'_, FileRange>,
+        equations: &[(Pattern<FileRange>, Term<'_, FileRange>)],
         expected_type: &ArcValue<'arena>,
     ) -> core::Term<'arena> {
         let match_info = MatchInfo {
@@ -2083,7 +2083,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         self.elab_match(&match_info, true, equations.iter())
     }
 
-    fn synth_scrutinee(&mut self, scrutinee_expr: &Term<'_, ByteRange>) -> Scrutinee<'arena> {
+    fn synth_scrutinee(&mut self, scrutinee_expr: &Term<'_, FileRange>) -> Scrutinee<'arena> {
         let (expr, r#type) = self.synth_and_insert_implicit_apps(scrutinee_expr);
 
         Scrutinee {
@@ -2103,7 +2103,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         &mut self,
         match_info: &MatchInfo<'arena>,
         is_reachable: bool,
-        mut equations: impl Iterator<Item = &'a (Pattern<ByteRange>, Term<'a, ByteRange>)>,
+        mut equations: impl Iterator<Item = &'a (Pattern<FileRange>, Term<'a, FileRange>)>,
     ) -> core::Term<'arena> {
         match equations.next() {
             Some((pattern, body_expr)) => {
@@ -2168,7 +2168,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
 
     /// Ensure that this part of a match expression is reachable, reporting
     /// a message if it is not.
-    fn check_match_reachable(&mut self, is_reachable: bool, range: ByteRange) {
+    fn check_match_reachable(&mut self, is_reachable: bool, range: FileRange) {
         if !is_reachable {
             self.push_message(Message::UnreachablePattern { range });
         }
@@ -2179,8 +2179,8 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         &mut self,
         match_info: &MatchInfo<'arena>,
         is_reachable: bool,
-        (const_range, r#const, body_expr): (ByteRange, Const, core::Term<'arena>),
-        mut equations: impl Iterator<Item = &'a (Pattern<ByteRange>, Term<'a, ByteRange>)>,
+        (const_range, r#const, body_expr): (FileRange, Const, core::Term<'arena>),
+        mut equations: impl Iterator<Item = &'a (Pattern<FileRange>, Term<'a, FileRange>)>,
     ) -> core::Term<'arena> {
         // The full range of this series of patterns
         let mut full_span = Span::merge(&const_range.into(), &body_expr.span());
@@ -2284,7 +2284,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
     fn elab_match_unreachable<'a>(
         &mut self,
         match_info: &MatchInfo<'arena>,
-        equations: impl Iterator<Item = &'a (Pattern<ByteRange>, Term<'a, ByteRange>)>,
+        equations: impl Iterator<Item = &'a (Pattern<FileRange>, Term<'a, FileRange>)>,
     ) {
         self.elab_match(match_info, false, equations);
     }
@@ -2331,25 +2331,25 @@ impl_from_str_radix!(u64);
 #[derive(Debug)]
 enum CheckedPattern {
     /// Pattern that binds local variable
-    Binder(ByteRange, StringId),
+    Binder(FileRange, StringId),
     /// Placeholder patterns that match everything
-    Placeholder(ByteRange),
+    Placeholder(FileRange),
     /// Constant literals
-    ConstLit(ByteRange, Const),
+    ConstLit(FileRange, Const),
     /// Error sentinel
-    ReportedError(ByteRange),
+    ReportedError(FileRange),
 }
 
 /// Scrutinee of a match expression
 struct Scrutinee<'arena> {
-    range: ByteRange,
+    range: FileRange,
     expr: &'arena core::Term<'arena>,
     r#type: ArcValue<'arena>,
 }
 
 struct MatchInfo<'arena> {
     /// The full range of the match expression
-    range: ByteRange,
+    range: FileRange,
     /// The expression being matched on
     scrutinee: Scrutinee<'arena>,
     /// The expected type of the match arms

@@ -8,7 +8,7 @@ use codespan_reporting::term::termcolor::{BufferedStandardStream, ColorChoice, W
 
 use crate::core::binary::{self, BufferError, ReadError};
 use crate::files::{FileId, Files};
-use crate::source::{ByteRange, Span, StringInterner};
+use crate::source::{FileRange, Span, StringInterner};
 use crate::surface::{self, elaboration};
 use crate::{core, BUG_REPORT_URL};
 
@@ -330,7 +330,7 @@ impl<'surface, 'core> Driver<'surface, 'core> {
         Status::Ok
     }
 
-    fn parse_module(&'surface self, file_id: FileId) -> surface::Module<'surface, ByteRange> {
+    fn parse_module(&'surface self, file_id: FileId) -> surface::Module<'surface, FileRange> {
         let source = self.files.get(file_id).unwrap().source();
         let (module, messages) =
             surface::Module::parse(&self.interner, &self.surface_scope, file_id, source);
@@ -339,7 +339,7 @@ impl<'surface, 'core> Driver<'surface, 'core> {
         module
     }
 
-    fn parse_term(&'surface self, file_id: FileId) -> surface::Term<'surface, ByteRange> {
+    fn parse_term(&'surface self, file_id: FileId) -> surface::Term<'surface, FileRange> {
         let source = self.files.get(file_id).unwrap().source();
         let (term, messages) =
             surface::Term::parse(&self.interner, &self.surface_scope, file_id, source);

@@ -9,7 +9,7 @@ use scoped_arena::Scope;
 
 use crate::core::Plicity;
 use crate::files::FileId;
-use crate::source::{BytePos, ByteRange, StringId, StringInterner};
+use crate::source::{BytePos, FileRange, StringId, StringInterner};
 
 lalrpop_mod!(
     #[allow(clippy::all)]
@@ -28,7 +28,7 @@ pub struct Module<'arena, Range> {
     items: &'arena [Item<'arena, Range>],
 }
 
-impl<'arena> Module<'arena, ByteRange> {
+impl<'arena> Module<'arena, FileRange> {
     /// Parse a term from the `source` string, interning strings to the
     /// supplied `interner` and allocating nodes to the `arena`.
     pub fn parse<'source>(
@@ -36,7 +36,7 @@ impl<'arena> Module<'arena, ByteRange> {
         scope: &'arena Scope<'arena>,
         file_id: FileId,
         source: &'source str,
-    ) -> (Module<'arena, ByteRange>, Vec<ParseMessage>) {
+    ) -> (Module<'arena, FileRange>, Vec<ParseMessage>) {
         let mut messages = Vec::new();
 
         let tokens = lexer::tokens(file_id, source);
@@ -95,7 +95,7 @@ pub enum Pattern<Range> {
     /// Boolean literal patterns
     BooleanLiteral(Range, bool),
     // TODO: Record literal patterns
-    // RecordLiteral(Range, &'arena [((ByteRange, StringId), Pattern<'arena, Range>)]),
+    // RecordLiteral(Range, &'arena [((Range, StringId), Pattern<'arena, Range>)]),
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -112,8 +112,8 @@ pub enum BinOp<Range> {
     Gte(Range),
 }
 
-impl BinOp<ByteRange> {
-    fn range(&self) -> ByteRange {
+impl BinOp<FileRange> {
+    fn range(&self) -> FileRange {
         match self {
             BinOp::Add(range)
             | BinOp::Sub(range)
@@ -307,7 +307,7 @@ impl<'arena, Range: Clone> Term<'arena, Range> {
     }
 }
 
-impl<'arena> Term<'arena, ByteRange> {
+impl<'arena> Term<'arena, FileRange> {
     /// Parse a term from the `source` string, interning strings to the
     /// supplied `interner` and allocating nodes to the `arena`.
     pub fn parse<'source>(
@@ -315,7 +315,7 @@ impl<'arena> Term<'arena, ByteRange> {
         scope: &'arena Scope<'arena>,
         file_id: FileId,
         source: &'source str,
-    ) -> (Term<'arena, ByteRange>, Vec<ParseMessage>) {
+    ) -> (Term<'arena, FileRange>, Vec<ParseMessage>) {
         let mut messages = Vec::new();
 
         let tokens = lexer::tokens(file_id, source);
@@ -391,25 +391,25 @@ pub struct ExprField<'arena, Range> {
 pub enum ParseMessage {
     Lexer(lexer::Error),
     InvalidToken {
-        range: ByteRange,
+        range: FileRange,
     },
     UnrecognizedEof {
-        range: ByteRange,
+        range: FileRange,
         expected: Vec<String>,
     },
     UnrecognizedToken {
-        range: ByteRange,
+        range: FileRange,
         token: &'static str,
         expected: Vec<String>,
     },
     ExtraToken {
-        range: ByteRange,
+        range: FileRange,
         token: &'static str,
     },
 }
 
 impl ParseMessage {
-    pub fn range(&self) -> ByteRange {
+    pub fn range(&self) -> FileRange {
         match self {
             ParseMessage::Lexer(error) => error.range(),
             ParseMessage::InvalidToken { range }
@@ -422,11 +422,11 @@ impl ParseMessage {
     fn from_lalrpop(file_id: FileId, error: LalrpopParseError<'_>) -> ParseMessage {
         match error {
             LalrpopParseError::InvalidToken { location } => ParseMessage::InvalidToken {
-                range: ByteRange::new(file_id, location, location),
+                range: FileRange::new(file_id, location, location),
             },
             LalrpopParseError::UnrecognizedEOF { location, expected } => {
                 ParseMessage::UnrecognizedEof {
-                    range: ByteRange::new(file_id, location, location),
+                    range: FileRange::new(file_id, location, location),
                     expected, // TODO: convert to descriptions?
                 }
             }
@@ -434,14 +434,14 @@ impl ParseMessage {
                 token: (start, token, end),
                 expected,
             } => ParseMessage::UnrecognizedToken {
-                range: ByteRange::new(file_id, start, end),
+                range: FileRange::new(file_id, start, end),
                 token: token.description(),
                 expected,
             },
             LalrpopParseError::ExtraToken {
                 token: (start, token, end),
             } => ParseMessage::ExtraToken {
-                range: ByteRange::new(file_id, start, end),
+                range: FileRange::new(file_id, start, end),
                 token: token.description(),
             },
             LalrpopParseError::User { error } => ParseMessage::Lexer(error),
@@ -454,7 +454,7 @@ impl ParseMessage {
     }
 
     pub fn to_diagnostic(&self) -> Diagnostic<FileId> {
-        let primary_label = |range: &ByteRange| Label::primary(range.file_id(), *range);
+        let primary_label = |range: &FileRange| Label::primary(range.file_id(), *range);
 
         match self {
             ParseMessage::Lexer(error) => error.to_diagnostic(),
@@ -500,6 +500,7 @@ fn format_expected(expected: &[impl std::fmt::Display]) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::source::ByteRange;
 
     #[test]
     fn no_drop() {
@@ -512,13 +513,15 @@ mod tests {
     #[cfg(target_pointer_width = "64")]
     fn term_size() {
         assert_eq!(std::mem::size_of::<Term<()>>(), 32);
-        assert_eq!(std::mem::size_of::<Term<ByteRange>>(), 56);
+        assert_eq!(std::mem::size_of::<Term<ByteRange>>(), 48);
+        assert_eq!(std::mem::size_of::<Term<FileRange>>(), 56);
     }
 
     #[test]
     #[cfg(target_pointer_width = "64")]
     fn pattern_size() {
         assert_eq!(std::mem::size_of::<Pattern<()>>(), 4);
-        assert_eq!(std::mem::size_of::<Pattern<ByteRange>>(), 16);
+        assert_eq!(std::mem::size_of::<Pattern<ByteRange>>(), 12);
+        assert_eq!(std::mem::size_of::<Pattern<FileRange>>(), 16);
     }
 }

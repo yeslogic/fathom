@@ -1,6 +1,9 @@
 //! Types related to source files.
 
-use std::ops::{Deref, DerefMut, Range};
+use std::{
+    fmt,
+    ops::{Deref, DerefMut, Range},
+};
 
 use crate::files::FileId;
 
@@ -196,7 +199,7 @@ impl<T> DerefMut for Spanned<T> {
 
 #[derive(Debug, Copy, Clone)]
 pub enum Span {
-    Range(ByteRange),
+    Range(FileRange),
     Empty,
 }
 
@@ -209,20 +212,20 @@ impl Span {
     }
 }
 
-impl From<ByteRange> for Span {
-    fn from(range: ByteRange) -> Self {
+impl From<FileRange> for Span {
+    fn from(range: FileRange) -> Self {
         Span::Range(range)
     }
 }
 
-impl From<&ByteRange> for Span {
-    fn from(range: &ByteRange) -> Self {
+impl From<&FileRange> for Span {
+    fn from(range: &FileRange) -> Self {
         Span::Range(*range)
     }
 }
 
-impl From<Option<ByteRange>> for Span {
-    fn from(range: Option<ByteRange>) -> Span {
+impl From<Option<FileRange>> for Span {
+    fn from(range: Option<FileRange>) -> Span {
         range.map_or(Span::Empty, Span::Range)
     }
 }
@@ -231,16 +234,26 @@ impl From<Option<ByteRange>> for Span {
 pub type BytePos = u32;
 
 /// Byte ranges in source files.
-#[derive(Debug, Copy, Clone)]
-pub struct ByteRange {
+#[derive(Copy, Clone)]
+pub struct FileRange {
     file_id: FileId,
     start: BytePos,
     end: BytePos,
 }
 
-impl ByteRange {
-    pub const fn new(file_id: FileId, start: BytePos, end: BytePos) -> ByteRange {
-        ByteRange {
+impl fmt::Debug for FileRange {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "FileRange({}, {}..{})",
+            self.file_id, self.start, self.end
+        )
+    }
+}
+
+impl FileRange {
+    pub const fn new(file_id: FileId, start: BytePos, end: BytePos) -> FileRange {
+        FileRange {
             file_id,
             start,
             end,
@@ -259,9 +272,9 @@ impl ByteRange {
         self.end
     }
 
-    pub fn merge(&self, other: &ByteRange) -> Option<ByteRange> {
+    pub fn merge(&self, other: &FileRange) -> Option<FileRange> {
         if self.file_id == other.file_id {
-            Some(ByteRange::new(
+            Some(FileRange::new(
                 self.file_id,
                 self.start.min(other.start),
                 self.end.max(other.end),
@@ -272,9 +285,39 @@ impl ByteRange {
     }
 }
 
-impl From<ByteRange> for Range<usize> {
-    fn from(range: ByteRange) -> Self {
+impl From<FileRange> for Range<usize> {
+    fn from(range: FileRange) -> Self {
         (range.start as usize)..(range.end as usize)
+    }
+}
+
+#[derive(Copy, Clone)]
+pub struct ByteRange {
+    start: BytePos,
+    end: BytePos,
+}
+
+impl fmt::Debug for ByteRange {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "ByteRange({}..{})", self.start, self.end)
+    }
+}
+
+impl ByteRange {
+    pub fn new(start: BytePos, end: BytePos) -> Self {
+        Self { start, end }
+    }
+
+    pub const fn start(&self) -> BytePos {
+        self.start
+    }
+
+    pub const fn end(&self) -> BytePos {
+        self.end
+    }
+
+    pub fn merge(self, other: Self) -> Self {
+        Self::new(self.start.min(other.start), self.end.max(other.end))
     }
 }
 
@@ -285,7 +328,13 @@ mod tests {
     #[test]
     /// `ByteRange` is used a lot. Ensure it doesn't grow accidentally.
     fn byte_range_size() {
-        assert_eq!(std::mem::size_of::<ByteRange>(), 12);
+        assert_eq!(std::mem::size_of::<ByteRange>(), 8);
+    }
+
+    #[test]
+    /// `FileRange` is used a lot. Ensure it doesn't grow accidentally.
+    fn file_range_size() {
+        assert_eq!(std::mem::size_of::<FileRange>(), 12);
     }
 
     #[test]

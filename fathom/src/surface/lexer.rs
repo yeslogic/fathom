@@ -2,7 +2,7 @@ use codespan_reporting::diagnostic::{Diagnostic, Label};
 use logos::{Filter, Logos};
 
 use crate::files::FileId;
-use crate::source::{BytePos, ByteRange};
+use crate::source::{BytePos, FileRange};
 
 pub const KEYWORDS: &[&str] = &[
     "def", "else", "false", "fun", "if", "let", "match", "overlap", "then", "true", "Type", "where",
@@ -126,12 +126,12 @@ enum BlockComment {
     Close,
 }
 
-fn lexer_range<'source, T>(lexer: &logos::Lexer<'source, T>) -> ByteRange
+fn lexer_range<'source, T>(lexer: &logos::Lexer<'source, T>) -> FileRange
 where
     T: logos::Logos<'source, Extras = FileId>,
 {
     let span = lexer.span();
-    ByteRange::new(lexer.extras, span.start as BytePos, span.end as BytePos)
+    FileRange::new(lexer.extras, span.start as BytePos, span.end as BytePos)
 }
 
 fn block_comment<'source>(lexer: &mut logos::Lexer<'source, Token<'source>>) -> Filter<Error> {
@@ -172,16 +172,16 @@ pub type Spanned<Tok, Loc> = (Loc, Tok, Loc);
 pub enum Error {
     UnclosedBlockComment {
         depth: u32,
-        first_open: ByteRange,
-        last_close: ByteRange,
+        first_open: FileRange,
+        last_close: FileRange,
     },
     UnexpectedCharacter {
-        range: ByteRange,
+        range: FileRange,
     },
 }
 
 impl Error {
-    pub fn range(&self) -> ByteRange {
+    pub fn range(&self) -> FileRange {
         match self {
             Error::UnexpectedCharacter { range } => *range,
             Error::UnclosedBlockComment { first_open, .. } => *first_open,
@@ -225,7 +225,7 @@ pub fn tokens(
             match token {
                 Token::ErrorData(err) => Err(err),
                 Token::Error => Err(Error::UnexpectedCharacter {
-                    range: ByteRange::new(file_id, start, end),
+                    range: FileRange::new(file_id, start, end),
                 }),
                 token => Ok((start, token, end)),
             }

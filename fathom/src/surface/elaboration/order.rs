@@ -20,7 +20,7 @@
 
 use fxhash::{FxHashMap, FxHashSet};
 
-use crate::source::{ByteRange, StringId};
+use crate::source::{FileRange, StringId};
 use crate::surface::elaboration::reporting::Message;
 use crate::surface::{elaboration, FormatField, Item, Module, Param, Pattern, Term};
 
@@ -30,7 +30,7 @@ enum Error {
 
 pub fn elaboration_order(
     elab_context: &mut elaboration::Context,
-    surface_module: &Module<'_, ByteRange>,
+    surface_module: &Module<'_, FileRange>,
 ) -> Vec<usize> {
     let item_names = item_names(surface_module);
     let item_deps = collect_item_dependencies(surface_module, &item_names);
@@ -39,7 +39,7 @@ pub fn elaboration_order(
     context.determine_order(surface_module.items, &item_names, &item_deps)
 }
 
-fn item_names(surface_module: &Module<'_, ByteRange>) -> FxHashMap<StringId, usize> {
+fn item_names(surface_module: &Module<'_, FileRange>) -> FxHashMap<StringId, usize> {
     surface_module
         .items
         .iter()
@@ -52,7 +52,7 @@ fn item_names(surface_module: &Module<'_, ByteRange>) -> FxHashMap<StringId, usi
 }
 
 fn collect_item_dependencies(
-    surface_module: &Module<'_, ByteRange>,
+    surface_module: &Module<'_, FileRange>,
     item_names: &FxHashMap<StringId, usize>,
 ) -> Vec<Vec<StringId>> {
     let mut local_names = Vec::new();
@@ -82,7 +82,7 @@ impl<'a, 'interner, 'arena> ModuleOrderContext<'a, 'interner, 'arena> {
 
     fn determine_order(
         mut self,
-        items: &[Item<'_, ByteRange>],
+        items: &[Item<'_, FileRange>],
         item_names: &FxHashMap<StringId, usize>,
         dependencies: &[Vec<StringId>],
     ) -> Vec<usize> {
@@ -140,7 +140,7 @@ impl<'a, 'interner, 'arena> ModuleOrderContext<'a, 'interner, 'arena> {
 }
 
 fn item_dependencies(
-    item: &Item<'_, ByteRange>,
+    item: &Item<'_, FileRange>,
     item_names: &FxHashMap<StringId, usize>,
     local_names: &mut Vec<StringId>,
 ) -> Vec<StringId> {
@@ -161,7 +161,7 @@ fn item_dependencies(
 }
 
 fn term_deps(
-    term: &Term<ByteRange>,
+    term: &Term<FileRange>,
     item_names: &FxHashMap<StringId, usize>,
     local_names: &mut Vec<StringId>,
     deps: &mut Vec<StringId>,
@@ -279,7 +279,7 @@ fn term_deps(
 }
 
 fn push_param_deps(
-    params: &[Param<'_, ByteRange>],
+    params: &[Param<'_, FileRange>],
     item_names: &FxHashMap<StringId, usize>,
     local_names: &mut Vec<StringId>,
     deps: &mut Vec<StringId>,
@@ -293,7 +293,7 @@ fn push_param_deps(
 }
 
 fn field_deps(
-    fields: &[FormatField<ByteRange>],
+    fields: &[FormatField<FileRange>],
     item_names: &FxHashMap<StringId, usize>,
     local_names: &mut Vec<StringId>,
     deps: &mut Vec<StringId>,
@@ -325,7 +325,7 @@ fn field_deps(
     local_names.truncate(initial_locals_names_len);
 }
 
-fn push_pattern(pattern: &Pattern<ByteRange>, local_names: &mut Vec<StringId>) {
+fn push_pattern(pattern: &Pattern<FileRange>, local_names: &mut Vec<StringId>) {
     match pattern {
         Pattern::Name(_, name) => local_names.push(*name),
         Pattern::Placeholder(_) => {}
@@ -335,7 +335,7 @@ fn push_pattern(pattern: &Pattern<ByteRange>, local_names: &mut Vec<StringId>) {
     }
 }
 
-fn pop_pattern(pattern: &Pattern<ByteRange>, local_names: &mut Vec<StringId>) {
+fn pop_pattern(pattern: &Pattern<FileRange>, local_names: &mut Vec<StringId>) {
     match pattern {
         Pattern::Name(_, _) => {
             local_names.pop();
