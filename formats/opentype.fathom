@@ -88,7 +88,7 @@ def table_directory (file_start : Pos) = {
             fun (table_id : Repr tag) =>
             fun (table_format : Format) => {
                 // TODO: let formats
-                table_record <- unwrap (Repr table_record) (find_table table_records table_id),
+                table_record <- unwrap (find_table table_records table_id),
                 link <- link_table file_start table_record table_format,
             };
 
@@ -96,14 +96,14 @@ def table_directory (file_start : Pos) = {
             fun (table_id : Repr tag) =>
             fun (table_format : (U32 -> Format)) => {
                 // TODO: let formats
-                table_record <- unwrap (Repr table_record) (find_table table_records table_id),
+                table_record <- unwrap (find_table table_records table_id),
                 link <- link_table file_start table_record (table_format table_record.length),
             };
 
         let optional_table =
             fun (table_id : Repr tag) =>
             fun (table_format : Format) =>
-                option_fold (Repr table_record) Format {}
+                option_fold ({} : Format)
                     (fun record => link_table file_start record table_format)
                     (find_table table_records table_id);
 
@@ -117,8 +117,8 @@ def table_directory (file_start : Pos) = {
             maxp <- required_table "maxp" maxp_table,
             htmx <- required_table "hmtx" {
                 // TODO: let formats
-                hhea <- deref _ hhea.link,
-                maxp <- deref (limit32 maxp.table_record.length maxp_table) maxp.link,
+                hhea <- deref hhea.link,
+                maxp <- deref maxp.link,
                 table <- htmx_table
                     hhea.number_of_long_horizontal_metrics
                     maxp.num_glyphs,
@@ -134,15 +134,15 @@ def table_directory (file_start : Pos) = {
             fpgm <- optional_table "fpgm" unknown_table,
             glyf <- optional_table "glyf" {
                 // TODO: let formats
-                maxp <- deref (limit32 maxp.table_record.length maxp_table) maxp.link,
+                maxp <- deref maxp.link,
                 table <- glyf_table 1,
                 // TODO: use `loca` entries when parsing the glyphs
                 // table <- glyf_table maxp.num_glyphs,
             },
             loca <- optional_table "loca" {
                 // TODO: let formats
-                maxp <- deref (limit32 maxp.table_record.length maxp_table) maxp.link,
-                head <- deref _ head.link,
+                maxp <- deref maxp.link,
+                head <- deref head.link,
                 table <- loca_table maxp.num_glyphs head.index_to_loc_format,
             },
             prep <- optional_table "prep" unknown_table,
@@ -298,8 +298,8 @@ def find_table =
         // TODO: make use of `table_record.search_range`
         // TODO: make use of `table_record.entry_selector`
         // TODO: make use of `table_record.range_shift`
-        array16_find _ (Repr table_record)
-            (fun table_record => table_record.table_id == table_id)
+        array16_find
+            (fun (table_record : Repr table_record) => table_record.table_id == table_id)
             table_records;
 
 /// Create a link to the given `table_format`.
@@ -2802,7 +2802,7 @@ def simple_glyph (number_of_contours : U16) = {
     instruction_length <- u16be,
     /// Array of instruction byte code for the glyph.
     instructions <- array16 instruction_length u8,
-    let last_end_point_index = array16_index _ _ (number_of_contours - (1 : U16)) end_pts_of_contours,
+    let last_end_point_index = array16_index (number_of_contours - (1 : U16)) end_pts_of_contours,
     let number_of_coords = last_end_point_index + (1 : U16),
     /// Array of flag elements.
     // flags[variable] <- uint8,
