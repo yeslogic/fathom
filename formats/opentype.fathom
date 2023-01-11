@@ -88,7 +88,7 @@ def table_directory (file_start : Pos) = {
             fun (table_id : Repr tag) =>
             fun (table_format : Format) => {
                 // TODO: let formats
-                table_record <- unwrap (Repr table_record) (find_table _ table_records table_id),
+                table_record <- unwrap (Repr table_record) (find_table table_records table_id),
                 link <- link_table file_start table_record table_format,
             };
 
@@ -96,7 +96,7 @@ def table_directory (file_start : Pos) = {
             fun (table_id : Repr tag) =>
             fun (table_format : (U32 -> Format)) => {
                 // TODO: let formats
-                table_record <- unwrap (Repr table_record) (find_table _ table_records table_id),
+                table_record <- unwrap (Repr table_record) (find_table table_records table_id),
                 link <- link_table file_start table_record (table_format table_record.length),
             };
 
@@ -105,7 +105,7 @@ def table_directory (file_start : Pos) = {
             fun (table_format : Format) =>
                 option_fold (Repr table_record) Format {}
                     (fun record => link_table file_start record table_format)
-                    (find_table _ table_records table_id);
+                    (find_table table_records table_id);
 
         {
             // Required Tables
@@ -291,7 +291,7 @@ def table_record = {
 
 /// Find a table record using the given `table_id`.
 def find_table =
-    fun (num_tables : U16) =>
+    fun (@num_tables : U16) =>
     fun (table_records : Array16 num_tables (Repr table_record)) =>
     fun (table_id : Repr tag) =>
         // TODO: accelerate using binary search
