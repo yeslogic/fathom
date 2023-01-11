@@ -782,30 +782,36 @@ pub fn step(prim: Prim) -> Step {
 
         Prim::OptionFold => step!(env, [_, _, on_none, on_some, option] => {
             match option.match_prim_spine()? {
-                (Prim::OptionSome, [Elim::FunApp(Plicity::Explicit, value)]) => env.fun_app(
-Plicity::Explicit,
-                    on_some.clone(), value.clone()),
-                (Prim::OptionNone, []) => on_none.clone(),
+                (Prim::OptionSome, [_, Elim::FunApp(Plicity::Explicit, value)]) => {
+                    env.fun_app(Plicity::Explicit, on_some.clone(), value.clone())
+                },
+                (Prim::OptionNone, [_]) => on_none.clone(),
                 _ => return None,
             }
         }),
 
         Prim::Array8Find | Prim::Array16Find | Prim::Array32Find | Prim::Array64Find => {
-            step!(env, [_, _, pred, array] => match array.as_ref() {
+            step!(env, [_, elem_type, pred, array] => match array.as_ref() {
                 Value::ArrayLit(elems) => {
                     for elem in elems {
                         match env.fun_app(
-Plicity::Explicit,
-                             pred.clone(), elem.clone()).as_ref() {
+                            Plicity::Explicit,
+                            pred.clone(), elem.clone()).as_ref() {
                             Value::ConstLit(Const::Bool(true)) => {
                                 // TODO: Is elem.span right here?
-                                return Some(Spanned::new(elem.span(), Arc::new(Value::prim(Prim::OptionSome, [elem.clone()]))))
+                                return Some(Spanned::new(
+                                    elem.span(),
+                                    Arc::new(Value::prim(Prim::OptionSome, [
+                                        elem_type.clone(),
+                                        elem.clone(),
+                                    ])),
+                                ));
                             },
                             Value::ConstLit(Const::Bool(false)) => {}
                             _ => return None,
                         }
                     }
-                    Spanned::empty(Arc::new(Value::prim(Prim::OptionNone, [])))
+                    Spanned::empty(Arc::new(Value::prim(Prim::OptionNone, [elem_type.clone()])))
                 }
                 _ => return None,
             })
