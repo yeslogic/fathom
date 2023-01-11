@@ -4,7 +4,7 @@ use codespan_reporting::diagnostic::{Diagnostic, Label};
 use itertools::Itertools;
 
 use crate::files::FileId;
-use crate::source::{ByteRange, StringId, StringInterner};
+use crate::source::{FileRange, StringId, StringInterner};
 use crate::surface::elaboration::{unification, MetaSource};
 use crate::surface::{BinOp, Plicity};
 use crate::BUG_REPORT_URL;
@@ -14,104 +14,104 @@ use crate::BUG_REPORT_URL;
 pub enum Message {
     /// The name was not previously bound in the current scope.
     UnboundName {
-        range: ByteRange,
+        range: FileRange,
         name: StringId,
     },
     RefutablePattern {
-        pattern_range: ByteRange,
+        pattern_range: FileRange,
     },
     NonExhaustiveMatchExpr {
-        match_expr_range: ByteRange,
-        scrutinee_expr_range: ByteRange,
+        match_expr_range: FileRange,
+        scrutinee_expr_range: FileRange,
     },
     UnreachablePattern {
-        range: ByteRange,
+        range: FileRange,
     },
     UnexpectedParameter {
-        param_range: ByteRange,
+        param_range: FileRange,
     },
     UnexpectedArgument {
-        head_range: ByteRange,
+        head_range: FileRange,
         head_type: String,
-        arg_range: ByteRange,
+        arg_range: FileRange,
     },
     PlicityArgumentMismatch {
-        head_range: ByteRange,
+        head_range: FileRange,
         head_plicity: Plicity,
         head_type: String,
-        arg_range: ByteRange,
+        arg_range: FileRange,
         arg_plicity: Plicity,
     },
     UnknownField {
-        head_range: ByteRange,
+        head_range: FileRange,
         head_type: String,
-        label_range: ByteRange,
+        label_range: FileRange,
         label: StringId,
     },
     MismatchedFieldLabels {
-        range: ByteRange,
-        expr_labels: Vec<(ByteRange, StringId)>,
+        range: FileRange,
+        expr_labels: Vec<(FileRange, StringId)>,
         type_labels: Vec<StringId>,
         // TODO: add expected type
         // expected_type: Doc<_>,
     },
     DuplicateFieldLabels {
-        range: ByteRange,
-        labels: Vec<(ByteRange, StringId)>,
+        range: FileRange,
+        labels: Vec<(FileRange, StringId)>,
     },
     ArrayLiteralNotSupported {
-        range: ByteRange,
+        range: FileRange,
         expected_type: String,
     },
     MismatchedArrayLength {
-        range: ByteRange,
+        range: FileRange,
         found_len: usize,
         expected_len: String,
     },
     AmbiguousArrayLiteral {
-        range: ByteRange,
+        range: FileRange,
     },
     AmbiguousStringLiteral {
-        range: ByteRange,
+        range: FileRange,
     },
     MismatchedStringLiteralByteLength {
-        range: ByteRange,
+        range: FileRange,
         expected_len: usize,
         found_len: usize,
     },
     NonAsciiStringLiteral {
-        invalid_range: ByteRange,
+        invalid_range: FileRange,
     },
     StringLiteralNotSupported {
-        range: ByteRange,
+        range: FileRange,
         expected_type: String,
     },
     InvalidNumericLiteral {
-        range: ByteRange,
+        range: FileRange,
         message: String,
     },
     NumericLiteralNotSupported {
-        range: ByteRange,
+        range: FileRange,
         expected_type: String,
     },
     AmbiguousNumericLiteral {
-        range: ByteRange,
+        range: FileRange,
     },
     BooleanLiteralNotSupported {
-        range: ByteRange,
+        range: FileRange,
     },
     /// Unification errors.
     FailedToUnify {
-        range: ByteRange,
+        range: FileRange,
         found: String,
         expected: String,
         error: unification::Error,
     },
     BinOpMismatchedTypes {
-        range: ByteRange,
-        lhs_range: ByteRange,
-        rhs_range: ByteRange,
-        op: BinOp<ByteRange>,
+        range: FileRange,
+        lhs_range: FileRange,
+        rhs_range: FileRange,
+        op: BinOp<FileRange>,
         lhs: String,
         rhs: String,
     },
@@ -122,7 +122,7 @@ pub enum Message {
         // type: Doc<_>,
     },
     HoleSolution {
-        range: ByteRange,
+        range: FileRange,
         name: StringId,
         // TODO: add type
         // type: Doc<_>,
@@ -134,14 +134,14 @@ pub enum Message {
     },
     /// Core term lacked span information
     MissingSpan {
-        range: ByteRange,
+        range: FileRange,
     },
 }
 
 impl Message {
     pub fn to_diagnostic(&self, interner: &RefCell<StringInterner>) -> Diagnostic<FileId> {
-        let primary_label = |range: &ByteRange| Label::primary(range.file_id(), *range);
-        let secondary_label = |range: &ByteRange| Label::secondary(range.file_id(), *range);
+        let primary_label = |range: &FileRange| Label::primary(range.file_id(), *range);
+        let secondary_label = |range: &FileRange| Label::secondary(range.file_id(), *range);
 
         match self {
             Message::UnboundName { range, name } => {
