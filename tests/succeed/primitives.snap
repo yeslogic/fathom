@@ -1,5 +1,6 @@
 stdout = '''
 let _ : Type = Void;
+let _ : fun (A : Type) -> Void -> A = absurd;
 let _ : Type = Bool;
 let _ : Type = U8;
 let _ : Type = U16;
