@@ -25,6 +25,7 @@ use crate::core::semantics::{
 use crate::core::{Prim, Term};
 use crate::env::{EnvLen, Index, Level, SharedEnv, SliceEnv, UniqueEnv};
 use crate::source::{Spanned, StringId};
+use crate::surface::Plicity;
 
 /// Errors encountered during unification.
 ///
@@ -230,17 +231,23 @@ impl<'arena, 'env> Context<'arena, 'env> {
             (Value::Universe, Value::Universe) => Ok(()),
 
             (
-                Value::FunType(_, param_type0, body_type0),
-                Value::FunType(_, param_type1, body_type1),
-            ) => {
+                Value::FunType(plicity0, _, param_type0, body_type0),
+                Value::FunType(plicity1, _, param_type1, body_type1),
+            ) if plicity0 == plicity1 => {
                 self.unify(param_type0, param_type1)?;
                 self.unify_closures(body_type0, body_type1)
             }
-            (Value::FunLit(_, body_expr0), Value::FunLit(_, body_expr1)) => {
+            (Value::FunLit(plicity0, _, body_expr0), Value::FunLit(plicity1, _, body_expr1))
+                if plicity0 == plicity1 =>
+            {
                 self.unify_closures(body_expr0, body_expr1)
             }
-            (Value::FunLit(_, body_expr), _) => self.unify_fun_lit(body_expr, &value1),
-            (_, Value::FunLit(_, body_expr)) => self.unify_fun_lit(body_expr, &value0),
+            (Value::FunLit(plicity, _, body_expr), _) => {
+                self.unify_fun_lit(*plicity, body_expr, &value1)
+            }
+            (_, Value::FunLit(plicity, _, body_expr)) => {
+                self.unify_fun_lit(*plicity, body_expr, &value0)
+            }
 
             (Value::RecordType(labels0, types0), Value::RecordType(labels1, types1)) => {
                 if labels0 != labels1 {
@@ -311,7 +318,9 @@ impl<'arena, 'env> Context<'arena, 'env> {
         }
         for (elim0, elim1) in Iterator::zip(spine0.iter(), spine1.iter()) {
             match (elim0, elim1) {
-                (Elim::FunApp(arg_expr0), Elim::FunApp(arg_expr1)) => {
+                (Elim::FunApp(plicity0, arg_expr0), Elim::FunApp(plicity1, arg_expr1))
+                    if plicity0 == plicity1 =>
+                {
                     self.unify(arg_expr0, arg_expr1)?;
                 }
                 (Elim::RecordProj(label0), Elim::RecordProj(label1)) if label0 == label1 => {}
@@ -418,11 +427,12 @@ impl<'arena, 'env> Context<'arena, 'env> {
     /// ```
     fn unify_fun_lit(
         &mut self,
+        plicity: Plicity,
         body_expr: &Closure<'arena>,
         value: &ArcValue<'arena>,
     ) -> Result<(), Error> {
         let var = Spanned::empty(Arc::new(Value::local_var(self.local_exprs.next_level())));
-        let value = self.elim_env().fun_app(value.clone(), var.clone());
+        let value = self.elim_env().fun_app(plicity, value.clone(), var.clone());
         let body_expr = self.elim_env().apply_closure(body_expr, var);
 
         self.local_exprs.push();
@@ -487,7 +497,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
 
         for elim in spine {
             match elim {
-                Elim::FunApp(arg_expr) => match self.elim_env().force(arg_expr).as_ref() {
+                Elim::FunApp(_, arg_expr) => match self.elim_env().force(arg_expr).as_ref() {
                     Value::Stuck(Head::LocalVar(source_var), spine)
                         if spine.is_empty() && self.renaming.set_local(*source_var) => {}
                     Value::Stuck(Head::LocalVar(source_var), _) => {
@@ -507,7 +517,9 @@ impl<'arena, 'env> Context<'arena, 'env> {
     /// correspond to the given `spine`.
     fn fun_intros(&self, spine: &[Elim<'arena>], term: Term<'arena>) -> Term<'arena> {
         spine.iter().fold(term, |term, elim| match elim {
-            Elim::FunApp(_) => Term::FunLit(term.span(), None, self.scope.to_scope(term)),
+            Elim::FunApp(plicity, _) => {
+                Term::FunLit(term.span(), *plicity, None, self.scope.to_scope(term))
+            }
             Elim::RecordProj(_) | Elim::ConstMatch(_) => {
                 unreachable!("should have been caught by `init_renaming`")
             }
@@ -545,8 +557,9 @@ impl<'arena, 'env> Context<'arena, 'env> {
 
                 spine.iter().fold(Ok(head_expr), |head_expr, elim| {
                     Ok(match elim {
-                        Elim::FunApp(arg_expr) => Term::FunApp(
+                        Elim::FunApp(plicity, arg_expr) => Term::FunApp(
                             span,
+                            *plicity,
                             self.scope.to_scope(head_expr?),
                             self.scope.to_scope(self.rename(meta_var, arg_expr)?),
                         ),
@@ -589,22 +602,24 @@ impl<'arena, 'env> Context<'arena, 'env> {
 
             Value::Universe => Ok(Term::Universe(span)),
 
-            Value::FunType(param_name, param_type, body_type) => {
+            Value::FunType(plicity, param_name, param_type, body_type) => {
                 let param_type = self.rename(meta_var, param_type)?;
                 let body_type = self.rename_closure(meta_var, body_type)?;
 
                 Ok(Term::FunType(
                     span,
+                    *plicity,
                     *param_name,
                     self.scope.to_scope(param_type),
                     self.scope.to_scope(body_type),
                 ))
             }
-            Value::FunLit(param_name, body_expr) => {
+            Value::FunLit(plicity, param_name, body_expr) => {
                 let body_expr = self.rename_closure(meta_var, body_expr)?;
 
                 Ok(Term::FunLit(
                     span,
+                    *plicity,
                     *param_name,
                     self.scope.to_scope(body_expr),
                 ))

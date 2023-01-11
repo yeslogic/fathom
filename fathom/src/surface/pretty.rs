@@ -3,9 +3,8 @@ use scoped_arena::Scope;
 use std::cell::RefCell;
 
 use crate::source::{StringId, StringInterner};
-use crate::surface::{BinOp, FormatField, Item, Module, Pattern, Term};
-
-use super::lexer::is_keyword;
+use crate::surface::lexer::is_keyword;
+use crate::surface::{AppArg, BinOp, FormatField, FunParam, Item, Module, Pattern, Plicity, Term};
 
 /// Term precedences
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
@@ -68,13 +67,13 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                     match item.r#type {
                         None => self.concat([
                             self.ident(item.label.1),
-                            self.ann_patterns(item.patterns),
+                            self.fun_params(item.params),
                             self.space(),
                         ]),
                         Some(r#type) => self.concat([
                             self.concat([
                                 self.ident(item.label.1),
-                                self.ann_patterns(item.patterns),
+                                self.fun_params(item.params),
                                 self.space(),
                                 self.text(":"),
                             ])
@@ -107,19 +106,49 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         }
     }
 
+    fn plicity(&'arena self, plicity: Plicity) -> DocBuilder<'arena, Self> {
+        match plicity {
+            Plicity::Explicit => self.nil(),
+            Plicity::Implicit => self.text("@"),
+        }
+    }
+
     fn ann_pattern<Range>(
         &'arena self,
-        prec: Prec,
         pattern: &Pattern<Range>,
         r#type: Option<&Term<'_, Range>>,
     ) -> DocBuilder<'arena, Self> {
         match r#type {
             None => self.pattern(pattern),
+            Some(r#type) => self.concat([
+                self.concat([self.pattern(pattern), self.space(), self.text(":")])
+                    .group(),
+                self.softline(),
+                self.term_prec(Prec::Top, r#type),
+            ]),
+        }
+    }
+
+    fn app_arg<Range>(&'arena self, arg: &AppArg<'_, Range>) -> DocBuilder<'arena, Self> {
+        self.concat([
+            self.plicity(arg.plicity),
+            self.term_prec(Prec::Proj, &arg.term),
+        ])
+    }
+
+    fn fun_param<Range>(&'arena self, param: &FunParam<'_, Range>) -> DocBuilder<'arena, Self> {
+        match &param.r#type {
+            None => self.concat([self.plicity(param.plicity), self.pattern(&param.pattern)]),
             Some(r#type) => self.paren(
-                prec > Prec::Top,
+                true,
                 self.concat([
-                    self.concat([self.pattern(pattern), self.space(), self.text(":")])
-                        .group(),
+                    self.concat([
+                        self.plicity(param.plicity),
+                        self.pattern(&param.pattern),
+                        self.space(),
+                        self.text(":"),
+                    ])
+                    .group(),
                     self.softline(),
                     self.term_prec(Prec::Top, r#type),
                 ]),
@@ -127,16 +156,8 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         }
     }
 
-    fn ann_patterns<Range>(
-        &'arena self,
-        patterns: &[(Pattern<Range>, Option<&Term<'_, Range>>)],
-    ) -> DocBuilder<'arena, Self> {
-        self.concat(patterns.iter().map(|(pattern, r#type)| {
-            self.concat([
-                self.space(),
-                self.ann_pattern(Prec::Atomic, pattern, *r#type),
-            ])
-        }))
+    fn fun_params<Range>(&'arena self, params: &[FunParam<'_, Range>]) -> DocBuilder<'arena, Self> {
+        self.concat((params.iter()).map(|param| self.concat([self.space(), self.fun_param(param)])))
     }
 
     pub fn term<Range>(&'arena self, term: &Term<'_, Range>) -> DocBuilder<'arena, Self> {
@@ -173,7 +194,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                     self.concat([
                         self.text("let"),
                         self.space(),
-                        self.ann_pattern(Prec::Top, def_pattern, *def_type),
+                        self.ann_pattern(def_pattern, *def_type),
                         self.space(),
                         self.text("="),
                         self.softline(),
@@ -226,7 +247,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 self.concat([
                     self.concat([
                         self.text("fun"),
-                        self.ann_patterns(patterns),
+                        self.fun_params(patterns),
                         self.space(),
                         self.text("->"),
                     ])
@@ -235,9 +256,10 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                     self.term_prec(Prec::Fun, body_type),
                 ]),
             ),
-            Term::Arrow(_, param_type, body_type) => self.paren(
+            Term::Arrow(_, plicity, param_type, body_type) => self.paren(
                 prec > Prec::Fun,
                 self.concat([
+                    self.plicity(*plicity),
                     self.term_prec(Prec::App, param_type),
                     self.softline(),
                     self.text("->"),
@@ -250,7 +272,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 self.concat([
                     self.concat([
                         self.text("fun"),
-                        self.ann_patterns(patterns),
+                        self.fun_params(patterns),
                         self.space(),
                         self.text("=>"),
                     ])
@@ -259,15 +281,12 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                     self.term_prec(Prec::Let, body_expr),
                 ]),
             ),
-            Term::App(_, head_expr, arg_exprs) => self.paren(
+            Term::App(_, head_expr, args) => self.paren(
                 prec > Prec::App,
                 self.concat([
                     self.term_prec(Prec::Proj, head_expr),
                     self.space(),
-                    self.intersperse(
-                        (arg_exprs.iter()).map(|arg_expr| self.term_prec(Prec::Proj, arg_expr)),
-                        self.space(),
-                    ),
+                    self.intersperse((args.iter()).map(|arg| self.app_arg(arg)), self.space()),
                 ]),
             ),
             Term::RecordType(_, type_fields) => self.sequence(
@@ -650,7 +669,7 @@ impl<'interner, 'arena, A: 'arena> DocAllocator<'arena, A> for Context<'interner
                 borrowed_text!(
                     match doc, {
                         "def", "else", "false", "fun", "if", "let", "match", "overlap", "then",
-                        "true", "Type", "where", ":", ",", "=", "!=", "==", "=>", ">=", ">", "<=",
+                        "true", "Type", "where", "@", ":", ",", "=", "!=", "==", "=>", ">=", ">", "<=",
                         "<", ".", "/", "->", "<-", "-", "|", "+", ";", "*", "_", "{", "}", "[",
                         "]", "(", ")"
                     },

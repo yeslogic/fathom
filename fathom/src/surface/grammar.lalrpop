@@ -2,7 +2,7 @@ use scoped_arena::Scope;
 use std::cell::RefCell;
 
 use crate::source::{ByteRange, BytePos, StringId, StringInterner};
-use crate::surface::{ExprField, FormatField, Item, ItemDef, Module, ParseMessage, Pattern, Term, TypeField, BinOp};
+use crate::surface::{ExprField, FormatField, Item, ItemDef, Module, ParseMessage, Pattern, Term, TypeField, BinOp, Plicity, FunParam, AppArg};
 use crate::surface::lexer::{Error as LexerError, Token};
 use crate::files::FileId;
 
@@ -36,6 +36,7 @@ extern {
         "false" => Token::KeywordFalse,
         "where" => Token::KeywordWhere,
 
+        "@" => Token::At,
         ":" => Token::Colon,
         "," => Token::Comma,
         "=" => Token::Equals,
@@ -74,11 +75,11 @@ pub Module: Module<'arena, ByteRange> = {
 };
 
 Item: Item<'arena, ByteRange> = {
-    <start: @L> "def" <label: RangedName> <patterns: AnnPattern*> <r#type: (":" <LetTerm>)?> "=" <expr: Term> ";" <end: @R> => {
+    <start: @L> "def" <label: RangedName> <params: FunParam*> <r#type: (":" <LetTerm>)?> "=" <expr: Term> ";" <end: @R> => {
         Item::Def(ItemDef {
             range: ByteRange::new(file_id, start, end),
             label,
-            patterns: scope.to_scope_from_iter(patterns),
+            params: scope.to_scope_from_iter(params),
             r#type: r#type.map(|r#type| scope.to_scope(r#type) as &_),
             expr: scope.to_scope(expr),
         })
@@ -96,11 +97,6 @@ Pattern: Pattern<ByteRange> = {
     <start: @L> <number: NumberLiteral> <end: @R> => Pattern::NumberLiteral(ByteRange::new(file_id, start, end), number),
     <start: @L> "true" <end: @R> => Pattern::BooleanLiteral(ByteRange::new(file_id, start, end), true),
     <start: @L> "false" <end: @R> => Pattern::BooleanLiteral(ByteRange::new(file_id, start, end), false),
-};
-
-AnnPattern: (Pattern<ByteRange>, Option<&'arena Term<'arena, ByteRange>>) = {
-    <pattern: Pattern> => (pattern, None),
-    "(" <pattern: Pattern> ":" <r#type: LetTerm> ")" => (pattern, Some(scope.to_scope(r#type))),
 };
 
 pub Term: Term<'arena, ByteRange> = {
@@ -132,24 +128,25 @@ LetTerm: Term<'arena, ByteRange> = {
 
 FunTerm: Term<'arena, ByteRange> = {
     EqExpr,
-    <start: @L> <param_type: AppTerm> "->"  <body_type: FunTerm> <end: @R> => {
+    <start: @L> <plicity: Plicity> <param_type: AppTerm> "->"  <body_type: FunTerm> <end: @R> => {
         Term::Arrow(
             ByteRange::new(file_id, start, end),
+            plicity,
             scope.to_scope(param_type),
             scope.to_scope(body_type),
         )
     },
-    <start: @L> "fun" <patterns: AnnPattern+> "->"  <output_type: FunTerm> <end: @R> => {
+    <start: @L> "fun" <params: FunParam+> "->"  <output_type: FunTerm> <end: @R> => {
         Term::FunType(
             ByteRange::new(file_id, start, end),
-            scope.to_scope_from_iter(patterns),
+            scope.to_scope_from_iter(params),
             scope.to_scope(output_type),
         )
     },
-    <start: @L> "fun" <patterns: AnnPattern+> "=>" <output_type: LetTerm> <end: @R> => {
+    <start: @L> "fun" <params: FunParam+> "=>" <output_type: LetTerm> <end: @R> => {
         Term::FunLiteral(
             ByteRange::new(file_id, start, end),
-            scope.to_scope_from_iter(patterns),
+            scope.to_scope_from_iter(params),
             scope.to_scope(output_type),
         )
     },
@@ -183,14 +180,18 @@ MulExpr: Term<'arena, ByteRange> = {
 
 AppTerm: Term<'arena, ByteRange> = {
     ProjTerm,
-    <start: @L> <head_expr: ProjTerm> <arg_exprs: ProjTerm+> <end: @R> => {
+    <start: @L> <head_expr: ProjTerm> <args: AppArg+> <end: @R> => {
         Term::App(
             ByteRange::new(file_id, start, end),
             scope.to_scope(head_expr),
-            scope.to_scope_from_iter(arg_exprs),
+            scope.to_scope_from_iter(args),
         )
     },
 };
+
+AppArg: AppArg<'arena, ByteRange> = {
+    <plicity: Plicity> <term: ProjTerm> => AppArg {plicity, term},
+}
 
 ProjTerm: Term<'arena, ByteRange> = {
     AtomicTerm,
@@ -293,6 +294,17 @@ Tuple<Elem>: &'arena [Elem] = {
     "(" <term: Term> "," ")" => scope.to_scope_from_iter([term]),
     "(" <terms: Seq2<Term, ",">> ")" => terms,
 };
+
+#[inline]
+Plicity: Plicity = {
+    () => Plicity::Explicit,
+    "@" => Plicity::Implicit,
+}
+
+FunParam: FunParam<'arena, ByteRange> = {
+    <plicity: Plicity> <pattern: Pattern> => FunParam {plicity, pattern, r#type: None},
+    "(" <plicity: Plicity> <pattern: Pattern> ":" <r#type: LetTerm> ")" => FunParam{plicity, pattern, r#type: Some(r#type)},
+}
 
 #[inline]
 RangedName: (ByteRange, StringId) = {

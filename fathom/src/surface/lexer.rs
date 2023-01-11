@@ -52,6 +52,8 @@ pub enum Token<'source> {
     #[token("where")]
     KeywordWhere,
 
+    #[token("@")]
+    At,
     #[token(":")]
     Colon,
     #[token(",")]
@@ -174,6 +176,7 @@ impl<'source> Token<'source> {
             Token::KeywordTrue => "true",
             Token::KeywordType => "Type",
             Token::KeywordWhere => "where",
+            Token::At => "@",
             Token::Colon => ":",
             Token::Comma => ",",
             Token::Equals => "=>",

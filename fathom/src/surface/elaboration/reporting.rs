@@ -5,7 +5,7 @@ use std::cell::RefCell;
 use crate::files::FileId;
 use crate::source::{ByteRange, StringId, StringInterner};
 use crate::surface::elaboration::{unification, MetaSource};
-use crate::surface::BinOp;
+use crate::surface::{BinOp, Plicity};
 use crate::BUG_REPORT_URL;
 
 /// Elaboration diagnostic messages.
@@ -33,6 +33,13 @@ pub enum Message {
         head_range: ByteRange,
         head_type: String,
         arg_range: ByteRange,
+    },
+    PlicityArgumentMismatch {
+        head_range: ByteRange,
+        head_plicity: Plicity,
+        head_type: String,
+        arg_range: ByteRange,
+        arg_plicity: Plicity,
     },
     UnknownField {
         head_range: ByteRange,
@@ -179,6 +186,21 @@ impl Message {
                     primary_label(arg_range).with_message("unexpected argument"),
                     secondary_label(head_range)
                         .with_message(format!("expression of type {head_type}")),
+                ]),
+            Message::PlicityArgumentMismatch {
+                head_range,
+                head_plicity,
+                head_type,
+                arg_range,
+                arg_plicity,
+            } => Diagnostic::error()
+                .with_message(format!(
+                    "{arg_plicity} argument was applied to an {head_plicity} function"
+                ))
+                .with_labels(vec![
+                    primary_label(arg_range).with_message(format!("{arg_plicity} argument")),
+                    secondary_label(head_range)
+                        .with_message(format!("{head_plicity} function of type {head_type}")),
                 ]),
             Message::UnknownField {
                 head_range,
@@ -435,6 +457,7 @@ impl Message {
             }
             Message::UnsolvedMetaVar { source } => {
                 let (range, source_name) = match source {
+                    MetaSource::ImplicitArg(range, _) => (range, "implicit argument"),
                     MetaSource::HoleType(range, _) => (range, "hole type"), // should never appear in user-facing output
                     MetaSource::HoleExpr(range, _) => (range, "hole expression"),
                     MetaSource::PlaceholderType(range) => (range, "placeholder type"), // should never appear in user-facing output

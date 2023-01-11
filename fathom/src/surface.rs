@@ -8,6 +8,7 @@ use lalrpop_util::lalrpop_mod;
 use scoped_arena::Scope;
 
 use crate::{
+    core::Plicity,
     files::FileId,
     source::{BytePos, ByteRange, StringId, StringInterner},
 };
@@ -69,7 +70,7 @@ pub struct ItemDef<'arena, Range> {
     /// The label that identifies this definition
     label: (Range, StringId),
     /// Parameter patterns
-    patterns: &'arena [(Pattern<Range>, Option<&'arena Term<'arena, Range>>)],
+    params: &'arena [FunParam<'arena, Range>],
     /// An optional type annotation for the defined expression
     r#type: Option<&'arena Term<'arena, Range>>,
     /// The defined expression
@@ -206,26 +207,27 @@ pub enum Term<'arena, Range> {
     /// Arrow types.
     Arrow(
         Range,
+        Plicity,
         &'arena Term<'arena, Range>,
         &'arena Term<'arena, Range>,
     ),
     /// Dependent function types.
     FunType(
         Range,
-        &'arena [(Pattern<Range>, Option<&'arena Term<'arena, Range>>)],
+        &'arena [FunParam<'arena, Range>],
         &'arena Term<'arena, Range>,
     ),
     /// Function literals.
     FunLiteral(
         Range,
-        &'arena [(Pattern<Range>, Option<&'arena Term<'arena, Range>>)],
+        &'arena [FunParam<'arena, Range>],
         &'arena Term<'arena, Range>,
     ),
     /// Applications.
     App(
         Range,
         &'arena Term<'arena, Range>,
-        &'arena [Term<'arena, Range>],
+        &'arena [AppArg<'arena, Range>],
     ),
     /// Dependent record types.
     RecordType(Range, &'arena [TypeField<'arena, Range>]),
@@ -286,7 +288,7 @@ impl<'arena, Range: Clone> Term<'arena, Range> {
             | Term::If(range, _, _, _)
             | Term::Match(range, _, _)
             | Term::Universe(range)
-            | Term::Arrow(range, _, _)
+            | Term::Arrow(range, ..)
             | Term::FunType(range, _, _)
             | Term::FunLiteral(range, _, _)
             | Term::App(range, _, _)
@@ -330,6 +332,20 @@ impl<'arena> Term<'arena, ByteRange> {
 
         (term, messages)
     }
+}
+
+#[derive(Debug, Clone)]
+pub struct FunParam<'arena, Range> {
+    pub plicity: Plicity,
+    pub pattern: Pattern<Range>,
+    pub r#type: Option<Term<'arena, Range>>,
+}
+
+#[derive(Debug, Clone)]
+
+pub struct AppArg<'arena, Range> {
+    pub plicity: Plicity,
+    pub term: Term<'arena, Range>,
 }
 
 /// A field declaration in a record and offset format

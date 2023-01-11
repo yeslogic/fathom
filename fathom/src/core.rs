@@ -1,5 +1,7 @@
 //! Core language.
 
+use std::fmt;
+
 use crate::env::{Index, Level};
 use crate::source::{Span, StringId};
 
@@ -36,6 +38,21 @@ pub enum LocalInfo {
     Def,
     /// The entry was bound as a parameter in the environment
     Param,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Plicity {
+    Explicit,
+    Implicit,
+}
+
+impl fmt::Display for Plicity {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Plicity::Explicit => write!(f, "explicit"),
+            Plicity::Implicit => write!(f, "implicit"),
+        }
+    }
 }
 
 /// Core language terms.
@@ -141,6 +158,7 @@ pub enum Term<'arena> {
     /// Also known as: pi types, dependent product types.
     FunType(
         Span,
+        Plicity,
         Option<StringId>,
         &'arena Term<'arena>,
         &'arena Term<'arena>,
@@ -148,9 +166,9 @@ pub enum Term<'arena> {
     /// Function literals.
     ///
     /// Also known as: lambda expressions, anonymous functions.
-    FunLit(Span, Option<StringId>, &'arena Term<'arena>),
+    FunLit(Span, Plicity, Option<StringId>, &'arena Term<'arena>),
     /// Function applications.
-    FunApp(Span, &'arena Term<'arena>, &'arena Term<'arena>),
+    FunApp(Span, Plicity, &'arena Term<'arena>, &'arena Term<'arena>),
 
     /// Dependent record types.
     RecordType(Span, &'arena [StringId], &'arena [Term<'arena>]),
@@ -196,9 +214,9 @@ impl<'arena> Term<'arena> {
             | Term::Ann(span, _, _)
             | Term::Let(span, _, _, _, _)
             | Term::Universe(span)
-            | Term::FunType(span, _, _, _)
-            | Term::FunLit(span, _, _)
-            | Term::FunApp(span, _, _)
+            | Term::FunType(span, ..)
+            | Term::FunLit(span, ..)
+            | Term::FunApp(span, ..)
             | Term::RecordType(span, _, _)
             | Term::RecordLit(span, _, _)
             | Term::RecordProj(span, _, _)
@@ -229,11 +247,11 @@ impl<'arena> Term<'arena> {
                     || def_expr.binds_local(var)
                     || body_expr.binds_local(var.prev())
             }
-            Term::FunType(_, _, param_type, body_type) => {
+            Term::FunType(.., param_type, body_type) => {
                 param_type.binds_local(var) || body_type.binds_local(var.prev())
             }
-            Term::FunLit(_, _, body_expr) => body_expr.binds_local(var.prev()),
-            Term::FunApp(_, head_expr, arg_expr) => {
+            Term::FunLit(.., body_expr) => body_expr.binds_local(var.prev()),
+            Term::FunApp(.., head_expr, arg_expr) => {
                 head_expr.binds_local(var) || arg_expr.binds_local(var)
             }
             Term::RecordType(_, _, terms)
@@ -255,6 +273,10 @@ impl<'arena> Term<'arena> {
                     || default_expr.map_or(false, |(_, term)| term.binds_local(var.prev()))
             }
         }
+    }
+
+    pub fn is_error(&self) -> bool {
+        matches!(self, Term::Prim(_, Prim::ReportedError))
     }
 }
 

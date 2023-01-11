@@ -1,0 +1,18 @@
+let id = fun (@A : Type) (a : A) => a;
+let always = fun (@A : Type) (@B : Type) (a : A) (b : B) => a;
+let apply = fun (@A : Type) (@B : Type) (f : A -> B) (x : A) => f x;
+
+// No specialisation
+let _ = id;
+let _ = always;
+let _ = apply;
+
+// Full specialisation
+let _ : Bool -> Bool = id;
+let _ : Bool -> U32 -> Bool = always;
+let _ : (Bool -> U32) -> Bool -> U32 = apply;
+
+// Specialisation of higher order functions
+let _ = apply (always false) (0 : U32);
+
+{}
