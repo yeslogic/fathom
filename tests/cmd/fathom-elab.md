@@ -6,18 +6,16 @@ Short help can be printed with `-h`
 
 ```console
 $ fathom elab -h
-fathom-elab 
 Elaborate a Fathom module or term, printing the result to stdout
 
-USAGE:
-    fathom elab [OPTIONS]
+Usage: fathom elab [OPTIONS]
 
-OPTIONS:
-        --module <MODULE_FILE>    Path to a module to elaborate
-        --term <TERM_FILE>        Path to a term to elaborate
-        --allow-errors            Continue even if errors were encountered
-    -h, --help                    Print help information
-        --pretty-core             Pretty print core module
+Options:
+      --module <MODULE_FILE>  Path to a module to elaborate
+      --term <TERM_FILE>      Path to a term to elaborate
+      --allow-errors          Continue even if errors were encountered
+      --pretty-core           Pretty print core module
+  -h, --help                  Print help information
 
 ```
 
@@ -25,18 +23,16 @@ Long help can be printed with `--help`
 
 ```console
 $ fathom elab --help
-fathom-elab 
 Elaborate a Fathom module or term, printing the result to stdout
 
-USAGE:
-    fathom elab [OPTIONS]
+Usage: fathom elab [OPTIONS]
 
-OPTIONS:
-        --module <MODULE_FILE>    Path to a module to elaborate
-        --term <TERM_FILE>        Path to a term to elaborate
-        --allow-errors            Continue even if errors were encountered
-    -h, --help                    Print help information
-        --pretty-core             Pretty print core module
+Options:
+      --module <MODULE_FILE>  Path to a module to elaborate
+      --term <TERM_FILE>      Path to a term to elaborate
+      --allow-errors          Continue even if errors were encountered
+      --pretty-core           Pretty print core module
+  -h, --help                  Print help information
 
 ```
 
@@ -77,13 +73,12 @@ Either a `--module` or a `--term` must be provided
 $ fathom elab
 ? failed
 error: The following required arguments were not provided:
-    --module <MODULE_FILE>
-    --term <TERM_FILE>
+  --module <MODULE_FILE>
+  --term <TERM_FILE>
 
-USAGE:
-    fathom elab --module <MODULE_FILE> --term <TERM_FILE>
+Usage: fathom elab --module <MODULE_FILE> --term <TERM_FILE>
 
-For more information try --help
+For more information try '--help'
 
 ```
 
@@ -97,10 +92,9 @@ $ fathom elab --module formats/object-id.fathom
 ? failed
 error: The argument '--module <MODULE_FILE>' cannot be used with '--term <TERM_FILE>'
 
-USAGE:
-    fathom elab --module <MODULE_FILE>
+Usage: fathom elab --module <MODULE_FILE>
 
-For more information try --help
+For more information try '--help'
 
 ```
 

@@ -4,7 +4,7 @@ version = "0.1.0"
 authors = ["YesLogic Pty. Ltd. <info@yeslogic.com>"]
 repository = "https://github.com/yeslogic/fathom"
 edition = "2021"
-rust-version = "1.62.0"
+rust-version = "1.65.0"
 publish = false
 
 description = "A language for declaratively specifying binary data formats"
@@ -19,14 +19,14 @@ harness = false
 
 [dependencies]
 atty = "0.2.14"
-clap = { version = "3.2.5", features = ["derive"] }
+clap = { version = "4.0", features = ["derive"] }
 codespan-reporting = "0.11.1"
 fxhash = "0.2"
 itertools = "0.10"
 lalrpop-util = "0.19.5"
 logos = "0.12"
 pretty = "0.11.2"
-rpds = "0.11"
+rpds = "0.12.0"
 scoped-arena = "0.3"
 string-interner = "0.14.0"
 termsize = "0.1.6"
@@ -38,8 +38,8 @@ lalrpop = { git = "https://github.com/kmeakin/lalrpop", branch = "raw-identifier
 diff = "0.1.12"
 globwalk = "0.8"
 itertools = "0.10.1"
-libtest-mimic = "0.3.0"
+libtest-mimic = "0.6.0"
 serde = { version = "1.0", features = ["derive"] }
 toml = "0.5"
-trycmd = "0.13.4"
+trycmd = "0.14.10"
 walkdir = "2.3.2"

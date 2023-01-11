@@ -6,20 +6,18 @@ Short help can be printed with `-h`
 
 ```console
 $ fathom data -h
-fathom-data 
 Manipulate binary data based on a Fathom format
 
-USAGE:
-    fathom data [OPTIONS] <BINARY_FILE>
+Usage: fathom data [OPTIONS] <BINARY_FILE>
 
-ARGS:
-    <BINARY_FILE>    Path to the binary data to read from
+Arguments:
+  <BINARY_FILE>  Path to the binary data to read from
 
-OPTIONS:
-        --module <MODULE_FILE>    Path to a module to load when reading
-        --format <FORMAT>         Format used when reading the binary data [default: main]
-        --allow-errors            Continue even if errors were encountered
-    -h, --help                    Print help information
+Options:
+      --module <MODULE_FILE>  Path to a module to load when reading
+      --format <FORMAT>       Format used when reading the binary data [default: main]
+      --allow-errors          Continue even if errors were encountered
+  -h, --help                  Print help information (use `--help` for more detail)
 
 Examples:
 
@@ -33,34 +31,32 @@ Long help can be printed with `--help`
 
 ```console
 $ fathom data --help
-fathom-data 
 Manipulate binary data based on a Fathom format
 
-USAGE:
-    fathom data [OPTIONS] <BINARY_FILE>
+Usage: fathom data [OPTIONS] <BINARY_FILE>
 
-ARGS:
-    <BINARY_FILE>
-            Path to the binary data to read from
+Arguments:
+  <BINARY_FILE>
+          Path to the binary data to read from
 
-OPTIONS:
-        --module <MODULE_FILE>
-            Path to a module to load when reading
+Options:
+      --module <MODULE_FILE>
+          Path to a module to load when reading
 
-        --format <FORMAT>
-            Format used when reading the binary data
-            
-            The term provided by `FORMAT` must be of type `Format`.
-            
-            Required unless `--module` is present.
-            
-            [default: main]
+      --format <FORMAT>
+          Format used when reading the binary data
+          
+          The term provided by `FORMAT` must be of type `Format`.
+          
+          Required unless `--module` is present.
+          
+          [default: main]
 
-        --allow-errors
-            Continue even if errors were encountered
+      --allow-errors
+          Continue even if errors were encountered
 
-    -h, --help
-            Print help information
+  -h, --help
+          Print help information (use `-h` for a summary)
 
 Binary data can be read using a term supplied by the `--format` option:
 
@@ -190,12 +186,12 @@ Arguments must be provided to `fathom data`
 $ fathom data
 ? failed
 error: The following required arguments were not provided:
-    <BINARY_FILE>
+  --format <FORMAT>
+  <BINARY_FILE>
 
-USAGE:
-    fathom data [OPTIONS] <BINARY_FILE>
+Usage: fathom data --format <FORMAT> <BINARY_FILE>
 
-For more information try --help
+For more information try '--help'
 
 ```
 
@@ -205,12 +201,11 @@ The `--format` option must be present when `--module` is not supplied
 $ fathom data formats/data/edid/dell-P2415Q.edid
 ? failed
 error: The following required arguments were not provided:
-    --format <FORMAT>
+  --format <FORMAT>
 
-USAGE:
-    fathom data --format <FORMAT> <BINARY_FILE>
+Usage: fathom data --format <FORMAT> <BINARY_FILE>
 
-For more information try --help
+For more information try '--help'
 
 ```
 
