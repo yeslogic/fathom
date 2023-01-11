@@ -1,0 +1,11 @@
+stdout = ''
+stderr = '''
+error: expression was applied to an unexpected argument
+  ┌─ tests/fail/elaboration/implicit-args/unexpected-argument.fathom:3:7
+  │
+3 │ true @Bool
+  │ ----  ^^^^ unexpected argument
+  │ │      
+  │ expression of type Bool
+
+'''
