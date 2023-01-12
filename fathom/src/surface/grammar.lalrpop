@@ -2,7 +2,10 @@ use scoped_arena::Scope;
 use std::cell::RefCell;
 
 use crate::source::{ByteRange, BytePos, StringId, StringInterner};
-use crate::surface::{ExprField, FormatField, Item, ItemDef, Module, ParseMessage, Pattern, Term, TypeField, BinOp, Plicity, FunParam, AppArg};
+use crate::surface::{
+    Arg, BinOp, ExprField, FormatField, Item, ItemDef, Module, ParseMessage,
+    Pattern, Param, Plicity, Term, TypeField,
+};
 use crate::surface::lexer::{Error as LexerError, Token};
 use crate::files::FileId;
 
@@ -75,7 +78,7 @@ pub Module: Module<'arena, ByteRange> = {
 };
 
 Item: Item<'arena, ByteRange> = {
-    <start: @L> "def" <label: RangedName> <params: FunParam*> <r#type: (":" <LetTerm>)?> "=" <expr: Term> ";" <end: @R> => {
+    <start: @L> "def" <label: RangedName> <params: Param*> <r#type: (":" <LetTerm>)?> "=" <expr: Term> ";" <end: @R> => {
         Item::Def(ItemDef {
             range: ByteRange::new(file_id, start, end),
             label,
@@ -136,14 +139,14 @@ FunTerm: Term<'arena, ByteRange> = {
             scope.to_scope(body_type),
         )
     },
-    <start: @L> "fun" <params: FunParam+> "->"  <output_type: FunTerm> <end: @R> => {
+    <start: @L> "fun" <params: Param+> "->"  <output_type: FunTerm> <end: @R> => {
         Term::FunType(
             ByteRange::new(file_id, start, end),
             scope.to_scope_from_iter(params),
             scope.to_scope(output_type),
         )
     },
-    <start: @L> "fun" <params: FunParam+> "=>" <output_type: LetTerm> <end: @R> => {
+    <start: @L> "fun" <params: Param+> "=>" <output_type: LetTerm> <end: @R> => {
         Term::FunLiteral(
             ByteRange::new(file_id, start, end),
             scope.to_scope_from_iter(params),
@@ -180,7 +183,7 @@ MulExpr: Term<'arena, ByteRange> = {
 
 AppTerm: Term<'arena, ByteRange> = {
     ProjTerm,
-    <start: @L> <head_expr: ProjTerm> <args: AppArg+> <end: @R> => {
+    <start: @L> <head_expr: ProjTerm> <args: Arg+> <end: @R> => {
         Term::App(
             ByteRange::new(file_id, start, end),
             scope.to_scope(head_expr),
@@ -188,10 +191,6 @@ AppTerm: Term<'arena, ByteRange> = {
         )
     },
 };
-
-AppArg: AppArg<'arena, ByteRange> = {
-    <plicity: Plicity> <term: ProjTerm> => AppArg {plicity, term},
-}
 
 ProjTerm: Term<'arena, ByteRange> = {
     AtomicTerm,
@@ -299,12 +298,16 @@ Tuple<Elem>: &'arena [Elem] = {
 Plicity: Plicity = {
     () => Plicity::Explicit,
     "@" => Plicity::Implicit,
-}
+};
 
-FunParam: FunParam<'arena, ByteRange> = {
-    <plicity: Plicity> <pattern: Pattern> => FunParam {plicity, pattern, r#type: None},
-    "(" <plicity: Plicity> <pattern: Pattern> ":" <r#type: LetTerm> ")" => FunParam{plicity, pattern, r#type: Some(r#type)},
-}
+Param: Param<'arena, ByteRange> = {
+    <plicity: Plicity> <pattern: Pattern> => Param { plicity, pattern, r#type: None },
+    "(" <plicity: Plicity> <pattern: Pattern> ":" <r#type: LetTerm> ")" => Param { plicity, pattern, r#type: Some(r#type) },
+};
+
+Arg: Arg<'arena, ByteRange> = {
+    <plicity: Plicity> <term: ProjTerm> => Arg {plicity, term},
+};
 
 #[inline]
 RangedName: (ByteRange, StringId) = {

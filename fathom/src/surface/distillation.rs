@@ -6,13 +6,12 @@ use scoped_arena::Scope;
 
 use crate::alloc::SliceVec;
 use crate::core;
-use crate::core::{Const, UIntStyle};
+use crate::core::{Const, Plicity, UIntStyle};
 use crate::env::{self, EnvLen, Index, Level, UniqueEnv};
 use crate::source::{Span, StringId, StringInterner};
 use crate::surface::elaboration::MetaSource;
 use crate::surface::{
-    AppArg, BinOp, ExprField, FormatField, FunParam, Item, ItemDef, Module, Pattern, Plicity, Term,
-    TypeField,
+    Arg, BinOp, ExprField, FormatField, Item, ItemDef, Module, Param, Pattern, Term, TypeField,
 };
 
 /// Distillation context.
@@ -275,7 +274,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 let body_expr = self.check(body_expr);
                 self.truncate_local(initial_local_len);
 
-                let params = params.into_iter().map(|(plicity, name)| FunParam {
+                let params = params.into_iter().map(|(plicity, name)| Param {
                     plicity,
                     pattern: Pattern::Name((), name),
                     r#type: None,
@@ -427,7 +426,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                             core::LocalInfo::Def => {}
                             core::LocalInfo::Param => {
                                 let var = self.local_len().level_to_index(var).unwrap();
-                                args.push(AppArg {
+                                args.push(Arg {
                                     plicity: Plicity::Explicit,
                                     term: self.check(&core::Term::LocalVar(Span::Empty, var)),
                                 });
@@ -478,7 +477,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                             let param_type = self.check(param_type);
                             let param_name = self.freshen_name(*param_name, next_body_type);
                             let param_name = self.push_local(param_name);
-                            params.push(FunParam {
+                            params.push(Param {
                                 plicity: *plicity,
                                 pattern: Pattern::Name((), param_name),
                                 r#type: Some(param_type),
@@ -531,7 +530,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 let body_expr = self.synth(body_expr);
                 self.truncate_local(initial_local_len);
 
-                let params = params.into_iter().map(|(plicity, name)| FunParam {
+                let params = params.into_iter().map(|(plicity, name)| Param {
                     plicity,
                     pattern: Pattern::Name((), name),
                     r#type: None,
@@ -557,7 +556,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
 
                 while let core::Term::FunApp(_, plicity, next_head_expr, arg_expr) = head_expr {
                     head_expr = next_head_expr;
-                    args.push(AppArg {
+                    args.push(Arg {
                         plicity: *plicity,
                         term: self.check(arg_expr),
                     });
