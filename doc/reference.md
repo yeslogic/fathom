@@ -729,20 +729,21 @@ id Type S32
 
 ### Implicit parameters
 
-Function parameters can be made *implicit* by prefixing them with `@`:
+Function parameters can be made _implicit_ by prefixing them with `@`:
 
 ```fathom
 fun (@A : Type) => A
 ```
 
-Implicit parameters will be filled in automatically when they can be inferred by the types of other terms:
+Implicit parameters will be filled in automatically when they can be inferred by
+the types of other terms:
 
 ```fathom
 let id = fun (@A : Type) (a : A) => a;
 id false
 ```
 
-Implicit parameters can be passed explictly by prefixing the argument with `@`:
+Implicit arguments can be passed explicitly by prefixing the argument with `@`:
 
 ```fathom
 id @Bool false
