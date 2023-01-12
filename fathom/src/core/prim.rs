@@ -1,7 +1,8 @@
-use fxhash::FxHashMap;
-use scoped_arena::Scope;
 use std::cell::RefCell;
 use std::sync::Arc;
+
+use fxhash::FxHashMap;
+use scoped_arena::Scope;
 
 use crate::core::semantics::{ArcValue, Elim, ElimEnv, Value};
 use crate::core::{self, Const, Plicity, Prim, UIntStyle};

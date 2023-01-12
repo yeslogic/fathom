@@ -5,12 +5,13 @@
 //! Example:
 //!
 //! ```
+//! use std::cell::RefCell;
+//! use std::io::Write;
+//!
 //! use codespan_reporting::term::termcolor::{BufferedStandardStream, ColorChoice};
 //! use fathom::core::pretty::Context;
 //! use fathom::core::Module;
 //! use fathom::source::StringInterner;
-//! use std::cell::RefCell;
-//! use std::io::Write;
 //!
 //! // These are created for demonstration
 //! let interner = RefCell::new(StringInterner::new());
@@ -24,8 +25,9 @@
 //! stream.flush().unwrap();
 //! ```
 
-use pretty::RcDoc;
 use std::cell::RefCell;
+
+use pretty::RcDoc;
 
 use crate::core::{Item, Module, Plicity, Term};
 use crate::source::{StringId, StringInterner};

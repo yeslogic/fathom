@@ -15,8 +15,9 @@
 //! [elaboration-zoo]: https://github.com/AndrasKovacs/elaboration-zoo/
 //! [elaboration-zoo/03-holes]: https://github.com/AndrasKovacs/elaboration-zoo/tree/master/03-holes
 
-use scoped_arena::Scope;
 use std::sync::Arc;
+
+use scoped_arena::Scope;
 
 use crate::alloc::SliceVec;
 use crate::core::semantics::{

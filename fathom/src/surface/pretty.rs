@@ -1,6 +1,7 @@
+use std::cell::RefCell;
+
 use pretty::{Doc, DocAllocator, DocBuilder, DocPtr, RefDoc};
 use scoped_arena::Scope;
-use std::cell::RefCell;
 
 use crate::source::{StringId, StringInterner};
 use crate::surface::lexer::is_keyword;

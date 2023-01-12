@@ -20,22 +20,21 @@
 //! - [Lecture Notes on Bidirectional Type Checking](https://www.cs.cmu.edu/~fp/courses/15312-f04/handouts/15-bidirectional.pdf)
 //! - [elaboration-zoo](https://github.com/AndrasKovacs/elaboration-zoo/)
 
-use scoped_arena::Scope;
 use std::cell::RefCell;
 use std::str::FromStr;
 use std::sync::Arc;
+
+use scoped_arena::Scope;
 
 use crate::alloc::SliceVec;
 use crate::core::semantics::{self, ArcValue, Closure, Head, Telescope, Value};
 use crate::core::{self, prim, Const, Prim, UIntStyle};
 use crate::env::{self, EnvLen, Level, SharedEnv, UniqueEnv};
 use crate::source::{BytePos, ByteRange, Span, Spanned, StringId, StringInterner};
-use crate::surface::distillation;
 use crate::surface::elaboration::reporting::Message;
-use crate::surface::pretty;
-use crate::surface::{BinOp, FormatField, Item, Module, Pattern, Plicity, Term};
-
-use super::FunParam;
+use crate::surface::{
+    distillation, pretty, BinOp, FormatField, FunParam, Item, Module, Pattern, Plicity, Term,
+};
 
 mod order;
 mod reporting;

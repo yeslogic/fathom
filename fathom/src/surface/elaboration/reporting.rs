@@ -1,6 +1,7 @@
+use std::cell::RefCell;
+
 use codespan_reporting::diagnostic::{Diagnostic, Label};
 use itertools::Itertools;
-use std::cell::RefCell;
 
 use crate::files::FileId;
 use crate::source::{ByteRange, StringId, StringInterner};

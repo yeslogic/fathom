@@ -1,9 +1,10 @@
 //! The semantics of the core language, implemented using [normalisation by
 //! evaluation](https://en.wikipedia.org/wiki/Normalisation_by_evaluation).
 
-use scoped_arena::Scope;
 use std::panic::panic_any;
 use std::sync::Arc;
+
+use scoped_arena::Scope;
 
 use crate::alloc::SliceVec;
 use crate::core::{prim, Const, LocalInfo, Plicity, Prim, Term};

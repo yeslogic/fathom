@@ -1,8 +1,9 @@
-use serde::{Deserialize, Serialize};
 use std::fmt::Write;
 use std::path::{Path, PathBuf};
 use std::process::{self};
 use std::{env, fs, io};
+
+use serde::{Deserialize, Serialize};
 use walkdir::WalkDir;
 
 fn main() {

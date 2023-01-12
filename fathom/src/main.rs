@@ -1,5 +1,6 @@
-use clap::Parser;
 use std::path::PathBuf;
+
+use clap::Parser;
 
 /// A language for declaratively specifying binary data formats
 #[derive(Parser)]

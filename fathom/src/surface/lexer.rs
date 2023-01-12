@@ -1,10 +1,8 @@
 use codespan_reporting::diagnostic::{Diagnostic, Label};
 use logos::Logos;
 
-use crate::{
-    files::FileId,
-    source::{BytePos, ByteRange},
-};
+use crate::files::FileId;
+use crate::source::{BytePos, ByteRange};
 
 pub const KEYWORDS: &[&str] = &[
     "def", "else", "false", "fun", "if", "let", "match", "overlap", "then", "true", "Type", "where",

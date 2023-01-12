@@ -1,8 +1,10 @@
 //! A reimplementation of `codespan-reporting::files::SimpleFiles` that uses
 //! `FileId` as the file id, instead of `usize`.
 
+use std::num::NonZeroU32;
+use std::ops::Range;
+
 use codespan_reporting::files::{Error, SimpleFile};
-use std::{num::NonZeroU32, ops::Range};
 
 /// File id.
 // - Use `u32` over `usize` because 4 billion files should be enough for anyone
