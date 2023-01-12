@@ -60,7 +60,8 @@ impl fmt::Display for Plicity {
 pub enum Term<'arena> {
     /// Item variable occurrences.
     ///
-    /// These refer to [items][Item] bound at the top-level of a [module][Module].
+    /// These refer to [items][Item] bound at the top-level of a
+    /// [module][Module].
     ItemVar(Span, Level),
     /// Local variable occurrences.
     ///

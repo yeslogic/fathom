@@ -1,7 +1,8 @@
 use std::mem::MaybeUninit;
 use std::ops::Deref;
 
-// TODO: investigate if this could be replaced with an existing crate. For example:
+// TODO: investigate if this could be replaced with an existing crate. For
+// example:
 //
 // - https://lib.rs/crates/slicevec
 // - https://lib.rs/crates/fixed-slice-vec
@@ -62,9 +63,9 @@ impl<'a, Elem> Deref for SliceVec<'a, Elem> {
         // We know this because:
         //
         // - `self.next_index` is always initialized to `0` in `SliceBuilder::new`
-        // - `self.next_index` is only incremented in `SliceBuilder::push`,
-        //    and in that case we make sure `self.elems[self.next_index]`
-        //    has been initialized before hand.
+        // - `self.next_index` is only incremented in `SliceBuilder::push`, and in that
+        //   case we make sure `self.elems[self.next_index]` has been initialized before
+        //   hand.
         unsafe { slice_assume_init_ref(&self.elems[..self.next_index]) }
     }
 }
@@ -76,20 +77,21 @@ impl<'a, Elem> From<SliceVec<'a, Elem>> for &'a [Elem] {
         // We know this because:
         //
         // - `self.next_index` is always initialized to `0` in `SliceBuilder::new`
-        // - `self.next_index` is only incremented in `SliceBuilder::push`,
-        //    and in that case we make sure `self.elems[self.next_index]`
-        //    has been initialized before hand.
+        // - `self.next_index` is only incremented in `SliceBuilder::push`, and in that
+        //   case we make sure `self.elems[self.next_index]` has been initialized before
+        //   hand.
         unsafe { slice_assume_init_ref(&slice.elems[..slice.next_index]) }
     }
 }
 
-// NOTE: This is the same implementation as `MaybeUninit::slice_assume_init_ref`,
-// which is currently unstable (see https://github.com/rust-lang/rust/issues/63569).
+// NOTE: This is the same implementation as
+// `MaybeUninit::slice_assume_init_ref`, which is currently unstable (see https://github.com/rust-lang/rust/issues/63569).
 #[allow(clippy::needless_lifetimes)] // These serve as important documentation
 pub unsafe fn slice_assume_init_ref<'a, T>(slice: &'a [MaybeUninit<T>]) -> &'a [T] {
-    // SAFETY: casting slice to a `*const [T]` is safe since the caller guarantees that
-    // `slice` is initialized, and`MaybeUninit` is guaranteed to have the same layout as `T`.
-    // The pointer obtained is valid since it refers to memory owned by `slice` which is a
-    // reference and thus guaranteed to be valid for reads.
+    // SAFETY: casting slice to a `*const [T]` is safe since the caller guarantees
+    // that `slice` is initialized, and`MaybeUninit` is guaranteed to have the
+    // same layout as `T`. The pointer obtained is valid since it refers to
+    // memory owned by `slice` which is a reference and thus guaranteed to be
+    // valid for reads.
     &*(slice as *const [MaybeUninit<T>] as *const [T])
 }

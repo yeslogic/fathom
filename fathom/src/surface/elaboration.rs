@@ -85,10 +85,11 @@ impl<'arena> ItemEnv<'arena> {
 /// program, for example by function parameters, let bindings, or pattern
 /// matching.
 ///
-/// This environment behaves as a stack. As scopes are entered, it is important
-/// to remember to call either [`LocalEnv::push_def`] or [`LocalEnv::push_param`].
-/// On scope exit, it is important to remember to call [`LocalEnv::pop`].
-/// Multiple bindings can be removed at once with [`LocalEnv::truncate`].
+/// This environment behaves as a stack.
+/// - As scopes are entered, it is important to remember to call either
+///   [`LocalEnv::push_def`] or [`LocalEnv::push_param`].
+/// - On scope exit, it is important to remember to call [`LocalEnv::pop`].
+/// - Multiple bindings can be removed at once with [`LocalEnv::truncate`].
 ///
 /// [local variables]: core::Term::LocalVar
 struct LocalEnv<'arena> {
@@ -322,7 +323,8 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         Some((local_var, local_type))
     }
 
-    /// Push an unsolved term onto the context, to be updated later during unification.
+    /// Push an unsolved term onto the context, to be updated later during
+    /// unification.
     fn push_unsolved_term(
         &mut self,
         source: MetaSource,
@@ -335,7 +337,8 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         )
     }
 
-    /// Push an unsolved type onto the context, to be updated later during unification.
+    /// Push an unsolved type onto the context, to be updated later during
+    /// unification.
     fn push_unsolved_type(&mut self, source: MetaSource) -> ArcValue<'arena> {
         let r#type = self.push_unsolved_term(source, self.universe.clone());
         self.eval_env().eval(&r#type)
@@ -354,9 +357,12 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         for (expr, source) in Iterator::zip(meta_env.exprs.iter(), meta_env.sources.iter()) {
             match (expr, *source) {
                 // Avoid producing messages for some unsolved metavariable sources:
-                (None, MetaSource::HoleType(_, _)) => {} // should have an unsolved hole expression
-                (None, MetaSource::PlaceholderType(_)) => {} // should have an unsolved placeholder expression
-                (None, MetaSource::ReportedErrorType(_)) => {} // should already have an error reported
+                // Should have an unsolved hole expression
+                (None, MetaSource::HoleType(_, _)) => {}
+                // Should have an unsolved placeholder
+                (None, MetaSource::PlaceholderType(_)) => {}
+                // Should already have an error
+                (None, MetaSource::ReportedErrorType(_)) => {}
 
                 // For other sources, report an unsolved problem message
                 (None, source) => on_message(Message::UnsolvedMetaVar { source }),
@@ -575,7 +581,8 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
     //       coercions to the core language.
     fn convert(
         &mut self,
-        surface_range: ByteRange, // TODO: could be removed if we never encounter empty spans in the core term
+        // TODO: could be removed if we never encounter empty spans in the core term
+        surface_range: ByteRange,
         expr: core::Term<'arena>,
         from: &ArcValue<'arena>,
         to: &ArcValue<'arena>,
@@ -1251,7 +1258,8 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         (term, r#type)
     }
 
-    // Wrap `head_term` in implicit arguments while `head_type` is an implicit function
+    // Wrap `head_term` in implicit arguments while `head_type` is an implicit
+    // function
     fn fill_implicit_args(
         &mut self,
         head_range: ByteRange,
@@ -1463,7 +1471,8 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                             args.next().unwrap();
                         }
 
-                        // Tried to pass explicit arg where implicit arg was expected: insert implicit arg
+                        // Tried to pass explicit arg where implicit arg was expected: insert
+                        // implicit arg
                         Value::FunType(Plicity::Implicit, param_name, param_type, body_type) => {
                             (head_expr, head_type) = self.insert_implicit_app(
                                 (head_range, head_expr),

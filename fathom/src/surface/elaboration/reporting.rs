@@ -458,16 +458,18 @@ impl Message {
             Message::UnsolvedMetaVar { source } => {
                 let (range, source_name) = match source {
                     MetaSource::ImplicitArg(range, _) => (range, "implicit argument"),
-                    MetaSource::HoleType(range, _) => (range, "hole type"), // should never appear in user-facing output
                     MetaSource::HoleExpr(range, _) => (range, "hole expression"),
-                    MetaSource::PlaceholderType(range) => (range, "placeholder type"), // should never appear in user-facing output
                     MetaSource::PlaceholderExpr(range) => (range, "placeholder expression"),
                     MetaSource::PlaceholderPatternType(range) => {
                         (range, "placeholder pattern type")
                     }
                     MetaSource::NamedPatternType(range, _) => (range, "named pattern type"),
                     MetaSource::MatchExprType(range) => (range, "match expression type"),
-                    MetaSource::ReportedErrorType(range) => (range, "error type"), // should never appear in user-facing output
+
+                    // The following should never appear in user-facing output:
+                    MetaSource::HoleType(range, _) => (range, "hole type"),
+                    MetaSource::PlaceholderType(range) => (range, "placeholder type"),
+                    MetaSource::ReportedErrorType(range) => (range, "error type"),
                 };
 
                 Diagnostic::error()

@@ -149,7 +149,8 @@ fn extract_test(input_file: PathBuf, default_mode: TestMode) -> libtest_mimic::T
     const CONFIG_COMMENT_START: &str = "//~";
 
     let input_source = std::fs::read_to_string(&input_file).unwrap();
-    // Collect the lines with CONFIG_COMMENT_START prefix, stripping the prefix in the process
+    // Collect the lines with CONFIG_COMMENT_START prefix, stripping the prefix in
+    // the process
     let config_source = input_source
         .lines()
         .filter_map(|line| line.split(CONFIG_COMMENT_START).nth(1))

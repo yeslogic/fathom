@@ -522,7 +522,8 @@ impl<'arena, 'env> ElimEnv<'arena, 'env> {
             // Beta-reduction
             Value::FunLit(fun_plicity, _, body_expr) => {
                 assert_eq!(arg_plicity, *fun_plicity, "Plicities must be equal");
-                self.apply_closure(body_expr, arg_expr) // FIXME: use span from head/arg exprs?
+                // FIXME: use span from head/arg exprs?
+                self.apply_closure(body_expr, arg_expr)
             }
             // The computation is stuck, preventing further reduction
             Value::Stuck(head, spine) => {

@@ -7,16 +7,16 @@
 //!
 //! 1. Traverse the terms within each module item and note dependencies on other
 //!    items.
-//!    *  Names in scope are tracked so that when a local name shadows an item
-//!       name we know not to add a dependency on the item.
+//!    * Names in scope are tracked so that when a local name shadows an item
+//!      name we know not to add a dependency on the item.
 //! 2. Build up a list of item indices that will indicate the order in which
 //!    they should be elaborated.
-//!    *  Recursively visit each item's dependencies and push the index of leaf
-//!       items to the output list. If an item is already in the list is it not
-//!       added again.
-//!    *  Keep track of the stack of items in the depth-first traversal. If we
-//!       re-enter an item already in the stack report an error indicating a
-//!       cycle has been detected.
+//!    * Recursively visit each item's dependencies and push the index of leaf
+//!      items to the output list. If an item is already in the list is it not
+//!      added again.
+//!    * Keep track of the stack of items in the depth-first traversal. If we
+//!      re-enter an item already in the stack report an error indicating a
+//!      cycle has been detected.
 
 use fxhash::{FxHashMap, FxHashSet};
 

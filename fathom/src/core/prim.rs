@@ -369,17 +369,19 @@ impl<'arena> Env<'arena> {
                             Span::Empty,
                             Plicity::Explicit,
                             None,
-                            &Term::FunType(Span::Empty, Plicity::Explicit, None, &VAR2, &VAR2), // A@2 -> B@2
+                            // A@2 -> B@2
+                            &Term::FunType(Span::Empty, Plicity::Explicit, None, &VAR2, &VAR2),
                             scope.to_scope(core::Term::FunType(
                                 Span::Empty,
                                 Plicity::Explicit,
                                 None,
+                                // Option A@3
                                 &Term::FunApp(
                                     Span::Empty,
                                     Plicity::Explicit,
                                     &Term::Prim(Span::Empty, OptionType),
                                     &VAR3,
-                                ), // Option A@3
+                                ),
                                 &VAR3, // B@3
                             )),
                         )),
@@ -405,7 +407,8 @@ impl<'arena> Env<'arena> {
                         Span::Empty,
                         Plicity::Explicit,
                         None,
-                        &Term::FunType(Span::Empty, Plicity::Explicit, None, &VAR0, &BOOL_TYPE), // (A@0 -> Bool)
+                        // (A@0 -> Bool)
+                        &Term::FunType(Span::Empty, Plicity::Explicit, None, &VAR0, &BOOL_TYPE),
                         scope.to_scope(core::Term::FunType(
                             Span::Empty,
                             Plicity::Explicit,
@@ -422,12 +425,13 @@ impl<'arena> Env<'arena> {
                                 )),
                                 &VAR1,
                             )),
+                            // Option A@2
                             &Term::FunApp(
                                 Span::Empty,
                                 Plicity::Explicit,
                                 &Term::Prim(Span::Empty, OptionType),
                                 &VAR2,
-                            ), // Option A@2
+                            ),
                         )),
                     )),
                 )),
@@ -777,7 +781,9 @@ pub fn step(prim: Prim) -> Step {
 
         Prim::OptionFold => step!(env, [_, _, on_none, on_some, option] => {
             match option.match_prim_spine()? {
-                (Prim::OptionSome, [Elim::FunApp(Plicity::Explicit, value)]) => env.fun_app(Plicity::Explicit,on_some.clone(), value.clone()),
+                (Prim::OptionSome, [Elim::FunApp(Plicity::Explicit, value)]) => env.fun_app(
+Plicity::Explicit,
+                    on_some.clone(), value.clone()),
                 (Prim::OptionNone, []) => on_none.clone(),
                 _ => return None,
             }
@@ -787,7 +793,9 @@ pub fn step(prim: Prim) -> Step {
             step!(env, [_, _, pred, array] => match array.as_ref() {
                 Value::ArrayLit(elems) => {
                     for elem in elems {
-                        match env.fun_app(Plicity::Explicit, pred.clone(), elem.clone()).as_ref() {
+                        match env.fun_app(
+Plicity::Explicit,
+                             pred.clone(), elem.clone()).as_ref() {
                             Value::ConstLit(Const::Bool(true)) => {
                                 // TODO: Is elem.span right here?
                                 return Some(Spanned::new(elem.span(), Arc::new(Value::prim(Prim::OptionSome, [elem.clone()]))))
