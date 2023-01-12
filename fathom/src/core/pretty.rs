@@ -180,10 +180,9 @@ impl<'interner, 'arena> Context<'interner> {
                             RcDoc::concat([
                                 RcDoc::concat([
                                     self.plicity(*plicity),
-                                    if let Some(name) = param_name {
-                                        self.string_id(*name)
-                                    } else {
-                                        RcDoc::nil()
+                                    match param_name {
+                                        Some(name) => self.string_id(*name),
+                                        None => RcDoc::text("_"),
                                     },
                                     RcDoc::space(),
                                     RcDoc::text(":"),
@@ -208,10 +207,9 @@ impl<'interner, 'arena> Context<'interner> {
                         RcDoc::text("fun"),
                         RcDoc::space(),
                         self.plicity(*plicity),
-                        if let Some(name) = param_name {
-                            self.string_id(*name)
-                        } else {
-                            RcDoc::nil()
+                        match param_name {
+                            Some(name) => self.string_id(*name),
+                            None => RcDoc::text("_"),
                         },
                         RcDoc::space(),
                         RcDoc::text("=>"),
