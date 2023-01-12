@@ -13,6 +13,7 @@ In rough chronological order:
 5. [rust-prototype-v2](./rust-prototype-v2) (@brendanzab)
 6. [makam-spec](./makam-spec) (@brendanzab)
 7. [rust-prototype-v3](./rust-prototype-v3) (@brendanzab)
+8. [idris](./idris) (@brendanzab)
 
 The following repositories also provided us with valuable experience along the way:
 

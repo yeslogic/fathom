@@ -74,19 +74,60 @@
         # If you want to live on the bleeding edge, you could also try using the
         # nightly shell with the following `.envrc` file:
         #
-        #    use flake .#nightly
+        #    use flake .#rust-nightly
         #
         # If you choose to use Direnv, note that `.envrc` should be added to
         # your local git excludes, or added to to your global gitignore.
         devShells = {
-          # Use the stable toolchain by default for development, to get the
-          # latest diagnostics and compiler improvements.
+          # Default development shell
           #
           #    $ nix develop
           #    $ nix develop --command cargo check
           #
-          default = self.devShells.${system}.stable;
+          default =
+            let
+              systemShells = self.devShells.${system};
+            in
+            pkgs.mkShell {
+              inputsFrom = [
+                # Use the stable toolchain by default for development to get the
+                # latest diagnostics and compiler improvements.
+                systemShells.rust-stable
+                systemShells.idris2
+                systemShells.nix
+              ];
+            };
+
+          # Idris 2 development shell for `./experiments/idris`
+          idris2 = pkgs.mkShell {
+            name = "idris2";
+            packages = [
+              # Idris 2 is currently broken on `aarch64-darwin` without
+              # resorting to some installation schenanigans with Racket:
+              # https://github.com/idris-lang/Idris2/issues/2404. For now it can
+              # just be emulated using Rosetta.
+              (if system == "aarch64-darwin" then
+                nixpkgs.legacyPackages.x86_64-darwin.idris2
+              else
+                pkgs.idris2)
+              # Keyboard input is currently broken on the version of Idris 2
+              # on nixPkgs (v0.5.1). To work around this, run Idris shells with:
+              #
+              #     $ rlwrap [options] idris2 ...
+              #
+              # See: https://github.com/idris-lang/Idris2/issues/54
+              pkgs.rlwrap
+            ];
+          };
+
+          # Nix development shell
+          nix = pkgs.mkShell {
+            name = "nix";
+            packages = [ pkgs.nixpkgs-fmt ];
+          };
         } // (
+          # Rust development shells
+          #
           # Map over the `rustToolchains` defined above, creating a shell
           # environment for each.
           #
@@ -96,28 +137,29 @@
           #
           # For example, to run the tests using the `minimum` Rust toolchain:
           #
-          #     $ nix develop .#minimum --command cargo test
+          #     $ nix develop .#rust-stable --command cargo test
           #
-          lib.mapAttrs
+          lib.mapAttrs'
             (name: rustToolchain:
               let
                 rustWithExtensions = rustToolchain.override {
                   extensions = [ "rust-src" "rustfmt" "clippy" ];
                 };
               in
-              pkgs.mkShell {
-                name = "${name}-shell";
+              {
+                name = "rust-${name}";
+                value = pkgs.mkShell {
+                  name = "${name}-shell";
 
-                packages = [
-                  rustWithExtensions
-                  pkgs.nixpkgs-fmt
-                ];
+                  packages = [
+                    rustWithExtensions
+                  ];
 
-                # Print backtraces on panics
-                RUST_BACKTRACE = 1;
-
-                # Certain tools like `rust-analyzer` won't work without this
-                RUST_SRC_PATH = "${rustWithExtensions}/lib/rustlib/src/rust/library";
+                  # Print backtraces on panics
+                  RUST_BACKTRACE = 1;
+                  # Certain tools like `rust-analyzer` won't work without this
+                  RUST_SRC_PATH = "${rustWithExtensions}/lib/rustlib/src/rust/library";
+                };
               })
             rustToolchains
         );

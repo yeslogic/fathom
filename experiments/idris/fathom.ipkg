@@ -1,0 +1,62 @@
+package fathom
+-- version =
+-- authors =
+-- maintainers =
+-- license =
+-- brief =
+-- readme =
+-- homepage =
+-- sourceloc =
+-- bugtracker =
+
+-- packages to add to search path
+depends = contrib
+
+-- modules to install
+modules = Fathom
+
+        , Fathom.Base
+        , Fathom.Data.Bit
+        , Fathom.Data.Iso
+        , Fathom.Data.Sing
+        , Fathom.Data.Word
+        , Fathom.Format.IndexedInductive
+        , Fathom.Format.IndexedInductiveCustom
+        , Fathom.Format.InductiveRecursive
+        , Fathom.Format.InductiveRecursiveCustom
+        , Fathom.Format.Record
+
+        , Playground
+        , Playground.Extraction
+        , Playground.HeterogeneousSequences
+        , Playground.OpenType.IndexedInductive
+        , Playground.OpenType.InductiveRecursive
+        , Playground.OpenType.Record
+
+-- main file (i.e. file to load at REPL)
+-- main =
+
+-- name of executable
+-- executable =
+-- opts =
+sourcedir = "src"
+builddir = "build"
+outputdir = "build/exec"
+
+-- script to run before building
+-- prebuild =
+
+-- script to run after building
+-- postbuild =
+
+-- script to run after building, before installing
+-- preinstall =
+
+-- script to run after installing
+-- postinstall =
+
+-- script to run before cleaning
+-- preclean =
+
+-- script to run after cleaning
+-- postclean =
