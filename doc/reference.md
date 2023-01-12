@@ -39,6 +39,7 @@ elaboration, and core language is forthcoming.
   - [Function types](#function-types)
   - [Function literals](#function-literals)
   - [Function applications](#function-applications)
+  - [Implicit parameters](#implicit-parameters)
 - [Records](#records)
   - [Record types](#record-types)
   - [Record literals](#record-literals)
@@ -724,6 +725,27 @@ let id =
     fun (A : Type) (a : A) => a;
 
 id Type S32
+```
+
+### Implicit parameters
+
+Function parameters can be made *implicit* by prefixing them with `@`:
+
+```fathom
+fun (@A : Type) => A
+```
+
+Implicit parameters will be filled in automatically when they can be inferred by the types of other terms:
+
+```fathom
+let id = fun (@A : Type) (a : A) => a;
+id false
+```
+
+Implicit parameters can be passed explictly by prefixing the argument with `@`:
+
+```fathom
+id @Bool false
 ```
 
 ## Records
