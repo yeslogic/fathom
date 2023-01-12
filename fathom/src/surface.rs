@@ -7,11 +7,9 @@ use codespan_reporting::diagnostic::{Diagnostic, Label};
 use lalrpop_util::lalrpop_mod;
 use scoped_arena::Scope;
 
-use crate::{
-    core::Plicity,
-    files::FileId,
-    source::{BytePos, ByteRange, StringId, StringInterner},
-};
+use crate::core::Plicity;
+use crate::files::FileId;
+use crate::source::{BytePos, ByteRange, StringId, StringInterner};
 
 lalrpop_mod!(
     #[allow(clippy::all)]

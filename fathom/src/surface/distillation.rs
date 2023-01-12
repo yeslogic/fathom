@@ -1,7 +1,8 @@
 //! Bidirectional distillation of the core language into the surface language.
 
-use scoped_arena::Scope;
 use std::cell::RefCell;
+
+use scoped_arena::Scope;
 
 use crate::alloc::SliceVec;
 use crate::core;
@@ -10,10 +11,9 @@ use crate::env::{self, EnvLen, Index, Level, UniqueEnv};
 use crate::source::{Span, StringId, StringInterner};
 use crate::surface::elaboration::MetaSource;
 use crate::surface::{
-    BinOp, ExprField, FormatField, Item, ItemDef, Module, Pattern, Term, TypeField,
+    AppArg, BinOp, ExprField, FormatField, FunParam, Item, ItemDef, Module, Pattern, Plicity, Term,
+    TypeField,
 };
-
-use super::{AppArg, FunParam, Plicity};
 
 /// Distillation context.
 pub struct Context<'interner, 'arena, 'env> {

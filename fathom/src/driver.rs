@@ -1,16 +1,16 @@
-use codespan_reporting::diagnostic::{Diagnostic, Label, Severity};
-use codespan_reporting::files::SimpleFiles;
-use codespan_reporting::term::termcolor::{BufferedStandardStream, ColorChoice, WriteColor};
 use std::cell::RefCell;
 use std::io::Read;
 use std::path::Path;
 
-use crate::core;
+use codespan_reporting::diagnostic::{Diagnostic, Label, Severity};
+use codespan_reporting::files::SimpleFiles;
+use codespan_reporting::term::termcolor::{BufferedStandardStream, ColorChoice, WriteColor};
+
 use crate::core::binary::{self, BufferError, ReadError};
 use crate::files::{FileId, Files};
 use crate::source::{ByteRange, Span, StringInterner};
 use crate::surface::{self, elaboration};
-use crate::BUG_REPORT_URL;
+use crate::{core, BUG_REPORT_URL};
 
 #[derive(Debug, Copy, Clone)]
 pub enum Status {
