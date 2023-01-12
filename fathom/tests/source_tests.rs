@@ -20,7 +20,7 @@ fn main() {
 
 #[derive(Deserialize, Debug, Copy, Clone)]
 #[serde(rename_all = "kebab-case")]
-pub enum TestMode {
+enum TestMode {
     Module,
     Term,
 }
@@ -106,7 +106,7 @@ enum ExpectedOutcome {
 }
 
 impl<'a> Command<'a> {
-    pub fn snap_name(&self) -> &'static str {
+    fn snap_name(&self) -> &'static str {
         match self {
             Command::Normalise => "norm",
             Command::ElabModule | Command::ElabTerm | Command::ParseData(_, _) => "",
@@ -124,7 +124,7 @@ impl<'a> Command<'a> {
 }
 
 /// Recursively walk over test files under a file path.
-pub fn find_source_files(root: impl AsRef<Path>) -> impl Iterator<Item = PathBuf> {
+fn find_source_files(root: impl AsRef<Path>) -> impl Iterator<Item = PathBuf> {
     WalkDir::new(root)
         .into_iter()
         .filter_map(|entry| entry.ok())
@@ -292,10 +292,10 @@ impl<'a> TestCommand<'a> {
 
     fn run(&self) -> Result<Vec<TestFailure>, io::Error> {
         let mut failures = Vec::new();
-        let mut exe = process::Command::from(self.command);
-        exe.arg(self.input_file);
+        let mut command = process::Command::from(self.command);
+        command.arg(self.input_file);
 
-        match exe.output() {
+        match command.output() {
             Ok(output) => {
                 let mut snapshot = Snapshot::new(self.command, self.input_file, &output)?;
 
@@ -307,8 +307,10 @@ impl<'a> TestCommand<'a> {
                 match snapshot.outcome() {
                     SnapshotOutcome::Equal => {}
                     SnapshotOutcome::Different => {
-                        let mut details =
-                            vec![("path", snapshot.path.to_string_lossy().into_owned())];
+                        let mut details = vec![
+                            ("path", snapshot.path.to_string_lossy().into()),
+                            ("command", command_to_string(&command)),
+                        ];
                         if let Some(diff) = snapshot.stdout_diff() {
                             details.push(("stdout diff", diff));
                         }
@@ -322,8 +324,10 @@ impl<'a> TestCommand<'a> {
                         });
                     }
                     SnapshotOutcome::Missing => {
-                        let mut details =
-                            vec![("path", snapshot.path.to_string_lossy().into_owned())];
+                        let mut details = vec![
+                            ("path", snapshot.path.to_string_lossy().into()),
+                            ("command", command_to_string(&command)),
+                        ];
                         if !snapshot.stdout().is_empty() {
                             details.push(("stdout", snapshot.stdout().to_string()));
                         }
@@ -343,10 +347,7 @@ impl<'a> TestCommand<'a> {
                     output.status.code(),
                     self.config.exit_code,
                 ) {
-                    let mut details = Vec::new();
-
-                    // TODO: Improve output
-                    details.push(("command", format!("{exe:?}")));
+                    let mut details = vec![("command", command_to_string(&command))];
 
                     if output.status.code() != Some(self.config.exit_code) {
                         details.push(("status", output.status.to_string()));
@@ -357,6 +358,7 @@ impl<'a> TestCommand<'a> {
                     if !snapshot.stderr().is_empty() {
                         details.push(("stderr", snapshot.stderr().to_string()));
                     }
+
                     failures.push(TestFailure {
                         name: "unexpected command output",
                         details,
@@ -366,7 +368,10 @@ impl<'a> TestCommand<'a> {
             Err(error) => {
                 failures.push(TestFailure {
                     name: "unexpected command error",
-                    details: vec![("std::io::Error", error.to_string())],
+                    details: vec![
+                        ("command", command_to_string(&command)),
+                        ("std::io::Error", error.to_string()),
+                    ],
                 });
             }
         }
@@ -407,6 +412,24 @@ impl<'a> From<Command<'a>> for process::Command {
         }
         exe
     }
+}
+
+fn strip_current_dir(path: &Path) -> &Path {
+    path.strip_prefix(std::env::current_dir().unwrap())
+        .unwrap_or(path)
+}
+
+fn command_to_string(command: &process::Command) -> String {
+    use itertools::Itertools;
+
+    format!(
+        "{program} {args}",
+        program = strip_current_dir(Path::new(command.get_program())).to_string_lossy(),
+        args = command
+            .get_args()
+            .map(|arg| arg.to_string_lossy())
+            .format(" "),
+    )
 }
 
 impl Snapshot {
