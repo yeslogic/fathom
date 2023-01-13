@@ -9,6 +9,6 @@ error: unclosed block comment
 9 │ */ b
   │ ^^ last `*/`
   │
-  = Help: 1 more `*/` needed
+  = help: 1 more `*/` needed
 
 '''
