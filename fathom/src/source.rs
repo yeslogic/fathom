@@ -260,6 +260,10 @@ impl FileRange {
         self.file_id
     }
 
+    pub const fn byte_range(&self) -> ByteRange {
+        self.byte_range
+    }
+
     pub const fn start(&self) -> BytePos {
         self.byte_range.start
     }

@@ -11,6 +11,7 @@
 //! use codespan_reporting::term::termcolor::{BufferedStandardStream, ColorChoice};
 //! use fathom::core::pretty::Context;
 //! use fathom::core::Module;
+//! use fathom::files::FileId;
 //! use fathom::source::StringInterner;
 //!
 //! // These are created for demonstration

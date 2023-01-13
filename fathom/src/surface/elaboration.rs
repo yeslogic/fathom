@@ -2036,6 +2036,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                     format,
                     pred,
                 } => {
+                    let label_range = self.file_range(*label_range);
                     let format = self.check(format, &format_type);
                     let format_value = self.eval_env().eval(&format);
                     let r#type = self.elim_env().format_repr(&format_value);
@@ -2050,10 +2051,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                             // in preparation for checking the the next format field.
                             let cond_expr = self.check(pred, &self.bool_type.clone());
 
-                            let field_span = Span::merge(
-                                &self.file_range(*label_range).into(),
-                                &cond_expr.span(),
-                            );
+                            let field_span = Span::merge(&label_range.into(), &cond_expr.span());
                             formats.push(core::Term::FormatCond(
                                 field_span,
                                 *label,
@@ -2068,6 +2066,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                     r#type,
                     expr,
                 } => {
+                    let label_range = self.file_range(*label_range);
                     let (expr, r#type, type_value) = match r#type {
                         Some(r#type) => {
                             let r#type = self.check(r#type, &universe);
@@ -2081,8 +2080,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                         }
                     };
 
-                    let field_span =
-                        Span::merge(&self.file_range(*label_range).into(), &expr.span());
+                    let field_span = Span::merge(&label_range.into(), &expr.span());
                     let format = core::Term::FunApp(
                         field_span,
                         Plicity::Explicit,
@@ -2129,7 +2127,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         let (expr, r#type) = self.synth_and_insert_implicit_apps(scrutinee_expr);
 
         Scrutinee {
-            range: self.file_range(scrutinee_expr.range()),
+            range: scrutinee_expr.range(),
             expr: self.scope.to_scope(expr),
             r#type,
         }
@@ -2342,7 +2340,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
             // TODO: this should be admitted if the scrutinee type is uninhabited
             self.push_message(Message::NonExhaustiveMatchExpr {
                 match_expr_range: self.file_range(match_info.range),
-                scrutinee_expr_range: match_info.scrutinee.range,
+                scrutinee_expr_range: self.file_range(match_info.scrutinee.range),
             });
         }
         core::Term::Prim(
@@ -2387,7 +2385,7 @@ enum CheckedPattern {
 
 /// Scrutinee of a match expression
 struct Scrutinee<'arena> {
-    range: FileRange,
+    range: ByteRange,
     expr: &'arena core::Term<'arena>,
     r#type: ArcValue<'arena>,
 }
