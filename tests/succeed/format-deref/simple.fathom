@@ -1,7 +1,7 @@
 {
   start <- stream_pos,
   link <- link start u16be,
-  len <- deref _ link,
+  len <- deref link,
   _reserved <- u16be,
   data <- array16 len u16be,
 }

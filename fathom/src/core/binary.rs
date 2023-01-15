@@ -440,8 +440,8 @@ impl<'arena, 'data> Context<'arena, 'data> {
             (Prim::FormatSucceed, [_, FunApp(_, elem)]) => Ok(elem.clone()),
             (Prim::FormatFail, []) => Err(ReadError::ReadFailFormat(span)),
             (Prim::FormatUnwrap, [_, FunApp(_, option)]) => match option.match_prim_spine() {
-                Some((Prim::OptionSome, [FunApp(_, elem)])) => Ok(elem.clone()),
-                Some((Prim::OptionNone, [])) => Err(ReadError::UnwrappedNone(span)),
+                Some((Prim::OptionSome, [_, FunApp(_, elem)])) => Ok(elem.clone()),
+                Some((Prim::OptionNone, [_])) => Err(ReadError::UnwrappedNone(span)),
                 _ => Err(ReadError::InvalidValue(span)),
             },
             _ => Err(ReadError::InvalidFormat(span)),

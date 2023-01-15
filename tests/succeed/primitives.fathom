@@ -1,5 +1,4 @@
 let _ = Void : Type;
-let _ = absurd;
 
 let _ = Bool : Type;
 
@@ -62,12 +61,14 @@ let _ = array16 : U16 -> Format -> Format;
 let _ = array32 : U32 -> Format -> Format;
 let _ = array64 : U64 -> Format -> Format;
 let _ = link : Pos -> Format -> Format;
-let _ = deref : fun (f : Format) -> Ref f -> Format;
+let _ = deref : fun (@f : Format) -> Ref f -> Format;
 let _ = stream_pos : Format;
-let _ = succeed : fun (Elem : Type) -> Elem -> Format;
+let _ = succeed : fun (@A : Type) -> A -> Format;
 let _ = fail : Format;
-let _ = unwrap : fun (A : Type) -> Option A -> Format;
+let _ = unwrap : fun (@A : Type) -> Option A -> Format;
 let _ = Repr : Format -> Type;
+
+let _ = absurd : fun (@A : Type) -> Void -> A;
 
 let _ = bool_eq : Bool -> Bool -> Bool;
 let _ = bool_neq : Bool -> Bool -> Bool;
@@ -200,19 +201,19 @@ let _ = s64_div : S64 -> S64 -> S64;
 let _ = s64_abs : S64 -> S64;
 let _ = s64_unsigned_abs : S64 -> U64;
 
-let _ = some : fun (A : Type) -> A -> Option A;
-let _ = none : fun (A : Type) -> Option A;
-let _ = option_fold : fun (A : Type) (B : Type) -> B -> (A -> B) -> Option A -> B;
+let _ = some : fun (@A : Type) -> A -> Option A;
+let _ = none : fun (@A : Type) -> Option A;
+let _ = option_fold : fun (@A : Type) (@B : Type) -> B -> (A -> B) -> Option A -> B;
 
-let _ = array8_find : fun (len : U8) (A : Type) -> (A -> Bool) -> Array8 len A -> Option A;
-let _ = array16_find : fun (len : U16) (A : Type) -> (A -> Bool) -> Array16 len A -> Option A;
-let _ = array32_find : fun (len : U32) (A : Type) -> (A -> Bool) -> Array32 len A -> Option A;
-let _ = array64_find : fun (len : U64) (A : Type) -> (A -> Bool) -> Array64 len A -> Option A;
+let _ = array8_find : fun (@len : U8) (@A : Type) -> (A -> Bool) -> Array8 len A -> Option A;
+let _ = array16_find : fun (@len : U16) (@A : Type) -> (A -> Bool) -> Array16 len A -> Option A;
+let _ = array32_find : fun (@len : U32) (@A : Type) -> (A -> Bool) -> Array32 len A -> Option A;
+let _ = array64_find : fun (@len : U64) (@A : Type) -> (A -> Bool) -> Array64 len A -> Option A;
 
-let _ = array8_index : fun (len : U8) (A : Type) -> U8 -> Array8 len A -> A;
-let _ = array16_index : fun (len : U16) (A : Type) -> U16 -> Array16 len A -> A;
-let _ = array32_index : fun (len : U32) (A : Type) -> U32 -> Array32 len A -> A;
-let _ = array64_index : fun (len : U64) (A : Type) -> U64 -> Array64 len A -> A;
+let _ = array8_index : fun (@len : U8) (@A : Type) -> U8 -> Array8 len A -> A;
+let _ = array16_index : fun (@len : U16) (@A : Type) -> U16 -> Array16 len A -> A;
+let _ = array32_index : fun (@len : U32) (@A : Type) -> U32 -> Array32 len A -> A;
+let _ = array64_index : fun (@len : U64) (@A : Type) -> U64 -> Array64 len A -> A;
 
 let _ = pos_add_u8 : Pos -> U8 -> Pos;
 let _ = pos_add_u16 : Pos -> U16 -> Pos;

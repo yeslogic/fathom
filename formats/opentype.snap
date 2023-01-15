@@ -6,7 +6,7 @@ def table_record : Format = {
     offset <- u32be,
     length <- u32be,
 };
-def find_table : fun (num_tables : U16) -> Array16 num_tables {
+def find_table : fun (@num_tables : U16) -> Array16 num_tables {
     table_id : U32,
     checksum : U32,
     offset : U32,
@@ -16,8 +16,12 @@ def find_table : fun (num_tables : U16) -> Array16 num_tables {
     checksum : U32,
     offset : U32,
     length : U32,
-} =
-fun num_tables table_records table_id => array16_find num_tables (Repr table_record) (fun table_record => table_record.table_id == table_id) table_records;
+} = fun @num_tables table_records table_id => array16_find @num_tables @{
+    table_id : U32,
+    checksum : U32,
+    offset : U32,
+    length : U32,
+} (fun table_record => table_record.table_id == table_id) table_records;
 def link_table : Pos -> {
     table_id : U32,
     checksum : U32,
@@ -374,7 +378,7 @@ def simple_glyph : U16 -> Format = fun number_of_contours => {
     end_pts_of_contours <- array16 number_of_contours u16be,
     instruction_length <- u16be,
     instructions <- array16 instruction_length u8,
-    let last_end_point_index : U16 = array16_index number_of_contours U16 (number_of_contours - (1 :
+    let last_end_point_index : U16 = array16_index @number_of_contours @U16 (number_of_contours - (1 :
     U16)) end_pts_of_contours,
     let number_of_coords : U16 = last_end_point_index + (1 : U16),
 };
@@ -1037,23 +1041,38 @@ def table_directory : Pos -> Format = fun file_start => {
     table_records <- array16 num_tables table_record,
     table_links <- let required_table : U32 -> Format -> Format =
     fun table_id table_format => {
-        table_record <- unwrap (Repr table_record) (find_table num_tables table_records table_id),
+        table_record <- unwrap @{
+            table_id : U32,
+            checksum : U32,
+            offset : U32,
+            length : U32,
+        } (find_table @num_tables table_records table_id),
         link <- link_table file_start table_record table_format,
     };
     let required_table_with_len : U32 -> (U32 -> Format) -> Format =
     fun table_id table_format => {
-        table_record <- unwrap (Repr table_record) (find_table num_tables table_records table_id),
+        table_record <- unwrap @{
+            table_id : U32,
+            checksum : U32,
+            offset : U32,
+            length : U32,
+        } (find_table @num_tables table_records table_id),
         link <- link_table file_start table_record (table_format table_record.length),
     };
     let optional_table : U32 -> Format -> Format =
-    fun table_id table_format => option_fold (Repr table_record) Format () (fun record => link_table file_start record table_format) (find_table num_tables table_records table_id);
+    fun table_id table_format => option_fold @{
+        table_id : U32,
+        checksum : U32,
+        offset : U32,
+        length : U32,
+    } @Format () (fun record => link_table file_start record table_format) (find_table @num_tables table_records table_id);
     {
         cmap <- required_table "cmap" cmap_table,
         head <- required_table "head" head_table,
         hhea <- required_table "hhea" hhea_table,
         maxp <- required_table "maxp" maxp_table,
         htmx <- required_table "hmtx" {
-            hhea <- deref (limit32 hhea.table_record.length {
+            hhea <- deref @(limit32 hhea.table_record.length {
                 major_version <- u16be where major_version == (1 : U16),
                 minor_version <- u16be,
                 ascent <- s16be,
@@ -1072,7 +1091,29 @@ def table_directory : Pos -> Format = fun file_start => {
                 metric_data_format <- s16be,
                 number_of_long_horizontal_metrics <- u16be,
             }) hhea.link,
-            maxp <- deref (limit32 maxp.table_record.length maxp_table) maxp.link,
+            maxp <- deref @(limit32 maxp.table_record.length {
+                version <- u32be,
+                num_glyphs <- u16be,
+                data <- match version {
+                    0x10000 => {
+                        max_points <- u16be,
+                        max_contours <- u16be,
+                        max_composite_points <- u16be,
+                        max_composite_contours <- u16be,
+                        max_zones <- u16be,
+                        max_twilight_points <- u16be,
+                        max_storage <- u16be,
+                        max_function_defs <- u16be,
+                        max_instruction_defs <- u16be,
+                        max_stack_elements <- u16be,
+                        max_size_of_instructions <- u16be,
+                        max_component_elements <- u16be,
+                        max_component_depth <- u16be where max_component_depth <= (16 :
+                        U16),
+                    },
+                    _ => (),
+                },
+            }) maxp.link,
             table <- htmx_table hhea.number_of_long_horizontal_metrics maxp.num_glyphs,
         },
         name <- required_table "name" name_table,
@@ -1081,12 +1122,56 @@ def table_directory : Pos -> Format = fun file_start => {
         cvt <- optional_table "cvt " unknown_table,
         fpgm <- optional_table "fpgm" unknown_table,
         glyf <- optional_table "glyf" {
-            maxp <- deref (limit32 maxp.table_record.length maxp_table) maxp.link,
+            maxp <- deref @(limit32 maxp.table_record.length {
+                version <- u32be,
+                num_glyphs <- u16be,
+                data <- match version {
+                    0x10000 => {
+                        max_points <- u16be,
+                        max_contours <- u16be,
+                        max_composite_points <- u16be,
+                        max_composite_contours <- u16be,
+                        max_zones <- u16be,
+                        max_twilight_points <- u16be,
+                        max_storage <- u16be,
+                        max_function_defs <- u16be,
+                        max_instruction_defs <- u16be,
+                        max_stack_elements <- u16be,
+                        max_size_of_instructions <- u16be,
+                        max_component_elements <- u16be,
+                        max_component_depth <- u16be where max_component_depth <= (16 :
+                        U16),
+                    },
+                    _ => (),
+                },
+            }) maxp.link,
             table <- glyf_table 1,
         },
         loca <- optional_table "loca" {
-            maxp <- deref (limit32 maxp.table_record.length maxp_table) maxp.link,
-            head <- deref (limit32 head.table_record.length {
+            maxp <- deref @(limit32 maxp.table_record.length {
+                version <- u32be,
+                num_glyphs <- u16be,
+                data <- match version {
+                    0x10000 => {
+                        max_points <- u16be,
+                        max_contours <- u16be,
+                        max_composite_points <- u16be,
+                        max_composite_contours <- u16be,
+                        max_zones <- u16be,
+                        max_twilight_points <- u16be,
+                        max_storage <- u16be,
+                        max_function_defs <- u16be,
+                        max_instruction_defs <- u16be,
+                        max_stack_elements <- u16be,
+                        max_size_of_instructions <- u16be,
+                        max_component_elements <- u16be,
+                        max_component_depth <- u16be where max_component_depth <= (16 :
+                        U16),
+                    },
+                    _ => (),
+                },
+            }) maxp.link,
+            head <- deref @(limit32 head.table_record.length {
                 major_version <- u16be where major_version == (1 : U16),
                 minor_version <- u16be,
                 font_revision <- u32be,

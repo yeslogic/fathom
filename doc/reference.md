@@ -616,29 +616,29 @@ Links formats are [represented](#format-representations) as typed
 Deref formats allow [references](#references) to other parts of the stream to be
 included in resulting parsed output.
 
-- `deref : fun (f : Format) -> Ref f -> Format`
+- `deref : fun (@f : Format) -> Ref f -> Format`
 
 #### Representation of deref formats
 
 Dereferences are [represented](#format-representations) after parsing using the
 representation of the referenced format.
 
-| format             | `Repr` format |
-| ------------------ | ------------- |
-| `deref format ref` | `Repr format` |
+| format              | `Repr` format |
+| ------------------- | ------------- |
+| `deref @format ref` | `Repr format` |
 
 ### Succeed format
 
 The succeed format consumes no input during parsing, allowing values to be
 embedded in the resulting parsed output.
 
-- `succeed : fun (A : Type) -> A -> Format`
+- `succeed : fun (@A : Type) -> A -> Format`
 
 #### Representation of succeed formats
 
-| format        | `Repr` format |
-| ------------- | ------------- |
-| `succeed A a` | `A`           |
+| format         | `Repr` format |
+| -------------- | ------------- |
+| `succeed @A a` | `A`           |
 
 ### Fail format
 
@@ -661,13 +661,13 @@ The unwrap format consumes no input during parsing, succeeding with the data
 contained in a the `some` case of an [option](#options), or otherwise causing a
 parse failure.
 
-- `unwrap : fun (A : Type) -> Option A -> Format`
+- `unwrap : fun (@A : Type) -> Option A -> Format`
 
 #### Representation of unwrap formats
 
-| format              | `Repr` format |
-| ------------------- | ------------- |
-| `unwrap A option_a` | `A`           |
+| format               | `Repr` format |
+| -------------------- | ------------- |
+| `unwrap @A option_a` | `A`           |
 
 ## Functions
 
@@ -1082,14 +1082,14 @@ Data that may not be present can be formed with the following primitive:
 
 Optional data can be introduced with the `some` or `none` primitives:
 
-- `some : fun (A : Type) -> A -> Option A`
-- `none : fun (A : Type) -> Option A`
+- `some : fun (@A : Type) -> A -> Option A`
+- `none : fun (@A : Type) -> Option A`
 
 ### Option operations
 
 The following operations are defined for option types:
 
-- `option_fold : fun (A : Type) (B : Type) -> B -> (A -> B) -> Option A -> B`
+- `option_fold : fun (@A : Type) (@B : Type) -> B -> (A -> B) -> Option A -> B`
 
 ## Arrays
 
@@ -1139,10 +1139,10 @@ function to each element of the array. If the function returns true, then
 `array*_find` returns `some element`. If they all return false, it returns
 `none`.
 
-- `array8_find : fun (len : U8) (A : Type) -> (A -> Bool) -> Array8 len A -> Option A`
-- `array16_find : fun (len : U16) (A : Type) -> (A -> Bool) -> Array16 len A -> Option A`
-- `array32_find : fun (len : U32) (A : Type) -> (A -> Bool) -> Array32 len A -> Option A`
-- `array64_find : fun (len : U64) (A : Type) -> (A -> Bool) -> Array64 len A -> Option A`
+- `array8_find : fun (@len : U8) (@A : Type) -> (A -> Bool) -> Array8 len A -> Option A`
+- `array16_find : fun (@len : U16) (@A : Type) -> (A -> Bool) -> Array16 len A -> Option A`
+- `array32_find : fun (@len : U32) (@A : Type) -> (A -> Bool) -> Array32 len A -> Option A`
+- `array64_find : fun (@len : U64) (@A : Type) -> (A -> Bool) -> Array64 len A -> Option A`
 
 #### index
 
@@ -1150,10 +1150,10 @@ function to each element of the array. If the function returns true, then
 operation will not evaluate fully if the index is out of bounds. If this
 happens when parsing a binary format, a parse failure will be triggered.
 
-- `array8_index : fun (len : U8) (A : Type) (index : U8) -> Array8 len A -> A`
-- `array16_index : fun (len : U16) (A : Type) (index : U16) -> Array16 len A -> A`
-- `array32_index : fun (len : U32) (A : Type) (index : U32) -> Array32 len A -> A`
-- `array64_index : fun (len : U64) (A : Type) (index : U64) -> Array64 len A -> A`
+- `array8_index : fun (@len : U8) (@A : Type) (index : U8) -> Array8 len A -> A`
+- `array16_index : fun (@len : U16) (@A : Type) (index : U16) -> Array16 len A -> A`
+- `array32_index : fun (@len : U32) (@A : Type) (index : U32) -> Array32 len A -> A`
+- `array64_index : fun (@len : U64) (@A : Type) (index : U64) -> Array64 len A -> A`
 
 ## Positions
 
@@ -1195,4 +1195,4 @@ The void type is be used to mark terms that can never be constructed:
 
 It can be eliminated by the `absurd` function:
 
-- `absurd : fun (A : Type) -> Void -> A`
+- `absurd : fun (@A : Type) -> Void -> A`

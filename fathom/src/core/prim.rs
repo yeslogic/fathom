@@ -4,7 +4,7 @@ use std::sync::Arc;
 use fxhash::FxHashMap;
 use scoped_arena::Scope;
 
-use crate::core::semantics::{ArcValue, Elim, ElimEnv, Value};
+use crate::core::semantics::{ArcValue, Elim, ElimEnv, Head, Value};
 use crate::core::{self, Const, Plicity, Prim, UIntStyle};
 use crate::env::{self, SharedEnv, UniqueEnv};
 use crate::source::{Span, Spanned, StringId, StringInterner};
@@ -58,17 +58,6 @@ impl<'arena> Env<'arena> {
         let mut env = EnvBuilder::new(interner, scope);
 
         env.define_prim(VoidType, &UNIVERSE);
-        // fun (A : Type) -> Void -> A
-        env.define_prim(
-            Absurd,
-            &core::Term::FunType(
-                Span::Empty,
-                Plicity::Explicit,
-                env.name("A"),
-                &UNIVERSE,
-                &core::Term::FunType(Span::Empty, Plicity::Explicit, None, &VOID_TYPE, &VAR1),
-            ),
-        );
         env.define_prim(BoolType, &UNIVERSE);
         env.define_prim(U8Type, &UNIVERSE);
         env.define_prim(U16Type, &UNIVERSE);
@@ -122,8 +111,8 @@ impl<'arena> Env<'arena> {
             FormatDeref,
             &core::Term::FunType(
                 Span::Empty,
-                Plicity::Explicit,
-                env.name("A"),
+                Plicity::Implicit,
+                env.name("f"),
                 &FORMAT_TYPE,
                 &Term::FunType(
                     Span::Empty,
@@ -144,7 +133,7 @@ impl<'arena> Env<'arena> {
             FormatSucceed,
             &core::Term::FunType(
                 Span::Empty,
-                Plicity::Explicit,
+                Plicity::Implicit,
                 env.name("A"),
                 &UNIVERSE,
                 &Term::FunType(Span::Empty, Plicity::Explicit, None, &VAR0, &FORMAT_TYPE),
@@ -153,11 +142,11 @@ impl<'arena> Env<'arena> {
         env.define_prim(FormatFail, &FORMAT_TYPE);
         env.define_prim(
             FormatUnwrap,
-            // fun (A : Type) -> Option A   -> Format
-            // fun (A : Type) -> Option A@0 -> Format
+            // fun (@A : Type) -> Option A   -> Format
+            // fun (@A : Type) -> Option A@0 -> Format
             &core::Term::FunType(
                 Span::Empty,
-                Plicity::Explicit,
+                Plicity::Implicit,
                 env.name("A"),
                 &UNIVERSE,
                 &Term::FunType(
@@ -175,6 +164,18 @@ impl<'arena> Env<'arena> {
             ),
         );
         env.define_prim_fun(FormatRepr, [&FORMAT_TYPE], &UNIVERSE);
+
+        // fun (@A : Type) -> Void -> A
+        env.define_prim(
+            Absurd,
+            &core::Term::FunType(
+                Span::Empty,
+                Plicity::Implicit,
+                env.name("A"),
+                &UNIVERSE,
+                &core::Term::FunType(Span::Empty, Plicity::Explicit, None, &VOID_TYPE, &VAR1),
+            ),
+        );
 
         env.define_prim_fun(BoolEq, [&BOOL_TYPE, &BOOL_TYPE], &BOOL_TYPE);
         env.define_prim_fun(BoolNeq, [&BOOL_TYPE, &BOOL_TYPE], &BOOL_TYPE);
@@ -309,11 +310,11 @@ impl<'arena> Env<'arena> {
 
         env.define_prim(
             OptionSome,
-            // fun (A : Type) -> A   -> Option A
-            // fun (A : Type) -> A@0 -> Option A@1
+            // fun (@A : Type) -> A   -> Option A
+            // fun (@A : Type) -> A@0 -> Option A@1
             &core::Term::FunType(
                 Span::Empty,
-                Plicity::Explicit,
+                Plicity::Implicit,
                 env.name("A"),
                 &UNIVERSE,
                 &Term::FunType(
@@ -332,11 +333,11 @@ impl<'arena> Env<'arena> {
         );
         env.define_prim(
             OptionNone,
-            // fun (A : Type) -> Option A
-            // fun (A : Type) -> Option A@0
+            // fun (@A : Type) -> Option A
+            // fun (@A : Type) -> Option A@0
             &core::Term::FunType(
                 Span::Empty,
-                Plicity::Explicit,
+                Plicity::Implicit,
                 env.name("A"),
                 &UNIVERSE,
                 &Term::FunApp(
@@ -349,16 +350,16 @@ impl<'arena> Env<'arena> {
         );
         env.define_prim(
             OptionFold,
-            // fun (A : Type) (B : Type) -> B   -> (A   -> B  ) -> Option A   -> B
-            // fun (A : Type) (B : Type) -> B@0 -> (A@2 -> B@2) -> Option A@3 -> B@3
+            // fun (@A : Type) (@B : Type) -> B   -> (A   -> B  ) -> Option A   -> B
+            // fun (@A : Type) (@B : Type) -> B@0 -> (A@2 -> B@2) -> Option A@3 -> B@3
             scope.to_scope(core::Term::FunType(
                 Span::Empty,
-                Plicity::Explicit,
+                Plicity::Implicit,
                 env.name("A"),
                 &UNIVERSE,
                 scope.to_scope(core::Term::FunType(
                     Span::Empty,
-                    Plicity::Explicit,
+                    Plicity::Implicit,
                     env.name("B"),
                     &UNIVERSE,
                     scope.to_scope(core::Term::FunType(
@@ -391,17 +392,18 @@ impl<'arena> Env<'arena> {
             )),
         );
 
-        // fun (len : UN) (A : Type) -> (A   -> Bool) -> ArrayN len   A   -> Option A
-        // fun (len : UN) (A : Type) -> (A@0 -> Bool) -> ArrayN len@2 A@1 -> Option A@2
+        // fun (@len : UN) (@A : Type) -> (A   -> Bool) -> ArrayN len   A   -> Option A
+        // fun (@len : UN) (@A : Type) -> (A@0 -> Bool) -> ArrayN len@2 A@1 -> Option
+        // A@2
         let find_type = |index_type, array_type| {
             scope.to_scope(core::Term::FunType(
                 Span::Empty,
-                Plicity::Explicit,
+                Plicity::Implicit,
                 env.name("len"),
                 index_type,
                 scope.to_scope(core::Term::FunType(
                     Span::Empty,
-                    Plicity::Explicit,
+                    Plicity::Implicit,
                     env.name("A"),
                     &UNIVERSE,
                     scope.to_scope(core::Term::FunType(
@@ -447,17 +449,17 @@ impl<'arena> Env<'arena> {
         env.define_prim(Array32Find, array32_find_type);
         env.define_prim(Array64Find, array64_find_type);
 
-        // fun (len : UN) -> (A : Type) -> (index : UN) -> ArrayN len   A   -> A
-        // fun (len : UN) -> (A : Type) -> (index : UN) -> ArrayN len@2 A@1 -> A@2
+        // fun (@len : UN) (@A : Type) (index : UN) -> ArrayN len   A   -> A
+        // fun (@len : UN) (@A : Type) (index : UN) -> ArrayN len@2 A@1 -> A@2
         let array_index_type = |index_type, array_type| {
             scope.to_scope(core::Term::FunType(
                 Span::Empty,
-                Plicity::Explicit,
+                Plicity::Implicit,
                 env.name("len"),
                 index_type,
                 scope.to_scope(core::Term::FunType(
                     Span::Empty,
-                    Plicity::Explicit,
+                    Plicity::Implicit,
                     env.name("A"),
                     &UNIVERSE,
                     scope.to_scope(core::Term::FunType(
@@ -574,7 +576,7 @@ pub type Step = for<'arena> fn(&ElimEnv<'arena, '_>, &[Elim<'arena>]) -> Option<
 macro_rules! step {
     ($env:pat, [$($param:pat),*] => $body:expr) => {
         |$env, spine| match spine {
-            [$(Elim::FunApp(Plicity::Explicit, $param)),*] => Some($body),
+            [$(Elim::FunApp(_, $param)),*] => Some($body),
             _ => return None,
         }
     };
@@ -782,30 +784,38 @@ pub fn step(prim: Prim) -> Step {
 
         Prim::OptionFold => step!(env, [_, _, on_none, on_some, option] => {
             match option.match_prim_spine()? {
-                (Prim::OptionSome, [Elim::FunApp(Plicity::Explicit, value)]) => env.fun_app(
-Plicity::Explicit,
-                    on_some.clone(), value.clone()),
-                (Prim::OptionNone, []) => on_none.clone(),
+                (Prim::OptionSome, [_, Elim::FunApp(Plicity::Explicit, value)]) => {
+                    env.fun_app(Plicity::Explicit, on_some.clone(), value.clone())
+                },
+                (Prim::OptionNone, [_]) => on_none.clone(),
                 _ => return None,
             }
         }),
 
         Prim::Array8Find | Prim::Array16Find | Prim::Array32Find | Prim::Array64Find => {
-            step!(env, [_, _, pred, array] => match array.as_ref() {
+            step!(env, [_, elem_type, pred, array] => match array.as_ref() {
                 Value::ArrayLit(elems) => {
                     for elem in elems {
                         match env.fun_app(
-Plicity::Explicit,
-                             pred.clone(), elem.clone()).as_ref() {
+                            Plicity::Explicit,
+                            pred.clone(), elem.clone()).as_ref() {
                             Value::ConstLit(Const::Bool(true)) => {
-                                // TODO: Is elem.span right here?
-                                return Some(Spanned::new(elem.span(), Arc::new(Value::prim(Prim::OptionSome, [elem.clone()]))))
+                                return Some(Spanned::empty(Arc::new(Value::Stuck(
+                                    Head::Prim(Prim::OptionSome),
+                                    vec![
+                                        Elim::FunApp(Plicity::Implicit, elem_type.clone()),
+                                        Elim::FunApp(Plicity::Explicit, elem.clone()),
+                                    ],
+                                ))));
                             },
                             Value::ConstLit(Const::Bool(false)) => {}
                             _ => return None,
                         }
                     }
-                    Spanned::empty(Arc::new(Value::prim(Prim::OptionNone, [])))
+                    Spanned::empty(Arc::new(Value::Stuck(
+                        Head::Prim(Prim::OptionNone),
+                        vec![Elim::FunApp(Plicity::Implicit, elem_type.clone())],
+                    )))
                 }
                 _ => return None,
             })

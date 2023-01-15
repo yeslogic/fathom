@@ -1,6 +1,5 @@
 stdout = '''
 let _ : Type = Void;
-let _ : fun (A : Type) -> Void -> A = absurd;
 let _ : Type = Bool;
 let _ : Type = U8;
 let _ : Type = U16;
@@ -59,12 +58,13 @@ let _ : U16 -> Format -> Format = array16;
 let _ : U32 -> Format -> Format = array32;
 let _ : U64 -> Format -> Format = array64;
 let _ : Pos -> Format -> Format = link;
-let _ : fun (f : Format) -> Ref f -> Format = deref;
+let _ : fun (@f : Format) -> Ref f -> Format = deref;
 let _ : Format = stream_pos;
-let _ : fun (Elem : Type) -> Elem -> Format = succeed;
+let _ : fun (@A : Type) -> A -> Format = succeed;
 let _ : Format = fail;
-let _ : fun (A : Type) -> Option A -> Format = unwrap;
+let _ : fun (@A : Type) -> Option A -> Format = unwrap;
 let _ : Format -> Type = Repr;
+let _ : fun (@A : Type) -> Void -> A = absurd;
 let _ : Bool -> Bool -> Bool = bool_eq;
 let _ : Bool -> Bool -> Bool = bool_neq;
 let _ : Bool -> Bool = bool_not;
@@ -187,22 +187,25 @@ let _ : S64 -> S64 -> S64 = s64_mul;
 let _ : S64 -> S64 -> S64 = s64_div;
 let _ : S64 -> S64 = s64_abs;
 let _ : S64 -> U64 = s64_unsigned_abs;
-let _ : fun (A : Type) -> A -> Option A = some;
-let _ : fun (A : Type) -> Option A = none;
-let _ : fun (A : Type) (B : Type) -> B -> (A -> B) -> Option A -> B =
+let _ : fun (@A : Type) -> A -> Option A = some;
+let _ : fun (@A : Type) -> Option A = none;
+let _ : fun (@A : Type) (@B : Type) -> B -> (A -> B) -> Option A -> B =
 option_fold;
-let _ : fun (len : U8) (A : Type) -> (A -> Bool) -> Array8 len A -> Option A =
+let _ : fun (@len : U8) (@A : Type) -> (A -> Bool) -> Array8 len A -> Option A =
 array8_find;
-let _ : fun (len : U16) (A : Type) -> (A -> Bool) -> Array16 len A -> Option A =
-array16_find;
-let _ : fun (len : U32) (A : Type) -> (A -> Bool) -> Array32 len A -> Option A =
-array32_find;
-let _ : fun (len : U64) (A : Type) -> (A -> Bool) -> Array64 len A -> Option A =
-array64_find;
-let _ : fun (len : U8) (A : Type) -> U8 -> Array8 len A -> A = array8_index;
-let _ : fun (len : U16) (A : Type) -> U16 -> Array16 len A -> A = array16_index;
-let _ : fun (len : U32) (A : Type) -> U32 -> Array32 len A -> A = array32_index;
-let _ : fun (len : U64) (A : Type) -> U64 -> Array64 len A -> A = array64_index;
+let _ : fun (@len : U16) (@A : Type) -> (A -> Bool) -> Array16 len A ->
+Option A = array16_find;
+let _ : fun (@len : U32) (@A : Type) -> (A -> Bool) -> Array32 len A ->
+Option A = array32_find;
+let _ : fun (@len : U64) (@A : Type) -> (A -> Bool) -> Array64 len A ->
+Option A = array64_find;
+let _ : fun (@len : U8) (@A : Type) -> U8 -> Array8 len A -> A = array8_index;
+let _ : fun (@len : U16) (@A : Type) -> U16 -> Array16 len A -> A =
+array16_index;
+let _ : fun (@len : U32) (@A : Type) -> U32 -> Array32 len A -> A =
+array32_index;
+let _ : fun (@len : U64) (@A : Type) -> U64 -> Array64 len A -> A =
+array64_index;
 let _ : Pos -> U8 -> Pos = pos_add_u8;
 let _ : Pos -> U16 -> Pos = pos_add_u16;
 let _ : Pos -> U32 -> Pos = pos_add_u32;
