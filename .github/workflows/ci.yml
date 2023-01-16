@@ -42,7 +42,7 @@ jobs:
         uses: cachix/install-nix-action@v17
 
       - name: Run cargo fmt
-        run: nix develop .#${{ matrix.rust-toolchain }} --command cargo fmt
+        run: nix develop .#${{ matrix.rust-toolchain }} --command cargo fmt --check
 
   cargo-clippy:
     runs-on: ubuntu-latest

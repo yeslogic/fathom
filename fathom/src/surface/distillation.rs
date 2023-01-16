@@ -59,10 +59,10 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
     }
 
     fn push_local(&mut self, name: Option<StringId>) -> StringId {
-        let name =
-            name.unwrap_or_else(|| {
-                self.interner.borrow_mut().get_or_intern_static("_") // TODO: choose a better name?
-            });
+        let name = name.unwrap_or_else(|| {
+            // TODO: choose a better name?
+            self.interner.borrow_mut().get_or_intern_static("_")
+        });
 
         // TODO: avoid globals
         // TODO: ensure we chose a correctly bound name
