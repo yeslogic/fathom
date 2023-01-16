@@ -27,13 +27,13 @@ use std::sync::Arc;
 use scoped_arena::Scope;
 
 use crate::alloc::SliceVec;
-use crate::core::semantics::{self, ArcValue, Closure, Head, Telescope, Value};
-use crate::core::{self, prim, Const, Prim, UIntStyle};
+use crate::core::semantics::{self, ArcValue, Head, Telescope, Value};
+use crate::core::{self, prim, Const, Plicity, Prim, UIntStyle};
 use crate::env::{self, EnvLen, Level, SharedEnv, UniqueEnv};
 use crate::source::{BytePos, ByteRange, Span, Spanned, StringId, StringInterner};
 use crate::surface::elaboration::reporting::Message;
 use crate::surface::{
-    distillation, pretty, BinOp, FormatField, FunParam, Item, Module, Pattern, Plicity, Term,
+    distillation, pretty, BinOp, FormatField, Item, Module, Param, Pattern, Term,
 };
 
 mod order;
@@ -926,6 +926,24 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         (name, expr)
     }
 
+    /// Elaborate a list of parameters, pushing them onto the context.
+    fn synth_and_push_params(
+        &mut self,
+        params: &[Param<ByteRange>],
+    ) -> Vec<(ByteRange, Plicity, Option<StringId>, core::Term<'arena>)> {
+        self.local_env.reserve(params.len());
+
+        Vec::from_iter(params.iter().map(|param| {
+            let range = param.pattern.range();
+            let (pattern, type_value) =
+                self.synth_ann_pattern(&param.pattern, param.r#type.as_ref());
+            let r#type = self.quote_env().quote(self.scope, &type_value);
+            let (name, _) = self.push_local_param(pattern, type_value);
+
+            (range, param.plicity, name, r#type)
+        }))
+    }
+
     /// Check that a surface term conforms to the given type.
     ///
     /// Returns the elaborated term in the core language.
@@ -976,6 +994,13 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
             }
             (Term::FunLiteral(range, patterns, body_expr), _) => {
                 self.check_fun_lit(*range, patterns, body_expr, &expected_type)
+            }
+            // Attempt to specialize terms with freshly inserted implicit
+            // arguments if an explicit function was expected.
+            (_, Value::FunType(Plicity::Explicit, ..)) => {
+                let surface_range = surface_term.range();
+                let (synth_term, synth_type) = self.synth_and_insert_implicit_apps(surface_term);
+                self.convert(surface_range, synth_term, &synth_type, &expected_type)
             }
             (Term::RecordLiteral(range, expr_fields), Value::RecordType(labels, types)) => {
                 // TODO: improve handling of duplicate labels
@@ -1220,69 +1245,49 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
             (Term::ReportedError(range), _) => core::Term::Prim(range.into(), Prim::ReportedError),
             (_, _) => {
                 let surface_range = surface_term.range();
-                let (mut synth_term, mut synth_type) = self.synth(surface_term);
-                while let (
-                    Value::FunType(Plicity::Implicit, name, param_type, body_type),
-                    Value::FunType(Plicity::Explicit, ..),
-                ) = (
-                    self.elim_env().force(&synth_type).as_ref(),
-                    expected_type.as_ref(),
-                ) {
-                    (synth_term, synth_type) = self.insert_implicit_app(
-                        (surface_range, synth_term),
-                        (*name, param_type.clone(), body_type),
-                    );
-                }
+                let (synth_term, synth_type) = self.synth(surface_term);
                 self.convert(surface_range, synth_term, &synth_type, &expected_type)
             }
         }
     }
 
-    // Wrap `head_term` in an implicit argument
-    fn insert_implicit_app(
+    /// Wrap a term in fresh implicit applications that correspond to implicit
+    /// parameters in the type provided.
+    fn insert_implicit_apps(
         &mut self,
-        (head_range, head_term): (ByteRange, core::Term<'arena>),
-        (name, param_type, body_type): (Option<StringId>, ArcValue<'arena>, &Closure<'arena>),
+        range: ByteRange,
+        mut term: core::Term<'arena>,
+        mut r#type: ArcValue<'arena>,
     ) -> (core::Term<'arena>, ArcValue<'arena>) {
-        let source = MetaSource::ImplicitArg(head_range, name);
-        let arg_term = self.push_unsolved_term(source, param_type);
-        let arg_value = self.eval_env().eval(&arg_term);
-        let term = core::Term::FunApp(
-            head_range.into(),
-            Plicity::Implicit,
-            self.scope.to_scope(head_term),
-            self.scope.to_scope(arg_term),
-        );
-        let r#type = self.elim_env().apply_closure(body_type, arg_value);
+        while let Value::FunType(Plicity::Implicit, name, param_type, body_type) =
+            self.elim_env().force(&r#type).as_ref()
+        {
+            let source = MetaSource::ImplicitArg(range, *name);
+            let arg_term = self.push_unsolved_term(source, param_type.clone());
+            let arg_value = self.eval_env().eval(&arg_term);
+
+            term = core::Term::FunApp(
+                range.into(),
+                Plicity::Implicit,
+                self.scope.to_scope(term),
+                self.scope.to_scope(arg_term),
+            );
+            r#type = self.elim_env().apply_closure(body_type, arg_value);
+        }
         (term, r#type)
     }
 
-    // Wrap `head_term` in implicit arguments while `head_type` is an implicit
-    // function
-    fn fill_implicit_args(
-        &mut self,
-        head_range: ByteRange,
-        mut head_term: core::Term<'arena>,
-        mut head_type: ArcValue<'arena>,
-    ) -> (core::Term<'arena>, ArcValue<'arena>) {
-        while let Value::FunType(Plicity::Implicit, name, param_type, body_type) =
-            self.elim_env().force(&head_type).as_ref()
-        {
-            (head_term, head_type) = self.insert_implicit_app(
-                (head_range, head_term),
-                (*name, param_type.clone(), body_type),
-            );
-        }
-        (head_term, head_type)
-    }
-
-    // FIXME: shorter name
-    fn synth_and_fill_implicit_args(
+    /// Synthesize the type of `surface_term`, wrapping it in fresh implicit
+    /// applications if the term was not an implicit function literal.
+    fn synth_and_insert_implicit_apps(
         &mut self,
         surface_term: &Term<'_, ByteRange>,
     ) -> (core::Term<'arena>, ArcValue<'arena>) {
         let (term, r#type) = self.synth(surface_term);
-        self.fill_implicit_args(surface_term.range(), term, r#type)
+        match term {
+            core::Term::FunLit(_, Plicity::Implicit, _, _) => (term, r#type),
+            term => self.insert_implicit_apps(surface_term.range(), term, r#type),
+        }
     }
 
     /// Synthesize the type of the given surface term.
@@ -1408,29 +1413,23 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 (fun_type, self.universe.clone())
             }
             Term::FunType(range, params, body_type) => {
-                self.local_env.reserve(params.len());
                 let initial_local_len = self.local_env.len();
 
-                // Elaborate the parameters, collecting them in a stack
-                #[allow(clippy::needless_collect)]
-                let params: Vec<_> = params
-                    .iter()
-                    .map(|param| {
-                        let (pattern, type_value) =
-                            self.synth_ann_pattern(&param.pattern, param.r#type.as_ref());
-                        let r#type = self.quote_env().quote(self.scope, &type_value);
-                        let (name, _) = self.push_local_param(pattern, type_value);
-                        (param.plicity, name, r#type)
-                    })
-                    .collect();
-
+                let params = self.synth_and_push_params(params);
                 let mut fun_type = self.check(body_type, &self.universe.clone());
                 self.local_env.truncate(initial_local_len);
 
                 // Construct the function type from the parameters in reverse
-                for (plicity, name, r#type) in params.into_iter().rev() {
+                for (i, (param_range, plicity, name, r#type)) in
+                    params.into_iter().enumerate().rev()
+                {
+                    let range = match i {
+                        0 => *range, // Use the range of the full function type
+                        _ => ByteRange::merge(&param_range, &body_type.range()).unwrap(),
+                    };
+
                     fun_type = core::Term::FunType(
-                        range.into(), // FIXME
+                        range.into(),
                         plicity,
                         name,
                         self.scope.to_scope(r#type),
@@ -1446,51 +1445,33 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
             Term::App(range, head_expr, args) => {
                 let mut head_range = head_expr.range();
                 let (mut head_expr, mut head_type) = self.synth(head_expr);
-                let mut args = args.iter().peekable();
-                while let Some(arg) = args.peek() {
+
+                for arg in *args {
                     head_type = self.elim_env().force(&head_type);
-                    match head_type.as_ref() {
-                        // Plicities match: no special treatment needed
-                        Value::FunType(plicity, _, param_type, body_type)
-                            if arg.plicity == *plicity =>
-                        {
-                            let arg_range = arg.term.range();
-                            head_range = ByteRange::merge(&head_range, &arg_range).unwrap();
 
-                            let arg_expr = self.check(&arg.term, param_type);
-                            let arg_expr_value = self.eval_env().eval(&arg_expr);
-
-                            head_expr = core::Term::FunApp(
-                                head_range.into(),
-                                arg.plicity,
-                                self.scope.to_scope(head_expr),
-                                self.scope.to_scope(arg_expr),
-                            );
-                            head_type = self.elim_env().apply_closure(body_type, arg_expr_value);
-                            args.next().unwrap();
+                    match arg.plicity {
+                        Plicity::Implicit => {}
+                        Plicity::Explicit => {
+                            (head_expr, head_type) =
+                                self.insert_implicit_apps(head_range, head_expr, head_type);
                         }
+                    }
 
-                        // Tried to pass explicit arg where implicit arg was expected: insert
-                        // implicit arg
-                        Value::FunType(Plicity::Implicit, param_name, param_type, body_type) => {
-                            (head_expr, head_type) = self.insert_implicit_app(
-                                (head_range, head_expr),
-                                (*param_name, param_type.clone(), body_type),
-                            );
-                        }
-
-                        // Tried to pass implicit arg where explicit arg was expected: report error
-                        Value::FunType(Plicity::Explicit, ..) => {
-                            let arg_range = arg.term.range();
-                            let head_type = self.pretty_print_value(&head_type);
-                            self.messages.push(Message::PlicityArgumentMismatch {
-                                head_range,
-                                head_plicity: Plicity::Explicit,
-                                head_type,
-                                arg_range,
-                                arg_plicity: arg.plicity,
-                            });
-                            return self.synth_reported_error(*range);
+                    let (param_type, body_type) = match head_type.as_ref() {
+                        Value::FunType(plicity, _, param_type, body_type) => {
+                            if arg.plicity == *plicity {
+                                (param_type, body_type)
+                            } else {
+                                let head_type = self.pretty_print_value(&head_type);
+                                self.messages.push(Message::PlicityArgumentMismatch {
+                                    head_range,
+                                    head_plicity: Plicity::Explicit,
+                                    head_type,
+                                    arg_range: arg.term.range(),
+                                    arg_plicity: arg.plicity,
+                                });
+                                return self.synth_reported_error(*range);
+                            }
                         }
 
                         // There's been an error when elaborating the head of
@@ -1510,7 +1491,21 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                             });
                             return self.synth_reported_error(*range);
                         }
-                    }
+                    };
+
+                    let arg_range = arg.term.range();
+                    head_range = ByteRange::merge(&head_range, &arg_range).unwrap();
+
+                    let arg_expr = self.check(&arg.term, param_type);
+                    let arg_expr_value = self.eval_env().eval(&arg_expr);
+
+                    head_expr = core::Term::FunApp(
+                        head_range.into(),
+                        arg.plicity,
+                        self.scope.to_scope(head_expr),
+                        self.scope.to_scope(arg_expr),
+                    );
+                    head_type = self.elim_env().apply_closure(body_type, arg_expr_value);
                 }
                 (head_expr, head_type)
             }
@@ -1574,7 +1569,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
             }
             Term::Proj(range, head_expr, labels) => {
                 let head_range = head_expr.range();
-                let (mut head_expr, mut head_type) = self.synth_and_fill_implicit_args(head_expr);
+                let (mut head_expr, mut head_type) = self.synth_and_insert_implicit_apps(head_expr);
 
                 'labels: for (label_range, proj_label) in *labels {
                     head_type = self.elim_env().force(&head_type);
@@ -1694,7 +1689,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
     fn check_fun_lit(
         &mut self,
         range: ByteRange,
-        params: &[FunParam<'_, ByteRange>],
+        params: &[Param<'_, ByteRange>],
         body_expr: &Term<'_, ByteRange>,
         expected_type: &ArcValue<'arena>,
     ) -> core::Term<'arena> {
@@ -1771,30 +1766,14 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
     fn synth_fun_lit(
         &mut self,
         range: ByteRange,
-        params: &[FunParam<'_, ByteRange>],
+        params: &[Param<'_, ByteRange>],
         body_expr: &Term<'_, ByteRange>,
         body_type: Option<&Term<'_, ByteRange>>,
     ) -> (core::Term<'arena>, ArcValue<'arena>) {
         self.local_env.reserve(params.len());
         let initial_local_len = self.local_env.len();
 
-        // Elaborate the parameters, collecting them into a stack
-        #[allow(clippy::needless_collect)]
-        let params: Vec<_> = params
-            .iter()
-            .enumerate()
-            .map(|(idx, param)| {
-                let range = match idx {
-                    0 => range, // The first pattern uses the range of the full function literal
-                    _ => ByteRange::merge(&param.pattern.range(), &body_expr.range()).unwrap(),
-                };
-                let (pattern, type_value) =
-                    self.synth_ann_pattern(&param.pattern, param.r#type.as_ref());
-                let r#type = self.quote_env().quote(self.scope, &type_value);
-                let (name, _) = self.push_local_param(pattern, type_value);
-                (range, param.plicity, name, r#type)
-            })
-            .collect();
+        let params = self.synth_and_push_params(params);
 
         let (mut fun_lit, mut fun_type) = match body_type {
             Some(body_type) => {
@@ -1811,7 +1790,12 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         self.local_env.truncate(initial_local_len);
 
         // Construct the function literal and type from the parameters in reverse
-        for (range, plicity, name, r#type) in params.into_iter().rev() {
+        for (i, (param_range, plicity, name, r#type)) in params.into_iter().enumerate().rev() {
+            let range = match i {
+                0 => range, // Use the range of the full function literal
+                _ => ByteRange::merge(&param_range, &body_expr.range()).unwrap(),
+            };
+
             fun_lit = core::Term::FunLit(range.into(), plicity, name, self.scope.to_scope(fun_lit));
             fun_type = core::Term::FunType(
                 Span::Empty,
@@ -1836,8 +1820,8 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         use Prim::*;
 
         // de-sugar into function application
-        let (lhs_expr, lhs_type) = self.synth_and_fill_implicit_args(lhs);
-        let (rhs_expr, rhs_type) = self.synth_and_fill_implicit_args(rhs);
+        let (lhs_expr, lhs_type) = self.synth_and_insert_implicit_apps(lhs);
+        let (rhs_expr, rhs_type) = self.synth_and_insert_implicit_apps(rhs);
         let lhs_type = self.elim_env().force(&lhs_type);
         let rhs_type = self.elim_env().force(&rhs_type);
         let operand_types = Option::zip(lhs_type.match_prim_spine(), rhs_type.match_prim_spine());
@@ -2050,7 +2034,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                             (self.check(expr, &type_value), r#type, type_value)
                         }
                         None => {
-                            let (expr, type_value) = self.synth_and_fill_implicit_args(expr);
+                            let (expr, type_value) = self.synth_and_insert_implicit_apps(expr);
                             let r#type = self.quote_env().quote(self.scope, &type_value);
                             (expr, r#type, type_value)
                         }
@@ -2100,7 +2084,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
     }
 
     fn synth_scrutinee(&mut self, scrutinee_expr: &Term<'_, ByteRange>) -> Scrutinee<'arena> {
-        let (expr, r#type) = self.synth_and_fill_implicit_args(scrutinee_expr);
+        let (expr, r#type) = self.synth_and_insert_implicit_apps(scrutinee_expr);
 
         Scrutinee {
             range: scrutinee_expr.range(),

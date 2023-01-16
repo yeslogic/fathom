@@ -5,7 +5,7 @@ use scoped_arena::Scope;
 
 use crate::source::{StringId, StringInterner};
 use crate::surface::lexer::is_keyword;
-use crate::surface::{AppArg, BinOp, FormatField, FunParam, Item, Module, Pattern, Plicity, Term};
+use crate::surface::{Arg, BinOp, FormatField, Item, Module, Param, Pattern, Plicity, Term};
 
 /// Term precedences
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
@@ -68,13 +68,13 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                     match item.r#type {
                         None => self.concat([
                             self.ident(item.label.1),
-                            self.fun_params(item.params),
+                            self.params(item.params),
                             self.space(),
                         ]),
                         Some(r#type) => self.concat([
                             self.concat([
                                 self.ident(item.label.1),
-                                self.fun_params(item.params),
+                                self.params(item.params),
                                 self.space(),
                                 self.text(":"),
                             ])
@@ -130,14 +130,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         }
     }
 
-    fn app_arg<Range>(&'arena self, arg: &AppArg<'_, Range>) -> DocBuilder<'arena, Self> {
-        self.concat([
-            self.plicity(arg.plicity),
-            self.term_prec(Prec::Proj, &arg.term),
-        ])
-    }
-
-    fn fun_param<Range>(&'arena self, param: &FunParam<'_, Range>) -> DocBuilder<'arena, Self> {
+    fn param<Range>(&'arena self, param: &Param<'_, Range>) -> DocBuilder<'arena, Self> {
         match &param.r#type {
             None => self.concat([self.plicity(param.plicity), self.pattern(&param.pattern)]),
             Some(r#type) => self.paren(
@@ -157,8 +150,15 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         }
     }
 
-    fn fun_params<Range>(&'arena self, params: &[FunParam<'_, Range>]) -> DocBuilder<'arena, Self> {
-        self.concat((params.iter()).map(|param| self.concat([self.space(), self.fun_param(param)])))
+    fn params<Range>(&'arena self, params: &[Param<'_, Range>]) -> DocBuilder<'arena, Self> {
+        self.concat((params.iter()).map(|param| self.concat([self.space(), self.param(param)])))
+    }
+
+    fn arg<Range>(&'arena self, arg: &Arg<'_, Range>) -> DocBuilder<'arena, Self> {
+        self.concat([
+            self.plicity(arg.plicity),
+            self.term_prec(Prec::Proj, &arg.term),
+        ])
     }
 
     pub fn term<Range>(&'arena self, term: &Term<'_, Range>) -> DocBuilder<'arena, Self> {
@@ -248,7 +248,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 self.concat([
                     self.concat([
                         self.text("fun"),
-                        self.fun_params(patterns),
+                        self.params(patterns),
                         self.space(),
                         self.text("->"),
                     ])
@@ -273,7 +273,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 self.concat([
                     self.concat([
                         self.text("fun"),
-                        self.fun_params(patterns),
+                        self.params(patterns),
                         self.space(),
                         self.text("=>"),
                     ])
@@ -287,7 +287,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 self.concat([
                     self.term_prec(Prec::Proj, head_expr),
                     self.space(),
-                    self.intersperse((args.iter()).map(|arg| self.app_arg(arg)), self.space()),
+                    self.intersperse((args.iter()).map(|arg| self.arg(arg)), self.space()),
                 ]),
             ),
             Term::RecordType(_, type_fields) => self.sequence(

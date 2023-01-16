@@ -22,7 +22,7 @@ use fxhash::{FxHashMap, FxHashSet};
 
 use crate::source::{ByteRange, StringId};
 use crate::surface::elaboration::reporting::Message;
-use crate::surface::{elaboration, FormatField, FunParam, Item, Module, Pattern, Term};
+use crate::surface::{elaboration, FormatField, Item, Module, Param, Pattern, Term};
 
 enum Error {
     CycleDetected,
@@ -279,7 +279,7 @@ fn term_deps(
 }
 
 fn push_param_deps(
-    params: &[FunParam<'_, ByteRange>],
+    params: &[Param<'_, ByteRange>],
     item_names: &FxHashMap<StringId, usize>,
     local_names: &mut Vec<StringId>,
     deps: &mut Vec<StringId>,

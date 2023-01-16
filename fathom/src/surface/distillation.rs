@@ -6,13 +6,12 @@ use scoped_arena::Scope;
 
 use crate::alloc::SliceVec;
 use crate::core;
-use crate::core::{Const, UIntStyle};
+use crate::core::{Const, Plicity, UIntStyle};
 use crate::env::{self, EnvLen, Index, Level, UniqueEnv};
 use crate::source::{Span, StringId, StringInterner};
 use crate::surface::elaboration::MetaSource;
 use crate::surface::{
-    AppArg, BinOp, ExprField, FormatField, FunParam, Item, ItemDef, Module, Pattern, Plicity, Term,
-    TypeField,
+    Arg, BinOp, ExprField, FormatField, Item, ItemDef, Module, Param, Pattern, Term, TypeField,
 };
 
 /// Distillation context.
@@ -59,10 +58,10 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
     }
 
     fn push_local(&mut self, name: Option<StringId>) -> StringId {
-        let name =
-            name.unwrap_or_else(|| {
-                self.interner.borrow_mut().get_or_intern_static("_") // TODO: choose a better name?
-            });
+        let name = name.unwrap_or_else(|| {
+            // TODO: choose a better name?
+            self.interner.borrow_mut().get_or_intern_static("_")
+        });
 
         // TODO: avoid globals
         // TODO: ensure we chose a correctly bound name
@@ -275,7 +274,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 let body_expr = self.check(body_expr);
                 self.truncate_local(initial_local_len);
 
-                let params = params.into_iter().map(|(plicity, name)| FunParam {
+                let params = params.into_iter().map(|(plicity, name)| Param {
                     plicity,
                     pattern: Pattern::Name((), name),
                     r#type: None,
@@ -427,7 +426,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                             core::LocalInfo::Def => {}
                             core::LocalInfo::Param => {
                                 let var = self.local_len().level_to_index(var).unwrap();
-                                args.push(AppArg {
+                                args.push(Arg {
                                     plicity: Plicity::Explicit,
                                     term: self.check(&core::Term::LocalVar(Span::Empty, var)),
                                 });
@@ -478,7 +477,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                             let param_type = self.check(param_type);
                             let param_name = self.freshen_name(*param_name, next_body_type);
                             let param_name = self.push_local(param_name);
-                            params.push(FunParam {
+                            params.push(Param {
                                 plicity: *plicity,
                                 pattern: Pattern::Name((), param_name),
                                 r#type: Some(param_type),
@@ -516,7 +515,6 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                     )
                 }
             }
-
             core::Term::FunLit(..) => {
                 let initial_local_len = self.local_len();
                 let mut params = Vec::new();
@@ -531,7 +529,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 let body_expr = self.synth(body_expr);
                 self.truncate_local(initial_local_len);
 
-                let params = params.into_iter().map(|(plicity, name)| FunParam {
+                let params = params.into_iter().map(|(plicity, name)| Param {
                     plicity,
                     pattern: Pattern::Name((), name),
                     r#type: None,
@@ -543,34 +541,38 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                     self.scope.to_scope(body_expr),
                 )
             }
-            core::Term::FunApp(
-                ..,
-                core::Term::FunApp(.., core::Term::Prim(_, prim), lhs),
-                arg_expr,
-            ) if prim_to_bin_op(prim).is_some() => {
-                self.synth_bin_op(lhs, arg_expr, prim_to_bin_op(prim).unwrap())
-            }
-
             core::Term::FunApp(..) => {
                 let mut head_expr = core_term;
                 let mut args = Vec::new();
 
-                while let core::Term::FunApp(_, plicity, next_head_expr, arg_expr) = head_expr {
+                // Collect a spine of arguments in reverse order
+                while let core::Term::FunApp(_, plicity, next_head_expr, arg_expr) = *head_expr {
                     head_expr = next_head_expr;
-                    args.push(AppArg {
-                        plicity: *plicity,
-                        term: self.check(arg_expr),
-                    });
+                    args.push((plicity, arg_expr));
                 }
 
-                let head_expr = self.synth(head_expr);
+                // Distill appropriate primitives to binary operator expressions
+                if let (core::Term::Prim(_, prim), [(_, rhs), (_, lhs)]) = (head_expr, &args[..]) {
+                    if let Some(binop) = prim_to_bin_op(prim) {
+                        let lhs = self.scope.to_scope(self.synth(lhs));
+                        let rhs = self.scope.to_scope(self.synth(rhs));
+                        return Term::BinOp((), lhs, binop, rhs);
+                    }
+                }
 
+                // Otherwise distill to a function application
                 Term::App(
                     (),
-                    self.scope.to_scope(head_expr),
-                    self.scope.to_scope_from_iter(args.into_iter().rev()),
+                    self.scope.to_scope(self.synth(head_expr)),
+                    self.scope.to_scope_from_iter(args.into_iter().rev().map(
+                        |(plicity, arg_expr)| Arg {
+                            plicity,
+                            term: self.check(arg_expr),
+                        },
+                    )),
                 )
             }
+
             core::Term::RecordType(_, labels, types)
                 if is_tuple_type(&mut self.interner.borrow_mut(), labels, types) =>
             {
@@ -736,22 +738,6 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 }
             }
         }
-    }
-
-    fn synth_bin_op(
-        &mut self,
-        lhs: &core::Term<'_>,
-        rhs: &core::Term<'_>,
-        op: BinOp<()>,
-    ) -> Term<'arena, ()> {
-        let lhs = self.synth(lhs);
-        let rhs = self.synth(rhs);
-        Term::BinOp(
-            (),
-            self.scope.to_scope(lhs),
-            op,
-            self.scope.to_scope(self.scope.to_scope(rhs)),
-        )
     }
 
     fn synth_format_fields(
