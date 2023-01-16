@@ -1,4 +1,6 @@
-stdout = ''
+stdout = '''
+?1 : ?0
+'''
 stderr = '''
 error: failed to infer placeholder expression
   ┌─ tests/fail/elaboration/unsolved/placeholder.fathom:3:1

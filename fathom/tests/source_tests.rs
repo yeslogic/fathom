@@ -39,6 +39,8 @@ impl TestMode {
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "kebab-case")]
 struct Config {
+    #[serde(default = "DEFAULT_ALLOW_ERRORS")]
+    allow_errors: bool,
     mode: Option<TestMode>,
     #[serde(default = "DEFAULT_IGNORE")]
     ignore: bool,
@@ -54,6 +56,7 @@ struct Config {
     test_normalisation: bool,
 }
 
+const DEFAULT_ALLOW_ERRORS: fn() -> bool = || false;
 const DEFAULT_IGNORE: fn() -> bool = || false;
 const DEFAULT_EXIT_CODE: fn() -> i32 = || 0;
 const DEFAULT_EXAMPLE_DATA: fn() -> Vec<String> = Vec::new;
@@ -296,6 +299,9 @@ impl<'a> TestCommand<'a> {
         let mut failures = Vec::new();
         let mut command = process::Command::from(self.command);
         command.arg(self.input_file);
+        if self.config.allow_errors {
+            command.arg("--allow-errors");
+        }
 
         match command.output() {
             Ok(output) => {
