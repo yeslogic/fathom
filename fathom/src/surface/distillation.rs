@@ -515,7 +515,6 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                     )
                 }
             }
-
             core::Term::FunLit(..) => {
                 let initial_local_len = self.local_len();
                 let mut params = Vec::new();
@@ -542,34 +541,38 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                     self.scope.to_scope(body_expr),
                 )
             }
-            core::Term::FunApp(
-                ..,
-                core::Term::FunApp(.., core::Term::Prim(_, prim), lhs),
-                arg_expr,
-            ) if prim_to_bin_op(prim).is_some() => {
-                self.synth_bin_op(lhs, arg_expr, prim_to_bin_op(prim).unwrap())
-            }
-
             core::Term::FunApp(..) => {
                 let mut head_expr = core_term;
                 let mut args = Vec::new();
 
-                while let core::Term::FunApp(_, plicity, next_head_expr, arg_expr) = head_expr {
+                // Collect a spine of arguments in reverse order
+                while let core::Term::FunApp(_, plicity, next_head_expr, arg_expr) = *head_expr {
                     head_expr = next_head_expr;
-                    args.push(Arg {
-                        plicity: *plicity,
-                        term: self.check(arg_expr),
-                    });
+                    args.push((plicity, arg_expr));
                 }
 
-                let head_expr = self.synth(head_expr);
+                // Distill appropriate primitives to binary operator expressions
+                if let (core::Term::Prim(_, prim), [(_, rhs), (_, lhs)]) = (head_expr, &args[..]) {
+                    if let Some(binop) = prim_to_bin_op(prim) {
+                        let lhs = self.scope.to_scope(self.synth(lhs));
+                        let rhs = self.scope.to_scope(self.synth(rhs));
+                        return Term::BinOp((), lhs, binop, rhs);
+                    }
+                }
 
+                // Otherwise distill to a function application
                 Term::App(
                     (),
-                    self.scope.to_scope(head_expr),
-                    self.scope.to_scope_from_iter(args.into_iter().rev()),
+                    self.scope.to_scope(self.synth(head_expr)),
+                    self.scope.to_scope_from_iter(args.into_iter().rev().map(
+                        |(plicity, arg_expr)| Arg {
+                            plicity,
+                            term: self.check(arg_expr),
+                        },
+                    )),
                 )
             }
+
             core::Term::RecordType(_, labels, types)
                 if is_tuple_type(&mut self.interner.borrow_mut(), labels, types) =>
             {
@@ -735,22 +738,6 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 }
             }
         }
-    }
-
-    fn synth_bin_op(
-        &mut self,
-        lhs: &core::Term<'_>,
-        rhs: &core::Term<'_>,
-        op: BinOp<()>,
-    ) -> Term<'arena, ()> {
-        let lhs = self.synth(lhs);
-        let rhs = self.synth(rhs);
-        Term::BinOp(
-            (),
-            self.scope.to_scope(lhs),
-            op,
-            self.scope.to_scope(self.scope.to_scope(rhs)),
-        )
     }
 
     fn synth_format_fields(
