@@ -106,54 +106,62 @@ pub enum Token<'source> {
     #[token(")")]
     CloseParen,
 
-    #[token(r"/*", block_comment)]
-    BlockComment(BlockCommentError),
-
     #[error]
     #[regex(r"\p{Whitespace}", logos::skip)]
     #[regex(r"//(.*)\n", logos::skip)]
     Error,
+
+    #[token(r"/*", block_comment)]
+    ErrorData(Error),
 }
 
-const OPEN: &str = "/*";
-const CLOSE: &str = "*/";
-const LEN: BytePos = OPEN.len() as BytePos;
+#[derive(Clone, Debug, Logos)]
+#[logos(extras = FileId)]
+enum BlockComment {
+    #[error]
+    Skip,
+    #[token("/*")]
+    Open,
+    #[token("*/")]
+    Close,
+}
 
-fn block_comment<'source>(
-    lexer: &mut logos::Lexer<'source, Token<'source>>,
-) -> Filter<BlockCommentError> {
-    let start = lexer.span().start as BytePos;
-    let first_open_pos = start;
-    let mut last_close_pos = start;
-    let mut pos = start;
+fn lexer_range<'source, T>(lexer: &logos::Lexer<'source, T>) -> ByteRange
+where
+    T: logos::Logos<'source, Extras = FileId>,
+{
+    let span = lexer.span();
+    ByteRange::new(lexer.extras, span.start as BytePos, span.end as BytePos)
+}
+
+fn block_comment<'source>(lexer: &mut logos::Lexer<'source, Token<'source>>) -> Filter<Error> {
+    let mut comment_lexer = lexer.to_owned().morph::<BlockComment>();
+    let first_open = lexer_range(&comment_lexer);
+    let mut last_close = first_open;
 
     let mut depth: u32 = 1;
-    while let Some(c) = lexer.remainder().chars().next() {
-        if lexer.remainder().starts_with(OPEN) {
-            pos += LEN;
-            lexer.bump(OPEN.len());
-            depth += 1;
-        } else if lexer.remainder().starts_with(CLOSE) {
-            pos += LEN;
-            last_close_pos = pos;
-            lexer.bump(CLOSE.len());
-            depth -= 1;
-            if depth == 0 {
-                break;
+    while let Some(token) = comment_lexer.next() {
+        match token {
+            BlockComment::Skip => {}
+            BlockComment::Open => depth += 1,
+            BlockComment::Close => {
+                depth -= 1;
+                last_close = lexer_range(&comment_lexer);
+                if depth == 0 {
+                    break;
+                }
             }
-        } else {
-            pos += c.len_utf8() as BytePos;
-            lexer.bump(c.len_utf8());
         }
     }
 
-    let file_id = lexer.extras;
+    *lexer = comment_lexer.morph::<Token>();
+
     match depth {
         0 => Filter::Skip,
-        _ => Filter::Emit(BlockCommentError {
+        _ => Filter::Emit(Error::UnclosedBlockComment {
             depth,
-            first_open: ByteRange::new(file_id, first_open_pos, first_open_pos + LEN),
-            last_close: ByteRange::new(file_id, last_close_pos, last_close_pos + LEN),
+            first_open,
+            last_close,
         }),
     }
 }
@@ -162,22 +170,21 @@ pub type Spanned<Tok, Loc> = (Loc, Tok, Loc);
 
 #[derive(Clone, Debug)]
 pub enum Error {
-    UnclosedBlockComment(BlockCommentError),
-    UnexpectedCharacter { range: ByteRange },
-}
-
-#[derive(Clone, Debug)]
-pub struct BlockCommentError {
-    depth: u32,
-    first_open: ByteRange,
-    last_close: ByteRange,
+    UnclosedBlockComment {
+        depth: u32,
+        first_open: ByteRange,
+        last_close: ByteRange,
+    },
+    UnexpectedCharacter {
+        range: ByteRange,
+    },
 }
 
 impl Error {
     pub fn range(&self) -> ByteRange {
         match self {
             Error::UnexpectedCharacter { range } => *range,
-            Error::UnclosedBlockComment(BlockCommentError { first_open, .. }) => *first_open,
+            Error::UnclosedBlockComment { first_open, .. } => *first_open,
         }
     }
 
@@ -186,19 +193,17 @@ impl Error {
             Error::UnexpectedCharacter { range } => Diagnostic::error()
                 .with_message("unexpected character")
                 .with_labels(vec![Label::primary(range.file_id(), *range)]),
-            Error::UnclosedBlockComment(BlockCommentError {
+            Error::UnclosedBlockComment {
                 depth,
                 first_open,
                 last_close,
-            }) => Diagnostic::error()
+            } => Diagnostic::error()
                 .with_message("unclosed block comment")
                 .with_labels(vec![
-                    Label::primary(first_open.file_id(), *first_open)
-                        .with_message(format!("first `{OPEN}`")),
-                    Label::primary(last_close.file_id(), *last_close)
-                        .with_message(format!("last `{CLOSE}`")),
+                    Label::primary(first_open.file_id(), *first_open).with_message("first `/*`"),
+                    Label::primary(last_close.file_id(), *last_close).with_message("last `*/`"),
                 ])
-                .with_notes(vec![format!("Help: {depth} more `{CLOSE}` needed",)]),
+                .with_notes(vec![format!("help: {depth} more `*/` needed")]),
         }
     }
 }
@@ -218,7 +223,7 @@ pub fn tokens(
             let start = range.start as BytePos;
             let end = range.end as BytePos;
             match token {
-                Token::BlockComment(err) => Err(Error::UnclosedBlockComment(err)),
+                Token::ErrorData(err) => Err(err),
                 Token::Error => Err(Error::UnexpectedCharacter {
                     range: ByteRange::new(file_id, start, end),
                 }),
@@ -267,8 +272,7 @@ impl<'source> Token<'source> {
             Token::CloseBracket => "]",
             Token::OpenParen => "(",
             Token::CloseParen => ")",
-            Token::BlockComment(_) => "block comment",
-            Token::Error => "error",
+            Token::Error | Token::ErrorData(_) => "error",
             Token::BangEquals => "!=",
             Token::EqualsEquals => "==",
             Token::GreaterEquals => ">=",
