@@ -1,0 +1,12 @@
+stdout = '''
+def a : () : Type = ();
+def const1 : fun (@A : Type) (@B : Type) -> A -> B -> A =
+fun @b @c x y => let x1 : b = x;
+let y1 : c = y;
+x;
+def const2 : fun (@A : Type) (@B : Type) -> A -> B -> A = let b : () = ();
+fun @c @d x y => let x1 : c = x;
+let y1 : d = y;
+x;
+'''
+stderr = ''

@@ -1,0 +1,31 @@
+//~ mode = "module"
+
+// An item to throw off fresh name generation
+def a = {};
+
+def const1 : fun (@A : _) (@B : _) -> A -> B -> A =
+  // The binders in the distilled term should use fresh names (starting with
+  // `a`, `b`, ...), avoiding the binding from the let expression and the
+  // top-level item
+  fun @_ @_ x y =>
+    // The following let bindings will force the type parameters to be
+    // referenced in the type annotation of the let expressions:
+    let x1 = x;
+    let y1 = y;
+
+    x;
+
+def const2 : fun (@A : _) (@B : _) -> A -> B -> A =
+  // A let expression to throw off fresh name generation
+  let b = {};
+
+  // The binders in the distilled term should use fresh names (starting with
+  // `a`, `b`, ...), avoiding the binding from the let expression and the
+  // top-level item
+  fun @_ @_ x y =>
+    // The following let bindings will force the type parameters to be
+    // referenced in the type annotation of the let expressions:
+    let x1 = x;
+    let y1 = y;
+
+    x;
