@@ -1,4 +1,6 @@
-stdout = ''
+stdout = '''
+?woopsie : Type
+'''
 stderr = '''
 error: failed to infer hole expression
   ┌─ tests/fail/elaboration/unsolved/hole-ann.fathom:3:1

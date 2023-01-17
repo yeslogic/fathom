@@ -1,4 +1,6 @@
-stdout = ''
+stdout = '''
+fun a => a : ?0 -> ?0
+'''
 stderr = '''
 error: failed to infer named pattern type
   ┌─ tests/fail/elaboration/unsolved/fun-literal-param-type.fathom:3:5

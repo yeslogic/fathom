@@ -85,7 +85,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
     fn get_hole_name(&self, var: Level) -> Option<StringId> {
         match self.meta_sources.get_level(var)? {
             MetaSource::HoleExpr(_, name) => Some(*name),
-            _ => None,
+            _ => Some(self.interner.borrow_mut().get_or_intern(var.to_string())),
         }
     }
 

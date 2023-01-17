@@ -1,4 +1,6 @@
-stdout = ''
+stdout = '''
+fun A a b => a : fun (A : Type) -> ?2 A -> A -> ?2 A
+'''
 stderr = '''
 error: failed to infer named pattern type
   ┌─ tests/fail/elaboration/unsolved/fun-literal-placeholder-body-type.fathom:3:16
