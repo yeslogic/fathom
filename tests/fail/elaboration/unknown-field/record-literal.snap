@@ -7,5 +7,7 @@ error: cannot find `goodbye` in expression
   │ -------------- ^^^^^^^ unknown label
   │ │               
   │ expression of type { hello : () }
+  │
+  = help: did you mean `goodbye`?
 
 '''

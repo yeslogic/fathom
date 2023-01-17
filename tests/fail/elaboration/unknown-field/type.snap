@@ -7,5 +7,7 @@ error: cannot find `foo` in expression
   │ ---- ^^^ unknown label
   │ │     
   │ expression of type Type
+  │
+  = help: did you mean `foo`?
 
 '''
