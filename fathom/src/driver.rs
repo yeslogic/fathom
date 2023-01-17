@@ -9,6 +9,7 @@ use codespan_reporting::term::termcolor::{BufferedStandardStream, ColorChoice, W
 use crate::core::binary::{self, BufferError, ReadError};
 use crate::files::{FileId, Files};
 use crate::source::{ByteRange, Span, StringInterner};
+use crate::surface::elaboration::ItemEnv;
 use crate::surface::{self, elaboration};
 use crate::{core, BUG_REPORT_URL};
 
@@ -192,7 +193,8 @@ impl<'surface, 'core> Driver<'surface, 'core> {
     }
 
     pub fn elaborate_and_emit_module(&mut self, file_id: FileId, pretty_core: bool) -> Status {
-        let mut context = elaboration::Context::new(&self.interner, &self.core_scope);
+        let mut context =
+            elaboration::Context::new(file_id, &self.interner, &self.core_scope, ItemEnv::new());
 
         let surface_module = self.parse_module(file_id);
         let module = context.elab_module(&self.core_scope, &surface_module, &mut |m| {
@@ -217,7 +219,8 @@ impl<'surface, 'core> Driver<'surface, 'core> {
     }
 
     pub fn elaborate_and_emit_term(&mut self, file_id: FileId) -> Status {
-        let mut context = elaboration::Context::new(&self.interner, &self.core_scope);
+        let mut context =
+            elaboration::Context::new(file_id, &self.interner, &self.core_scope, ItemEnv::new());
 
         // Parse and elaborate the term
         let surface_term = self.parse_term(file_id);
@@ -241,7 +244,8 @@ impl<'surface, 'core> Driver<'surface, 'core> {
     }
 
     pub fn normalise_and_emit_term(&mut self, file_id: FileId) -> Status {
-        let mut context = elaboration::Context::new(&self.interner, &self.core_scope);
+        let mut context =
+            elaboration::Context::new(file_id, &self.interner, &self.core_scope, ItemEnv::new());
 
         // Parse and elaborate the term
         let surface_term = self.parse_term(file_id);
@@ -277,22 +281,27 @@ impl<'surface, 'core> Driver<'surface, 'core> {
 
         let initial_buffer = binary::Buffer::from(buffer_data);
         let mut binary_context = binary::Context::new(initial_buffer);
-        let mut elab_context = elaboration::Context::new(&self.interner, &self.core_scope);
+        let mut item_env = ItemEnv::new();
 
         // Parse and elaborate a module if one was provided
         if let Some(file_id) = module_file_id {
+            let mut elab_context =
+                elaboration::Context::new(file_id, &self.interner, &self.core_scope, item_env);
             let surface_module = self.parse_module(file_id);
             let module = elab_context.elab_module(&self.core_scope, &surface_module, &mut |m| {
                 self.emit_diagnostic(m.to_diagnostic(&self.interner));
             });
             // Add it to the binary context
             binary_context.add_module(&module);
+            item_env = elab_context.finish();
         }
 
         // Parse and elaborate the supplied format with the items from the
         // supplied in the module in scope. This is still a bit of a hack, and
         // will need to be revisited if we need to support multiple modules, but
         // it works for now!
+        let mut elab_context =
+            elaboration::Context::new(format_file_id, &self.interner, &self.core_scope, item_env);
         let surface_format = self.parse_term(format_file_id);
         let format = elab_context.elab_format(&self.core_scope, &surface_format, &mut |m| {
             self.emit_diagnostic(m.to_diagnostic(&self.interner));
@@ -333,17 +342,16 @@ impl<'surface, 'core> Driver<'surface, 'core> {
     fn parse_module(&'surface self, file_id: FileId) -> surface::Module<'surface, ByteRange> {
         let source = self.files.get(file_id).unwrap().source();
         let (module, messages) =
-            surface::Module::parse(&self.interner, &self.surface_scope, file_id, source);
-        self.emit_diagnostics(messages.into_iter().map(|m| m.to_diagnostic()));
+            surface::Module::parse(&self.interner, &self.surface_scope, source);
+        self.emit_diagnostics(messages.into_iter().map(|m| m.to_diagnostic(file_id)));
 
         module
     }
 
     fn parse_term(&'surface self, file_id: FileId) -> surface::Term<'surface, ByteRange> {
         let source = self.files.get(file_id).unwrap().source();
-        let (term, messages) =
-            surface::Term::parse(&self.interner, &self.surface_scope, file_id, source);
-        self.emit_diagnostics(messages.into_iter().map(move |m| m.to_diagnostic()));
+        let (term, messages) = surface::Term::parse(&self.interner, &self.surface_scope, source);
+        self.emit_diagnostics(messages.into_iter().map(move |m| m.to_diagnostic(file_id)));
 
         term
     }

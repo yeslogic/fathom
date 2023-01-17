@@ -26,11 +26,13 @@ use std::sync::Arc;
 
 use scoped_arena::Scope;
 
+use super::ExprField;
 use crate::alloc::SliceVec;
 use crate::core::semantics::{self, ArcValue, Head, Telescope, Value};
 use crate::core::{self, prim, Const, Plicity, Prim, UIntStyle};
 use crate::env::{self, EnvLen, Level, SharedEnv, UniqueEnv};
-use crate::source::{BytePos, ByteRange, Span, Spanned, StringId, StringInterner};
+use crate::files::FileId;
+use crate::source::{BytePos, ByteRange, FileRange, Span, Spanned, StringId, StringInterner};
 use crate::surface::elaboration::reporting::Message;
 use crate::surface::{
     distillation, pretty, BinOp, FormatField, Item, Module, Param, Pattern, Term,
@@ -41,7 +43,7 @@ mod reporting;
 mod unification;
 
 /// Top-level item environment.
-struct ItemEnv<'arena> {
+pub struct ItemEnv<'arena> {
     /// Names of items.
     names: UniqueEnv<StringId>,
     /// Types of items.
@@ -52,7 +54,7 @@ struct ItemEnv<'arena> {
 
 impl<'arena> ItemEnv<'arena> {
     /// Construct a new, empty environment.
-    fn new() -> ItemEnv<'arena> {
+    pub fn new() -> ItemEnv<'arena> {
         ItemEnv {
             names: UniqueEnv::new(),
             types: UniqueEnv::new(),
@@ -174,27 +176,27 @@ impl<'arena> LocalEnv<'arena> {
 /// The reason why a metavariable was inserted.
 #[derive(Debug, Copy, Clone)]
 pub enum MetaSource {
-    ImplicitArg(ByteRange, Option<StringId>),
+    ImplicitArg(FileRange, Option<StringId>),
     /// The type of a hole.
-    HoleType(ByteRange, StringId),
+    HoleType(FileRange, StringId),
     /// The expression of a hole.
-    HoleExpr(ByteRange, StringId),
+    HoleExpr(FileRange, StringId),
     /// The type of a placeholder
-    PlaceholderType(ByteRange),
+    PlaceholderType(FileRange),
     /// The expression of a placeholder
-    PlaceholderExpr(ByteRange),
+    PlaceholderExpr(FileRange),
     /// The type of a placeholder pattern.
-    PlaceholderPatternType(ByteRange),
+    PlaceholderPatternType(FileRange),
     /// The type of a named pattern.
-    NamedPatternType(ByteRange, StringId),
+    NamedPatternType(FileRange, StringId),
     /// The overall type of a match expression
-    MatchExprType(ByteRange),
+    MatchExprType(FileRange),
     /// The type of a reported error.
-    ReportedErrorType(ByteRange),
+    ReportedErrorType(FileRange),
 }
 
 impl MetaSource {
-    pub fn range(&self) -> ByteRange {
+    pub fn range(&self) -> FileRange {
         match self {
             MetaSource::ImplicitArg(range, _)
             | MetaSource::HoleType(range, _)
@@ -255,6 +257,7 @@ impl<'arena> MetaEnv<'arena> {
 
 /// Elaboration context.
 pub struct Context<'interner, 'arena> {
+    file_id: FileId,
     /// Global string interner.
     interner: &'interner RefCell<StringInterner>,
     /// Scoped arena for storing elaborated terms.
@@ -286,10 +289,13 @@ pub struct Context<'interner, 'arena> {
 impl<'interner, 'arena> Context<'interner, 'arena> {
     /// Construct a new elaboration context, backed by the supplied arena.
     pub fn new(
+        file_id: FileId,
         interner: &'interner RefCell<StringInterner>,
         scope: &'arena Scope<'arena>,
+        item_env: ItemEnv<'arena>,
     ) -> Context<'interner, 'arena> {
         Context {
+            file_id,
             interner,
             scope,
 
@@ -298,12 +304,20 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
             bool_type: Spanned::empty(Arc::new(Value::prim(Prim::BoolType, []))),
 
             prim_env: prim::Env::default(interner, scope),
-            item_env: ItemEnv::new(),
+            item_env,
             meta_env: MetaEnv::new(),
             local_env: LocalEnv::new(),
             renaming: unification::PartialRenaming::new(),
             messages: Vec::new(),
         }
+    }
+
+    pub fn finish(self) -> ItemEnv<'arena> {
+        self.item_env
+    }
+
+    fn file_range(&self, byte_range: ByteRange) -> FileRange {
+        FileRange::new(self.file_id, byte_range)
     }
 
     /// Lookup an item name in the context.
@@ -454,7 +468,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
             let (range, label) = get_label(field);
             if labels.contains(&label) {
                 duplicate_indices.push(index);
-                duplicate_labels.push((range, label));
+                duplicate_labels.push((self.file_range(range), label));
             } else {
                 labels.push(label)
             }
@@ -462,7 +476,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
 
         if !duplicate_labels.is_empty() {
             self.push_message(Message::DuplicateFieldLabels {
-                range,
+                range: self.file_range(range),
                 labels: duplicate_labels,
             });
         }
@@ -499,7 +513,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 let ch_end = ch_start + ch.len_utf8() as BytePos;
 
                 self.push_message(Message::NonAsciiStringLiteral {
-                    invalid_range: ByteRange::new(range.file_id(), ch_start, ch_end),
+                    invalid_range: self.file_range(ByteRange::new(ch_start, ch_end)),
                 });
                 num = None;
             }
@@ -515,7 +529,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
 
         if count as usize != std::mem::size_of::<T>() {
             self.push_message(Message::MismatchedStringLiteralByteLength {
-                range,
+                range: self.file_range(range),
                 expected_len: std::mem::size_of::<T>(),
                 found_len: count as usize,
             });
@@ -540,7 +554,10 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
             Ok(data) => Some(make(data)),
             Err(error) => {
                 let message = error.to_string();
-                self.push_message(Message::InvalidNumericLiteral { range, message });
+                self.push_message(Message::InvalidNumericLiteral {
+                    range: self.file_range(range),
+                    message,
+                });
                 None
             }
         }
@@ -567,7 +584,10 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
             Ok(data) => Some(make(data, style)),
             Err(error) => {
                 let message = error.to_string();
-                self.push_message(Message::InvalidNumericLiteral { range, message });
+                self.push_message(Message::InvalidNumericLiteral {
+                    range: self.file_range(range),
+                    message,
+                });
                 None
             }
         }
@@ -580,8 +600,8 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
     //       coercions to the core language.
     fn convert(
         &mut self,
-        // TODO: could be removed if we never encounter empty spans in the core term
-        surface_range: ByteRange,
+        surface_range: ByteRange, /* TODO: could be removed if we never encounter empty spans in
+                                   * the core term */
         expr: core::Term<'arena>,
         from: &ArcValue<'arena>,
         to: &ArcValue<'arena>,
@@ -590,10 +610,9 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         let range = match span {
             Span::Range(range) => range,
             Span::Empty => {
-                self.push_message(Message::MissingSpan {
-                    range: surface_range,
-                });
-                surface_range
+                let range = self.file_range(surface_range);
+                self.push_message(Message::MissingSpan { range });
+                range
             }
         };
         match self.unification_context().unify(from, to) {
@@ -714,9 +733,10 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         pattern: &Pattern<ByteRange>,
         expected_type: &ArcValue<'arena>,
     ) -> CheckedPattern {
+        let file_range = self.file_range(pattern.range());
         match pattern {
-            Pattern::Name(range, name) => CheckedPattern::Binder(*range, *name),
-            Pattern::Placeholder(range) => CheckedPattern::Placeholder(*range),
+            Pattern::Name(_, name) => CheckedPattern::Binder(file_range, *name),
+            Pattern::Placeholder(_) => CheckedPattern::Placeholder(file_range),
             Pattern::StringLiteral(range, lit) => {
                 let constant = match expected_type.match_prim_spine() {
                     Some((Prim::U8Type, [])) => self.parse_ascii(*range, *lit, Const::U8),
@@ -731,7 +751,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                     _ => {
                         let expected_type = self.pretty_print_value(expected_type);
                         self.push_message(Message::StringLiteralNotSupported {
-                            range: *range,
+                            range: file_range,
                             expected_type,
                         });
                         None
@@ -739,8 +759,8 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 };
 
                 match constant {
-                    Some(constant) => CheckedPattern::ConstLit(*range, constant),
-                    None => CheckedPattern::ReportedError(*range),
+                    Some(constant) => CheckedPattern::ConstLit(file_range, constant),
+                    None => CheckedPattern::ReportedError(file_range),
                 }
             }
             Pattern::NumberLiteral(range, lit) => {
@@ -759,7 +779,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                     _ => {
                         let expected_type = self.pretty_print_value(expected_type);
                         self.push_message(Message::NumericLiteralNotSupported {
-                            range: *range,
+                            range: file_range,
                             expected_type,
                         });
                         None
@@ -767,25 +787,27 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 };
 
                 match constant {
-                    Some(constant) => CheckedPattern::ConstLit(*range, constant),
-                    None => CheckedPattern::ReportedError(*range),
+                    Some(constant) => CheckedPattern::ConstLit(file_range, constant),
+                    None => CheckedPattern::ReportedError(file_range),
                 }
             }
-            Pattern::BooleanLiteral(range, boolean) => {
+            Pattern::BooleanLiteral(_, boolean) => {
                 let constant = match expected_type.match_prim_spine() {
                     Some((Prim::BoolType, [])) => match *boolean {
                         true => Some(Const::Bool(true)),
                         false => Some(Const::Bool(false)),
                     },
                     _ => {
-                        self.push_message(Message::BooleanLiteralNotSupported { range: *range });
+                        self.push_message(Message::BooleanLiteralNotSupported {
+                            range: file_range,
+                        });
                         None
                     }
                 };
 
                 match constant {
-                    Some(constant) => CheckedPattern::ConstLit(*range, constant),
-                    None => CheckedPattern::ReportedError(*range),
+                    Some(constant) => CheckedPattern::ConstLit(file_range, constant),
+                    None => CheckedPattern::ReportedError(file_range),
                 }
             }
         }
@@ -796,33 +818,34 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         &mut self,
         pattern: &Pattern<ByteRange>,
     ) -> (CheckedPattern, ArcValue<'arena>) {
+        let file_range = self.file_range(pattern.range());
         match pattern {
-            Pattern::Name(range, name) => {
-                let source = MetaSource::NamedPatternType(*range, *name);
+            Pattern::Name(_, name) => {
+                let source = MetaSource::NamedPatternType(file_range, *name);
                 let r#type = self.push_unsolved_type(source);
-                (CheckedPattern::Binder(*range, *name), r#type)
+                (CheckedPattern::Binder(file_range, *name), r#type)
             }
-            Pattern::Placeholder(range) => {
-                let source = MetaSource::PlaceholderPatternType(*range);
+            Pattern::Placeholder(_) => {
+                let source = MetaSource::PlaceholderPatternType(file_range);
                 let r#type = self.push_unsolved_type(source);
-                (CheckedPattern::Placeholder(*range), r#type)
+                (CheckedPattern::Placeholder(file_range), r#type)
             }
-            Pattern::StringLiteral(range, _) => {
-                self.push_message(Message::AmbiguousStringLiteral { range: *range });
-                let source = MetaSource::ReportedErrorType(*range);
+            Pattern::StringLiteral(_, _) => {
+                self.push_message(Message::AmbiguousStringLiteral { range: file_range });
+                let source = MetaSource::ReportedErrorType(file_range);
                 let r#type = self.push_unsolved_type(source);
-                (CheckedPattern::ReportedError(*range), r#type)
+                (CheckedPattern::ReportedError(file_range), r#type)
             }
-            Pattern::NumberLiteral(range, _) => {
-                self.push_message(Message::AmbiguousNumericLiteral { range: *range });
-                let source = MetaSource::ReportedErrorType(*range);
+            Pattern::NumberLiteral(_, _) => {
+                self.push_message(Message::AmbiguousNumericLiteral { range: file_range });
+                let source = MetaSource::ReportedErrorType(file_range);
                 let r#type = self.push_unsolved_type(source);
-                (CheckedPattern::ReportedError(*range), r#type)
+                (CheckedPattern::ReportedError(file_range), r#type)
             }
-            Pattern::BooleanLiteral(range, val) => {
+            Pattern::BooleanLiteral(_, val) => {
                 let r#const = Const::Bool(*val);
                 let r#type = self.bool_type.clone();
-                (CheckedPattern::ConstLit(*range, r#const), r#type)
+                (CheckedPattern::ConstLit(file_range, r#const), r#type)
             }
         }
     }
@@ -837,7 +860,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         match r#type {
             None => self.check_pattern(pattern, expected_type),
             Some(r#type) => {
-                let range = r#type.range();
+                let file_range = self.file_range(r#type.range());
                 let r#type = self.check(r#type, &self.universe.clone());
                 let r#type = self.eval_env().eval(&r#type);
 
@@ -847,12 +870,12 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                         let lhs = self.pretty_print_value(&r#type);
                         let rhs = self.pretty_print_value(expected_type);
                         self.push_message(Message::FailedToUnify {
-                            range,
+                            range: file_range,
                             found: lhs,
                             expected: rhs,
                             error,
                         });
-                        CheckedPattern::ReportedError(range)
+                        CheckedPattern::ReportedError(file_range)
                     }
                 }
             }
@@ -952,10 +975,11 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         surface_term: &Term<'_, ByteRange>,
         expected_type: &ArcValue<'arena>,
     ) -> core::Term<'arena> {
+        let file_range = self.file_range(surface_term.range());
         let expected_type = self.elim_env().force(expected_type);
 
         match (surface_term, expected_type.as_ref()) {
-            (Term::Let(range, def_pattern, def_type, def_expr, body_expr), _) => {
+            (Term::Let(_, def_pattern, def_type, def_expr, body_expr), _) => {
                 let (def_pattern, def_type_value) = self.synth_ann_pattern(def_pattern, *def_type);
                 let def_type = self.quote_env().quote(self.scope, &def_type_value);
                 let def_expr = self.check(def_expr, &def_type_value);
@@ -966,20 +990,20 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 self.local_env.pop();
 
                 core::Term::Let(
-                    range.into(),
+                    file_range.into(),
                     def_name,
                     self.scope.to_scope(def_type),
                     self.scope.to_scope(def_expr),
                     self.scope.to_scope(body_expr),
                 )
             }
-            (Term::If(range, cond_expr, then_expr, else_expr), _) => {
+            (Term::If(_, cond_expr, then_expr, else_expr), _) => {
                 let cond_expr = self.check(cond_expr, &self.bool_type.clone());
                 let then_expr = self.check(then_expr, &expected_type);
                 let else_expr = self.check(else_expr, &expected_type);
 
                 core::Term::ConstMatch(
-                    range.into(),
+                    file_range.into(),
                     self.scope.to_scope(cond_expr),
                     // NOTE: in lexicographic order: in Rust, `false < true`
                     self.scope.to_scope_from_iter([
@@ -1002,20 +1026,20 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 let (synth_term, synth_type) = self.synth_and_insert_implicit_apps(surface_term);
                 self.convert(surface_range, synth_term, &synth_type, &expected_type)
             }
-            (Term::RecordLiteral(range, expr_fields), Value::RecordType(labels, types)) => {
+            (Term::RecordLiteral(_, expr_fields), Value::RecordType(labels, types)) => {
                 // TODO: improve handling of duplicate labels
                 if expr_fields.len() != labels.len()
                     || Iterator::zip(expr_fields.iter(), labels.iter())
                         .any(|(expr_field, type_label)| expr_field.label.1 != *type_label)
                 {
                     self.push_message(Message::MismatchedFieldLabels {
-                        range: *range,
+                        range: file_range,
                         expr_labels: (expr_fields.iter())
-                            .map(|expr_field| expr_field.label)
+                            .map(|ExprField { label, .. }| (self.file_range(label.0), label.1))
                             .collect(),
                         type_labels: labels.to_vec(),
                     });
-                    return core::Term::Prim(range.into(), Prim::ReportedError);
+                    return core::Term::Prim(file_range.into(), Prim::ReportedError);
                 }
 
                 let mut types = types.clone();
@@ -1030,9 +1054,9 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                     exprs.push(expr);
                 }
 
-                core::Term::RecordLit(range.into(), labels, exprs.into())
+                core::Term::RecordLit(file_range.into(), labels, exprs.into())
             }
-            (Term::Tuple(range, elem_exprs), Value::Universe) => {
+            (Term::Tuple(_, elem_exprs), Value::Universe) => {
                 self.local_env.reserve(elem_exprs.len());
                 let mut interner = self.interner.borrow_mut();
                 let labels = interner.get_tuple_labels(0..elem_exprs.len());
@@ -1051,9 +1075,9 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
 
                 self.local_env.truncate(initial_local_len);
 
-                core::Term::RecordType(range.into(), labels, types)
+                core::Term::RecordType(file_range.into(), labels, types)
             }
-            (Term::Tuple(range, elem_exprs), Value::Stuck(Head::Prim(Prim::FormatType), args))
+            (Term::Tuple(_, elem_exprs), Value::Stuck(Head::Prim(Prim::FormatType), args))
                 if args.is_empty() =>
             {
                 self.local_env.reserve(elem_exprs.len());
@@ -1075,9 +1099,9 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
 
                 self.local_env.truncate(initial_local_len);
 
-                core::Term::FormatRecord(range.into(), labels, formats)
+                core::Term::FormatRecord(file_range.into(), labels, formats)
             }
-            (Term::Tuple(range, elem_exprs), Value::RecordType(labels, types)) => {
+            (Term::Tuple(_, elem_exprs), Value::RecordType(labels, types)) => {
                 if elem_exprs.len() != labels.len() {
                     let mut expr_labels = Vec::with_capacity(elem_exprs.len());
                     let mut elem_exprs = elem_exprs.iter().enumerate().peekable();
@@ -1087,24 +1111,24 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                     while let Some(((_, elem_expr), label)) =
                         Option::zip(elem_exprs.peek(), label_iter.next())
                     {
-                        expr_labels.push((elem_expr.range(), *label));
+                        expr_labels.push((self.file_range(elem_expr.range()), *label));
                         elem_exprs.next();
                     }
 
                     // use numeric labels for excess elems
                     for (index, elem_expr) in elem_exprs {
                         expr_labels.push((
-                            elem_expr.range(),
+                            self.file_range(elem_expr.range()),
                             self.interner.borrow_mut().get_tuple_label(index),
                         ));
                     }
 
                     self.push_message(Message::MismatchedFieldLabels {
-                        range: *range,
+                        range: file_range,
                         expr_labels,
                         type_labels: labels.to_vec(),
                     });
-                    return core::Term::Prim(range.into(), Prim::ReportedError);
+                    return core::Term::Prim(file_range.into(), Prim::ReportedError);
                 }
 
                 let mut types = types.clone();
@@ -1119,9 +1143,9 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                     exprs.push(expr);
                 }
 
-                core::Term::RecordLit(range.into(), labels, exprs.into())
+                core::Term::RecordLit(file_range.into(), labels, exprs.into())
             }
-            (Term::ArrayLiteral(range, elem_exprs), _) => {
+            (Term::ArrayLiteral(_, elem_exprs), _) => {
                 use crate::core::semantics::Elim::FunApp as App;
 
                 let (len_value, elem_type) = match expected_type.match_prim_spine() {
@@ -1139,15 +1163,15 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                         (Some(len), elem_type)
                     }
                     Some((Prim::ReportedError, _)) => {
-                        return core::Term::Prim(range.into(), Prim::ReportedError)
+                        return core::Term::Prim(file_range.into(), Prim::ReportedError)
                     }
                     _ => {
                         let expected_type = self.pretty_print_value(&expected_type);
                         self.push_message(Message::ArrayLiteralNotSupported {
-                            range: *range,
+                            range: file_range,
                             expected_type,
                         });
-                        return core::Term::Prim(range.into(), Prim::ReportedError);
+                        return core::Term::Prim(file_range.into(), Prim::ReportedError);
                     }
                 };
 
@@ -1158,14 +1182,14 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                     Some(Value::ConstLit(Const::U32(len, _))) => Some(*len as u64),
                     Some(Value::ConstLit(Const::U64(len, _))) => Some(*len),
                     Some(Value::Stuck(Head::Prim(Prim::ReportedError), _)) => {
-                        return core::Term::Prim(range.into(), Prim::ReportedError);
+                        return core::Term::Prim(file_range.into(), Prim::ReportedError);
                     }
                     _ => None,
                 };
 
                 match len {
                     Some(len) if elem_exprs.len() as u64 == len => core::Term::ArrayLit(
-                        range.into(),
+                        file_range.into(),
                         self.scope.to_scope_from_iter(
                             (elem_exprs.iter()).map(|elem_expr| self.check(elem_expr, elem_type)),
                         ),
@@ -1179,12 +1203,12 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
 
                         let expected_len = self.pretty_print_value(len_value.unwrap());
                         self.push_message(Message::MismatchedArrayLength {
-                            range: *range,
+                            range: file_range,
                             found_len: elem_exprs.len(),
                             expected_len,
                         });
 
-                        core::Term::Prim(range.into(), Prim::ReportedError)
+                        core::Term::Prim(file_range.into(), Prim::ReportedError)
                     }
                 }
             }
@@ -1202,7 +1226,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                     _ => {
                         let expected_type = self.pretty_print_value(&expected_type);
                         self.push_message(Message::StringLiteralNotSupported {
-                            range: *range,
+                            range: file_range,
                             expected_type,
                         });
                         None
@@ -1210,8 +1234,8 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 };
 
                 match constant {
-                    Some(constant) => core::Term::ConstLit(range.into(), constant),
-                    None => core::Term::Prim(range.into(), Prim::ReportedError),
+                    Some(constant) => core::Term::ConstLit(file_range.into(), constant),
+                    None => core::Term::Prim(file_range.into(), Prim::ReportedError),
                 }
             }
             (Term::NumberLiteral(range, lit), _) => {
@@ -1230,19 +1254,19 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                     _ => {
                         let expected_type = self.pretty_print_value(&expected_type);
                         self.push_message(Message::NumericLiteralNotSupported {
-                            range: *range,
+                            range: file_range,
                             expected_type,
                         });
-                        return core::Term::Prim(range.into(), Prim::ReportedError);
+                        return core::Term::Prim(file_range.into(), Prim::ReportedError);
                     }
                 };
 
                 match constant {
-                    Some(constant) => core::Term::ConstLit(range.into(), constant),
-                    None => core::Term::Prim(range.into(), Prim::ReportedError),
+                    Some(constant) => core::Term::ConstLit(file_range.into(), constant),
+                    None => core::Term::Prim(file_range.into(), Prim::ReportedError),
                 }
             }
-            (Term::ReportedError(range), _) => core::Term::Prim(range.into(), Prim::ReportedError),
+            (Term::ReportedError(_), _) => core::Term::Prim(file_range.into(), Prim::ReportedError),
             (_, _) => {
                 let surface_range = surface_term.range();
                 let (synth_term, synth_type) = self.synth(surface_term);
@@ -1259,15 +1283,16 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         mut term: core::Term<'arena>,
         mut r#type: ArcValue<'arena>,
     ) -> (core::Term<'arena>, ArcValue<'arena>) {
+        let file_range = self.file_range(range);
         while let Value::FunType(Plicity::Implicit, name, param_type, body_type) =
             self.elim_env().force(&r#type).as_ref()
         {
-            let source = MetaSource::ImplicitArg(range, *name);
+            let source = MetaSource::ImplicitArg(file_range, *name);
             let arg_term = self.push_unsolved_term(source, param_type.clone());
             let arg_value = self.eval_env().eval(&arg_term);
 
             term = core::Term::FunApp(
-                range.into(),
+                file_range.into(),
                 Plicity::Implicit,
                 self.scope.to_scope(term),
                 self.scope.to_scope(arg_term),
@@ -1297,56 +1322,60 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         &mut self,
         surface_term: &Term<'_, ByteRange>,
     ) -> (core::Term<'arena>, ArcValue<'arena>) {
+        let file_range = self.file_range(surface_term.range());
         match surface_term {
             Term::Name(range, name) => {
                 if let Some((term, r#type)) = self.get_local_name(*name) {
-                    return (core::Term::LocalVar(range.into(), term), r#type.clone());
+                    return (
+                        core::Term::LocalVar(file_range.into(), term),
+                        r#type.clone(),
+                    );
                 }
                 if let Some((term, r#type)) = self.get_item_name(*name) {
-                    return (core::Term::ItemVar(range.into(), term), r#type.clone());
+                    return (core::Term::ItemVar(file_range.into(), term), r#type.clone());
                 }
                 if let Some((prim, r#type)) = self.prim_env.get_name(*name) {
-                    return (core::Term::Prim(range.into(), prim), r#type.clone());
+                    return (core::Term::Prim(file_range.into(), prim), r#type.clone());
                 }
 
                 self.push_message(Message::UnboundName {
-                    range: *range,
+                    range: file_range,
                     name: *name,
                 });
                 self.synth_reported_error(*range)
             }
-            Term::Hole(range, name) => {
-                let type_source = MetaSource::HoleType(*range, *name);
-                let expr_source = MetaSource::HoleExpr(*range, *name);
+            Term::Hole(_, name) => {
+                let type_source = MetaSource::HoleType(file_range, *name);
+                let expr_source = MetaSource::HoleExpr(file_range, *name);
 
                 let r#type = self.push_unsolved_type(type_source);
                 let expr = self.push_unsolved_term(expr_source, r#type.clone());
 
                 (expr, r#type)
             }
-            Term::Placeholder(range) => {
-                let type_source = MetaSource::PlaceholderType(*range);
-                let expr_source = MetaSource::PlaceholderExpr(*range);
+            Term::Placeholder(_) => {
+                let type_source = MetaSource::PlaceholderType(file_range);
+                let expr_source = MetaSource::PlaceholderExpr(file_range);
 
                 let r#type = self.push_unsolved_type(type_source);
                 let expr = self.push_unsolved_term(expr_source, r#type.clone());
 
                 (expr, r#type)
             }
-            Term::Ann(range, expr, r#type) => {
+            Term::Ann(_, expr, r#type) => {
                 let r#type = self.check(r#type, &self.universe.clone());
                 let type_value = self.eval_env().eval(&r#type);
                 let expr = self.check(expr, &type_value);
 
                 let ann_expr = core::Term::Ann(
-                    range.into(),
+                    file_range.into(),
                     self.scope.to_scope(expr),
                     self.scope.to_scope(r#type),
                 );
 
                 (ann_expr, type_value)
             }
-            Term::Let(range, def_pattern, def_type, def_expr, body_expr) => {
+            Term::Let(_, def_pattern, def_type, def_expr, body_expr) => {
                 let (def_pattern, def_type_value) = self.synth_ann_pattern(def_pattern, *def_type);
                 let def_type = self.quote_env().quote(self.scope, &def_type_value);
                 let def_expr = self.check(def_expr, &def_type_value);
@@ -1357,7 +1386,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 self.local_env.pop();
 
                 let let_expr = core::Term::Let(
-                    range.into(),
+                    file_range.into(),
                     def_name,
                     self.scope.to_scope(def_type),
                     self.scope.to_scope(def_expr),
@@ -1366,13 +1395,13 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
 
                 (let_expr, body_type)
             }
-            Term::If(range, cond_expr, then_expr, else_expr) => {
+            Term::If(_, cond_expr, then_expr, else_expr) => {
                 let cond_expr = self.check(cond_expr, &self.bool_type.clone());
                 let (then_expr, r#type) = self.synth(then_expr);
                 let else_expr = self.check(else_expr, &r#type);
 
                 let match_expr = core::Term::ConstMatch(
-                    range.into(),
+                    file_range.into(),
                     self.scope.to_scope(cond_expr),
                     // NOTE: in lexicographic order: in Rust, `false < true`
                     self.scope.to_scope_from_iter([
@@ -1388,12 +1417,15 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 // Create a single metavariable representing the overall
                 // type of the match expression, allowing us to unify this with
                 // the types of the match equations together.
-                let r#type = self.push_unsolved_type(MetaSource::MatchExprType(*range));
+                let r#type = self.push_unsolved_type(MetaSource::MatchExprType(file_range));
                 let expr = self.check_match(*range, scrutinee_expr, equations, &r#type);
                 (expr, r#type)
             }
-            Term::Universe(range) => (core::Term::Universe(range.into()), self.universe.clone()),
-            Term::Arrow(range, plicity, param_type, body_type) => {
+            Term::Universe(_) => (
+                core::Term::Universe(file_range.into()),
+                self.universe.clone(),
+            ),
+            Term::Arrow(_, plicity, param_type, body_type) => {
                 let universe = self.universe.clone();
                 let param_type = self.check(param_type, &universe);
                 let param_type_value = self.eval_env().eval(&param_type);
@@ -1403,7 +1435,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 self.local_env.pop();
 
                 let fun_type = core::Term::FunType(
-                    range.into(),
+                    file_range.into(),
                     *plicity,
                     None,
                     self.scope.to_scope(param_type),
@@ -1425,11 +1457,11 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 {
                     let range = match i {
                         0 => *range, // Use the range of the full function type
-                        _ => ByteRange::merge(&param_range, &body_type.range()).unwrap(),
+                        _ => ByteRange::merge(param_range, body_type.range()),
                     };
 
                     fun_type = core::Term::FunType(
-                        range.into(),
+                        self.file_range(range).into(),
                         plicity,
                         name,
                         self.scope.to_scope(r#type),
@@ -1464,10 +1496,10 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                             } else {
                                 let head_type = self.pretty_print_value(&head_type);
                                 self.messages.push(Message::PlicityArgumentMismatch {
-                                    head_range,
+                                    head_range: self.file_range(head_range),
                                     head_plicity: Plicity::Explicit,
                                     head_type,
-                                    arg_range: arg.term.range(),
+                                    arg_range: self.file_range(arg.term.range()),
                                     arg_plicity: arg.plicity,
                                 });
                                 return self.synth_reported_error(*range);
@@ -1485,22 +1517,22 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                             // but this takes more work to prevent cascading type errors
                             let head_type = self.pretty_print_value(&head_type);
                             self.push_message(Message::UnexpectedArgument {
-                                head_range,
+                                head_range: self.file_range(head_range),
                                 head_type,
-                                arg_range: arg.term.range(),
+                                arg_range: self.file_range(arg.term.range()),
                             });
                             return self.synth_reported_error(*range);
                         }
                     };
 
                     let arg_range = arg.term.range();
-                    head_range = ByteRange::merge(&head_range, &arg_range).unwrap();
+                    head_range = ByteRange::merge(head_range, arg_range);
 
                     let arg_expr = self.check(&arg.term, param_type);
                     let arg_expr_value = self.eval_env().eval(&arg_expr);
 
                     head_expr = core::Term::FunApp(
-                        head_range.into(),
+                        self.file_range(head_range).into(),
                         arg.plicity,
                         self.scope.to_scope(head_expr),
                         self.scope.to_scope(arg_expr),
@@ -1525,7 +1557,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 }
                 self.local_env.truncate(initial_local_len);
 
-                let record_type = core::Term::RecordType(range.into(), labels, types.into());
+                let record_type = core::Term::RecordType(file_range.into(), labels, types.into());
 
                 (record_type, universe)
             }
@@ -1544,11 +1576,11 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 let types = Telescope::new(self.local_env.exprs.clone(), types.into());
 
                 (
-                    core::Term::RecordLit(range.into(), labels, exprs.into()),
+                    core::Term::RecordLit(file_range.into(), labels, exprs.into()),
                     Spanned::empty(Arc::new(Value::RecordType(labels, types))),
                 )
             }
-            Term::Tuple(range, elem_exprs) => {
+            Term::Tuple(_, elem_exprs) => {
                 let mut interner = self.interner.borrow_mut();
                 let labels = interner.get_tuple_labels(0..elem_exprs.len());
                 let labels = self.scope.to_scope_from_iter(labels.iter().copied());
@@ -1563,7 +1595,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 }
 
                 let types = Telescope::new(self.local_env.exprs.clone(), types.into());
-                let term = core::Term::RecordLit(range.into(), labels, exprs.into());
+                let term = core::Term::RecordLit(file_range.into(), labels, exprs.into());
                 let r#type = Spanned::empty(Arc::new(Value::RecordType(labels, types)));
                 (term, r#type)
             }
@@ -1590,7 +1622,8 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                                     // The field was found. Update the head expression
                                     // and continue elaborating the next projection.
                                     head_expr = core::Term::RecordProj(
-                                        ByteRange::merge(&head_range, label_range).into(),
+                                        self.file_range(ByteRange::merge(head_range, *label_range))
+                                            .into(),
                                         self.scope.to_scope(head_expr),
                                         *proj_label,
                                     );
@@ -1622,9 +1655,9 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
 
                     let head_type = self.pretty_print_value(&head_type);
                     self.push_message(Message::UnknownField {
-                        head_range,
+                        head_range: self.file_range(head_range),
                         head_type,
-                        label_range: *label_range,
+                        label_range: self.file_range(*label_range),
                         label: *proj_label,
                     });
                     return self.synth_reported_error(*range);
@@ -1633,29 +1666,29 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 (head_expr, head_type)
             }
             Term::ArrayLiteral(range, _) => {
-                self.push_message(Message::AmbiguousArrayLiteral { range: *range });
+                self.push_message(Message::AmbiguousArrayLiteral { range: file_range });
                 self.synth_reported_error(*range)
             }
             // TODO: Stuck macros + unification like in Klister?
             Term::StringLiteral(range, _) => {
-                self.push_message(Message::AmbiguousStringLiteral { range: *range });
+                self.push_message(Message::AmbiguousStringLiteral { range: file_range });
                 self.synth_reported_error(*range)
             }
             // TODO: Stuck macros + unification like in Klister?
             Term::NumberLiteral(range, _) => {
-                self.push_message(Message::AmbiguousNumericLiteral { range: *range });
+                self.push_message(Message::AmbiguousNumericLiteral { range: file_range });
                 self.synth_reported_error(*range)
             }
-            Term::BooleanLiteral(range, val) => {
-                let expr = core::Term::ConstLit(range.into(), Const::Bool(*val));
+            Term::BooleanLiteral(_, val) => {
+                let expr = core::Term::ConstLit(file_range.into(), Const::Bool(*val));
                 (expr, self.bool_type.clone())
             }
             Term::FormatRecord(range, format_fields) => {
                 let (labels, formats) = self.check_format_fields(*range, format_fields);
-                let format_record = core::Term::FormatRecord(range.into(), labels, formats);
+                let format_record = core::Term::FormatRecord(file_range.into(), labels, formats);
                 (format_record, self.format_type.clone())
             }
-            Term::FormatCond(range, (_, name), format, pred) => {
+            Term::FormatCond(_, (_, name), format, pred) => {
                 let format_type = self.format_type.clone();
                 let format = self.check(format, &format_type);
                 let format_value = self.eval_env().eval(&format);
@@ -1667,7 +1700,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 self.local_env.pop();
 
                 let cond_format = core::Term::FormatCond(
-                    range.into(),
+                    file_range.into(),
                     *name,
                     self.scope.to_scope(format),
                     self.scope.to_scope(pred_expr),
@@ -1677,7 +1710,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
             }
             Term::FormatOverlap(range, format_fields) => {
                 let (labels, formats) = self.check_format_fields(*range, format_fields);
-                let overlap_format = core::Term::FormatOverlap(range.into(), labels, formats);
+                let overlap_format = core::Term::FormatOverlap(file_range.into(), labels, formats);
 
                 (overlap_format, self.format_type.clone())
             }
@@ -1693,6 +1726,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         body_expr: &Term<'_, ByteRange>,
         expected_type: &ArcValue<'arena>,
     ) -> core::Term<'arena> {
+        let file_range = self.file_range(range);
         match params.split_first() {
             Some((param, next_params)) => {
                 let body_type = self.elim_env().force(expected_type);
@@ -1700,8 +1734,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                     Value::FunType(param_plicity, _, param_type, next_body_type)
                         if param.plicity == *param_plicity =>
                     {
-                        let range =
-                            ByteRange::merge(&param.pattern.range(), &body_expr.range()).unwrap();
+                        let range = ByteRange::merge(param.pattern.range(), body_expr.range());
                         let pattern = self.check_ann_pattern(
                             &param.pattern,
                             param.r#type.as_ref(),
@@ -1715,7 +1748,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                         self.local_env.pop();
 
                         core::Term::FunLit(
-                            range.into(),
+                            self.file_range(range).into(),
                             param.plicity,
                             name,
                             self.scope.to_scope(body_expr),
@@ -1731,7 +1764,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                         let body_expr = self.check_fun_lit(range, params, body_expr, &body_type);
                         self.local_env.pop();
                         core::Term::FunLit(
-                            range.into(),
+                            file_range.into(),
                             Plicity::Implicit,
                             *param_name,
                             self.scope.to_scope(body_expr),
@@ -1740,22 +1773,21 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                     // Attempt to elaborate the the body of the function in synthesis
                     // mode if we are checking against a metavariable.
                     Value::Stuck(Head::MetaVar(_), _) => {
-                        let range =
-                            ByteRange::merge(&param.pattern.range(), &body_expr.range()).unwrap();
+                        let range = ByteRange::merge(param.pattern.range(), body_expr.range());
                         let (expr, r#type) = self.synth_fun_lit(range, params, body_expr, None);
                         self.convert(range, expr, &r#type, expected_type)
                     }
                     Value::Stuck(Head::Prim(Prim::ReportedError), _) => {
-                        core::Term::Prim(range.into(), Prim::ReportedError)
+                        core::Term::Prim(file_range.into(), Prim::ReportedError)
                     }
                     _ => {
                         self.push_message(Message::UnexpectedParameter {
-                            param_range: param.pattern.range(),
+                            param_range: self.file_range(param.pattern.range()),
                         });
                         // TODO: For improved error recovery, bind the rest of
                         // the parameters, and check the body of the function
                         // literal using the expected body type.
-                        core::Term::Prim(range.into(), Prim::ReportedError)
+                        core::Term::Prim(file_range.into(), Prim::ReportedError)
                     }
                 }
             }
@@ -1793,10 +1825,15 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         for (i, (param_range, plicity, name, r#type)) in params.into_iter().enumerate().rev() {
             let range = match i {
                 0 => range, // Use the range of the full function literal
-                _ => ByteRange::merge(&param_range, &body_expr.range()).unwrap(),
+                _ => ByteRange::merge(param_range, body_expr.range()),
             };
 
-            fun_lit = core::Term::FunLit(range.into(), plicity, name, self.scope.to_scope(fun_lit));
+            fun_lit = core::Term::FunLit(
+                self.file_range(range).into(),
+                plicity,
+                name,
+                self.scope.to_scope(fun_lit),
+            );
             fun_type = core::Term::FunType(
                 Span::Empty,
                 plicity,
@@ -1938,10 +1975,10 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 let lhs_pretty = self.pretty_print_value(&lhs_type);
                 let rhs_pretty = self.pretty_print_value(&rhs_type);
                 self.push_message(Message::BinOpMismatchedTypes {
-                    range,
-                    lhs_range: lhs.range(),
-                    rhs_range: rhs.range(),
-                    op,
+                    range: self.file_range(range),
+                    lhs_range: self.file_range(lhs.range()),
+                    rhs_range: self.file_range(rhs.range()),
+                    op: op.map_range(|range| self.file_range(range)),
                     lhs: lhs_pretty,
                     rhs: rhs_pretty,
                 });
@@ -1949,9 +1986,9 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
             }
         };
 
-        let fun_head = core::Term::Prim(op.range().into(), fun);
+        let fun_head = core::Term::Prim(self.file_range(op.range()).into(), fun);
         let fun_app = core::Term::FunApp(
-            range.into(),
+            self.file_range(range).into(),
             Plicity::Explicit,
             self.scope.to_scope(core::Term::FunApp(
                 Span::merge(&lhs_expr.span(), &rhs_expr.span()),
@@ -1970,8 +2007,9 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
     }
 
     fn synth_reported_error(&mut self, range: ByteRange) -> (core::Term<'arena>, ArcValue<'arena>) {
-        let expr = core::Term::Prim(range.into(), Prim::ReportedError);
-        let r#type = self.push_unsolved_type(MetaSource::ReportedErrorType(range));
+        let file_range = self.file_range(range);
+        let expr = core::Term::Prim(file_range.into(), Prim::ReportedError);
+        let r#type = self.push_unsolved_type(MetaSource::ReportedErrorType(file_range));
         (expr, r#type)
     }
 
@@ -1998,6 +2036,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                     format,
                     pred,
                 } => {
+                    let label_range = self.file_range(*label_range);
                     let format = self.check(format, &format_type);
                     let format_value = self.eval_env().eval(&format);
                     let r#type = self.elim_env().format_repr(&format_value);
@@ -2027,6 +2066,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                     r#type,
                     expr,
                 } => {
+                    let label_range = self.file_range(*label_range);
                     let (expr, r#type, type_value) = match r#type {
                         Some(r#type) => {
                             let r#type = self.check(r#type, &universe);
@@ -2042,7 +2082,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
 
                     let field_span = Span::merge(&label_range.into(), &expr.span());
                     let format = core::Term::FunApp(
-                        Span::merge(&label_range.into(), &expr.span()),
+                        field_span,
                         Plicity::Explicit,
                         self.scope.to_scope(core::Term::FunApp(
                             field_span,
@@ -2168,7 +2208,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
 
     /// Ensure that this part of a match expression is reachable, reporting
     /// a message if it is not.
-    fn check_match_reachable(&mut self, is_reachable: bool, range: ByteRange) {
+    fn check_match_reachable(&mut self, is_reachable: bool, range: FileRange) {
         if !is_reachable {
             self.push_message(Message::UnreachablePattern { range });
         }
@@ -2179,7 +2219,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         &mut self,
         match_info: &MatchInfo<'arena>,
         is_reachable: bool,
-        (const_range, r#const, body_expr): (ByteRange, Const, core::Term<'arena>),
+        (const_range, r#const, body_expr): (FileRange, Const, core::Term<'arena>),
         mut equations: impl Iterator<Item = &'a (Pattern<ByteRange>, Term<'a, ByteRange>)>,
     ) -> core::Term<'arena> {
         // The full range of this series of patterns
@@ -2190,7 +2230,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         // Elaborate a run of constant patterns.
         'patterns: while let Some((pattern, body_expr)) = equations.next() {
             // Update the range up to the end of the next body expression
-            full_span = Span::merge(&full_span, &body_expr.range().into());
+            full_span = Span::merge(&full_span, &self.file_range(body_expr.range()).into());
 
             // Default expression, defined if we arrive at a default case
             let default_branch;
@@ -2299,11 +2339,14 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         if is_reachable {
             // TODO: this should be admitted if the scrutinee type is uninhabited
             self.push_message(Message::NonExhaustiveMatchExpr {
-                match_expr_range: match_info.range,
-                scrutinee_expr_range: match_info.scrutinee.range,
+                match_expr_range: self.file_range(match_info.range),
+                scrutinee_expr_range: self.file_range(match_info.scrutinee.range),
             });
         }
-        core::Term::Prim(match_info.range.into(), Prim::ReportedError)
+        core::Term::Prim(
+            self.file_range(match_info.range).into(),
+            Prim::ReportedError,
+        )
     }
 }
 
@@ -2331,13 +2374,13 @@ impl_from_str_radix!(u64);
 #[derive(Debug)]
 enum CheckedPattern {
     /// Pattern that binds local variable
-    Binder(ByteRange, StringId),
+    Binder(FileRange, StringId),
     /// Placeholder patterns that match everything
-    Placeholder(ByteRange),
+    Placeholder(FileRange),
     /// Constant literals
-    ConstLit(ByteRange, Const),
+    ConstLit(FileRange, Const),
     /// Error sentinel
-    ReportedError(ByteRange),
+    ReportedError(FileRange),
 }
 
 /// Scrutinee of a match expression

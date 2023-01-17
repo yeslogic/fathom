@@ -9,7 +9,7 @@ use scoped_arena::Scope;
 
 use crate::core::Plicity;
 use crate::files::FileId;
-use crate::source::{BytePos, ByteRange, StringId, StringInterner};
+use crate::source::{BytePos, ByteRange, FileRange, StringId, StringInterner};
 
 lalrpop_mod!(
     #[allow(clippy::all)]
@@ -34,16 +34,15 @@ impl<'arena> Module<'arena, ByteRange> {
     pub fn parse<'source>(
         interner: &RefCell<StringInterner>,
         scope: &'arena Scope<'arena>,
-        file_id: FileId,
         source: &'source str,
     ) -> (Module<'arena, ByteRange>, Vec<ParseMessage>) {
         let mut messages = Vec::new();
 
-        let tokens = lexer::tokens(file_id, source);
+        let tokens = lexer::tokens(source);
         let term = grammar::ModuleParser::new()
-            .parse(interner, scope, &mut messages, file_id, tokens)
+            .parse(interner, scope, &mut messages, tokens)
             .unwrap_or_else(|error| {
-                messages.push(ParseMessage::from_lalrpop(file_id, error));
+                messages.push(ParseMessage::from_lalrpop(error));
                 Module { items: &[] }
             });
 
@@ -95,7 +94,7 @@ pub enum Pattern<Range> {
     /// Boolean literal patterns
     BooleanLiteral(Range, bool),
     // TODO: Record literal patterns
-    // RecordLiteral(Range, &'arena [((ByteRange, StringId), Pattern<'arena, Range>)]),
+    // RecordLiteral(Range, &'arena [((Range, StringId), Pattern<'arena, Range>)]),
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -112,8 +111,11 @@ pub enum BinOp<Range> {
     Gte(Range),
 }
 
-impl BinOp<ByteRange> {
-    fn range(&self) -> ByteRange {
+impl<Range> BinOp<Range> {
+    fn range(&self) -> Range
+    where
+        Range: Clone,
+    {
         match self {
             BinOp::Add(range)
             | BinOp::Sub(range)
@@ -124,12 +126,10 @@ impl BinOp<ByteRange> {
             | BinOp::Lt(range)
             | BinOp::Lte(range)
             | BinOp::Gt(range)
-            | BinOp::Gte(range) => *range,
+            | BinOp::Gte(range) => range.clone(),
         }
     }
-}
 
-impl<Range> BinOp<Range> {
     fn as_str(&self) -> &'static str {
         match self {
             BinOp::Add(_) => "+",
@@ -142,6 +142,21 @@ impl<Range> BinOp<Range> {
             BinOp::Lte(_) => "<=",
             BinOp::Gt(_) => ">",
             BinOp::Gte(_) => ">=",
+        }
+    }
+
+    fn map_range<T>(self, f: impl Fn(Range) -> T) -> BinOp<T> {
+        match self {
+            BinOp::Add(range) => BinOp::Add(f(range)),
+            BinOp::Sub(range) => BinOp::Sub(f(range)),
+            BinOp::Mul(range) => BinOp::Mul(f(range)),
+            BinOp::Div(range) => BinOp::Div(f(range)),
+            BinOp::Eq(range) => BinOp::Eq(f(range)),
+            BinOp::Neq(range) => BinOp::Neq(f(range)),
+            BinOp::Lt(range) => BinOp::Lt(f(range)),
+            BinOp::Lte(range) => BinOp::Lte(f(range)),
+            BinOp::Gt(range) => BinOp::Gt(f(range)),
+            BinOp::Gte(range) => BinOp::Gte(f(range)),
         }
     }
 }
@@ -307,22 +322,21 @@ impl<'arena, Range: Clone> Term<'arena, Range> {
     }
 }
 
-impl<'arena> Term<'arena, ByteRange> {
+impl<'arena> Term<'arena, FileRange> {
     /// Parse a term from the `source` string, interning strings to the
     /// supplied `interner` and allocating nodes to the `arena`.
     pub fn parse<'source>(
         interner: &RefCell<StringInterner>,
         scope: &'arena Scope<'arena>,
-        file_id: FileId,
         source: &'source str,
     ) -> (Term<'arena, ByteRange>, Vec<ParseMessage>) {
         let mut messages = Vec::new();
 
-        let tokens = lexer::tokens(file_id, source);
+        let tokens = lexer::tokens(source);
         let term = grammar::TermParser::new()
-            .parse(interner, scope, &mut messages, file_id, tokens)
+            .parse(interner, scope, &mut messages, tokens)
             .unwrap_or_else(|error| {
-                let message = ParseMessage::from_lalrpop(file_id, error);
+                let message = ParseMessage::from_lalrpop(error);
                 let range = message.range();
                 messages.push(message);
                 Term::ReportedError(range)
@@ -419,14 +433,14 @@ impl ParseMessage {
         }
     }
 
-    fn from_lalrpop(file_id: FileId, error: LalrpopParseError<'_>) -> ParseMessage {
+    fn from_lalrpop(error: LalrpopParseError<'_>) -> ParseMessage {
         match error {
             LalrpopParseError::InvalidToken { location } => ParseMessage::InvalidToken {
-                range: ByteRange::new(file_id, location, location),
+                range: ByteRange::new(location, location),
             },
             LalrpopParseError::UnrecognizedEOF { location, expected } => {
                 ParseMessage::UnrecognizedEof {
-                    range: ByteRange::new(file_id, location, location),
+                    range: ByteRange::new(location, location),
                     expected, // TODO: convert to descriptions?
                 }
             }
@@ -434,30 +448,30 @@ impl ParseMessage {
                 token: (start, token, end),
                 expected,
             } => ParseMessage::UnrecognizedToken {
-                range: ByteRange::new(file_id, start, end),
+                range: ByteRange::new(start, end),
                 token: token.description(),
                 expected,
             },
             LalrpopParseError::ExtraToken {
                 token: (start, token, end),
             } => ParseMessage::ExtraToken {
-                range: ByteRange::new(file_id, start, end),
+                range: ByteRange::new(start, end),
                 token: token.description(),
             },
             LalrpopParseError::User { error } => ParseMessage::Lexer(error),
         }
     }
 
-    fn from_lalrpop_recovery(file_id: FileId, error: LalrpopErrorRecovery<'_>) -> ParseMessage {
+    fn from_lalrpop_recovery(error: LalrpopErrorRecovery<'_>) -> ParseMessage {
         // TODO: make use of use `error.dropped_tokens` in error reporting?
-        ParseMessage::from_lalrpop(file_id, error.error)
+        ParseMessage::from_lalrpop(error.error)
     }
 
-    pub fn to_diagnostic(&self) -> Diagnostic<FileId> {
-        let primary_label = |range: &ByteRange| Label::primary(range.file_id(), *range);
+    pub fn to_diagnostic(&self, file_id: FileId) -> Diagnostic<FileId> {
+        let primary_label = |range: &ByteRange| Label::primary(file_id, *range);
 
         match self {
-            ParseMessage::Lexer(error) => error.to_diagnostic(),
+            ParseMessage::Lexer(error) => error.to_diagnostic(file_id),
             ParseMessage::InvalidToken { range } => Diagnostic::error()
                 .with_message("invalid token")
                 .with_labels(vec![primary_label(range)]),
@@ -500,6 +514,7 @@ fn format_expected(expected: &[impl std::fmt::Display]) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::source::ByteRange;
 
     #[test]
     fn no_drop() {
@@ -512,13 +527,15 @@ mod tests {
     #[cfg(target_pointer_width = "64")]
     fn term_size() {
         assert_eq!(std::mem::size_of::<Term<()>>(), 32);
-        assert_eq!(std::mem::size_of::<Term<ByteRange>>(), 56);
+        assert_eq!(std::mem::size_of::<Term<ByteRange>>(), 48);
+        assert_eq!(std::mem::size_of::<Term<FileRange>>(), 56);
     }
 
     #[test]
     #[cfg(target_pointer_width = "64")]
     fn pattern_size() {
         assert_eq!(std::mem::size_of::<Pattern<()>>(), 4);
-        assert_eq!(std::mem::size_of::<Pattern<ByteRange>>(), 16);
+        assert_eq!(std::mem::size_of::<Pattern<ByteRange>>(), 12);
+        assert_eq!(std::mem::size_of::<Pattern<FileRange>>(), 16);
     }
 }

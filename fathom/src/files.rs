@@ -1,6 +1,7 @@
 //! A reimplementation of `codespan-reporting::files::SimpleFiles` that uses
 //! `FileId` as the file id, instead of `usize`.
 
+use std::fmt;
 use std::num::NonZeroU32;
 use std::ops::Range;
 
@@ -12,6 +13,12 @@ use codespan_reporting::files::{Error, SimpleFile};
 // - `NonZeroU32` saves 4 bytes on the size of `Span` compared to `u32`
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct FileId(NonZeroU32);
+
+impl fmt::Display for FileId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Display::fmt(&self.0, f)
+    }
+}
 
 impl TryFrom<u32> for FileId {
     type Error = <NonZeroU32 as TryFrom<u32>>::Error;

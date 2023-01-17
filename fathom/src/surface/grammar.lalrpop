@@ -7,13 +7,11 @@ use crate::surface::{
     Pattern, Param, Plicity, Term, TypeField,
 };
 use crate::surface::lexer::{Error as LexerError, Token};
-use crate::files::FileId;
 
 grammar<'arena, 'source>(
     interner: &RefCell<StringInterner>,
     scope: &'arena Scope<'arena>,
     messages: &mut Vec<ParseMessage>,
-    file_id: FileId,
 );
 
 extern {
@@ -80,7 +78,7 @@ pub Module: Module<'arena, ByteRange> = {
 Item: Item<'arena, ByteRange> = {
     <start: @L> "def" <label: RangedName> <params: Param*> <r#type: (":" <LetTerm>)?> "=" <expr: Term> ";" <end: @R> => {
         Item::Def(ItemDef {
-            range: ByteRange::new(file_id, start, end),
+            range: ByteRange::new(start, end),
             label,
             params: scope.to_scope_from_iter(params),
             r#type: r#type.map(|r#type| scope.to_scope(r#type) as &_),
@@ -88,25 +86,25 @@ Item: Item<'arena, ByteRange> = {
         })
     },
     <start: @L> <error: !> <end: @R> => {
-        messages.push(ParseMessage::from_lalrpop_recovery(file_id, error));
-        Item::ReportedError(ByteRange::new(file_id, start, end))
+        messages.push(ParseMessage::from_lalrpop_recovery(error));
+        Item::ReportedError(ByteRange::new(start, end))
     },
 };
 
 Pattern: Pattern<ByteRange> = {
-    <start: @L> <name: Name> <end: @R> => Pattern::Name(ByteRange::new(file_id, start, end), name),
-    <start: @L> "_" <end: @R> => Pattern::Placeholder(ByteRange::new(file_id, start, end)),
-    <start: @L> <string: StringLiteral> <end: @R> => Pattern::StringLiteral(ByteRange::new(file_id, start, end), string),
-    <start: @L> <number: NumberLiteral> <end: @R> => Pattern::NumberLiteral(ByteRange::new(file_id, start, end), number),
-    <start: @L> "true" <end: @R> => Pattern::BooleanLiteral(ByteRange::new(file_id, start, end), true),
-    <start: @L> "false" <end: @R> => Pattern::BooleanLiteral(ByteRange::new(file_id, start, end), false),
+    <start: @L> <name: Name> <end: @R> => Pattern::Name(ByteRange::new(start, end), name),
+    <start: @L> "_" <end: @R> => Pattern::Placeholder(ByteRange::new(start, end)),
+    <start: @L> <string: StringLiteral> <end: @R> => Pattern::StringLiteral(ByteRange::new(start, end), string),
+    <start: @L> <number: NumberLiteral> <end: @R> => Pattern::NumberLiteral(ByteRange::new(start, end), number),
+    <start: @L> "true" <end: @R> => Pattern::BooleanLiteral(ByteRange::new(start, end), true),
+    <start: @L> "false" <end: @R> => Pattern::BooleanLiteral(ByteRange::new(start, end), false),
 };
 
 pub Term: Term<'arena, ByteRange> = {
     LetTerm,
     <start: @L> <expr: LetTerm> ":" <r#type: LetTerm> <end: @R> => {
         Term::Ann(
-            ByteRange::new(file_id, start, end),
+            ByteRange::new(start, end),
             scope.to_scope(expr),
             scope.to_scope(r#type),
         )
@@ -117,7 +115,7 @@ LetTerm: Term<'arena, ByteRange> = {
     FunTerm,
     <start: @L> "let" <def_pattern: Pattern> <def_type: (":" <LetTerm>)?> "=" <def_expr: Term> ";" <body_expr: LetTerm> <end: @R> => {
         Term::Let(
-            ByteRange::new(file_id, start, end),
+            ByteRange::new(start, end),
             def_pattern,
             def_type.map(|def_type| scope.to_scope(def_type) as &_),
             scope.to_scope(def_expr),
@@ -125,7 +123,7 @@ LetTerm: Term<'arena, ByteRange> = {
         )
     },
     <start: @L> "if" <cond_expr: FunTerm> "then" <then_expr: LetTerm> "else" <else_expr: LetTerm> <end: @R> => {
-        Term::If(ByteRange::new(file_id, start, end), scope.to_scope(cond_expr), scope.to_scope(then_expr), scope.to_scope(else_expr))
+        Term::If(ByteRange::new(start, end), scope.to_scope(cond_expr), scope.to_scope(then_expr), scope.to_scope(else_expr))
     },
 };
 
@@ -133,7 +131,7 @@ FunTerm: Term<'arena, ByteRange> = {
     EqExpr,
     <start: @L> <plicity: Plicity> <param_type: AppTerm> "->"  <body_type: FunTerm> <end: @R> => {
         Term::Arrow(
-            ByteRange::new(file_id, start, end),
+            ByteRange::new(start, end),
             plicity,
             scope.to_scope(param_type),
             scope.to_scope(body_type),
@@ -141,14 +139,14 @@ FunTerm: Term<'arena, ByteRange> = {
     },
     <start: @L> "fun" <params: Param+> "->"  <output_type: FunTerm> <end: @R> => {
         Term::FunType(
-            ByteRange::new(file_id, start, end),
+            ByteRange::new(start, end),
             scope.to_scope_from_iter(params),
             scope.to_scope(output_type),
         )
     },
     <start: @L> "fun" <params: Param+> "=>" <output_type: LetTerm> <end: @R> => {
         Term::FunLiteral(
-            ByteRange::new(file_id, start, end),
+            ByteRange::new(start, end),
             scope.to_scope_from_iter(params),
             scope.to_scope(output_type),
         )
@@ -185,7 +183,7 @@ AppTerm: Term<'arena, ByteRange> = {
     ProjTerm,
     <start: @L> <head_expr: ProjTerm> <args: Arg+> <end: @R> => {
         Term::App(
-            ByteRange::new(file_id, start, end),
+            ByteRange::new(start, end),
             scope.to_scope(head_expr),
             scope.to_scope_from_iter(args),
         )
@@ -196,7 +194,7 @@ ProjTerm: Term<'arena, ByteRange> = {
     AtomicTerm,
     <start: @L> <head_expr: AtomicTerm> <labels: ("." <RangedName>)+> <end: @R> => {
         Term::Proj(
-            ByteRange::new(file_id, start, end),
+            ByteRange::new(start, end),
             scope.to_scope(head_expr),
             scope.to_scope_from_iter(labels),
         )
@@ -205,41 +203,41 @@ ProjTerm: Term<'arena, ByteRange> = {
 
 AtomicTerm: Term<'arena, ByteRange> = {
     <start: @L> "(" <term: Term> ")" <end: @R> => term,
-    <start: @L> <terms: Tuple<Term>> <end: @R> => Term::Tuple(ByteRange::new(file_id, start, end), terms),
+    <start: @L> <terms: Tuple<Term>> <end: @R> => Term::Tuple(ByteRange::new(start, end), terms),
 
-    <start: @L> <name: Name> <end: @R> => Term::Name(ByteRange::new(file_id, start, end), name),
-    <start: @L> "_" <end: @R> => Term::Placeholder(ByteRange::new(file_id, start, end)),
-    <start: @L> <name: Hole> <end: @R> => Term::Hole(ByteRange::new(file_id, start, end), name),
+    <start: @L> <name: Name> <end: @R> => Term::Name(ByteRange::new(start, end), name),
+    <start: @L> "_" <end: @R> => Term::Placeholder(ByteRange::new(start, end)),
+    <start: @L> <name: Hole> <end: @R> => Term::Hole(ByteRange::new(start, end), name),
     <start: @L> "match" <scrutinee: ProjTerm> "{"  <equations: Seq<(<Pattern> "=>" <Term>), ",">> "}" <end: @R> => {
-        Term::Match(ByteRange::new(file_id, start, end), scope.to_scope(scrutinee), equations)
+        Term::Match(ByteRange::new(start, end), scope.to_scope(scrutinee), equations)
     },
-    <start: @L> "Type" <end: @R> => Term::Universe(ByteRange::new(file_id, start, end)),
-    <start: @L> <string: StringLiteral> <end: @R> => Term::StringLiteral(ByteRange::new(file_id, start, end), string),
-    <start: @L> <number: NumberLiteral> <end: @R> => Term::NumberLiteral(ByteRange::new(file_id, start, end), number),
-    <start: @L> "true" <end: @R> => Term::BooleanLiteral(ByteRange::new(file_id, start, end), true),
-    <start: @L> "false" <end: @R> => Term::BooleanLiteral(ByteRange::new(file_id, start, end), false),
-    <start: @L> "{" "}" <end: @R> => Term::Tuple(ByteRange::new(file_id, start, end), &[]),
+    <start: @L> "Type" <end: @R> => Term::Universe(ByteRange::new(start, end)),
+    <start: @L> <string: StringLiteral> <end: @R> => Term::StringLiteral(ByteRange::new(start, end), string),
+    <start: @L> <number: NumberLiteral> <end: @R> => Term::NumberLiteral(ByteRange::new(start, end), number),
+    <start: @L> "true" <end: @R> => Term::BooleanLiteral(ByteRange::new(start, end), true),
+    <start: @L> "false" <end: @R> => Term::BooleanLiteral(ByteRange::new(start, end), false),
+    <start: @L> "{" "}" <end: @R> => Term::Tuple(ByteRange::new(start, end), &[]),
     <start: @L> "{" <fields: Seq1<TypeField, ",">> "}" <end: @R> => {
-        Term::RecordType(ByteRange::new(file_id, start, end), fields)
+        Term::RecordType(ByteRange::new(start, end), fields)
     },
     <start: @L> "{" <fields: Seq1<ExprField, ",">> "}" <end: @R> => {
-        Term::RecordLiteral(ByteRange::new(file_id, start, end), fields)
+        Term::RecordLiteral(ByteRange::new(start, end), fields)
     },
     <start: @L> "{" <fields: Seq1<FormatField, ",">> "}" <end: @R> => {
-        Term::FormatRecord(ByteRange::new(file_id, start, end), fields)
+        Term::FormatRecord(ByteRange::new(start, end), fields)
     },
     <start: @L> "{" <name: RangedName> "<-" <format:Term> "|" <cond:Term> "}" <end: @R> => {
-        Term::FormatCond(ByteRange::new(file_id, start, end), name, scope.to_scope(format), scope.to_scope(cond))
+        Term::FormatCond(ByteRange::new(start, end), name, scope.to_scope(format), scope.to_scope(cond))
     },
     <start: @L> "overlap" "{" <fields: Seq1<FormatField, ",">> "}" <end: @R> => {
-        Term::FormatOverlap(ByteRange::new(file_id, start, end), fields)
+        Term::FormatOverlap(ByteRange::new(start, end), fields)
     },
     <start: @L> "[" <exprs: Seq<Term, ",">> "]" <end: @R> => {
-        Term::ArrayLiteral(ByteRange::new(file_id, start, end), exprs)
+        Term::ArrayLiteral(ByteRange::new(start, end), exprs)
     },
     <start: @L> <error: !> <end: @R> => {
-        messages.push(ParseMessage::from_lalrpop_recovery(file_id, error));
-        Term::ReportedError(ByteRange::new(file_id, start, end))
+        messages.push(ParseMessage::from_lalrpop_recovery(error));
+        Term::ReportedError(ByteRange::new(start, end))
     },
 };
 
@@ -263,7 +261,7 @@ ExprField: ExprField<'arena, ByteRange> = {
 BinExpr<Lhs, Op, Rhs>: Term<'arena, ByteRange> = {
     <start: @L> <lhs: Lhs> <op: Op> <rhs: Rhs> <end: @R> => {
         Term::BinOp(
-            ByteRange::new(file_id, start, end),
+            ByteRange::new(start, end),
             scope.to_scope(lhs),
             op,
             scope.to_scope(rhs),
@@ -271,17 +269,17 @@ BinExpr<Lhs, Op, Rhs>: Term<'arena, ByteRange> = {
     },
 };
 
-BinOpAdd: BinOp<ByteRange> = <start: @L> "+" <end: @R> => BinOp::Add(ByteRange::new(file_id, start, end));
-BinOpSub: BinOp<ByteRange> = <start: @L> "-" <end: @R> => BinOp::Sub(ByteRange::new(file_id, start, end));
-BinOpMul: BinOp<ByteRange> = <start: @L> "*" <end: @R> => BinOp::Mul(ByteRange::new(file_id, start, end));
-BinOpDiv: BinOp<ByteRange> = <start: @L> "/" <end: @R> => BinOp::Div(ByteRange::new(file_id, start, end));
+BinOpAdd: BinOp<ByteRange> = <start: @L> "+" <end: @R> => BinOp::Add(ByteRange::new(start, end));
+BinOpSub: BinOp<ByteRange> = <start: @L> "-" <end: @R> => BinOp::Sub(ByteRange::new(start, end));
+BinOpMul: BinOp<ByteRange> = <start: @L> "*" <end: @R> => BinOp::Mul(ByteRange::new(start, end));
+BinOpDiv: BinOp<ByteRange> = <start: @L> "/" <end: @R> => BinOp::Div(ByteRange::new(start, end));
 
-BinOpEq: BinOp<ByteRange> = <start: @L> "==" <end: @R> => BinOp::Eq(ByteRange::new(file_id, start, end));
-BinOpNeq: BinOp<ByteRange> = <start: @L> "!=" <end: @R> => BinOp::Neq(ByteRange::new(file_id, start, end));
-BinOpLt: BinOp<ByteRange> = <start: @L> "<" <end: @R> => BinOp::Lt(ByteRange::new(file_id, start, end));
-BinOpLte: BinOp<ByteRange> = <start: @L> "<=" <end: @R> => BinOp::Lte(ByteRange::new(file_id, start, end));
-BinOpGt: BinOp<ByteRange> = <start: @L> ">" <end: @R> => BinOp::Gt(ByteRange::new(file_id, start, end));
-BinOpGte: BinOp<ByteRange> = <start: @L> ">=" <end: @R> => BinOp::Gte(ByteRange::new(file_id, start, end));
+BinOpEq: BinOp<ByteRange> = <start: @L> "==" <end: @R> => BinOp::Eq(ByteRange::new(start, end));
+BinOpNeq: BinOp<ByteRange> = <start: @L> "!=" <end: @R> => BinOp::Neq(ByteRange::new(start, end));
+BinOpLt: BinOp<ByteRange> = <start: @L> "<" <end: @R> => BinOp::Lt(ByteRange::new(start, end));
+BinOpLte: BinOp<ByteRange> = <start: @L> "<=" <end: @R> => BinOp::Lte(ByteRange::new(start, end));
+BinOpGt: BinOp<ByteRange> = <start: @L> ">" <end: @R> => BinOp::Gt(ByteRange::new(start, end));
+BinOpGte: BinOp<ByteRange> = <start: @L> ">=" <end: @R> => BinOp::Gte(ByteRange::new(start, end));
 
 #[inline] Name: StringId = { <"name"> => interner.borrow_mut().get_or_intern(<>) };
 #[inline] Hole: StringId = { <"hole"> => interner.borrow_mut().get_or_intern(<>) };
@@ -311,7 +309,7 @@ Arg: Arg<'arena, ByteRange> = {
 
 #[inline]
 RangedName: (ByteRange, StringId) = {
-    <start: @L> <name: Name> <end: @R> => (ByteRange::new(file_id, start, end), name),
+    <start: @L> <name: Name> <end: @R> => (ByteRange::new(start, end), name),
 };
 
 Seq<Elem, Sep>: &'arena [Elem] = {

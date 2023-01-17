@@ -13,7 +13,6 @@ pub fn is_keyword(word: &str) -> bool {
 }
 
 #[derive(Clone, Debug, Logos)]
-#[logos(extras = FileId)]
 pub enum Token<'source> {
     #[regex(r"[a-zA-Z_][a-zA-Z0-9_]*")]
     #[regex(r"r#[a-zA-Z_][a-zA-Z0-9_]*", |lex| &lex.slice()[2..])]
@@ -116,7 +115,6 @@ pub enum Token<'source> {
 }
 
 #[derive(Clone, Debug, Logos)]
-#[logos(extras = FileId)]
 enum BlockComment {
     #[error]
     Skip,
@@ -128,10 +126,10 @@ enum BlockComment {
 
 fn lexer_range<'source, T>(lexer: &logos::Lexer<'source, T>) -> ByteRange
 where
-    T: logos::Logos<'source, Extras = FileId>,
+    T: logos::Logos<'source>,
 {
     let span = lexer.span();
-    ByteRange::new(lexer.extras, span.start as BytePos, span.end as BytePos)
+    ByteRange::new(span.start as BytePos, span.end as BytePos)
 }
 
 fn block_comment<'source>(lexer: &mut logos::Lexer<'source, Token<'source>>) -> Filter<Error> {
@@ -188,11 +186,11 @@ impl Error {
         }
     }
 
-    pub fn to_diagnostic(&self) -> Diagnostic<FileId> {
+    pub fn to_diagnostic(&self, file_id: FileId) -> Diagnostic<FileId> {
         match self {
             Error::UnexpectedCharacter { range } => Diagnostic::error()
                 .with_message("unexpected character")
-                .with_labels(vec![Label::primary(range.file_id(), *range)]),
+                .with_labels(vec![Label::primary(file_id, *range)]),
             Error::UnclosedBlockComment {
                 depth,
                 first_open,
@@ -200,36 +198,31 @@ impl Error {
             } => Diagnostic::error()
                 .with_message("unclosed block comment")
                 .with_labels(vec![
-                    Label::primary(first_open.file_id(), *first_open).with_message("first `/*`"),
-                    Label::primary(last_close.file_id(), *last_close).with_message("last `*/`"),
+                    Label::primary(file_id, *first_open).with_message("first `/*`"),
+                    Label::primary(file_id, *last_close).with_message("last `*/`"),
                 ])
                 .with_notes(vec![format!("help: {depth} more `*/` needed")]),
         }
     }
 }
 
-pub fn tokens(
-    file_id: FileId,
-    source: &str,
-) -> impl Iterator<Item = Result<Spanned<Token<'_>, BytePos>, Error>> {
+pub fn tokens(source: &str) -> impl Iterator<Item = Result<Spanned<Token<'_>, BytePos>, Error>> {
     assert!(
         source.len() <= u32::MAX as usize,
         "`source` must be less than 4GiB in length"
     );
 
-    Token::lexer_with_extras(source, file_id)
-        .spanned()
-        .map(move |(token, range)| {
-            let start = range.start as BytePos;
-            let end = range.end as BytePos;
-            match token {
-                Token::ErrorData(err) => Err(err),
-                Token::Error => Err(Error::UnexpectedCharacter {
-                    range: ByteRange::new(file_id, start, end),
-                }),
-                token => Ok((start, token, end)),
-            }
-        })
+    Token::lexer(source).spanned().map(move |(token, range)| {
+        let start = range.start as BytePos;
+        let end = range.end as BytePos;
+        match token {
+            Token::ErrorData(err) => Err(err),
+            Token::Error => Err(Error::UnexpectedCharacter {
+                range: ByteRange::new(start, end),
+            }),
+            token => Ok((start, token, end)),
+        }
+    })
 }
 
 impl<'source> Token<'source> {
