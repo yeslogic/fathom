@@ -57,9 +57,9 @@
   - [ ] navigation through links and offsets
   - [ ] serialise data to JSON for use with tools like jq
 - [x] parser
-- [ ] pretty printing
+- [x] pretty printing
   - [x] surface language
-  - [ ] core language
+  - [x] core language
 - [x] source locations
   - [x] surface language
   - [x] core language
@@ -74,7 +74,7 @@
   - [x] zonking
 - [x] distiller
   - [x] improve binder names
-  - [ ] improve hole names
+  - [x] improve hole names
 - [ ] core language validation
 - [x] binary format interpreter
   - [x] parser
@@ -90,6 +90,4 @@
   - [x] binary parser tests
 
 ## Ideas for future experimentation
-
-- implicit parameters (see [elaboration-zoo/04-implicit-args](https://github.com/AndrasKovacs/elaboration-zoo/tree/master/04-implicit-args))
 - integer refinements (see [Refinement Types: A tutorial](https://arxiv.org/abs/2010.07763) and [sprite-lang](https://github.com/ranjitjhala/sprite-lang), and also this [twitter thread](https://twitter.com/brendanzab/status/1403528996474609666))
