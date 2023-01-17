@@ -30,28 +30,28 @@ def link_table : Pos -> {
 } -> Format -> Format =
 fun file_start table_record table_format => link (file_start + table_record.offset) (limit32 table_record.length table_format);
 def platform_id : Format = u16be;
-def encoding_id : U16 -> Format = fun platform => u16be;
+def encoding_id : Repr platform_id -> Format = fun platform => u16be;
 def empty : Format = ();
 def offset32 : Pos -> Format -> Format = fun base format => {
     offset <- u32be,
     link <- match offset { 0 => empty, _ => link (base + offset) format },
 };
 def language_id : Format = u16be;
-def cmap_language_id : U16 -> Format = fun platform => language_id;
+def cmap_language_id : Repr platform_id -> Format = fun platform => language_id;
 def small_glyph_id : Format = u8;
-def cmap_subtable_format0 : U16 -> Format = fun platform => {
+def cmap_subtable_format0 : Repr platform_id -> Format = fun platform => {
     length <- u16be,
     language <- cmap_language_id platform,
     glyph_id_array <- array16 256 small_glyph_id,
 };
-def cmap_subtable_format2 : U16 -> Format = fun platform => {
+def cmap_subtable_format2 : Repr platform_id -> Format = fun platform => {
     length <- u16be,
     language <- cmap_language_id platform,
     sub_header_keys <- array16 256 u16be,
 };
 def reserved : fun (format : Format) -> Repr format -> Format =
 fun format default => format;
-def cmap_subtable_format4 : U16 -> Format = fun platform => {
+def cmap_subtable_format4 : Repr platform_id -> Format = fun platform => {
     length <- u16be,
     language <- cmap_language_id platform,
     seg_count_x2 <- u16be,
@@ -65,7 +65,7 @@ def cmap_subtable_format4 : U16 -> Format = fun platform => {
     id_delta <- array16 seg_count s16be,
     id_range_offsets <- array16 seg_count u16be,
 };
-def cmap_subtable_format6 : U16 -> Format = fun platform => {
+def cmap_subtable_format6 : Repr platform_id -> Format = fun platform => {
     length <- u16be,
     language <- cmap_language_id platform,
     first_code <- u16be,
@@ -73,13 +73,14 @@ def cmap_subtable_format6 : U16 -> Format = fun platform => {
     glyph_id_array <- array16 entry_count u16be,
 };
 def language_id32 : Format = u32be;
-def cmap_language_id32 : U16 -> Format = fun platform => language_id32;
+def cmap_language_id32 : Repr platform_id -> Format =
+fun platform => language_id32;
 def sequential_map_group : Format = {
     start_char_code <- u32be,
     end_char_code <- u32be,
     start_glyph_id <- u32be,
 };
-def cmap_subtable_format8 : U16 -> Format = fun platform => {
+def cmap_subtable_format8 : Repr platform_id -> Format = fun platform => {
     _reserved <- reserved u16be 0,
     length <- u32be,
     language <- cmap_language_id32 platform,
@@ -87,7 +88,7 @@ def cmap_subtable_format8 : U16 -> Format = fun platform => {
     num_groups <- u32be,
     groups <- array32 num_groups sequential_map_group,
 };
-def cmap_subtable_format10 : U16 -> Format = fun platform => {
+def cmap_subtable_format10 : Repr platform_id -> Format = fun platform => {
     _reserved <- reserved u16be 0,
     length <- u32be,
     language <- cmap_language_id32 platform,
@@ -95,7 +96,7 @@ def cmap_subtable_format10 : U16 -> Format = fun platform => {
     num_chars <- u32be,
     glyph_id_array <- array32 num_chars u16be,
 };
-def cmap_subtable_format12 : U16 -> Format = fun platform => {
+def cmap_subtable_format12 : Repr platform_id -> Format = fun platform => {
     _reserved <- reserved u16be 0,
     length <- u32be,
     language <- cmap_language_id32 platform,
@@ -103,7 +104,7 @@ def cmap_subtable_format12 : U16 -> Format = fun platform => {
     groups <- array32 num_groups sequential_map_group,
 };
 def constant_map_group : Format = sequential_map_group;
-def cmap_subtable_format13 : U16 -> Format = fun platform => {
+def cmap_subtable_format13 : Repr platform_id -> Format = fun platform => {
     _reserved <- reserved u16be 0,
     length <- u32be,
     language <- cmap_language_id32 platform,
@@ -129,14 +130,14 @@ def variation_selector : Pos -> Format = fun table_start => {
     default_uvs_offset <- offset32 table_start default_uvs_table,
     non_default_uvs_offset <- offset32 table_start non_default_uvs_table,
 };
-def cmap_subtable_format14 : U16 -> Pos -> Format =
+def cmap_subtable_format14 : Repr platform_id -> Pos -> Format =
 fun platform table_start => {
     length <- u32be,
     num_var_selector_records <- u32be,
     var_selector <- array32 num_var_selector_records (variation_selector table_start),
 };
 def unknown_table : Format = ();
-def cmap_subtable : U16 -> Format = fun platform => {
+def cmap_subtable : Repr platform_id -> Format = fun platform => {
     table_start <- stream_pos,
     format <- u16be,
     data <- match format {
