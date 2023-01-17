@@ -286,6 +286,18 @@ pub struct Context<'interner, 'arena> {
     messages: Vec<Message>,
 }
 
+fn suggest_name(
+    interner: &StringInterner,
+    name: StringId,
+    candidates: impl Iterator<Item = StringId>,
+) -> Option<StringId> {
+    let name = interner.resolve(name).unwrap();
+    candidates.min_by_key(|candidate| {
+        let candidate = interner.resolve(*candidate).unwrap();
+        levenshtein::levenshtein(name, candidate)
+    })
+}
+
 impl<'interner, 'arena> Context<'interner, 'arena> {
     /// Construct a new elaboration context, backed by the supplied arena.
     pub fn new(
@@ -1338,9 +1350,19 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                     return (core::Term::Prim(file_range.into(), prim), r#type.clone());
                 }
 
+                let candidates = self
+                    .local_env
+                    .names
+                    .iter()
+                    .flatten()
+                    .copied()
+                    .chain(self.item_env.names.iter().copied());
+                let suggestion = suggest_name(&self.interner.borrow(), *name, candidates);
+
                 self.push_message(Message::UnboundName {
                     range: file_range,
                     name: *name,
+                    suggestion,
                 });
                 self.synth_reported_error(*range)
             }
@@ -1654,11 +1676,17 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                     }
 
                     let head_type = self.pretty_print_value(&head_type);
+                    let suggestion = suggest_name(
+                        &self.interner.borrow(),
+                        *proj_label,
+                        labels.iter().map(|(_, label)| *label),
+                    );
                     self.push_message(Message::UnknownField {
                         head_range: self.file_range(head_range),
                         head_type,
                         label_range: self.file_range(*label_range),
                         label: *proj_label,
+                        suggestion,
                     });
                     return self.synth_reported_error(*range);
                 }

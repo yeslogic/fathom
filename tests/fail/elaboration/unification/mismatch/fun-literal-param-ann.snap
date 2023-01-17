@@ -14,5 +14,7 @@ error: cannot find `a` in scope
   │
 3 │ fun A => fun (a : Type) => a : fun (A : Type) -> A -> A
   │                            ^ unbound name
+  │
+  = help: did you mean `A`?
 
 '''
