@@ -45,6 +45,11 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
         }
     }
 
+    fn is_bound(&self, name: StringId) -> bool {
+        (self.local_names.iter()).any(|local_name| *local_name == Some(name))
+            || self.item_names.iter().any(|item_name| *item_name == name)
+    }
+
     fn local_len(&mut self) -> EnvLen {
         self.local_names.len()
     }
@@ -84,12 +89,12 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
         }
     }
 
-    /// Generate a fresh name that does not appear in `self.local_names`
+    /// Generate a fresh name that is not currently bound in the context
     fn gen_fresh_name(&mut self) -> StringId {
         let mut counter = 0;
         loop {
             let name = self.interner.borrow_mut().get_alphabetic_name(counter);
-            match self.local_names.iter().any(|symbol| *symbol == Some(name)) {
+            match self.is_bound(name) {
                 true => counter += 1,
                 false => return name,
             }
@@ -125,7 +130,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 r#type,
                 expr,
             } => {
-                let r#type = scope.to_scope(self.synth(r#type));
+                let r#type = scope.to_scope(self.check(r#type));
                 let expr = scope.to_scope(self.check(expr));
 
                 Item::Def(ItemDef {
