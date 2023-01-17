@@ -1,6 +1,6 @@
 stdout = '''
 let number : Format = overlap { u <- u32be where u >= (2 : U32), s <- s32be };
-let _ : { u : U32, s : S32 } -> { u : U32, s : S32 } = fun n => n;
+let _ : Repr number -> { u : U32, s : S32 } = fun n => n;
 () : ()
 '''
 stderr = ''

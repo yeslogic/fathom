@@ -2,9 +2,9 @@ stdout = '''
 let Triple : Type = (U16, U16, U16);
 let Point : Type = { x : U16, y : U16, z : U16 };
 let Any : Type = { A : Type, a : A };
-let triple : (U16, U16, U16) = (0, 1, 2);
-let point : { x : U16, y : U16, z : U16 } = { x = 0, y = 1, z = 2 };
-let any : { A : Type, a : A } = { A = Bool, a = false };
+let triple : Triple = (0, 1, 2);
+let point : Point = { x = 0, y = 1, z = 2 };
+let any : Any = { A = Bool, a = false };
 () : ()
 '''
 stderr = ''
