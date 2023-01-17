@@ -303,7 +303,7 @@ impl<'interner, 'arena> Context<'interner> {
                 RcDoc::text("}"),
             ),
             Term::Prim(_, prim) => RcDoc::text(format!("{prim:?}")),
-            Term::ConstMatch(_, scrutinee, branches, default_expr) => self.sequence(
+            Term::ConstMatch(_, (scrutinee, default_expr), branches) => self.sequence(
                 RcDoc::concat([
                     RcDoc::text("match"),
                     RcDoc::space(),
@@ -322,7 +322,7 @@ impl<'interner, 'arena> Context<'interner> {
                             self.term_prec(Prec::Top, body_expr),
                         ])
                     })
-                    .chain(default_expr.iter().map(|&(name, default)| {
+                    .chain(default_expr.iter().map(|(name, default)| {
                         RcDoc::concat([
                             match name {
                                 Some(name) => self.string_id(*name),

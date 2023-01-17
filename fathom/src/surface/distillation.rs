@@ -378,8 +378,9 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 core::Const::Pos(number) => self.check_number_literal(number),
                 core::Const::Ref(number) => self.check_number_literal(number),
             },
-            core::Term::ConstMatch(_span, head_expr, branches, default_branch) => {
-                if let Some((then_expr, else_expr)) = match_if_then_else(branches, *default_branch)
+            core::Term::ConstMatch(_span, (head_expr, default_branch), branches) => {
+                if let Some((then_expr, else_expr)) =
+                    match_if_then_else(branches, default_branch.as_ref())
                 {
                     let cond_expr = self.check_prec(Prec::Fun, head_expr);
                     let then_expr = self.check_prec(Prec::Let, then_expr);
@@ -764,8 +765,10 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                     self.synth_number_literal(prec, number, core::Prim::RefType)
                 }
             },
-            core::Term::ConstMatch(_span, head_expr, branches, default_expr) => {
-                if let Some((then_expr, else_expr)) = match_if_then_else(branches, *default_expr) {
+            core::Term::ConstMatch(_span, (head_expr, default_expr), branches) => {
+                if let Some((then_expr, else_expr)) =
+                    match_if_then_else(branches, default_expr.as_ref())
+                {
                     let cond_expr = self.check_prec(Prec::Fun, head_expr);
                     let then_expr = self.synth_prec(Prec::Let, then_expr);
                     let else_expr = self.synth_prec(Prec::Let, else_expr);

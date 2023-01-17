@@ -369,9 +369,10 @@ impl<'arena, 'env> EvalEnv<'arena, 'env> {
             Term::ConstLit(span, r#const) => {
                 Spanned::new(*span, Arc::new(Value::ConstLit(*r#const)))
             }
-            Term::ConstMatch(span, head_expr, branches, default_expr) => {
+            Term::ConstMatch(span, (head_expr, default_expr), branches) => {
                 let head_expr = self.eval(head_expr);
-                let branches = Branches::new(self.local_exprs.clone(), branches, *default_expr);
+                let branches =
+                    Branches::new(self.local_exprs.clone(), branches, default_expr.as_ref());
                 Spanned::merge(*span, self.elim_env.const_match(head_expr, branches))
             }
         }
@@ -703,11 +704,12 @@ impl<'in_arena, 'env> QuoteEnv<'in_arena, 'env> {
 
                         Term::ConstMatch(
                             span,
-                            scope.to_scope(head_expr),
+                            scope.to_scope((
+                                head_expr,
+                                default_branch
+                                    .map(|(name, expr)| (name, self.quote_closure(scope, &expr))),
+                            )),
                             pattern_branches.into(),
-                            default_branch.map(|(name, expr)| {
-                                scope.to_scope((name, self.quote_closure(scope, &expr))) as &_
-                            }),
                         )
                     }
                 },
@@ -1005,22 +1007,27 @@ impl<'arena, 'env> EvalEnv<'arena, 'env> {
                     }
                 }
             }
-            Term::ConstMatch(span, head_expr, branches, default_branch) => {
+            Term::ConstMatch(span, (head_expr, default_branch), branches) => {
                 match self.unfold_meta_var_spines(scope, head_expr) {
                     TermOrValue::Term(head_expr) => TermOrValue::Term(Term::ConstMatch(
                         *span,
-                        scope.to_scope(head_expr),
+                        scope.to_scope((
+                            head_expr,
+                            default_branch
+                                .as_ref()
+                                .map(|(name, expr)| (*name, self.unfold_bound_metas(scope, expr))),
+                        )),
                         scope.to_scope_from_iter(
                             (branches.iter())
                                 .map(|(r#const, expr)| (*r#const, self.unfold_metas(scope, expr))),
                         ),
-                        default_branch.map(|(name, expr)| {
-                            scope.to_scope((*name, self.unfold_bound_metas(scope, expr))) as &_
-                        }),
                     )),
                     TermOrValue::Value(head_expr) => {
-                        let branches =
-                            Branches::new(self.local_exprs.clone(), branches, *default_branch);
+                        let branches = Branches::new(
+                            self.local_exprs.clone(),
+                            branches,
+                            default_branch.as_ref(),
+                        );
                         TermOrValue::Value(self.elim_env.const_match(head_expr, branches))
                     }
                 }

@@ -1034,13 +1034,12 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
 
                 core::Term::ConstMatch(
                     file_range.into(),
-                    self.scope.to_scope(cond_expr),
+                    self.scope.to_scope((cond_expr, None)),
                     // NOTE: in lexicographic order: in Rust, `false < true`
                     self.scope.to_scope_from_iter([
                         (Const::Bool(false), else_expr),
                         (Const::Bool(true), then_expr),
                     ]),
-                    None,
                 )
             }
             (Term::Match(range, scrutinee_expr, equations), _) => {
@@ -1437,13 +1436,12 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
 
                 let match_expr = core::Term::ConstMatch(
                     file_range.into(),
-                    self.scope.to_scope(cond_expr),
+                    self.scope.to_scope((cond_expr, None)),
                     // NOTE: in lexicographic order: in Rust, `false < true`
                     self.scope.to_scope_from_iter([
                         (Const::Bool(false), else_expr),
                         (Const::Bool(true), then_expr),
                     ]),
-                    None,
                 );
 
                 (match_expr, r#type)
@@ -2277,7 +2275,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
             full_span = Span::merge(&full_span, &self.file_range(body_expr.range()).into());
 
             // Default expression, defined if we arrive at a default case
-            let default_branch;
+            let default_branch: (Option<StringId>, core::Term);
 
             match self.check_pattern(pattern, &match_info.scrutinee.r#type) {
                 // Accumulate constant pattern. Search for it in the accumulated
@@ -2316,7 +2314,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                     // distillation of if expressions.
                     (self.local_env).push_param(Some(name), match_info.scrutinee.r#type.clone());
                     let default_expr = self.check(body_expr, &match_info.expected_type);
-                    default_branch = self.scope.to_scope((Some(name), default_expr));
+                    default_branch = (Some(name), default_expr);
                     self.local_env.pop();
                 }
                 CheckedPattern::Placeholder(range) => {
@@ -2324,13 +2322,13 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
 
                     (self.local_env).push_param(None, match_info.scrutinee.r#type.clone());
                     let default_expr = self.check(body_expr, &match_info.expected_type);
-                    default_branch = self.scope.to_scope((None, default_expr));
+                    default_branch = (None, default_expr);
                     self.local_env.pop();
                 }
                 CheckedPattern::ReportedError(range) => {
                     (self.local_env).push_param(None, match_info.scrutinee.r#type.clone());
                     let default_expr = core::Term::Prim(range.into(), Prim::ReportedError);
-                    default_branch = self.scope.to_scope((None, default_expr));
+                    default_branch = (None, default_expr);
                     self.local_env.pop();
                 }
             };
@@ -2340,9 +2338,8 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
 
             return core::Term::ConstMatch(
                 full_span,
-                match_info.scrutinee.expr,
+                (self.scope).to_scope((match_info.scrutinee.expr.clone(), Some(default_branch))),
                 self.scope.to_scope_from_iter(branches.into_iter()),
-                Some(default_branch),
             );
         }
 
@@ -2357,9 +2354,11 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
 
         core::Term::ConstMatch(
             full_span,
-            match_info.scrutinee.expr,
+            self.scope.to_scope((
+                match_info.scrutinee.expr.clone(),
+                default_expr.map(|expr| (None, expr)),
+            )),
             self.scope.to_scope_from_iter(branches.into_iter()),
-            default_expr.map(|expr| self.scope.to_scope((None, expr)) as &_),
         )
     }
 

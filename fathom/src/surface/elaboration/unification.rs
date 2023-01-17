@@ -590,10 +590,8 @@ impl<'arena, 'env> Context<'arena, 'env> {
 
                             Term::ConstMatch(
                                 span,
-                                self.scope.to_scope(head_expr),
+                                self.scope.to_scope((head_expr, default_branch)),
                                 pattern_branches.into(),
-                                default_branch
-                                    .map(|(name, expr)| self.scope.to_scope((name, (expr))) as &_),
                             )
                         }
                     })

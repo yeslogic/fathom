@@ -195,9 +195,8 @@ pub enum Term<'arena> {
     /// in lexicographic order.
     ConstMatch(
         Span,
-        &'arena Term<'arena>,
+        &'arena (Term<'arena>, Option<(Option<StringId>, Term<'arena>)>),
         &'arena [(Const, Term<'arena>)],
-        Option<&'arena (Option<StringId>, Term<'arena>)>,
     ),
 }
 
@@ -265,10 +264,12 @@ impl<'arena> Term<'arena> {
             Term::FormatCond(_, _, (format, pred)) => {
                 format.binds_local(var) || pred.binds_local(var.prev())
             }
-            Term::ConstMatch(_, scrut, branches, default_expr) => {
+            Term::ConstMatch(_, (scrut, default_expr), branches) => {
                 scrut.binds_local(var)
                     || branches.iter().any(|(_, term)| term.binds_local(var))
-                    || default_expr.map_or(false, |(_, term)| term.binds_local(var.prev()))
+                    || default_expr
+                        .as_ref()
+                        .map_or(false, |(_, term)| term.binds_local(var.prev()))
             }
         }
     }
