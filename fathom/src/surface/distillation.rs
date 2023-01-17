@@ -131,7 +131,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 r#type,
                 expr,
             } => {
-                let r#type = scope.to_scope(self.synth(r#type));
+                let r#type = scope.to_scope(self.check(r#type));
                 let expr = scope.to_scope(self.check(expr));
 
                 Item::Def(ItemDef {

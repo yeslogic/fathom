@@ -1,5 +1,5 @@
 stdout = '''
-def a : () : Type = ();
+def a : () = ();
 def const1 : fun (@A : Type) (@B : Type) -> A -> B -> A =
 fun @b @c x y => let x1 : b = x;
 let y1 : c = y;
