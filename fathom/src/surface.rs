@@ -31,7 +31,7 @@ pub struct Module<'arena, Range> {
 impl<'arena> Module<'arena, ByteRange> {
     /// Parse a term from the `source` string, interning strings to the
     /// supplied `interner` and allocating nodes to the `arena`.
-    pub fn parse<'source>(
+    pub fn parse(
         interner: &RefCell<StringInterner>,
         scope: &'arena Scope<'arena>,
         source: &ProgramSource,
@@ -325,7 +325,7 @@ impl<'arena, Range: Clone> Term<'arena, Range> {
 impl<'arena> Term<'arena, FileRange> {
     /// Parse a term from the `source` string, interning strings to the
     /// supplied `interner` and allocating nodes to the `arena`.
-    pub fn parse<'source>(
+    pub fn parse(
         interner: &RefCell<StringInterner>,
         scope: &'arena Scope<'arena>,
         source: &ProgramSource,
