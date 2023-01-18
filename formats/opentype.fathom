@@ -85,7 +85,7 @@ def table_directory (file_start : Pos) = {
     /// - [Apple's TrueType Reference Manual: TrueType Font files](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6.html#Overview)
     table_links <- (
         let required_table =
-            fun (table_id : Repr tag) =>
+            fun (table_id : tag) =>
             fun (table_format : Format) => {
                 // TODO: let formats
                 table_record <- unwrap (find_table table_records table_id),
@@ -93,7 +93,7 @@ def table_directory (file_start : Pos) = {
             };
 
         let required_table_with_len =
-            fun (table_id : Repr tag) =>
+            fun (table_id : tag) =>
             fun (table_format : (U32 -> Format)) => {
                 // TODO: let formats
                 table_record <- unwrap (find_table table_records table_id),
@@ -101,7 +101,7 @@ def table_directory (file_start : Pos) = {
             };
 
         let optional_table =
-            fun (table_id : Repr tag) =>
+            fun (table_id : tag) =>
             fun (table_format : Format) =>
                 option_fold ({} : Format)
                     (fun record => link_table file_start record table_format)
@@ -305,7 +305,7 @@ def find_table =
 /// Create a link to the given `table_format`.
 def link_table =
     fun (file_start : Pos) =>
-    fun (table_record : Repr table_record) =>
+    fun (table_record : table_record) =>
     fun (table_format : Format) =>
         // TODO: make use of `table_record.checksum`
         link (pos_add_u32 file_start table_record.offset)
@@ -314,11 +314,11 @@ def link_table =
 // -----------------------------------------------------------------------------
 
 /// Reserved formats
-def reserved (format : Format) (default : Repr format) =
+def reserved (format : Format) (default : format) =
     format; // TODO: set to `default` during serialisation
 
 /// Deprecated formats
-def deprecated (format : Format) (default : Repr format) =
+def deprecated (format : Format) (default : format) =
     format; // TODO: set to `default` during serialisation
 
 
@@ -468,7 +468,7 @@ def platform_id =
 /// # Platform-specific encoding identifiers
 ///
 // TODO: document encoding IDs
-def encoding_id (platform : Repr platform_id) =
+def encoding_id (platform : platform_id) =
     u16be;
 
 /// # Language identifiers
@@ -1958,11 +1958,11 @@ def lookup_list (tag : U32) = {
 /// - [Apple's TrueType Reference Manual: : The `'cmap'` table and language codes](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6cmap.html)
 ///
 // TODO: add more details to docs
-def cmap_language_id (platform : Repr platform_id) =
+def cmap_language_id (platform : platform_id) =
     language_id;
 
 // cmap sub-table format 8 has a 32-bit language code
-def cmap_language_id32 (platform : Repr platform_id) =
+def cmap_language_id32 (platform : platform_id) =
     language_id32;
 
 /// A small glyph ID, limited to a glyph set of 256 glyphs.
@@ -2096,7 +2096,7 @@ def variation_selector (table_start : Pos) = {
 ///
 /// - [Microsoft's OpenType Spec: Format 0: Byte encoding table](https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#format-0-byte-encoding-table)
 /// - [Apple's TrueType Reference Manual: `'cmap'` format 0](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6cmap.html)
-def cmap_subtable_format0 (platform : Repr platform_id) = {
+def cmap_subtable_format0 (platform : platform_id) = {
     /// The length of the subtable in bytes
     length <- u16be,
     /// The language ID of the subtable
@@ -2117,7 +2117,7 @@ def cmap_subtable_format0 (platform : Repr platform_id) = {
 ///
 /// - [Microsoft's OpenType Spec: Format 2: Segment mapping to delta values](https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#format-2-high-byte-mapping-through-table)
 /// - [Apple's TrueType Reference Manual: `'cmap'` format 2](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6cmap.html)
-def cmap_subtable_format2 (platform : Repr platform_id) = {
+def cmap_subtable_format2 (platform : platform_id) = {
     /// The length of the subtable in bytes
     length <- u16be,
     /// The language ID of the subtable
@@ -2141,7 +2141,7 @@ def cmap_subtable_format2 (platform : Repr platform_id) = {
 ///
 /// - [Microsoft's OpenType Spec: Format 4: Segment mapping to delta values](https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#format-4-segment-mapping-to-delta-values)
 /// - [Apple's TrueType Reference Manual: `'cmap'` format 4](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6cmap.html)
-def cmap_subtable_format4 (platform : Repr platform_id) = {
+def cmap_subtable_format4 (platform : platform_id) = {
     /// The length of the subtable in bytes
     length <- u16be,
     /// The language ID of the subtable
@@ -2182,7 +2182,7 @@ def cmap_subtable_format4 (platform : Repr platform_id) = {
 ///
 /// - [Microsoft's OpenType Spec: Format 6: Segment mapping to delta values](https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#format-6-trimmed-table-mapping)
 /// - [Apple's TrueType Reference Manual: `'cmap'` format 6](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6cmap.html)
-def cmap_subtable_format6 (platform : Repr platform_id) = {
+def cmap_subtable_format6 (platform : platform_id) = {
     /// The length of the subtable in bytes
     length <- u16be,
     /// The language ID of the subtable
@@ -2206,7 +2206,7 @@ def cmap_subtable_format6 (platform : Repr platform_id) = {
 ///
 /// - [Microsoft's OpenType Spec: Format 8: Segment mapping to delta values](https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#format-8-mixed-16-bit-and-32-bit-coverage)
 /// - [Apple's TrueType Reference Manual: `'cmap'` format 8](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6cmap.html)
-def cmap_subtable_format8 (platform : Repr platform_id) = {
+def cmap_subtable_format8 (platform : platform_id) = {
     /// Set to 0.
     _reserved <- reserved u16be 0,
     /// The length of the subtable in bytes (including the header)
@@ -2232,7 +2232,7 @@ def cmap_subtable_format8 (platform : Repr platform_id) = {
 ///
 /// - [Microsoft's OpenType Spec: Format 10: Segment mapping to delta values](https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#format-10-trimmed-array)
 /// - [Apple's TrueType Reference Manual: `'cmap'` format 10](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6cmap.html)
-def cmap_subtable_format10 (platform : Repr platform_id) = {
+def cmap_subtable_format10 (platform : platform_id) = {
     /// Set to 0.
     _reserved <- reserved u16be 0,
     /// The length of the subtable in bytes (including the header)
@@ -2256,7 +2256,7 @@ def cmap_subtable_format10 (platform : Repr platform_id) = {
 ///
 /// - [Microsoft's OpenType Spec: Format 12: Segment mapping to delta values](https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#format-12-segmented-coverage)
 /// - [Apple's TrueType Reference Manual: `'cmap'` format 12](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6cmap.html)
-def cmap_subtable_format12 (platform : Repr platform_id) = {
+def cmap_subtable_format12 (platform : platform_id) = {
     /// Set to 0.
     _reserved <- reserved u16be 0,
     /// The length of the subtable in bytes (including the header)
@@ -2280,7 +2280,7 @@ def cmap_subtable_format12 (platform : Repr platform_id) = {
 ///
 /// - [Microsoft's OpenType Spec: Format 13: Segment mapping to delta values](https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#format-13-many-to-one-range-mappings)
 /// - [Apple's TrueType Reference Manual: `'cmap'` format 13](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6cmap.html)
-def cmap_subtable_format13 (platform : Repr platform_id) = {
+def cmap_subtable_format13 (platform : platform_id) = {
     /// Set to 0.
     _reserved <- reserved u16be 0,
     /// The length of the subtable in bytes (including the header)
@@ -2305,7 +2305,7 @@ def cmap_subtable_format13 (platform : Repr platform_id) = {
 ///
 /// - [Microsoft's OpenType Spec: Format 14: Segment mapping to delta values](https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#format-14-unicode-variation-sequences)
 /// - [Apple's TrueType Reference Manual: `'cmap'` format 14](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6cmap.html)
-def cmap_subtable_format14 (platform : Repr platform_id) (table_start : Pos) = {
+def cmap_subtable_format14 (platform : platform_id) (table_start : Pos) = {
     /// The length of the subtable in bytes (including the header)
     length <- u32be,
     /// Number of variation Selector Records
@@ -2315,7 +2315,7 @@ def cmap_subtable_format14 (platform : Repr platform_id) (table_start : Pos) = {
 };
 
 /// # Character Mapping subtable
-def cmap_subtable (platform : Repr platform_id) = {
+def cmap_subtable (platform : platform_id) = {
     /// The start of the character mapping sub-table
     table_start <- stream_pos,
     /// Format number of the subtable
