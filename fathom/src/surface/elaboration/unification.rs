@@ -556,16 +556,16 @@ impl<'arena, 'env> Context<'arena, 'env> {
                     },
                 };
 
-                spine.iter().fold(Ok(head_expr), |head_expr, elim| {
+                spine.iter().try_fold(head_expr, |head_expr, elim| {
                     Ok(match elim {
                         Elim::FunApp(plicity, arg_expr) => Term::FunApp(
                             span,
                             *plicity,
-                            self.scope.to_scope(head_expr?),
+                            self.scope.to_scope(head_expr),
                             self.scope.to_scope(self.rename(meta_var, arg_expr)?),
                         ),
                         Elim::RecordProj(label) => {
-                            Term::RecordProj(span, self.scope.to_scope(head_expr?), *label)
+                            Term::RecordProj(span, self.scope.to_scope(head_expr), *label)
                         }
                         Elim::ConstMatch(branches) => {
                             let mut branches = branches.clone();
@@ -591,7 +591,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
 
                             Term::ConstMatch(
                                 span,
-                                self.scope.to_scope(head_expr?),
+                                self.scope.to_scope(head_expr),
                                 pattern_branches.into(),
                                 default_branch
                                     .map(|(name, expr)| (name, self.scope.to_scope(expr) as &_)),
