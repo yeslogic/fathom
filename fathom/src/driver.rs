@@ -8,7 +8,7 @@ use codespan_reporting::term::termcolor::{BufferedStandardStream, ColorChoice, W
 
 use crate::core::binary::{self, BufferError, ReadError};
 use crate::files::{FileId, Files};
-use crate::source::{ByteRange, Span, StringInterner};
+use crate::source::{ByteRange, ProgramSource, SourceTooBig, Span, StringInterner, MAX_SOURCE_LEN};
 use crate::surface::elaboration::ItemEnv;
 use crate::surface::{self, elaboration};
 use crate::{core, BUG_REPORT_URL};
@@ -29,7 +29,7 @@ impl Status {
 }
 
 pub struct Driver<'surface, 'core> {
-    files: Files<String, String>,
+    files: Files<String, ProgramSource>,
     interner: RefCell<StringInterner>,
     surface_scope: scoped_arena::Scope<'surface>,
     core_scope: scoped_arena::Scope<'core>,
@@ -142,15 +142,26 @@ impl<'surface, 'core> Driver<'surface, 'core> {
     }
 
     /// Load a source string into the file database.
-    pub fn load_source_string(&mut self, name: String, source: String) -> FileId {
-        self.files.add(name, source)
+    pub fn load_source_string(
+        &mut self,
+        name: String,
+        source: String,
+    ) -> Result<FileId, SourceTooBig> {
+        let source = ProgramSource::try_from(source)?;
+        Ok(self.files.add(name, source))
     }
 
     /// Load a source file into the file database using a reader.
     pub fn load_source(&mut self, name: String, mut reader: impl Read) -> Option<FileId> {
         let mut source = String::new();
         match reader.read_to_string(&mut source) {
-            Ok(_) => Some(self.load_source_string(name, source)),
+            Ok(_) => match self.load_source_string(name.clone(), source) {
+                Ok(file) => Some(file),
+                Err(error) => {
+                    self.emit_source_diagnostic(name, error);
+                    None
+                }
+            },
             Err(error) => {
                 self.emit_read_diagnostic(name, error);
                 None
@@ -426,6 +437,14 @@ impl<'surface, 'core> Driver<'surface, 'core> {
     fn emit_read_diagnostic(&self, name: impl std::fmt::Display, error: std::io::Error) {
         let diagnostic =
             Diagnostic::error().with_message(format!("couldn't read `{name}`: {error}"));
+        self.emit_diagnostic(diagnostic);
+    }
+
+    fn emit_source_diagnostic(&self, name: impl std::fmt::Display, error: SourceTooBig) {
+        let diagnostic = Diagnostic::error().with_message(format!(
+            "could't read `{name}`: source too big (source is {} bytes, max length is {} bytes)",
+            error.actual_len, MAX_SOURCE_LEN
+        ));
         self.emit_diagnostic(diagnostic);
     }
 

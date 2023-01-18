@@ -2,7 +2,7 @@ use codespan_reporting::diagnostic::{Diagnostic, Label};
 use logos::{Filter, Logos};
 
 use crate::files::FileId;
-use crate::source::{BytePos, ByteRange};
+use crate::source::{BytePos, ByteRange, ProgramSource};
 
 pub const KEYWORDS: &[&str] = &[
     "def", "else", "false", "fun", "if", "let", "match", "overlap", "then", "true", "Type", "where",
@@ -206,12 +206,9 @@ impl Error {
     }
 }
 
-pub fn tokens(source: &str) -> impl Iterator<Item = Result<Spanned<Token<'_>, BytePos>, Error>> {
-    assert!(
-        source.len() <= u32::MAX as usize,
-        "`source` must be less than 4GiB in length"
-    );
-
+pub fn tokens(
+    source: &ProgramSource,
+) -> impl Iterator<Item = Result<Spanned<Token<'_>, BytePos>, Error>> {
     Token::lexer(source).spanned().map(move |(token, range)| {
         let start = range.start as BytePos;
         let end = range.end as BytePos;

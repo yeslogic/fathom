@@ -9,7 +9,7 @@ use scoped_arena::Scope;
 
 use crate::core::Plicity;
 use crate::files::FileId;
-use crate::source::{BytePos, ByteRange, FileRange, StringId, StringInterner};
+use crate::source::{BytePos, ByteRange, FileRange, ProgramSource, StringId, StringInterner};
 
 lalrpop_mod!(
     #[allow(clippy::all)]
@@ -31,10 +31,10 @@ pub struct Module<'arena, Range> {
 impl<'arena> Module<'arena, ByteRange> {
     /// Parse a term from the `source` string, interning strings to the
     /// supplied `interner` and allocating nodes to the `arena`.
-    pub fn parse<'source>(
+    pub fn parse(
         interner: &RefCell<StringInterner>,
         scope: &'arena Scope<'arena>,
-        source: &'source str,
+        source: &ProgramSource,
     ) -> (Module<'arena, ByteRange>, Vec<ParseMessage>) {
         let mut messages = Vec::new();
 
@@ -325,10 +325,10 @@ impl<'arena, Range: Clone> Term<'arena, Range> {
 impl<'arena> Term<'arena, FileRange> {
     /// Parse a term from the `source` string, interning strings to the
     /// supplied `interner` and allocating nodes to the `arena`.
-    pub fn parse<'source>(
+    pub fn parse(
         interner: &RefCell<StringInterner>,
         scope: &'arena Scope<'arena>,
-        source: &'source str,
+        source: &ProgramSource,
     ) -> (Term<'arena, ByteRange>, Vec<ParseMessage>) {
         let mut messages = Vec::new();
 

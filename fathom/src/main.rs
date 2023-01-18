@@ -123,6 +123,14 @@ fn load_file_or_exit(driver: &mut fathom::Driver, file: PathOrStdin) -> fathom::
     })
 }
 
+fn load_source_or_exit(
+    driver: &mut fathom::Driver,
+    name: String,
+    source: String,
+) -> fathom::files::FileId {
+    unwrap_or_exit(driver.load_source(name, source.as_bytes()))
+}
+
 fn read_bytes_or_exit(driver: &mut fathom::Driver, file: PathOrStdin) -> Vec<u8> {
     unwrap_or_exit(match file {
         PathOrStdin::StdIn => driver.read_bytes("<stdin>".to_owned(), std::io::stdin()),
@@ -192,7 +200,7 @@ fn main() -> ! {
             driver.set_emit_width(get_pretty_width());
 
             let module_file_id = module_file.map(|input| load_file_or_exit(&mut driver, input));
-            let format_file_id = driver.load_source_string("<FORMAT>".to_owned(), format);
+            let format_file_id = load_source_or_exit(&mut driver, "<FORMAT>".to_owned(), format);
 
             let data = read_bytes_or_exit(&mut driver, binary_file);
             let status = driver.read_and_emit_format(module_file_id, format_file_id, &data);

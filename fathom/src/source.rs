@@ -326,6 +326,58 @@ impl From<ByteRange> for Range<usize> {
     }
 }
 
+/// A smart constructor around `String`, which guarantees its length is <=
+/// `u32::MAX`
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ProgramSource(String);
+
+pub const MAX_SOURCE_LEN: usize = u32::MAX as usize;
+
+impl fmt::Display for ProgramSource {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
+impl Deref for ProgramSource {
+    type Target = String;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl AsRef<str> for ProgramSource {
+    fn as_ref(&self) -> &str {
+        self.0.as_str()
+    }
+}
+
+impl From<ProgramSource> for String {
+    fn from(source: ProgramSource) -> Self {
+        source.0
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SourceTooBig {
+    pub actual_len: usize,
+}
+
+impl TryFrom<String> for ProgramSource {
+    type Error = SourceTooBig;
+
+    fn try_from(string: String) -> Result<Self, Self::Error> {
+        if string.len() <= MAX_SOURCE_LEN {
+            Ok(Self(string))
+        } else {
+            Err(SourceTooBig {
+                actual_len: string.len(),
+            })
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
