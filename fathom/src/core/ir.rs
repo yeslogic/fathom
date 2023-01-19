@@ -1,12 +1,13 @@
 /// An interned string
 type StringId = u16;
+type Pos = u64;
 
 #[derive(Clone)]
 pub enum Const {
     U8(u8),
     U16(u16),
     U32(u32),
-    Pos(u64),
+    Pos(Pos),
 }
 
 // TODO: better name
@@ -55,13 +56,14 @@ mod host {
         U8,
         U16,
         U32,
+        F32,
         Pos,
         // An array with length and element type
         // The length can be another item or a const
         Array(Expr, Box<Type>), // Perhaps array with const length and array with non-const length should be separated
     }
 
-    // Primitive functions... is it sensible to seperate these from Prim?
+    // Primitive functions... is it sensible to separate these from Prim?
     #[derive(Clone)]
     pub enum PrimFn {
         U16Sub,
@@ -93,7 +95,7 @@ mod host {
 
 // TODO: better name
 mod format {
-    use super::{host, Const, StringId};
+    use super::{host, Const, Pos, StringId};
 
     pub struct Module {
         pub definitions: Vec<Def>,
@@ -158,6 +160,7 @@ mod format {
         U16Le,
         U32Be,
         U32Le,
+        F32Le,
         Array(host::Expr, Box<ReadExpr>),
         StreamPos,
     }
@@ -589,16 +592,16 @@ mod tests {
         // How should offset16 be represented
 
         let format = Format {
-            params: vec![Param {name: 3, host_type: host::Type::Prim(host::Prim::Pos)}],
-            fields: vec![
-                Field {
-                    name: 1, // right_class_table
-                    host_type: host::Type::Prim(host::Prim::U16),
-                    read: ReadExpr::Prim(ReadPrim::U16Be),
-                },
-            ],
+            params: vec![Param {
+                name: 3,
+                host_type: host::Type::Prim(host::Prim::Pos),
+            }],
+            fields: vec![Field {
+                name: 1, // right_class_table
+                host_type: host::Type::Prim(host::Prim::U16),
+                read: ReadExpr::Prim(ReadPrim::U16Be),
+            }],
         };
-
 
         let item = Item::Format(format);
         let def = Def {
@@ -609,5 +612,124 @@ mod tests {
             definitions: vec![def],
         };
     }
-}
 
+    #[test]
+    fn test_stl() {
+        /*
+        def vec3d = {
+            x <- f32le,
+            y <- f32le,
+            z <- f32le,
+        };
+
+        def triangle = {
+            normal <- vec3d,
+            vertices <- array8 3 vec3d,
+            attribute_byte_count <- u16le,
+        };
+
+        def main = {
+            header <- array8 80 u8,
+            triangle_count <- u32le,
+            triangles <- array32 triangle_count triangle,
+        };
+        */
+        let vec3d_format = Format {
+            params: vec![],
+            fields: vec![
+                Field {
+                    name: 1, // x
+                    host_type: host::Type::Prim(host::Prim::F32),
+                    read: ReadExpr::Prim(ReadPrim::F32Le),
+                },
+                Field {
+                    name: 2, // y
+                    host_type: host::Type::Prim(host::Prim::F32),
+                    read: ReadExpr::Prim(ReadPrim::F32Le),
+                },
+                Field {
+                    name: 3, // z
+                    host_type: host::Type::Prim(host::Prim::F32),
+                    read: ReadExpr::Prim(ReadPrim::F32Le),
+                },
+            ],
+        };
+
+        let triangle_format = Format {
+            params: vec![],
+            fields: vec![
+                Field {
+                    name: 4,                              // normal
+                    host_type: host::Type::CustomType(0), // vec3d
+                    read: ReadExpr::CustomType(0),
+                },
+                Field {
+                    name: 5, // vertices
+                    host_type: host::Type::Prim(host::Prim::Array(
+                        Expr::Const(Const::U8(3)),
+                        Box::new(host::Type::CustomType(0)),
+                    )),
+                    read: ReadExpr::Prim(ReadPrim::Array(
+                        Expr::Const(Const::U8(3)),
+                        Box::new(ReadExpr::CustomType(0)),
+                    )),
+                },
+                Field {
+                    name: 6, // attribute_byte_count
+                    host_type: host::Type::Prim(host::Prim::U16),
+                    read: ReadExpr::Prim(ReadPrim::U16Le),
+                },
+            ],
+        };
+
+        let main_format = Format {
+            params: vec![],
+            fields: vec![
+                Field {
+                    name: 7, // header
+                    host_type: host::Type::Prim(host::Prim::Array(
+                        Expr::Const(Const::U8(80)),
+                        Box::new(host::Type::CustomType(0)),
+                    )),
+                    read: ReadExpr::Prim(ReadPrim::Array(
+                        Expr::Const(Const::U8(80)),
+                        Box::new(ReadExpr::CustomType(0)),
+                    )),
+                },
+                Field {
+                    name: 8, // triangle_count
+                    host_type: host::Type::Prim(host::Prim::U32),
+                    read: ReadExpr::Prim(ReadPrim::U32Le),
+                },
+                Field {
+                    name: 9, // triangles
+                    host_type: host::Type::Prim(host::Prim::Array(
+                        Expr::Item(4 /* triangle_count */),
+                        Box::new(host::Type::CustomType(1)),
+                    )),
+                    read: ReadExpr::Prim(ReadPrim::Array(
+                        Expr::Item(4 /* triangle_count */),
+                        Box::new(ReadExpr::CustomType(1)),
+                    )),
+                },
+            ],
+        };
+
+        let module = Module {
+            definitions: vec![
+                Def {
+                    name: 10,
+                    expr: Item::Format(vec3d_format),
+                },
+                Def {
+                    name: 11,
+                    expr: Item::Format(triangle_format),
+                },
+                Def {
+                    name: 12,
+                    expr: Item::Format(main_format),
+                },
+            ],
+        };
+    }
+}
