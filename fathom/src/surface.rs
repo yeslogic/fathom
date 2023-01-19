@@ -93,7 +93,7 @@ pub enum Pattern<Range> {
     /// Boolean literal patterns
     BooleanLiteral(Range, bool),
     // TODO: Record literal patterns
-    // RecordLiteral(Range, &'arena [((Range, StringId), Pattern<'arena, Range>)]),
+    // RecordLiteral(Range, &'arena [((Range, Symbol), Pattern<'arena, Range>)]),
 }
 
 #[derive(Debug, Clone, Copy)]

@@ -7,7 +7,8 @@ use std::fmt::Debug;
 use std::slice::SliceIndex;
 use std::sync::Arc;
 
-use crate::core::semantics::{self, ArcValue, Elim, Head, Value};
+use super::semantics::{EvalMode, LocalExprs};
+use crate::core::semantics::{self, ArcValue, Elim, Head, LazyValue, Value};
 use crate::core::{Const, Item, Module, Prim, Term, UIntStyle};
 use crate::env::{EnvLen, SharedEnv, UniqueEnv};
 use crate::source::{Span, Spanned};
@@ -254,8 +255,8 @@ impl fmt::Display for BufferError {
 impl std::error::Error for BufferError {}
 
 pub struct Context<'arena, 'data> {
-    item_exprs: UniqueEnv<ArcValue<'arena>>,
-    local_exprs: SharedEnv<ArcValue<'arena>>,
+    item_exprs: UniqueEnv<LazyValue<'arena>>,
+    local_exprs: LocalExprs<'arena>,
     initial_buffer: Buffer<'data>,
     pending_formats: Vec<(usize, ArcValue<'arena>)>,
     cached_refs: HashMap<usize, Vec<ParsedRef<'arena>>>,
@@ -283,7 +284,7 @@ impl<'arena, 'data> Context<'arena, 'data> {
 
     fn eval_env(&mut self) -> semantics::EvalEnv<'arena, '_> {
         let elim_env = semantics::ElimEnv::new(&self.item_exprs, [][..].into());
-        semantics::EvalEnv::new(elim_env, &mut self.local_exprs)
+        semantics::EvalEnv::new(elim_env, &mut self.local_exprs).with_mode(EvalMode::Strict)
     }
 
     fn elim_env(&self) -> semantics::ElimEnv<'arena, '_> {
@@ -295,7 +296,7 @@ impl<'arena, 'data> Context<'arena, 'data> {
         for item in module.items {
             match item {
                 Item::Def { expr, .. } => {
-                    let expr = self.eval_env().eval(expr);
+                    let expr = self.eval_env().delay_or_eval(expr);
                     self.item_exprs.push(expr);
                 }
             }
@@ -332,7 +333,7 @@ impl<'arena, 'data> Context<'arena, 'data> {
                 let mut exprs = Vec::with_capacity(formats.len());
 
                 while let Some((format, next_formats)) = self.elim_env().split_telescope(formats) {
-                    let expr = self.read_format(reader, &format)?;
+                    let expr = LazyValue::eager(self.read_format(reader, &format)?);
                     exprs.push(expr.clone());
                     formats = next_formats(expr);
                 }
@@ -343,8 +344,10 @@ impl<'arena, 'data> Context<'arena, 'data> {
                 ))
             }
             Value::FormatCond(_label, format, cond) => {
-                let value = self.read_format(reader, format)?;
-                let cond_res = self.elim_env().apply_closure(cond, value.clone());
+                let value = self.read_format(reader, &self.elim_env().force_lazy(format))?;
+                let cond_res = self
+                    .elim_env()
+                    .apply_closure(cond, LazyValue::eager(value.clone()));
 
                 match cond_res.as_ref() {
                     Value::ConstLit(Const::Bool(true)) => Ok(value),
@@ -366,7 +369,7 @@ impl<'arena, 'data> Context<'arena, 'data> {
                 while let Some((format, next_formats)) = self.elim_env().split_telescope(formats) {
                     let mut reader = reader.clone();
 
-                    let expr = self.read_format(&mut reader, &format)?;
+                    let expr = LazyValue::eager(self.read_format(&mut reader, &format)?);
                     exprs.push(expr.clone());
                     formats = next_formats(expr);
 
@@ -406,6 +409,8 @@ impl<'arena, 'data> Context<'arena, 'data> {
     ) -> Result<ArcValue<'arena>, ReadError<'arena>> {
         use crate::core::semantics::Elim::FunApp;
 
+        let force = |expr|  self.elim_env().force_lazy(expr);
+
         match (prim, slice) {
             (Prim::FormatU8, []) => read_const(reader, span, read_u8, |num| Const::U8(num, UIntStyle::Decimal)),
             (Prim::FormatU16Be, []) => read_const(reader, span, read_u16be, |num| Const::U16(num, UIntStyle::Decimal)),
@@ -425,22 +430,18 @@ impl<'arena, 'data> Context<'arena, 'data> {
             (Prim::FormatF32Le, []) => read_const(reader, span, read_f32le, Const::F32),
             (Prim::FormatF64Be, []) => read_const(reader, span, read_f64be, Const::F64),
             (Prim::FormatF64Le, []) => read_const(reader, span, read_f64le, Const::F64),
-            (Prim::FormatRepeatLen8, [FunApp(_, len), FunApp(_, format)]) => self.read_repeat_len(reader, span, len, format),
-            (Prim::FormatRepeatLen16, [FunApp(_, len), FunApp(_, format)]) => self.read_repeat_len(reader, span, len, format),
-            (Prim::FormatRepeatLen32, [FunApp(_, len), FunApp(_, format)]) => self.read_repeat_len(reader, span, len, format),
-            (Prim::FormatRepeatLen64, [FunApp(_, len), FunApp(_, format)]) => self.read_repeat_len(reader, span, len, format),
-            (Prim::FormatRepeatUntilEnd, [FunApp(_,format)]) => self.read_repeat_until_end(reader, format),
-            (Prim::FormatLimit8, [FunApp(_, limit), FunApp(_, format)]) => self.read_limit(reader, limit, format),
-            (Prim::FormatLimit16, [FunApp(_, limit), FunApp(_, format)]) => self.read_limit(reader, limit, format),
-            (Prim::FormatLimit32, [FunApp(_, limit), FunApp(_, format)]) => self.read_limit(reader, limit, format),
-            (Prim::FormatLimit64, [FunApp(_, limit), FunApp(_, format)]) => self.read_limit(reader, limit, format),
-            (Prim::FormatLink, [FunApp(_, pos), FunApp(_, format)]) => self.read_link(span, pos, format),
-            (Prim::FormatDeref, [FunApp(_, format), FunApp(_, r#ref)]) => self.read_deref(format, r#ref),
+            (Prim::FormatRepeatLen8| Prim::FormatRepeatLen16 | Prim::FormatRepeatLen32 | Prim::FormatRepeatLen64,
+                [FunApp(_, len), FunApp(_, format)]) => self.read_repeat_len(reader, span, &force(len), &force(format)),
+            (Prim::FormatRepeatUntilEnd, [FunApp(_,format)]) => self.read_repeat_until_end(reader, &force(format)),
+            (Prim::FormatLimit8 | Prim::FormatLimit16 | Prim::FormatLimit32 | Prim::FormatLimit64,
+                [FunApp(_, limit), FunApp(_, format)]) => self.read_limit(reader,&force(limit) , &force(format)),
+            (Prim::FormatLink, [FunApp(_, pos), FunApp(_, format)]) => self.read_link(span, &force(pos), &force(format)),
+            (Prim::FormatDeref, [FunApp(_, format), FunApp(_, r#ref)]) => self.read_deref(&force(format), &force(r#ref)),
             (Prim::FormatStreamPos, []) => read_stream_pos(reader, span),
-            (Prim::FormatSucceed, [_, FunApp(_, elem)]) => Ok(elem.clone()),
+            (Prim::FormatSucceed, [_, FunApp(_, elem)]) => Ok(force(elem)),
             (Prim::FormatFail, []) => Err(ReadError::ReadFailFormat(span)),
-            (Prim::FormatUnwrap, [_, FunApp(_, option)]) => match option.match_prim_spine() {
-                Some((Prim::OptionSome, [_, FunApp(_, elem)])) => Ok(elem.clone()),
+            (Prim::FormatUnwrap, [_, FunApp(_, option)]) => match force(option).match_prim_spine() {
+                Some((Prim::OptionSome, [_, FunApp(_, elem)])) => Ok(force(elem)),
                 Some((Prim::OptionNone, [_])) => Err(ReadError::UnwrappedNone(span)),
                 _ => Err(ReadError::InvalidValue(span)),
             },
@@ -464,7 +465,7 @@ impl<'arena, 'data> Context<'arena, 'data> {
         };
 
         let elem_exprs = (0..len)
-            .map(|_| self.read_format(reader, elem_format))
+            .map(|_| (self.read_format(reader, elem_format).map(LazyValue::eager)))
             .collect::<Result<_, _>>()?;
 
         Ok(Spanned::new(span, Arc::new(Value::ArrayLit(elem_exprs))))
@@ -481,7 +482,7 @@ impl<'arena, 'data> Context<'arena, 'data> {
         loop {
             match self.read_format(reader, elem_format) {
                 Ok(elem) => {
-                    elems.push(elem);
+                    elems.push(LazyValue::eager(elem));
                     current_offset = reader.relative_offset();
                 }
                 Err(ReadError::BufferError(_, BufferError::UnexpectedEndOfBuffer)) => {
@@ -557,7 +558,7 @@ impl<'arena, 'data> Context<'arena, 'data> {
     fn lookup_ref<'context>(
         &'context self,
         pos: usize,
-        format: &ArcValue<'_>,
+        format: &ArcValue<'arena>,
     ) -> Option<&'context ParsedRef<'arena>> {
         // NOTE: The number of calls to `semantics::ConversionEnv::is_equal`
         // when looking up cached references is a bit of a pain. If this ever

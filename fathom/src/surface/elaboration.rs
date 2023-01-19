@@ -26,7 +26,7 @@ use std::sync::Arc;
 use scoped_arena::Scope;
 
 use crate::alloc::SliceVec;
-use crate::core::semantics::{self, ArcValue, Head, Telescope, Value};
+use crate::core::semantics::{self, ArcValue, Head, LazyValue, LocalExprs, Telescope, Value};
 use crate::core::{self, prim, Const, Plicity, Prim, UIntStyle};
 use crate::env::{self, EnvLen, Level, SharedEnv, UniqueEnv};
 use crate::files::FileId;
@@ -48,7 +48,7 @@ pub struct ItemEnv<'arena> {
     /// Types of items.
     types: UniqueEnv<ArcValue<'arena>>,
     /// Expressions of items.
-    exprs: UniqueEnv<ArcValue<'arena>>,
+    exprs: UniqueEnv<LazyValue<'arena>>,
 }
 
 impl<'arena> ItemEnv<'arena> {
@@ -61,7 +61,7 @@ impl<'arena> ItemEnv<'arena> {
         }
     }
 
-    fn push_definition(&mut self, name: Symbol, r#type: ArcValue<'arena>, expr: ArcValue<'arena>) {
+    fn push_definition(&mut self, name: Symbol, r#type: ArcValue<'arena>, expr: LazyValue<'arena>) {
         self.names.push(name);
         self.types.push(r#type);
         self.exprs.push(expr);
@@ -97,7 +97,7 @@ struct LocalEnv<'arena> {
     infos: UniqueEnv<core::LocalInfo>,
     /// Expressions that will be substituted for local variables during
     /// [evaluation][semantics::EvalEnv::eval].
-    exprs: SharedEnv<ArcValue<'arena>>,
+    exprs: LocalExprs<'arena>,
 }
 
 impl<'arena> LocalEnv<'arena> {
@@ -124,22 +124,29 @@ impl<'arena> LocalEnv<'arena> {
     }
 
     /// Push a local definition onto the context.
-    fn push_def(&mut self, name: Option<Symbol>, expr: ArcValue<'arena>, r#type: ArcValue<'arena>) {
+    fn push_def(
+        &mut self,
+        name: Option<Symbol>,
+        expr: LazyValue<'arena>,
+        r#type: ArcValue<'arena>,
+    ) {
         self.names.push(name);
-        self.types.push(r#type);
         self.infos.push(core::LocalInfo::Def);
+        self.types.push(r#type);
         self.exprs.push(expr);
     }
 
     /// Push a local parameter onto the context.
-    fn push_param(&mut self, name: Option<Symbol>, r#type: ArcValue<'arena>) -> ArcValue<'arena> {
+    fn push_param(&mut self, name: Option<Symbol>, r#type: ArcValue<'arena>) -> LazyValue<'arena> {
         // An expression that refers to itself once it is pushed onto the local
         // expression environment.
-        let expr = Spanned::empty(Arc::new(Value::local_var(self.exprs.len().next_level())));
+        let expr = LazyValue::eager(Spanned::empty(Arc::new(Value::local_var(
+            self.exprs.len().next_level(),
+        ))));
 
         self.names.push(name);
-        self.types.push(r#type);
         self.infos.push(core::LocalInfo::Param);
+        self.types.push(r#type);
         self.exprs.push(expr.clone());
 
         expr
@@ -255,9 +262,9 @@ pub struct Context<'arena> {
     scope: &'arena Scope<'arena>,
 
     // Commonly used values, cached to increase sharing.
-    universe: ArcValue<'static>,
-    format_type: ArcValue<'static>,
-    bool_type: ArcValue<'static>,
+    universe: ArcValue<'arena>,
+    format_type: ArcValue<'arena>,
+    bool_type: ArcValue<'arena>,
 
     /// Primitive environment.
     prim_env: prim::Env<'arena>,
@@ -418,7 +425,7 @@ impl<'arena> Context<'arena> {
         )
     }
 
-    fn pretty_value(&self, value: &ArcValue<'_>) -> String {
+    fn pretty_value(&self, value: &ArcValue<'arena>) -> String {
         let term = self.quote_env().unfolding_metas().quote(self.scope, value);
         let surface_term = self.distillation_context(self.scope).check(&term);
 
@@ -579,8 +586,8 @@ impl<'arena> Context<'arena> {
         to: &ArcValue<'arena>,
     ) -> core::Term<'arena> {
         let span = expr.span();
-        let from = self.elim_env().force(from);
-        let to = self.elim_env().force(to);
+        let from = self.elim_env().force_metas(from);
+        let to = self.elim_env().force_metas(to);
 
         match (from.as_ref(), to.as_ref()) {
             // Coerce format descriptions to their representation types by
@@ -638,7 +645,8 @@ impl<'arena> Context<'arena> {
                 Item::Def(item) => {
                     let (expr, r#type) =
                         self.synth_fun_lit(item.range, item.params, item.expr, item.r#type);
-                    let expr_value = self.eval_env().eval(&expr);
+                    let expr = self.scope.to_scope(expr);
+                    let expr_value = self.eval_env().delay(expr);
                     let type_value = self.eval_env().eval(&r#type);
 
                     self.item_env
@@ -647,7 +655,7 @@ impl<'arena> Context<'arena> {
                     items.push(core::Item::Def {
                         label: item.label.1,
                         r#type: self.scope.to_scope(r#type),
-                        expr: self.scope.to_scope(expr),
+                        expr,
                     });
                 }
                 Item::ReportedError(_) => {}
@@ -894,7 +902,7 @@ impl<'arena> Context<'arena> {
     fn push_local_def(
         &mut self,
         pattern: CheckedPattern,
-        expr: ArcValue<'arena>,
+        expr: LazyValue<'arena>,
         r#type: ArcValue<'arena>,
     ) -> Option<Symbol> {
         let name = match pattern {
@@ -921,7 +929,7 @@ impl<'arena> Context<'arena> {
         &mut self,
         pattern: CheckedPattern,
         r#type: ArcValue<'arena>,
-    ) -> (Option<Symbol>, ArcValue<'arena>) {
+    ) -> (Option<Symbol>, LazyValue<'arena>) {
         let name = match pattern {
             CheckedPattern::Binder(_, name) => Some(name),
             CheckedPattern::Placeholder(_) => None,
@@ -966,7 +974,7 @@ impl<'arena> Context<'arena> {
         expected_type: &ArcValue<'arena>,
     ) -> core::Term<'arena> {
         let file_range = self.file_range(surface_term.range());
-        let expected_type = self.elim_env().force(expected_type);
+        let expected_type = self.elim_env().force_metas(expected_type);
 
         match (surface_term, expected_type.as_ref()) {
             (Term::Paren(_, term), _) => self.check(term, &expected_type),
@@ -974,7 +982,8 @@ impl<'arena> Context<'arena> {
                 let (def_pattern, def_type, def_type_value) =
                     self.synth_ann_pattern(def_pattern, *def_type);
                 let def_expr = self.check(def_expr, &def_type_value);
-                let def_expr_value = self.eval_env().eval(&def_expr);
+                let def_expr = self.scope.to_scope(def_expr);
+                let def_expr_value = self.eval_env().delay(def_expr);
 
                 let def_name = self.push_local_def(def_pattern, def_expr_value, def_type_value); // TODO: split on constants
                 let body_expr = self.check(body_expr, &expected_type);
@@ -984,7 +993,7 @@ impl<'arena> Context<'arena> {
                     file_range.into(),
                     def_name,
                     self.scope.to_scope(def_type),
-                    self.scope.to_scope(def_expr),
+                    def_expr,
                     self.scope.to_scope(body_expr),
                 )
             }
@@ -1043,8 +1052,9 @@ impl<'arena> Context<'arena> {
                     let name_expr = Term::Name(expr_field.label.0, expr_field.label.1);
                     let expr = expr_field.expr.as_ref().unwrap_or(&name_expr);
                     let expr = self.check(expr, &r#type);
-                    types = next_types(self.eval_env().eval(&expr));
-                    exprs.push(expr);
+                    let expr = self.scope.to_scope(expr);
+                    types = next_types(self.eval_env().delay(expr));
+                    exprs.push(expr.clone());
                 }
 
                 core::Term::RecordLit(file_range.into(), labels, exprs.into())
@@ -1130,8 +1140,9 @@ impl<'arena> Context<'arena> {
                     Option::zip(elem_exprs.next(), self.elim_env().split_telescope(types))
                 {
                     let expr = self.check(elem_expr, &r#type);
-                    types = next_types(self.eval_env().eval(&expr));
-                    exprs.push(expr);
+                    let expr = self.scope.to_scope(expr);
+                    types = next_types(self.eval_env().delay(expr));
+                    exprs.push(expr.clone());
                 }
 
                 core::Term::RecordLit(file_range.into(), labels, exprs.into())
@@ -1165,7 +1176,10 @@ impl<'arena> Context<'arena> {
                     }
                 };
 
-                let len = match len_value.map(|val| val.as_ref()) {
+                let len_value = len_value.map(|len_value| self.elim_env().force_lazy(len_value));
+                let elem_type = self.elim_env().force_lazy(elem_type);
+
+                let len = match len_value.as_ref().map(|val| val.as_ref()) {
                     None => Some(elem_exprs.len() as u64),
                     Some(Value::ConstLit(Const::U8(len, _))) => Some(*len as u64),
                     Some(Value::ConstLit(Const::U16(len, _))) => Some(*len as u64),
@@ -1181,20 +1195,20 @@ impl<'arena> Context<'arena> {
                     Some(len) if elem_exprs.len() as u64 == len => core::Term::ArrayLit(
                         file_range.into(),
                         self.scope.to_scope_from_iter(
-                            (elem_exprs.iter()).map(|elem_expr| self.check(elem_expr, elem_type)),
+                            (elem_exprs.iter()).map(|elem_expr| self.check(elem_expr, &elem_type)),
                         ),
                     ),
                     _ => {
                         // Check the array elements anyway in order to report
                         // any errors inside the literal as well.
                         for elem_expr in *elem_exprs {
-                            self.check(elem_expr, elem_type);
+                            self.check(elem_expr, &elem_type);
                         }
 
                         self.push_message(Message::MismatchedArrayLength {
                             range: file_range,
                             found_len: elem_exprs.len(),
-                            expected_len: self.pretty_value(len_value.unwrap()),
+                            expected_len: self.pretty_value(&len_value.unwrap()),
                         });
 
                         core::Term::Prim(file_range.into(), Prim::ReportedError)
@@ -1275,17 +1289,18 @@ impl<'arena> Context<'arena> {
     ) -> (core::Term<'arena>, ArcValue<'arena>) {
         let file_range = self.file_range(range);
         while let Value::FunType(Plicity::Implicit, name, param_type, body_type) =
-            self.elim_env().force(&r#type).as_ref()
+            self.elim_env().force_metas(&r#type).as_ref()
         {
             let source = MetaSource::ImplicitArg(file_range, *name);
-            let arg_term = self.push_unsolved_term(source, param_type.clone());
-            let arg_value = self.eval_env().eval(&arg_term);
+            let arg_term = self.push_unsolved_term(source, self.elim_env().force_lazy(param_type));
+            let arg_term = self.scope.to_scope(arg_term);
+            let arg_value = self.eval_env().delay(arg_term);
 
             term = core::Term::FunApp(
                 file_range.into(),
                 Plicity::Implicit,
                 self.scope.to_scope(term),
-                self.scope.to_scope(arg_term),
+                arg_term,
             );
             r#type = self.elim_env().apply_closure(body_type, arg_value);
         }
@@ -1376,7 +1391,8 @@ impl<'arena> Context<'arena> {
                 let (def_pattern, def_type, def_type_value) =
                     self.synth_ann_pattern(def_pattern, *def_type);
                 let def_expr = self.check(def_expr, &def_type_value);
-                let def_expr_value = self.eval_env().eval(&def_expr);
+                let def_expr = self.scope.to_scope(def_expr);
+                let def_expr_value = self.eval_env().delay(def_expr);
 
                 let def_name = self.push_local_def(def_pattern, def_expr_value, def_type_value);
                 let (body_expr, body_type) = self.synth(body_expr);
@@ -1386,7 +1402,7 @@ impl<'arena> Context<'arena> {
                     file_range.into(),
                     def_name,
                     self.scope.to_scope(def_type),
-                    self.scope.to_scope(def_expr),
+                    def_expr,
                     self.scope.to_scope(body_expr),
                 );
 
@@ -1477,7 +1493,7 @@ impl<'arena> Context<'arena> {
                 let (mut head_expr, mut head_type) = self.synth(head_expr);
 
                 for arg in *args {
-                    head_type = self.elim_env().force(&head_type);
+                    head_type = self.elim_env().force_metas(&head_type);
 
                     match arg.plicity {
                         Plicity::Implicit => {}
@@ -1524,14 +1540,15 @@ impl<'arena> Context<'arena> {
                     let arg_range = arg.term.range();
                     head_range = ByteRange::merge(head_range, arg_range);
 
-                    let arg_expr = self.check(&arg.term, param_type);
-                    let arg_expr_value = self.eval_env().eval(&arg_expr);
+                    let arg_expr = self.check(&arg.term, &self.elim_env().force_lazy(param_type));
+                    let arg_expr = self.scope.to_scope(arg_expr);
+                    let arg_expr_value = self.eval_env().delay(arg_expr);
 
                     head_expr = core::Term::FunApp(
                         self.file_range(head_range).into(),
                         arg.plicity,
                         self.scope.to_scope(head_expr),
-                        self.scope.to_scope(arg_expr),
+                        arg_expr,
                     );
                     head_type = self.elim_env().apply_closure(body_type, arg_expr_value);
                 }
@@ -1601,7 +1618,7 @@ impl<'arena> Context<'arena> {
                 let (mut head_expr, mut head_type) = self.synth_and_insert_implicit_apps(head_expr);
 
                 'labels: for (label_range, proj_label) in *labels {
-                    head_type = self.elim_env().force(&head_type);
+                    head_type = self.elim_env().force_metas(&head_type);
                     match (&head_expr, head_type.as_ref()) {
                         // Ensure that the head of the projection is a record
                         (_, Value::RecordType(labels, types)) => {
@@ -1632,7 +1649,7 @@ impl<'arena> Context<'arena> {
                                     // looking for the field.
                                     let head_expr = head_expr_value.clone();
                                     let expr = self.elim_env().record_proj(head_expr, label);
-                                    types = next_types(expr);
+                                    types = next_types(LazyValue::eager(expr));
                                 }
                             }
                             // Couldn't find the field in the record type.
@@ -1726,16 +1743,17 @@ impl<'arena> Context<'arena> {
         let file_range = self.file_range(range);
         match params.split_first() {
             Some((param, next_params)) => {
-                let body_type = self.elim_env().force(expected_type);
+                let body_type = self.elim_env().force_metas(expected_type);
                 match body_type.as_ref() {
                     Value::FunType(param_plicity, _, param_type, next_body_type)
                         if param.plicity == *param_plicity =>
                     {
                         let range = ByteRange::merge(param.pattern.range(), body_expr.range());
+                        let param_type = self.elim_env().force_lazy(param_type);
                         let pattern = self.check_ann_pattern(
                             &param.pattern,
                             param.r#type.as_ref(),
-                            param_type,
+                            &param_type,
                         );
                         let (name, arg_expr) = self.push_local_param(pattern, param_type.clone());
 
@@ -1756,7 +1774,9 @@ impl<'arena> Context<'arena> {
                     Value::FunType(Plicity::Implicit, param_name, param_type, next_body_type)
                         if param.plicity == Plicity::Explicit =>
                     {
-                        let arg_expr = self.local_env.push_param(*param_name, param_type.clone());
+                        let arg_expr = self
+                            .local_env
+                            .push_param(*param_name, self.elim_env().force_lazy(param_type));
                         let body_type = self.elim_env().apply_closure(next_body_type, arg_expr);
                         let body_expr = self.check_fun_lit(range, params, body_expr, &body_type);
                         self.local_env.pop();
@@ -1857,8 +1877,8 @@ impl<'arena> Context<'arena> {
         // de-sugar into function application
         let (lhs_expr, lhs_type) = self.synth_and_insert_implicit_apps(lhs);
         let (rhs_expr, rhs_type) = self.synth_and_insert_implicit_apps(rhs);
-        let lhs_type = self.elim_env().force(&lhs_type);
-        let rhs_type = self.elim_env().force(&rhs_type);
+        let lhs_type = self.elim_env().force_metas(&lhs_type);
+        let rhs_type = self.elim_env().force_metas(&rhs_type);
         let operand_types = Option::zip(lhs_type.match_prim_spine(), rhs_type.match_prim_spine());
 
         let (fun, body_type) = match (op, operand_types) {
@@ -2200,7 +2220,7 @@ impl<'arena> Context<'arena> {
         let match_info = MatchInfo {
             range,
             scrutinee: self.synth_scrutinee(scrutinee_expr),
-            expected_type: self.elim_env().force(expected_type),
+            expected_type: self.elim_env().force_metas(expected_type),
         };
 
         self.elab_match(&match_info, true, equations.iter())
@@ -2238,7 +2258,7 @@ impl<'arena> Context<'arena> {
                         self.check_match_reachable(is_reachable, range);
 
                         let def_name = Some(name);
-                        let def_expr = self.eval_env().eval(match_info.scrutinee.expr);
+                        let def_expr = self.eval_env().delay(match_info.scrutinee.expr);
                         let def_type_value = match_info.scrutinee.r#type.clone();
                         let def_type = self.quote_env().quote(self.scope, &def_type_value);
 

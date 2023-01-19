@@ -21,7 +21,8 @@ use scoped_arena::Scope;
 
 use crate::alloc::SliceVec;
 use crate::core::semantics::{
-    self, ArcValue, Branches, Closure, Elim, Head, SplitBranches, Telescope, Value,
+    self, ArcValue, Branches, Closure, Elim, Head, ItemExprs, LazyValue, SplitBranches, Telescope,
+    Value,
 };
 use crate::core::{Prim, Term};
 use crate::env::{EnvLen, Index, Level, SharedEnv, SliceEnv, UniqueEnv};
@@ -164,7 +165,7 @@ pub struct Context<'arena, 'env> {
     /// each call to [`Context::solve`] in order to reuse previous allocations.
     renaming: &'env mut PartialRenaming,
     /// Item expressions.
-    item_exprs: &'env SliceEnv<ArcValue<'arena>>,
+    item_exprs: &'env ItemExprs<'arena>,
     /// The length of the local environment.
     local_exprs: EnvLen,
     /// Solutions for metavariables.
@@ -175,7 +176,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
     pub fn new(
         scope: &'arena Scope<'arena>,
         renaming: &'env mut PartialRenaming,
-        item_exprs: &'env SliceEnv<ArcValue<'arena>>,
+        item_exprs: &'env ItemExprs<'arena>,
         local_exprs: EnvLen,
         meta_exprs: &'env mut SliceEnv<Option<ArcValue<'arena>>>,
     ) -> Context<'arena, 'env> {
@@ -203,8 +204,8 @@ impl<'arena, 'env> Context<'arena, 'env> {
             return Ok(());
         }
 
-        let value0 = self.elim_env().force(value0);
-        let value1 = self.elim_env().force(value1);
+        let value0 = self.elim_env().force_metas(value0);
+        let value1 = self.elim_env().force_metas(value1);
 
         match (value0.as_ref(), value1.as_ref()) {
             // `ReportedError`s result from errors that have already been
@@ -236,7 +237,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
                 Value::FunType(plicity0, _, param_type0, body_type0),
                 Value::FunType(plicity1, _, param_type1, body_type1),
             ) if plicity0 == plicity1 => {
-                self.unify(param_type0, param_type1)?;
+                self.unify_lazy(param_type0, param_type1)?;
                 self.unify_closures(body_type0, body_type1)
             }
             (Value::FunLit(plicity0, _, body_expr0), Value::FunLit(plicity1, _, body_expr1))
@@ -262,7 +263,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
                     return Err(Error::Mismatch);
                 }
                 for (expr0, expr1) in Iterator::zip(exprs0.iter(), exprs1.iter()) {
-                    self.unify(expr0, expr1)?;
+                    self.unify_lazy(expr0, expr1)?;
                 }
                 Ok(())
             }
@@ -273,7 +274,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
                 for (elem_expr0, elem_expr1) in
                     Iterator::zip(elem_exprs0.iter(), elem_exprs1.iter())
                 {
-                    self.unify(elem_expr0, elem_expr1)?;
+                    self.unify_lazy(elem_expr0, elem_expr1)?;
                 }
                 Ok(())
             }
@@ -292,7 +293,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
                 if label0 != label1 {
                     return Err(Error::Mismatch);
                 }
-                self.unify(format0, format1)?;
+                self.unify_lazy(format0, format1)?;
                 self.unify_closures(cond0, cond1)
             }
 
@@ -309,6 +310,17 @@ impl<'arena, 'env> Context<'arena, 'env> {
         }
     }
 
+    pub fn unify_lazy(
+        &mut self,
+        value0: &LazyValue<'arena>,
+        value1: &LazyValue<'arena>,
+    ) -> Result<(), Error> {
+        self.unify(
+            &self.elim_env().force_lazy(value0),
+            &self.elim_env().force_lazy(value1),
+        )
+    }
+
     /// Unify two elimination spines.
     fn unify_spines(
         &mut self,
@@ -323,7 +335,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
                 (Elim::FunApp(plicity0, arg_expr0), Elim::FunApp(plicity1, arg_expr1))
                     if plicity0 == plicity1 =>
                 {
-                    self.unify(arg_expr0, arg_expr1)?;
+                    self.unify_lazy(arg_expr0, arg_expr1)?;
                 }
                 (Elim::RecordProj(label0), Elim::RecordProj(label1)) if label0 == label1 => {}
                 (Elim::ConstMatch(branches0), Elim::ConstMatch(branches1)) => {
@@ -343,7 +355,9 @@ impl<'arena, 'env> Context<'arena, 'env> {
         closure0: &Closure<'arena>,
         closure1: &Closure<'arena>,
     ) -> Result<(), Error> {
-        let var = Spanned::empty(Arc::new(Value::local_var(self.local_exprs.next_level())));
+        let var = LazyValue::eager(Spanned::empty(Arc::new(Value::local_var(
+            self.local_exprs.next_level(),
+        ))));
         let value0 = self.elim_env().apply_closure(closure0, var.clone());
         let value1 = self.elim_env().apply_closure(closure1, var);
 
@@ -377,7 +391,9 @@ impl<'arena, 'env> Context<'arena, 'env> {
                 return Err(error);
             }
 
-            let var = Spanned::empty(Arc::new(Value::local_var(self.local_exprs.next_level())));
+            let var = LazyValue::eager(Spanned::empty(Arc::new(Value::local_var(
+                self.local_exprs.next_level(),
+            ))));
             telescope0 = next_telescope0(var.clone());
             telescope1 = next_telescope1(var);
             self.local_exprs.push();
@@ -433,8 +449,10 @@ impl<'arena, 'env> Context<'arena, 'env> {
         body_expr: &Closure<'arena>,
         value: &ArcValue<'arena>,
     ) -> Result<(), Error> {
-        let var = Spanned::empty(Arc::new(Value::local_var(self.local_exprs.next_level())));
-        let value = self.elim_env().fun_app(plicity, value.clone(), var.clone());
+        let var = LazyValue::eager(Spanned::empty(Arc::new(Value::local_var(
+            self.local_exprs.next_level(),
+        ))));
+        let value = self.elim_env().fun_app(plicity, value.clone(), &var);
         let body_expr = self.elim_env().apply_closure(body_expr, var);
 
         self.local_exprs.push();
@@ -452,12 +470,12 @@ impl<'arena, 'env> Context<'arena, 'env> {
     fn unify_record_lit(
         &mut self,
         labels: &[Symbol],
-        exprs: &[ArcValue<'arena>],
+        exprs: &[LazyValue<'arena>],
         value: &ArcValue<'arena>,
     ) -> Result<(), Error> {
         for (label, expr) in Iterator::zip(labels.iter(), exprs.iter()) {
             let field_value = self.elim_env().record_proj(value.clone(), *label);
-            self.unify(expr, &field_value)?;
+            self.unify(&self.elim_env().force_lazy(expr), &field_value)?;
         }
         Ok(())
     }
@@ -499,14 +517,17 @@ impl<'arena, 'env> Context<'arena, 'env> {
 
         for elim in spine {
             match elim {
-                Elim::FunApp(_, arg_expr) => match self.elim_env().force(arg_expr).as_ref() {
-                    Value::Stuck(Head::LocalVar(source_var), spine)
-                        if spine.is_empty() && self.renaming.set_local(*source_var) => {}
-                    Value::Stuck(Head::LocalVar(source_var), _) => {
-                        return Err(SpineError::NonLinearSpine(*source_var))
+                Elim::FunApp(_, arg_expr) => {
+                    let arg_expr = self.elim_env().force_lazy(arg_expr);
+                    match self.elim_env().force_metas(&arg_expr).as_ref() {
+                        Value::Stuck(Head::LocalVar(source_var), spine)
+                            if spine.is_empty() && self.renaming.set_local(*source_var) => {}
+                        Value::Stuck(Head::LocalVar(source_var), _) => {
+                            return Err(SpineError::NonLinearSpine(*source_var))
+                        }
+                        _ => return Err(SpineError::NonLocalFunApp),
                     }
-                    _ => return Err(SpineError::NonLocalFunApp),
-                },
+                }
                 Elim::RecordProj(label) => return Err(SpineError::RecordProj(*label)),
                 Elim::ConstMatch(_) => return Err(SpineError::ConstMatch),
             }
@@ -541,7 +562,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
         meta_var: Level,
         value: &ArcValue<'arena>,
     ) -> Result<Term<'arena>, RenameError> {
-        let val = self.elim_env().force(value);
+        let val = self.elim_env().force_metas(value);
         let span = val.span();
         match val.as_ref() {
             Value::Stuck(head, spine) => {
@@ -563,7 +584,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
                             span,
                             *plicity,
                             self.scope.to_scope(head_expr),
-                            self.scope.to_scope(self.rename(meta_var, arg_expr)?),
+                            self.scope.to_scope(self.rename_lazy(meta_var, arg_expr)?),
                         ),
                         Elim::RecordProj(label) => {
                             Term::RecordProj(span, self.scope.to_scope(head_expr), *label)
@@ -605,7 +626,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
             Value::Universe => Ok(Term::Universe(span)),
 
             Value::FunType(plicity, param_name, param_type, body_type) => {
-                let param_type = self.rename(meta_var, param_type)?;
+                let param_type = self.rename_lazy(meta_var, param_type)?;
                 let body_type = self.rename_closure(meta_var, body_type)?;
 
                 Ok(Term::FunType(
@@ -635,7 +656,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
             Value::RecordLit(labels, exprs) => {
                 let mut new_exprs = SliceVec::new(self.scope, exprs.len());
                 for expr in exprs {
-                    new_exprs.push(self.rename(meta_var, expr)?);
+                    new_exprs.push(self.rename_lazy(meta_var, expr)?);
                 }
 
                 Ok(Term::RecordLit(span, labels, new_exprs.into()))
@@ -644,7 +665,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
             Value::ArrayLit(elem_exprs) => {
                 let mut new_elem_exprs = SliceVec::new(self.scope, elem_exprs.len());
                 for elem_expr in elem_exprs {
-                    new_elem_exprs.push(self.rename(meta_var, elem_expr)?);
+                    new_elem_exprs.push(self.rename_lazy(meta_var, elem_expr)?);
                 }
 
                 Ok(Term::ArrayLit(span, new_elem_exprs.into()))
@@ -656,7 +677,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
                 Ok(Term::FormatRecord(span, labels, formats))
             }
             Value::FormatCond(label, format, cond) => {
-                let format = self.rename(meta_var, format)?;
+                let format = self.rename_lazy(meta_var, format)?;
                 let cond = self.rename_closure(meta_var, cond)?;
                 Ok(Term::FormatCond(
                     span,
@@ -673,6 +694,14 @@ impl<'arena, 'env> Context<'arena, 'env> {
 
             Value::ConstLit(constant) => Ok(Term::ConstLit(span, *constant)),
         }
+    }
+
+    fn rename_lazy(
+        &mut self,
+        meta_var: Level,
+        value: &LazyValue<'arena>,
+    ) -> Result<Term<'arena>, RenameError> {
+        self.rename(meta_var, &self.elim_env().force_lazy(value))
     }
 
     /// Rename a closure back into a [`Term`].
@@ -747,8 +776,10 @@ impl PartialRenaming {
         self.target.clear();
     }
 
-    fn next_local_var<'arena>(&self) -> ArcValue<'arena> {
-        Spanned::empty(Arc::new(Value::local_var(self.source.len().next_level())))
+    fn next_local_var<'arena>(&self) -> LazyValue<'arena> {
+        LazyValue::eager(Spanned::empty(Arc::new(Value::local_var(
+            self.source.len().next_level(),
+        ))))
     }
 
     /// Set a local source variable to local target variable mapping, ensuring
