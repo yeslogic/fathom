@@ -165,18 +165,20 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 self.concat([
                     self.text("let"),
                     self.space(),
-                    self.ann_pattern(&def.pattern, def.r#type.as_ref()),
-                    self.space(),
-                    self.text("="),
-                    self.softline(),
-                    self.term(&def.expr),
+                    self.let_def(def),
                     self.text(";"),
                 ])
                 .group(),
                 self.line(),
                 self.term(body_expr),
             ]),
-            Term::Letrec(_, _, _) => todo!(),
+            Term::Letrec(_, defs, body_expr) => self.sequence(
+                false,
+                self.text("letrec "),
+                defs.iter().map(|def| self.let_def(def)),
+                self.text(","),
+                self.concat([self.text(";"), self.line(), self.term(body_expr)]),
+            ),
             Term::If(_, cond_expr, then_expr, mut else_expr) => {
                 let mut branches = Vec::new();
 
