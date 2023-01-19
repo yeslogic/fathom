@@ -1,0 +1,11 @@
+stdout = '''
+letrec 
+    fibonacci : U32 -> U32 = fun x => match x {
+        0 => 0,
+        1 => 1,
+        _ => fibonacci (x - (1 : U32)) + fibonacci (x - (2 : U32)),
+    },
+;
+fibonacci : U32 -> U32
+'''
+stderr = ''

@@ -1,0 +1,12 @@
+letrec
+    factorial : U32 -> U32
+    = fun (x : U32) => match x {
+        0 => 1,
+        _ => x * factorial (x - 1),
+    },
+    factorial_iter : U32 -> U32 -> U32
+    = fun (acc: U32) (x : U32) => match x {
+        0 => acc,
+        _ => factorial_iter (acc * x) (x - 1),
+    };
+(factorial, factorial_iter)

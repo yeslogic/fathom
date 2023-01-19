@@ -179,6 +179,15 @@ impl<Range: Clone> Pattern<Range> {
     }
 }
 
+impl<Range> Pattern<Range> {
+    pub fn name(&self) -> Option<StringId> {
+        match self {
+            Pattern::Name(_, name) => Some(*name),
+            _ => None,
+        }
+    }
+}
+
 /// Surface terms.
 #[derive(Debug, Clone)]
 pub enum Term<'arena, Range> {

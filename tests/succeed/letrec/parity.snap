@@ -1,0 +1,14 @@
+stdout = '''
+letrec 
+    is_even : U32 -> Bool = fun x => match x {
+        0 => true,
+        _ => is_odd (x - (1 : U32)),
+    },
+    is_odd : U32 -> Bool = fun x => match x {
+        0 => false,
+        _ => is_even (x - (1 : U32)),
+    },
+;
+(is_even, is_odd) : (U32 -> Bool, U32 -> Bool)
+'''
+stderr = ''

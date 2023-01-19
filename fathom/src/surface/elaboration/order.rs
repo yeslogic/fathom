@@ -192,7 +192,23 @@ fn term_deps(
             term_deps(body_expr, item_names, local_names, deps);
             pop_pattern(&def.pattern, local_names);
         }
-        Term::Letrec(_, _, _) => todo!(),
+        Term::Letrec(_, defs, body_expr) => {
+            for def in defs.iter() {
+                push_pattern(&def.pattern, local_names);
+            }
+
+            for def in defs.iter() {
+                if let Some(r#type) = def.r#type.as_ref() {
+                    term_deps(r#type, item_names, local_names, deps);
+                }
+                term_deps(&def.expr, item_names, local_names, deps);
+            }
+
+            term_deps(body_expr, item_names, local_names, deps);
+            for def in defs.iter() {
+                pop_pattern(&def.pattern, local_names);
+            }
+        }
         Term::If(_, cond_expr, then_expr, else_expr) => {
             term_deps(cond_expr, item_names, local_names, deps);
             term_deps(then_expr, item_names, local_names, deps);

@@ -479,6 +479,7 @@ impl Message {
             Message::UnsolvedMetaVar { source } => {
                 let (range, source_name) = match source {
                     MetaSource::ImplicitArg(range, _) => (range, "implicit argument"),
+                    MetaSource::LetrecType(range, _) => (range, "letrec definition"),
                     MetaSource::HoleExpr(range, _) => (range, "hole expression"),
                     MetaSource::PlaceholderExpr(range) => (range, "placeholder expression"),
                     MetaSource::PlaceholderPatternType(range) => {

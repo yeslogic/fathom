@@ -1,0 +1,14 @@
+letrec
+    is_even : U32 -> Bool
+    = fun (x : U32) => match x {
+        0 => true,
+        _ => is_odd (x - 1),
+    },
+
+    is_odd : U32 -> Bool
+    = fun (x : U32) => match x {
+        0 => false,
+        _ => is_even (x - 1),
+    },
+;
+(is_even, is_odd)

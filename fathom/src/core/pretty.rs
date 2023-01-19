@@ -30,7 +30,7 @@ use std::cell::RefCell;
 
 use pretty::RcDoc;
 
-use crate::core::{Item, Module, Plicity, Term};
+use crate::core::{Item, LetDef, Module, Plicity, Term};
 use crate::source::{StringId, StringInterner};
 use crate::surface::lexer::is_keyword;
 
@@ -150,23 +150,32 @@ impl<'interner, 'arena> Context<'interner> {
                     self.term_prec(Prec::Top, r#type),
                 ]),
             ),
-            Term::Let(_, def_pattern, def_type, def_expr, body_expr) => self.paren(
+            Term::Let(_, def, body_expr) => self.paren(
                 prec > Prec::Let,
                 RcDoc::concat([
                     RcDoc::concat([
                         RcDoc::text("let"),
                         RcDoc::space(),
-                        self.ann_pattern(Prec::Top, *def_pattern, def_type),
-                        RcDoc::space(),
-                        RcDoc::text("="),
-                        RcDoc::softline(),
-                        self.term_prec(Prec::Let, def_expr),
+                        self.let_def(def),
                         RcDoc::text(";"),
                     ])
                     .group(),
                     RcDoc::line(),
                     self.term_prec(Prec::Let, body_expr),
                 ]),
+            ),
+            Term::Letrec(_, defs, body_expr) => self.paren(
+                prec > Prec::Let,
+                self.sequence(
+                    RcDoc::concat([RcDoc::text("let")]),
+                    defs.iter().map(|def| self.let_def(def)),
+                    RcDoc::text(","),
+                    RcDoc::concat([
+                        RcDoc::text(";"),
+                        RcDoc::line(),
+                        self.term_prec(Prec::Let, body_expr),
+                    ]),
+                ),
             ),
             Term::Universe(_) => RcDoc::text("Type"),
             Term::FunType(_, plicity, param_name, param_type, body_type) => self.paren(
@@ -339,6 +348,16 @@ impl<'interner, 'arena> Context<'interner> {
                 RcDoc::text("}"),
             ),
         }
+    }
+
+    fn let_def(&'arena self, def: &LetDef<'arena>) -> RcDoc {
+        RcDoc::concat([
+            self.ann_pattern(Prec::Top, def.name, &def.r#type),
+            RcDoc::space(),
+            RcDoc::text("="),
+            RcDoc::softline(),
+            self.term_prec(Prec::Let, &def.expr),
+        ])
     }
 
     fn format_field(&'arena self, label: StringId, format: &Term<'arena>) -> RcDoc {

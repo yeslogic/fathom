@@ -337,6 +337,10 @@ impl<Entry> SharedEnv<Entry> {
         self.get_level(self.len().index_to_level(index)?)
     }
 
+    pub fn set_level(&mut self, level: Level, entry: Entry) {
+        self.entries.set_mut(level.0 as usize, entry);
+    }
+
     /// Push an entry onto the environment.
     pub fn push(&mut self, entry: Entry) {
         assert!(self.entries.len() < usize::from(u16::MAX));

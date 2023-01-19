@@ -1,0 +1,14 @@
+stdout = '''
+letrec 
+    factorial : U32 -> U32 = fun x => match x {
+        0 => 1,
+        _ => x * factorial (x - (1 : U32)),
+    },
+    factorial_iter : U32 -> U32 -> U32 = fun acc x => match x {
+        0 => acc,
+        _ => factorial_iter (acc * x) (x - (1 : U32)),
+    },
+;
+(factorial, factorial_iter) : (U32 -> U32, U32 -> U32 -> U32)
+'''
+stderr = ''

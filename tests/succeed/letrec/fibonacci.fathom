@@ -1,0 +1,8 @@
+letrec
+    fibonacci : U32 -> U32
+    = fun (x : U32) => match x {
+        0 => 0,
+        1 => 1,
+        _ => (fibonacci (x - 1)) + (fibonacci (x - 2)),
+    };
+fibonacci

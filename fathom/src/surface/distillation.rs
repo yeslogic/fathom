@@ -380,10 +380,10 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                     Term::Ann((), self.scope.to_scope(expr), self.scope.to_scope(r#type)),
                 )
             }
-            (core::Term::Let(_, name, r#type, expr, body), _) => {
-                let r#type = self.term_prec(mode, Prec::Top, r#type);
-                let expr = self.term_prec(mode, Prec::Let, expr);
-                let name = self.freshen_name(*name, body);
+            (core::Term::Let(_, def, body), _) => {
+                let r#type = self.term_prec(mode, Prec::Top, &def.r#type);
+                let expr = self.term_prec(mode, Prec::Let, &def.expr);
+                let name = self.freshen_name(def.name, body);
                 let name = self.push_local(name);
                 let pattern = name_to_pattern(name);
                 let body = self.term_prec(mode, Prec::Top, body);
@@ -401,6 +401,30 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                         self.scope.to_scope(body),
                     ),
                 )
+            }
+            (core::Term::Letrec(_, defs, body_expr), _) => {
+                let initial_len = self.local_len();
+
+                // TODO: freshen names
+                let def_names: Vec<_> = defs.iter().map(|def| self.push_local(def.name)).collect();
+
+                let defs = self.scope.to_scope_from_iter(
+                    Iterator::zip(def_names.iter(), defs.iter()).map(|(name, def)| {
+                        let r#type = self.check(&def.r#type);
+                        let expr = self.check(&def.expr);
+
+                        LetDef {
+                            pattern: name_to_pattern(*name),
+                            r#type: Some(r#type),
+                            expr,
+                        }
+                    }),
+                );
+
+                let body_expr = self.check(body_expr);
+                self.truncate_local(initial_len);
+
+                Term::Letrec((), defs, self.scope.to_scope(body_expr))
             }
             (core::Term::Universe(_), _) => Term::Universe(()),
             (core::Term::FunType(..), _) => {
