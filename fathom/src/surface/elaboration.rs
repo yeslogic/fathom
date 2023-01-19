@@ -1013,10 +1013,10 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
 
         match (surface_term, expected_type.as_ref()) {
             (Term::Paren(_, term), _) => self.check(term, &expected_type),
-            (Term::Let(_, def_pattern, def_type, def_expr, body_expr), _) => {
+            (Term::Let(_, def, body_expr), _) => {
                 let (def_pattern, def_type, def_type_value) =
-                    self.synth_ann_pattern(def_pattern, *def_type);
-                let def_expr = self.check(def_expr, &def_type_value);
+                    self.synth_ann_pattern(&def.pattern, def.r#type.as_ref());
+                let def_expr = self.check(&def.expr, &def_type_value);
                 let def_expr_value = self.eval_env().eval(&def_expr);
 
                 let def_name = self.push_local_def(def_pattern, def_expr_value, def_type_value); // TODO: split on constants
@@ -1423,10 +1423,10 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
 
                 (ann_expr, type_value)
             }
-            Term::Let(_, def_pattern, def_type, def_expr, body_expr) => {
+            Term::Let(_, def, body_expr) => {
                 let (def_pattern, def_type, def_type_value) =
-                    self.synth_ann_pattern(def_pattern, *def_type);
-                let def_expr = self.check(def_expr, &def_type_value);
+                    self.synth_ann_pattern(&def.pattern, def.r#type.as_ref());
+                let def_expr = self.check(&def.expr, &def_type_value);
                 let def_expr_value = self.eval_env().eval(&def_expr);
 
                 let def_name = self.push_local_def(def_pattern, def_expr_value, def_type_value);
@@ -1443,6 +1443,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
 
                 (let_expr, body_type)
             }
+            Term::Letrec(_, _, _) => todo!(),
             Term::If(_, cond_expr, then_expr, else_expr) => {
                 let cond_expr = self.check(cond_expr, &self.bool_type.clone());
                 let (then_expr, r#type) = self.synth(then_expr);

@@ -10,9 +10,7 @@ use crate::core::{Const, Plicity, UIntStyle};
 use crate::env::{self, EnvLen, Index, Level, UniqueEnv};
 use crate::source::{Span, StringId, StringInterner};
 use crate::surface::elaboration::MetaSource;
-use crate::surface::{
-    Arg, BinOp, ExprField, FormatField, Item, ItemDef, Module, Param, Pattern, Term, TypeField,
-};
+use crate::surface::*;
 
 /// Term precedences
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
@@ -395,9 +393,11 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                     prec > Prec::Let,
                     Term::Let(
                         (),
-                        pattern,
-                        Some(self.scope.to_scope(r#type)),
-                        self.scope.to_scope(expr),
+                        self.scope.to_scope(LetDef {
+                            pattern,
+                            r#type: Some(r#type),
+                            expr,
+                        }),
                         self.scope.to_scope(body),
                     ),
                 )

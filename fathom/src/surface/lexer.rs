@@ -37,6 +37,8 @@ pub enum Token<'source> {
     KeywordIf,
     #[token("let")]
     KeywordLet,
+    #[token("letrec")]
+    KeywordLetrec,
     #[token("match")]
     KeywordMatch,
     #[token("overlap")]
@@ -235,6 +237,7 @@ impl<'source> Token<'source> {
             Token::KeywordFun => "fun",
             Token::KeywordIf => "if",
             Token::KeywordLet => "let",
+            Token::KeywordLetrec => "letrec",
             Token::KeywordMatch => "match",
             Token::KeywordOverlap => "overlap",
             Token::KeywordThen => "then",

@@ -5,7 +5,7 @@ use scoped_arena::Scope;
 
 use crate::source::{StringId, StringInterner};
 use crate::surface::lexer::is_keyword;
-use crate::surface::{Arg, FormatField, Item, Module, Param, Pattern, Plicity, Term};
+use crate::surface::{Arg, FormatField, Item, LetDef, Module, Param, Pattern, Plicity, Term};
 
 const INDENT: isize = 4;
 
@@ -161,21 +161,22 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 self.softline(),
                 self.term(r#type),
             ]),
-            Term::Let(_, def_pattern, def_type, def_expr, body_expr) => self.concat([
+            Term::Let(_, def, body_expr) => self.concat([
                 self.concat([
                     self.text("let"),
                     self.space(),
-                    self.ann_pattern(def_pattern, *def_type),
+                    self.ann_pattern(&def.pattern, def.r#type.as_ref()),
                     self.space(),
                     self.text("="),
                     self.softline(),
-                    self.term(def_expr),
+                    self.term(&def.expr),
                     self.text(";"),
                 ])
                 .group(),
                 self.line(),
                 self.term(body_expr),
             ]),
+            Term::Letrec(_, _, _) => todo!(),
             Term::If(_, cond_expr, then_expr, mut else_expr) => {
                 let mut branches = Vec::new();
 
@@ -337,6 +338,16 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
             ]),
             Term::ReportedError(_) => self.text("#error"),
         }
+    }
+
+    fn let_def<Range>(&'arena self, def: &LetDef<'_, Range>) -> DocBuilder<'interner, 'arena> {
+        self.concat([
+            self.ann_pattern(&def.pattern, def.r#type.as_ref()),
+            self.space(),
+            self.text("="),
+            self.softline(),
+            self.term(&def.expr),
+        ])
     }
 
     fn format_field<Range>(
