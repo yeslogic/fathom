@@ -34,11 +34,9 @@ impl<'a, Elem> SliceVec<'a, Elem> {
         //       drop glue of `Elem` with `scoped_arena::Scope`.
         assert!(!std::mem::needs_drop::<Elem>());
 
-        let elems = std::iter::repeat_with(MaybeUninit::uninit).take(max_len);
-
         SliceVec {
             next_index: 0,
-            elems: scope.to_scope_from_iter(elems),
+            elems: scope.to_scope_many_with(max_len, MaybeUninit::uninit),
         }
     }
 
