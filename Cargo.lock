@@ -963,9 +963,9 @@ dependencies = [
 
 [[package]]
 name = "scoped-arena"
-version = "0.3.0"
+version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5677c9035371ff3e7bd919efb70e9b3b152f1cadb7ea54215cd8575a924d4abd"
+checksum = "645d0fd2f2d53abbe078b38ece982935064936e916bb2d696cf059e9d50f1d66"
 
 [[package]]
 name = "scopeguard"
