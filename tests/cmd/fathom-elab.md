@@ -44,10 +44,10 @@ Modules can be elaborated with `--module`
 
 ```console
 $ fathom elab --module formats/object-id.fathom
-def u24be : Format = array8 3 u8;
+def u24be : Format = repeat_len8 3 u8;
 def main : Format = {
     timestamp <- u32be,
-    random <- array8 5 u8,
+    random <- repeat_len8 5 u8,
     counter <- u24be,
 };
 

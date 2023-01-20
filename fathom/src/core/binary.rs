@@ -425,10 +425,10 @@ impl<'arena, 'data> Context<'arena, 'data> {
             (Prim::FormatF32Le, []) => read_const(reader, span, read_f32le, Const::F32),
             (Prim::FormatF64Be, []) => read_const(reader, span, read_f64be, Const::F64),
             (Prim::FormatF64Le, []) => read_const(reader, span, read_f64le, Const::F64),
-            (Prim::FormatArray8, [FunApp(_, len), FunApp(_, format)]) => self.read_array(reader, span, len, format),
-            (Prim::FormatArray16, [FunApp(_, len), FunApp(_, format)]) => self.read_array(reader, span, len, format),
-            (Prim::FormatArray32, [FunApp(_, len), FunApp(_, format)]) => self.read_array(reader, span, len, format),
-            (Prim::FormatArray64, [FunApp(_, len), FunApp(_, format)]) => self.read_array(reader, span, len, format),
+            (Prim::FormatRepeatLen8, [FunApp(_, len), FunApp(_, format)]) => self.read_repeat_len(reader, span, len, format),
+            (Prim::FormatRepeatLen16, [FunApp(_, len), FunApp(_, format)]) => self.read_repeat_len(reader, span, len, format),
+            (Prim::FormatRepeatLen32, [FunApp(_, len), FunApp(_, format)]) => self.read_repeat_len(reader, span, len, format),
+            (Prim::FormatRepeatLen64, [FunApp(_, len), FunApp(_, format)]) => self.read_repeat_len(reader, span, len, format),
             (Prim::FormatRepeatUntilEnd, [FunApp(_,format)]) => self.read_repeat_until_end(reader, format),
             (Prim::FormatLimit8, [FunApp(_, limit), FunApp(_, format)]) => self.read_limit(reader, limit, format),
             (Prim::FormatLimit16, [FunApp(_, limit), FunApp(_, format)]) => self.read_limit(reader, limit, format),
@@ -448,7 +448,7 @@ impl<'arena, 'data> Context<'arena, 'data> {
         }
     }
 
-    fn read_array(
+    fn read_repeat_len(
         &mut self,
         reader: &mut BufferReader<'data>,
         span: Span,

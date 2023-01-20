@@ -2,13 +2,13 @@ stdout = '''
 def vec3d : Format = { x <- f32le, y <- f32le, z <- f32le };
 def triangle : Format = {
     normal <- vec3d,
-    vertices <- array8 3 vec3d,
+    vertices <- repeat_len8 3 vec3d,
     attribute_byte_count <- u16le,
 };
 def main : Format = {
-    header <- array8 80 u8,
+    header <- repeat_len8 80 u8,
     triangle_count <- u32le,
-    triangles <- array32 triangle_count triangle,
+    triangles <- repeat_len32 triangle_count triangle,
 };
 '''
 stderr = ''

@@ -1,10 +1,10 @@
-// TODO: Use builtin `array32` format.
-let array32 : U32 -> Format -> Format
+// TODO: Use builtin `repeat_len32` format.
+let repeat_len32 : U32 -> Format -> Format
     = fun len => fun Elem => Elem;
 
 let pair = {
     len <- u32be,
-    data <- array32 len u32be,
+    data <- repeat_len32 len u32be,
 };
 
 let test_pair : Repr pair -> { len : U32, data : U32 }

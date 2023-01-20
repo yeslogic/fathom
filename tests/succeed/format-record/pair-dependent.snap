@@ -1,6 +1,6 @@
 stdout = '''
-let array32 : U32 -> Format -> Format = fun len Elem => Elem;
-let pair : Format = { len <- u32be, data <- array32 len u32be };
+let repeat_len32 : U32 -> Format -> Format = fun len Elem => Elem;
+let pair : Format = { len <- u32be, data <- repeat_len32 len u32be };
 pair : Format
 '''
 stderr = ''

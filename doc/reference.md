@@ -27,8 +27,8 @@ elaboration, and core language is forthcoming.
   - [Conditional formats](#conditional-formats)
   - [Overlap formats](#overlap-formats)
   - [Number formats](#number-formats)
-  - [Array formats](#array-formats)
-  - [Repeat formats](#repeat-formats)
+  - [Exact-length repetition formats](#exact-length-repetition-formats)
+  - [Repeat until end formats](#repeat-until-end-formats)
   - [Limit formats](#limit-formats)
   - [Stream position formats](#stream-position-formats)
   - [Link formats](#link-formats)
@@ -140,7 +140,7 @@ If no binding is found, names can refer to one of the built-in primitives:
 - `u8`, `u16be`, `u16le`, `u32be`, `u32le`, `u64be`, `u64le`
 - `s8`, `s16be`, `s16le`, `s32be`, `s32le`, `s64be`, `s64le`
 - `f32be`, `f32le`, `f64be`, `f64le`
-- `array8`, `array16`, `array32`, `array64`
+- `repeat_len8`, `repeat_len16`, `repeat_len32`, `repeat_len64`
 - `link8`, `link16`, `link32`, `link64`
 - `stream_pos`
 - `succeed`, `fail`
@@ -297,9 +297,9 @@ data-dependent formats. For example:
 ```fathom
 {
     len <- u32be,
-    data <- array32 len { x <- u32be, y <- u32be },
-    //               ▲
-    //               └─── type of `len` is `Repr u32be`
+    data <- repeat_len32 len { x <- u32be, y <- u32be },
+    //                   ▲
+    //                   └─── type of `len` is `Repr u32be`
 }
 ```
 
@@ -319,10 +319,10 @@ let unit : Format =
 ```
 
 No annotations needed in the following example, as the type can be inferred from
-the type of `array8`:
+the type of `repeat_len8`:
 
 ```fathom
-array8 3 {}
+repeat_len8 3 {}
 ```
 
 #### Tuple syntax for record formats
@@ -386,10 +386,10 @@ more convenient:
 
     ⋮
 
-    start_code <- array16 seg_count u16be,
-    id_delta <- array16 seg_count s16be,
-    //                  ▲
-    //                  └──── `seg_count` is used here
+    start_code <- repeat_len16 seg_count u16be,
+    id_delta <- repeat_len16 seg_count s16be,
+    //                       ▲
+    //                       └──── `seg_count` is used here
 }
 ```
 
@@ -431,12 +431,12 @@ because they might appear in the representation types of subsequent fields.
 
 Some some examples of record formats and their representations are:
 
-| format                                            | `Repr` format                          |
-| ------------------------------------------------- | -------------------------------------- |
-| `{ x <- f32le, y <- f32le }`                      | `{ x : F32, y : F32 }`                 |
-| `{ len <- u16be, data <- array16 len s8 }`        | `{ len : U16, data : Array16 len S8 }` |
-| `{ magic <- u32be where u32_eq magic "icns" }`    | `{ magic : U32 }`                      |
-| `{ let len = 4 : U32, data <- array32 len s8 }`   | `{ len : U32, data : Array32 len S8 }` |
+| format                                                | `Repr` format                          |
+| ----------------------------------------------------- | -------------------------------------- |
+| `{ x <- f32le, y <- f32le }`                          | `{ x : F32, y : F32 }`                 |
+| `{ len <- u16be, data <- repeat_len16 len s8 }`       | `{ len : U16, data : Array16 len S8 }` |
+| `{ magic <- u32be where u32_eq magic "icns" }`        | `{ magic : U32 }`                      |
+| `{ let len = 4 : U32, data <- repeat_len32 len s8 }`  | `{ len : U32, data : Array32 len S8 }` |
 
 ### Conditional formats
 
@@ -479,8 +479,8 @@ enriched with information that occurs later on in the stream:
 
 ```fathom
 overlap {
-    records0 : array16 len array_record0,
-    records1 : array16 len (array_record0 records0),
+    records0 : repeat_len16 len array_record0,
+    records1 : repeat_len16 len (array_record0 records0),
 }
 ```
 
@@ -535,36 +535,40 @@ corresponding host representation:
 | `f32be`, `f32le`  | `F32`         |
 | `f64be`, `f64le`  | `F64`         |
 
-### Array formats
+### Exact-length repetition formats
 
-There are four array formats, corresponding to the four [array types](#arrays):
+There are four length constrained repetition formats, corresponding to the four
+[array types](#arrays):
 
-- `array8 : U8 -> Format -> Format`
-- `array16 : U16 -> Format -> Format`
-- `array32 : U32 -> Format -> Format`
-- `array64 : U64 -> Format -> Format`
+- `repeat_len8 : U8 -> Format -> Format`
+- `repeat_len16 : U16 -> Format -> Format`
+- `repeat_len32 : U32 -> Format -> Format`
+- `repeat_len64 : U64 -> Format -> Format`
 
-#### Representation of array formats
+These formats will parse the specified number of elements, failing if one of
+those elements failed to parse, or if the end of the current binary stream was
+reached.
 
-The [representation](#format-representations) of the array formats preserve the
-lengths, and use the representation of the element formats as the element types
-of the host [array types](#array-types).
+#### Representation of exact-length repetition formats
 
-| format                 | `Repr` format                       |
-| ---------------------- | ----------------------------------- |
-| `array8 len format`    | `Array8 len (Repr format)`          |
-| `array16 len format`   | `Array16 len (Repr format)`         |
-| `array32 len format`   | `Array32 len (Repr format)`         |
-| `array64 len format`   | `Array64 len (Repr format)`         |
+The [representation](#format-representations) of the repetition formats preserve
+the lengths in a corresponding [array type](#array-types):
 
-### Repeat formats
+| format                      | `Repr` format                       |
+| --------------------------- | ----------------------------------- |
+| `repeat_len8 len format`    | `Array8 len (Repr format)`          |
+| `repeat_len16 len format`   | `Array16 len (Repr format)`         |
+| `repeat_len32 len format`   | `Array32 len (Repr format)`         |
+| `repeat_len64 len format`   | `Array64 len (Repr format)`         |
+
+### Repeat until end formats
 
 The `repeat_until_end` format repeats parsing the given format until the end of
 the current binary stream is reached:
 
 - `repeat_until_end : Format -> Format`
 
-#### Representation of repeat formats
+#### Representation of repeat until end formats
 
 Because the repeat format does not have a predefined length, it is
 [represented](#format-representations) as a dynamically sized

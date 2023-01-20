@@ -5,7 +5,7 @@
 //! - [Mongo Reference](https://docs.mongodb.com/manual/reference/bson-types/#objectid)
 
 // TODO: make this a primitive
-def u24be = array8 3 u8;
+def u24be = repeat_len8 3 u8;
 
 def main = {
     /// 4-byte timestamp value representing the creation time of the ObjectId,
@@ -13,7 +13,7 @@ def main = {
     timestamp <- u32be,
     /// Random value generated once per process. This random value is unique to
     /// the machine and process.
-    random <- array8 5 u8,
+    random <- repeat_len8 5 u8,
     /// Incrementing counter, initialized to a random value.
     counter <- u24be,
 };

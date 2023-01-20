@@ -5,8 +5,8 @@ let format = {
     /// Number of contiguous ranges of character codes
     let seg_count = u16_div seg_count_x2 2,
 
-    start_code <- array16 seg_count u16be,
-    id_delta <- array16 seg_count s16be,
+    start_code <- repeat_len16 seg_count u16be,
+    id_delta <- repeat_len16 seg_count s16be,
 };
 
 let _ : Repr format -> {

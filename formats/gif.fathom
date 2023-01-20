@@ -29,8 +29,8 @@ def logical_screen_descriptor = {
 ///
 /// - [GIF89a Specification: Section 17](https://www.w3.org/Graphics/GIF/spec-gif89a.txt)
 def header = {
-    magic <- array8 3 u8,   // TODO: where magic == ascii "GIF"`,
-    version <- array8 3 u8,
+    magic <- repeat_len8 3 u8,   // TODO: where magic == ascii "GIF"`,
+    version <- repeat_len8 3 u8,
 };
 
 /// # Global Color Table Entry
@@ -50,7 +50,7 @@ def color_table_entry = {
 ///
 /// - [GIF89a Specification: Section 19](https://www.w3.org/Graphics/GIF/spec-gif89a.txt)
 def global_color_table (len : U16) = {
-    entries <- array16 len color_table_entry,
+    entries <- repeat_len16 len color_table_entry,
 };
 
 def main = {

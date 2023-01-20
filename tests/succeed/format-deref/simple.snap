@@ -4,7 +4,7 @@ stdout = '''
     link <- link start u16be,
     len <- deref @u16be link,
     _reserved <- u16be,
-    data <- array16 len u16be,
+    data <- repeat_len16 len u16be,
 } : Format
 '''
 stderr = ''
