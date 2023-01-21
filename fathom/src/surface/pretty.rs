@@ -173,6 +173,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         // FIXME: indentation and grouping
 
         match term {
+            Term::Paren(_, term) => self.paren(true, self.term(term)),
             Term::Name(_, name) => self.ident(*name),
             Term::Hole(_, name) => self.concat([self.text("?"), self.ident(*name)]),
             Term::Placeholder(_) => self.text("_"),
