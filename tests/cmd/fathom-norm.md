@@ -6,12 +6,12 @@ Short help can be printed with `-h`
 
 ```console
 $ fathom norm -h
-Normalise a Fathom term, printing its normal form and type
+Normalize a Fathom term, printing its normal form and type
 
 Usage: fathom norm [OPTIONS] --term <TERM_FILE>
 
 Options:
-      --term <TERM_FILE>  Path to a term to normalise
+      --term <TERM_FILE>  Path to a term to normalize
       --allow-errors      Continue even if errors were encountered
   -h, --help              Print help information
 
@@ -21,12 +21,12 @@ Long help can be printed with `--help`
 
 ```console
 $ fathom norm --help
-Normalise a Fathom term, printing its normal form and type
+Normalize a Fathom term, printing its normal form and type
 
 Usage: fathom norm [OPTIONS] --term <TERM_FILE>
 
 Options:
-      --term <TERM_FILE>  Path to a term to normalise
+      --term <TERM_FILE>  Path to a term to normalize
       --allow-errors      Continue even if errors were encountered
   -h, --help              Print help information
 
@@ -76,7 +76,7 @@ error: couldn't read `does/not/exist.fathom`: No such file or directory (os erro
 
 ### Type errors
 
-The term must be well-typed before normalisation
+The term must be well-typed before normalization
 
 ```console
 $ fathom norm --term tests/fail/elaboration/duplicate-field-labels/record-literal.fathom

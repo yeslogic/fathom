@@ -1804,7 +1804,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                             self.scope.to_scope(body_expr),
                         )
                     }
-                    // If an implicit function is expected, try to generalise the
+                    // If an implicit function is expected, try to generalize the
                     // function literal by wrapping it in an implicit function
                     Value::FunType(Plicity::Implicit, param_name, param_type, next_body_type)
                         if param.plicity == Plicity::Explicit =>

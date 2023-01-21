@@ -1,5 +1,5 @@
-//! The semantics of the core language, implemented using [normalisation by
-//! evaluation](https://en.wikipedia.org/wiki/Normalisation_by_evaluation).
+//! The semantics of the core language, implemented using [normalization by
+//! evaluation](https://en.wikipedia.org/wiki/Normalization_by_evaluation).
 
 use std::panic::panic_any;
 use std::sync::Arc;
@@ -268,10 +268,10 @@ impl<'arena, 'env> EvalEnv<'arena, 'env> {
         value.unwrap_or_else(|| panic_any(Error::UnboundLocalVar))
     }
 
-    /// Fully normalise a term by first [evaluating][EvalEnv::eval] it into
+    /// Fully normalize a term by first [evaluating][EvalEnv::eval] it into
     /// a [value][Value], then [quoting it back][QuoteEnv::quote] into a
     /// [term][Term].
-    pub fn normalise<'out_arena>(
+    pub fn normalize<'out_arena>(
         &mut self,
         scope: &'out_arena Scope<'out_arena>,
         term: &Term<'arena>,

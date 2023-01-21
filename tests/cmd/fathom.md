@@ -12,7 +12,7 @@ Usage: fathom <COMMAND>
 
 Commands:
   elab  Elaborate a Fathom module or term, printing the result to stdout
-  norm  Normalise a Fathom term, printing its normal form and type
+  norm  Normalize a Fathom term, printing its normal form and type
   data  Manipulate binary data based on a Fathom format
   help  Print this message or the help of the given subcommand(s)
 
@@ -32,7 +32,7 @@ Usage: fathom <COMMAND>
 
 Commands:
   elab  Elaborate a Fathom module or term, printing the result to stdout
-  norm  Normalise a Fathom term, printing its normal form and type
+  norm  Normalize a Fathom term, printing its normal form and type
   data  Manipulate binary data based on a Fathom format
   help  Print this message or the help of the given subcommand(s)
 
@@ -55,7 +55,7 @@ Usage: fathom <COMMAND>
 
 Commands:
   elab  Elaborate a Fathom module or term, printing the result to stdout
-  norm  Normalise a Fathom term, printing its normal form and type
+  norm  Normalize a Fathom term, printing its normal form and type
   data  Manipulate binary data based on a Fathom format
   help  Print this message or the help of the given subcommand(s)
 

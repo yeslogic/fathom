@@ -33,9 +33,9 @@ enum Cli {
         #[clap(long = "pretty-core", conflicts_with("TERM_FILE"))]
         pretty_core: bool,
     },
-    /// Normalise a Fathom term, printing its normal form and type
+    /// Normalize a Fathom term, printing its normal form and type
     Norm {
-        /// Path to a term to normalise
+        /// Path to a term to normalize
         #[clap(long = "term", name = "TERM_FILE", display_order = 0)]
         term_file: PathOrStdin,
         /// Continue even if errors were encountered
@@ -184,7 +184,7 @@ fn main() -> ! {
             driver.set_emit_width(get_pretty_width());
 
             let file_id = load_file_or_exit(&mut driver, term_file);
-            let status = driver.normalise_and_emit_term(file_id);
+            let status = driver.normalize_and_emit_term(file_id);
 
             std::process::exit(status.exit_code());
         }
