@@ -527,15 +527,15 @@ mod tests {
     #[cfg(target_pointer_width = "64")]
     fn term_size() {
         assert_eq!(std::mem::size_of::<Term<()>>(), 32);
-        assert_eq!(std::mem::size_of::<Term<ByteRange>>(), 48);
-        assert_eq!(std::mem::size_of::<Term<FileRange>>(), 56);
+        assert_eq!(std::mem::size_of::<Term<ByteRange>>(), 56);
+        assert_eq!(std::mem::size_of::<Term<FileRange>>(), 64);
     }
 
     #[test]
     #[cfg(target_pointer_width = "64")]
     fn pattern_size() {
-        assert_eq!(std::mem::size_of::<Pattern<()>>(), 4);
-        assert_eq!(std::mem::size_of::<Pattern<ByteRange>>(), 12);
-        assert_eq!(std::mem::size_of::<Pattern<FileRange>>(), 16);
+        assert_eq!(std::mem::size_of::<Pattern<()>>(), 8);
+        assert_eq!(std::mem::size_of::<Pattern<ByteRange>>(), 16);
+        assert_eq!(std::mem::size_of::<Pattern<FileRange>>(), 20);
     }
 }
