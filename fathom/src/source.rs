@@ -6,7 +6,7 @@ use std::ops::{Deref, DerefMut, Range};
 use crate::files::FileId;
 
 // Interned strings.
-pub type StringId = string_interner::symbol::SymbolU16;
+pub type StringId = string_interner::symbol::SymbolU32;
 
 /// String interner.
 pub struct StringInterner {
