@@ -5,22 +5,7 @@ use scoped_arena::Scope;
 
 use crate::source::{StringId, StringInterner};
 use crate::surface::lexer::is_keyword;
-use crate::surface::{Arg, BinOp, FormatField, Item, Module, Param, Pattern, Plicity, Term};
-
-/// Term precedences
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
-enum Prec {
-    Top = 0,
-    Let,
-    Fun,
-    Eq,
-    Cmp,
-    Mul,
-    Add,
-    App,
-    Proj,
-    Atomic,
-}
+use crate::surface::{Arg, FormatField, Item, Module, Param, Pattern, Plicity, Term};
 
 const INDENT: isize = 4;
 
@@ -80,13 +65,13 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                             ])
                             .group(),
                             self.softline(),
-                            self.term_prec(Prec::Top, r#type),
+                            self.term(r#type),
                         ]),
                     },
                     self.space(),
                     self.text("="),
                     self.softline(),
-                    self.term_prec(Prec::Let, item.expr),
+                    self.term(item.expr),
                     self.text(";"),
                 ])
                 .group(),
@@ -125,7 +110,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 self.concat([self.pattern(pattern), self.space(), self.text(":")])
                     .group(),
                 self.softline(),
-                self.term_prec(Prec::Top, r#type),
+                self.term(r#type),
             ]),
         }
     }
@@ -133,20 +118,19 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
     fn param<Range>(&'arena self, param: &Param<'_, Range>) -> DocBuilder<'arena, Self> {
         match &param.r#type {
             None => self.concat([self.plicity(param.plicity), self.pattern(&param.pattern)]),
-            Some(r#type) => self.paren(
-                true,
+            Some(r#type) => self.concat([
+                self.text("("),
                 self.concat([
-                    self.concat([
-                        self.plicity(param.plicity),
-                        self.pattern(&param.pattern),
-                        self.space(),
-                        self.text(":"),
-                    ])
-                    .group(),
-                    self.softline(),
-                    self.term_prec(Prec::Top, r#type),
-                ]),
-            ),
+                    self.plicity(param.plicity),
+                    self.pattern(&param.pattern),
+                    self.space(),
+                    self.text(":"),
+                ])
+                .group(),
+                self.softline(),
+                self.term(r#type),
+                self.text(")"),
+            ]),
         }
     }
 
@@ -155,59 +139,38 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
     }
 
     fn arg<Range>(&'arena self, arg: &Arg<'_, Range>) -> DocBuilder<'arena, Self> {
-        self.concat([
-            self.plicity(arg.plicity),
-            self.term_prec(Prec::Proj, &arg.term),
-        ])
+        self.concat([self.plicity(arg.plicity), self.term(&arg.term)])
     }
 
     pub fn term<Range>(&'arena self, term: &Term<'_, Range>) -> DocBuilder<'arena, Self> {
-        self.term_prec(Prec::Top, term)
-    }
-
-    fn term_prec<Range>(
-        &'arena self,
-        prec: Prec,
-        term: &Term<'_, Range>,
-    ) -> DocBuilder<'arena, Self> {
         // FIXME: indentation and grouping
 
         match term {
-            Term::Paren(_, term) => self.paren(true, self.term(term)),
+            Term::Paren(_, term) => self.paren(self.term(term)),
             Term::Name(_, name) => self.ident(*name),
             Term::Hole(_, name) => self.concat([self.text("?"), self.ident(*name)]),
             Term::Placeholder(_) => self.text("_"),
-            Term::Ann(_, expr, r#type) => self.paren(
-                prec > Prec::Top,
-                self.concat([
-                    self.concat([
-                        self.term_prec(Prec::Let, expr),
-                        self.space(),
-                        self.text(":"),
-                    ])
+            Term::Ann(_, expr, r#type) => self.concat([
+                self.concat([self.term(expr), self.space(), self.text(":")])
                     .group(),
+                self.softline(),
+                self.term(r#type),
+            ]),
+            Term::Let(_, def_pattern, def_type, def_expr, body_expr) => self.concat([
+                self.concat([
+                    self.text("let"),
+                    self.space(),
+                    self.ann_pattern(def_pattern, *def_type),
+                    self.space(),
+                    self.text("="),
                     self.softline(),
-                    self.term_prec(Prec::Top, r#type),
-                ]),
-            ),
-            Term::Let(_, def_pattern, def_type, def_expr, body_expr) => self.paren(
-                prec > Prec::Let,
-                self.concat([
-                    self.concat([
-                        self.text("let"),
-                        self.space(),
-                        self.ann_pattern(def_pattern, *def_type),
-                        self.space(),
-                        self.text("="),
-                        self.softline(),
-                        self.term_prec(Prec::Let, def_expr),
-                        self.text(";"),
-                    ])
-                    .group(),
-                    self.line(),
-                    self.term_prec(Prec::Let, body_expr),
-                ]),
-            ),
+                    self.term(def_expr),
+                    self.text(";"),
+                ])
+                .group(),
+                self.line(),
+                self.term(body_expr),
+            ]),
             Term::If(_, cond_expr, then_expr, mut else_expr) => {
                 let mut branches = Vec::new();
 
@@ -217,9 +180,9 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 }
 
                 if branches.is_empty() {
-                    self.pretty_if(prec, cond_expr, then_expr, else_expr)
+                    self.pretty_if(cond_expr, then_expr, else_expr)
                 } else {
-                    self.pretty_if_else_chain(prec, cond_expr, then_expr, branches, else_expr)
+                    self.pretty_if_else_chain(cond_expr, then_expr, branches, else_expr)
                 }
             }
             Term::Match(_, scrutinee, equations) => self.sequence(
@@ -227,7 +190,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 self.concat([
                     self.text("match"),
                     self.space(),
-                    self.term_prec(Prec::Proj, scrutinee),
+                    self.term(scrutinee),
                     self.space(),
                     self.text("{"),
                 ]),
@@ -237,60 +200,48 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                         self.space(),
                         self.text("=>"),
                         self.space(),
-                        self.term_prec(Prec::Top, r#body_expr),
+                        self.term(r#body_expr),
                     ])
                 }),
                 self.text(","),
                 self.text("}"),
             ),
             Term::Universe(_) => self.text("Type"),
-            Term::FunType(_, patterns, body_type) => self.paren(
-                prec > Prec::Fun,
+            Term::FunType(_, patterns, body_type) => self.concat([
                 self.concat([
-                    self.concat([
-                        self.text("fun"),
-                        self.params(patterns),
-                        self.space(),
-                        self.text("->"),
-                    ])
-                    .group(),
-                    self.softline(),
-                    self.term_prec(Prec::Fun, body_type),
-                ]),
-            ),
-            Term::Arrow(_, plicity, param_type, body_type) => self.paren(
-                prec > Prec::Fun,
-                self.concat([
-                    self.plicity(*plicity),
-                    self.term_prec(Prec::App, param_type),
-                    self.softline(),
+                    self.text("fun"),
+                    self.params(patterns),
+                    self.space(),
                     self.text("->"),
-                    self.softline(),
-                    self.term_prec(Prec::Fun, body_type),
-                ]),
-            ),
-            Term::FunLiteral(_, patterns, body_expr) => self.paren(
-                prec > Prec::Fun,
+                ])
+                .group(),
+                self.softline(),
+                self.term(body_type),
+            ]),
+            Term::Arrow(_, plicity, param_type, body_type) => self.concat([
+                self.plicity(*plicity),
+                self.term(param_type),
+                self.softline(),
+                self.text("->"),
+                self.softline(),
+                self.term(body_type),
+            ]),
+            Term::FunLiteral(_, patterns, body_expr) => self.concat([
                 self.concat([
-                    self.concat([
-                        self.text("fun"),
-                        self.params(patterns),
-                        self.space(),
-                        self.text("=>"),
-                    ])
-                    .group(),
+                    self.text("fun"),
+                    self.params(patterns),
                     self.space(),
-                    self.term_prec(Prec::Let, body_expr),
-                ]),
-            ),
-            Term::App(_, head_expr, args) => self.paren(
-                prec > Prec::App,
-                self.concat([
-                    self.term_prec(Prec::Proj, head_expr),
-                    self.space(),
-                    self.intersperse((args.iter()).map(|arg| self.arg(arg)), self.space()),
-                ]),
-            ),
+                    self.text("=>"),
+                ])
+                .group(),
+                self.space(),
+                self.term(body_expr),
+            ]),
+            Term::App(_, head_expr, args) => self.concat([
+                self.term(head_expr),
+                self.space(),
+                self.intersperse((args.iter()).map(|arg| self.arg(arg)), self.space()),
+            ]),
             Term::RecordType(_, type_fields) => self.sequence(
                 true,
                 self.text("{"),
@@ -300,7 +251,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                         self.space(),
                         self.text(":"),
                         self.space(),
-                        self.term_prec(Prec::Top, &field.r#type),
+                        self.term(&field.r#type),
                     ])
                 }),
                 self.text(","),
@@ -315,7 +266,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                         self.space(),
                         self.text("="),
                         self.space(),
-                        self.term_prec(Prec::Top, &field.expr),
+                        self.term(&field.expr),
                     ])
                 }),
                 self.text(","),
@@ -335,7 +286,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 self.text(")"),
             ),
             Term::Proj(_, head_expr, labels) => self.concat([
-                self.term_prec(Prec::Atomic, head_expr),
+                self.term(head_expr),
                 self.concat(
                     (labels.iter()).map(|(_, label)| self.text(".").append(self.ident(*label))),
                 ),
@@ -343,7 +294,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
             Term::ArrayLiteral(_, exprs) => self.sequence(
                 false,
                 self.text("["),
-                exprs.iter().map(|expr| self.term_prec(Prec::Top, expr)),
+                exprs.iter().map(|expr| self.term(expr)),
                 self.text(","),
                 self.text("]"),
             ),
@@ -369,11 +320,11 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 self.space(),
                 self.text("<-"),
                 self.space(),
-                self.term_prec(Prec::Top, format),
+                self.term(format),
                 self.space(),
                 self.text("|"),
                 self.space(),
-                self.term_prec(Prec::Top, cond),
+                self.term(cond),
                 self.space(),
                 self.text("}"),
             ]),
@@ -384,16 +335,13 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 self.text(","),
                 self.text("}"),
             ),
-            Term::BinOp(_, lhs, op, rhs) => self.paren(
-                prec > op.precedence(),
-                self.concat([
-                    self.term_prec(op.lhs_prec(), lhs),
-                    self.space(),
-                    self.text(op.as_str()),
-                    self.space(),
-                    self.term_prec(op.rhs_prec(), rhs),
-                ]),
-            ),
+            Term::BinOp(_, lhs, op, rhs) => self.concat([
+                self.term(lhs),
+                self.space(),
+                self.text(op.as_str()),
+                self.space(),
+                self.term(rhs),
+            ]),
             Term::ReportedError(_) => self.text("#error"),
         }
     }
@@ -412,13 +360,13 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 self.space(),
                 self.text("<-"),
                 self.space(),
-                self.term_prec(Prec::Top, format),
+                self.term(format),
                 match pred {
                     Some(pred) => self.concat([
                         self.space(),
                         self.text("where"),
                         self.space(),
-                        self.term_prec(Prec::Top, pred),
+                        self.term(pred),
                     ]),
                     None => self.nil(),
                 },
@@ -436,25 +384,21 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                         self.space(),
                         self.text(":"),
                         self.space(),
-                        self.term_prec(Prec::Top, r#type),
+                        self.term(r#type),
                     ]),
                     None => self.nil(),
                 },
                 self.space(),
                 self.text("="),
                 self.space(),
-                self.term_prec(Prec::Top, expr),
+                self.term(expr),
             ]),
         }
     }
 
     /// Wrap a document in parens.
-    fn paren(&'arena self, wrap: bool, doc: DocBuilder<'arena, Self>) -> DocBuilder<'arena, Self> {
-        if wrap {
-            self.concat([self.text("("), doc, self.text(")")])
-        } else {
-            doc
-        }
+    fn paren(&'arena self, doc: DocBuilder<'arena, Self>) -> DocBuilder<'arena, Self> {
+        self.concat([self.text("("), doc, self.text(")")])
     }
 
     /// Pretty prints a delimited sequence of documents with a trailing
@@ -497,74 +441,45 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
 
     fn pretty_if<Range>(
         &'arena self,
-        prec: Prec,
         cond_expr: &Term<'_, Range>,
         then_expr: &Term<'_, Range>,
         else_expr: &Term<'_, Range>,
     ) -> DocBuilder<'arena, Self> {
-        let cond = self.concat([
-            self.text("if"),
-            self.space(),
-            self.term_prec(Prec::Fun, cond_expr),
-        ]);
-        let then = self.concat([
-            self.text("then"),
-            self.space(),
-            self.term_prec(Prec::Let, then_expr),
-        ]);
-        let r#else = self.concat([
-            self.text("else"),
-            self.space(),
-            self.term_prec(Prec::Let, else_expr),
-        ]);
-        self.paren(
-            prec > Prec::Let,
-            DocBuilder::flat_alt(
-                self.concat([
-                    cond.clone(),
-                    self.concat([self.hardline(), then.clone()]).nest(INDENT),
-                    self.concat([self.hardline(), r#else.clone()]).nest(INDENT),
-                ]),
-                self.concat([cond, self.space(), then, self.space(), r#else]),
-            )
-            .group(),
+        let cond = self.concat([self.text("if"), self.space(), self.term(cond_expr)]);
+        let then = self.concat([self.text("then"), self.space(), self.term(then_expr)]);
+        let r#else = self.concat([self.text("else"), self.space(), self.term(else_expr)]);
+        DocBuilder::flat_alt(
+            self.concat([
+                cond.clone(),
+                self.concat([self.hardline(), then.clone()]).nest(INDENT),
+                self.concat([self.hardline(), r#else.clone()]).nest(INDENT),
+            ]),
+            self.concat([cond, self.space(), then, self.space(), r#else]),
         )
+        .group()
     }
 
     fn pretty_if_else_chain<Range>(
         &'arena self,
-        prec: Prec,
         cond_expr: &Term<'_, Range>,
         then_expr: &Term<'_, Range>,
         branches: Vec<(&Term<'_, Range>, &Term<'_, Range>)>,
         else_expr: &Term<'_, Range>,
     ) -> DocBuilder<'arena, Self> {
         let single = {
-            let cond = self.concat([
-                self.text("if"),
-                self.space(),
-                self.term_prec(Prec::Fun, cond_expr),
-            ]);
-            let then = self.concat([
-                self.text("then"),
-                self.space(),
-                self.term_prec(Prec::Let, then_expr),
-            ]);
-            let r#else = self.concat([
-                self.text("else"),
-                self.space(),
-                self.term_prec(Prec::Let, else_expr),
-            ]);
+            let cond = self.concat([self.text("if"), self.space(), self.term(cond_expr)]);
+            let then = self.concat([self.text("then"), self.space(), self.term(then_expr)]);
+            let r#else = self.concat([self.text("else"), self.space(), self.term(else_expr)]);
             let branches = branches.iter().map(|(cond_expr, then_expr)| {
                 self.concat([
                     self.space(),
                     self.text("else if"),
                     self.space(),
-                    self.term_prec(Prec::Let, cond_expr),
+                    self.term(cond_expr),
                     self.space(),
                     self.text("then"),
                     self.space(),
-                    self.term_prec(Prec::Let, then_expr),
+                    self.term(then_expr),
                 ])
             });
             self.concat([
@@ -578,17 +493,13 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
             ])
         };
         let multi = {
-            let cond = self.concat([
-                self.text("if"),
-                self.space(),
-                self.term_prec(Prec::Fun, cond_expr),
-            ]);
+            let cond = self.concat([self.text("if"), self.space(), self.term(cond_expr)]);
             let then = self
                 .concat([
                     self.hardline(),
                     self.text("then"),
                     self.space(),
-                    self.term_prec(Prec::Let, then_expr),
+                    self.term(then_expr),
                 ])
                 .nest(INDENT);
             let r#else = self
@@ -596,7 +507,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                     self.hardline(),
                     self.text("else"),
                     self.space(),
-                    self.term_prec(Prec::Let, else_expr),
+                    self.term(else_expr),
                 ])
                 .nest(INDENT);
             let branches = branches.iter().map(|(cond_expr, then_expr)| {
@@ -604,18 +515,17 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                     self.hardline(),
                     self.text("else if"),
                     self.space(),
-                    self.term_prec(Prec::Let, cond_expr),
+                    self.term(cond_expr),
                     self.space(),
                     self.text("then"),
                     self.space(),
-                    self.term_prec(Prec::Let, then_expr),
+                    self.term(then_expr),
                 ])
                 .nest(INDENT)
             });
             self.concat([cond, then, self.concat(branches), r#else])
         };
-        self.paren(prec > Prec::Let, DocBuilder::flat_alt(multi, single))
-            .group()
+        DocBuilder::flat_alt(multi, single).group()
     }
 }
 
@@ -694,33 +604,5 @@ impl<'interner, 'arena, A: 'arena> DocAllocator<'arena, A> for Context<'interner
         f: impl 'arena + Fn(isize) -> Self::Doc,
     ) -> <Self::Doc as DocPtr<'arena, A>>::WidthFn {
         self.scope.to_scope(f)
-    }
-}
-
-impl<Range> BinOp<Range> {
-    fn precedence(&self) -> Prec {
-        self.precedence_impl().1
-    }
-
-    fn lhs_prec(&self) -> Prec {
-        self.precedence_impl().0
-    }
-
-    fn rhs_prec(&self) -> Prec {
-        self.precedence_impl().2
-    }
-
-    /// Returns the precedence of this operator and its operands
-    ///
-    /// (lhs, op, rhs)
-    fn precedence_impl(&self) -> (Prec, Prec, Prec) {
-        match self {
-            BinOp::Eq(_) | BinOp::Neq(_) => (Prec::Cmp, Prec::Eq, Prec::Eq),
-            BinOp::Lt(_) | BinOp::Lte(_) | BinOp::Gt(_) | BinOp::Gte(_) => {
-                (Prec::Add, Prec::Cmp, Prec::Cmp)
-            }
-            BinOp::Add(_) | BinOp::Sub(_) => (Prec::Mul, Prec::Add, Prec::Add),
-            BinOp::Mul(_) | BinOp::Div(_) => (Prec::App, Prec::Mul, Prec::Mul),
-        }
     }
 }
