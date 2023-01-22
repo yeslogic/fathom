@@ -202,7 +202,7 @@ ProjTerm: Term<'arena, ByteRange> = {
 };
 
 AtomicTerm: Term<'arena, ByteRange> = {
-    <start: @L> "(" <term: Term> ")" <end: @R> => term,
+    <start: @L> "(" <term: Term> ")" <end: @R> => Term::Paren(ByteRange::new(start, end), scope.to_scope(term)),
     <start: @L> <terms: Tuple<Term>> <end: @R> => Term::Tuple(ByteRange::new(start, end), terms),
 
     <start: @L> <name: Name> <end: @R> => Term::Name(ByteRange::new(start, end), name),

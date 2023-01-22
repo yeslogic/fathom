@@ -7,12 +7,12 @@ error: cannot find `x` in scope
   │        ^ unbound name
 
 error: non-exhaustive patterns in match expression
-  ┌─ tests/fail/elaboration/non-exhaustive-patterns/match-synth.fathom:3:8
+  ┌─ tests/fail/elaboration/non-exhaustive-patterns/match-synth.fathom:3:7
   │
 3 │ match (x : U8) {}
-  │ -------^^^^^^----
-  │ │      │
-  │ │      patterns not covered
+  │ ------^^^^^^^^---
+  │ │     │
+  │ │     patterns not covered
   │ in match expression
 
 error: failed to infer match expression type

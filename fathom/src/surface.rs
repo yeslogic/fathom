@@ -182,6 +182,8 @@ impl<Range: Clone> Pattern<Range> {
 /// Surface terms.
 #[derive(Debug, Clone)]
 pub enum Term<'arena, Range> {
+    /// Parenthesized term
+    Paren(Range, &'arena Term<'arena, Range>),
     /// Named patterns.
     Name(Range, StringId),
     /// Hole expressions.
@@ -293,7 +295,8 @@ impl<'arena, Range: Clone> Term<'arena, Range> {
     /// Get the source range of the term.
     pub fn range(&self) -> Range {
         match self {
-            Term::Name(range, _)
+            Term::Paren(range, _)
+            | Term::Name(range, _)
             | Term::Hole(range, _)
             | Term::Placeholder(range)
             | Term::Ann(range, _, _)

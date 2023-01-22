@@ -1012,6 +1012,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         let expected_type = self.elim_env().force(expected_type);
 
         match (surface_term, expected_type.as_ref()) {
+            (Term::Paren(_, term), _) => self.check(term, &expected_type),
             (Term::Let(_, def_pattern, def_type, def_expr, body_expr), _) => {
                 let (def_pattern, def_type, def_type_value) =
                     self.synth_ann_pattern(def_pattern, *def_type);
@@ -1357,6 +1358,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
     ) -> (core::Term<'arena>, ArcValue<'arena>) {
         let file_range = self.file_range(surface_term.range());
         match surface_term {
+            Term::Paren(_, term) => self.synth(term),
             Term::Name(range, name) => {
                 if let Some((term, r#type)) = self.get_local_name(*name) {
                     return (

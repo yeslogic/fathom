@@ -167,6 +167,7 @@ fn term_deps(
     deps: &mut Vec<StringId>,
 ) {
     match term {
+        Term::Paren(_, term) => term_deps(term, item_names, local_names, deps),
         Term::Name(_, name) => {
             if local_names.iter().rev().any(|local| name == local) {
                 // local binding, do nothing
