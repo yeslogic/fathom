@@ -383,14 +383,14 @@ def_prims! {
     FormatF64Be => "f64be",
     /// 64-bit, IEEE-754 floating point formats (little-endian).
     FormatF64Le => "f64le",
-    /// Array formats, with unsigned 8-bit indices.
-    FormatArray8 => "array8",
-    /// Array formats, with unsigned 16-bit indices.
-    FormatArray16 => "array16",
-    /// Array formats, with unsigned 32-bit indices.
-    FormatArray32 => "array32",
-    /// Array formats, with unsigned 64-bit indices.
-    FormatArray64 => "array64",
+    /// Repeat formats up to an unsigned 8-bit length.
+    FormatRepeatLen8 => "repeat_len8",
+    /// Repeat formats up to an unsigned 16-bit length.
+    FormatRepeatLen16 => "repeat_len16",
+    /// Repeat formats up to an unsigned 32-bit length.
+    FormatRepeatLen32 => "repeat_len32",
+    /// Repeat formats up to an unsigned 64-bit length.
+    FormatRepeatLen64 => "repeat_len64",
     /// Repeat a format until the length of the given parse scope is reached.
     FormatRepeatUntilEnd => "repeat_until_end",
     /// Limit the format to an unsigned 8-bit byte length.

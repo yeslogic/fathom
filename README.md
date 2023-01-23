@@ -25,7 +25,7 @@ def pixel = {
 def main = {
     width <- u16le,
     height <- u16le,
-    pixels <- array16 (width * height) pixel,
+    pixels <- repeat_len16 (width * height) pixel,
 };
 ```
 

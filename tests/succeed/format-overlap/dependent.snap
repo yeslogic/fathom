@@ -2,7 +2,7 @@ stdout = '''
 let record0 : Format = { length <- u8 };
 let record1 : U8 -> Format = fun length => {
     _length <- u8,
-    data <- array8 length u8,
+    data <- repeat_len8 length u8,
 };
 let silly : Format = overlap {
     record0 <- record0,

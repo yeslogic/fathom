@@ -15,5 +15,5 @@ def main = {
     /// The height of the image, in pixels.
     height <- u32be,
     /// The pixel data.
-    pixels <- array32 (u32_mul width height) pixel, // TODO: binary operators
+    pixels <- repeat_len32 (width * height) pixel,
 };
