@@ -896,7 +896,7 @@ fn match_if_then_else<'arena>(
 ) -> Option<(&'arena core::Term<'arena>, &'arena core::Term<'arena>)> {
     match (branches, default_branch) {
         ([(Const::Bool(false), else_expr), (Const::Bool(true), then_expr)], None)
-        // TODO: Normalise boolean branches when elaborating patterns
+        // TODO: Normalize boolean branches when elaborating patterns
         | ([(Const::Bool(true), then_expr)], Some((_, else_expr)))
         | ([(Const::Bool(false), else_expr)], Some((_, then_expr))) => Some((then_expr, else_expr)),
         _ => None,

@@ -52,15 +52,15 @@ struct Config {
     example_data_invalid: Vec<String>,
     #[serde(skip)]
     update_snapshots: bool,
-    #[serde(default = "DEFAULT_TEST_NORMALISATION")]
-    test_normalisation: bool,
+    #[serde(default = "DEFAULT_TEST_NORMALIZATION")]
+    test_normalization: bool,
 }
 
 const DEFAULT_ALLOW_ERRORS: fn() -> bool = || false;
 const DEFAULT_IGNORE: fn() -> bool = || false;
 const DEFAULT_EXIT_CODE: fn() -> i32 = || 0;
 const DEFAULT_EXAMPLE_DATA: fn() -> Vec<String> = Vec::new;
-const DEFAULT_TEST_NORMALISATION: fn() -> bool = || false;
+const DEFAULT_TEST_NORMALIZATION: fn() -> bool = || false;
 
 struct TestFailure {
     name: &'static str,
@@ -99,7 +99,7 @@ struct TestCommand<'a> {
 enum Command<'a> {
     ElabModule,
     ElabTerm,
-    Normalise,
+    Normalize,
     ParseData(&'a Path, ExpectedOutcome),
 }
 
@@ -112,7 +112,7 @@ enum ExpectedOutcome {
 impl<'a> Command<'a> {
     fn snap_name(&self) -> &'static str {
         match self {
-            Command::Normalise => "norm",
+            Command::Normalize => "norm",
             Command::ElabModule | Command::ElabTerm | Command::ParseData(_, _) => "",
         }
     }
@@ -120,7 +120,7 @@ impl<'a> Command<'a> {
     pub(crate) fn expected_outcome(&self) -> ExpectedOutcome {
         match self {
             Command::ParseData(_, outcome) => *outcome,
-            Command::ElabModule | Command::ElabTerm | Command::Normalise => {
+            Command::ElabModule | Command::ElabTerm | Command::Normalize => {
                 ExpectedOutcome::Success
             }
         }
@@ -205,8 +205,8 @@ fn run_test(
         }
     }
 
-    if config.test_normalisation {
-        let test_command = TestCommand::new(Command::Normalise, &config, &input_file);
+    if config.test_normalization {
+        let test_command = TestCommand::new(Command::Normalize, &config, &input_file);
         match test_command.run() {
             Ok(mut test_failures) => failures.append(&mut test_failures),
             Err(error) => {
@@ -410,7 +410,7 @@ impl<'a> From<Command<'a>> for process::Command {
             Command::ElabTerm => {
                 exe.args(["elab", "--term"]);
             }
-            Command::Normalise => {
+            Command::Normalize => {
                 exe.args(["norm", "--term"]);
             }
             Command::ParseData(format, _) => {
@@ -487,9 +487,9 @@ impl Snapshot {
     }
 
     fn update(&mut self) -> Result<(), io::Error> {
-        let serialised = toml::to_string_pretty(&self.actual)
+        let serialized = toml::to_string_pretty(&self.actual)
             .map_err(|err| io::Error::new(io::ErrorKind::Other, err))?;
-        fs::write(&self.path, serialised)?;
+        fs::write(&self.path, serialized)?;
         self.expected = Some(self.actual.clone());
         Ok(())
     }

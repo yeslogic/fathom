@@ -254,7 +254,7 @@ impl<'surface, 'core> Driver<'surface, 'core> {
         Status::Ok
     }
 
-    pub fn normalise_and_emit_term(&mut self, file_id: FileId) -> Status {
+    pub fn normalize_and_emit_term(&mut self, file_id: FileId) -> Status {
         let mut context =
             elaboration::Context::new(file_id, &self.interner, &self.core_scope, ItemEnv::new());
 
@@ -269,8 +269,8 @@ impl<'surface, 'core> Driver<'surface, 'core> {
             return Status::Error;
         }
 
-        let term = context.eval_env().normalise(&self.core_scope, &term);
-        let r#type = context.eval_env().normalise(&self.core_scope, &r#type);
+        let term = context.eval_env().normalize(&self.core_scope, &term);
+        let r#type = context.eval_env().normalize(&self.core_scope, &r#type);
 
         self.surface_scope.reset(); // Reuse the surface scope for distillation
         let mut context = context.distillation_context(&self.surface_scope);

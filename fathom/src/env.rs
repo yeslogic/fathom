@@ -87,7 +87,7 @@ pub fn indices() -> impl Iterator<Item = Index> {
 /// Levels are used in [values][crate::core::semantics::Value] because they
 /// are not tied to a specific binding depth, unlike [indices][Index].
 /// Because of this, we're able to sidestep the need for expensive variable
-/// shifting during [normalisation][crate::core::semantics::EvalEnv::normalise].
+/// shifting during [normalization][crate::core::semantics::EvalEnv::normalize].
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Level(RawVar);
 
