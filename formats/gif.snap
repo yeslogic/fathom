@@ -11,7 +11,7 @@ def header : Format = {
     version <- repeat_len8 3 u8,
 };
 def color_table_entry : Format = { red <- u8, green <- u8, blue <- u8 };
-def global_color_table : U16 -> Format = fun len => {
+def global_color_table : U16 -> Format = fun (len : U16) => {
     entries <- repeat_len16 len color_table_entry,
 };
 def main : Format = { header <- header, screen <- logical_screen_descriptor };

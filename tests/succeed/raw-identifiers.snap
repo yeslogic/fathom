@@ -1,4 +1,4 @@
 stdout = '''
-let r#def : Bool = false; let foo : Bool = r#def; foo : Bool
+let r#def = false; let foo = r#def; foo : Bool
 '''
 stderr = ''

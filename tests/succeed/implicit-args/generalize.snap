@@ -1,8 +1,7 @@
 stdout = '''
-let id : fun (@A : Type) -> A -> A = fun @A a => a;
-let always : fun (@A : Type) (@B : Type) -> A -> B -> A = fun @A @B a b => a;
-let apply : fun (@A : Type) (@B : Type) -> (A -> B) -> A -> B =
-fun @A @B f x => f x;
+let id = fun (@A : Type) (a : A) => a;
+let always = fun (@A : Type) (@B : Type) (a : A) (b : B) => a;
+let apply = fun (@A : Type) (@B : Type) (f : A -> B) (x : A) => f x;
 () : ()
 '''
 stderr = ''

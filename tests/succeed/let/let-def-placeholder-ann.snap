@@ -1,4 +1,4 @@
 stdout = '''
-let _ : Type = Type; Type : Type
+let _ = Type; Type : Type
 '''
 stderr = ''

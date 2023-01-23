@@ -23,10 +23,9 @@ use crate::alloc::SliceVec;
 use crate::core::semantics::{
     self, ArcValue, Branches, Closure, Elim, Head, SplitBranches, Telescope, Value,
 };
-use crate::core::{Prim, Term};
+use crate::core::{Plicity, Prim, Term};
 use crate::env::{EnvLen, Index, Level, SharedEnv, SliceEnv, UniqueEnv};
-use crate::source::{Spanned, StringId};
-use crate::surface::Plicity;
+use crate::source::{Span, Spanned, StringId};
 
 /// Errors encountered during unification.
 ///
@@ -238,15 +237,17 @@ impl<'arena, 'env> Context<'arena, 'env> {
                 self.unify(param_type0, param_type1)?;
                 self.unify_closures(body_type0, body_type1)
             }
-            (Value::FunLit(plicity0, _, body_expr0), Value::FunLit(plicity1, _, body_expr1))
-                if plicity0 == plicity1 =>
-            {
+            (
+                Value::FunLit(plicity0, _, param_type0, body_expr0),
+                Value::FunLit(plicity1, _, param_type1, body_expr1),
+            ) if plicity0 == plicity1 => {
+                self.unify(param_type0, param_type1)?;
                 self.unify_closures(body_expr0, body_expr1)
             }
-            (Value::FunLit(plicity, _, body_expr), _) => {
+            (Value::FunLit(plicity, .., body_expr), _) => {
                 self.unify_fun_lit(*plicity, body_expr, &value1)
             }
-            (_, Value::FunLit(plicity, _, body_expr)) => {
+            (_, Value::FunLit(plicity, .., body_expr)) => {
                 self.unify_fun_lit(*plicity, body_expr, &value0)
             }
 
@@ -517,9 +518,15 @@ impl<'arena, 'env> Context<'arena, 'env> {
     /// Wrap a `term` in [function literals][Term::FunLit] that
     /// correspond to the given `spine`.
     fn fun_intros(&self, spine: &[Elim<'arena>], term: Term<'arena>) -> Term<'arena> {
+        // These functions literals should be eliminated after the metavariables
+        // have been unfolded, so just use error sentinels to avoid having to
+        // look up the corresponding type annotation for each parameter.
+        const PARAM_TYPE: Term<'static> = Term::Prim(Span::Empty, Prim::ReportedError);
+
+        let span = term.span();
         spine.iter().fold(term, |term, elim| match elim {
             Elim::FunApp(plicity, _) => {
-                Term::FunLit(term.span(), *plicity, None, self.scope.to_scope(term))
+                Term::FunLit(span, *plicity, None, &PARAM_TYPE, self.scope.to_scope(term))
             }
             Elim::RecordProj(_) | Elim::ConstMatch(_) => {
                 unreachable!("should have been caught by `init_renaming`")
@@ -615,13 +622,15 @@ impl<'arena, 'env> Context<'arena, 'env> {
                     self.scope.to_scope(body_type),
                 ))
             }
-            Value::FunLit(plicity, param_name, body_expr) => {
+            Value::FunLit(plicity, param_name, param_type, body_expr) => {
+                let param_type = self.rename(meta_var, param_type)?;
                 let body_expr = self.rename_closure(meta_var, body_expr)?;
 
                 Ok(Term::FunLit(
                     span,
                     *plicity,
                     *param_name,
+                    self.scope.to_scope(param_type),
                     self.scope.to_scope(body_expr),
                 ))
             }

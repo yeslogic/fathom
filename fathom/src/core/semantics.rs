@@ -30,7 +30,7 @@ pub enum Value<'arena> {
     /// Dependent function types.
     FunType(Plicity, Option<StringId>, ArcValue<'arena>, Closure<'arena>),
     /// Function literals.
-    FunLit(Plicity, Option<StringId>, Closure<'arena>),
+    FunLit(Plicity, Option<StringId>, ArcValue<'arena>, Closure<'arena>),
 
     /// Record types.
     RecordType(&'arena [StringId], Telescope<'arena>),
@@ -298,8 +298,7 @@ impl<'arena, 'env> EvalEnv<'arena, 'env> {
                 let head_expr = self.eval(&Term::MetaVar(*span, *var));
                 self.apply_local_infos(head_expr, local_infos)
             }
-            Term::Ann(span, expr, _) => Spanned::merge(*span, self.eval(expr)),
-            Term::Let(span, _, _, def_expr, body_expr) => {
+            Term::Let(span, _, def_expr, body_expr) => {
                 let def_expr = self.eval(def_expr);
                 self.local_exprs.push(def_expr);
                 let body_expr = self.eval(body_expr);
@@ -318,11 +317,12 @@ impl<'arena, 'env> EvalEnv<'arena, 'env> {
                     Closure::new(self.local_exprs.clone(), body_type),
                 )),
             ),
-            Term::FunLit(span, plicity, param_name, body_expr) => Spanned::new(
+            Term::FunLit(span, plicity, param_name, param_type, body_expr) => Spanned::new(
                 *span,
                 Arc::new(Value::FunLit(
                     *plicity,
                     *param_name,
+                    self.eval(param_type),
                     Closure::new(self.local_exprs.clone(), body_expr),
                 )),
             ),
@@ -521,7 +521,7 @@ impl<'arena, 'env> ElimEnv<'arena, 'env> {
     ) -> ArcValue<'arena> {
         match Arc::make_mut(&mut head_expr) {
             // Beta-reduction
-            Value::FunLit(fun_plicity, _, body_expr) => {
+            Value::FunLit(fun_plicity, _, _, body_expr) => {
                 assert_eq!(arg_plicity, *fun_plicity, "Plicities must be equal");
                 // FIXME: use span from head/arg exprs?
                 self.apply_closure(body_expr, arg_expr)
@@ -722,10 +722,11 @@ impl<'in_arena, 'env> QuoteEnv<'in_arena, 'env> {
                 scope.to_scope(self.quote(scope, param_type)),
                 self.quote_closure(scope, body_type),
             ),
-            Value::FunLit(plicity, param_name, body_expr) => Term::FunLit(
+            Value::FunLit(plicity, param_name, param_type, body_expr) => Term::FunLit(
                 span,
                 *plicity,
                 *param_name,
+                scope.to_scope(self.quote(scope, param_type)),
                 self.quote_closure(scope, body_expr),
             ),
 
@@ -874,15 +875,9 @@ impl<'arena, 'env> EvalEnv<'arena, 'env> {
                     Term::InsertedMeta(*span, *var, infos)
                 }
             },
-            Term::Ann(span, expr, r#type) => Term::Ann(
-                *span,
-                scope.to_scope(self.unfold_metas(scope, expr)),
-                scope.to_scope(self.unfold_metas(scope, r#type)),
-            ),
-            Term::Let(span, def_name, def_type, def_expr, body_expr) => Term::Let(
+            Term::Let(span, def_name, def_expr, body_expr) => Term::Let(
                 *span,
                 *def_name,
-                scope.to_scope(self.unfold_metas(scope, def_type)),
                 scope.to_scope(self.unfold_metas(scope, def_expr)),
                 self.unfold_bound_metas(scope, body_expr),
             ),
@@ -896,10 +891,11 @@ impl<'arena, 'env> EvalEnv<'arena, 'env> {
                 scope.to_scope(self.unfold_metas(scope, param_type)),
                 self.unfold_bound_metas(scope, body_type),
             ),
-            Term::FunLit(span, plicity, param_name, body_expr) => Term::FunLit(
+            Term::FunLit(span, plicity, param_name, param_type, body_expr) => Term::FunLit(
                 *span,
                 *plicity,
                 *param_name,
+                scope.to_scope(self.unfold_metas(scope, param_type)),
                 self.unfold_bound_metas(scope, body_expr),
             ),
 
@@ -1117,13 +1113,18 @@ impl<'arena, 'env> ConversionEnv<'arena, 'env> {
                     && self.is_equal(param_type0, param_type1)
                     && self.is_equal_closures(body_type0, body_type1)
             }
-            (Value::FunLit(plicity0, _, body_expr0), Value::FunLit(plicity1, _, body_expr1)) => {
-                plicity0 == plicity1 && self.is_equal_closures(body_expr0, body_expr1)
+            (
+                Value::FunLit(plicity0, _, param_type0, body_expr0),
+                Value::FunLit(plicity1, _, param_type1, body_expr1),
+            ) => {
+                plicity0 == plicity1
+                    && self.is_equal(param_type0, param_type1)
+                    && self.is_equal_closures(body_expr0, body_expr1)
             }
-            (Value::FunLit(plicity, _, body_expr), _) => {
+            (Value::FunLit(plicity, .., body_expr), _) => {
                 self.is_equal_fun_lit(*plicity, body_expr, &value1)
             }
-            (_, Value::FunLit(plicity, _, body_expr)) => {
+            (_, Value::FunLit(plicity, .., body_expr)) => {
                 self.is_equal_fun_lit(*plicity, body_expr, &value0)
             }
 

@@ -137,26 +137,13 @@ impl<'interner, 'arena> Context<'interner> {
             Term::InsertedMeta(_, level, info) => {
                 RcDoc::text(format!("InsertedMeta({level:?}, {info:?})"))
             }
-            Term::Ann(_, expr, r#type) => self.paren(
-                prec > Prec::Top,
-                RcDoc::concat([
-                    RcDoc::concat([
-                        self.term_prec(Prec::Let, expr),
-                        RcDoc::space(),
-                        RcDoc::text(":"),
-                    ])
-                    .group(),
-                    RcDoc::softline(),
-                    self.term_prec(Prec::Top, r#type),
-                ]),
-            ),
-            Term::Let(_, def_pattern, def_type, def_expr, body_expr) => self.paren(
+            Term::Let(_, def_pattern, def_expr, body_expr) => self.paren(
                 prec > Prec::Let,
                 RcDoc::concat([
                     RcDoc::concat([
                         RcDoc::text("let"),
                         RcDoc::space(),
-                        self.ann_pattern(Prec::Top, *def_pattern, def_type),
+                        self.pattern(*def_pattern),
                         RcDoc::space(),
                         RcDoc::text("="),
                         RcDoc::softline(),
@@ -201,17 +188,29 @@ impl<'interner, 'arena> Context<'interner> {
                     self.term_prec(Prec::Fun, body_type),
                 ]),
             ),
-            Term::FunLit(_, plicity, param_name, body_expr) => self.paren(
+            Term::FunLit(_, plicity, param_name, param_type, body_expr) => self.paren(
                 prec > Prec::Fun,
                 RcDoc::concat([
                     RcDoc::concat([
                         RcDoc::text("fun"),
                         RcDoc::space(),
-                        self.plicity(*plicity),
-                        match param_name {
-                            Some(name) => self.string_id(*name),
-                            None => RcDoc::text("_"),
-                        },
+                        self.paren(
+                            prec > Prec::Top,
+                            RcDoc::concat([
+                                RcDoc::concat([
+                                    self.plicity(*plicity),
+                                    match param_name {
+                                        Some(name) => self.string_id(*name),
+                                        None => RcDoc::text("_"),
+                                    },
+                                    RcDoc::space(),
+                                    RcDoc::text(":"),
+                                ])
+                                .group(),
+                                RcDoc::softline(),
+                                self.term_prec(Prec::Top, param_type),
+                            ]),
+                        ),
                         RcDoc::space(),
                         RcDoc::text("=>"),
                     ])

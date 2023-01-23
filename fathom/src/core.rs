@@ -140,13 +140,10 @@ pub enum Term<'arena> {
     // - https://lib.rs/crates/smallbitvec
     // - https://lib.rs/crates/bit-vec
     InsertedMeta(Span, Level, &'arena [LocalInfo]),
-    /// Annotated expressions.
-    Ann(Span, &'arena Term<'arena>, &'arena Term<'arena>),
     /// Let expressions.
     Let(
         Span,
         Option<StringId>,
-        &'arena Term<'arena>,
         &'arena Term<'arena>,
         &'arena Term<'arena>,
     ),
@@ -167,7 +164,13 @@ pub enum Term<'arena> {
     /// Function literals.
     ///
     /// Also known as: lambda expressions, anonymous functions.
-    FunLit(Span, Plicity, Option<StringId>, &'arena Term<'arena>),
+    FunLit(
+        Span,
+        Plicity,
+        Option<StringId>,
+        &'arena Term<'arena>,
+        &'arena Term<'arena>,
+    ),
     /// Function applications.
     FunApp(Span, Plicity, &'arena Term<'arena>, &'arena Term<'arena>),
 
@@ -208,26 +211,25 @@ impl<'arena> Term<'arena> {
     /// Get the source span of the term.
     pub fn span(&self) -> Span {
         match self {
-            Term::ItemVar(span, _)
-            | Term::LocalVar(span, _)
-            | Term::MetaVar(span, _)
-            | Term::InsertedMeta(span, _, _)
-            | Term::Ann(span, _, _)
-            | Term::Let(span, _, _, _, _)
+            Term::ItemVar(span, ..)
+            | Term::LocalVar(span, ..)
+            | Term::MetaVar(span, ..)
+            | Term::InsertedMeta(span, ..)
+            | Term::Let(span, ..)
             | Term::Universe(span)
             | Term::FunType(span, ..)
             | Term::FunLit(span, ..)
             | Term::FunApp(span, ..)
-            | Term::RecordType(span, _, _)
-            | Term::RecordLit(span, _, _)
-            | Term::RecordProj(span, _, _)
+            | Term::RecordType(span, ..)
+            | Term::RecordLit(span, ..)
+            | Term::RecordProj(span, ..)
             | Term::ArrayLit(span, _)
-            | Term::FormatRecord(span, _, _)
-            | Term::FormatCond(span, _, _, _)
-            | Term::FormatOverlap(span, _, _)
-            | Term::Prim(span, _)
-            | Term::ConstLit(span, _)
-            | Term::ConstMatch(span, _, _, _) => *span,
+            | Term::FormatRecord(span, ..)
+            | Term::FormatCond(span, ..)
+            | Term::FormatOverlap(span, ..)
+            | Term::Prim(span, ..)
+            | Term::ConstLit(span, ..)
+            | Term::ConstMatch(span, ..) => *span,
         }
     }
 
@@ -242,16 +244,15 @@ impl<'arena> Term<'arena> {
             | Term::Prim(_, _)
             | Term::ConstLit(_, _) => false,
 
-            Term::Ann(_, expr, r#type) => expr.binds_local(var) || r#type.binds_local(var),
-            Term::Let(_, _, def_type, def_expr, body_expr) => {
-                def_type.binds_local(var)
-                    || def_expr.binds_local(var)
-                    || body_expr.binds_local(var.prev())
+            Term::Let(_, _, def_expr, body_expr) => {
+                def_expr.binds_local(var) || body_expr.binds_local(var.prev())
             }
             Term::FunType(.., param_type, body_type) => {
                 param_type.binds_local(var) || body_type.binds_local(var.prev())
             }
-            Term::FunLit(.., body_expr) => body_expr.binds_local(var.prev()),
+            Term::FunLit(.., param_type, body_expr) => {
+                param_type.binds_local(var) || body_expr.binds_local(var.prev())
+            }
             Term::FunApp(.., head_expr, arg_expr) => {
                 head_expr.binds_local(var) || arg_expr.binds_local(var)
             }

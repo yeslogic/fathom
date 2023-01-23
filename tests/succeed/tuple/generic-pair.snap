@@ -1,6 +1,6 @@
 stdout = '''
-let fst : fun (A : Type) (B : Type) -> (A, B) -> A = fun A B p => p._0;
-let snd : fun (A : Type) (B : Type) -> (A, B) -> B = fun A B p => p._1;
+let fst = fun (A : Type) (B : Type) (p : (A, B)) => p._0;
+let snd = fun (A : Type) (B : Type) (p : (A, B)) => p._1;
 () : ()
 '''
 stderr = ''

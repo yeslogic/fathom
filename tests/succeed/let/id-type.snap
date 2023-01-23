@@ -1,6 +1,5 @@
 stdout = '''
-let Id : Type -> Type = fun A => A;
-let test_id : fun (A : Type) -> Id A -> A = fun A a => a;
-Type : Type
+let Id = fun (A : Type) => A; let test_id = fun (A : Type) (a : A) => a; Type :
+Type
 '''
 stderr = ''
