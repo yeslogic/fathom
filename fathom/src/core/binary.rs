@@ -625,18 +625,18 @@ fn read_const<'arena, 'data, T>(
     ))
 }
 
-fn read_u8(reader: &mut BufferReader<'_>) -> Result<u8, BufferError> {
+pub(crate) fn read_u8(reader: &mut BufferReader<'_>) -> Result<u8, BufferError> {
     reader.read_byte()
 }
 
-fn read_s8(reader: &mut BufferReader<'_>) -> Result<i8, BufferError> {
+pub(crate) fn read_s8(reader: &mut BufferReader<'_>) -> Result<i8, BufferError> {
     reader.read_byte().map(|b| b as i8)
 }
 
 /// Generates a function that reads a multi-byte primitive.
 macro_rules! read_multibyte_prim {
     ($read_multibyte_prim:ident, $from_bytes:ident, $T:ident) => {
-        fn $read_multibyte_prim<'data>(
+        pub(crate) fn $read_multibyte_prim<'data>(
             reader: &mut BufferReader<'data>,
         ) -> Result<$T, BufferError> {
             Ok($T::$from_bytes(*reader.read_byte_array()?))

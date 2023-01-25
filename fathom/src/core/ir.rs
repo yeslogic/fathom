@@ -1,20 +1,23 @@
-/// An interned string
-type StringId = u16;
+use crate::core::binary::BufferError;
+use crate::source::StringId;
+
 type Pos = u64;
 
-#[derive(Clone)]
+#[derive(Debug, Clone, Copy)]
 pub enum Const {
     U8(u8),
     U16(u16),
+    S16(i16),
     U32(u32),
+    F32(f32),
     Pos(Pos),
 }
 
 // TODO: better name
-mod host {
+pub(crate) mod host {
     use super::{Const, StringId};
 
-    #[derive(Clone)]
+    #[derive(Debug, Clone)]
     pub enum Type {
         /// A built in type
         Prim(Prim),
@@ -23,34 +26,39 @@ mod host {
     }
 
     // A host side custom type
+    #[derive(Debug, Clone)]
     pub enum CustomType {
         Record(Record),
         Enum(Enum),
     }
 
+    #[derive(Debug, Clone)]
     pub struct Record {
         pub name: StringId,
         pub fields: Vec<Field>,
     }
 
     // a match that can yield different types compiles into an enum
+    #[derive(Debug, Clone)]
     pub struct Enum {
         pub name: StringId,
         pub variants: Vec<Variant>,
     }
 
+    #[derive(Debug, Clone)]
     pub struct Variant {
         pub name: StringId,
         pub data: Option<Type>,
     }
 
+    #[derive(Debug, Clone)]
     pub struct Field {
         pub name: StringId,
         pub host_type: Type, // in theory there could also be write: WriteExpr
     }
 
     /// Primitive types
-    #[derive(Clone)]
+    #[derive(Debug, Clone)]
     pub enum Prim {
         S16,
         U8,
@@ -64,12 +72,12 @@ mod host {
     }
 
     // Primitive functions... is it sensible to separate these from Prim?
-    #[derive(Clone)]
+    #[derive(Debug, Clone)]
     pub enum PrimFn {
         U16Sub,
     }
 
-    #[derive(Clone)]
+    #[derive(Debug, Clone)]
     pub enum Expr {
         /// Item in the context
         Item(usize),
@@ -84,7 +92,7 @@ mod host {
         App(Box<Expr>, Vec<Expr>),
     }
 
-    #[derive(Clone)]
+    #[derive(Debug, Clone)]
     pub struct Function {
         /// Argument names
         arguments: Vec<StringId>,
@@ -94,18 +102,21 @@ mod host {
 }
 
 // TODO: better name
-mod format {
+pub(crate) mod format {
     use super::{host, Const, Pos, StringId};
 
+    #[derive(Debug, Clone)]
     pub struct Module {
         pub definitions: Vec<Def>,
     }
 
+    #[derive(Debug, Clone)]
     pub struct Def {
         pub name: StringId,
         pub expr: Item,
     }
 
+    #[derive(Debug, Clone)]
     pub enum Item {
         Format(Format),
         /// A let expression
@@ -114,26 +125,31 @@ mod format {
         Let(StringId, Box<Item>, Box<Item>),
     }
 
+    #[derive(Debug, Clone)]
     pub struct Format {
         pub params: Vec<Param>,
         pub fields: Vec<Field>,
     }
 
+    #[derive(Debug, Clone)]
     pub struct Param {
         pub name: StringId,
         pub host_type: host::Type,
     }
 
+    #[derive(Debug, Clone)]
     pub struct Field {
         pub name: StringId,
         pub host_type: host::Type,
         pub read: ReadExpr,
     }
 
+    #[derive(Debug, Clone)]
     pub struct ReadFn {
         pub exprs: Vec<ReadExpr>,
     }
 
+    #[derive(Debug, Clone)]
     pub enum ReadExpr {
         Prim(ReadPrim),
         /// A custom type that lives in the context
@@ -142,16 +158,19 @@ mod format {
         Match(host::Expr, Vec<Branch>),
     }
 
+    #[derive(Debug, Clone)]
     pub struct Branch {
         pub pattern: Pattern,
         pub expr: Box<ReadExpr>,
     }
 
+    #[derive(Debug, Clone)]
     pub enum Pattern {
-        Var(StringId),
+        Var(StringId), // may want to use something better than strings here
         Const(Const),
     }
 
+    #[derive(Debug, Clone)]
     pub enum ReadPrim {
         S16Be,
         S16Le,
@@ -183,14 +202,237 @@ mod format {
     // }
 }
 
+pub(crate) mod interpret {
+    use super::*;
+    use crate::core::binary;
+    use format::*;
+    use host::Expr;
+    use string_interner::Symbol;
+
+    use crate::core::binary::{Buffer, BufferError, BufferReader, ReadError};
+    use crate::source::StringInterner;
+
+    pub struct Interpreter<'data, 'interner> {
+        buffer: Buffer<'data>,
+        interner: &'interner StringInterner,
+        item_env: Vec<(StringId, Val)>,
+        defs: Vec<Def>,
+    }
+
+    #[derive(Debug, Clone)]
+    pub enum Val {
+        Record(RecordVal),
+        Const(Const),
+        Vec(Vec<Val>),
+    }
+
+    #[derive(Debug, Clone)]
+    pub struct RecordVal {
+        pub name: StringId,
+        pub fields: Vec<FieldVal>,
+    }
+
+    #[derive(Debug, Clone)]
+    pub struct FieldVal {
+        pub name: StringId,
+        pub value: Box<Val>,
+    }
+
+    // FIXME: Is this even needed?
+    // I.e. can it just parse into the value of the selected variant
+    // would we ever have variants without data?
+    #[derive(Debug, Clone)]
+    pub struct EnumVal {
+        pub tag: u8,
+        pub value: Val,
+    }
+
+    #[derive(Debug)]
+    pub enum Error {
+        UnknownItem,
+        BadIndex,
+        BufferError(BufferError),
+        /// Value exceeds the range of the target type
+        OutOfRange,
+    }
+
+    impl<'data, 'interner> Interpreter<'data, 'interner> {
+        pub fn new(buffer: Buffer<'data>, interner: &'interner StringInterner) -> Self {
+            Interpreter {
+                buffer,
+                interner,
+                item_env: Vec::new(),
+                defs: Vec::new(),
+            }
+        }
+
+        pub fn interpret(&mut self, module: &Module) -> Result<Val, Error> {
+            // Hmm so the definitions need to be evaluated first so that they are present in the
+            // item env (since main refers to them by index).
+            self.defs = module.definitions.clone(); // FIXME
+
+            println!("Symbols:");
+            let mut i = 0;
+            while let Some(s) = self.interner.resolve(StringId::try_from_usize(i).unwrap()) {
+                println!("- {}: '{}'", i, s);
+                i += 1;
+            }
+
+            // find the "main" def, which is the entry point
+            // TODO: Perhaps it should actually be fished out of the defs?
+            let main_sym = self.interner.get("main").expect("no main symbol");
+            let main = module
+                .definitions
+                .iter()
+                .find(|def| def.name == main_sym)
+                .expect("unable to find main item in module");
+
+            let mut reader = self.buffer.reader();
+            self.interpret_item(Some(main.name), &main.expr, &mut reader)
+        }
+
+        fn interpret_item(
+            &mut self,
+            name: Option<StringId>,
+            item: &Item,
+            reader: &mut BufferReader,
+        ) -> Result<Val, Error> {
+            match item {
+                Item::Format(Format {
+                    params: _params,
+                    fields,
+                }) => {
+                    // TODO: handle params
+                    let len_before = self.item_env.len();
+                    let mut ffields = Vec::new();
+                    for field in fields {
+                        let val = self.read(&field.read, reader)?;
+                        self.item_env.push((field.name, val.clone()));
+                        ffields.push(FieldVal {
+                            name: field.name,
+                            value: Box::new(val),
+                        });
+                    }
+                    self.item_env.truncate(len_before);
+                    let record = RecordVal {
+                        name: name.expect("no name"),
+                        fields: ffields,
+                    };
+
+                    Ok(Val::Record(record))
+                }
+                Item::Let(name, def_expression, body_expression) => {
+                    // eval the def_expression, then add the result to the env and eval body_expression
+                    let len_before = self.item_env.len();
+                    let val = self.interpret_item(None, def_expression, reader)?;
+                    self.item_env.push((*name, val));
+                    let val = self.interpret_item(None, body_expression, reader)?;
+                    // pop the def expression afterwards
+                    self.item_env.truncate(len_before);
+                    Ok(val)
+                }
+            }
+        }
+
+        fn read(&mut self, expr: &ReadExpr, reader: &mut BufferReader) -> Result<Val, Error> {
+            let val = match expr {
+                ReadExpr::Prim(ReadPrim::S16Be) => {
+                    binary::read_s16be(reader).map(|v| Val::Const(Const::S16(v)))?
+                }
+                ReadExpr::Prim(ReadPrim::S16Le) => {
+                    binary::read_s16le(reader).map(|v| Val::Const(Const::S16(v)))?
+                }
+                ReadExpr::Prim(ReadPrim::U8) => {
+                    binary::read_u8(reader).map(|v| Val::Const(Const::U8(v)))?
+                }
+                ReadExpr::Prim(ReadPrim::U16Be) => {
+                    binary::read_u16be(reader).map(|v| Val::Const(Const::U16(v)))?
+                }
+                ReadExpr::Prim(ReadPrim::U16Le) => {
+                    binary::read_u16le(reader).map(|v| Val::Const(Const::U16(v)))?
+                }
+                ReadExpr::Prim(ReadPrim::U32Be) => {
+                    binary::read_u32be(reader).map(|v| Val::Const(Const::U32(v)))?
+                }
+                ReadExpr::Prim(ReadPrim::U32Le) => {
+                    binary::read_u32le(reader).map(|v| Val::Const(Const::U32(v)))?
+                }
+                ReadExpr::Prim(ReadPrim::F32Le) => {
+                    binary::read_f32le(reader).map(|v| Val::Const(Const::F32(v)))?
+                }
+                ReadExpr::Prim(ReadPrim::Array(len_expr, read_item)) => {
+                    // Need to run the len_expr, then read that many items
+                    let len: usize = self.eval(len_expr)?.try_into()?;
+                    let items = (0..len)
+                        .map(|_| self.read(read_item, reader))
+                        .collect::<Result<Vec<_>, _>>()?;
+                    Val::Vec(items)
+                }
+                ReadExpr::Prim(ReadPrim::StreamPos) => {
+                    let pos = reader.relative_offset();
+                    Val::Const(Const::Pos(pos.try_into().map_err(|_| Error::OutOfRange)?))
+                }
+                ReadExpr::CustomType(i) => {
+                    let def = self.defs.get(*i).unwrap().clone(); // FIXME clone
+                    self.interpret_item(Some(def.name), &def.expr, reader)?
+                }
+                ReadExpr::Match(_, _) => todo! {},
+            };
+            Ok(val)
+        }
+
+        fn eval(&self, expr: &Expr) -> Result<Val, Error> {
+            match expr {
+                Expr::Item(index) => {
+                    let item = self
+                        .item_env
+                        .get(*index)
+                        .map(|pair| pair.1.clone())
+                        .ok_or(Error::UnknownItem)?;
+                    Ok(item)
+                }
+                Expr::Const(constant) => Ok(Val::Const(*constant)),
+                Expr::PrimFn(_) => todo! {},
+                Expr::Func(_) => todo! {},
+                Expr::App(_, _) => todo! {},
+            }
+        }
+    }
+
+    impl From<BufferError> for Error {
+        fn from(err: BufferError) -> Self {
+            Error::BufferError(err)
+        }
+    }
+
+    impl TryFrom<Val> for usize {
+        type Error = Error;
+
+        fn try_from(value: Val) -> Result<Self, Self::Error> {
+            match value {
+                Val::Const(Const::U8(val)) => Ok(usize::from(val)),
+                Val::Const(Const::U16(val)) => Ok(usize::from(val)),
+                Val::Const(Const::U32(val)) => usize::try_from(val).map_err(|_| Error::BadIndex),
+                Val::Const(Const::S16(_))
+                | Val::Const(Const::F32(_))
+                | Val::Const(Const::Pos(_))
+                | Val::Record(_)
+                | Val::Vec(_) => Err(Error::BadIndex),
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::source::StringInterner;
     use format::*;
     use host::Expr;
 
     #[test]
     fn test_f2dot14() {
+        let mut interner = StringInterner::new();
         // pub struct F2Dot14(u16);
         // impl<'a> ReadFrom<'a> for F2Dot14 {
         //     type ReadType = U16Be;
@@ -203,7 +445,7 @@ mod tests {
         let format = Format {
             params: vec![],
             fields: vec![Field {
-                name: 1,
+                name: interner.get_or_intern("0"),
                 host_type: host::Type::Prim(host::Prim::U16),
                 read: ReadExpr::Prim(ReadPrim::U16Be),
             }],
@@ -211,7 +453,7 @@ mod tests {
 
         let item = Item::Format(format);
         let def = Def {
-            name: 1,
+            name: interner.get_or_intern("f2dot14"),
             expr: item,
         };
         let module = Module {
@@ -221,6 +463,7 @@ mod tests {
 
     #[test]
     fn test_table_record() {
+        let mut interner = StringInterner::new();
         /*
 
         def table_record = {
@@ -264,22 +507,22 @@ mod tests {
             params: vec![],
             fields: vec![
                 Field {
-                    name: 1, // table_tag
+                    name: interner.get_or_intern("table_tag"),
                     host_type: host::Type::Prim(host::Prim::U32),
                     read: ReadExpr::Prim(ReadPrim::U32Be),
                 },
                 Field {
-                    name: 2, // checksum
+                    name: interner.get_or_intern("checksum"),
                     host_type: host::Type::Prim(host::Prim::U32),
                     read: ReadExpr::Prim(ReadPrim::U32Be),
                 },
                 Field {
-                    name: 3, // offset
+                    name: interner.get_or_intern("offset"),
                     host_type: host::Type::Prim(host::Prim::U32),
                     read: ReadExpr::Prim(ReadPrim::U32Be),
                 },
                 Field {
-                    name: 3, // length
+                    name: interner.get_or_intern("length"),
                     host_type: host::Type::Prim(host::Prim::U32),
                     read: ReadExpr::Prim(ReadPrim::U32Be),
                 },
@@ -288,7 +531,7 @@ mod tests {
 
         let item = Item::Format(format);
         let def = Def {
-            name: 2,
+            name: interner.get_or_intern("table_record"),
             expr: item,
         };
         let module = Module {
@@ -298,6 +541,7 @@ mod tests {
 
     #[test]
     fn offset_table() {
+        let mut interner = StringInterner::new();
         /*
 
         pub struct OffsetTable<'a> {
@@ -340,32 +584,32 @@ mod tests {
             params: vec![],
             fields: vec![
                 Field {
-                    name: 1, // num_tables
+                    name: interner.get_or_intern("num_tables"),
                     host_type: host::Type::Prim(host::Prim::U32),
                     read: ReadExpr::Prim(ReadPrim::U32Be),
                 },
                 Field {
-                    name: 2, // sfnt_version
+                    name: interner.get_or_intern("sfnt_version"),
                     host_type: host::Type::Prim(host::Prim::U32),
                     read: ReadExpr::Prim(ReadPrim::U32Be),
                 },
                 Field {
-                    name: 3, // search_range
+                    name: interner.get_or_intern("search_range"),
                     host_type: host::Type::Prim(host::Prim::U32),
                     read: ReadExpr::Prim(ReadPrim::U32Be),
                 },
                 Field {
-                    name: 4, // entry_selector
+                    name: interner.get_or_intern("entry_selector"),
                     host_type: host::Type::Prim(host::Prim::U32),
                     read: ReadExpr::Prim(ReadPrim::U32Be),
                 },
                 Field {
-                    name: 5, // range_shift
+                    name: interner.get_or_intern("range_shift"),
                     host_type: host::Type::Prim(host::Prim::U32),
                     read: ReadExpr::Prim(ReadPrim::U32Be),
                 },
                 Field {
-                    name: 6, // table_records
+                    name: interner.get_or_intern("table_records"),
                     host_type: host::Type::Prim(host::Prim::Array(
                         Expr::Item(5 /* num_tables */),
                         // This one is referring to a custom type in the host env
@@ -383,7 +627,7 @@ mod tests {
 
         let item = Item::Format(offset_table);
         let def = Def {
-            name: 3,
+            name: interner.get_or_intern("offset_table"),
             expr: item,
         };
         let module = Module {
@@ -393,6 +637,7 @@ mod tests {
 
     #[test]
     fn test_match_and_fn_app() {
+        let mut interner = StringInterner::new();
         /*
 
         // cut-down kern version 0 sub-table
@@ -418,14 +663,14 @@ mod tests {
         // represents the item storing the value resulting from evaluating the expression
         let u16_sub_length_6_item = 6;
         let host_type_8 = host::CustomType::Enum(host::Enum {
-            name: 3, // Subtable0Data
+            name: interner.get_or_intern("subtable0_data"),
             variants: vec![
                 host::Variant {
-                    name: 4, // how to name variants?
+                    name: interner.get_or_intern("0"), // how to name variants?
                     data: Some(host::Type::CustomType(1 /* subtable_format0 */)),
                 },
                 host::Variant {
-                    name: 5,
+                    name: interner.get_or_intern("default"),
                     data: Some(host::Type::Prim(host::Prim::Array(
                         u16_sub_length_6,
                         Box::new(host::Type::Prim(host::Prim::U8)),
@@ -437,12 +682,12 @@ mod tests {
             params: vec![],
             fields: vec![
                 Field {
-                    name: 1, // format
+                    name: interner.get_or_intern("format"),
                     host_type: host::Type::Prim(host::Prim::U8),
                     read: ReadExpr::Prim(ReadPrim::U8),
                 },
                 Field {
-                    name: 2, // data
+                    name: interner.get_or_intern("data"),
                     host_type: host::Type::CustomType(8 /* host_type_8 in context */),
                     read: ReadExpr::Match(
                         Expr::Item(1), /* format */
@@ -452,7 +697,7 @@ mod tests {
                                 expr: Box::new(ReadExpr::CustomType(1 /* subtable_format0 */)),
                             },
                             Branch {
-                                pattern: Pattern::Var(0 /* _ */),
+                                pattern: Pattern::Var(interner.get_or_intern("_")),
                                 expr: Box::new(ReadExpr::Prim(ReadPrim::Array(
                                     Expr::Item(u16_sub_length_6_item),
                                     Box::new(ReadExpr::Prim(ReadPrim::U8)),
@@ -466,7 +711,7 @@ mod tests {
 
         let item = Item::Format(format);
         let def = Def {
-            name: 4,
+            name: interner.get_or_intern("subtable0"),
             expr: item,
         };
         let module = Module {
@@ -476,6 +721,7 @@ mod tests {
 
     #[test]
     fn test_let() {
+        let mut interner = StringInterner::new();
         /*
 
         def subtable_format0 = (
@@ -495,12 +741,12 @@ mod tests {
             params: vec![],
             fields: vec![
                 Field {
-                    name: 1, // left
+                    name: interner.get_or_intern("left"),
                     host_type: host::Type::Prim(host::Prim::U16),
                     read: ReadExpr::Prim(ReadPrim::U16Be),
                 },
                 Field {
-                    name: 2, // right
+                    name: interner.get_or_intern("right"),
                     host_type: host::Type::Prim(host::Prim::U16),
                     read: ReadExpr::Prim(ReadPrim::U16Be),
                 },
@@ -511,12 +757,12 @@ mod tests {
             params: vec![],
             fields: vec![
                 Field {
-                    name: 3, // num_pairs
+                    name: interner.get_or_intern("num_pairs"),
                     host_type: host::Type::Prim(host::Prim::U8),
                     read: ReadExpr::Prim(ReadPrim::U8),
                 },
                 Field {
-                    name: 4, // pairs
+                    name: interner.get_or_intern("pairs"),
                     host_type: host::Type::Prim(host::Prim::Array(
                         Expr::Item(3 /* num_pairs */),
                         Box::new(host::Type::CustomType(0)), // kerning_pair
@@ -531,12 +777,12 @@ mod tests {
         };
 
         let item = Item::Let(
-            5, /* subtable_format0 */
+            interner.get_or_intern("kerning_pair"),
             Box::new(Item::Format(kerning_pair)),
             Box::new(Item::Format(format)),
         );
         let def = Def {
-            name: 5,
+            name: interner.get_or_intern("subtable_format0"),
             expr: item,
         };
         let module = Module {
@@ -546,6 +792,7 @@ mod tests {
 
     #[test]
     fn test_pos() {
+        let mut interner = StringInterner::new();
         /*
         def kerning_pair = {
             left <- stream_pos,
@@ -557,12 +804,12 @@ mod tests {
             params: vec![],
             fields: vec![
                 Field {
-                    name: 1, // left
+                    name: interner.get_or_intern("left"),
                     host_type: host::Type::Prim(host::Prim::Pos),
                     read: ReadExpr::Prim(ReadPrim::StreamPos),
                 },
                 Field {
-                    name: 2, // right
+                    name: interner.get_or_intern("right"),
                     host_type: host::Type::Prim(host::Prim::U16),
                     read: ReadExpr::Prim(ReadPrim::U16Be),
                 },
@@ -572,6 +819,7 @@ mod tests {
 
     #[test]
     fn test_format_params() {
+        let mut interner = StringInterner::new();
         /*
 
         def offset16 = fun (base : Pos) => fun (format : Format) => {
@@ -590,31 +838,31 @@ mod tests {
         */
 
         // How should offset16 be represented
-
-        let format = Format {
-            params: vec![Param {
-                name: 3,
-                host_type: host::Type::Prim(host::Prim::Pos),
-            }],
-            fields: vec![Field {
-                name: 1, // right_class_table
-                host_type: host::Type::Prim(host::Prim::U16),
-                read: ReadExpr::Prim(ReadPrim::U16Be),
-            }],
-        };
-
-        let item = Item::Format(format);
-        let def = Def {
-            name: 5,
-            expr: item,
-        };
-        let module = Module {
-            definitions: vec![def],
-        };
+        // let format = Format {
+        //     params: vec![Param {
+        //         name: 3,
+        //         host_type: host::Type::Prim(host::Prim::Pos),
+        //     }],
+        //     fields: vec![Field {
+        //         name: 1, // right_class_table
+        //         host_type: host::Type::Prim(host::Prim::U16),
+        //         read: ReadExpr::Prim(ReadPrim::U16Be),
+        //     }],
+        // };
+        //
+        // let item = Item::Format(format);
+        // let def = Def {
+        //     name: 5,
+        //     expr: item,
+        // };
+        // let module = Module {
+        //     definitions: vec![def],
+        // };
     }
 
     #[test]
     fn test_stl() {
+        let mut interner = StringInterner::new();
         /*
         def vec3d = {
             x <- f32le,
@@ -638,17 +886,17 @@ mod tests {
             params: vec![],
             fields: vec![
                 Field {
-                    name: 1, // x
+                    name: interner.get_or_intern("x"),
                     host_type: host::Type::Prim(host::Prim::F32),
                     read: ReadExpr::Prim(ReadPrim::F32Le),
                 },
                 Field {
-                    name: 2, // y
+                    name: interner.get_or_intern("y"),
                     host_type: host::Type::Prim(host::Prim::F32),
                     read: ReadExpr::Prim(ReadPrim::F32Le),
                 },
                 Field {
-                    name: 3, // z
+                    name: interner.get_or_intern("z"),
                     host_type: host::Type::Prim(host::Prim::F32),
                     read: ReadExpr::Prim(ReadPrim::F32Le),
                 },
@@ -659,12 +907,12 @@ mod tests {
             params: vec![],
             fields: vec![
                 Field {
-                    name: 4,                              // normal
+                    name: interner.get_or_intern("normal"),
                     host_type: host::Type::CustomType(0), // vec3d
                     read: ReadExpr::CustomType(0),
                 },
                 Field {
-                    name: 5, // vertices
+                    name: interner.get_or_intern("vertices"),
                     host_type: host::Type::Prim(host::Prim::Array(
                         Expr::Const(Const::U8(3)),
                         Box::new(host::Type::CustomType(0)),
@@ -675,7 +923,7 @@ mod tests {
                     )),
                 },
                 Field {
-                    name: 6, // attribute_byte_count
+                    name: interner.get_or_intern("attribute_byte_count"),
                     host_type: host::Type::Prim(host::Prim::U16),
                     read: ReadExpr::Prim(ReadPrim::U16Le),
                 },
@@ -686,7 +934,7 @@ mod tests {
             params: vec![],
             fields: vec![
                 Field {
-                    name: 7, // header
+                    name: interner.get_or_intern("header"),
                     host_type: host::Type::Prim(host::Prim::Array(
                         Expr::Const(Const::U8(80)),
                         Box::new(host::Type::CustomType(0)),
@@ -697,12 +945,12 @@ mod tests {
                     )),
                 },
                 Field {
-                    name: 8, // triangle_count
+                    name: interner.get_or_intern("triangle_count"),
                     host_type: host::Type::Prim(host::Prim::U32),
                     read: ReadExpr::Prim(ReadPrim::U32Le),
                 },
                 Field {
-                    name: 9, // triangles
+                    name: interner.get_or_intern("triangles"),
                     host_type: host::Type::Prim(host::Prim::Array(
                         Expr::Item(4 /* triangle_count */),
                         Box::new(host::Type::CustomType(1)),
@@ -718,15 +966,15 @@ mod tests {
         let module = Module {
             definitions: vec![
                 Def {
-                    name: 10,
+                    name: interner.get_or_intern("vec3d"),
                     expr: Item::Format(vec3d_format),
                 },
                 Def {
-                    name: 11,
+                    name: interner.get_or_intern("triangle"),
                     expr: Item::Format(triangle_format),
                 },
                 Def {
-                    name: 12,
+                    name: interner.get_or_intern("main"),
                     expr: Item::Format(main_format),
                 },
             ],

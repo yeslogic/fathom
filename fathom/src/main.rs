@@ -1,4 +1,6 @@
 use clap::Parser;
+use fathom::Status;
+use std::fs;
 use std::path::PathBuf;
 
 /// A language for declaratively specifying binary data formats
@@ -67,6 +69,15 @@ enum Cli {
         /// Continue even if errors were encountered
         #[clap(long = "allow-errors")]
         allow_errors: bool,
+    },
+    /// Interpret some IR
+    Ir {
+        /// Path to a module to load when reading
+        #[clap(long = "module", name = "MODULE_FILE", display_order = 0)]
+        module_file: PathOrStdin,
+        /// Path to the binary data to read from
+        #[clap(name = "BINARY_FILE")]
+        binary_file: PathOrStdin,
     },
 }
 
@@ -195,6 +206,23 @@ fn main() -> ! {
 
             let data = read_bytes_or_exit(&mut driver, binary_file);
             let status = driver.read_and_emit_format(module_file_id, format_file_id, &data);
+
+            std::process::exit(status.exit_code());
+        }
+        Cli::Ir {
+            module_file: _,
+            binary_file,
+        } => {
+            // let _module_file_id = module_file.map(|input| load_file_or_exit(&mut driver, input));
+            // let format_file_id = driver.load_source_string("<FORMAT>".to_owned(), format);
+
+            let data = match binary_file {
+                PathOrStdin::StdIn => unimplemented!("stdin"),
+                PathOrStdin::Path(path) => fs::read(path).expect("unable to read file"),
+            };
+            // let status = driver.read_and_emit_format(module_file_id, format_file_id, &data);
+
+            let status = fathom::Driver::interpret_stl(&data);
 
             std::process::exit(status.exit_code());
         }
