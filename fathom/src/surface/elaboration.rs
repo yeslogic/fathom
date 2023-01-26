@@ -26,7 +26,7 @@ use std::sync::Arc;
 
 use scoped_arena::Scope;
 
-use super::ExprField;
+use super::{pretty2, ExprField};
 use crate::alloc::SliceVec;
 use crate::core::semantics::{self, ArcValue, Head, Telescope, Value};
 use crate::core::{self, prim, Const, Plicity, Prim, UIntStyle};
@@ -34,9 +34,7 @@ use crate::env::{self, EnvLen, Level, SharedEnv, UniqueEnv};
 use crate::files::FileId;
 use crate::source::{BytePos, ByteRange, FileRange, Span, Spanned, StringId, StringInterner};
 use crate::surface::elaboration::reporting::Message;
-use crate::surface::{
-    distillation, pretty, BinOp, FormatField, Item, Module, Param, Pattern, Term,
-};
+use crate::surface::{distillation, BinOp, FormatField, Item, Module, Param, Pattern, Term};
 
 mod order;
 mod reporting;
@@ -403,9 +401,9 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                     )
                     .check(&term);
 
-                    let pretty_context = pretty::Context::new(self.interner, self.scope);
-                    let doc = pretty_context.term(&surface_term).into_doc();
-                    let expr = doc.pretty(usize::MAX).to_string();
+                    let mut pretty_context = pretty2::Context::new(usize::MAX, self.interner);
+                    pretty_context.term(&surface_term);
+                    let expr = pretty_context.flush();
 
                     on_message(Message::HoleSolution { range, name, expr });
                 }
@@ -457,10 +455,9 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         let term = self.quote_env().unfolding_metas().quote(scope, value);
         let surface_term = self.distillation_context(scope).check(&term);
 
-        pretty::Context::new(self.interner, scope)
-            .term(&surface_term)
-            .pretty(usize::MAX)
-            .to_string()
+        let mut pretty_context = pretty2::Context::new(usize::MAX, self.interner);
+        pretty_context.term(&surface_term);
+        pretty_context.flush()
     }
 
     /// Reports an error if there are duplicate fields found, returning a slice

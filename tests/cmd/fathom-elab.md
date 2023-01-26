@@ -45,11 +45,9 @@ Modules can be elaborated with `--module`
 ```console
 $ fathom elab --module formats/object-id.fathom
 def u24be : Format = repeat_len8 3 u8;
-def main : Format = {
-    timestamp <- u32be,
-    random <- repeat_len8 5 u8,
-    counter <- u24be,
-};
+def main : Format = 
+{ timestamp <- u32be, random <- repeat_len8 5 u8, counter <- u24be };
+
 
 ```
 

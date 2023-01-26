@@ -1,4 +1,5 @@
 stdout = '''
-let pair : Format = { fst <- u32be, snd <- u32be }; pair : Format
+let pair : Format = { fst <- u32be, snd <- u32be };
+pair : Format
 '''
 stderr = ''

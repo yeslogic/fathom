@@ -1,57 +1,50 @@
 stdout = '''
 def tag : Format = u32be;
-def table_record : Format = {
-    table_id <- tag,
-    checksum <- u32be,
-    offset <- u32be,
-    length <- u32be,
-};
-def find_table : fun (@num_tables : U16) -> Array16 num_tables {
+def table_record : Format = 
+{ table_id <- tag, checksum <- u32be, offset <- u32be, length <- u32be };
+def find_table : 
+fun (@num_tables : U16) -> Array16 num_tables {
     table_id : U32,
     checksum : U32,
     offset : U32,
-    length : U32,
-} -> U32 -> Option {
+    length : U32
+} -> U32 -> Option { table_id : U32, checksum : U32, offset : U32, length : U32 } = 
+fun @num_tables table_records table_id => array16_find @num_tables @{
     table_id : U32,
     checksum : U32,
     offset : U32,
-    length : U32,
-} = fun @num_tables table_records table_id => array16_find @num_tables @{
-    table_id : U32,
-    checksum : U32,
-    offset : U32,
-    length : U32,
+    length : U32
 } (fun table_record => table_record.table_id == table_id) table_records;
-def link_table : Pos -> {
-    table_id : U32,
-    checksum : U32,
-    offset : U32,
-    length : U32,
-} -> Format -> Format =
+def link_table : Pos -> 
+{ table_id : U32, checksum : U32, offset : U32, length : U32 } -> Format -> Format = 
 fun file_start table_record table_format => link (file_start + table_record.offset) (limit32 table_record.length table_format);
 def platform_id : Format = u16be;
 def encoding_id : Repr platform_id -> Format = fun platform => u16be;
 def empty : Format = ();
-def offset32 : Pos -> Format -> Format = fun base format => {
+def offset32 : Pos -> Format -> Format = 
+fun base format => {
     offset <- u32be,
-    link <- match offset { 0 => empty, _ => link (base + offset) format },
+    link <- match offset { 0 => empty, _ => link (base + offset) format }
 };
 def language_id : Format = u16be;
 def cmap_language_id : Repr platform_id -> Format = fun platform => language_id;
 def small_glyph_id : Format = u8;
-def cmap_subtable_format0 : Repr platform_id -> Format = fun platform => {
+def cmap_subtable_format0 : Repr platform_id -> Format = 
+fun platform => {
     length <- u16be,
     language <- cmap_language_id platform,
-    glyph_id_array <- repeat_len16 256 small_glyph_id,
+    glyph_id_array <- repeat_len16 256 small_glyph_id
 };
-def cmap_subtable_format2 : Repr platform_id -> Format = fun platform => {
+def cmap_subtable_format2 : Repr platform_id -> Format = 
+fun platform => {
     length <- u16be,
     language <- cmap_language_id platform,
-    sub_header_keys <- repeat_len16 256 u16be,
+    sub_header_keys <- repeat_len16 256 u16be
 };
-def reserved : fun (format : Format) -> Repr format -> Format =
+def reserved : fun (format : Format) -> Repr format -> Format = 
 fun format default => format;
-def cmap_subtable_format4 : Repr platform_id -> Format = fun platform => {
+def cmap_subtable_format4 : Repr platform_id -> Format = 
+fun platform => {
     length <- u16be,
     language <- cmap_language_id platform,
     seg_count_x2 <- u16be,
@@ -63,81 +56,85 @@ def cmap_subtable_format4 : Repr platform_id -> Format = fun platform => {
     _reserved_pad <- reserved s16be 0,
     start_code <- repeat_len16 seg_count u16be,
     id_delta <- repeat_len16 seg_count s16be,
-    id_range_offsets <- repeat_len16 seg_count u16be,
+    id_range_offsets <- repeat_len16 seg_count u16be
 };
-def cmap_subtable_format6 : Repr platform_id -> Format = fun platform => {
+def cmap_subtable_format6 : Repr platform_id -> Format = 
+fun platform => {
     length <- u16be,
     language <- cmap_language_id platform,
     first_code <- u16be,
     entry_count <- u16be,
-    glyph_id_array <- repeat_len16 entry_count u16be,
+    glyph_id_array <- repeat_len16 entry_count u16be
 };
 def language_id32 : Format = u32be;
-def cmap_language_id32 : Repr platform_id -> Format =
+def cmap_language_id32 : Repr platform_id -> Format = 
 fun platform => language_id32;
-def sequential_map_group : Format = {
-    start_char_code <- u32be,
-    end_char_code <- u32be,
-    start_glyph_id <- u32be,
-};
-def cmap_subtable_format8 : Repr platform_id -> Format = fun platform => {
+def sequential_map_group : Format = 
+{ start_char_code <- u32be, end_char_code <- u32be, start_glyph_id <- u32be };
+def cmap_subtable_format8 : Repr platform_id -> Format = 
+fun platform => {
     _reserved <- reserved u16be 0,
     length <- u32be,
     language <- cmap_language_id32 platform,
     is32 <- repeat_len16 8192 u8,
     num_groups <- u32be,
-    groups <- repeat_len32 num_groups sequential_map_group,
+    groups <- repeat_len32 num_groups sequential_map_group
 };
-def cmap_subtable_format10 : Repr platform_id -> Format = fun platform => {
+def cmap_subtable_format10 : Repr platform_id -> Format = 
+fun platform => {
     _reserved <- reserved u16be 0,
     length <- u32be,
     language <- cmap_language_id32 platform,
     start_char_code <- u32be,
     num_chars <- u32be,
-    glyph_id_array <- repeat_len32 num_chars u16be,
+    glyph_id_array <- repeat_len32 num_chars u16be
 };
-def cmap_subtable_format12 : Repr platform_id -> Format = fun platform => {
+def cmap_subtable_format12 : Repr platform_id -> Format = 
+fun platform => {
     _reserved <- reserved u16be 0,
     length <- u32be,
     language <- cmap_language_id32 platform,
     num_groups <- u32be,
-    groups <- repeat_len32 num_groups sequential_map_group,
+    groups <- repeat_len32 num_groups sequential_map_group
 };
 def constant_map_group : Format = sequential_map_group;
-def cmap_subtable_format13 : Repr platform_id -> Format = fun platform => {
+def cmap_subtable_format13 : Repr platform_id -> Format = 
+fun platform => {
     _reserved <- reserved u16be 0,
     length <- u32be,
     language <- cmap_language_id32 platform,
     num_groups <- u32be,
-    groups <- repeat_len32 num_groups constant_map_group,
+    groups <- repeat_len32 num_groups constant_map_group
 };
 def u24be : Format = repeat_len8 3 u8;
-def unicode_range : Format = {
-    start_unicode_value <- u24be,
-    additional_count <- u8,
-};
-def default_uvs_table : Format = {
+def unicode_range : Format = 
+{ start_unicode_value <- u24be, additional_count <- u8 };
+def default_uvs_table : Format = 
+{
     num_unicode_value_ranges <- u32be,
-    ranges <- repeat_len32 num_unicode_value_ranges unicode_range,
+    ranges <- repeat_len32 num_unicode_value_ranges unicode_range
 };
 def uvs_mapping : Format = { unicode_value <- u24be, glyph_id <- u16be };
-def non_default_uvs_table : Format = {
+def non_default_uvs_table : Format = 
+{
     num_uvs_mappings <- u32be,
-    uvs_mappings <- repeat_len32 num_uvs_mappings uvs_mapping,
+    uvs_mappings <- repeat_len32 num_uvs_mappings uvs_mapping
 };
-def variation_selector : Pos -> Format = fun table_start => {
+def variation_selector : Pos -> Format = 
+fun table_start => {
     var_selector <- u24be,
     default_uvs_offset <- offset32 table_start default_uvs_table,
-    non_default_uvs_offset <- offset32 table_start non_default_uvs_table,
+    non_default_uvs_offset <- offset32 table_start non_default_uvs_table
 };
-def cmap_subtable_format14 : Repr platform_id -> Pos -> Format =
+def cmap_subtable_format14 : Repr platform_id -> Pos -> Format = 
 fun platform table_start => {
     length <- u32be,
     num_var_selector_records <- u32be,
-    var_selector <- repeat_len32 num_var_selector_records (variation_selector table_start),
+    var_selector <- repeat_len32 num_var_selector_records (variation_selector table_start)
 };
 def unknown_table : Format = ();
-def cmap_subtable : Repr platform_id -> Format = fun platform => {
+def cmap_subtable : Repr platform_id -> Format = 
+fun platform => {
     table_start <- stream_pos,
     format <- u16be,
     data <- match format {
@@ -150,32 +147,35 @@ def cmap_subtable : Repr platform_id -> Format = fun platform => {
         12 => cmap_subtable_format12 platform,
         13 => cmap_subtable_format13 platform,
         14 => cmap_subtable_format14 platform table_start,
-        _ => unknown_table,
-    },
+        _ => unknown_table
+    }
 };
-def encoding_record : Pos -> Format = fun table_start => {
+def encoding_record : Pos -> Format = 
+fun table_start => {
     platform <- platform_id,
     encoding <- encoding_id platform,
-    subtable_offset <- offset32 table_start (cmap_subtable platform),
+    subtable_offset <- offset32 table_start (cmap_subtable platform)
 };
-def cmap_table : Format = {
+def cmap_table : Format = 
+{
     table_start <- stream_pos,
     version <- u16be,
     num_tables <- u16be,
-    encoding_records <- repeat_len16 num_tables (encoding_record table_start),
+    encoding_records <- repeat_len16 num_tables (encoding_record table_start)
 };
 def fixed : Format = u32be;
 def long_date_time : Format = s64be;
-def deprecated : fun (format : Format) -> Repr format -> Format =
+def deprecated : fun (format : Format) -> Repr format -> Format = 
 fun format default => format;
-def head_table : Format = {
+def head_table : Format = 
+{
     major_version <- u16be where major_version == (1 : U16),
     minor_version <- u16be,
     font_revision <- fixed,
     checksum_adjustment <- u32be,
     magic_number <- u32be where magic_number == (0x5f0f3cf5 : U32),
     flags <- u16be,
-    units_per_em <- u16be where bool_and (units_per_em >= (16 :
+    units_per_em <- u16be where bool_and (units_per_em >= (16 : 
     U16)) (units_per_em <= (16384 : U16)),
     created <- long_date_time,
     modified <- long_date_time,
@@ -183,17 +183,18 @@ def head_table : Format = {
         x_min <- s16be,
         y_min <- s16be,
         x_max <- s16be,
-        y_max <- s16be,
+        y_max <- s16be
     },
     mac_style <- u16be,
     lowest_rec_ppem <- u16be,
     font_direction_hint <- deprecated s16be 2,
     index_to_loc_format <- s16be,
-    glyph_data_format <- s16be,
+    glyph_data_format <- s16be
 };
 def fword : Format = s16be;
 def ufword : Format = u16be;
-def hhea_table : Format = {
+def hhea_table : Format = 
+{
     major_version <- u16be where major_version == (1 : U16),
     minor_version <- u16be,
     ascent <- fword,
@@ -210,10 +211,11 @@ def hhea_table : Format = {
     _reserved2 <- reserved s16be 0,
     _reserved3 <- reserved s16be 0,
     metric_data_format <- s16be,
-    number_of_long_horizontal_metrics <- u16be,
+    number_of_long_horizontal_metrics <- u16be
 };
 def version16dot16 : Format = u32be;
-def maxp_version_1 : Format = {
+def maxp_version_1 : Format = 
+{
     max_points <- u16be,
     max_contours <- u16be,
     max_composite_points <- u16be,
@@ -226,43 +228,47 @@ def maxp_version_1 : Format = {
     max_stack_elements <- u16be,
     max_size_of_instructions <- u16be,
     max_component_elements <- u16be,
-    max_component_depth <- u16be where max_component_depth <= (16 : U16),
+    max_component_depth <- u16be where max_component_depth <= (16 : U16)
 };
-def maxp_table : Format = {
+def maxp_table : Format = 
+{
     version <- version16dot16,
     num_glyphs <- u16be,
-    data <- match version { 0x10000 => maxp_version_1, _ => unknown_table },
+    data <- match version { 0x10000 => maxp_version_1, _ => unknown_table }
 };
-def long_horizontal_metric : Format = {
-    advance_width <- u16be,
-    left_side_bearing <- s16be,
-};
-def htmx_table : U16 -> U16 -> Format =
+def long_horizontal_metric : Format = 
+{ advance_width <- u16be, left_side_bearing <- s16be };
+def htmx_table : U16 -> U16 -> Format = 
 fun number_of_long_horizontal_metrics num_glyphs => {
     h_metrics <- repeat_len16 number_of_long_horizontal_metrics long_horizontal_metric,
-    left_side_bearings <- repeat_len16 (num_glyphs - number_of_long_horizontal_metrics) s16be,
+    left_side_bearings <- repeat_len16 (num_glyphs - number_of_long_horizontal_metrics) s16be
 };
-def offset16 : Pos -> Format -> Format = fun base format => {
+def offset16 : Pos -> Format -> Format = 
+fun base format => {
     offset <- u16be,
-    link <- match offset { 0 => empty, _ => link (base + offset) format },
+    link <- match offset { 0 => empty, _ => link (base + offset) format }
 };
-def name_record : Pos -> Format = fun storage_start => {
+def name_record : Pos -> Format = 
+fun storage_start => {
     platform <- platform_id,
     encoding <- encoding_id platform,
     language <- language_id,
     name_id <- u16be,
     length <- u16be,
-    offset <- offset16 storage_start (repeat_len16 length u8),
+    offset <- offset16 storage_start (repeat_len16 length u8)
 };
-def lang_tag_record : Pos -> Format = fun storage_start => {
+def lang_tag_record : Pos -> Format = 
+fun storage_start => {
     length <- u16be,
-    offset <- offset16 storage_start (repeat_len16 length u8),
+    offset <- offset16 storage_start (repeat_len16 length u8)
 };
-def name_version_1 : Pos -> Format = fun storage_start => {
+def name_version_1 : Pos -> Format = 
+fun storage_start => {
     lang_tag_count <- u16be,
-    lang_tag_records <- repeat_len16 lang_tag_count (lang_tag_record storage_start),
+    lang_tag_records <- repeat_len16 lang_tag_count (lang_tag_record storage_start)
 };
-def name_table : Format = {
+def name_table : Format = 
+{
     table_start <- stream_pos,
     version <- u16be,
     name_count <- u16be,
@@ -271,35 +277,40 @@ def name_table : Format = {
     data <- match version {
         0 => (),
         1 => name_version_1 (table_start + storage_offset),
-        _ => unknown_table,
-    },
+        _ => unknown_table
+    }
 };
-def os2_version_0 : Format = {
+def os2_version_0 : Format = 
+{
     s_typo_ascender <- s16be,
     s_typo_descender <- s16be,
     s_typo_line_gap <- s16be,
     us_win_ascent <- u16be,
-    usWinDescent <- u16be,
+    usWinDescent <- u16be
 };
-def os2_version_1 : Format = {
+def os2_version_1 : Format = 
+{
     version_0 <- os2_version_0,
     ul_code_page_range1 <- u32be,
-    ul_code_page_range2 <- u32be,
+    ul_code_page_range2 <- u32be
 };
-def os2_version_2_3_4 : Format = {
+def os2_version_2_3_4 : Format = 
+{
     version_1 <- os2_version_1,
     sx_height <- s16be,
     s_cap_height <- s16be,
     us_default_char <- u16be,
     us_break_char <- u16be,
-    us_max_context <- u16be,
+    us_max_context <- u16be
 };
-def os2_version_5 : Format = {
+def os2_version_5 : Format = 
+{
     parent <- os2_version_2_3_4,
     usLowerOpticalPointSize <- u16be,
-    usUpperOpticalPointSize <- u16be,
+    usUpperOpticalPointSize <- u16be
 };
-def os2_table : U32 -> Format = fun table_length => {
+def os2_table : U32 -> Format = 
+fun table_length => {
     version <- u16be,
     x_avg_char_width <- s16be,
     us_weight_class <- u16be,
@@ -332,10 +343,11 @@ def os2_table : U32 -> Format = fun table_length => {
         3 => os2_version_2_3_4,
         4 => os2_version_2_3_4,
         5 => os2_version_5,
-        _ => os2_version_5,
-    },
+        _ => os2_version_5
+    }
 };
-def post_table : Format = {
+def post_table : Format = 
+{
     version <- version16dot16,
     italic_angle <- fixed,
     underline_position <- fword,
@@ -350,158 +362,154 @@ def post_table : Format = {
         0x20000 => {
             num_glyphs <- u16be,
             glyph_name_index <- repeat_len16 num_glyphs u16be,
-            string_data <- stream_pos,
+            string_data <- stream_pos
         },
-        0x25000 => {
-            num_glyphs <- u16be,
-            offset <- repeat_len16 num_glyphs s8,
-        },
+        0x25000 => { num_glyphs <- u16be, offset <- repeat_len16 num_glyphs s8 },
         0x30000 => (),
-        _ => (),
-    },
+        _ => ()
+    }
 };
-def glyph_header : Format = {
+def glyph_header : Format = 
+{
     number_of_contours <- s16be,
     x_min <- s16be,
     y_min <- s16be,
     x_max <- s16be,
-    y_max <- s16be,
+    y_max <- s16be
 };
 def args_are_signed : U16 -> Bool = fun flags => u16_and flags 0x2 != (0 : U16);
-def arg_format : U16 -> Format = fun flags => if u16_and flags 0x1 != (0 : U16)
+def arg_format : U16 -> Format = 
+fun flags => if u16_and flags 0x1 != (0 : U16)
     then if args_are_signed flags then s16be else u16be
     else if args_are_signed flags then s8
     else u8;
-def composite_glyph : Format = {
+def composite_glyph : Format = 
+{
     flags <- u16be,
     glyphIndex <- u16be,
     argument1 <- arg_format flags,
-    argument2 <- arg_format flags,
+    argument2 <- arg_format flags
 };
-def simple_glyph : U16 -> Format = fun number_of_contours => {
+def simple_glyph : U16 -> Format = 
+fun number_of_contours => {
     end_pts_of_contours <- repeat_len16 number_of_contours u16be,
     instruction_length <- u16be,
     instructions <- repeat_len16 instruction_length u8,
-    let last_end_point_index : U16 = array16_index @number_of_contours @U16 (number_of_contours - (1 :
+    let last_end_point_index : U16 = array16_index @number_of_contours @U16 (number_of_contours - (1 : 
     U16)) end_pts_of_contours,
-    let number_of_coords : U16 = last_end_point_index + (1 : U16),
+    let number_of_coords : U16 = last_end_point_index + (1 : U16)
 };
-def glyph : Format = {
+def glyph : Format = 
+{
     header <- glyph_header,
     data <- if header.number_of_contours < (0 : S16)
         then composite_glyph
-        else simple_glyph (s16_unsigned_abs header.number_of_contours),
+        else simple_glyph (s16_unsigned_abs header.number_of_contours)
 };
-def glyf_table : U16 -> Format = fun num_glyphs => {
-    glyphs <- repeat_len16 num_glyphs glyph,
-};
-def loca_table : U16 -> S16 -> Format = fun num_glyphs index_to_loc_format => {
+def glyf_table : U16 -> Format = 
+fun num_glyphs => { glyphs <- repeat_len16 num_glyphs glyph };
+def loca_table : U16 -> S16 -> Format = 
+fun num_glyphs index_to_loc_format => {
     offsets <- match index_to_loc_format {
         0 => repeat_len16 (num_glyphs + (1 : U16)) u16be,
         1 => repeat_len16 (num_glyphs + (1 : U16)) u32be,
-        _ => unknown_table,
-    },
+        _ => unknown_table
+    }
 };
 def base_table : Format = unknown_table;
-def coverage_format_1 : Format = {
-    glyph_count <- u16be,
-    glyph_array <- repeat_len16 glyph_count u16be,
-};
-def coverage_format_2 : Format = let range_record : Format = {
-    start_glyph_id <- u16be,
-    end_glyph_id <- u16be,
-    start_coverage_index <- u16be,
-};
+def coverage_format_1 : Format = 
+{ glyph_count <- u16be, glyph_array <- repeat_len16 glyph_count u16be };
+def coverage_format_2 : Format = 
+let range_record : Format = 
+{ start_glyph_id <- u16be, end_glyph_id <- u16be, start_coverage_index <- u16be };
+{ range_count <- u16be, range_records <- repeat_len16 range_count range_record };
+def coverage_table : Format = 
 {
-    range_count <- u16be,
-    range_records <- repeat_len16 range_count range_record,
-};
-def coverage_table : Format = {
     coverage_format <- u16be,
     data <- match coverage_format {
         1 => coverage_format_1,
         2 => coverage_format_2,
-        _ => unknown_table,
-    },
+        _ => unknown_table
+    }
 };
-def mark_glyph_sets : Format = {
+def mark_glyph_sets : Format = 
+{
     table_start <- stream_pos,
     format <- u16be,
     mark_glyph_set_count <- u16be,
-    coverage <- repeat_len16 mark_glyph_set_count (offset32 table_start coverage_table),
+    coverage <- repeat_len16 mark_glyph_set_count (offset32 table_start coverage_table)
 };
-def class_def_format_1 : Format = {
+def class_def_format_1 : Format = 
+{
     start_glyph_id <- u16be,
     glyph_count <- u16be,
-    class_value_array <- repeat_len16 glyph_count u16be,
+    class_value_array <- repeat_len16 glyph_count u16be
 };
-def class_def_format_2 : Format = let class_range_record : Format = {
-    start_glyph_id <- u16be,
-    end_glyph_id <- u16be,
-    class <- u16be,
-};
+def class_def_format_2 : Format = 
+let class_range_record : Format = 
+{ start_glyph_id <- u16be, end_glyph_id <- u16be, class <- u16be };
 {
     class_range_count <- u16be,
-    class_range_records <- repeat_len16 class_range_count class_range_record,
+    class_range_records <- repeat_len16 class_range_count class_range_record
 };
-def class_def : Format = {
+def class_def : Format = 
+{
     class_format <- u16be,
     data <- match class_format {
         1 => class_def_format_1,
         2 => class_def_format_2,
-        _ => unknown_table,
-    },
+        _ => unknown_table
+    }
 };
-def attach_list : Format = let attach_point_table : Format = {
-    point_count <- u16be,
-    point_indices <- repeat_len16 point_count u16be,
-};
+def attach_list : Format = 
+let attach_point_table : Format = 
+{ point_count <- u16be, point_indices <- repeat_len16 point_count u16be };
 {
     table_start <- stream_pos,
     coverage <- offset16 table_start coverage_table,
     glyph_count <- u16be,
-    attach_point_offsets <- repeat_len16 glyph_count (offset16 table_start attach_point_table),
+    attach_point_offsets <- repeat_len16 glyph_count (offset16 table_start attach_point_table)
 };
-def device_table : Format = let u16_div_ceil : U16 -> U16 -> U16 =
+def device_table : Format = 
+let u16_div_ceil : U16 -> U16 -> U16 = 
 fun numerator denominator => let quotient : U16 = numerator / denominator;
 if (quotient * denominator) < numerator then quotient + (1 : U16) else quotient;
-let delta_bits : U16 -> U16 -> U16 =
+let delta_bits : U16 -> U16 -> U16 = 
 fun delta_format num_sizes => match delta_format {
     0x1 => num_sizes * (2 : U16),
     0x2 => num_sizes * (4 : U16),
     0x3 => num_sizes * (8 : U16),
-    _ => 0,
+    _ => 0
 };
 let num_sizes : U16 -> U16 -> U16 = fun start end => end - start + (1 : U16);
 {
     start_size <- u16be,
     end_size <- u16be,
     delta_format <- u16be,
-    delta_values <- let delta_bits : U16 =
+    delta_values <- let delta_bits : U16 = 
     delta_bits delta_format (num_sizes start_size end_size);
-    repeat_len16 (u16_div_ceil delta_bits 16) u16be,
+    repeat_len16 (u16_div_ceil delta_bits 16) u16be
 };
-def variation_index_table : Format = {
-    delta_set_outer_index <- u16be,
-    delta_set_inner_index <- u16be,
-};
-def device_or_variation_index_table : Format = overlap {
+def variation_index_table : Format = 
+{ delta_set_outer_index <- u16be, delta_set_inner_index <- u16be };
+def device_or_variation_index_table : Format = 
+overlap {
     init <- { _skipped <- repeat_len8 4 u8, table_format <- u16be },
     table <- match init.table_format {
         0x1 => device_table,
         0x2 => device_table,
         0x3 => device_table,
         0x8000 => variation_index_table,
-        _ => unknown_table,
-    },
+        _ => unknown_table
+    }
 };
-def caret_value : Format = let caret_value_format_1 : Format = {
-    coordinate <- s16be,
-};
+def caret_value : Format = 
+let caret_value_format_1 : Format = { coordinate <- s16be };
 let caret_value_format_2 : Format = { caret_value_point_index <- u16be };
-let caret_value_format_3 : Pos -> Format = fun table_start => {
+let caret_value_format_3 : Pos -> Format = 
+fun table_start => {
     coordinate <- s16be,
-    table <- offset16 table_start device_or_variation_index_table,
+    table <- offset16 table_start device_or_variation_index_table
 };
 {
     table_start <- stream_pos,
@@ -510,27 +518,27 @@ let caret_value_format_3 : Pos -> Format = fun table_start => {
         1 => caret_value_format_1,
         2 => caret_value_format_2,
         3 => caret_value_format_3 table_start,
-        _ => unknown_table,
-    },
+        _ => unknown_table
+    }
 };
-def lig_glyph : Format = {
+def lig_glyph : Format = 
+{
     table_start <- stream_pos,
     caret_count <- u16be,
-    caret_values <- repeat_len16 caret_count (offset16 table_start caret_value),
+    caret_values <- repeat_len16 caret_count (offset16 table_start caret_value)
 };
-def lig_caret_list : Format = {
+def lig_caret_list : Format = 
+{
     table_start <- stream_pos,
     coverage <- offset16 table_start coverage_table,
     lig_glyph_count <- u16be,
-    lig_glyph_offsets <- repeat_len16 lig_glyph_count (offset16 table_start lig_glyph),
+    lig_glyph_offsets <- repeat_len16 lig_glyph_count (offset16 table_start lig_glyph)
 };
-def gdef_table : Format = let gdef_header_version_1_2 : Pos -> Format =
-fun gdef_start => {
-    mark_glyph_sets_def <- offset16 gdef_start mark_glyph_sets,
-};
-let gdef_header_version_1_3 : Pos -> Format = fun gdef_start => {
-    item_var_store <- u32be,
-};
+def gdef_table : Format = 
+let gdef_header_version_1_2 : Pos -> Format = 
+fun gdef_start => { mark_glyph_sets_def <- offset16 gdef_start mark_glyph_sets };
+let gdef_header_version_1_3 : Pos -> Format = 
+fun gdef_start => { item_var_store <- u32be };
 {
     table_start <- stream_pos,
     major_version <- u16be where major_version == (1 : U16),
@@ -544,71 +552,77 @@ let gdef_header_version_1_3 : Pos -> Format = fun gdef_start => {
         1 => (),
         2 => gdef_header_version_1_2 table_start,
         3 => gdef_header_version_1_3 table_start,
-        _ => gdef_header_version_1_3 table_start,
-    },
+        _ => gdef_header_version_1_3 table_start
+    }
 };
-def lang_sys : Format = {
+def lang_sys : Format = 
+{
     lookup_order_offset <- u16be,
     required_feature_index <- u16be,
     feature_index_count <- u16be,
-    feature_indices <- repeat_len16 feature_index_count u16be,
+    feature_indices <- repeat_len16 feature_index_count u16be
 };
-def lang_sys_record : Pos -> Format = fun script_start => {
+def lang_sys_record : Pos -> Format = 
+fun script_start => {
     lang_sys_tag <- tag,
-    lang_sys <- offset16 script_start lang_sys,
+    lang_sys <- offset16 script_start lang_sys
 };
-def script_table : Format = {
+def script_table : Format = 
+{
     table_start <- stream_pos,
     default_lang_sys <- offset16 table_start lang_sys,
     lang_sys_count <- u16be,
-    lang_sys_records <- repeat_len16 lang_sys_count (lang_sys_record table_start),
+    lang_sys_records <- repeat_len16 lang_sys_count (lang_sys_record table_start)
 };
-def script_list : Format = let script_record : Pos -> Format =
+def script_list : Format = 
+let script_record : Pos -> Format = 
 fun script_list_start => {
     script_tag <- tag,
-    script <- offset16 script_list_start script_table,
+    script <- offset16 script_list_start script_table
 };
 {
     table_start <- stream_pos,
     script_count <- u16be,
-    script_records <- repeat_len16 script_count (script_record table_start),
+    script_records <- repeat_len16 script_count (script_record table_start)
 };
-def feature_table : Format = {
+def feature_table : Format = 
+{
     table_start <- stream_pos,
     feature_params <- u16be,
     lookup_index_count <- u16be,
-    lookup_list_indices <- repeat_len16 lookup_index_count u16be,
+    lookup_list_indices <- repeat_len16 lookup_index_count u16be
 };
-def feature_list : Format = let feature_record : Pos -> Format =
+def feature_list : Format = 
+let feature_record : Pos -> Format = 
 fun feature_list_start => {
     feature_tag <- tag,
-    feature <- offset16 feature_list_start feature_table,
+    feature <- offset16 feature_list_start feature_table
 };
 {
     table_start <- stream_pos,
     feature_count <- u16be,
-    feature_records <- repeat_len16 feature_count (feature_record table_start),
+    feature_records <- repeat_len16 feature_count (feature_record table_start)
 };
-def single_substitution : Format = {
+def single_substitution : Format = 
+{
     table_start <- stream_pos,
     subst_format <- u16be,
     subst <- match subst_format {
         1 => {
             coverage <- offset16 table_start coverage_table,
-            delta_glyph_id <- s16be,
+            delta_glyph_id <- s16be
         },
         2 => {
             coverage <- offset16 table_start coverage_table,
             glyph_count <- u16be,
-            substitute_glyph_ids <- repeat_len16 glyph_count u16be,
+            substitute_glyph_ids <- repeat_len16 glyph_count u16be
         },
-        _ => unknown_table,
-    },
+        _ => unknown_table
+    }
 };
-def multiple_substitution : Format = let sequence_table : Format = {
-    glyph_count <- u16be,
-    substitute_glyph_ids <- repeat_len16 glyph_count u16be,
-};
+def multiple_substitution : Format = 
+let sequence_table : Format = 
+{ glyph_count <- u16be, substitute_glyph_ids <- repeat_len16 glyph_count u16be };
 {
     table_start <- stream_pos,
     subst_format <- u16be,
@@ -616,15 +630,14 @@ def multiple_substitution : Format = let sequence_table : Format = {
     subst <- match subst_format {
         1 => {
             sequence_count <- u16be,
-            sequences <- repeat_len16 sequence_count (offset16 table_start sequence_table),
+            sequences <- repeat_len16 sequence_count (offset16 table_start sequence_table)
         },
-        _ => unknown_table,
-    },
+        _ => unknown_table
+    }
 };
-def alternate_substitution : Format = let alternate_set : Format = {
-    glyph_count <- u16be,
-    alternate_glyph_ids <- repeat_len16 glyph_count u16be,
-};
+def alternate_substitution : Format = 
+let alternate_set : Format = 
+{ glyph_count <- u16be, alternate_glyph_ids <- repeat_len16 glyph_count u16be };
 {
     table_start <- stream_pos,
     subst_format <- u16be,
@@ -632,20 +645,23 @@ def alternate_substitution : Format = let alternate_set : Format = {
     subst <- match subst_format {
         1 => {
             alternate_set_count <- u16be,
-            alternate_sets <- repeat_len16 alternate_set_count (offset16 table_start alternate_set),
+            alternate_sets <- repeat_len16 alternate_set_count (offset16 table_start alternate_set)
         },
-        _ => unknown_table,
-    },
+        _ => unknown_table
+    }
 };
-def ligature_substitution : Format = let ligature_table : Format = {
+def ligature_substitution : Format = 
+let ligature_table : Format = 
+{
     ligature_glyph <- u16be,
     component_count <- u16be,
-    component_glyph_ids <- repeat_len16 (component_count - (1 : U16)) u16be,
+    component_glyph_ids <- repeat_len16 (component_count - (1 : U16)) u16be
 };
-let ligature_set : Format = {
+let ligature_set : Format = 
+{
     table_start <- stream_pos,
     ligature_count <- u16be,
-    ligatures <- repeat_len16 ligature_count (offset16 table_start ligature_table),
+    ligatures <- repeat_len16 ligature_count (offset16 table_start ligature_table)
 };
 {
     table_start <- stream_pos,
@@ -654,79 +670,87 @@ let ligature_set : Format = {
     subst <- match subst_format {
         1 => {
             ligature_set_count <- u16be,
-            ligature_sets <- repeat_len16 ligature_set_count (offset16 table_start ligature_set),
+            ligature_sets <- repeat_len16 ligature_set_count (offset16 table_start ligature_set)
         },
-        _ => unknown_table,
-    },
+        _ => unknown_table
+    }
 };
-def sequence_lookup_record : Format = {
-    sequence_index <- u16be,
-    lookup_list_index <- u16be,
-};
-def sequence_context_format1 : Format = let sequence_rule : Format = {
+def sequence_lookup_record : Format = 
+{ sequence_index <- u16be, lookup_list_index <- u16be };
+def sequence_context_format1 : Format = 
+let sequence_rule : Format = 
+{
     glyph_count <- u16be,
     seq_lookup_count <- u16be,
     input_sequence <- repeat_len16 (glyph_count - (1 : U16)) u16be,
-    seq_lookup_records <- repeat_len16 seq_lookup_count sequence_lookup_record,
+    seq_lookup_records <- repeat_len16 seq_lookup_count sequence_lookup_record
 };
-let sequence_rule_set : Format = {
+let sequence_rule_set : Format = 
+{
     table_start <- stream_pos,
     seq_rule_count <- u16be,
-    seq_rules <- repeat_len16 seq_rule_count (offset16 table_start sequence_rule),
+    seq_rules <- repeat_len16 seq_rule_count (offset16 table_start sequence_rule)
 };
 {
     table_start <- stream_pos,
     coverage <- offset16 table_start coverage_table,
     seq_rule_set_count <- u16be,
-    seq_rule_sets <- repeat_len16 seq_rule_set_count (offset16 table_start sequence_rule_set),
+    seq_rule_sets <- repeat_len16 seq_rule_set_count (offset16 table_start sequence_rule_set)
 };
-def sequence_context_format2 : Format = let class_sequence_rule : Format = {
+def sequence_context_format2 : Format = 
+let class_sequence_rule : Format = 
+{
     glyph_count <- u16be,
     seq_lookup_count <- u16be,
     input_sequence <- repeat_len16 (glyph_count - (1 : U16)) u16be,
-    seqLookupRecords <- repeat_len16 seq_lookup_count sequence_lookup_record,
+    seqLookupRecords <- repeat_len16 seq_lookup_count sequence_lookup_record
 };
-let class_sequence_rule_set : Format = {
+let class_sequence_rule_set : Format = 
+{
     table_start <- stream_pos,
     class_seq_rule_count <- u16be,
-    class_seq_rules <- repeat_len16 class_seq_rule_count (offset16 table_start class_sequence_rule),
+    class_seq_rules <- repeat_len16 class_seq_rule_count (offset16 table_start class_sequence_rule)
 };
 {
     table_start <- stream_pos,
     coverage <- offset16 table_start coverage_table,
     class_def <- offset16 table_start class_def,
     class_seq_rule_set_count <- u16be,
-    class_seq_rule_sets <- repeat_len16 class_seq_rule_set_count (offset16 table_start class_sequence_rule_set),
+    class_seq_rule_sets <- repeat_len16 class_seq_rule_set_count (offset16 table_start class_sequence_rule_set)
 };
-def sequence_context_format3 : Format = {
+def sequence_context_format3 : Format = 
+{
     table_start <- stream_pos,
     glyph_count <- u16be,
     seq_lookup_count <- u16be,
     coverage_tables <- repeat_len16 glyph_count (offset16 table_start coverage_table),
-    seq_lookup_records <- repeat_len16 seq_lookup_count sequence_lookup_record,
+    seq_lookup_records <- repeat_len16 seq_lookup_count sequence_lookup_record
 };
-def sequence_context : Format = {
+def sequence_context : Format = 
+{
     format <- u16be,
     subst <- match format {
         1 => sequence_context_format1,
         2 => sequence_context_format2,
         3 => sequence_context_format3,
-        _ => unknown_table,
-    },
+        _ => unknown_table
+    }
 };
 def contextual_substitution : Format = sequence_context;
-def chained_sequence_context : Format = {
+def chained_sequence_context : Format = 
+{
     format <- u16be,
     subst <- match format {
         1 => sequence_context_format1,
         2 => sequence_context_format2,
         3 => sequence_context_format3,
-        _ => unknown_table,
-    },
+        _ => unknown_table
+    }
 };
 def chained_contexts_substitution : Format = chained_sequence_context;
-def reverse_chaining_contextual_single_substitution : Format =
-let reverse_chain_single_subst_format1 : Format = {
+def reverse_chaining_contextual_single_substitution : Format = 
+let reverse_chain_single_subst_format1 : Format = 
+{
     table_start <- stream_pos,
     coverage <- offset16 table_start coverage_table,
     backtrack_glyph_count <- u16be,
@@ -734,16 +758,18 @@ let reverse_chain_single_subst_format1 : Format = {
     lookahead_glyph_count <- u16be,
     lookahead_coverage_tables <- repeat_len16 lookahead_glyph_count (offset16 table_start coverage_table),
     glyph_count <- u16be,
-    substitute_glyph_ids <- repeat_len16 glyph_count u16be,
+    substitute_glyph_ids <- repeat_len16 glyph_count u16be
 };
 {
     subst_format <- u16be,
     subtable <- match subst_format {
         1 => reverse_chain_single_subst_format1,
-        _ => unknown_table,
-    },
+        _ => unknown_table
+    }
 };
-def extension_substitution : Format = let extension_subst_format1 : Format = {
+def extension_substitution : Format = 
+let extension_subst_format1 : Format = 
+{
     table_start <- stream_pos,
     extension_lookup_type <- u16be,
     extension_subtable <- match extension_lookup_type {
@@ -755,17 +781,17 @@ def extension_substitution : Format = let extension_subst_format1 : Format = {
         6 => chained_contexts_substitution,
         7 => fail,
         8 => reverse_chaining_contextual_single_substitution,
-        _ => unknown_table,
-    },
+        _ => unknown_table
+    }
 };
 {
     subst_format <- u16be,
     subtable <- match subst_format {
         1 => extension_subst_format1,
-        _ => unknown_table,
-    },
+        _ => unknown_table
+    }
 };
-def value_record : Pos -> U16 -> Format =
+def value_record : Pos -> U16 -> Format = 
 fun table_start flags => let X_PLACEMENT : U16 = 0x1;
 let Y_PLACEMENT : U16 = 0x2;
 let X_ADVANCE : U16 = 0x4;
@@ -774,7 +800,7 @@ let X_PLACEMENT_DEVICE : U16 = 0x10;
 let Y_PLACEMENT_DEVICE : U16 = 0x20;
 let X_ADVANCE_DEVICE : U16 = 0x40;
 let Y_ADVANCE_DEVICE : U16 = 0x80;
-let optional_field : U16 -> Format -> Format =
+let optional_field : U16 -> Format -> Format = 
 fun field format => if u16_and flags field != (0 : U16) then format else empty;
 {
     x_placement <- optional_field X_PLACEMENT s16be,
@@ -784,19 +810,21 @@ fun field format => if u16_and flags field != (0 : U16) then format else empty;
     x_pla_device_offset <- optional_field X_PLACEMENT_DEVICE (offset16 table_start device_or_variation_index_table),
     y_pla_device_offset <- optional_field Y_PLACEMENT_DEVICE (offset16 table_start device_or_variation_index_table),
     x_adv_device_offset <- optional_field X_ADVANCE_DEVICE (offset16 table_start device_or_variation_index_table),
-    y_adv_device_offset <- optional_field Y_ADVANCE_DEVICE (offset16 table_start device_or_variation_index_table),
+    y_adv_device_offset <- optional_field Y_ADVANCE_DEVICE (offset16 table_start device_or_variation_index_table)
 };
-def single_adjustment : Format = let single_pos_format1 : Pos -> Format =
+def single_adjustment : Format = 
+let single_pos_format1 : Pos -> Format = 
 fun table_start => {
     coverage_offset <- offset16 table_start coverage_table,
     value_format <- u16be,
-    value_record <- value_record table_start value_format,
+    value_record <- value_record table_start value_format
 };
-let single_pos_format2 : Pos -> Format = fun table_start => {
+let single_pos_format2 : Pos -> Format = 
+fun table_start => {
     coverage_offset <- offset16 table_start coverage_table,
     value_format <- u16be,
     value_count <- u16be,
-    value_records <- repeat_len16 value_count (value_record table_start value_format),
+    value_records <- repeat_len16 value_count (value_record table_start value_format)
 };
 {
     table_start <- stream_pos,
@@ -804,41 +832,45 @@ let single_pos_format2 : Pos -> Format = fun table_start => {
     subtable <- match pos_format {
         1 => single_pos_format1 table_start,
         2 => single_pos_format2 table_start,
-        _ => unknown_table,
-    },
+        _ => unknown_table
+    }
 };
-def optional_value_record : Pos -> U16 -> Format =
+def optional_value_record : Pos -> U16 -> Format = 
 fun table_start flags => if flags == (0 : U16)
     then empty
     else value_record table_start flags;
-def pair_adjustment : Format = let pair_value_record : Pos -> U16 -> U16 ->
-Format = fun table_start value_format1 value_format2 => {
+def pair_adjustment : Format = 
+let pair_value_record : Pos -> U16 -> U16 -> Format = 
+fun table_start value_format1 value_format2 => {
     second_glyph <- u16be,
     value_record1 <- optional_value_record table_start value_format1,
-    value_record2 <- optional_value_record table_start value_format2,
+    value_record2 <- optional_value_record table_start value_format2
 };
-let pair_set : U16 -> U16 -> Format = fun value_format1 value_format2 => {
+let pair_set : U16 -> U16 -> Format = 
+fun value_format1 value_format2 => {
     table_start <- stream_pos,
     pair_value_count <- u16be,
-    pair_value_records <- repeat_len16 pair_value_count (pair_value_record table_start value_format1 value_format2),
+    pair_value_records <- repeat_len16 pair_value_count (pair_value_record table_start value_format1 value_format2)
 };
-let pair_pos_format1 : Pos -> Format = fun table_start => {
+let pair_pos_format1 : Pos -> Format = 
+fun table_start => {
     coverage <- offset16 table_start coverage_table,
     value_format1 <- u16be,
     value_format2 <- u16be,
     pair_set_count <- u16be,
-    pair_sets <- repeat_len16 pair_set_count (offset16 table_start (pair_set value_format1 value_format2)),
+    pair_sets <- repeat_len16 pair_set_count (offset16 table_start (pair_set value_format1 value_format2))
 };
-let class2_record : Pos -> U16 -> U16 -> Format =
+let class2_record : Pos -> U16 -> U16 -> Format = 
 fun table_start value_format1 value_format2 => {
     value_record1 <- optional_value_record table_start value_format1,
-    value_record2 <- optional_value_record table_start value_format2,
+    value_record2 <- optional_value_record table_start value_format2
 };
-let class1_record : Pos -> U16 -> U16 -> U16 -> Format =
+let class1_record : Pos -> U16 -> U16 -> U16 -> Format = 
 fun table_start class2_count value_format1 value_format2 => {
-    class2_records <- repeat_len16 class2_count (class2_record table_start value_format1 value_format2),
+    class2_records <- repeat_len16 class2_count (class2_record table_start value_format1 value_format2)
 };
-let pair_pos_format2 : Pos -> Format = fun pair_pos_start => {
+let pair_pos_format2 : Pos -> Format = 
+fun pair_pos_start => {
     coverage <- offset16 pair_pos_start coverage_table,
     value_format1 <- u16be,
     value_format2 <- u16be,
@@ -846,7 +878,7 @@ let pair_pos_format2 : Pos -> Format = fun pair_pos_start => {
     class_def2 <- offset16 pair_pos_start class_def,
     class1_count <- u16be,
     class2_count <- u16be,
-    class1_records <- repeat_len16 class1_count (class1_record pair_pos_start class2_count value_format1 value_format2),
+    class1_records <- repeat_len16 class1_count (class1_record pair_pos_start class2_count value_format1 value_format2)
 };
 {
     table_start <- stream_pos,
@@ -854,10 +886,11 @@ let pair_pos_format2 : Pos -> Format = fun pair_pos_start => {
     subtable <- match pos_format {
         1 => pair_pos_format1 table_start,
         2 => pair_pos_format2 table_start,
-        _ => unknown_table,
-    },
+        _ => unknown_table
+    }
 };
-def anchor_table : Format = {
+def anchor_table : Format = 
+{
     table_start <- stream_pos,
     anchor_format <- u16be,
     table <- match anchor_format {
@@ -865,102 +898,111 @@ def anchor_table : Format = {
         2 => {
             x_coordinate <- s16be,
             y_coordinate <- s16be,
-            anchor_point <- u16be,
+            anchor_point <- u16be
         },
         3 => {
             x_coordinate <- s16be,
             y_coordinate <- s16be,
             x_device_offset <- offset16 table_start device_or_variation_index_table,
-            y_device_offset <- offset16 table_start device_or_variation_index_table,
+            y_device_offset <- offset16 table_start device_or_variation_index_table
         },
-        _ => unknown_table,
-    },
+        _ => unknown_table
+    }
 };
-def cursive_attachment : Format = let entry_exit_record : Pos -> Format =
+def cursive_attachment : Format = 
+let entry_exit_record : Pos -> Format = 
 fun table_start => {
     entry_anchor <- offset16 table_start anchor_table,
-    exit_anchor <- offset16 table_start anchor_table,
+    exit_anchor <- offset16 table_start anchor_table
 };
-let cursive_pos_format1 : Pos -> Format = fun table_start => {
+let cursive_pos_format1 : Pos -> Format = 
+fun table_start => {
     coverage <- offset16 table_start coverage_table,
     entry_exit_count <- u16be,
-    entry_exit_record <- repeat_len16 entry_exit_count (entry_exit_record table_start),
+    entry_exit_record <- repeat_len16 entry_exit_count (entry_exit_record table_start)
 };
 {
     table_start <- stream_pos,
     pos_format <- u16be,
     subtable <- match pos_format {
         1 => cursive_pos_format1 table_start,
-        _ => unknown_table,
-    },
+        _ => unknown_table
+    }
 };
-def mark_array_table : Format = let mark_record : Pos -> Format =
+def mark_array_table : Format = 
+let mark_record : Pos -> Format = 
 fun table_start => {
     mark_class <- u16be,
-    mark_anchor_offset <- offset16 table_start anchor_table,
+    mark_anchor_offset <- offset16 table_start anchor_table
 };
 {
     table_start <- stream_pos,
     mark_count <- u16be,
-    mark_records <- repeat_len16 mark_count (mark_record table_start),
+    mark_records <- repeat_len16 mark_count (mark_record table_start)
 };
-def mark_to_base_attachment : Format = let base_record : Pos -> U16 -> Format =
+def mark_to_base_attachment : Format = 
+let base_record : Pos -> U16 -> Format = 
 fun table_start mark_class_count => {
-    base_anchors <- repeat_len16 mark_class_count (offset16 table_start anchor_table),
+    base_anchors <- repeat_len16 mark_class_count (offset16 table_start anchor_table)
 };
-let base_array_table : Pos -> U16 -> Format =
+let base_array_table : Pos -> U16 -> Format = 
 fun table_start mark_class_count => {
     base_count <- u16be,
-    base_records <- repeat_len16 base_count (base_record table_start mark_class_count),
+    base_records <- repeat_len16 base_count (base_record table_start mark_class_count)
 };
-let mark_base_pos_format1 : Pos -> Format = fun table_start => {
+let mark_base_pos_format1 : Pos -> Format = 
+fun table_start => {
     mark_coverage <- offset16 table_start coverage_table,
     base_coverage <- offset16 table_start coverage_table,
     mark_class_count <- u16be,
     mark_array <- offset16 table_start mark_array_table,
-    base_array <- offset16 table_start (base_array_table table_start mark_class_count),
+    base_array <- offset16 table_start (base_array_table table_start mark_class_count)
 };
 {
     table_start <- stream_pos,
     pos_format <- u16be,
     subtable <- match pos_format {
         1 => mark_base_pos_format1 table_start,
-        _ => unknown_table,
-    },
+        _ => unknown_table
+    }
 };
-def mark_to_ligature_attachment : Format = let component_record : Pos -> U16 ->
-Format = fun table_start mark_class_count => {
-    ligature_anchors <- repeat_len16 mark_class_count (offset16 table_start anchor_table),
+def mark_to_ligature_attachment : Format = 
+let component_record : Pos -> U16 -> Format = 
+fun table_start mark_class_count => {
+    ligature_anchors <- repeat_len16 mark_class_count (offset16 table_start anchor_table)
 };
-let ligature_attach : Pos -> U16 -> Format =
+let ligature_attach : Pos -> U16 -> Format = 
 fun table_start mark_class_count => {
     component_count <- u16be,
-    component_records <- repeat_len16 component_count (component_record table_start mark_class_count),
+    component_records <- repeat_len16 component_count (component_record table_start mark_class_count)
 };
-let ligature_array : Pos -> U16 -> Format =
+let ligature_array : Pos -> U16 -> Format = 
 fun table_start mark_class_count => {
     ligature_count <- u16be,
-    ligature_attaches <- repeat_len16 ligature_count (offset16 table_start (ligature_attach table_start mark_class_count)),
+    ligature_attaches <- repeat_len16 ligature_count (offset16 table_start (ligature_attach table_start mark_class_count))
 };
-let mark_lig_pos_format1 : Pos -> Format = fun table_start => {
+let mark_lig_pos_format1 : Pos -> Format = 
+fun table_start => {
     mark_coverage <- offset16 table_start coverage_table,
     ligature_coverage <- offset16 table_start coverage_table,
     mark_class_count <- u16be,
     mark_array <- offset16 table_start mark_array_table,
-    ligature_array <- offset16 table_start (ligature_array table_start mark_class_count),
+    ligature_array <- offset16 table_start (ligature_array table_start mark_class_count)
 };
 {
     table_start <- stream_pos,
     pos_format <- u16be,
     subtable <- match pos_format {
         1 => mark_lig_pos_format1 table_start,
-        _ => unknown_table,
-    },
+        _ => unknown_table
+    }
 };
 def mark_to_mark_attachment : Format = mark_to_base_attachment;
 def contextual_positioning : Format = sequence_context;
 def chained_contexts_positioning : Format = chained_sequence_context;
-def extension_positioning : Format = let extension_pos_format1 : Format = {
+def extension_positioning : Format = 
+let extension_pos_format1 : Format = 
+{
     table_start <- stream_pos,
     extension_lookup_type <- u16be,
     extension_subtable <- match extension_lookup_type {
@@ -972,19 +1014,17 @@ def extension_positioning : Format = let extension_pos_format1 : Format = {
         6 => mark_to_mark_attachment,
         7 => contextual_positioning,
         8 => chained_contexts_positioning,
-        _ => unknown_table,
-    },
+        _ => unknown_table
+    }
 };
 {
     pos_format <- u16be,
-    subtable <- match pos_format {
-        1 => extension_pos_format1,
-        _ => unknown_table,
-    },
+    subtable <- match pos_format { 1 => extension_pos_format1, _ => unknown_table }
 };
-def lookup_table : U32 -> Format = fun tag => let USE_MARK_FILTERING_SET : U16 =
-0x10;
-let lookup_subtable : U32 -> U16 -> Format = fun tag lookup_type => match tag {
+def lookup_table : U32 -> Format = 
+fun tag => let USE_MARK_FILTERING_SET : U16 = 0x10;
+let lookup_subtable : U32 -> U16 -> Format = 
+fun tag lookup_type => match tag {
     "GPOS" => match lookup_type {
         1 => single_adjustment,
         2 => pair_adjustment,
@@ -995,7 +1035,7 @@ let lookup_subtable : U32 -> U16 -> Format = fun tag lookup_type => match tag {
         7 => contextual_positioning,
         8 => chained_contexts_positioning,
         9 => extension_positioning,
-        _ => unknown_table,
+        _ => unknown_table
     },
     "GSUB" => match lookup_type {
         1 => single_substitution,
@@ -1006,9 +1046,9 @@ let lookup_subtable : U32 -> U16 -> Format = fun tag lookup_type => match tag {
         6 => chained_contexts_substitution,
         7 => extension_substitution,
         8 => reverse_chaining_contextual_single_substitution,
-        _ => unknown_table,
+        _ => unknown_table
     },
-    _ => fail,
+    _ => fail
 };
 {
     table_start <- stream_pos,
@@ -1016,62 +1056,65 @@ let lookup_subtable : U32 -> U16 -> Format = fun tag lookup_type => match tag {
     lookup_flag <- u16be,
     sub_table_count <- u16be,
     subtables <- repeat_len16 sub_table_count (offset16 table_start (lookup_subtable tag lookup_type)),
-    mark_filtering_set <- if u16_and lookup_flag USE_MARK_FILTERING_SET != (0 :
+    mark_filtering_set <- if u16_and lookup_flag USE_MARK_FILTERING_SET != (0 : 
     U16)
         then u16be
-        else empty,
+        else empty
 };
-def lookup_list : U32 -> Format = fun tag => {
+def lookup_list : U32 -> Format = 
+fun tag => {
     table_start <- stream_pos,
     lookup_count <- u16be,
-    lookups <- repeat_len16 lookup_count (offset16 table_start (lookup_table tag)),
+    lookups <- repeat_len16 lookup_count (offset16 table_start (lookup_table tag))
 };
-def layout_table : U32 -> Format = fun tag => {
+def layout_table : U32 -> Format = 
+fun tag => {
     table_start <- stream_pos,
     major_version <- u16be where major_version == (1 : U16),
     minor_version <- u16be,
     script_list <- offset16 table_start script_list,
     feature_list <- offset16 table_start feature_list,
-    lookup_list <- offset16 table_start (lookup_list tag),
+    lookup_list <- offset16 table_start (lookup_list tag)
 };
 def gpos_table : Format = layout_table "GPOS";
 def gsub_table : Format = layout_table "GSUB";
 def jstf_table : Format = unknown_table;
 def math_table : Format = unknown_table;
-def table_directory : Pos -> Format = fun file_start => {
-    sfnt_version <- u32be where bool_or (sfnt_version == (0x10000 :
+def table_directory : Pos -> Format = 
+fun file_start => {
+    sfnt_version <- u32be where bool_or (sfnt_version == (0x10000 : 
     U32)) (sfnt_version == ("OTTO" : U32)),
     num_tables <- u16be,
     search_range <- u16be,
     entry_selector <- u16be,
     range_shift <- u16be,
     table_records <- repeat_len16 num_tables table_record,
-    table_links <- let required_table : U32 -> Format -> Format =
+    table_links <- let required_table : U32 -> Format -> Format = 
     fun table_id table_format => {
         table_record <- unwrap @{
             table_id : U32,
             checksum : U32,
             offset : U32,
-            length : U32,
+            length : U32
         } (find_table @num_tables table_records table_id),
-        link <- link_table file_start table_record table_format,
+        link <- link_table file_start table_record table_format
     };
-    let required_table_with_len : U32 -> (U32 -> Format) -> Format =
+    let required_table_with_len : U32 -> (U32 -> Format) -> Format = 
     fun table_id table_format => {
         table_record <- unwrap @{
             table_id : U32,
             checksum : U32,
             offset : U32,
-            length : U32,
+            length : U32
         } (find_table @num_tables table_records table_id),
-        link <- link_table file_start table_record (table_format table_record.length),
+        link <- link_table file_start table_record (table_format table_record.length)
     };
-    let optional_table : U32 -> Format -> Format =
+    let optional_table : U32 -> Format -> Format = 
     fun table_id table_format => option_fold @{
         table_id : U32,
         checksum : U32,
         offset : U32,
-        length : U32,
+        length : U32
     } @Format () (fun record => link_table file_start record table_format) (find_table @num_tables table_records table_id);
     {
         cmap <- required_table "cmap" cmap_table,
@@ -1096,7 +1139,7 @@ def table_directory : Pos -> Format = fun file_start => {
                 _reserved2 <- s16be,
                 _reserved3 <- s16be,
                 metric_data_format <- s16be,
-                number_of_long_horizontal_metrics <- u16be,
+                number_of_long_horizontal_metrics <- u16be
             }) hhea.link,
             maxp <- deref @(limit32 maxp.table_record.length {
                 version <- u32be,
@@ -1115,13 +1158,13 @@ def table_directory : Pos -> Format = fun file_start => {
                         max_stack_elements <- u16be,
                         max_size_of_instructions <- u16be,
                         max_component_elements <- u16be,
-                        max_component_depth <- u16be where max_component_depth <= (16 :
-                        U16),
+                        max_component_depth <- u16be where max_component_depth <= (16 : 
+                        U16)
                     },
-                    _ => (),
-                },
+                    _ => ()
+                }
             }) maxp.link,
-            table <- htmx_table hhea.number_of_long_horizontal_metrics maxp.num_glyphs,
+            table <- htmx_table hhea.number_of_long_horizontal_metrics maxp.num_glyphs
         },
         name <- required_table "name" name_table,
         os2 <- required_table_with_len "OS/2" os2_table,
@@ -1146,13 +1189,13 @@ def table_directory : Pos -> Format = fun file_start => {
                         max_stack_elements <- u16be,
                         max_size_of_instructions <- u16be,
                         max_component_elements <- u16be,
-                        max_component_depth <- u16be where max_component_depth <= (16 :
-                        U16),
+                        max_component_depth <- u16be where max_component_depth <= (16 : 
+                        U16)
                     },
-                    _ => (),
-                },
+                    _ => ()
+                }
             }) maxp.link,
-            table <- glyf_table 1,
+            table <- glyf_table 1
         },
         loca <- optional_table "loca" {
             maxp <- deref @(limit32 maxp.table_record.length {
@@ -1172,11 +1215,11 @@ def table_directory : Pos -> Format = fun file_start => {
                         max_stack_elements <- u16be,
                         max_size_of_instructions <- u16be,
                         max_component_elements <- u16be,
-                        max_component_depth <- u16be where max_component_depth <= (16 :
-                        U16),
+                        max_component_depth <- u16be where max_component_depth <= (16 : 
+                        U16)
                     },
-                    _ => (),
-                },
+                    _ => ()
+                }
             }) maxp.link,
             head <- deref @(limit32 head.table_record.length {
                 major_version <- u16be where major_version == (1 : U16),
@@ -1185,7 +1228,7 @@ def table_directory : Pos -> Format = fun file_start => {
                 checksum_adjustment <- u32be,
                 magic_number <- u32be where magic_number == (0x5f0f3cf5 : U32),
                 flags <- u16be,
-                units_per_em <- u16be where bool_and (units_per_em >= (16 :
+                units_per_em <- u16be where bool_and (units_per_em >= (16 : 
                 U16)) (units_per_em <= (16384 : U16)),
                 created <- s64be,
                 modified <- s64be,
@@ -1193,15 +1236,15 @@ def table_directory : Pos -> Format = fun file_start => {
                     x_min <- s16be,
                     y_min <- s16be,
                     x_max <- s16be,
-                    y_max <- s16be,
+                    y_max <- s16be
                 },
                 mac_style <- u16be,
                 lowest_rec_ppem <- u16be,
                 font_direction_hint <- s16be,
                 index_to_loc_format <- s16be,
-                glyph_data_format <- s16be,
+                glyph_data_format <- s16be
             }) head.link,
-            table <- loca_table maxp.num_glyphs head.index_to_loc_format,
+            table <- loca_table maxp.num_glyphs head.index_to_loc_format
         },
         prep <- optional_table "prep" unknown_table,
         gasp <- optional_table "gasp" unknown_table,
@@ -1240,20 +1283,22 @@ def table_directory : Pos -> Format = fun file_start => {
         pclt <- optional_table "PCLT" unknown_table,
         vdmx <- optional_table "VDMX" unknown_table,
         vhea <- optional_table "vhea" unknown_table,
-        vmtx <- optional_table "vmtx" unknown_table,
-    },
+        vmtx <- optional_table "vmtx" unknown_table
+    }
 };
-def ttc_header : Pos -> Format = fun start => let ttc_header1 : Pos -> Format =
+def ttc_header : Pos -> Format = 
+fun start => let ttc_header1 : Pos -> Format = 
 fun start => {
     num_fonts <- u32be,
-    table_directories <- repeat_len32 num_fonts (offset32 start (table_directory start)),
+    table_directories <- repeat_len32 num_fonts (offset32 start (table_directory start))
 };
-let ttc_header2 : Pos -> Format = fun start => {
+let ttc_header2 : Pos -> Format = 
+fun start => {
     num_fonts <- u32be,
     table_directories <- repeat_len32 num_fonts (offset32 start (table_directory start)),
     dsig_tag <- u32be,
     dsig_length <- u32be,
-    dsig_offset <- u32be,
+    dsig_offset <- u32be
 };
 {
     ttc_tag <- tag,
@@ -1262,10 +1307,11 @@ let ttc_header2 : Pos -> Format = fun start => {
     header <- match major_version {
         1 => ttc_header1 start,
         2 => ttc_header2 start,
-        _ => unknown_table,
-    },
+        _ => unknown_table
+    }
 };
-def main : Format = {
+def main : Format = 
+{
     start <- stream_pos,
     font <- overlap {
         magic <- u32be,
@@ -1273,13 +1319,14 @@ def main : Format = {
             0x10000 => table_directory start,
             "OTTO" => table_directory start,
             "ttcf" => ttc_header start,
-            _ => unknown_table,
-        },
-    },
+            _ => unknown_table
+        }
+    }
 };
 def f2dot14 : Format = s16be;
-def chained_sequence_context_format_1 : Format = let chained_sequence_rule :
-Format = {
+def chained_sequence_context_format_1 : Format = 
+let chained_sequence_rule : Format = 
+{
     backtrack_glyph_count <- u16be,
     backtrack_sequence <- repeat_len16 backtrack_glyph_count u16be,
     input_glyph_count <- u16be,
@@ -1287,21 +1334,23 @@ Format = {
     lookahead_glyph_count <- u16be,
     lookahead_sequence <- repeat_len16 lookahead_glyph_count u16be,
     seq_lookup_count <- u16be,
-    seq_lookup_records <- repeat_len16 seq_lookup_count sequence_lookup_record,
+    seq_lookup_records <- repeat_len16 seq_lookup_count sequence_lookup_record
 };
-let chained_sequence_rule_set : Format = {
+let chained_sequence_rule_set : Format = 
+{
     table_start <- stream_pos,
     chained_seq_rule_count <- u16be,
-    chained_seq_rules <- repeat_len16 chained_seq_rule_count (offset16 table_start chained_sequence_rule),
+    chained_seq_rules <- repeat_len16 chained_seq_rule_count (offset16 table_start chained_sequence_rule)
 };
 {
     table_start <- stream_pos,
     coverage <- offset16 table_start coverage_table,
     chained_seq_rule_set_count <- u16be,
-    chained_seq_rule_sets <- repeat_len16 chained_seq_rule_set_count (offset16 table_start chained_sequence_rule_set),
+    chained_seq_rule_sets <- repeat_len16 chained_seq_rule_set_count (offset16 table_start chained_sequence_rule_set)
 };
-def chained_sequence_context_format_2 : Format =
-let chained_class_sequence_rule : Format = {
+def chained_sequence_context_format_2 : Format = 
+let chained_class_sequence_rule : Format = 
+{
     backtrack_glyph_count <- u16be,
     backtrack_sequence <- repeat_len16 backtrack_glyph_count u16be,
     input_glyph_count <- u16be,
@@ -1309,12 +1358,13 @@ let chained_class_sequence_rule : Format = {
     lookahead_glyph_count <- u16be,
     lookahead_sequence <- repeat_len16 lookahead_glyph_count u16be,
     seq_lookup_count <- u16be,
-    seq_lookup_records <- repeat_len16 seq_lookup_count sequence_lookup_record,
+    seq_lookup_records <- repeat_len16 seq_lookup_count sequence_lookup_record
 };
-let chained_class_sequence_rule_set : Format = {
+let chained_class_sequence_rule_set : Format = 
+{
     table_start <- stream_pos,
     chained_class_seq_rule_count <- u16be,
-    chained_class_seq_rules <- repeat_len16 chained_class_seq_rule_count (offset16 table_start chained_class_sequence_rule),
+    chained_class_seq_rules <- repeat_len16 chained_class_seq_rule_count (offset16 table_start chained_class_sequence_rule)
 };
 {
     table_start <- stream_pos,
@@ -1323,9 +1373,10 @@ let chained_class_sequence_rule_set : Format = {
     input_class_def <- offset16 table_start class_def,
     lookahead_class_def <- offset16 table_start class_def,
     chained_class_seq_rule_set_count <- u16be,
-    chained_class_seq_rule_sets <- repeat_len16 chained_class_seq_rule_set_count (offset16 table_start chained_class_sequence_rule_set),
+    chained_class_seq_rule_sets <- repeat_len16 chained_class_seq_rule_set_count (offset16 table_start chained_class_sequence_rule_set)
 };
-def chained_sequence_context_format_3 : Format = {
+def chained_sequence_context_format_3 : Format = 
+{
     table_start <- stream_pos,
     backtrack_glyph_count <- u16be,
     backtrack_coverages <- repeat_len16 backtrack_glyph_count (offset16 table_start coverage_table),
@@ -1334,7 +1385,8 @@ def chained_sequence_context_format_3 : Format = {
     lookahead_glyph_count <- u16be,
     lookahead_coverages <- repeat_len16 lookahead_glyph_count (offset16 table_start coverage_table),
     seq_lookup_count <- u16be,
-    seq_lookup_records <- repeat_len16 seq_lookup_count sequence_lookup_record,
+    seq_lookup_records <- repeat_len16 seq_lookup_count sequence_lookup_record
 };
+
 '''
 stderr = ''

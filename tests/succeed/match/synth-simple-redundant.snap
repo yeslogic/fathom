@@ -1,5 +1,6 @@
 stdout = '''
-let x : U8 = 3; x : U8
+let x : U8 = 3;
+x : U8
 '''
 stderr = '''
 warning: unreachable pattern

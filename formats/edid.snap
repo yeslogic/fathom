@@ -1,5 +1,6 @@
 stdout = '''
-def header : Format = {
+def header : Format = 
+{
     magic <- u64le where magic == (0xffffffffffff00 : U64),
     manufacturer_id <- u16le,
     product_code <- u16le,
@@ -7,16 +8,18 @@ def header : Format = {
     manufacturer_week <- u8,
     manufacturer_year_mod <- u8,
     edid_version_major <- u8,
-    edid_version_minor <- u8,
+    edid_version_minor <- u8
 };
-def display_parameters : Format = {
+def display_parameters : Format = 
+{
     video_input_parameters <- u8,
     screen_size_h <- u8,
     screen_size_v <- u8,
     gamma_mod <- u8,
-    supported_features <- u8,
+    supported_features <- u8
 };
-def chromacity_coordinates : Format = {
+def chromacity_coordinates : Format = 
+{
     red_green_lsb <- u8,
     blue_white_lsb <- u8,
     red_x_msb <- u8,
@@ -26,16 +29,18 @@ def chromacity_coordinates : Format = {
     blue_x_msb <- u8,
     blue_y_msb <- u8,
     white_x_msb <- u8,
-    white_y_msb <- u8,
+    white_y_msb <- u8
 };
 def established_timing : Format = { mode_bitmap <- repeat_len8 3 u8 };
 def standard_timing_information : Format = ();
-def main : Format = {
+def main : Format = 
+{
     header <- header,
     display_parameters <- display_parameters,
     chromacity_coordinates <- chromacity_coordinates,
     established_timing <- established_timing,
-    standard_timing_information <- standard_timing_information,
+    standard_timing_information <- standard_timing_information
 };
+
 '''
 stderr = ''

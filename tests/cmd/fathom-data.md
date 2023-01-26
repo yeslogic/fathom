@@ -83,7 +83,7 @@ Binary data can be read using `--format`
 ```console
 $ fathom data --format "{ magic <- u64le where u64_eq magic 0x00ffffffffffff00 }"
 >             formats/data/edid/dell-P2415Q.edid
-0 = [ { magic = 72057594037927680 } ]
+0 = [{ magic = 72057594037927680 }]
 
 ```
 
@@ -93,8 +93,7 @@ Binary data can be read using a module supplied with `--module`
 
 ```console
 $ fathom data --module formats/edid.fathom formats/data/edid/dell-P2415Q.edid
-0 = [
-    {
+0 = [{
         header = {
             magic = 72057594037927680,
             manufacturer_id = 44048,
@@ -103,14 +102,14 @@ $ fathom data --module formats/edid.fathom formats/data/edid/dell-P2415Q.edid
             manufacturer_week = 10,
             manufacturer_year_mod = 29,
             edid_version_major = 1,
-            edid_version_minor = 4,
+            edid_version_minor = 4
         },
         display_parameters = {
             video_input_parameters = 165,
             screen_size_h = 53,
             screen_size_v = 30,
             gamma_mod = 120,
-            supported_features = 58,
+            supported_features = 58
         },
         chromacity_coordinates = {
             red_green_lsb = 226,
@@ -122,12 +121,11 @@ $ fathom data --module formats/edid.fathom formats/data/edid/dell-P2415Q.edid
             blue_x_msb = 38,
             blue_y_msb = 11,
             white_x_msb = 80,
-            white_y_msb = 84,
+            white_y_msb = 84
         },
         established_timing = { mode_bitmap = [165, 75, 0] },
-        standard_timing_information = (),
-    },
-]
+        standard_timing_information = ()
+    }]
 
 ```
 
@@ -138,8 +136,7 @@ An explicit entrypoint can be supplied with `--format`
 ```console
 $ fathom data --module formats/edid.fathom --format header
 >             formats/data/edid/dell-P2415Q.edid
-0 = [
-    {
+0 = [{
         magic = 72057594037927680,
         manufacturer_id = 44048,
         product_code = 41150,
@@ -147,9 +144,8 @@ $ fathom data --module formats/edid.fathom --format header
         manufacturer_week = 10,
         manufacturer_year_mod = 29,
         edid_version_major = 1,
-        edid_version_minor = 4,
-    },
-]
+        edid_version_minor = 4
+    }]
 
 ```
 
@@ -159,19 +155,7 @@ Offsets can be used to more look more deeply into binary files
 $ fathom data --module formats/opentype.fathom
 >             --format "{ start <- stream_pos, link <- link (pos_add_u32 start 4396) (cmap_subtable 3) }"
 >             formats/data/opentype/aots/cmap0_font1.otf
-0 = [ { start = 0, link = 4396 } ]
-4396 = [
-    {
-        table_start = 4396,
-        format = 0,
-        data = {
-            length = 262,
-            language = 0,
-            glyph_id_array = [
-                0,
-                0,
-                0,
-                0,
+0 = [{ start = 0, link = 4396 }]
 ...
 
 ```

@@ -1,6 +1,5 @@
 stdout = '''
-0 = [
-    {
+0 = [{
         start = 0,
         font = {
             magic = 1330926671,
@@ -10,134 +9,132 @@ stdout = '''
                 search_range = 128,
                 entry_selector = 3,
                 range_shift = 16,
-                table_records = [
-                    {
+                table_records = [{
                         table_id = 1128678944,
                         checksum = 592874113,
                         offset = 156,
-                        length = 4132,
+                        length = 4132
                     },
                     {
                         table_id = 1330851634,
                         checksum = 1825330621,
                         offset = 4288,
-                        length = 96,
+                        length = 96
                     },
                     {
                         table_id = 1668112752,
                         checksum = 5739625,
                         offset = 4384,
-                        length = 38,
+                        length = 38
                     },
                     {
                         table_id = 1751474532,
                         checksum = 1759071024,
                         offset = 4424,
-                        length = 54,
+                        length = 54
                     },
                     {
                         table_id = 1751672161,
                         checksum = 360516338,
                         offset = 4480,
-                        length = 36,
+                        length = 36
                     },
                     {
                         table_id = 1752003704,
                         checksum = 1081359000,
                         offset = 4516,
-                        length = 202,
+                        length = 202
                     },
                     {
                         table_id = 1835104368,
                         checksum = 6574080,
                         offset = 4720,
-                        length = 6,
+                        length = 6
                     },
                     {
                         table_id = 1851878757,
                         checksum = 224666748,
                         offset = 4728,
-                        length = 208,
+                        length = 208
                     },
                     {
                         table_id = 1886352244,
                         checksum = 4288610354,
                         offset = 4936,
-                        length = 32,
-                    },
-                ],
+                        length = 32
+                    }],
                 table_links = {
                     cmap = {
                         table_record = {
                             table_id = 1668112752,
                             checksum = 5739625,
                             offset = 4384,
-                            length = 38,
+                            length = 38
                         },
-                        link = 4384,
+                        link = 4384
                     },
                     head = {
                         table_record = {
                             table_id = 1751474532,
                             checksum = 1759071024,
                             offset = 4424,
-                            length = 54,
+                            length = 54
                         },
-                        link = 4424,
+                        link = 4424
                     },
                     hhea = {
                         table_record = {
                             table_id = 1751672161,
                             checksum = 360516338,
                             offset = 4480,
-                            length = 36,
+                            length = 36
                         },
-                        link = 4480,
+                        link = 4480
                     },
                     maxp = {
                         table_record = {
                             table_id = 1835104368,
                             checksum = 6574080,
                             offset = 4720,
-                            length = 6,
+                            length = 6
                         },
-                        link = 4720,
+                        link = 4720
                     },
                     htmx = {
                         table_record = {
                             table_id = 1752003704,
                             checksum = 1081359000,
                             offset = 4516,
-                            length = 202,
+                            length = 202
                         },
-                        link = 4516,
+                        link = 4516
                     },
                     name = {
                         table_record = {
                             table_id = 1851878757,
                             checksum = 224666748,
                             offset = 4728,
-                            length = 208,
+                            length = 208
                         },
-                        link = 4728,
+                        link = 4728
                     },
                     os2 = {
                         table_record = {
                             table_id = 1330851634,
                             checksum = 1825330621,
                             offset = 4288,
-                            length = 96,
+                            length = 96
                         },
-                        link = 4288,
+                        link = 4288
                     },
                     post = {
                         table_record = {
                             table_id = 1886352244,
                             checksum = 4288610354,
                             offset = 4936,
-                            length = 32,
+                            length = 32
                         },
-                        link = 4936,
+                        link = 4936
                     },
                     cvt = (),
                     fpgm = (),
@@ -180,15 +177,13 @@ stdout = '''
                     pclt = (),
                     vdmx = (),
                     vhea = (),
-                    vmtx = (),
-                },
-            },
-        },
-    },
-]
-156 = [ () ]
-4288 = [
-    {
+                    vmtx = ()
+                }
+            }
+        }
+    }]
+156 = [()]
+4288 = [{
         version = 2,
         x_avg_char_width = 2500,
         us_weight_class = 400,
@@ -221,35 +216,29 @@ stdout = '''
                     s_typo_descender = 0,
                     s_typo_line_gap = 200,
                     us_win_ascent = 2500,
-                    usWinDescent = 0,
+                    usWinDescent = 0
                 },
                 ul_code_page_range1 = 3762225663,
-                ul_code_page_range2 = 4294901760,
+                ul_code_page_range2 = 4294901760
             },
             sx_height = 2500,
             s_cap_height = 2500,
             us_default_char = 65,
             us_break_char = 65,
-            us_max_context = 0,
-        },
-    },
-]
-4384 = [
-    {
+            us_max_context = 0
+        }
+    }]
+4384 = [{
         table_start = 4384,
         version = 0,
         num_tables = 1,
-        encoding_records = [
-            {
+        encoding_records = [{
                 platform = 3,
                 encoding = 1,
-                subtable_offset = { offset = 12, link = 4396 },
-            },
-        ],
-    },
-]
-4396 = [
-    {
+                subtable_offset = { offset = 12, link = 4396 }
+            }]
+    }]
+4396 = [{
         table_start = 4396,
         format = 10,
         data = {
@@ -258,12 +247,10 @@ stdout = '''
             language = 0,
             start_char_code = 1086499,
             num_chars = 3,
-            glyph_id_array = [26, 27, 32],
-        },
-    },
-]
-4424 = [
-    {
+            glyph_id_array = [26, 27, 32]
+        }
+    }]
+4424 = [{
         major_version = 1,
         minor_version = 0,
         font_revision = 65536,
@@ -278,11 +265,9 @@ stdout = '''
         lowest_rec_ppem = 3,
         font_direction_hint = 2,
         index_to_loc_format = 0,
-        glyph_data_format = 0,
-    },
-]
-4480 = [
-    {
+        glyph_data_format = 0
+    }]
+4480 = [{
         major_version = 1,
         minor_version = 0,
         ascent = 2500,
@@ -299,11 +284,9 @@ stdout = '''
         _reserved2 = 0,
         _reserved3 = 0,
         metric_data_format = 0,
-        number_of_long_horizontal_metrics = 1,
-    },
-]
-4516 = [
-    {
+        number_of_long_horizontal_metrics = 1
+    }]
+4516 = [{
         hhea = {
             major_version = 1,
             minor_version = 0,
@@ -321,12 +304,12 @@ stdout = '''
             _reserved2 = 0,
             _reserved3 = 0,
             metric_data_format = 0,
-            number_of_long_horizontal_metrics = 1,
+            number_of_long_horizontal_metrics = 1
         },
         maxp = { version = 20480, num_glyphs = 100, data = () },
         table = {
             h_metrics = [{ advance_width = 1500, left_side_bearing = 300 }],
-            left_side_bearings = [
+            left_side_bearings = [300,
                 300,
                 300,
                 300,
@@ -424,27 +407,22 @@ stdout = '''
                 300,
                 300,
                 300,
-                300,
-                300,
-            ],
-        },
-    },
-]
-4720 = [ { version = 20480, num_glyphs = 100, data = () } ]
-4728 = [
-    {
+                300]
+        }
+    }]
+4720 = [{ version = 20480, num_glyphs = 100, data = () }]
+4728 = [{
         table_start = 4728,
         version = 0,
         name_count = 6,
         storage_offset = 78,
-        name_records = [
-            {
+        name_records = [{
                 platform = 3,
                 encoding = 1,
                 language = 1033,
                 name_id = 1,
                 length = 24,
-                offset = { offset = 0, link = () },
+                offset = { offset = 0, link = () }
             },
             {
                 platform = 3,
@@ -452,7 +430,7 @@ stdout = '''
                 language = 1033,
                 name_id = 2,
                 length = 14,
-                offset = { offset = 24, link = 4830 },
+                offset = { offset = 24, link = 4830 }
             },
             {
                 platform = 3,
@@ -460,7 +438,7 @@ stdout = '''
                 language = 1033,
                 name_id = 3,
                 length = 24,
-                offset = { offset = 38, link = 4844 },
+                offset = { offset = 38, link = 4844 }
             },
             {
                 platform = 3,
@@ -468,7 +446,7 @@ stdout = '''
                 language = 1033,
                 name_id = 4,
                 length = 24,
-                offset = { offset = 62, link = 4868 },
+                offset = { offset = 62, link = 4868 }
             },
             {
                 platform = 3,
@@ -476,7 +454,7 @@ stdout = '''
                 language = 1033,
                 name_id = 5,
                 length = 20,
-                offset = { offset = 86, link = 4892 },
+                offset = { offset = 86, link = 4892 }
             },
             {
                 platform = 3,
@@ -484,123 +462,16 @@ stdout = '''
                 language = 1033,
                 name_id = 6,
                 length = 24,
-                offset = { offset = 106, link = 4912 },
-            },
-        ],
-        data = (),
-    },
-]
-4830 = [ [0, 82, 0, 101, 0, 103, 0, 117, 0, 108, 0, 97, 0, 114] ]
-4844 = [
-    [
-        0,
-        99,
-        0,
-        109,
-        0,
-        97,
-        0,
-        112,
-        0,
-        49,
-        0,
-        48,
-        0,
-        95,
-        0,
-        102,
-        0,
-        111,
-        0,
-        110,
-        0,
-        116,
-        0,
-        49,
-    ],
-]
-4868 = [
-    [
-        0,
-        99,
-        0,
-        109,
-        0,
-        97,
-        0,
-        112,
-        0,
-        49,
-        0,
-        48,
-        0,
-        95,
-        0,
-        102,
-        0,
-        111,
-        0,
-        110,
-        0,
-        116,
-        0,
-        49,
-    ],
-]
-4892 = [
-    [
-        0,
-        86,
-        0,
-        101,
-        0,
-        114,
-        0,
-        115,
-        0,
-        105,
-        0,
-        111,
-        0,
-        110,
-        0,
-        49,
-        0,
-        46,
-        0,
-        48,
-    ],
-]
-4912 = [
-    [
-        0,
-        99,
-        0,
-        109,
-        0,
-        97,
-        0,
-        112,
-        0,
-        49,
-        0,
-        48,
-        0,
-        95,
-        0,
-        102,
-        0,
-        111,
-        0,
-        110,
-        0,
-        116,
-        0,
-        49,
-    ],
-]
-4936 = [
-    {
+                offset = { offset = 106, link = 4912 }
+            }],
+        data = ()
+    }]
+4830 = [[0, 82, 0, 101, 0, 103, 0, 117, 0, 108, 0, 97, 0, 114]]
+4844 = [[0, 99, 0, 109, 0, 97, 0, 112, 0, 49, 0, 48, 0, 95, 0, 102, 0, 111, 0, 110, 0, 116, 0, 49]]
+4868 = [[0, 99, 0, 109, 0, 97, 0, 112, 0, 49, 0, 48, 0, 95, 0, 102, 0, 111, 0, 110, 0, 116, 0, 49]]
+4892 = [[0, 86, 0, 101, 0, 114, 0, 115, 0, 105, 0, 111, 0, 110, 0, 49, 0, 46, 0, 48]]
+4912 = [[0, 99, 0, 109, 0, 97, 0, 112, 0, 49, 0, 48, 0, 95, 0, 102, 0, 111, 0, 110, 0, 116, 0, 49]]
+4936 = [{
         version = 196608,
         italic_angle = 0,
         underline_position = -100,
@@ -610,8 +481,7 @@ stdout = '''
         max_mem_type42 = 0,
         min_mem_type1 = 0,
         max_mem_type1 = 0,
-        names = (),
-    },
-]
+        names = ()
+    }]
 '''
 stderr = ''

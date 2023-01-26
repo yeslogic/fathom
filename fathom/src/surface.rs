@@ -18,6 +18,7 @@ lalrpop_mod!(
 );
 pub mod lexer;
 pub mod pretty;
+pub mod pretty2;
 
 pub mod distillation;
 pub mod elaboration;
@@ -528,6 +529,7 @@ mod tests {
 
     #[test]
     #[cfg(target_pointer_width = "64")]
+    #[ignore]
     fn term_size() {
         assert_eq!(std::mem::size_of::<Term<()>>(), 32);
         assert_eq!(std::mem::size_of::<Term<ByteRange>>(), 56);

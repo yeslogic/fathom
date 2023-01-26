@@ -1,78 +1,94 @@
 stdout = '''
 let id : fun (A : Type) -> A -> A = fun A a => a;
-let id_test : fun (A : Type) -> A -> A = id (fun (A : Type) -> A ->
-A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> A) id (fun (A :
-Type) -> A -> A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A ->
-A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> A) id (fun (A :
-Type) -> A -> A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A ->
-A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> A) id (fun (A :
-Type) -> A -> A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A ->
-A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> A) id (fun (A :
-Type) -> A -> A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A ->
-A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> A) id (fun (A :
-Type) -> A -> A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A ->
-A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> A) id (fun (A :
-Type) -> A -> A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A ->
-A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> A) id (fun (A :
-Type) -> A -> A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A ->
-A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> A) id (fun (A :
-Type) -> A -> A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A ->
-A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> A) id (fun (A :
-Type) -> A -> A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A ->
-A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> A) id (fun (A :
-Type) -> A -> A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A ->
-A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> A) id (fun (A :
-Type) -> A -> A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A ->
-A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> A) id (fun (A :
-Type) -> A -> A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A ->
-A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> A) id (fun (A :
-Type) -> A -> A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A ->
-A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> A) id (fun (A :
-Type) -> A -> A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A ->
-A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> A) id (fun (A :
-Type) -> A -> A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A ->
-A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> A) id (fun (A :
-Type) -> A -> A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A ->
-A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> A) id (fun (A :
-Type) -> A -> A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A ->
-A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> A) id (fun (A :
-Type) -> A -> A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A ->
-A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> A) id (fun (A :
-Type) -> A -> A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A ->
-A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> A) id (fun (A :
-Type) -> A -> A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A ->
-A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> A) id (fun (A :
-Type) -> A -> A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A ->
-A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> A) id (fun (A :
-Type) -> A -> A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A ->
-A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> A) id (fun (A :
-Type) -> A -> A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A ->
-A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> A) id (fun (A :
-Type) -> A -> A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A ->
-A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> A) id (fun (A :
-Type) -> A -> A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A ->
-A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> A) id (fun (A :
-Type) -> A -> A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A ->
-A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> A) id (fun (A :
-Type) -> A -> A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A ->
-A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> A) id (fun (A :
-Type) -> A -> A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A ->
-A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> A) id (fun (A :
-Type) -> A -> A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A ->
-A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> A) id (fun (A :
-Type) -> A -> A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A ->
-A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> A) id (fun (A :
-Type) -> A -> A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A ->
-A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> A) id (fun (A :
-Type) -> A -> A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A ->
-A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> A) id (fun (A :
-Type) -> A -> A) id;
+let id_test : fun (A : Type) -> A -> A = id (fun (A : Type) -> A -> 
+A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> 
+A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> 
+A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> 
+A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> 
+A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> 
+A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> 
+A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> 
+A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> 
+A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> 
+A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> 
+A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> 
+A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> 
+A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> 
+A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> 
+A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> 
+A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> 
+A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> 
+A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> 
+A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> 
+A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> 
+A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> 
+A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> 
+A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> 
+A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> 
+A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> 
+A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> 
+A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> 
+A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> 
+A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> 
+A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> 
+A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> 
+A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> 
+A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> 
+A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> 
+A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> 
+A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> 
+A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> 
+A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> 
+A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> 
+A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> 
+A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> 
+A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> 
+A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> 
+A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> 
+A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> 
+A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> 
+A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> 
+A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> 
+A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> 
+A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> 
+A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> 
+A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> 
+A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> 
+A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> 
+A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> 
+A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> 
+A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> 
+A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> 
+A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> 
+A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> 
+A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> 
+A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> 
+A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> 
+A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> 
+A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> 
+A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> 
+A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> 
+A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> 
+A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> 
+A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> 
+A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> 
+A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> 
+A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> 
+A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> 
+A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> 
+A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> 
+A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> 
+A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> 
+A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> 
+A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> 
+A) id (fun (A : Type) -> A -> A) id (fun (A : Type) -> A -> 
+A) id (fun (A : Type) -> A -> A) id;
 let Nat : Type = fun (Nat : Type) -> (Nat -> Nat) -> Nat -> Nat;
 let zero : Nat = fun Nat succ zero => zero;
 let succ : Nat -> Nat = fun prev Nat succ zero => succ (prev Nat succ zero);
-let add : Nat -> Nat -> Nat =
+let add : Nat -> Nat -> Nat = 
 fun n0 n1 Nat succ zero => n0 Nat succ (n1 Nat succ zero);
-let mul : Nat -> Nat -> Nat =
+let mul : Nat -> Nat -> Nat = 
 fun n0 n1 Nat succ zero => n0 Nat (n1 Nat succ) zero;
 let n0 : fun (Nat : Type) -> (Nat -> Nat) -> Nat -> Nat = zero;
 let n1 : fun (Nat : Type) -> (Nat -> Nat) -> Nat -> Nat = succ n0;
@@ -85,145 +101,151 @@ let n7 : fun (Nat : Type) -> (Nat -> Nat) -> Nat -> Nat = succ n6;
 let n8 : fun (Nat : Type) -> (Nat -> Nat) -> Nat -> Nat = succ n7;
 let n9 : fun (Nat : Type) -> (Nat -> Nat) -> Nat -> Nat = succ n8;
 let n10 : fun (Nat : Type) -> (Nat -> Nat) -> Nat -> Nat = succ n9;
-let n3000 : fun (Nat : Type) -> (Nat -> Nat) -> Nat -> Nat =
+let n3000 : fun (Nat : Type) -> (Nat -> Nat) -> Nat -> Nat = 
 mul n10 (mul n10 (mul n10 n3));
-let Vec : Type -> Nat -> Type = fun Elem len => fun (Vec : Nat -> Type) ->
-Vec zero -> (fun (len : fun (Nat : Type) -> (Nat -> Nat) -> Nat -> Nat) -> Elem
--> Vec len -> Vec (succ len)) -> Vec len;
+let Vec : Type -> Nat -> Type = 
+fun Elem len => fun (Vec : Nat -> Type) -> Vec zero -> 
+(fun (len : fun (Nat : Type) -> (Nat -> Nat) -> Nat -> Nat) -> Elem -> Vec len
+ -> Vec (succ len)) -> Vec len;
 let vnil : fun (Elem : Type) -> Vec Elem zero = fun Elem Vec nil cons => nil;
-let vcons : fun (Elem : Type) (len : fun (Nat : Type) -> (Nat -> Nat) -> Nat ->
-Nat) -> Elem -> Vec Elem len -> Vec Elem (succ len) =
+let vcons : 
+fun (Elem : Type) (len : fun (Nat : Type) -> (Nat -> Nat) -> Nat -> Nat) -> Elem
+ -> Vec Elem len -> Vec Elem (succ len) = 
 fun Elem len head tail Vec nil cons => cons len head (tail Vec nil cons);
-let vec1 : fun (Vec : (fun (Nat : Type) -> (Nat -> Nat) -> Nat -> Nat) ->
-Type) -> Vec (fun Nat succ zero => zero) -> (fun (len : fun (Nat : Type) -> (Nat
--> Nat) -> Nat -> Nat) -> (fun (Nat : Type) -> (Nat -> Nat) -> Nat -> Nat) ->
-Vec len -> Vec (fun Nat succ zero => succ (len Nat succ zero))) ->
-Vec (fun Nat succ zero => succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ zero)))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))) =
-vcons (fun (Nat : Type) -> (Nat -> Nat) -> Nat ->
-Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a b))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))) zero (vcons (fun (Nat :
-Type) -> (Nat -> Nat) -> Nat ->
-Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a b)))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))) zero (vcons (fun (Nat :
-Type) -> (Nat -> Nat) -> Nat ->
-Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a b))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))) zero (vcons (fun (Nat :
-Type) -> (Nat -> Nat) -> Nat ->
-Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a b)))))))))))))))))))))))))))))))))))))))))))))))))))))))))))) zero (vcons (fun (Nat :
-Type) -> (Nat -> Nat) -> Nat ->
-Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a b))))))))))))))))))))))))))))))))))))))))))))))))))))))))))) zero (vcons (fun (Nat :
-Type) -> (Nat -> Nat) -> Nat ->
-Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a b)))))))))))))))))))))))))))))))))))))))))))))))))))))))))) zero (vcons (fun (Nat :
-Type) -> (Nat -> Nat) -> Nat ->
-Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a b))))))))))))))))))))))))))))))))))))))))))))))))))))))))) zero (vcons (fun (Nat :
-Type) -> (Nat -> Nat) -> Nat ->
-Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a b)))))))))))))))))))))))))))))))))))))))))))))))))))))))) zero (vcons (fun (Nat :
-Type) -> (Nat -> Nat) -> Nat ->
-Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a b))))))))))))))))))))))))))))))))))))))))))))))))))))))) zero (vcons (fun (Nat :
-Type) -> (Nat -> Nat) -> Nat ->
-Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a b)))))))))))))))))))))))))))))))))))))))))))))))))))))) zero (vcons (fun (Nat :
-Type) -> (Nat -> Nat) -> Nat ->
-Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a b))))))))))))))))))))))))))))))))))))))))))))))))))))) zero (vcons (fun (Nat :
-Type) -> (Nat -> Nat) -> Nat ->
-Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a b)))))))))))))))))))))))))))))))))))))))))))))))))))) zero (vcons (fun (Nat :
-Type) -> (Nat -> Nat) -> Nat ->
-Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a b))))))))))))))))))))))))))))))))))))))))))))))))))) zero (vcons (fun (Nat :
-Type) -> (Nat -> Nat) -> Nat ->
-Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a b)))))))))))))))))))))))))))))))))))))))))))))))))) zero (vcons (fun (Nat :
-Type) -> (Nat -> Nat) -> Nat ->
-Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a b))))))))))))))))))))))))))))))))))))))))))))))))) zero (vcons (fun (Nat :
-Type) -> (Nat -> Nat) -> Nat ->
-Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a b)))))))))))))))))))))))))))))))))))))))))))))))) zero (vcons (fun (Nat :
-Type) -> (Nat -> Nat) -> Nat ->
-Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a b))))))))))))))))))))))))))))))))))))))))))))))) zero (vcons (fun (Nat :
-Type) -> (Nat -> Nat) -> Nat ->
-Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a b)))))))))))))))))))))))))))))))))))))))))))))) zero (vcons (fun (Nat :
-Type) -> (Nat -> Nat) -> Nat ->
-Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a b))))))))))))))))))))))))))))))))))))))))))))) zero (vcons (fun (Nat :
-Type) -> (Nat -> Nat) -> Nat ->
-Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a b)))))))))))))))))))))))))))))))))))))))))))) zero (vcons (fun (Nat :
-Type) -> (Nat -> Nat) -> Nat ->
-Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a b))))))))))))))))))))))))))))))))))))))))))) zero (vcons (fun (Nat :
-Type) -> (Nat -> Nat) -> Nat ->
-Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a b)))))))))))))))))))))))))))))))))))))))))) zero (vcons (fun (Nat :
-Type) -> (Nat -> Nat) -> Nat ->
-Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a b))))))))))))))))))))))))))))))))))))))))) zero (vcons (fun (Nat :
-Type) -> (Nat -> Nat) -> Nat ->
-Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a b)))))))))))))))))))))))))))))))))))))))) zero (vcons (fun (Nat :
-Type) -> (Nat -> Nat) -> Nat ->
-Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a b))))))))))))))))))))))))))))))))))))))) zero (vcons (fun (Nat :
-Type) -> (Nat -> Nat) -> Nat ->
-Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a b)))))))))))))))))))))))))))))))))))))) zero (vcons (fun (Nat :
-Type) -> (Nat -> Nat) -> Nat ->
-Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a b))))))))))))))))))))))))))))))))))))) zero (vcons (fun (Nat :
-Type) -> (Nat -> Nat) -> Nat ->
-Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a b)))))))))))))))))))))))))))))))))))) zero (vcons (fun (Nat :
-Type) -> (Nat -> Nat) -> Nat ->
-Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a b))))))))))))))))))))))))))))))))))) zero (vcons (fun (Nat :
-Type) -> (Nat -> Nat) -> Nat ->
-Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a b)))))))))))))))))))))))))))))))))) zero (vcons (fun (Nat :
-Type) -> (Nat -> Nat) -> Nat ->
-Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a b))))))))))))))))))))))))))))))))) zero (vcons (fun (Nat :
-Type) -> (Nat -> Nat) -> Nat ->
-Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a b)))))))))))))))))))))))))))))))) zero (vcons (fun (Nat :
-Type) -> (Nat -> Nat) -> Nat ->
-Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a b))))))))))))))))))))))))))))))) zero (vcons (fun (Nat :
-Type) -> (Nat -> Nat) -> Nat ->
-Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a b)))))))))))))))))))))))))))))) zero (vcons (fun (Nat :
-Type) -> (Nat -> Nat) -> Nat ->
-Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a b))))))))))))))))))))))))))))) zero (vcons (fun (Nat :
-Type) -> (Nat -> Nat) -> Nat ->
-Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a b)))))))))))))))))))))))))))) zero (vcons (fun (Nat :
-Type) -> (Nat -> Nat) -> Nat ->
-Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a b))))))))))))))))))))))))))) zero (vcons (fun (Nat :
-Type) -> (Nat -> Nat) -> Nat ->
-Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a b)))))))))))))))))))))))))) zero (vcons (fun (Nat :
-Type) -> (Nat -> Nat) -> Nat ->
-Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a b))))))))))))))))))))))))) zero (vcons (fun (Nat :
-Type) -> (Nat -> Nat) -> Nat ->
-Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a b)))))))))))))))))))))))) zero (vcons (fun (Nat :
-Type) -> (Nat -> Nat) -> Nat ->
-Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a b))))))))))))))))))))))) zero (vcons (fun (Nat :
-Type) -> (Nat -> Nat) -> Nat ->
-Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a b)))))))))))))))))))))) zero (vcons (fun (Nat :
-Type) -> (Nat -> Nat) -> Nat ->
-Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a b))))))))))))))))))))) zero (vcons (fun (Nat :
-Type) -> (Nat -> Nat) -> Nat ->
-Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a b)))))))))))))))))))) zero (vcons (fun (Nat :
-Type) -> (Nat -> Nat) -> Nat ->
-Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a b))))))))))))))))))) zero (vcons (fun (Nat :
-Type) -> (Nat -> Nat) -> Nat ->
-Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a b)))))))))))))))))) zero (vcons (fun (Nat :
-Type) -> (Nat -> Nat) -> Nat ->
-Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a b))))))))))))))))) zero (vcons (fun (Nat :
-Type) -> (Nat -> Nat) -> Nat ->
-Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a b)))))))))))))))) zero (vcons (fun (Nat :
-Type) -> (Nat -> Nat) -> Nat ->
-Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a (a (a (a (a (a b))))))))))))))) zero (vcons (fun (Nat :
-Type) -> (Nat -> Nat) -> Nat ->
-Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a (a (a (a (a b)))))))))))))) zero (vcons (fun (Nat :
-Type) -> (Nat -> Nat) -> Nat ->
-Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a (a (a (a b))))))))))))) zero (vcons (fun (Nat :
-Type) -> (Nat -> Nat) -> Nat ->
-Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a (a (a b)))))))))))) zero (vcons (fun (Nat :
-Type) -> (Nat -> Nat) -> Nat ->
-Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a (a b))))))))))) zero (vcons (fun (Nat :
-Type) -> (Nat -> Nat) -> Nat ->
-Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a b)))))))))) zero (vcons (fun (Nat :
-Type) -> (Nat -> Nat) -> Nat ->
-Nat) (fun _ a b => a (a (a (a (a (a (a (a (a b))))))))) zero (vcons (fun (Nat :
-Type) -> (Nat -> Nat) -> Nat ->
-Nat) (fun _ a b => a (a (a (a (a (a (a (a b)))))))) zero (vcons (fun (Nat :
-Type) -> (Nat -> Nat) -> Nat ->
-Nat) (fun _ a b => a (a (a (a (a (a (a b))))))) zero (vcons (fun (Nat : Type) ->
-(Nat -> Nat) -> Nat ->
-Nat) (fun _ a b => a (a (a (a (a (a b)))))) zero (vcons (fun (Nat : Type) ->
-(Nat -> Nat) -> Nat ->
-Nat) (fun _ a b => a (a (a (a (a b))))) zero (vcons (fun (Nat : Type) -> (Nat ->
-Nat) -> Nat -> Nat) (fun _ a b => a (a (a (a b)))) zero (vcons (fun (Nat :
-Type) -> (Nat -> Nat) -> Nat ->
-Nat) (fun _ a b => a (a (a b))) zero (vcons (fun (Nat : Type) -> (Nat -> Nat) ->
-Nat -> Nat) (fun _ a b => a (a b)) zero (vcons (fun (Nat : Type) -> (Nat -> Nat)
--> Nat -> Nat) (fun _ a b => a b) zero (vcons (fun (Nat : Type) -> (Nat -> Nat)
--> Nat -> Nat) (fun _ _ a => a) zero (vnil (fun (Nat : Type) -> (Nat -> Nat) ->
-Nat -> Nat)))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))));
+let vec1 : 
+fun (Vec : (fun (Nat : Type) -> (Nat -> Nat) -> Nat -> Nat) -> 
+Type) -> Vec (fun Nat succ zero => zero) -> 
+(fun (len : fun (Nat : Type) -> (Nat -> Nat) -> Nat -> Nat) -> (fun (Nat : 
+Type) -> (Nat -> Nat) -> Nat -> Nat) -> Vec len -> 
+Vec (fun Nat succ zero => succ (len Nat succ zero))) -> 
+Vec (fun Nat succ zero => succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ zero)))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))) = 
+vcons (fun (Nat : Type) -> (Nat -> Nat) -> Nat -> 
+Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a b))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))) zero (vcons (fun (Nat : 
+Type) -> (Nat -> Nat) -> Nat -> 
+Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a b)))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))) zero (vcons (fun (Nat : 
+Type) -> (Nat -> Nat) -> Nat -> 
+Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a b))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))) zero (vcons (fun (Nat : 
+Type) -> (Nat -> Nat) -> Nat -> 
+Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a b)))))))))))))))))))))))))))))))))))))))))))))))))))))))))))) zero (vcons (fun (Nat : 
+Type) -> (Nat -> Nat) -> Nat -> 
+Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a b))))))))))))))))))))))))))))))))))))))))))))))))))))))))))) zero (vcons (fun (Nat : 
+Type) -> (Nat -> Nat) -> Nat -> 
+Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a b)))))))))))))))))))))))))))))))))))))))))))))))))))))))))) zero (vcons (fun (Nat : 
+Type) -> (Nat -> Nat) -> Nat -> 
+Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a b))))))))))))))))))))))))))))))))))))))))))))))))))))))))) zero (vcons (fun (Nat : 
+Type) -> (Nat -> Nat) -> Nat -> 
+Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a b)))))))))))))))))))))))))))))))))))))))))))))))))))))))) zero (vcons (fun (Nat : 
+Type) -> (Nat -> Nat) -> Nat -> 
+Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a b))))))))))))))))))))))))))))))))))))))))))))))))))))))) zero (vcons (fun (Nat : 
+Type) -> (Nat -> Nat) -> Nat -> 
+Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a b)))))))))))))))))))))))))))))))))))))))))))))))))))))) zero (vcons (fun (Nat : 
+Type) -> (Nat -> Nat) -> Nat -> 
+Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a b))))))))))))))))))))))))))))))))))))))))))))))))))))) zero (vcons (fun (Nat : 
+Type) -> (Nat -> Nat) -> Nat -> 
+Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a b)))))))))))))))))))))))))))))))))))))))))))))))))))) zero (vcons (fun (Nat : 
+Type) -> (Nat -> Nat) -> Nat -> 
+Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a b))))))))))))))))))))))))))))))))))))))))))))))))))) zero (vcons (fun (Nat : 
+Type) -> (Nat -> Nat) -> Nat -> 
+Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a b)))))))))))))))))))))))))))))))))))))))))))))))))) zero (vcons (fun (Nat : 
+Type) -> (Nat -> Nat) -> Nat -> 
+Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a b))))))))))))))))))))))))))))))))))))))))))))))))) zero (vcons (fun (Nat : 
+Type) -> (Nat -> Nat) -> Nat -> 
+Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a b)))))))))))))))))))))))))))))))))))))))))))))))) zero (vcons (fun (Nat : 
+Type) -> (Nat -> Nat) -> Nat -> 
+Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a b))))))))))))))))))))))))))))))))))))))))))))))) zero (vcons (fun (Nat : 
+Type) -> (Nat -> Nat) -> Nat -> 
+Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a b)))))))))))))))))))))))))))))))))))))))))))))) zero (vcons (fun (Nat : 
+Type) -> (Nat -> Nat) -> Nat -> 
+Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a b))))))))))))))))))))))))))))))))))))))))))))) zero (vcons (fun (Nat : 
+Type) -> (Nat -> Nat) -> Nat -> 
+Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a b)))))))))))))))))))))))))))))))))))))))))))) zero (vcons (fun (Nat : 
+Type) -> (Nat -> Nat) -> Nat -> 
+Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a b))))))))))))))))))))))))))))))))))))))))))) zero (vcons (fun (Nat : 
+Type) -> (Nat -> Nat) -> Nat -> 
+Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a b)))))))))))))))))))))))))))))))))))))))))) zero (vcons (fun (Nat : 
+Type) -> (Nat -> Nat) -> Nat -> 
+Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a b))))))))))))))))))))))))))))))))))))))))) zero (vcons (fun (Nat : 
+Type) -> (Nat -> Nat) -> Nat -> 
+Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a b)))))))))))))))))))))))))))))))))))))))) zero (vcons (fun (Nat : 
+Type) -> (Nat -> Nat) -> Nat -> 
+Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a b))))))))))))))))))))))))))))))))))))))) zero (vcons (fun (Nat : 
+Type) -> (Nat -> Nat) -> Nat -> 
+Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a b)))))))))))))))))))))))))))))))))))))) zero (vcons (fun (Nat : 
+Type) -> (Nat -> Nat) -> Nat -> 
+Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a b))))))))))))))))))))))))))))))))))))) zero (vcons (fun (Nat : 
+Type) -> (Nat -> Nat) -> Nat -> 
+Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a b)))))))))))))))))))))))))))))))))))) zero (vcons (fun (Nat : 
+Type) -> (Nat -> Nat) -> Nat -> 
+Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a b))))))))))))))))))))))))))))))))))) zero (vcons (fun (Nat : 
+Type) -> (Nat -> Nat) -> Nat -> 
+Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a b)))))))))))))))))))))))))))))))))) zero (vcons (fun (Nat : 
+Type) -> (Nat -> Nat) -> Nat -> 
+Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a b))))))))))))))))))))))))))))))))) zero (vcons (fun (Nat : 
+Type) -> (Nat -> Nat) -> Nat -> 
+Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a b)))))))))))))))))))))))))))))))) zero (vcons (fun (Nat : 
+Type) -> (Nat -> Nat) -> Nat -> 
+Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a b))))))))))))))))))))))))))))))) zero (vcons (fun (Nat : 
+Type) -> (Nat -> Nat) -> Nat -> 
+Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a b)))))))))))))))))))))))))))))) zero (vcons (fun (Nat : 
+Type) -> (Nat -> Nat) -> Nat -> 
+Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a b))))))))))))))))))))))))))))) zero (vcons (fun (Nat : 
+Type) -> (Nat -> Nat) -> Nat -> 
+Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a b)))))))))))))))))))))))))))) zero (vcons (fun (Nat : 
+Type) -> (Nat -> Nat) -> Nat -> 
+Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a b))))))))))))))))))))))))))) zero (vcons (fun (Nat : 
+Type) -> (Nat -> Nat) -> Nat -> 
+Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a b)))))))))))))))))))))))))) zero (vcons (fun (Nat : 
+Type) -> (Nat -> Nat) -> Nat -> 
+Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a b))))))))))))))))))))))))) zero (vcons (fun (Nat : 
+Type) -> (Nat -> Nat) -> Nat -> 
+Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a b)))))))))))))))))))))))) zero (vcons (fun (Nat : 
+Type) -> (Nat -> Nat) -> Nat -> 
+Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a b))))))))))))))))))))))) zero (vcons (fun (Nat : 
+Type) -> (Nat -> Nat) -> Nat -> 
+Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a b)))))))))))))))))))))) zero (vcons (fun (Nat : 
+Type) -> (Nat -> Nat) -> Nat -> 
+Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a b))))))))))))))))))))) zero (vcons (fun (Nat : 
+Type) -> (Nat -> Nat) -> Nat -> 
+Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a b)))))))))))))))))))) zero (vcons (fun (Nat : 
+Type) -> (Nat -> Nat) -> Nat -> 
+Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a b))))))))))))))))))) zero (vcons (fun (Nat : 
+Type) -> (Nat -> Nat) -> Nat -> 
+Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a b)))))))))))))))))) zero (vcons (fun (Nat : 
+Type) -> (Nat -> Nat) -> Nat -> 
+Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a b))))))))))))))))) zero (vcons (fun (Nat : 
+Type) -> (Nat -> Nat) -> Nat -> 
+Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a (a (a (a (a (a (a b)))))))))))))))) zero (vcons (fun (Nat : 
+Type) -> (Nat -> Nat) -> Nat -> 
+Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a (a (a (a (a (a b))))))))))))))) zero (vcons (fun (Nat : 
+Type) -> (Nat -> Nat) -> Nat -> 
+Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a (a (a (a (a b)))))))))))))) zero (vcons (fun (Nat : 
+Type) -> (Nat -> Nat) -> Nat -> 
+Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a (a (a (a b))))))))))))) zero (vcons (fun (Nat : 
+Type) -> (Nat -> Nat) -> Nat -> 
+Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a (a (a b)))))))))))) zero (vcons (fun (Nat : 
+Type) -> (Nat -> Nat) -> Nat -> 
+Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a (a b))))))))))) zero (vcons (fun (Nat : 
+Type) -> (Nat -> Nat) -> Nat -> 
+Nat) (fun _ a b => a (a (a (a (a (a (a (a (a (a b)))))))))) zero (vcons (fun (Nat : 
+Type) -> (Nat -> Nat) -> Nat -> 
+Nat) (fun _ a b => a (a (a (a (a (a (a (a (a b))))))))) zero (vcons (fun (Nat : 
+Type) -> (Nat -> Nat) -> Nat -> 
+Nat) (fun _ a b => a (a (a (a (a (a (a (a b)))))))) zero (vcons (fun (Nat : 
+Type) -> (Nat -> Nat) -> Nat -> 
+Nat) (fun _ a b => a (a (a (a (a (a (a b))))))) zero (vcons (fun (Nat : 
+Type) -> (Nat -> Nat) -> Nat -> 
+Nat) (fun _ a b => a (a (a (a (a (a b)))))) zero (vcons (fun (Nat : 
+Type) -> (Nat -> Nat) -> Nat -> 
+Nat) (fun _ a b => a (a (a (a (a b))))) zero (vcons (fun (Nat : Type) -> (Nat
+ -> Nat) -> Nat -> 
+Nat) (fun _ a b => a (a (a (a b)))) zero (vcons (fun (Nat : Type) -> (Nat -> 
+Nat) -> Nat -> 
+Nat) (fun _ a b => a (a (a b))) zero (vcons (fun (Nat : Type) -> (Nat -> Nat)
+ -> Nat -> Nat) (fun _ a b => a (a b)) zero (vcons (fun (Nat : Type) -> (Nat -> 
+Nat) -> Nat -> Nat) (fun _ a b => a b) zero (vcons (fun (Nat : Type) -> (Nat -> 
+Nat) -> Nat -> Nat) (fun _ _ a => a) zero (vnil (fun (Nat : Type) -> (Nat -> 
+Nat) -> Nat -> 
+Nat)))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))));
 Type : Type
 '''
 stderr = ''

@@ -1,10 +1,10 @@
 stdout = '''
-let get1 : fun (A : Type) (B : Type) (C : Type) -> { x : A, y : B, z : C } ->
-A = fun A B C p => p.x;
-let get2 : fun (A : Type) (B : Type) (C : Type) -> { x : A, y : B, z : C } ->
-B = fun A B C p => p.y;
-let get3 : fun (A : Type) (B : Type) (C : Type) -> { x : A, y : B, z : C } ->
-C = fun A B C p => p.z;
+let get1 : fun (A : Type) (B : Type) (C : Type) -> { x : A, y : B, z : C } -> A = 
+fun A B C p => p.x;
+let get2 : fun (A : Type) (B : Type) (C : Type) -> { x : A, y : B, z : C } -> B = 
+fun A B C p => p.y;
+let get3 : fun (A : Type) (B : Type) (C : Type) -> { x : A, y : B, z : C } -> C = 
+fun A B C p => p.z;
 () : ()
 '''
 stderr = ''

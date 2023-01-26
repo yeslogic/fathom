@@ -1,10 +1,12 @@
 stdout = '''
 let _ : U32 = if false then 1 else 0;
-let _ : U32 = if (if false then true else false)
+let _ : U32 = 
+if (if false then true else false)
     then if true then 0 else 1
     else if false then 2
     else 3;
-let _ : U32 = if false
+let _ : U32 = 
+if false
     then 0
     else if false then 0
     else if false then 0

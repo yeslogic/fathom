@@ -1,6 +1,5 @@
 stdout = '''
-0 = [
-    {
+0 = [{
         header = {
             magic = 72057594037927680,
             manufacturer_id = 44048,
@@ -9,14 +8,14 @@ stdout = '''
             manufacturer_week = 10,
             manufacturer_year_mod = 29,
             edid_version_major = 1,
-            edid_version_minor = 4,
+            edid_version_minor = 4
         },
         display_parameters = {
             video_input_parameters = 165,
             screen_size_h = 53,
             screen_size_v = 30,
             gamma_mod = 120,
-            supported_features = 58,
+            supported_features = 58
         },
         chromacity_coordinates = {
             red_green_lsb = 226,
@@ -28,11 +27,10 @@ stdout = '''
             blue_x_msb = 38,
             blue_y_msb = 11,
             white_x_msb = 80,
-            white_y_msb = 84,
+            white_y_msb = 84
         },
         established_timing = { mode_bitmap = [165, 75, 0] },
-        standard_timing_information = (),
-    },
-]
+        standard_timing_information = ()
+    }]
 '''
 stderr = ''

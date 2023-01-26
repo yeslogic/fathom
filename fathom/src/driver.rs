@@ -368,8 +368,10 @@ impl<'surface, 'core> Driver<'surface, 'core> {
     }
 
     fn emit_module(&self, module: &surface::Module<'_, ()>) {
-        let context = surface::pretty::Context::new(&self.interner, &self.surface_scope);
-        self.emit_doc(context.module(module).into_doc());
+        let mut context = surface::pretty2::Context::new(self.emit_width, &self.interner);
+        context.module(module);
+        let doc = context.flush();
+        self.emit_doc(&doc);
     }
 
     fn emit_core_module(&self, module: &core::Module<'_>) {
@@ -382,37 +384,28 @@ impl<'surface, 'core> Driver<'surface, 'core> {
     }
 
     fn emit_term(&self, term: &surface::Term<'_, ()>) {
-        let context = surface::pretty::Context::new(&self.interner, &self.surface_scope);
-        self.emit_doc(context.term(term).into_doc());
+        let mut context = surface::pretty2::Context::new(self.emit_width, &self.interner);
+        context.term(term);
+        let doc = context.flush();
+        self.emit_doc(&doc);
     }
 
     fn emit_ref(&self, pos: usize, exprs: Vec<surface::Term<'_, ()>>) {
-        use pretty::DocAllocator;
-
-        let context = surface::pretty::Context::new(&self.interner, &self.surface_scope);
+        let mut context = surface::pretty2::Context::new(self.emit_width, &self.interner);
         let pos = pos.to_string();
-        let doc = context
-            .concat([
-                context.text(pos),
-                context.space(),
-                context.text("="),
-                context.space(),
-                context.sequence(
-                    true,
-                    context.text("["),
-                    exprs.iter().map(|expr| context.term(expr)),
-                    context.text(","),
-                    context.text("]"),
-                ),
-            ])
-            .into_doc();
 
-        self.emit_doc(doc);
+        context.text(pos);
+        context.text(" = ");
+        let term = surface::Term::ArrayLiteral((), &exprs);
+        context.term(&term);
+        let doc = context.flush();
+
+        self.emit_doc(&doc);
     }
 
-    fn emit_doc(&self, doc: pretty::RefDoc) {
+    fn emit_doc(&self, doc: &str) {
         let mut emit_writer = self.emit_writer.borrow_mut();
-        writeln!(emit_writer, "{}", doc.pretty(self.emit_width)).unwrap();
+        writeln!(emit_writer, "{doc}").unwrap();
         emit_writer.flush().unwrap();
     }
 
@@ -465,15 +458,17 @@ impl<'surface, 'core> Driver<'surface, 'core> {
                 let surface_scope = &self.surface_scope;
                 let expr = context.quote_env().quote(core_scope, value);
                 let surface_term = context.distillation_context(surface_scope).check(&expr);
-                let pretty_context = surface::pretty::Context::new(&self.interner, surface_scope);
-                let doc = pretty_context.term(&surface_term).into_doc();
+                let mut pretty_context =
+                    surface::pretty2::Context::new(self.emit_width, &self.interner);
+                pretty_context.term(&surface_term);
+                let doc = pretty_context.flush();
 
                 Diagnostic::error()
                     .with_message(err.to_string())
                     .with_labels(label_for_span(&span).into_iter().collect())
                     .with_notes(vec![
                         "The predicate on a conditional format did not succeed.".to_string(),
-                        format!("failed value: {}", doc.pretty(self.emit_width)),
+                        format!("failed value: {doc}"),
                     ])
             }
             ReadError::UnwrappedNone(_) => Diagnostic::error()
