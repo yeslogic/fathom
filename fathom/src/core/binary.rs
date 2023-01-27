@@ -40,7 +40,7 @@ impl<'arena> fmt::Display for ReadError<'arena> {
 impl<'arena> std::error::Error for ReadError<'arena> {}
 
 impl<'arena> From<BufferError> for ReadError<'arena> {
-    fn from(err: BufferError) -> Self {
+    fn from(err: BufferError) -> ReadError<'arena> {
         ReadError::BufferError(Span::Empty, err)
     }
 }

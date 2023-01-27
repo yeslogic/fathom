@@ -287,7 +287,7 @@ fn failures_to_outcome(failures: &[TestFailure]) -> Result<(), libtest_mimic::Fa
 }
 
 impl<'a> TestCommand<'a> {
-    fn new(command: Command<'a>, config: &'a Config, input_file: &'a Path) -> Self {
+    fn new(command: Command<'a>, config: &'a Config, input_file: &'a Path) -> TestCommand<'a> {
         TestCommand {
             command,
             config,
@@ -401,7 +401,7 @@ fn command_status_matches_expectation(
 }
 
 impl<'a> From<Command<'a>> for process::Command {
-    fn from(command: Command) -> Self {
+    fn from(command: Command) -> process::Command {
         let mut exe = process::Command::new(env!("CARGO_BIN_EXE_fathom"));
         match command {
             Command::ElabModule => {

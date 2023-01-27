@@ -600,7 +600,7 @@ pub enum Const {
 }
 
 impl PartialEq for Const {
-    fn eq(&self, other: &Self) -> bool {
+    fn eq(&self, other: &Const) -> bool {
         match (*self, *other) {
             (Const::Bool(a), Const::Bool(b)) => a == b,
             (Const::U8(a, _), Const::U8(b, _)) => a == b,
@@ -623,13 +623,13 @@ impl PartialEq for Const {
 impl Eq for Const {}
 
 impl PartialOrd for Const {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+    fn partial_cmp(&self, other: &Const) -> Option<std::cmp::Ordering> {
         Some(self.cmp(other))
     }
 }
 
 impl Ord for Const {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+    fn cmp(&self, other: &Const) -> std::cmp::Ordering {
         match (*self, *other) {
             (Const::Bool(a), Const::Bool(b)) => a.cmp(&b),
             (Const::U8(a, _), Const::U8(b, _)) => a.cmp(&b),

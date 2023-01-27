@@ -91,7 +91,7 @@ impl<'a, Elem> Deref for SliceVec<'a, Elem> {
 }
 
 impl<'a, Elem> From<SliceVec<'a, Elem>> for &'a [Elem] {
-    fn from(slice: SliceVec<'a, Elem>) -> Self {
+    fn from(slice: SliceVec<'a, Elem>) -> &'a [Elem] {
         // SAFETY: This is safe because we know that `self.elems[..self.next_index]`
         // only ever contains elements initialized with `MaybeUninit::new`.
         // We know this because:
