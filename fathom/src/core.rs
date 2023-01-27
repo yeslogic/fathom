@@ -1,5 +1,6 @@
 //! Core language.
 
+use std::borrow::Cow;
 use std::fmt;
 
 use crate::env::{Index, Level};
@@ -281,294 +282,392 @@ impl<'arena> Term<'arena> {
     }
 }
 
-macro_rules! def_prims {
-    ($($(#[$prim_attr:meta])* $PrimName:ident => $prim_name:literal),* $(,)?) => {
-        /// Primitives.
-        #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-        pub enum Prim {
-            $($(#[$prim_attr])* $PrimName),*
-        }
-
-        impl Prim {
-            pub const fn name(&self) -> &'static str {
-                match self {
-                    $(Prim::$PrimName => $prim_name),*
-                }
-            }
-        }
-    };
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum UintType {
+    U8,
+    U16,
+    U32,
+    U64,
 }
 
-def_prims! {
+impl UintType {
+    pub fn to_signed(self) -> SintType {
+        match self {
+            UintType::U8 => SintType::S8,
+            UintType::U16 => SintType::S16,
+            UintType::U32 => SintType::S32,
+            UintType::U64 => SintType::S64,
+        }
+    }
+}
+
+impl From<UintType> for Prim {
+    fn from(uint_type: UintType) -> Self {
+        Self::IntType(uint_type.into())
+    }
+}
+
+impl UintType {
+    pub const ALL: [Self; 4] = [Self::U8, Self::U16, Self::U32, Self::U64];
+
+    pub fn name_uppercase(self) -> &'static str {
+        match self {
+            UintType::U8 => "U8",
+            UintType::U16 => "U16",
+            UintType::U32 => "U32",
+            UintType::U64 => "U64",
+        }
+    }
+
+    pub fn name_lowercase(self) -> &'static str {
+        match self {
+            UintType::U8 => "u8",
+            UintType::U16 => "u16",
+            UintType::U32 => "u32",
+            UintType::U64 => "u64",
+        }
+    }
+
+    pub fn name_no_prefix(self) -> &'static str {
+        match self {
+            UintType::U8 => "8",
+            UintType::U16 => "16",
+            UintType::U32 => "32",
+            UintType::U64 => "64",
+        }
+    }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum SintType {
+    S8,
+    S16,
+    S32,
+    S64,
+}
+
+impl SintType {
+    pub fn to_unsigned(self) -> UintType {
+        match self {
+            SintType::S8 => UintType::U8,
+            SintType::S16 => UintType::U16,
+            SintType::S32 => UintType::U32,
+            SintType::S64 => UintType::U64,
+        }
+    }
+
+    pub fn name_uppercase(self) -> &'static str {
+        match self {
+            Self::S8 => "S8",
+            Self::S16 => "S16",
+            Self::S32 => "S32",
+            Self::S64 => "S64",
+        }
+    }
+
+    pub fn name_lowercase(self) -> &'static str {
+        match self {
+            Self::S8 => "s8",
+            Self::S16 => "s16",
+            Self::S32 => "s32",
+            Self::S64 => "s64",
+        }
+    }
+
+    pub fn name_no_prefix(self) -> &'static str {
+        match self {
+            Self::S8 => "8",
+            Self::S16 => "16",
+            Self::S32 => "32",
+            Self::S64 => "64",
+        }
+    }
+}
+
+impl From<SintType> for Prim {
+    fn from(sint_type: SintType) -> Self {
+        Self::IntType(sint_type.into())
+    }
+}
+
+impl SintType {
+    pub const ALL: [Self; 4] = [Self::S8, Self::S16, Self::S32, Self::S64];
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum IntType {
+    Unsigned(UintType),
+    Signed(SintType),
+}
+
+impl From<UintType> for IntType {
+    fn from(uint_type: UintType) -> Self {
+        Self::Unsigned(uint_type)
+    }
+}
+
+impl From<SintType> for IntType {
+    fn from(sint_type: SintType) -> Self {
+        Self::Signed(sint_type)
+    }
+}
+
+impl From<IntType> for Prim {
+    fn from(int_type: IntType) -> Self {
+        Self::IntType(int_type)
+    }
+}
+
+impl IntType {
+    pub const ALL: [Self; 8] = {
+        [
+            Self::Unsigned(UintType::U8),
+            Self::Unsigned(UintType::U16),
+            Self::Unsigned(UintType::U32),
+            Self::Unsigned(UintType::U64),
+            Self::Signed(SintType::S8),
+            Self::Signed(SintType::S16),
+            Self::Signed(SintType::S32),
+            Self::Signed(SintType::S64),
+        ]
+    };
+
+    fn name_uppercase(self) -> &'static str {
+        match self {
+            Self::Unsigned(uint_type) => uint_type.name_uppercase(),
+            Self::Signed(int_type) => int_type.name_uppercase(),
+        }
+    }
+
+    fn name_lowercase(self) -> &'static str {
+        match self {
+            Self::Unsigned(uint_type) => uint_type.name_lowercase(),
+            Self::Signed(int_type) => int_type.name_lowercase(),
+        }
+    }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum FloatType {
+    F32,
+    F64,
+}
+
+impl From<FloatType> for Prim {
+    fn from(float_type: FloatType) -> Self {
+        Self::FloatType(float_type)
+    }
+}
+
+impl FloatType {
+    pub const ALL: [Self; 2] = [Self::F32, Self::F64];
+
+    fn name_uppercase(self) -> &'static str {
+        match self {
+            Self::F32 => "F32",
+            Self::F64 => "F64",
+        }
+    }
+
+    fn name_lowercase(self) -> &'static str {
+        match self {
+            Self::F32 => "f32",
+            Self::F64 => "f64",
+        }
+    }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum Endianness {
+    Little,
+    Big,
+}
+
+impl Endianness {
+    pub const ALL: [Self; 2] = [Self::Little, Self::Big];
+
+    fn name_lowercase(self) -> &'static str {
+        match self {
+            Endianness::Little => "le",
+            Endianness::Big => "be",
+        }
+    }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum Prim {
     /// Void type.
-    VoidType => "Void",
-
-    /// Void eliminator.
-    Absurd => "absurd",
-
+    VoidType,
     /// Type of booleans.
-    BoolType => "Bool",
-    /// Type of unsigned, 8-bit integers.
-    U8Type => "U8",
-    /// Type of unsigned, 16-bit integers.
-    U16Type => "U16",
-    /// Type of unsigned, 32-bit integers.
-    U32Type => "U32",
-    /// Type of unsigned, 64-bit integers.
-    U64Type => "U64",
-    /// Type of signed, two's complement, 8-bit integers.
-    S8Type => "S8",
-    /// Type of signed, two's complement, 16-bit integers.
-    S16Type => "S16",
-    /// Type of signed, two's complement, 32-bit integers.
-    S32Type => "S32",
-    /// Type of signed, two's complement, 64-bit integers.
-    S64Type => "S64",
-    /// Type of 32-bit, IEEE-754 floating point numbers.
-    F32Type => "F32",
-    /// Type of 64-bit, IEEE-754 floating point numbers.
-    F64Type => "F64",
+    BoolType,
+    /// Type of two's complement machine integers.
+    IntType(IntType),
+    /// Type of IEEE-754 floating point numbers.
+    FloatType(FloatType),
     /// Type of optional data.
-    OptionType => "Option",
+    OptionType,
     /// Type of dynamically sized arrays.
-    ArrayType => "Array",
-    /// Type of arrays, with 8-bit indices.
-    Array8Type => "Array8",
-    /// Type of arrays, with 16-bit indices.
-    Array16Type => "Array16",
-    /// Type of arrays, with 32-bit indices.
-    Array32Type => "Array32",
-    /// Type of arrays, with 64-bit indices.
-    Array64Type => "Array64",
+    VecType,
+    /// Type of fixed size arrays
+    ArrayType(UintType),
     /// Type of stream positions.
-    PosType => "Pos",
+    PosType,
     /// Type of stream references.
-    RefType => "Ref",
+    RefType,
 
     /// Type of format descriptions.
-    FormatType => "Format",
-    /// Unsigned, 8-bit integer formats.
-    FormatU8 => "u8",
-    /// Unsigned, 16-bit integer formats (big-endian).
-    FormatU16Be => "u16be",
-    /// Unsigned, 16-bit integer formats (little-endian).
-    FormatU16Le => "u16le",
-    /// Unsigned, 32-bit integer formats (big-endian).
-    FormatU32Be => "u32be",
-    /// Unsigned, 32-bit integer formats (little-endian).
-    FormatU32Le => "u32le",
-    /// Unsigned, 64-bit integer formats (big-endian).
-    FormatU64Be => "u64be",
-    /// Unsigned, 64-bit integer formats (little-endian).
-    FormatU64Le => "u64le",
-    /// Signed, two's complement, 8-bit integer formats.
-    FormatS8 => "s8",
-    /// Signed, two's complement, 16-bit integer formats (big-endian).
-    FormatS16Be => "s16be",
-    /// Signed, two's complement, 16-bit integer formats (little-endian).
-    FormatS16Le => "s16le",
-    /// Signed, two's complement, 32-bit integer formats (big-endian).
-    FormatS32Be => "s32be",
-    /// Signed, two's complement, 32-bit integer formats (little-endian).
-    FormatS32Le => "s32le",
-    /// Signed, two's complement, 64-bit integer formats (big-endian).
-    FormatS64Be => "s64be",
-    /// Signed, two's complement, 64-bit integer formats (little-endian).
-    FormatS64Le => "s64le",
-    /// 32-bit, IEEE-754 floating point formats (big-endian).
-    FormatF32Be => "f32be",
-    /// 32-bit, IEEE-754 floating point formats (little-endian).
-    FormatF32Le => "f32le",
-    /// 64-bit, IEEE-754 floating point formats (big-endian).
-    FormatF64Be => "f64be",
-    /// 64-bit, IEEE-754 floating point formats (little-endian).
-    FormatF64Le => "f64le",
-    /// Repeat formats up to an unsigned 8-bit length.
-    FormatRepeatLen8 => "repeat_len8",
-    /// Repeat formats up to an unsigned 16-bit length.
-    FormatRepeatLen16 => "repeat_len16",
-    /// Repeat formats up to an unsigned 32-bit length.
-    FormatRepeatLen32 => "repeat_len32",
-    /// Repeat formats up to an unsigned 64-bit length.
-    FormatRepeatLen64 => "repeat_len64",
+    FormatType,
+    /// Integer formats.
+    FormatInt(IntType, Endianness),
+    /// IEEE-754 floating point formats.
+    FormatFloat(FloatType, Endianness),
+    /// Repeat formats up to an unsigned length.
+    FormatRepeat(UintType),
     /// Repeat a format until the length of the given parse scope is reached.
-    FormatRepeatUntilEnd => "repeat_until_end",
-    /// Limit the format to an unsigned 8-bit byte length.
-    FormatLimit8 => "limit8",
-    /// Limit the format to an unsigned 16-bit byte length.
-    FormatLimit16 => "limit16",
-    /// Limit the format to an unsigned 32-bit byte length.
-    FormatLimit32 => "limit32",
-    /// Limit the format to an unsigned 64-bit byte length.
-    FormatLimit64 => "limit64",
+    FormatRepeatUntilEnd,
+    /// Limit the format to an unsigned length.
+    FormatLimit(UintType),
     /// A format which returns the current position in the input stream.
-    FormatStreamPos => "stream_pos",
+    FormatStreamPos,
     /// A format that links to another location in the binary data stream,
     /// relative to a base position.
-    FormatLink => "link",
+    FormatLink,
     /// A format that forces a reference to be read eagerly.
-    FormatDeref => "deref",
+    FormatDeref,
     /// A format that always succeeds with some data.
-    FormatSucceed => "succeed",
+    FormatSucceed,
     /// A format that always fails to parse.
-    FormatFail => "fail",
+    FormatFail,
     /// Unwrap an option, or fail to parse.
-    FormatUnwrap => "unwrap",
+    FormatUnwrap,
     /// Format representations.
-    FormatRepr => "Repr",
+    FormatRepr,
+
+    /// Void eliminator.
+    Absurd,
+
+    // TODO: replace with prelude functions.
+    BoolEq,
+    BoolNeq,
+    BoolNot,
+    BoolAnd,
+    BoolOr,
+    BoolXor,
+
+    // Int operations.
+    IntEq(IntType),
+    IntNeq(IntType),
+    IntLt(IntType),
+    IntLte(IntType),
+    IntGt(IntType),
+    IntGte(IntType),
+    IntAdd(IntType),
+    IntSub(IntType),
+    IntMul(IntType),
+    IntDiv(IntType),
+
+    IntNot(UintType),
+    IntShl(UintType),
+    IntShr(UintType),
+    IntAnd(UintType),
+    IntOr(UintType),
+    IntXor(UintType),
+
+    IntNeg(SintType),
+    IntAbs(SintType),
+    IntUAbs(SintType),
+
+    OptionSome,
+    OptionNone,
+    OptionFold,
+
+    ArrayFind(UintType),
+    ArrayIndex(UintType),
+
+    PosAdd(UintType),
 
     /// Reported errors.
-    ReportedError => "reported_error",
+    ReportedError,
+}
 
-    BoolEq  => "bool_eq",
-    BoolNeq => "bool_neq",
-    BoolNot => "bool_not",
-    BoolAnd => "bool_and",
-    BoolOr  => "bool_or",
-    BoolXor => "bool_xor",
-
-    U8Eq  => "u8_eq",
-    U8Neq => "u8_neq",
-    U8Gt  => "u8_gt",
-    U8Lt  => "u8_lt",
-    U8Gte => "u8_gte",
-    U8Lte => "u8_lte",
-    U8Add => "u8_add",
-    U8Sub => "u8_sub",
-    U8Mul => "u8_mul",
-    U8Div => "u8_div",
-    U8Not => "u8_not",
-    U8Shl => "u8_shl",
-    U8Shr => "u8_shr",
-    U8And => "u8_and",
-    U8Or  => "u8_or",
-    U8Xor => "u8_xor",
-
-    U16Eq  => "u16_eq",
-    U16Neq => "u16_neq",
-    U16Gt  => "u16_gt",
-    U16Lt  => "u16_lt",
-    U16Gte => "u16_gte",
-    U16Lte => "u16_lte",
-    U16Add => "u16_add",
-    U16Sub => "u16_sub",
-    U16Mul => "u16_mul",
-    U16Div => "u16_div",
-    U16Not => "u16_not",
-    U16Shl => "u16_shl",
-    U16Shr => "u16_shr",
-    U16And => "u16_and",
-    U16Or  => "u16_or",
-    U16Xor => "u16_xor",
-
-    U32Eq  => "u32_eq",
-    U32Neq => "u32_neq",
-    U32Gt  => "u32_gt",
-    U32Lt  => "u32_lt",
-    U32Gte => "u32_gte",
-    U32Lte => "u32_lte",
-    U32Add => "u32_add",
-    U32Sub => "u32_sub",
-    U32Mul => "u32_mul",
-    U32Div => "u32_div",
-    U32Not => "u32_not",
-    U32Shl => "u32_shl",
-    U32Shr => "u32_shr",
-    U32And => "u32_and",
-    U32Or  => "u32_or",
-    U32Xor => "u32_xor",
-
-    U64Eq  => "u64_eq",
-    U64Neq => "u64_neq",
-    U64Gt  => "u64_gt",
-    U64Lt  => "u64_lt",
-    U64Gte => "u64_gte",
-    U64Lte => "u64_lte",
-    U64Add => "u64_add",
-    U64Sub => "u64_sub",
-    U64Mul => "u64_mul",
-    U64Div => "u64_div",
-    U64Not => "u64_not",
-    U64Shl => "u64_shl",
-    U64Shr => "u64_shr",
-    U64And => "u64_and",
-    U64Or  => "u64_or",
-    U64Xor => "u64_xor",
-
-    S8Eq  => "s8_eq",
-    S8Neq => "s8_neq",
-    S8Gt  => "s8_gt",
-    S8Lt  => "s8_lt",
-    S8Gte => "s8_gte",
-    S8Lte => "s8_lte",
-    S8Neg => "s8_neg",
-    S8Add => "s8_add",
-    S8Sub => "s8_sub",
-    S8Mul => "s8_mul",
-    S8Div => "s8_div",
-    S8Abs => "s8_abs",
-    S8UAbs => "s8_unsigned_abs",
-
-    S16Eq  => "s16_eq",
-    S16Neq => "s16_neq",
-    S16Gt  => "s16_gt",
-    S16Lt  => "s16_lt",
-    S16Gte => "s16_gte",
-    S16Lte => "s16_lte",
-    S16Neg => "s16_neg",
-    S16Add => "s16_add",
-    S16Sub => "s16_sub",
-    S16Mul => "s16_mul",
-    S16Div => "s16_div",
-    S16Abs => "s16_abs",
-    S16UAbs => "s16_unsigned_abs",
-
-    S32Eq  => "s32_eq",
-    S32Neq => "s32_neq",
-    S32Gt  => "s32_gt",
-    S32Lt  => "s32_lt",
-    S32Gte => "s32_gte",
-    S32Lte => "s32_lte",
-    S32Neg => "s32_neg",
-    S32Add => "s32_add",
-    S32Sub => "s32_sub",
-    S32Mul => "s32_mul",
-    S32Div => "s32_div",
-    S32Abs => "s32_abs",
-    S32UAbs => "s32_unsigned_abs",
-
-    S64Eq  => "s64_eq",
-    S64Neq => "s64_neq",
-    S64Gt  => "s64_gt",
-    S64Lt  => "s64_lt",
-    S64Gte => "s64_gte",
-    S64Lte => "s64_lte",
-    S64Neg => "s64_neg",
-    S64Add => "s64_add",
-    S64Sub => "s64_sub",
-    S64Mul => "s64_mul",
-    S64Div => "s64_div",
-    S64Abs => "s64_abs",
-    S64UAbs => "s64_unsigned_abs",
-
-    OptionSome => "some",
-    OptionNone => "none",
-    OptionFold => "option_fold",
-
-    Array8Find => "array8_find",
-    Array16Find => "array16_find",
-    Array32Find => "array32_find",
-    Array64Find => "array64_find",
-
-    Array8Index => "array8_index",
-    Array16Index => "array16_index",
-    Array32Index => "array32_index",
-    Array64Index => "array64_index",
-
-    PosAddU8  => "pos_add_u8",
-    PosAddU16 => "pos_add_u16",
-    PosAddU32 => "pos_add_u32",
-    PosAddU64 => "pos_add_u64",
+impl Prim {
+    pub fn name(self) -> Cow<'static, str> {
+        match self {
+            Prim::VoidType => "Void".into(),
+            Prim::BoolType => "Bool".into(),
+            Prim::IntType(int_type) => int_type.name_uppercase().into(),
+            Prim::FloatType(float_type) => float_type.name_uppercase().into(),
+            Prim::OptionType => "Option".into(),
+            Prim::VecType => "Array".into(),
+            Prim::ArrayType(uint_type) => format!("Array{}", uint_type.name_no_prefix()).into(),
+            Prim::PosType => "Pos".into(),
+            Prim::RefType => "Ref".into(),
+            Prim::FormatType => "Format".into(),
+            Prim::FormatInt(IntType::Unsigned(UintType::U8), _) => "u8".into(),
+            Prim::FormatInt(IntType::Signed(SintType::S8), _) => "s8".into(),
+            Prim::FormatInt(int_type, endianness) => format!(
+                "{}{}",
+                int_type.name_lowercase(),
+                endianness.name_lowercase()
+            )
+            .into(),
+            Prim::FormatFloat(float_type, endianness) => format!(
+                "{}{}",
+                float_type.name_lowercase(),
+                endianness.name_lowercase()
+            )
+            .into(),
+            Prim::FormatRepeat(uint_type) => {
+                format!("repeat_len{}", uint_type.name_no_prefix()).into()
+            }
+            Prim::FormatRepeatUntilEnd => "repeat_until_end".into(),
+            Prim::FormatLimit(uint_type) => format!("limit{}", uint_type.name_no_prefix()).into(),
+            Prim::FormatStreamPos => "stream_pos".into(),
+            Prim::FormatLink => "link".into(),
+            Prim::FormatDeref => "deref".into(),
+            Prim::FormatSucceed => "succeed".into(),
+            Prim::FormatFail => "fail".into(),
+            Prim::FormatUnwrap => "unwrap".into(),
+            Prim::FormatRepr => "Repr".into(),
+            Prim::Absurd => "absurd".into(),
+            Prim::BoolEq => "bool_eq".into(),
+            Prim::BoolNeq => "bool_neq".into(),
+            Prim::BoolNot => "bool_not".into(),
+            Prim::BoolAnd => "bool_and".into(),
+            Prim::BoolOr => "bool_or".into(),
+            Prim::BoolXor => "bool_xor".into(),
+            Prim::IntEq(int_type) => format!("{}_eq", int_type.name_lowercase()).into(),
+            Prim::IntNeq(int_type) => format!("{}_neq", int_type.name_lowercase()).into(),
+            Prim::IntLt(int_type) => format!("{}_lt", int_type.name_lowercase()).into(),
+            Prim::IntLte(int_type) => format!("{}_lte", int_type.name_lowercase()).into(),
+            Prim::IntGt(int_type) => format!("{}_gt", int_type.name_lowercase()).into(),
+            Prim::IntGte(int_type) => format!("{}_gte", int_type.name_lowercase()).into(),
+            Prim::IntAdd(int_type) => format!("{}_add", int_type.name_lowercase()).into(),
+            Prim::IntSub(int_type) => format!("{}_sub", int_type.name_lowercase()).into(),
+            Prim::IntMul(int_type) => format!("{}_mul", int_type.name_lowercase()).into(),
+            Prim::IntDiv(int_type) => format!("{}_div", int_type.name_lowercase()).into(),
+            Prim::IntNot(int_type) => format!("{}_not", int_type.name_lowercase()).into(),
+            Prim::IntShl(int_type) => format!("{}_shl", int_type.name_lowercase()).into(),
+            Prim::IntShr(int_type) => format!("{}_shr", int_type.name_lowercase()).into(),
+            Prim::IntAnd(int_type) => format!("{}_and", int_type.name_lowercase()).into(),
+            Prim::IntOr(int_type) => format!("{}_or", int_type.name_lowercase()).into(),
+            Prim::IntXor(int_type) => format!("{}_xor", int_type.name_lowercase()).into(),
+            Prim::IntNeg(int_type) => format!("{}_neg", int_type.name_lowercase()).into(),
+            Prim::IntAbs(int_type) => format!("{}_abs", int_type.name_lowercase()).into(),
+            Prim::IntUAbs(int_type) => format!("{}_unsigned_abs", int_type.name_lowercase()).into(),
+            Prim::OptionSome => "some".into(),
+            Prim::OptionNone => "none".into(),
+            Prim::OptionFold => "option_fold".into(),
+            Prim::ArrayFind(uint_type) => {
+                format!("array{}_find", uint_type.name_no_prefix()).into()
+            }
+            Prim::ArrayIndex(uint_type) => {
+                format!("array{}_index", uint_type.name_no_prefix()).into()
+            }
+            Prim::PosAdd(uint_type) => format!("pos_add_{}", uint_type.name_lowercase()).into(),
+            Prim::ReportedError => "reported_error".into(),
+        }
+    }
 }
 
 /// Formatting style for integers

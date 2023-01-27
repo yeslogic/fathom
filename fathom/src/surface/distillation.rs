@@ -207,7 +207,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
 
     fn synth_prim(&mut self, prim: core::Prim) -> Term<'arena, ()> {
         // FIXME: Check if shadowed
-        let name = self.interner.borrow_mut().get_or_intern_static(prim.name());
+        let name = self.interner.borrow_mut().get_or_intern(prim.name());
         Term::Name((), name)
     }
 
@@ -731,35 +731,47 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
             core::Term::Prim(_span, prim) => self.synth_prim(*prim),
             core::Term::ConstLit(_span, r#const) => match r#const {
                 core::Const::Bool(boolean) => Term::BooleanLiteral((), *boolean),
-                core::Const::U8(number, style) => {
-                    self.synth_number_literal_styled(prec, number, *style, core::Prim::U8Type)
-                }
-                core::Const::U16(number, style) => {
-                    self.synth_number_literal_styled(prec, number, *style, core::Prim::U16Type)
-                }
-                core::Const::U32(number, style) => {
-                    self.synth_number_literal_styled(prec, number, *style, core::Prim::U32Type)
-                }
-                core::Const::U64(number, style) => {
-                    self.synth_number_literal_styled(prec, number, *style, core::Prim::U64Type)
-                }
+                core::Const::U8(number, style) => self.synth_number_literal_styled(
+                    prec,
+                    number,
+                    *style,
+                    core::UintType::U8.into(),
+                ),
+                core::Const::U16(number, style) => self.synth_number_literal_styled(
+                    prec,
+                    number,
+                    *style,
+                    core::UintType::U16.into(),
+                ),
+                core::Const::U32(number, style) => self.synth_number_literal_styled(
+                    prec,
+                    number,
+                    *style,
+                    core::UintType::U32.into(),
+                ),
+                core::Const::U64(number, style) => self.synth_number_literal_styled(
+                    prec,
+                    number,
+                    *style,
+                    core::UintType::U64.into(),
+                ),
                 core::Const::S8(number) => {
-                    self.synth_number_literal(prec, number, core::Prim::S8Type)
+                    self.synth_number_literal(prec, number, core::SintType::S8.into())
                 }
                 core::Const::S16(number) => {
-                    self.synth_number_literal(prec, number, core::Prim::S16Type)
+                    self.synth_number_literal(prec, number, core::SintType::S16.into())
                 }
                 core::Const::S32(number) => {
-                    self.synth_number_literal(prec, number, core::Prim::S32Type)
+                    self.synth_number_literal(prec, number, core::SintType::S32.into())
                 }
                 core::Const::S64(number) => {
-                    self.synth_number_literal(prec, number, core::Prim::S64Type)
+                    self.synth_number_literal(prec, number, core::SintType::S64.into())
                 }
                 core::Const::F32(number) => {
-                    self.synth_number_literal(prec, number, core::Prim::F32Type)
+                    self.synth_number_literal(prec, number, core::FloatType::F32.into())
                 }
                 core::Const::F64(number) => {
-                    self.synth_number_literal(prec, number, core::Prim::F64Type)
+                    self.synth_number_literal(prec, number, core::FloatType::F64.into())
                 }
                 core::Const::Pos(number) => {
                     self.synth_number_literal(prec, number, core::Prim::PosType)
@@ -923,19 +935,18 @@ fn prim_to_bin_op(prim: &core::Prim) -> Option<BinOp<()>> {
     use crate::core::Prim::*;
 
     match prim {
-        U8Mul | U16Mul | U32Mul | U64Mul | S8Mul | S16Mul | S32Mul | S64Mul => Some(BinOp::Mul(())),
-        U8Div | U16Div | U32Div | U64Div | S8Div | S16Div | S32Div | S64Div => Some(BinOp::Div(())),
-        U8Add | U16Add | U32Add | U64Add | S8Add | S16Add | S32Add | S64Add | PosAddU8
-        | PosAddU16 | PosAddU32 | PosAddU64 => Some(BinOp::Add(())),
-        U8Sub | U16Sub | U32Sub | U64Sub | S8Sub | S16Sub | S32Sub | S64Sub => Some(BinOp::Sub(())),
-        BoolEq | U8Eq | U16Eq | U32Eq | U64Eq | S8Eq | S16Eq | S32Eq | S64Eq => Some(BinOp::Eq(())),
-        BoolNeq | U8Neq | U16Neq | U32Neq | U64Neq | S8Neq | S16Neq | S32Neq | S64Neq => {
-            Some(BinOp::Neq(()))
-        }
-        U8Lt | U16Lt | U32Lt | U64Lt | S8Lt | S16Lt | S32Lt | S64Lt => Some(BinOp::Lt(())),
-        U8Lte | U16Lte | U32Lte | U64Lte | S8Lte | S16Lte | S32Lte | S64Lte => Some(BinOp::Lte(())),
-        U8Gt | U16Gt | U32Gt | U64Gt | S8Gt | S16Gt | S32Gt | S64Gt => Some(BinOp::Gt(())),
-        U8Gte | U16Gte | U32Gte | U64Gte | S8Gte | S16Gte | S32Gte | S64Gte => Some(BinOp::Gte(())),
+        PosAdd(_) | IntAdd(_) => Some(BinOp::Add(())),
+        IntSub(_) => Some(BinOp::Sub(())),
+        IntMul(_) => Some(BinOp::Mul(())),
+        IntDiv(_) => Some(BinOp::Div(())),
+
+        BoolEq | IntEq(_) => Some(BinOp::Eq(())),
+        BoolNeq | IntNeq(_) => Some(BinOp::Neq(())),
+
+        IntLt(_) => Some(BinOp::Lt(())),
+        IntLte(_) => Some(BinOp::Lte(())),
+        IntGt(_) => Some(BinOp::Gt(())),
+        IntGte(_) => Some(BinOp::Gte(())),
 
         _ => None,
     }

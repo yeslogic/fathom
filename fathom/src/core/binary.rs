@@ -8,7 +8,9 @@ use std::slice::SliceIndex;
 use std::sync::Arc;
 
 use crate::core::semantics::{self, ArcValue, Elim, Head, Value};
-use crate::core::{Const, Item, Module, Prim, Term, UIntStyle};
+use crate::core::{
+    Const, Endianness, FloatType, IntType, Item, Module, Prim, SintType, Term, UIntStyle, UintType,
+};
 use crate::env::{EnvLen, SharedEnv, UniqueEnv};
 use crate::source::{Span, Spanned};
 
@@ -407,33 +409,42 @@ impl<'arena, 'data> Context<'arena, 'data> {
         use crate::core::semantics::Elim::FunApp;
 
         match (prim, slice) {
-            (Prim::FormatU8, []) => read_const(reader, span, read_u8, |num| Const::U8(num, UIntStyle::Decimal)),
-            (Prim::FormatU16Be, []) => read_const(reader, span, read_u16be, |num| Const::U16(num, UIntStyle::Decimal)),
-            (Prim::FormatU16Le, []) => read_const(reader, span, read_u16le, |num| Const::U16(num, UIntStyle::Decimal)),
-            (Prim::FormatU32Be, []) => read_const(reader, span, read_u32be, |num| Const::U32(num, UIntStyle::Decimal)),
-            (Prim::FormatU32Le, []) => read_const(reader, span, read_u32le, |num| Const::U32(num, UIntStyle::Decimal)),
-            (Prim::FormatU64Be, []) => read_const(reader, span, read_u64be, |num| Const::U64(num, UIntStyle::Decimal)),
-            (Prim::FormatU64Le, []) => read_const(reader, span, read_u64le, |num| Const::U64(num, UIntStyle::Decimal)),
-            (Prim::FormatS8, []) => read_const(reader, span, read_s8, Const::S8),
-            (Prim::FormatS16Be, []) => read_const(reader, span, read_s16be, Const::S16),
-            (Prim::FormatS16Le, []) => read_const(reader, span, read_s16le, Const::S16),
-            (Prim::FormatS32Be, []) => read_const(reader, span, read_s32be, Const::S32),
-            (Prim::FormatS32Le, []) => read_const(reader, span, read_s32le, Const::S32),
-            (Prim::FormatS64Be, []) => read_const(reader, span, read_s64be, Const::S64),
-            (Prim::FormatS64Le, []) => read_const(reader, span, read_s64le, Const::S64),
-            (Prim::FormatF32Be, []) => read_const(reader, span, read_f32be, Const::F32),
-            (Prim::FormatF32Le, []) => read_const(reader, span, read_f32le, Const::F32),
-            (Prim::FormatF64Be, []) => read_const(reader, span, read_f64be, Const::F64),
-            (Prim::FormatF64Le, []) => read_const(reader, span, read_f64le, Const::F64),
-            (Prim::FormatRepeatLen8, [FunApp(_, len), FunApp(_, format)]) => self.read_repeat_len(reader, span, len, format),
-            (Prim::FormatRepeatLen16, [FunApp(_, len), FunApp(_, format)]) => self.read_repeat_len(reader, span, len, format),
-            (Prim::FormatRepeatLen32, [FunApp(_, len), FunApp(_, format)]) => self.read_repeat_len(reader, span, len, format),
-            (Prim::FormatRepeatLen64, [FunApp(_, len), FunApp(_, format)]) => self.read_repeat_len(reader, span, len, format),
+            (Prim::FormatInt(int_type, endianness), []) => {
+                match (endianness, int_type) {
+                    (_, IntType::Unsigned(UintType::U8)) => {
+                        read_const(reader, span, read_u8, |num| Const::U8(num, UIntStyle::Decimal))
+                    }
+
+                    (Endianness::Big, IntType::Unsigned(UintType::U16)) => read_const(reader, span, read_u16be, |num| Const::U16(num, UIntStyle::Decimal)),
+                    (Endianness::Little, IntType::Unsigned(UintType::U16)) => read_const(reader, span, read_u16le, |num| Const::U16(num, UIntStyle::Decimal)),
+
+                    (Endianness::Big, IntType::Unsigned(UintType::U32)) => read_const(reader, span, read_u32be, |num| Const::U32(num, UIntStyle::Decimal)),
+                    (Endianness::Little, IntType::Unsigned(UintType::U32)) => read_const(reader, span, read_u32le, |num| Const::U32(num, UIntStyle::Decimal)),
+
+                    (Endianness::Big, IntType::Unsigned(UintType::U64)) => read_const(reader, span, read_u64be, |num| Const::U64(num, UIntStyle::Decimal)),
+                    (Endianness::Little, IntType::Unsigned(UintType::U64)) => read_const(reader, span, read_u64le, |num| Const::U64(num, UIntStyle::Decimal)),
+
+                    (_, IntType::Signed(SintType::S8)) => read_const(reader, span, read_s8, Const::S8),
+
+                    (Endianness::Big, IntType::Signed(SintType::S16)) => read_const(reader, span, read_s16be, Const::S16),
+                    (Endianness::Little, IntType::Signed(SintType::S16)) => read_const(reader, span, read_s16le, Const::S16),
+
+                    (Endianness::Big, IntType::Signed(SintType::S32)) => read_const(reader, span, read_s32be, Const::S32),
+                    (Endianness::Little, IntType::Signed(SintType::S32)) => read_const(reader, span, read_s32le, Const::S32),
+
+                    (Endianness::Big, IntType::Signed(SintType::S64)) => read_const(reader, span, read_s64be, Const::S64),
+                    (Endianness::Little, IntType::Signed(SintType::S64)) => read_const(reader, span, read_s64le, Const::S64),
+                }
+            }
+            (Prim::FormatFloat(float_type, endianness), []) =>  match (endianness, float_type) {
+                (Endianness::Little, FloatType::F32) => read_const(reader, span, read_f32le, Const::F32),
+                (Endianness::Big, FloatType::F32) => read_const(reader, span, read_f32be, Const::F32),
+                (Endianness::Little, FloatType::F64) => read_const(reader, span, read_f64le, Const::F64),
+                (Endianness::Big, FloatType::F64) => read_const(reader, span, read_f64be, Const::F64),
+            }
+            (Prim::FormatRepeat(_), [FunApp(_, len), FunApp(_, format)]) => self.read_repeat_len(reader, span, len, format),
             (Prim::FormatRepeatUntilEnd, [FunApp(_,format)]) => self.read_repeat_until_end(reader, format),
-            (Prim::FormatLimit8, [FunApp(_, limit), FunApp(_, format)]) => self.read_limit(reader, limit, format),
-            (Prim::FormatLimit16, [FunApp(_, limit), FunApp(_, format)]) => self.read_limit(reader, limit, format),
-            (Prim::FormatLimit32, [FunApp(_, limit), FunApp(_, format)]) => self.read_limit(reader, limit, format),
-            (Prim::FormatLimit64, [FunApp(_, limit), FunApp(_, format)]) => self.read_limit(reader, limit, format),
+            (Prim::FormatLimit(_), [FunApp(_, limit), FunApp(_, format)]) => self.read_limit(reader, limit, format),
             (Prim::FormatLink, [FunApp(_, pos), FunApp(_, format)]) => self.read_link(span, pos, format),
             (Prim::FormatDeref, [FunApp(_, format), FunApp(_, r#ref)]) => self.read_deref(format, r#ref),
             (Prim::FormatStreamPos, []) => read_stream_pos(reader, span),

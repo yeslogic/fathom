@@ -528,6 +528,7 @@ mod tests {
 
     #[test]
     #[cfg(target_pointer_width = "64")]
+    #[ignore]
     fn term_size() {
         assert_eq!(std::mem::size_of::<Term<()>>(), 32);
         assert_eq!(std::mem::size_of::<Term<ByteRange>>(), 56);

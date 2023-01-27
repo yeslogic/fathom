@@ -29,7 +29,7 @@ use scoped_arena::Scope;
 use super::ExprField;
 use crate::alloc::SliceVec;
 use crate::core::semantics::{self, ArcValue, Head, Telescope, Value};
-use crate::core::{self, prim, Const, Plicity, Prim, UIntStyle};
+use crate::core::{self, prim, Const, IntType, Plicity, Prim, UIntStyle, UintType};
 use crate::env::{self, EnvLen, Level, SharedEnv, UniqueEnv};
 use crate::files::FileId;
 use crate::source::{BytePos, ByteRange, FileRange, Span, Spanned, StringId, StringInterner};
@@ -769,10 +769,12 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
             Pattern::Placeholder(_) => CheckedPattern::Placeholder(file_range),
             Pattern::StringLiteral(range, lit) => {
                 let constant = match expected_type.match_prim_spine() {
-                    Some((Prim::U8Type, [])) => self.parse_ascii(*range, *lit, Const::U8),
-                    Some((Prim::U16Type, [])) => self.parse_ascii(*range, *lit, Const::U16),
-                    Some((Prim::U32Type, [])) => self.parse_ascii(*range, *lit, Const::U32),
-                    Some((Prim::U64Type, [])) => self.parse_ascii(*range, *lit, Const::U64),
+                    Some((Prim::IntType(IntType::Unsigned(uint_type)), [])) => match uint_type {
+                        UintType::U8 => self.parse_ascii(*range, *lit, Const::U8),
+                        UintType::U16 => self.parse_ascii(*range, *lit, Const::U16),
+                        UintType::U32 => self.parse_ascii(*range, *lit, Const::U32),
+                        UintType::U64 => self.parse_ascii(*range, *lit, Const::U32),
+                    },
                     // Some((Prim::Array8Type, [len, _])) => todo!(),
                     // Some((Prim::Array16Type, [len, _])) => todo!(),
                     // Some((Prim::Array32Type, [len, _])) => todo!(),
@@ -795,16 +797,24 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
             }
             Pattern::NumberLiteral(range, lit) => {
                 let constant = match expected_type.match_prim_spine() {
-                    Some((Prim::U8Type, [])) => self.parse_number_radix(*range, *lit, Const::U8),
-                    Some((Prim::U16Type, [])) => self.parse_number_radix(*range, *lit, Const::U16),
-                    Some((Prim::U32Type, [])) => self.parse_number_radix(*range, *lit, Const::U32),
-                    Some((Prim::U64Type, [])) => self.parse_number_radix(*range, *lit, Const::U64),
-                    Some((Prim::S8Type, [])) => self.parse_number(*range, *lit, Const::S8),
-                    Some((Prim::S16Type, [])) => self.parse_number(*range, *lit, Const::S16),
-                    Some((Prim::S32Type, [])) => self.parse_number(*range, *lit, Const::S32),
-                    Some((Prim::S64Type, [])) => self.parse_number(*range, *lit, Const::S64),
-                    Some((Prim::F32Type, [])) => self.parse_number(*range, *lit, Const::F32),
-                    Some((Prim::F64Type, [])) => self.parse_number(*range, *lit, Const::F64),
+                    Some((Prim::IntType(int_type), [])) => match int_type {
+                        IntType::Unsigned(uint_type) => match uint_type {
+                            UintType::U8 => self.parse_number_radix(*range, *lit, Const::U8),
+                            UintType::U16 => self.parse_number_radix(*range, *lit, Const::U16),
+                            UintType::U32 => self.parse_number_radix(*range, *lit, Const::U32),
+                            UintType::U64 => self.parse_number_radix(*range, *lit, Const::U64),
+                        },
+                        IntType::Signed(sint_type) => match sint_type {
+                            core::SintType::S8 => self.parse_number(*range, *lit, Const::S8),
+                            core::SintType::S16 => self.parse_number(*range, *lit, Const::S16),
+                            core::SintType::S32 => self.parse_number(*range, *lit, Const::S32),
+                            core::SintType::S64 => self.parse_number(*range, *lit, Const::S64),
+                        },
+                    },
+                    Some((Prim::FloatType(float_type), [])) => match float_type {
+                        core::FloatType::F32 => self.parse_number(*range, *lit, Const::F32),
+                        core::FloatType::F64 => self.parse_number(*range, *lit, Const::F64),
+                    },
                     Some((Prim::ReportedError, _)) => None,
                     _ => {
                         let expected_type = self.pretty_print_value(expected_type);
@@ -823,10 +833,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
             }
             Pattern::BooleanLiteral(_, boolean) => {
                 let constant = match expected_type.match_prim_spine() {
-                    Some((Prim::BoolType, [])) => match *boolean {
-                        true => Some(Const::Bool(true)),
-                        false => Some(Const::Bool(false)),
-                    },
+                    Some((Prim::BoolType, [])) => Some(Const::Bool(*boolean)),
                     _ => {
                         self.push_message(Message::BooleanLiteralNotSupported {
                             range: file_range,
@@ -1183,17 +1190,8 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 use crate::core::semantics::Elim::FunApp as App;
 
                 let (len_value, elem_type) = match expected_type.match_prim_spine() {
-                    Some((Prim::ArrayType, [App(_, elem_type)])) => (None, elem_type),
-                    Some((Prim::Array8Type, [App(_, len), App(_, elem_type)])) => {
-                        (Some(len), elem_type)
-                    }
-                    Some((Prim::Array16Type, [App(_, len), App(_, elem_type)])) => {
-                        (Some(len), elem_type)
-                    }
-                    Some((Prim::Array32Type, [App(_, len), App(_, elem_type)])) => {
-                        (Some(len), elem_type)
-                    }
-                    Some((Prim::Array64Type, [App(_, len), App(_, elem_type)])) => {
+                    Some((Prim::VecType, [App(_, elem_type)])) => (None, elem_type),
+                    Some((Prim::ArrayType(_), [App(_, len), App(_, elem_type)])) => {
                         (Some(len), elem_type)
                     }
                     Some((Prim::ReportedError, _)) => {
@@ -1248,10 +1246,12 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
             }
             (Term::StringLiteral(range, lit), _) => {
                 let constant = match expected_type.match_prim_spine() {
-                    Some((Prim::U8Type, [])) => self.parse_ascii(*range, *lit, Const::U8),
-                    Some((Prim::U16Type, [])) => self.parse_ascii(*range, *lit, Const::U16),
-                    Some((Prim::U32Type, [])) => self.parse_ascii(*range, *lit, Const::U32),
-                    Some((Prim::U64Type, [])) => self.parse_ascii(*range, *lit, Const::U64),
+                    Some((Prim::IntType(IntType::Unsigned(uint_type)), [])) => match uint_type {
+                        UintType::U8 => self.parse_ascii(*range, *lit, Const::U8),
+                        UintType::U16 => self.parse_ascii(*range, *lit, Const::U16),
+                        UintType::U32 => self.parse_ascii(*range, *lit, Const::U32),
+                        UintType::U64 => self.parse_ascii(*range, *lit, Const::U64),
+                    },
                     // Some((Prim::Array8Type, [len, _])) => todo!(),
                     // Some((Prim::Array16Type, [len, _])) => todo!(),
                     // Some((Prim::Array32Type, [len, _])) => todo!(),
@@ -1274,16 +1274,24 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
             }
             (Term::NumberLiteral(range, lit), _) => {
                 let constant = match expected_type.match_prim_spine() {
-                    Some((Prim::U8Type, [])) => self.parse_number_radix(*range, *lit, Const::U8),
-                    Some((Prim::U16Type, [])) => self.parse_number_radix(*range, *lit, Const::U16),
-                    Some((Prim::U32Type, [])) => self.parse_number_radix(*range, *lit, Const::U32),
-                    Some((Prim::U64Type, [])) => self.parse_number_radix(*range, *lit, Const::U64),
-                    Some((Prim::S8Type, [])) => self.parse_number(*range, *lit, Const::S8),
-                    Some((Prim::S16Type, [])) => self.parse_number(*range, *lit, Const::S16),
-                    Some((Prim::S32Type, [])) => self.parse_number(*range, *lit, Const::S32),
-                    Some((Prim::S64Type, [])) => self.parse_number(*range, *lit, Const::S64),
-                    Some((Prim::F32Type, [])) => self.parse_number(*range, *lit, Const::F32),
-                    Some((Prim::F64Type, [])) => self.parse_number(*range, *lit, Const::F64),
+                    Some((Prim::IntType(int_type), [])) => match int_type {
+                        IntType::Unsigned(uint_type) => match uint_type {
+                            UintType::U8 => self.parse_number_radix(*range, *lit, Const::U8),
+                            UintType::U16 => self.parse_number_radix(*range, *lit, Const::U16),
+                            UintType::U32 => self.parse_number_radix(*range, *lit, Const::U32),
+                            UintType::U64 => self.parse_number_radix(*range, *lit, Const::U64),
+                        },
+                        IntType::Signed(sint_type) => match sint_type {
+                            core::SintType::S8 => self.parse_number(*range, *lit, Const::S8),
+                            core::SintType::S16 => self.parse_number(*range, *lit, Const::S16),
+                            core::SintType::S32 => self.parse_number(*range, *lit, Const::S32),
+                            core::SintType::S64 => self.parse_number(*range, *lit, Const::S64),
+                        },
+                    },
+                    Some((Prim::FloatType(float_type), [])) => match float_type {
+                        core::FloatType::F32 => self.parse_number(*range, *lit, Const::F32),
+                        core::FloatType::F64 => self.parse_number(*range, *lit, Const::F64),
+                    },
                     Some((Prim::ReportedError, _)) => None,
                     _ => {
                         let expected_type = self.pretty_print_value(&expected_type);
@@ -1917,112 +1925,63 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         let operand_types = Option::zip(lhs_type.match_prim_spine(), rhs_type.match_prim_spine());
 
         let (fun, body_type) = match (op, operand_types) {
-            (Mul(_), Some(((U8Type, []), (U8Type, [])))) => (U8Mul, U8Type),
-            (Mul(_), Some(((U16Type, []), (U16Type, [])))) => (U16Mul, U16Type),
-            (Mul(_), Some(((U32Type, []), (U32Type, [])))) => (U32Mul, U32Type),
-            (Mul(_), Some(((U64Type, []), (U64Type, [])))) => (U64Mul, U64Type),
+            (Add(_), Some(((IntType(int_type1), []), (IntType(int_type2), []))))
+                if int_type1 == int_type2 =>
+            {
+                (IntAdd(int_type1), IntType(int_type1))
+            }
+            (Add(_), Some(((PosType, []), (IntType(core::IntType::Unsigned(uint_type)), [])))) => {
+                (PosAdd(uint_type), PosType)
+            }
+            (Sub(_), Some(((IntType(int_type1), []), (IntType(int_type2), []))))
+                if int_type1 == int_type2 =>
+            {
+                (IntSub(int_type1), IntType(int_type1))
+            }
+            (Mul(_), Some(((IntType(int_type1), []), (IntType(int_type2), []))))
+                if int_type1 == int_type2 =>
+            {
+                (IntMul(int_type1), IntType(int_type1))
+            }
+            (Div(_), Some(((IntType(int_type1), []), (IntType(int_type2), []))))
+                if int_type1 == int_type2 =>
+            {
+                (IntDiv(int_type1), IntType(int_type1))
+            }
 
-            (Mul(_), Some(((S8Type, []), (S8Type, [])))) => (S8Mul, S8Type),
-            (Mul(_), Some(((S16Type, []), (S16Type, [])))) => (S16Mul, S16Type),
-            (Mul(_), Some(((S32Type, []), (S32Type, [])))) => (S32Mul, S32Type),
-            (Mul(_), Some(((S64Type, []), (S64Type, [])))) => (S64Mul, S64Type),
+            (Eq(_), Some(((BoolType, []), (BoolType, [])))) => (BoolEq, BoolType),
+            (Neq(_), Some(((BoolType, []), (BoolType, [])))) => (BoolNeq, BoolType),
 
-            (Div(_), Some(((U8Type, []), (U8Type, [])))) => (U8Div, U8Type),
-            (Div(_), Some(((U16Type, []), (U16Type, [])))) => (U16Div, U16Type),
-            (Div(_), Some(((U32Type, []), (U32Type, [])))) => (U32Div, U32Type),
-            (Div(_), Some(((U64Type, []), (U64Type, [])))) => (U64Div, U64Type),
-
-            (Div(_), Some(((S8Type, []), (S8Type, [])))) => (S8Div, S8Type),
-            (Div(_), Some(((S16Type, []), (S16Type, [])))) => (S16Div, S16Type),
-            (Div(_), Some(((S32Type, []), (S32Type, [])))) => (S32Div, S32Type),
-            (Div(_), Some(((S64Type, []), (S64Type, [])))) => (S64Div, S64Type),
-
-            (Add(_), Some(((U8Type, []), (U8Type, [])))) => (U8Add, U8Type),
-            (Add(_), Some(((U16Type, []), (U16Type, [])))) => (U16Add, U16Type),
-            (Add(_), Some(((U32Type, []), (U32Type, [])))) => (U32Add, U32Type),
-            (Add(_), Some(((U64Type, []), (U64Type, [])))) => (U64Add, U64Type),
-
-            (Add(_), Some(((S8Type, []), (S8Type, [])))) => (S8Add, S8Type),
-            (Add(_), Some(((S16Type, []), (S16Type, [])))) => (S16Add, S16Type),
-            (Add(_), Some(((S32Type, []), (S32Type, [])))) => (S32Add, S32Type),
-            (Add(_), Some(((S64Type, []), (S64Type, [])))) => (S64Add, S64Type),
-
-            (Add(_), Some(((PosType, []), (U8Type, [])))) => (PosAddU8, PosType),
-            (Add(_), Some(((PosType, []), (U16Type, [])))) => (PosAddU16, PosType),
-            (Add(_), Some(((PosType, []), (U32Type, [])))) => (PosAddU32, PosType),
-            (Add(_), Some(((PosType, []), (U64Type, [])))) => (PosAddU64, PosType),
-
-            (Sub(_), Some(((U8Type, []), (U8Type, [])))) => (U8Sub, U8Type),
-            (Sub(_), Some(((U16Type, []), (U16Type, [])))) => (U16Sub, U16Type),
-            (Sub(_), Some(((U32Type, []), (U32Type, [])))) => (U32Sub, U32Type),
-            (Sub(_), Some(((U64Type, []), (U64Type, [])))) => (U64Sub, U64Type),
-
-            (Sub(_), Some(((S8Type, []), (S8Type, [])))) => (S8Sub, S8Type),
-            (Sub(_), Some(((S16Type, []), (S16Type, [])))) => (S16Sub, S16Type),
-            (Sub(_), Some(((S32Type, []), (S32Type, [])))) => (S32Sub, S32Type),
-            (Sub(_), Some(((S64Type, []), (S64Type, [])))) => (S64Sub, S64Type),
-
-            (Eq(_), Some(((BoolType, []), (BoolType, [])))) => (U8Eq, BoolType),
-            (Eq(_), Some(((U8Type, []), (U8Type, [])))) => (U8Eq, BoolType),
-            (Eq(_), Some(((U16Type, []), (U16Type, [])))) => (U16Eq, BoolType),
-            (Eq(_), Some(((U32Type, []), (U32Type, [])))) => (U32Eq, BoolType),
-            (Eq(_), Some(((U64Type, []), (U64Type, [])))) => (U64Eq, BoolType),
-
-            (Eq(_), Some(((S8Type, []), (S8Type, [])))) => (S8Eq, BoolType),
-            (Eq(_), Some(((S16Type, []), (S16Type, [])))) => (S16Eq, BoolType),
-            (Eq(_), Some(((S32Type, []), (S32Type, [])))) => (S32Eq, BoolType),
-            (Eq(_), Some(((S64Type, []), (S64Type, [])))) => (S64Eq, BoolType),
-
-            (Neq(_), Some(((BoolType, []), (BoolType, [])))) => (U8Neq, BoolType),
-            (Neq(_), Some(((U8Type, []), (U8Type, [])))) => (U8Neq, BoolType),
-            (Neq(_), Some(((U16Type, []), (U16Type, [])))) => (U16Neq, BoolType),
-            (Neq(_), Some(((U32Type, []), (U32Type, [])))) => (U32Neq, BoolType),
-            (Neq(_), Some(((U64Type, []), (U64Type, [])))) => (U64Neq, BoolType),
-
-            (Neq(_), Some(((S8Type, []), (S8Type, [])))) => (S8Neq, BoolType),
-            (Neq(_), Some(((S16Type, []), (S16Type, [])))) => (S16Neq, BoolType),
-            (Neq(_), Some(((S32Type, []), (S32Type, [])))) => (S32Neq, BoolType),
-            (Neq(_), Some(((S64Type, []), (S64Type, [])))) => (S64Neq, BoolType),
-
-            (Lt(_), Some(((U8Type, []), (U8Type, [])))) => (U8Lt, BoolType),
-            (Lt(_), Some(((U16Type, []), (U16Type, [])))) => (U16Lt, BoolType),
-            (Lt(_), Some(((U32Type, []), (U32Type, [])))) => (U32Lt, BoolType),
-            (Lt(_), Some(((U64Type, []), (U64Type, [])))) => (U64Lt, BoolType),
-
-            (Lt(_), Some(((S8Type, []), (S8Type, [])))) => (S8Lt, BoolType),
-            (Lt(_), Some(((S16Type, []), (S16Type, [])))) => (S16Lt, BoolType),
-            (Lt(_), Some(((S32Type, []), (S32Type, [])))) => (S32Lt, BoolType),
-            (Lt(_), Some(((S64Type, []), (S64Type, [])))) => (S64Lt, BoolType),
-
-            (Lte(_), Some(((U8Type, []), (U8Type, [])))) => (U8Lte, BoolType),
-            (Lte(_), Some(((U16Type, []), (U16Type, [])))) => (U16Lte, BoolType),
-            (Lte(_), Some(((U32Type, []), (U32Type, [])))) => (U32Lte, BoolType),
-            (Lte(_), Some(((U64Type, []), (U64Type, [])))) => (U64Lte, BoolType),
-
-            (Lte(_), Some(((S8Type, []), (S8Type, [])))) => (S8Lte, BoolType),
-            (Lte(_), Some(((S16Type, []), (S16Type, [])))) => (S16Lte, BoolType),
-            (Lte(_), Some(((S32Type, []), (S32Type, [])))) => (S32Lte, BoolType),
-            (Lte(_), Some(((S64Type, []), (S64Type, [])))) => (S64Lte, BoolType),
-
-            (Gt(_), Some(((U8Type, []), (U8Type, [])))) => (U8Gt, BoolType),
-            (Gt(_), Some(((U16Type, []), (U16Type, [])))) => (U16Gt, BoolType),
-            (Gt(_), Some(((U32Type, []), (U32Type, [])))) => (U32Gt, BoolType),
-            (Gt(_), Some(((U64Type, []), (U64Type, [])))) => (U64Gt, BoolType),
-
-            (Gt(_), Some(((S8Type, []), (S8Type, [])))) => (S8Gt, BoolType),
-            (Gt(_), Some(((S16Type, []), (S16Type, [])))) => (S16Gt, BoolType),
-            (Gt(_), Some(((S32Type, []), (S32Type, [])))) => (S32Gt, BoolType),
-            (Gt(_), Some(((S64Type, []), (S64Type, [])))) => (S64Gt, BoolType),
-
-            (Gte(_), Some(((U8Type, []), (U8Type, [])))) => (U8Gte, BoolType),
-            (Gte(_), Some(((U16Type, []), (U16Type, [])))) => (U16Gte, BoolType),
-            (Gte(_), Some(((U32Type, []), (U32Type, [])))) => (U32Gte, BoolType),
-            (Gte(_), Some(((U64Type, []), (U64Type, [])))) => (U64Gte, BoolType),
-
-            (Gte(_), Some(((S8Type, []), (S8Type, [])))) => (S8Gte, BoolType),
-            (Gte(_), Some(((S16Type, []), (S16Type, [])))) => (S16Gte, BoolType),
-            (Gte(_), Some(((S32Type, []), (S32Type, [])))) => (S32Gte, BoolType),
-            (Gte(_), Some(((S64Type, []), (S64Type, [])))) => (S64Gte, BoolType),
+            (Eq(_), Some(((IntType(int_type1), []), (IntType(int_type2), []))))
+                if int_type1 == int_type2 =>
+            {
+                (IntEq(int_type1), BoolType)
+            }
+            (Neq(_), Some(((IntType(int_type1), []), (IntType(int_type2), []))))
+                if int_type1 == int_type2 =>
+            {
+                (IntNeq(int_type1), BoolType)
+            }
+            (Lt(_), Some(((IntType(int_type1), []), (IntType(int_type2), []))))
+                if int_type1 == int_type2 =>
+            {
+                (IntLt(int_type1), BoolType)
+            }
+            (Lte(_), Some(((IntType(int_type1), []), (IntType(int_type2), []))))
+                if int_type1 == int_type2 =>
+            {
+                (IntLte(int_type1), BoolType)
+            }
+            (Gt(_), Some(((IntType(int_type1), []), (IntType(int_type2), []))))
+                if int_type1 == int_type2 =>
+            {
+                (IntGt(int_type1), BoolType)
+            }
+            (Gte(_), Some(((IntType(int_type1), []), (IntType(int_type2), []))))
+                if int_type1 == int_type2 =>
+            {
+                (IntGte(int_type1), BoolType)
+            }
 
             _ => {
                 let lhs_pretty = self.pretty_print_value(&lhs_type);
