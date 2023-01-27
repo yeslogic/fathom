@@ -576,11 +576,11 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
     }
 
     /// Parse a source string into a number.
-    fn parse_number_radix<T: FromStrRadix>(
+    fn parse_number_radix(
         &mut self,
         range: ByteRange,
         string_id: StringId,
-        make: impl Fn(T, UIntStyle) -> Const,
+        uint_type: UintType,
     ) -> Option<Const> {
         // TODO: Custom parsing and improved errors
         let interner = self.interner.borrow();
@@ -592,8 +592,16 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         } else {
             (s, 10, UIntStyle::Decimal)
         };
-        match T::from_str_radix(s, radix) {
-            Ok(data) => Some(make(data, style)),
+
+        let number = match uint_type {
+            UintType::U8 => u8::from_str_radix(s, radix).map(u64::from),
+            UintType::U16 => u16::from_str_radix(s, radix).map(u64::from),
+            UintType::U32 => u32::from_str_radix(s, radix).map(u64::from),
+            UintType::U64 => u64::from_str_radix(s, radix).map(u64::from),
+        };
+
+        match number {
+            Ok(data) => Some(Const::Uint(data, uint_type, style)),
             Err(error) => {
                 let message = error.to_string();
                 self.push_message(Message::InvalidNumericLiteral {
@@ -806,28 +814,9 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
             Pattern::NumberLiteral(range, lit) => {
                 let constant = match expected_type.match_prim_spine() {
                     Some((Prim::IntType(int_type), [])) => match int_type {
-                        IntType::Unsigned(uint_type) => match uint_type {
-                            UintType::U8 => {
-                                self.parse_number_radix(*range, *lit, |num: u8, style| {
-                                    Const::uint(num, uint_type, style)
-                                })
-                            }
-                            UintType::U16 => {
-                                self.parse_number_radix(*range, *lit, |num: u16, style| {
-                                    Const::uint(num, uint_type, style)
-                                })
-                            }
-                            UintType::U32 => {
-                                self.parse_number_radix(*range, *lit, |num: u32, style| {
-                                    Const::uint(num, uint_type, style)
-                                })
-                            }
-                            UintType::U64 => {
-                                self.parse_number_radix(*range, *lit, |num: u64, style| {
-                                    Const::uint(num, uint_type, style)
-                                })
-                            }
-                        },
+                        IntType::Unsigned(uint_type) => {
+                            self.parse_number_radix(*range, *lit, uint_type)
+                        }
                         IntType::Signed(sint_type) => match sint_type {
                             core::SintType::S8 => self.parse_number(*range, *lit, Const::s8),
                             core::SintType::S16 => self.parse_number(*range, *lit, Const::s16),
@@ -1304,28 +1293,9 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
             (Term::NumberLiteral(range, lit), _) => {
                 let constant = match expected_type.match_prim_spine() {
                     Some((Prim::IntType(int_type), [])) => match int_type {
-                        IntType::Unsigned(uint_type) => match uint_type {
-                            UintType::U8 => {
-                                self.parse_number_radix(*range, *lit, |num: u8, style| {
-                                    Const::uint(num, uint_type, style)
-                                })
-                            }
-                            UintType::U16 => {
-                                self.parse_number_radix(*range, *lit, |num: u16, style| {
-                                    Const::uint(num, uint_type, style)
-                                })
-                            }
-                            UintType::U32 => {
-                                self.parse_number_radix(*range, *lit, |num: u32, style| {
-                                    Const::uint(num, uint_type, style)
-                                })
-                            }
-                            UintType::U64 => {
-                                self.parse_number_radix(*range, *lit, |num: u64, style| {
-                                    Const::uint(num, uint_type, style)
-                                })
-                            }
-                        },
+                        IntType::Unsigned(uint_type) => {
+                            self.parse_number_radix(*range, *lit, uint_type)
+                        }
                         IntType::Signed(sint_type) => match sint_type {
                             core::SintType::S8 => self.parse_number(*range, *lit, Const::s8),
                             core::SintType::S16 => self.parse_number(*range, *lit, Const::s16),
@@ -2406,26 +2376,6 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         )
     }
 }
-
-trait FromStrRadix: Sized {
-    fn from_str_radix(src: &str, radix: u32) -> Result<Self, std::num::ParseIntError>;
-}
-
-macro_rules! impl_from_str_radix {
-    ($t:ty) => {
-        impl FromStrRadix for $t {
-            fn from_str_radix(src: &str, radix: u32) -> Result<Self, std::num::ParseIntError> {
-                // calls base implementation, not trait function
-                Self::from_str_radix(src, radix)
-            }
-        }
-    };
-}
-
-impl_from_str_radix!(u8);
-impl_from_str_radix!(u16);
-impl_from_str_radix!(u32);
-impl_from_str_radix!(u64);
 
 /// Simple patterns that have had some initial elaboration performed on them
 #[derive(Debug)]
