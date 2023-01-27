@@ -491,7 +491,7 @@ macro_rules! const_step {
     };
     ([$($param:ident , $style:ident : $Input:ident),*] => $body:expr) => {
         step!(_, [$($param),*] => match ($($param.as_ref(),)*) {
-            ($(Value::ConstLit(Const::$Input($param, $style)),)*) => Spanned::empty(Arc::new(Value::ConstLit($body))),
+            ($(Value::ConstLit(Const::$Input($param, _, $style)),)*) => Spanned::empty(Arc::new(Value::ConstLit($body))),
             _ => return None,
         })
     };
@@ -519,14 +519,8 @@ pub fn repr(prim: Prim) -> Step {
 macro_rules! int_relop {
     ($int_type:expr, $x:ident, $y:ident, $op:expr) => {
         match $int_type {
-            IntType::Unsigned(UintType::U8) => const_step!([$x: U8, $y: U8] => $op),
-            IntType::Unsigned(UintType::U16) => const_step!([$x: U16, $y: U16] => $op),
-            IntType::Unsigned(UintType::U32) => const_step!([$x: U32, $y: U32] => $op),
-            IntType::Unsigned(UintType::U64) => const_step!([$x: U64, $y: U64] => $op),
-            IntType::Signed(SintType::S8) => const_step!([$x: S8, $y: S8] => $op),
-            IntType::Signed(SintType::S16) => const_step!([$x: S16, $y: S16] => $op),
-            IntType::Signed(SintType::S32) => const_step!([$x: S32, $y: S32] => $op),
-            IntType::Signed(SintType::S64) => const_step!([$x: S64, $y: S64] => $op),
+            IntType::Unsigned(_) => const_step!([$x: Uint, $y: Uint] => $op),
+            IntType::Signed(_) => const_step!([$x: Sint, $y: Sint] => $op),
         }
     };
 }
@@ -534,14 +528,15 @@ macro_rules! int_relop {
 macro_rules! int_checked_binop {
     ($int_type:expr, $x:ident, $xst:ident, $y:ident, $yst:ident, $op:ident) => {
         match $int_type {
-            IntType::Unsigned(UintType::U8) => const_step!([$x, $xst: U8, $y, $yst: U8] => Const::U8(u8::$op(*$x, *$y)?, UIntStyle::merge(*$xst, *$yst))),
-            IntType::Unsigned(UintType::U16) => const_step!([$x, $xst: U16, $y, $yst: U16] => Const::U16(u16::$op(*$x, *$y)?, UIntStyle::merge(*$xst, *$yst))),
-            IntType::Unsigned(UintType::U32) => const_step!([$x, $xst: U32, $y, $yst: U32] => Const::U32(u32::$op(*$x, *$y)?, UIntStyle::merge(*$xst, *$yst))),
-            IntType::Unsigned(UintType::U64) => const_step!([$x, $xst: U64, $y, $yst: U64] => Const::U64(u64::$op(*$x, *$y)?, UIntStyle::merge(*$xst, *$yst))),
-            IntType::Signed(SintType::S8) => const_step!([$x: S8, $y: S8] => Const::S8(i8::$op(*$x, *$y)?)),
-            IntType::Signed(SintType::S16) => const_step!([$x: S16, $y: S16] => Const::S16(i16::$op(*$x, *$y)?)),
-            IntType::Signed(SintType::S32) => const_step!([$x: S32, $y: S32] => Const::S32(i32::$op(*$x, *$y)?)),
-            IntType::Signed(SintType::S64) => const_step!([$x: S64, $y: S64] => Const::S64(i64::$op(*$x, *$y)?)),
+            IntType::Unsigned(ty @ UintType::U8) => const_step!([$x, $xst: Uint, $y, $yst: Uint] => Const::uint(u8::$op(u8::try_from(*$x).ok()?, u8::try_from(*$y).ok()?)?, ty, UIntStyle::merge(*$xst, *$yst))),
+            IntType::Unsigned(ty @ UintType::U16) => const_step!([$x, $xst: Uint, $y, $yst: Uint] => Const::uint(u16::$op(u16::try_from(*$x).ok()?, u16::try_from(*$y).ok()?)?, ty, UIntStyle::merge(*$xst, *$yst))),
+            IntType::Unsigned(ty @ UintType::U32) => const_step!([$x, $xst: Uint, $y, $yst: Uint] => Const::uint(u32::$op(u32::try_from(*$x).ok()?, u32::try_from(*$y).ok()?)?, ty, UIntStyle::merge(*$xst, *$yst))),
+            IntType::Unsigned(ty @ UintType::U64) => const_step!([$x, $xst: Uint, $y, $yst: Uint] => Const::uint(u64::$op(u64::try_from(*$x).ok()?, u64::try_from(*$y).ok()?)?, ty, UIntStyle::merge(*$xst, *$yst))),
+
+            IntType::Signed(ty @ SintType::S8) => const_step!([$x: Sint, $y: Sint] => Const::sint(i8::$op(i8::try_from(*$x).ok()?, i8::try_from(*$y).ok()?)?, ty)),
+            IntType::Signed(ty @ SintType::S16) => const_step!([$x: Sint, $y: Sint] => Const::sint(i16::$op(i16::try_from(*$x).ok()?, i16::try_from(*$y).ok()?)?, ty)),
+            IntType::Signed(ty @ SintType::S32) => const_step!([$x: Sint, $y: Sint] => Const::sint(i32::$op(i32::try_from(*$x).ok()?, i32::try_from(*$y).ok()?)?, ty)),
+            IntType::Signed(ty @ SintType::S64) => const_step!([$x: Sint, $y: Sint] => Const::sint(i64::$op(i64::try_from(*$x).ok()?, i64::try_from(*$y).ok()?)?, ty)),
         }
     };
 }
@@ -549,10 +544,10 @@ macro_rules! int_checked_binop {
 macro_rules! uint_checked_binop {
     ($uint_type:expr, $x:ident, $xst:ident, $y:ident, $yst:ident, $op:ident) => {
         match $uint_type {
-            UintType::U8 => const_step!([$x, $xst: U8, $y, $yst: U8] => Const::U8(u8::$op(*$x, *$y as _)?, UIntStyle::merge(*$xst, *$yst))),
-            UintType::U16 => const_step!([$x, $xst: U16, $y, $yst: U16] => Const::U16(u16::$op(*$x, *$y as _)?, UIntStyle::merge(*$xst, *$yst))),
-            UintType::U32 => const_step!([$x, $xst: U32, $y, $yst: U32] => Const::U32(u32::$op(*$x, *$y as _)?, UIntStyle::merge(*$xst, *$yst))),
-            UintType::U64 => const_step!([$x, $xst: U64, $y, $yst: U64] => Const::U64(u64::$op(*$x, *$y as _)?, UIntStyle::merge(*$xst, *$yst))),
+            UintType::U8 => const_step!([$x, $xst: Uint, $y, $yst: Uint] => Const::uint(u8::$op(u8::try_from(*$x).ok()?, u8::try_from(*$y).ok()? as _)?, $uint_type, UIntStyle::merge(*$xst, *$yst))),
+            UintType::U16 => const_step!([$x, $xst: Uint, $y, $yst: Uint] => Const::uint(u16::$op(u16::try_from(*$x).ok()?, u16::try_from(*$y).ok()? as _)?, $uint_type, UIntStyle::merge(*$xst, *$yst))),
+            UintType::U32 => const_step!([$x, $xst: Uint, $y, $yst: Uint] => Const::uint(u32::$op(u32::try_from(*$x).ok()?, u32::try_from(*$y).ok()? as _)?, $uint_type, UIntStyle::merge(*$xst, *$yst))),
+            UintType::U64 => const_step!([$x, $xst: Uint, $y, $yst: Uint] => Const::uint(u64::$op(u64::try_from(*$x).ok()?, u64::try_from(*$y).ok()? as _)?, $uint_type, UIntStyle::merge(*$xst, *$yst))),
         }
     };
 }
@@ -560,10 +555,10 @@ macro_rules! uint_checked_binop {
 macro_rules! uint_binop {
     ($uint_type:expr, $x:ident, $xst:ident, $y:ident, $yst:ident, $op:ident) => {
         match $uint_type {
-            UintType::U8 => const_step!([$x, $xst: U8, $y, $yst: U8] => Const::U8(u8::$op(*$x, *$y), UIntStyle::merge(*$xst, *$yst))),
-            UintType::U16 => const_step!([$x, $xst: U16, $y, $yst: U16] => Const::U16(u16::$op(*$x, *$y), UIntStyle::merge(*$xst, *$yst))),
-            UintType::U32 => const_step!([$x, $xst: U32, $y, $yst: U32] => Const::U32(u32::$op(*$x, *$y), UIntStyle::merge(*$xst, *$yst))),
-            UintType::U64 => const_step!([$x, $xst: U64, $y, $yst: U64] => Const::U64(u64::$op(*$x, *$y), UIntStyle::merge(*$xst, *$yst))),
+            UintType::U8 => const_step!([$x, $xst: Uint, $y, $yst: Uint] => Const::uint(u8::$op(u8::try_from(*$x).ok()?, u8::try_from(*$y).ok()?), $uint_type, UIntStyle::merge(*$xst, *$yst))),
+            UintType::U16 => const_step!([$x, $xst: Uint, $y, $yst: Uint] => Const::uint(u16::$op(u16::try_from(*$x).ok()?, u16::try_from(*$y).ok()?), $uint_type, UIntStyle::merge(*$xst, *$yst))),
+            UintType::U32 => const_step!([$x, $xst: Uint, $y, $yst: Uint] => Const::uint(u32::$op(u32::try_from(*$x).ok()?, u32::try_from(*$y).ok()?), $uint_type, UIntStyle::merge(*$xst, *$yst))),
+            UintType::U64 => const_step!([$x, $xst: Uint, $y, $yst: Uint] => Const::uint(u64::$op(u64::try_from(*$x).ok()?, u64::try_from(*$y).ok()?), $uint_type, UIntStyle::merge(*$xst, *$yst))),
         }
     };
 }
@@ -587,12 +582,12 @@ pub fn step(prim: Prim) -> Step {
         Prim::BoolOr => const_step!([x: Bool, y: Bool] => Const::Bool(*x || *y)),
         Prim::BoolXor => const_step!([x: Bool, y: Bool] => Const::Bool(*x ^ *y)),
 
-        Prim::IntEq(int_type) => int_relop!(int_type,x, y, Const::Bool(x == y)),
-        Prim::IntNeq(int_type) => int_relop!(int_type,x,y, Const::Bool(x != y)),
-        Prim::IntLt(int_type) => int_relop!(int_type,x,y, Const::Bool(x < y)),
-        Prim::IntLte(int_type) => int_relop!(int_type,x,y, Const::Bool(x <= y)),
-        Prim::IntGt(int_type) => int_relop!(int_type,x,y, Const::Bool(x > y)),
-        Prim::IntGte(int_type) => int_relop!(int_type,x,y, Const::Bool(x >= y)),
+        Prim::IntEq(int_type) => int_relop!(int_type, x, y, Const::Bool(x == y)),
+        Prim::IntNeq(int_type) => int_relop!(int_type, x, y, Const::Bool(x != y)),
+        Prim::IntLt(int_type) => int_relop!(int_type, x, y, Const::Bool(x < y)),
+        Prim::IntLte(int_type) => int_relop!(int_type, x, y, Const::Bool(x <= y)),
+        Prim::IntGt(int_type) => int_relop!(int_type, x, y, Const::Bool(x > y)),
+        Prim::IntGte(int_type) => int_relop!(int_type, x, y, Const::Bool(x >= y)),
 
         Prim::IntAdd(int_type) => int_checked_binop!(int_type, x, xst, y, yst, checked_add),
         Prim::IntSub(int_type) => int_checked_binop!(int_type, x, xst, y, yst, checked_sub),
@@ -607,23 +602,24 @@ pub fn step(prim: Prim) -> Step {
         Prim::IntXor(int_type) => uint_binop!(int_type, x, xst, y, yst, bitxor),
 
         Prim::IntNot(uint_type) => match uint_type {
-            UintType::U8 => const_step!([x, style: U8] => Const::U8(u8::not(*x), *style)),
-            UintType::U16 => const_step!([x, style: U16] => Const::U16(u16::not(*x), *style)),
-            UintType::U32 => const_step!([x, style: U32] => Const::U32(u32::not(*x), *style)),
-            UintType::U64 => const_step!([x, style: U64] => Const::U64(u64::not(*x), *style)),
+            UintType::U8 => const_step!([x, style: Uint] => Const::uint(u8::not(u8::try_from(*x).ok()?), uint_type, *style)),
+            UintType::U16 => const_step!([x, style: Uint] => Const::uint(u16::not(u16::try_from(*x).ok()?), uint_type, *style)),
+            UintType::U32 => const_step!([x, style: Uint] => Const::uint(u32::not(u32::try_from(*x).ok()?), uint_type, *style)),
+            UintType::U64 => const_step!([x, style: Uint] => Const::uint(u64::not(*x), uint_type, *style)),
         }
 
         Prim::IntAbs(sint_type) => match sint_type {
-            SintType::S8 => const_step!([x: S8] => Const::S8(i8::checked_abs(*x)?)),
-            SintType::S16 => const_step!([x: S16] => Const::S16(i16::checked_abs(*x)?)),
-            SintType::S32 => const_step!([x: S32] => Const::S32(i32::checked_abs(*x)?)),
-            SintType::S64 => const_step!([x: S64] => Const::S64(i64::checked_abs(*x)?)),
+            SintType::S8 => const_step!([x: Sint] => Const::sint(i8::abs(i8::try_from(*x).ok()?), sint_type)),
+            SintType::S16 => const_step!([x: Sint] => Const::sint(i16::abs(i16::try_from(*x).ok()?), sint_type)),
+            SintType::S32 => const_step!([x: Sint] => Const::sint(i32::abs(i32::try_from(*x).ok()?), sint_type)),
+            SintType::S64 => const_step!([x: Sint] => Const::sint(i64::abs(*x), sint_type)),
         }
+
         Prim::IntUAbs(sint_type) => match sint_type {
-            SintType::S8 => const_step!([x: S8] => Const::U8(i8::unsigned_abs(*x), UIntStyle::Decimal)),
-            SintType::S16 => const_step!([x: S16] => Const::U16(i16::unsigned_abs(*x), UIntStyle::Decimal)),
-            SintType::S32 => const_step!([x: S32] => Const::U32(i32::unsigned_abs(*x), UIntStyle::Decimal)),
-            SintType::S64 => const_step!([x: S64] => Const::U64(i64::unsigned_abs(*x), UIntStyle::Decimal)),
+            SintType::S8 => const_step!([x: Sint] => Const::u8(i8::unsigned_abs(i8::try_from(*x).ok()?))),
+            SintType::S16 => const_step!([x: Sint] => Const::u16(i16::unsigned_abs(i16::try_from(*x).ok()?))),
+            SintType::S32 => const_step!([x: Sint] => Const::u32(i32::unsigned_abs(i32::try_from(*x).ok()?))),
+            SintType::S64 => const_step!([x: Sint] => Const::u64(i64::unsigned_abs(*x))),
         }
 
         Prim::OptionFold => step!(env, [_, _, on_none, on_some, option] => {
@@ -669,10 +665,7 @@ pub fn step(prim: Prim) -> Step {
             step!(_, [_, _, index, array] => match array.as_ref() {
                 Value::ArrayLit(elems) => {
                     let index = match (index).as_ref() {
-                        Value::ConstLit(Const::U8(index, _)) => Some(usize::from(*index)),
-                        Value::ConstLit(Const::U16(index, _)) => Some(usize::from(*index)),
-                        Value::ConstLit(Const::U32(index, _)) => usize::try_from(*index).ok(),
-                        Value::ConstLit(Const::U64(index, _)) => usize::try_from(*index).ok(),
+                        Value::ConstLit(Const::Uint(index, ..)) => usize::try_from(*index).ok(),
                         _ => return None,
                     }?;
                     elems.get(index).cloned()?
@@ -681,12 +674,7 @@ pub fn step(prim: Prim) -> Step {
             })
         }
 
-        Prim::PosAdd(uint_type) => match uint_type {
-            UintType::U8 => const_step!([x: Pos, y: U8] => Const::Pos(usize::checked_add(*x, usize::from(*y))?)),
-            UintType::U16 =>const_step!([x: Pos, y: U16] => Const::Pos(usize::checked_add(*x, usize::from(*y))?)),
-            UintType::U32 =>const_step!([x: Pos, y: U32] => Const::Pos(usize::checked_add(*x, usize::try_from(*y).ok()?)?)),
-            UintType::U64 =>const_step!([x: Pos, y: U64] => Const::Pos(usize::checked_add(*x, usize::try_from(*y).ok()?)?)),
-        }
+        Prim::PosAdd(_) => const_step!([x: Pos, y: Uint] => Const::Pos(usize::checked_add(*x, usize::try_from(*y).ok()?)?)),
 
         _ => Box::new(|_, _| None),
     }

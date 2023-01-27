@@ -505,7 +505,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         &mut self,
         range: ByteRange,
         string_id: StringId,
-        make: fn(T, UIntStyle) -> Const,
+        make: impl Fn(T, UIntStyle) -> Const,
     ) -> Option<Const>
     where
         T: From<u8> + std::ops::Shl<Output = T> + std::ops::BitOr<Output = T>,
@@ -580,7 +580,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         &mut self,
         range: ByteRange,
         string_id: StringId,
-        make: fn(T, UIntStyle) -> Const,
+        make: impl Fn(T, UIntStyle) -> Const,
     ) -> Option<Const> {
         // TODO: Custom parsing and improved errors
         let interner = self.interner.borrow();
@@ -770,10 +770,18 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
             Pattern::StringLiteral(range, lit) => {
                 let constant = match expected_type.match_prim_spine() {
                     Some((Prim::IntType(IntType::Unsigned(uint_type)), [])) => match uint_type {
-                        UintType::U8 => self.parse_ascii(*range, *lit, Const::U8),
-                        UintType::U16 => self.parse_ascii(*range, *lit, Const::U16),
-                        UintType::U32 => self.parse_ascii(*range, *lit, Const::U32),
-                        UintType::U64 => self.parse_ascii(*range, *lit, Const::U32),
+                        UintType::U8 => self.parse_ascii(*range, *lit, |num: u8, style| {
+                            Const::uint(num, uint_type, style)
+                        }),
+                        UintType::U16 => self.parse_ascii(*range, *lit, |num: u16, style| {
+                            Const::uint(num, uint_type, style)
+                        }),
+                        UintType::U32 => self.parse_ascii(*range, *lit, |num: u32, style| {
+                            Const::uint(num, uint_type, style)
+                        }),
+                        UintType::U64 => self.parse_ascii(*range, *lit, |num: u64, style| {
+                            Const::uint(num, uint_type, style)
+                        }),
                     },
                     // Some((Prim::Array8Type, [len, _])) => todo!(),
                     // Some((Prim::Array16Type, [len, _])) => todo!(),
@@ -799,16 +807,32 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 let constant = match expected_type.match_prim_spine() {
                     Some((Prim::IntType(int_type), [])) => match int_type {
                         IntType::Unsigned(uint_type) => match uint_type {
-                            UintType::U8 => self.parse_number_radix(*range, *lit, Const::U8),
-                            UintType::U16 => self.parse_number_radix(*range, *lit, Const::U16),
-                            UintType::U32 => self.parse_number_radix(*range, *lit, Const::U32),
-                            UintType::U64 => self.parse_number_radix(*range, *lit, Const::U64),
+                            UintType::U8 => {
+                                self.parse_number_radix(*range, *lit, |num: u8, style| {
+                                    Const::uint(num, uint_type, style)
+                                })
+                            }
+                            UintType::U16 => {
+                                self.parse_number_radix(*range, *lit, |num: u16, style| {
+                                    Const::uint(num, uint_type, style)
+                                })
+                            }
+                            UintType::U32 => {
+                                self.parse_number_radix(*range, *lit, |num: u32, style| {
+                                    Const::uint(num, uint_type, style)
+                                })
+                            }
+                            UintType::U64 => {
+                                self.parse_number_radix(*range, *lit, |num: u64, style| {
+                                    Const::uint(num, uint_type, style)
+                                })
+                            }
                         },
                         IntType::Signed(sint_type) => match sint_type {
-                            core::SintType::S8 => self.parse_number(*range, *lit, Const::S8),
-                            core::SintType::S16 => self.parse_number(*range, *lit, Const::S16),
-                            core::SintType::S32 => self.parse_number(*range, *lit, Const::S32),
-                            core::SintType::S64 => self.parse_number(*range, *lit, Const::S64),
+                            core::SintType::S8 => self.parse_number(*range, *lit, Const::s8),
+                            core::SintType::S16 => self.parse_number(*range, *lit, Const::s16),
+                            core::SintType::S32 => self.parse_number(*range, *lit, Const::s32),
+                            core::SintType::S64 => self.parse_number(*range, *lit, Const::s64),
                         },
                     },
                     Some((Prim::FloatType(float_type), [])) => match float_type {
@@ -1209,10 +1233,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
 
                 let len = match len_value.map(|val| val.as_ref()) {
                     None => Some(elem_exprs.len() as u64),
-                    Some(Value::ConstLit(Const::U8(len, _))) => Some(*len as u64),
-                    Some(Value::ConstLit(Const::U16(len, _))) => Some(*len as u64),
-                    Some(Value::ConstLit(Const::U32(len, _))) => Some(*len as u64),
-                    Some(Value::ConstLit(Const::U64(len, _))) => Some(*len),
+                    Some(Value::ConstLit(Const::Uint(len, ..))) => Some(*len),
                     Some(Value::Stuck(Head::Prim(Prim::ReportedError), _)) => {
                         return core::Term::Prim(file_range.into(), Prim::ReportedError);
                     }
@@ -1247,10 +1268,18 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
             (Term::StringLiteral(range, lit), _) => {
                 let constant = match expected_type.match_prim_spine() {
                     Some((Prim::IntType(IntType::Unsigned(uint_type)), [])) => match uint_type {
-                        UintType::U8 => self.parse_ascii(*range, *lit, Const::U8),
-                        UintType::U16 => self.parse_ascii(*range, *lit, Const::U16),
-                        UintType::U32 => self.parse_ascii(*range, *lit, Const::U32),
-                        UintType::U64 => self.parse_ascii(*range, *lit, Const::U64),
+                        UintType::U8 => self.parse_ascii(*range, *lit, |num: u8, style| {
+                            Const::uint(num, uint_type, style)
+                        }),
+                        UintType::U16 => self.parse_ascii(*range, *lit, |num: u16, style| {
+                            Const::uint(num, uint_type, style)
+                        }),
+                        UintType::U32 => self.parse_ascii(*range, *lit, |num: u32, style| {
+                            Const::uint(num, uint_type, style)
+                        }),
+                        UintType::U64 => self.parse_ascii(*range, *lit, |num: u64, style| {
+                            Const::uint(num, uint_type, style)
+                        }),
                     },
                     // Some((Prim::Array8Type, [len, _])) => todo!(),
                     // Some((Prim::Array16Type, [len, _])) => todo!(),
@@ -1276,16 +1305,32 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 let constant = match expected_type.match_prim_spine() {
                     Some((Prim::IntType(int_type), [])) => match int_type {
                         IntType::Unsigned(uint_type) => match uint_type {
-                            UintType::U8 => self.parse_number_radix(*range, *lit, Const::U8),
-                            UintType::U16 => self.parse_number_radix(*range, *lit, Const::U16),
-                            UintType::U32 => self.parse_number_radix(*range, *lit, Const::U32),
-                            UintType::U64 => self.parse_number_radix(*range, *lit, Const::U64),
+                            UintType::U8 => {
+                                self.parse_number_radix(*range, *lit, |num: u8, style| {
+                                    Const::uint(num, uint_type, style)
+                                })
+                            }
+                            UintType::U16 => {
+                                self.parse_number_radix(*range, *lit, |num: u16, style| {
+                                    Const::uint(num, uint_type, style)
+                                })
+                            }
+                            UintType::U32 => {
+                                self.parse_number_radix(*range, *lit, |num: u32, style| {
+                                    Const::uint(num, uint_type, style)
+                                })
+                            }
+                            UintType::U64 => {
+                                self.parse_number_radix(*range, *lit, |num: u64, style| {
+                                    Const::uint(num, uint_type, style)
+                                })
+                            }
                         },
                         IntType::Signed(sint_type) => match sint_type {
-                            core::SintType::S8 => self.parse_number(*range, *lit, Const::S8),
-                            core::SintType::S16 => self.parse_number(*range, *lit, Const::S16),
-                            core::SintType::S32 => self.parse_number(*range, *lit, Const::S32),
-                            core::SintType::S64 => self.parse_number(*range, *lit, Const::S64),
+                            core::SintType::S8 => self.parse_number(*range, *lit, Const::s8),
+                            core::SintType::S16 => self.parse_number(*range, *lit, Const::s16),
+                            core::SintType::S32 => self.parse_number(*range, *lit, Const::s32),
+                            core::SintType::S64 => self.parse_number(*range, *lit, Const::s64),
                         },
                     },
                     Some((Prim::FloatType(float_type), [])) => match float_type {

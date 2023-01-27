@@ -9,7 +9,7 @@ use std::sync::Arc;
 
 use crate::core::semantics::{self, ArcValue, Elim, Head, Value};
 use crate::core::{
-    Const, Endianness, FloatType, IntType, Item, Module, Prim, SintType, Term, UIntStyle, UintType,
+    Const, Endianness, FloatType, IntType, Item, Module, Prim, SintType, Term, UintType,
 };
 use crate::env::{EnvLen, SharedEnv, UniqueEnv};
 use crate::source::{Span, Spanned};
@@ -412,28 +412,28 @@ impl<'arena, 'data> Context<'arena, 'data> {
             (Prim::FormatInt(int_type, endianness), []) => {
                 match (endianness, int_type) {
                     (_, IntType::Unsigned(UintType::U8)) => {
-                        read_const(reader, span, read_u8, |num| Const::U8(num, UIntStyle::Decimal))
+                        read_const(reader, span, read_u8, Const::u8)
                     }
 
-                    (Endianness::Big, IntType::Unsigned(UintType::U16)) => read_const(reader, span, read_u16be, |num| Const::U16(num, UIntStyle::Decimal)),
-                    (Endianness::Little, IntType::Unsigned(UintType::U16)) => read_const(reader, span, read_u16le, |num| Const::U16(num, UIntStyle::Decimal)),
+                    (Endianness::Big, IntType::Unsigned(UintType::U16)) => read_const(reader, span, read_u16be, Const::u16),
+                    (Endianness::Little, IntType::Unsigned(UintType::U16)) => read_const(reader, span, read_u16le, Const::u16),
 
-                    (Endianness::Big, IntType::Unsigned(UintType::U32)) => read_const(reader, span, read_u32be, |num| Const::U32(num, UIntStyle::Decimal)),
-                    (Endianness::Little, IntType::Unsigned(UintType::U32)) => read_const(reader, span, read_u32le, |num| Const::U32(num, UIntStyle::Decimal)),
+                    (Endianness::Big, IntType::Unsigned(UintType::U32)) => read_const(reader, span, read_u32be, Const::u32),
+                    (Endianness::Little, IntType::Unsigned(UintType::U32)) => read_const(reader, span, read_u32le, Const::u32),
 
-                    (Endianness::Big, IntType::Unsigned(UintType::U64)) => read_const(reader, span, read_u64be, |num| Const::U64(num, UIntStyle::Decimal)),
-                    (Endianness::Little, IntType::Unsigned(UintType::U64)) => read_const(reader, span, read_u64le, |num| Const::U64(num, UIntStyle::Decimal)),
+                    (Endianness::Big, IntType::Unsigned(UintType::U64)) => read_const(reader, span, read_u64be, Const::u64),
+                    (Endianness::Little, IntType::Unsigned(UintType::U64)) => read_const(reader, span, read_u64le, Const::u64),
 
-                    (_, IntType::Signed(SintType::S8)) => read_const(reader, span, read_s8, Const::S8),
+                    (_, IntType::Signed(SintType::S8)) => read_const(reader, span, read_s8, Const::s8),
 
-                    (Endianness::Big, IntType::Signed(SintType::S16)) => read_const(reader, span, read_s16be, Const::S16),
-                    (Endianness::Little, IntType::Signed(SintType::S16)) => read_const(reader, span, read_s16le, Const::S16),
+                    (Endianness::Big, IntType::Signed(SintType::S16)) => read_const(reader, span, read_s16be, Const::s16),
+                    (Endianness::Little, IntType::Signed(SintType::S16)) => read_const(reader, span, read_s16le, Const::s16),
 
-                    (Endianness::Big, IntType::Signed(SintType::S32)) => read_const(reader, span, read_s32be, Const::S32),
-                    (Endianness::Little, IntType::Signed(SintType::S32)) => read_const(reader, span, read_s32le, Const::S32),
+                    (Endianness::Big, IntType::Signed(SintType::S32)) => read_const(reader, span, read_s32be, Const::s32),
+                    (Endianness::Little, IntType::Signed(SintType::S32)) => read_const(reader, span, read_s32le, Const::s32),
 
-                    (Endianness::Big, IntType::Signed(SintType::S64)) => read_const(reader, span, read_s64be, Const::S64),
-                    (Endianness::Little, IntType::Signed(SintType::S64)) => read_const(reader, span, read_s64le, Const::S64),
+                    (Endianness::Big, IntType::Signed(SintType::S64)) => read_const(reader, span, read_s64be, Const::s64),
+                    (Endianness::Little, IntType::Signed(SintType::S64)) => read_const(reader, span, read_s64le, Const::s64),
                 }
             }
             (Prim::FormatFloat(float_type, endianness), []) =>  match (endianness, float_type) {
@@ -467,10 +467,7 @@ impl<'arena, 'data> Context<'arena, 'data> {
         elem_format: &ArcValue<'arena>,
     ) -> Result<ArcValue<'arena>, ReadError<'arena>> {
         let len = match len.as_ref() {
-            Value::ConstLit(Const::U8(len, _)) => u64::from(*len),
-            Value::ConstLit(Const::U16(len, _)) => u64::from(*len),
-            Value::ConstLit(Const::U32(len, _)) => u64::from(*len),
-            Value::ConstLit(Const::U64(len, _)) => *len,
+            Value::ConstLit(Const::Uint(len, ..)) => *len,
             _ => return Err(ReadError::InvalidValue(len.span())),
         };
 
@@ -517,10 +514,7 @@ impl<'arena, 'data> Context<'arena, 'data> {
     ) -> Result<ArcValue<'arena>, ReadError<'arena>> {
         let len_span = len.span();
         let len = match len.as_ref() {
-            Value::ConstLit(Const::U8(len, _)) => Some(usize::from(*len)),
-            Value::ConstLit(Const::U16(len, _)) => Some(usize::from(*len)),
-            Value::ConstLit(Const::U32(len, _)) => usize::try_from(*len).ok(),
-            Value::ConstLit(Const::U64(len, _)) => usize::try_from(*len).ok(),
+            Value::ConstLit(Const::Uint(len, ..)) => (usize::try_from(*len)).ok(),
             _ => return Err(ReadError::InvalidValue(len_span)),
         }
         .ok_or_else(|| BufferError::PositionOverflow.with_span(len_span))?;

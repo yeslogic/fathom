@@ -282,7 +282,7 @@ impl<'arena> Term<'arena> {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum UintType {
     U8,
     U16,
@@ -338,7 +338,7 @@ impl UintType {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum SintType {
     S8,
     S16,
@@ -394,7 +394,7 @@ impl SintType {
     pub const ALL: [Self; 4] = [Self::S8, Self::S16, Self::S32, Self::S64];
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum IntType {
     Unsigned(UintType),
     Signed(SintType),
@@ -447,7 +447,7 @@ impl IntType {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum FloatType {
     F32,
     F64,
@@ -477,7 +477,7 @@ impl FloatType {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Endianness {
     Little,
     Big,
@@ -684,32 +684,62 @@ pub enum UIntStyle {
 #[derive(Debug, Copy, Clone)]
 pub enum Const {
     Bool(bool),
-    U8(u8, UIntStyle),
-    U16(u16, UIntStyle),
-    U32(u32, UIntStyle),
-    U64(u64, UIntStyle),
-    S8(i8),
-    S16(i16),
-    S32(i32),
-    S64(i64),
+    Uint(u64, UintType, UIntStyle),
+    Sint(i64, SintType),
     F32(f32),
     F64(f64),
     Pos(usize),
     Ref(usize),
 }
 
+impl Const {
+    pub fn uint(num: impl Into<u64>, uint_type: UintType, style: UIntStyle) -> Self {
+        Self::Uint(num.into(), uint_type, style)
+    }
+
+    pub fn u8(num: u8) -> Self {
+        Self::uint(num, UintType::U8, UIntStyle::Decimal)
+    }
+
+    pub fn u16(num: u16) -> Self {
+        Self::uint(num, UintType::U16, UIntStyle::Decimal)
+    }
+
+    pub fn u32(num: u32) -> Self {
+        Self::uint(num, UintType::U32, UIntStyle::Decimal)
+    }
+
+    pub fn u64(num: u64) -> Self {
+        Self::uint(num, UintType::U64, UIntStyle::Decimal)
+    }
+
+    pub fn sint(num: impl Into<i64>, sint_type: SintType) -> Self {
+        Self::Sint(num.into(), sint_type)
+    }
+
+    pub fn s8(int: i8) -> Self {
+        Self::sint(int, SintType::S8)
+    }
+
+    pub fn s16(int: i16) -> Self {
+        Self::sint(int, SintType::S16)
+    }
+
+    pub fn s32(int: i32) -> Self {
+        Self::sint(int, SintType::S32)
+    }
+
+    pub fn s64(int: i64) -> Self {
+        Self::sint(int, SintType::S64)
+    }
+}
+
 impl PartialEq for Const {
     fn eq(&self, other: &Self) -> bool {
         match (*self, *other) {
             (Const::Bool(a), Const::Bool(b)) => a == b,
-            (Const::U8(a, _), Const::U8(b, _)) => a == b,
-            (Const::U16(a, _), Const::U16(b, _)) => a == b,
-            (Const::U32(a, _), Const::U32(b, _)) => a == b,
-            (Const::U64(a, _), Const::U64(b, _)) => a == b,
-            (Const::S8(a), Const::S8(b)) => a == b,
-            (Const::S16(a), Const::S16(b)) => a == b,
-            (Const::S32(a), Const::S32(b)) => a == b,
-            (Const::S64(a), Const::S64(b)) => a == b,
+            (Const::Uint(ta, a, _), Const::Uint(tb, b, _)) => ta == tb && a == b,
+            (Const::Sint(ta, a), Const::Sint(tb, b)) => ta == tb && a == b,
             (Const::F32(a), Const::F32(b)) => a.total_cmp(&b).is_eq(),
             (Const::F64(a), Const::F64(b)) => a.total_cmp(&b).is_eq(),
             (Const::Pos(a), Const::Pos(b)) => a == b,
@@ -731,14 +761,8 @@ impl Ord for Const {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         match (*self, *other) {
             (Const::Bool(a), Const::Bool(b)) => a.cmp(&b),
-            (Const::U8(a, _), Const::U8(b, _)) => a.cmp(&b),
-            (Const::U16(a, _), Const::U16(b, _)) => a.cmp(&b),
-            (Const::U32(a, _), Const::U32(b, _)) => a.cmp(&b),
-            (Const::U64(a, _), Const::U64(b, _)) => a.cmp(&b),
-            (Const::S8(a), Const::S8(b)) => a.cmp(&b),
-            (Const::S16(a), Const::S16(b)) => a.cmp(&b),
-            (Const::S32(a), Const::S32(b)) => a.cmp(&b),
-            (Const::S64(a), Const::S64(b)) => a.cmp(&b),
+            (Const::Uint(ta, a, _), Const::Uint(tb, b, _)) => ta.cmp(&tb).then(a.cmp(&b)),
+            (Const::Sint(ta, a), Const::Sint(tb, b)) => ta.cmp(&tb).then(a.cmp(&b)),
             (Const::F32(a), Const::F32(b)) => a.total_cmp(&b),
             (Const::F64(a), Const::F64(b)) => a.total_cmp(&b),
             (Const::Pos(a), Const::Pos(b)) => a.cmp(&b),
@@ -747,18 +771,12 @@ impl Ord for Const {
                 fn discriminant(r#const: &Const) -> usize {
                     match r#const {
                         Const::Bool(_) => 0,
-                        Const::U8(_, _) => 1,
-                        Const::U16(_, _) => 2,
-                        Const::U32(_, _) => 3,
-                        Const::U64(_, _) => 4,
-                        Const::S8(_) => 5,
-                        Const::S16(_) => 6,
-                        Const::S32(_) => 7,
-                        Const::S64(_) => 8,
-                        Const::F32(_) => 9,
-                        Const::F64(_) => 10,
-                        Const::Pos(_) => 11,
-                        Const::Ref(_) => 12,
+                        Const::Uint(..) => 1,
+                        Const::Sint(..) => 2,
+                        Const::F32(_) => 3,
+                        Const::F64(_) => 4,
+                        Const::Pos(_) => 5,
+                        Const::Ref(_) => 6,
                     }
                 }
 
@@ -770,41 +788,23 @@ impl Ord for Const {
     }
 }
 
-pub trait ToBeBytes<const N: usize> {
-    fn to_be_bytes(self) -> [u8; N];
-}
-
-macro_rules! impl_styled_uint {
-    ($($ty:ty),*) => {
-        $(
-        impl ToBeBytes<{std::mem::size_of::<$ty>()}> for &$ty {
-            fn to_be_bytes(self) -> [u8; std::mem::size_of::<$ty>()] {
-                <$ty>::to_be_bytes(*self)
-            }
-        }
-
-        impl UIntStyled<{std::mem::size_of::<$ty>()}> for &$ty {}
-        )*
-    };
-}
-
-impl_styled_uint!(u8, u16, u32, u64);
-
-pub trait UIntStyled<const N: usize>:
-    std::fmt::Display + Copy + std::fmt::LowerHex + std::fmt::Binary + ToBeBytes<N>
-{
-}
-
 impl UIntStyle {
-    pub fn format<T: UIntStyled<N>, const N: usize>(&self, number: T) -> String {
+    pub fn format(&self, number: u64, uint_type: UintType) -> String {
         match self {
             UIntStyle::Binary => format!("0b{number:b}"),
             UIntStyle::Decimal => number.to_string(),
             UIntStyle::Hexadecimal => format!("0x{number:x}"),
             UIntStyle::Ascii => {
+                let num_bytes = match uint_type {
+                    UintType::U8 => 1,
+                    UintType::U16 => 2,
+                    UintType::U32 => 4,
+                    UintType::U64 => 8,
+                };
                 let bytes = number.to_be_bytes();
+                let bytes = &bytes[num_bytes..];
                 if bytes.iter().all(|c| c.is_ascii() && !c.is_ascii_control()) {
-                    let s = std::str::from_utf8(&bytes).unwrap(); // unwrap safe due to above check
+                    let s = std::str::from_utf8(bytes).unwrap(); // unwrap safe due to above check
                     format!("\"{s}\"")
                 } else {
                     format!("0x{number:x}")
