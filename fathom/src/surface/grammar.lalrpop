@@ -7,6 +7,7 @@ use crate::surface::{
     Pattern, Param, Plicity, Term, TypeField,
 };
 use crate::surface::lexer::{Error as LexerError, Token};
+use crate::alloc::CollectIntoScope;
 
 grammar<'arena, 'source>(
     interner: &RefCell<StringInterner>,
@@ -71,7 +72,7 @@ extern {
 
 pub Module: Module<'arena, ByteRange> = {
     <items: Item*> => Module {
-        items: scope.to_scope_from_iter(items.into_iter()),
+        items: items.collect_into_scope(scope),
     },
 };
 
@@ -80,7 +81,7 @@ Item: Item<'arena, ByteRange> = {
         Item::Def(ItemDef {
             range: ByteRange::new(start, end),
             label,
-            params: scope.to_scope_from_iter(params),
+            params: params.collect_into_scope(scope),
             r#type: r#type.map(|r#type| scope.to_scope(r#type) as &_),
             expr: scope.to_scope(expr),
         })
@@ -140,14 +141,14 @@ FunTerm: Term<'arena, ByteRange> = {
     <start: @L> "fun" <params: Param+> "->"  <output_type: FunTerm> <end: @R> => {
         Term::FunType(
             ByteRange::new(start, end),
-            scope.to_scope_from_iter(params),
+            params.collect_into_scope(scope),
             scope.to_scope(output_type),
         )
     },
     <start: @L> "fun" <params: Param+> "=>" <output_type: LetTerm> <end: @R> => {
         Term::FunLiteral(
             ByteRange::new(start, end),
-            scope.to_scope_from_iter(params),
+            params.collect_into_scope(scope),
             scope.to_scope(output_type),
         )
     },
@@ -185,7 +186,7 @@ AppTerm: Term<'arena, ByteRange> = {
         Term::App(
             ByteRange::new(start, end),
             scope.to_scope(head_expr),
-            scope.to_scope_from_iter(args),
+            args.collect_into_scope(scope),
         )
     },
 };
@@ -196,7 +197,7 @@ ProjTerm: Term<'arena, ByteRange> = {
         Term::Proj(
             ByteRange::new(start, end),
             scope.to_scope(head_expr),
-            scope.to_scope_from_iter(labels),
+            labels.collect_into_scope(scope),
         )
     },
 };
@@ -288,7 +289,7 @@ BinOpGte: BinOp<ByteRange> = <start: @L> ">=" <end: @R> => BinOp::Gte(ByteRange:
 
 Tuple<Elem>: &'arena [Elem] = {
     "(" ")" => &[],
-    "(" <term: Term> "," ")" => scope.to_scope_from_iter([term]),
+    "(" <term: Term> "," ")" => [term].collect_into_scope(scope),
     "(" <terms: Seq2<Term, ",">> ")" => terms,
 };
 
@@ -314,18 +315,18 @@ RangedName: (ByteRange, StringId) = {
 
 Seq<Elem, Sep>: &'arena [Elem] = {
     <elems: (<Elem> Sep)*> <last: Elem?> => {
-        scope.to_scope_from_iter(elems.into_iter().chain(last))
+        elems.into_iter().chain(last).collect_into_scope(scope)
     }
 };
 
 Seq1<Elem, Sep>: &'arena [Elem] = {
     <first: Elem> <elems: (Sep <Elem>)*> Sep? => {
-        scope.to_scope_from_iter(std::iter::once(first).chain(elems))
+        std::iter::once(first).chain(elems).collect_into_scope(scope)
     },
 };
 
 Seq2<Elem, Sep>: &'arena [Elem] = {
     <first: Elem> Sep <second: Elem> <elems: (Sep <Elem>)*> Sep? => {
-        scope.to_scope_from_iter(std::iter::once(first).chain(std::iter::once(second)).chain(elems))
+        std::iter::once(first).chain(std::iter::once(second)).chain(elems).collect_into_scope(scope)
     },
 };

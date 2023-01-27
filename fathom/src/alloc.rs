@@ -115,3 +115,17 @@ pub unsafe fn slice_assume_init_ref<'a, T>(slice: &'a [MaybeUninit<T>]) -> &'a [
     // valid for reads.
     &*(slice as *const [MaybeUninit<T>] as *const [T])
 }
+
+/// An extension trait that provides a postfix version of
+/// `Scope::to_scope_from_iter`. This may lead to more readable code in some
+/// instances.
+pub trait CollectIntoScope<T> {
+    #[allow(clippy::mut_from_ref)]
+    fn collect_into_scope<'a>(self, scope: &'a scoped_arena::Scope<'a>) -> &'a mut [T];
+}
+
+impl<I: IntoIterator> CollectIntoScope<I::Item> for I {
+    fn collect_into_scope<'a>(self, scope: &'a scoped_arena::Scope<'a>) -> &'a mut [I::Item] {
+        scope.to_scope_from_iter(self)
+    }
+}

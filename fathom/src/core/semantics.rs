@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 use scoped_arena::Scope;
 
-use crate::alloc::SliceVec;
+use crate::alloc::{CollectIntoScope, SliceVec};
 use crate::core::{prim, Const, LocalInfo, Plicity, Prim, Term};
 use crate::env::{EnvLen, Index, Level, SharedEnv, SliceEnv};
 use crate::source::{Span, Spanned, StringId};
@@ -731,22 +731,28 @@ impl<'in_arena, 'env> QuoteEnv<'in_arena, 'env> {
 
             Value::RecordType(labels, types) => Term::RecordType(
                 span,
-                scope.to_scope_from_iter(labels.iter().copied()),
+                labels.iter().copied().collect_into_scope(scope),
                 self.quote_telescope(scope, types),
             ),
             Value::RecordLit(labels, exprs) => Term::RecordLit(
                 span,
-                scope.to_scope_from_iter(labels.iter().copied()),
-                scope.to_scope_from_iter(exprs.iter().map(|expr| self.quote(scope, expr))),
+                labels.iter().copied().collect_into_scope(scope),
+                exprs
+                    .iter()
+                    .map(|expr| self.quote(scope, expr))
+                    .collect_into_scope(scope),
             ),
             Value::ArrayLit(exprs) => Term::ArrayLit(
                 span,
-                scope.to_scope_from_iter(exprs.iter().map(|expr| self.quote(scope, expr))),
+                exprs
+                    .iter()
+                    .map(|expr| self.quote(scope, expr))
+                    .collect_into_scope(scope),
             ),
 
             Value::FormatRecord(labels, formats) => Term::FormatRecord(
                 span,
-                scope.to_scope_from_iter(labels.iter().copied()),
+                labels.iter().copied().collect_into_scope(scope),
                 self.quote_telescope(scope, formats),
             ),
             Value::FormatCond(label, format, cond) => Term::FormatCond(
@@ -757,7 +763,7 @@ impl<'in_arena, 'env> QuoteEnv<'in_arena, 'env> {
             ),
             Value::FormatOverlap(labels, formats) => Term::FormatOverlap(
                 span,
-                scope.to_scope_from_iter(labels.iter().copied()),
+                labels.iter().copied().collect_into_scope(scope),
                 self.quote_telescope(scope, formats),
             ),
 
@@ -870,7 +876,7 @@ impl<'arena, 'env> EvalEnv<'arena, 'env> {
                     self.quote_env().quote(scope, &value)
                 }
                 None => {
-                    let infos = scope.to_scope_from_iter(infos.iter().copied());
+                    let infos = infos.iter().copied().collect_into_scope(scope);
                     Term::InsertedMeta(*span, *var, infos)
                 }
             },
@@ -905,23 +911,29 @@ impl<'arena, 'env> EvalEnv<'arena, 'env> {
 
             Term::RecordType(span, labels, types) => Term::RecordType(
                 *span,
-                scope.to_scope_from_iter(labels.iter().copied()),
+                labels.iter().copied().collect_into_scope(scope),
                 self.unfold_telescope_metas(scope, types),
             ),
             Term::RecordLit(span, labels, exprs) => Term::RecordLit(
                 *span,
-                scope.to_scope_from_iter(labels.iter().copied()),
-                scope.to_scope_from_iter(exprs.iter().map(|expr| self.unfold_metas(scope, expr))),
+                labels.iter().copied().collect_into_scope(scope),
+                exprs
+                    .iter()
+                    .map(|expr| self.unfold_metas(scope, expr))
+                    .collect_into_scope(scope),
             ),
 
             Term::ArrayLit(span, exprs) => Term::ArrayLit(
                 *span,
-                scope.to_scope_from_iter(exprs.iter().map(|expr| self.unfold_metas(scope, expr))),
+                exprs
+                    .iter()
+                    .map(|expr| self.unfold_metas(scope, expr))
+                    .collect_into_scope(scope),
             ),
 
             Term::FormatRecord(span, labels, formats) => Term::FormatRecord(
                 *span,
-                scope.to_scope_from_iter(labels.iter().copied()),
+                labels.iter().copied().collect_into_scope(scope),
                 self.unfold_telescope_metas(scope, formats),
             ),
             Term::FormatCond(span, name, format, pred) => Term::FormatCond(
@@ -932,7 +944,7 @@ impl<'arena, 'env> EvalEnv<'arena, 'env> {
             ),
             Term::FormatOverlap(span, labels, formats) => Term::FormatOverlap(
                 *span,
-                scope.to_scope_from_iter(labels.iter().copied()),
+                labels.iter().copied().collect_into_scope(scope),
                 self.unfold_telescope_metas(scope, formats),
             ),
 
@@ -966,7 +978,7 @@ impl<'arena, 'env> EvalEnv<'arena, 'env> {
                     // No solution was found for the metavariable.
                     // NOTE: We might want to replace this with `ReportedError`.
                     None => {
-                        let infos = scope.to_scope_from_iter(infos.iter().copied());
+                        let infos = infos.iter().copied().collect_into_scope(scope);
                         TermOrValue::Term(Term::InsertedMeta(*span, *var, infos))
                     }
                 }
@@ -1003,10 +1015,10 @@ impl<'arena, 'env> EvalEnv<'arena, 'env> {
                     TermOrValue::Term(head_expr) => TermOrValue::Term(Term::ConstMatch(
                         *span,
                         scope.to_scope(head_expr),
-                        scope.to_scope_from_iter(
-                            (branches.iter())
-                                .map(|(r#const, expr)| (*r#const, self.unfold_metas(scope, expr))),
-                        ),
+                        branches
+                            .iter()
+                            .map(|(r#const, expr)| (*r#const, self.unfold_metas(scope, expr)))
+                            .collect_into_scope(scope),
                         default_branch
                             .map(|(name, expr)| (name, self.unfold_bound_metas(scope, expr))),
                     )),
@@ -1044,12 +1056,15 @@ impl<'arena, 'env> EvalEnv<'arena, 'env> {
         self.local_exprs.reserve(terms.len());
         let initial_locals = self.local_exprs.len();
 
-        let terms = scope.to_scope_from_iter(terms.iter().map(|term| {
-            let term = self.unfold_metas(scope, term);
-            let var = Arc::new(Value::local_var(self.local_exprs.len().next_level()));
-            self.local_exprs.push(Spanned::empty(var));
-            term
-        }));
+        let terms = terms
+            .iter()
+            .map(|term| {
+                let term = self.unfold_metas(scope, term);
+                let var = Arc::new(Value::local_var(self.local_exprs.len().next_level()));
+                self.local_exprs.push(Spanned::empty(var));
+                term
+            })
+            .collect_into_scope(scope);
 
         self.local_exprs.truncate(initial_locals);
 

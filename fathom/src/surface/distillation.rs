@@ -4,7 +4,7 @@ use std::cell::RefCell;
 
 use scoped_arena::Scope;
 
-use crate::alloc::SliceVec;
+use crate::alloc::{CollectIntoScope, SliceVec};
 use crate::core;
 use crate::core::{Const, Plicity, UIntStyle};
 use crate::env::{self, EnvLen, Index, Level, UniqueEnv};
@@ -160,7 +160,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
         });
 
         Module {
-            items: scope.to_scope_from_iter(items),
+            items: items.collect_into_scope(scope),
         }
     }
 
@@ -247,13 +247,14 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
     ) -> Term<'arena, ()> {
         self.local_names.reserve(labels.len());
         let initial_local_len = self.local_len();
-        let exprs = (self.scope).to_scope_from_iter(
-            Iterator::zip(labels.iter(), exprs.iter()).map(|(label, expr)| {
+        let scope = self.scope;
+        let exprs = Iterator::zip(labels.iter(), exprs.iter())
+            .map(|(label, expr)| {
                 let expr = self.check_prec(Prec::Top, expr);
                 self.push_local(Some(*label));
                 expr
-            }),
-        );
+            })
+            .collect_into_scope(scope);
         self.truncate_local(initial_local_len);
         Term::Tuple((), exprs)
     }
@@ -268,8 +269,9 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
         self.local_names.reserve(labels.len());
         let initial_local_len = self.local_len();
         let core_fields = Iterator::zip(labels.iter().copied(), core_formats.iter());
-        let format_fields =
-            (self.scope).to_scope_from_iter(core_fields.map(|(label, format)| match format {
+        let scope = self.scope;
+        let format_fields = core_fields
+            .map(|(label, format)| match format {
                 // Distill succeed formats back to computed formats
                 core::Term::FunApp(
                     ..,
@@ -310,7 +312,8 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                         pred: None,
                     }
                 }
-            }));
+            })
+            .collect_into_scope(scope);
         self.truncate_local(initial_local_len);
 
         format_fields

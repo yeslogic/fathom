@@ -27,7 +27,7 @@ use std::sync::Arc;
 use scoped_arena::Scope;
 
 use super::ExprField;
-use crate::alloc::SliceVec;
+use crate::alloc::{CollectIntoScope, SliceVec};
 use crate::core::semantics::{self, ArcValue, Head, Telescope, Value};
 use crate::core::{self, prim, Const, Plicity, Prim, UIntStyle};
 use crate::env::{self, EnvLen, Level, SharedEnv, UniqueEnv};
@@ -358,7 +358,11 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         core::Term::InsertedMeta(
             source.range().into(),
             self.meta_env.push(source, r#type),
-            (self.scope).to_scope_from_iter(self.local_env.infos.iter().copied()),
+            self.local_env
+                .infos
+                .iter()
+                .copied()
+                .collect_into_scope(self.scope),
         )
     }
 
@@ -694,23 +698,26 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         }
 
         // Unfold all unification solutions
-        let items = scope.to_scope_from_iter(items.into_iter().map(|item| match item {
-            core::Item::Def {
-                label,
-                r#type,
-                expr,
-            } => {
-                // TODO: Unfold unsolved metas to reported errors
-                let r#type = self.eval_env().unfold_metas(scope, r#type);
-                let expr = self.eval_env().unfold_metas(scope, expr);
-
+        let items = items
+            .into_iter()
+            .map(|item| match item {
                 core::Item::Def {
                     label,
-                    r#type: scope.to_scope(r#type),
-                    expr: scope.to_scope(expr),
+                    r#type,
+                    expr,
+                } => {
+                    // TODO: Unfold unsolved metas to reported errors
+                    let r#type = self.eval_env().unfold_metas(scope, r#type);
+                    let expr = self.eval_env().unfold_metas(scope, expr);
+
+                    core::Item::Def {
+                        label,
+                        r#type: scope.to_scope(r#type),
+                        expr: scope.to_scope(expr),
+                    }
                 }
-            }
-        }));
+            })
+            .collect_into_scope(scope);
 
         self.handle_messages(on_message);
 
@@ -1040,10 +1047,11 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                     file_range.into(),
                     self.scope.to_scope(cond_expr),
                     // NOTE: in lexicographic order: in Rust, `false < true`
-                    self.scope.to_scope_from_iter([
+                    [
                         (Const::Bool(false), else_expr),
                         (Const::Bool(true), then_expr),
-                    ]),
+                    ]
+                    .collect_into_scope(self.scope),
                     None,
                 )
             }
@@ -1094,18 +1102,19 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 self.local_env.reserve(elem_exprs.len());
                 let mut interner = self.interner.borrow_mut();
                 let labels = interner.get_tuple_labels(0..elem_exprs.len());
-                let labels = self.scope.to_scope_from_iter(labels.iter().copied());
+                let labels = labels.iter().copied().collect_into_scope(self.scope);
 
                 let initial_local_len = self.local_env.len();
                 let universe = &self.universe.clone();
-                let types = self.scope.to_scope_from_iter(
-                    Iterator::zip(labels.iter(), elem_exprs.iter()).map(|(label, elem_expr)| {
+                let scope = self.scope;
+                let types = Iterator::zip(labels.iter(), elem_exprs.iter())
+                    .map(|(label, elem_expr)| {
                         let r#type = self.check(elem_expr, universe);
                         let type_value = self.eval_env().eval(&r#type);
                         self.local_env.push_param(Some(*label), type_value);
                         r#type
-                    }),
-                );
+                    })
+                    .collect_into_scope(scope);
 
                 self.local_env.truncate(initial_local_len);
 
@@ -1117,19 +1126,20 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 self.local_env.reserve(elem_exprs.len());
                 let mut interner = self.interner.borrow_mut();
                 let labels = interner.get_tuple_labels(0..elem_exprs.len());
-                let labels = self.scope.to_scope_from_iter(labels.iter().copied());
+                let labels = labels.iter().copied().collect_into_scope(self.scope);
 
                 let initial_local_len = self.local_env.len();
                 let format_type = self.format_type.clone();
-                let formats = self.scope.to_scope_from_iter(
-                    Iterator::zip(labels.iter(), elem_exprs.iter()).map(|(label, elem_expr)| {
+                let scope = self.scope;
+                let formats = Iterator::zip(labels.iter(), elem_exprs.iter())
+                    .map(|(label, elem_expr)| {
                         let format = self.check(elem_expr, &format_type);
                         let format_value = self.eval_env().eval(&format);
                         let r#type = self.elim_env().format_repr(&format_value);
                         self.local_env.push_param(Some(*label), r#type);
                         format
-                    }),
-                );
+                    })
+                    .collect_into_scope(scope);
 
                 self.local_env.truncate(initial_local_len);
 
@@ -1222,12 +1232,16 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 };
 
                 match len {
-                    Some(len) if elem_exprs.len() as u64 == len => core::Term::ArrayLit(
-                        file_range.into(),
-                        self.scope.to_scope_from_iter(
-                            (elem_exprs.iter()).map(|elem_expr| self.check(elem_expr, elem_type)),
-                        ),
-                    ),
+                    Some(len) if elem_exprs.len() as u64 == len => {
+                        let scope = self.scope;
+                        core::Term::ArrayLit(
+                            file_range.into(),
+                            elem_exprs
+                                .iter()
+                                .map(|elem_expr| self.check(elem_expr, elem_type))
+                                .collect_into_scope(scope),
+                        )
+                    }
                     _ => {
                         // Check the array elements anyway in order to report
                         // any errors inside the literal as well.
@@ -1452,10 +1466,11 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                     file_range.into(),
                     self.scope.to_scope(cond_expr),
                     // NOTE: in lexicographic order: in Rust, `false < true`
-                    self.scope.to_scope_from_iter([
+                    [
                         (Const::Bool(false), else_expr),
                         (Const::Bool(true), then_expr),
-                    ]),
+                    ]
+                    .collect_into_scope(self.scope),
                     None,
                 );
 
@@ -1632,7 +1647,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
             Term::Tuple(_, elem_exprs) => {
                 let mut interner = self.interner.borrow_mut();
                 let labels = interner.get_tuple_labels(0..elem_exprs.len());
-                let labels = self.scope.to_scope_from_iter(labels.iter().copied());
+                let labels = labels.iter().copied().collect_into_scope(self.scope);
 
                 let mut exprs = SliceVec::new(self.scope, labels.len());
                 let mut types = SliceVec::new(self.scope, labels.len());
@@ -2440,7 +2455,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
             return core::Term::ConstMatch(
                 full_span,
                 match_info.scrutinee.expr,
-                self.scope.to_scope_from_iter(branches.into_iter()),
+                branches.into_iter().collect_into_scope(self.scope),
                 Some(default_branch),
             );
         }
@@ -2457,7 +2472,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         core::Term::ConstMatch(
             full_span,
             match_info.scrutinee.expr,
-            self.scope.to_scope_from_iter(branches.into_iter()),
+            branches.into_iter().collect_into_scope(self.scope),
             default_expr.map(|expr| (None, self.scope.to_scope(expr) as &_)),
         )
     }
