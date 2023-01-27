@@ -181,17 +181,17 @@ pub enum Error {
 impl Error {
     pub fn range(&self) -> ByteRange {
         match self {
-            Error::UnexpectedCharacter { range } => *range,
-            Error::UnclosedBlockComment { first_open, .. } => *first_open,
+            Self::UnexpectedCharacter { range } => *range,
+            Self::UnclosedBlockComment { first_open, .. } => *first_open,
         }
     }
 
     pub fn to_diagnostic(&self, file_id: FileId) -> Diagnostic<FileId> {
         match self {
-            Error::UnexpectedCharacter { range } => Diagnostic::error()
+            Self::UnexpectedCharacter { range } => Diagnostic::error()
                 .with_message("unexpected character")
                 .with_labels(vec![Label::primary(file_id, *range)]),
-            Error::UnclosedBlockComment {
+            Self::UnclosedBlockComment {
                 depth,
                 first_open,
                 last_close,

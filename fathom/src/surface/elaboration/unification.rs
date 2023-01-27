@@ -50,14 +50,14 @@ pub enum Error {
 }
 
 impl From<SpineError> for Error {
-    fn from(error: SpineError) -> Error {
-        Error::Spine(error)
+    fn from(error: SpineError) -> Self {
+        Self::Spine(error)
     }
 }
 
 impl From<RenameError> for Error {
-    fn from(error: RenameError) -> Error {
-        Error::Rename(error)
+    fn from(error: RenameError) -> Self {
+        Self::Rename(error)
     }
 }
 
@@ -731,8 +731,8 @@ pub struct PartialRenaming {
 
 impl PartialRenaming {
     /// Create a new, empty renaming.
-    pub fn new() -> PartialRenaming {
-        PartialRenaming {
+    pub fn new() -> Self {
+        Self {
             source: UniqueEnv::new(),
             target: EnvLen::new(),
         }

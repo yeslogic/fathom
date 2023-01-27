@@ -198,15 +198,15 @@ pub enum MetaSource {
 impl MetaSource {
     pub fn range(&self) -> FileRange {
         match self {
-            MetaSource::ImplicitArg(range, _)
-            | MetaSource::HoleType(range, _)
-            | MetaSource::HoleExpr(range, _)
-            | MetaSource::PlaceholderType(range)
-            | MetaSource::PlaceholderExpr(range)
-            | MetaSource::PlaceholderPatternType(range)
-            | MetaSource::NamedPatternType(range, _)
-            | MetaSource::MatchExprType(range)
-            | MetaSource::ReportedErrorType(range) => *range,
+            Self::ImplicitArg(range, _)
+            | Self::HoleType(range, _)
+            | Self::HoleExpr(range, _)
+            | Self::PlaceholderType(range)
+            | Self::PlaceholderExpr(range)
+            | Self::PlaceholderPatternType(range)
+            | Self::NamedPatternType(range, _)
+            | Self::MatchExprType(range)
+            | Self::ReportedErrorType(range) => *range,
         }
     }
 }

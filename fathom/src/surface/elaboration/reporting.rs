@@ -146,7 +146,7 @@ impl Message {
         let secondary_label = |range: &FileRange| Label::secondary(range.file_id(), *range);
 
         match self {
-            Message::UnboundName {
+            Self::UnboundName {
                 range,
                 name,
                 suggestion,
@@ -166,13 +166,13 @@ impl Message {
                 }
                 diagnostic
             }
-            Message::RefutablePattern { pattern_range } => Diagnostic::error()
+            Self::RefutablePattern { pattern_range } => Diagnostic::error()
                 .with_message("refutable patterns found in binding")
                 .with_labels(vec![
                     primary_label(pattern_range).with_message("refutable pattern")
                 ])
                 .with_notes(vec!["expected an irrefutable pattern".to_owned()]),
-            Message::NonExhaustiveMatchExpr {
+            Self::NonExhaustiveMatchExpr {
                 match_expr_range,
                 scrutinee_expr_range,
             } => Diagnostic::error()
@@ -181,16 +181,16 @@ impl Message {
                     primary_label(scrutinee_expr_range).with_message("patterns not covered"),
                     secondary_label(match_expr_range).with_message("in match expression"),
                 ]),
-            Message::UnreachablePattern { range } => Diagnostic::warning()
+            Self::UnreachablePattern { range } => Diagnostic::warning()
                 .with_message("unreachable pattern")
                 .with_labels(vec![primary_label(range)]),
-            Message::UnexpectedParameter { param_range } => Diagnostic::error()
+            Self::UnexpectedParameter { param_range } => Diagnostic::error()
                 .with_message("too many parameters in function literal")
                 .with_labels(vec![
                     primary_label(param_range).with_message("unexpected parameter")
                 ])
                 .with_notes(vec!["this parameter can be removed".to_owned()]),
-            Message::UnexpectedArgument {
+            Self::UnexpectedArgument {
                 head_range,
                 head_type,
                 arg_range,
@@ -201,7 +201,7 @@ impl Message {
                     secondary_label(head_range)
                         .with_message(format!("expression of type {head_type}")),
                 ]),
-            Message::PlicityArgumentMismatch {
+            Self::PlicityArgumentMismatch {
                 head_range,
                 head_plicity,
                 head_type,
@@ -216,7 +216,7 @@ impl Message {
                     secondary_label(head_range)
                         .with_message(format!("{head_plicity} function of type {head_type}")),
                 ]),
-            Message::UnknownField {
+            Self::UnknownField {
                 head_range,
                 head_type,
                 label_range,
@@ -241,7 +241,7 @@ impl Message {
                 }
                 diagnostic
             }
-            Message::MismatchedFieldLabels {
+            Self::MismatchedFieldLabels {
                 range,
                 expr_labels,
                 type_labels,
@@ -307,7 +307,7 @@ impl Message {
                         format!("   found fields {found_labels}"),
                     ])
             }
-            Message::DuplicateFieldLabels { range, labels } => {
+            Self::DuplicateFieldLabels { range, labels } => {
                 let interner = interner.borrow();
                 let diagnostic_labels = (labels.iter())
                     .map(|(range, _)| primary_label(range).with_message("duplicate field"))
@@ -326,7 +326,7 @@ impl Message {
                             .format_with(", ", |label, f| f(&format_args!("`{label}`")))
                     )])
             }
-            Message::ArrayLiteralNotSupported {
+            Self::ArrayLiteralNotSupported {
                 range,
                 expected_type,
             } => Diagnostic::error()
@@ -335,7 +335,7 @@ impl Message {
                     primary_label(range).with_message(format!("expected `{expected_type}`"))
                 ])
                 .with_notes(vec![format!("expected `{expected_type}`")]),
-            Message::MismatchedArrayLength {
+            Self::MismatchedArrayLength {
                 range,
                 found_len,
                 expected_len,
@@ -348,12 +348,12 @@ impl Message {
                     format!("expected length {expected_len}"),
                     format!("   found length {found_len}"),
                 ]),
-            Message::AmbiguousArrayLiteral { range } => Diagnostic::error()
+            Self::AmbiguousArrayLiteral { range } => Diagnostic::error()
                 .with_message("ambiguous array literal")
                 .with_labels(vec![
                     primary_label(range).with_message("type annotations needed")
                 ]),
-            Message::MismatchedStringLiteralByteLength {
+            Self::MismatchedStringLiteralByteLength {
                 range,
                 expected_len,
                 found_len,
@@ -366,12 +366,12 @@ impl Message {
                     format!("expected byte length {expected_len}"),
                     format!("   found byte length {found_len}"),
                 ]),
-            Message::NonAsciiStringLiteral { invalid_range } => Diagnostic::error()
+            Self::NonAsciiStringLiteral { invalid_range } => Diagnostic::error()
                 .with_message("non-ASCII character found in string literal")
                 .with_labels(vec![
                     primary_label(invalid_range).with_message("non-ASCII character")
                 ]),
-            Message::StringLiteralNotSupported {
+            Self::StringLiteralNotSupported {
                 range,
                 expected_type,
             } => Diagnostic::error()
@@ -380,15 +380,15 @@ impl Message {
                     primary_label(range).with_message(format!("expected `{expected_type}`"))
                 ])
                 .with_notes(vec![format!("expected `{expected_type}`")]),
-            Message::AmbiguousStringLiteral { range } => Diagnostic::error()
+            Self::AmbiguousStringLiteral { range } => Diagnostic::error()
                 .with_message("ambiguous string literal")
                 .with_labels(vec![
                     primary_label(range).with_message("type annotations needed")
                 ]),
-            Message::InvalidNumericLiteral { range, message } => Diagnostic::error()
+            Self::InvalidNumericLiteral { range, message } => Diagnostic::error()
                 .with_message("failed to parse numeric literal")
                 .with_labels(vec![(primary_label(range)).with_message(message)]),
-            Message::NumericLiteralNotSupported {
+            Self::NumericLiteralNotSupported {
                 range,
                 expected_type,
             } => Diagnostic::error()
@@ -397,15 +397,15 @@ impl Message {
                     primary_label(range).with_message(format!("expected `{expected_type}`"))
                 ])
                 .with_notes(vec![format!("expected `{expected_type}`")]),
-            Message::AmbiguousNumericLiteral { range } => Diagnostic::error()
+            Self::AmbiguousNumericLiteral { range } => Diagnostic::error()
                 .with_message("ambiguous numeric literal")
                 .with_labels(vec![
                     primary_label(range).with_message("type annotations needed")
                 ]),
-            Message::BooleanLiteralNotSupported { range } => Diagnostic::error()
+            Self::BooleanLiteralNotSupported { range } => Diagnostic::error()
                 .with_message("boolean literal not supported for expected type")
                 .with_labels(vec![primary_label(range)]),
-            Message::BinOpMismatchedTypes {
+            Self::BinOpMismatchedTypes {
                 range: _,
                 lhs_range,
                 rhs_range,
@@ -420,7 +420,7 @@ impl Message {
                     secondary_label(&op.range())
                         .with_message(format!("no implementation for `{lhs} {op} {rhs}`")),
                 ]),
-            Message::FailedToUnify {
+            Self::FailedToUnify {
                 range,
                 found,
                 expected,
@@ -465,7 +465,7 @@ impl Message {
                     },
                 }
             }
-            Message::HoleSolution { range, name, expr } => {
+            Self::HoleSolution { range, name, expr } => {
                 let interner = interner.borrow();
                 let name = interner.resolve(*name).unwrap();
 
@@ -476,7 +476,7 @@ impl Message {
                         "hole `?{name}` can be replaced with `{expr}`",
                     )])
             }
-            Message::UnsolvedMetaVar { source } => {
+            Self::UnsolvedMetaVar { source } => {
                 let (range, source_name) = match source {
                     MetaSource::ImplicitArg(range, _) => (range, "implicit argument"),
                     MetaSource::HoleExpr(range, _) => (range, "hole expression"),
@@ -499,7 +499,7 @@ impl Message {
                         primary_label(range).with_message(format!("unsolved {source_name}"))
                     ])
             }
-            Message::CycleDetected { names } => {
+            Self::CycleDetected { names } => {
                 let interner = interner.borrow();
                 let names: Vec<_> = names
                     .iter()
@@ -510,7 +510,7 @@ impl Message {
                     .with_message("cycle detected")
                     .with_notes(vec![cycle])
             }
-            Message::MissingSpan { range } => Diagnostic::bug()
+            Self::MissingSpan { range } => Diagnostic::bug()
                 .with_message("produced core term without span")
                 .with_labels(vec![primary_label(range)])
                 .with_notes(vec![format!(

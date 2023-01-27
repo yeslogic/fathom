@@ -12,7 +12,7 @@ use crate::files::FileId;
 use crate::source::{BytePos, ByteRange, FileRange, ProgramSource, StringId, StringInterner};
 
 lalrpop_mod!(
-    #[allow(clippy::all)]
+    #[allow(clippy::all, clippy::use_self)]
     grammar,
     "/surface/grammar.rs"
 );
@@ -117,46 +117,46 @@ impl<Range> BinOp<Range> {
         Range: Clone,
     {
         match self {
-            BinOp::Add(range)
-            | BinOp::Sub(range)
-            | BinOp::Mul(range)
-            | BinOp::Div(range)
-            | BinOp::Eq(range)
-            | BinOp::Neq(range)
-            | BinOp::Lt(range)
-            | BinOp::Lte(range)
-            | BinOp::Gt(range)
-            | BinOp::Gte(range) => range.clone(),
+            Self::Add(range)
+            | Self::Sub(range)
+            | Self::Mul(range)
+            | Self::Div(range)
+            | Self::Eq(range)
+            | Self::Neq(range)
+            | Self::Lt(range)
+            | Self::Lte(range)
+            | Self::Gt(range)
+            | Self::Gte(range) => range.clone(),
         }
     }
 
     fn as_str(&self) -> &'static str {
         match self {
-            BinOp::Add(_) => "+",
-            BinOp::Sub(_) => "-",
-            BinOp::Mul(_) => "*",
-            BinOp::Div(_) => "/",
-            BinOp::Eq(_) => "==",
-            BinOp::Neq(_) => "!=",
-            BinOp::Lt(_) => "<",
-            BinOp::Lte(_) => "<=",
-            BinOp::Gt(_) => ">",
-            BinOp::Gte(_) => ">=",
+            Self::Add(_) => "+",
+            Self::Sub(_) => "-",
+            Self::Mul(_) => "*",
+            Self::Div(_) => "/",
+            Self::Eq(_) => "==",
+            Self::Neq(_) => "!=",
+            Self::Lt(_) => "<",
+            Self::Lte(_) => "<=",
+            Self::Gt(_) => ">",
+            Self::Gte(_) => ">=",
         }
     }
 
     fn map_range<T>(self, f: impl Fn(Range) -> T) -> BinOp<T> {
         match self {
-            BinOp::Add(range) => BinOp::Add(f(range)),
-            BinOp::Sub(range) => BinOp::Sub(f(range)),
-            BinOp::Mul(range) => BinOp::Mul(f(range)),
-            BinOp::Div(range) => BinOp::Div(f(range)),
-            BinOp::Eq(range) => BinOp::Eq(f(range)),
-            BinOp::Neq(range) => BinOp::Neq(f(range)),
-            BinOp::Lt(range) => BinOp::Lt(f(range)),
-            BinOp::Lte(range) => BinOp::Lte(f(range)),
-            BinOp::Gt(range) => BinOp::Gt(f(range)),
-            BinOp::Gte(range) => BinOp::Gte(f(range)),
+            Self::Add(range) => BinOp::Add(f(range)),
+            Self::Sub(range) => BinOp::Sub(f(range)),
+            Self::Mul(range) => BinOp::Mul(f(range)),
+            Self::Div(range) => BinOp::Div(f(range)),
+            Self::Eq(range) => BinOp::Eq(f(range)),
+            Self::Neq(range) => BinOp::Neq(f(range)),
+            Self::Lt(range) => BinOp::Lt(f(range)),
+            Self::Lte(range) => BinOp::Lte(f(range)),
+            Self::Gt(range) => BinOp::Gt(f(range)),
+            Self::Gte(range) => BinOp::Gte(f(range)),
         }
     }
 }
@@ -170,11 +170,11 @@ impl<Range> fmt::Display for BinOp<Range> {
 impl<Range: Clone> Pattern<Range> {
     pub fn range(&self) -> Range {
         match self {
-            Pattern::Name(range, _)
-            | Pattern::Placeholder(range)
-            | Pattern::StringLiteral(range, _)
-            | Pattern::NumberLiteral(range, _)
-            | Pattern::BooleanLiteral(range, _) => range.clone(),
+            Self::Name(range, _)
+            | Self::Placeholder(range)
+            | Self::StringLiteral(range, _)
+            | Self::NumberLiteral(range, _)
+            | Self::BooleanLiteral(range, _) => range.clone(),
         }
     }
 }
@@ -428,21 +428,21 @@ pub enum ParseMessage {
 impl ParseMessage {
     pub fn range(&self) -> ByteRange {
         match self {
-            ParseMessage::Lexer(error) => error.range(),
-            ParseMessage::InvalidToken { range }
-            | ParseMessage::UnrecognizedEof { range, .. }
-            | ParseMessage::UnrecognizedToken { range, .. }
-            | ParseMessage::ExtraToken { range, .. } => *range,
+            Self::Lexer(error) => error.range(),
+            Self::InvalidToken { range }
+            | Self::UnrecognizedEof { range, .. }
+            | Self::UnrecognizedToken { range, .. }
+            | Self::ExtraToken { range, .. } => *range,
         }
     }
 
-    fn from_lalrpop(error: LalrpopParseError<'_>) -> ParseMessage {
+    fn from_lalrpop(error: LalrpopParseError<'_>) -> Self {
         match error {
-            LalrpopParseError::InvalidToken { location } => ParseMessage::InvalidToken {
+            LalrpopParseError::InvalidToken { location } => Self::InvalidToken {
                 range: ByteRange::new(location, location),
             },
             LalrpopParseError::UnrecognizedEOF { location, expected } => {
-                ParseMessage::UnrecognizedEof {
+                Self::UnrecognizedEof {
                     range: ByteRange::new(location, location),
                     expected, // TODO: convert to descriptions?
                 }
@@ -450,41 +450,41 @@ impl ParseMessage {
             LalrpopParseError::UnrecognizedToken {
                 token: (start, token, end),
                 expected,
-            } => ParseMessage::UnrecognizedToken {
+            } => Self::UnrecognizedToken {
                 range: ByteRange::new(start, end),
                 token: token.description(),
                 expected,
             },
             LalrpopParseError::ExtraToken {
                 token: (start, token, end),
-            } => ParseMessage::ExtraToken {
+            } => Self::ExtraToken {
                 range: ByteRange::new(start, end),
                 token: token.description(),
             },
-            LalrpopParseError::User { error } => ParseMessage::Lexer(error),
+            LalrpopParseError::User { error } => Self::Lexer(error),
         }
     }
 
-    fn from_lalrpop_recovery(error: LalrpopErrorRecovery<'_>) -> ParseMessage {
+    fn from_lalrpop_recovery(error: LalrpopErrorRecovery<'_>) -> Self {
         // TODO: make use of use `error.dropped_tokens` in error reporting?
-        ParseMessage::from_lalrpop(error.error)
+        Self::from_lalrpop(error.error)
     }
 
     pub fn to_diagnostic(&self, file_id: FileId) -> Diagnostic<FileId> {
         let primary_label = |range: &ByteRange| Label::primary(file_id, *range);
 
         match self {
-            ParseMessage::Lexer(error) => error.to_diagnostic(file_id),
-            ParseMessage::InvalidToken { range } => Diagnostic::error()
+            Self::Lexer(error) => error.to_diagnostic(file_id),
+            Self::InvalidToken { range } => Diagnostic::error()
                 .with_message("invalid token")
                 .with_labels(vec![primary_label(range)]),
-            ParseMessage::UnrecognizedEof { range, expected } => Diagnostic::error()
+            Self::UnrecognizedEof { range, expected } => Diagnostic::error()
                 .with_message("unexpected end of file")
                 .with_labels(vec![
                     primary_label(range).with_message("unexpected end of file")
                 ])
                 .with_notes(format_expected(expected).map_or(Vec::new(), |message| vec![message])),
-            ParseMessage::UnrecognizedToken {
+            Self::UnrecognizedToken {
                 range,
                 token,
                 expected,
@@ -492,7 +492,7 @@ impl ParseMessage {
                 .with_message(format!("unexpected token {token}"))
                 .with_labels(vec![primary_label(range).with_message("unexpected token")])
                 .with_notes(format_expected(expected).map_or(Vec::new(), |message| vec![message])),
-            ParseMessage::ExtraToken { range, token } => Diagnostic::error()
+            Self::ExtraToken { range, token } => Diagnostic::error()
                 .with_message(format!("extra token {token}"))
                 .with_labels(vec![primary_label(range).with_message("extra token")]),
         }

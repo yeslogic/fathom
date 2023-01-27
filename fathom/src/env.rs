@@ -46,13 +46,13 @@ pub struct Index(RawVar);
 
 impl Index {
     /// The last variable to be bound in the environment.
-    pub const fn last() -> Index {
-        Index(0)
+    pub const fn last() -> Self {
+        Self(0)
     }
 
     /// Returns the previously bound variable, relative to this one.
-    pub const fn prev(self) -> Index {
-        Index(self.0 + 1) // FIXME: check overflow?
+    pub const fn prev(self) -> Self {
+        Self(self.0 + 1) // FIXME: check overflow?
     }
 }
 
@@ -93,13 +93,13 @@ pub struct Level(RawVar);
 
 impl Level {
     /// The first variable to be bound in the environment.
-    pub const fn first() -> Level {
-        Level(0)
+    pub const fn first() -> Self {
+        Self(0)
     }
 
     /// Returns the next bound variable, relative to this one.
-    pub const fn next(self) -> Level {
-        Level(self.0 + 1) // FIXME: check overflow?
+    pub const fn next(self) -> Self {
+        Self(self.0 + 1) // FIXME: check overflow?
     }
 }
 
@@ -128,13 +128,13 @@ pub struct EnvLen(RawVar);
 
 impl EnvLen {
     /// Construct a new, empty environment.
-    pub fn new() -> EnvLen {
-        EnvLen(0)
+    pub fn new() -> Self {
+        Self(0)
     }
 
     /// Reset the environment to the empty environment.
     pub fn clear(&mut self) {
-        *self = EnvLen::new();
+        *self = Self::new();
     }
 
     /// Convert an index to a level in the current environment.
@@ -163,7 +163,7 @@ impl EnvLen {
     }
 
     /// Truncate the environment to the given length.
-    pub fn truncate(&mut self, len: EnvLen) {
+    pub fn truncate(&mut self, len: Self) {
         *self = len;
     }
 }
@@ -176,8 +176,8 @@ pub struct UniqueEnv<Entry> {
 
 impl<Entry> UniqueEnv<Entry> {
     /// Construct a new, empty environment.
-    pub fn new() -> UniqueEnv<Entry> {
-        UniqueEnv {
+    pub fn new() -> Self {
+        Self {
             entries: Vec::new(),
         }
     }
@@ -313,8 +313,8 @@ pub struct SharedEnv<Entry> {
 
 impl<Entry> SharedEnv<Entry> {
     /// Construct a new, empty environment.
-    pub fn new() -> SharedEnv<Entry> {
-        SharedEnv {
+    pub fn new() -> Self {
+        Self {
             entries: rpds::Vector::new_sync(),
         }
     }

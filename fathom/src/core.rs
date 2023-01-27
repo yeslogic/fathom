@@ -49,8 +49,8 @@ pub enum Plicity {
 impl fmt::Display for Plicity {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Plicity::Explicit => write!(f, "explicit"),
-            Plicity::Implicit => write!(f, "implicit"),
+            Self::Explicit => write!(f, "explicit"),
+            Self::Implicit => write!(f, "implicit"),
         }
     }
 }
@@ -602,19 +602,19 @@ pub enum Const {
 impl PartialEq for Const {
     fn eq(&self, other: &Self) -> bool {
         match (*self, *other) {
-            (Const::Bool(a), Const::Bool(b)) => a == b,
-            (Const::U8(a, _), Const::U8(b, _)) => a == b,
-            (Const::U16(a, _), Const::U16(b, _)) => a == b,
-            (Const::U32(a, _), Const::U32(b, _)) => a == b,
-            (Const::U64(a, _), Const::U64(b, _)) => a == b,
-            (Const::S8(a), Const::S8(b)) => a == b,
-            (Const::S16(a), Const::S16(b)) => a == b,
-            (Const::S32(a), Const::S32(b)) => a == b,
-            (Const::S64(a), Const::S64(b)) => a == b,
-            (Const::F32(a), Const::F32(b)) => a.total_cmp(&b).is_eq(),
-            (Const::F64(a), Const::F64(b)) => a.total_cmp(&b).is_eq(),
-            (Const::Pos(a), Const::Pos(b)) => a == b,
-            (Const::Ref(a), Const::Ref(b)) => a == b,
+            (Self::Bool(a), Self::Bool(b)) => a == b,
+            (Self::U8(a, _), Self::U8(b, _)) => a == b,
+            (Self::U16(a, _), Self::U16(b, _)) => a == b,
+            (Self::U32(a, _), Self::U32(b, _)) => a == b,
+            (Self::U64(a, _), Self::U64(b, _)) => a == b,
+            (Self::S8(a), Self::S8(b)) => a == b,
+            (Self::S16(a), Self::S16(b)) => a == b,
+            (Self::S32(a), Self::S32(b)) => a == b,
+            (Self::S64(a), Self::S64(b)) => a == b,
+            (Self::F32(a), Self::F32(b)) => a.total_cmp(&b).is_eq(),
+            (Self::F64(a), Self::F64(b)) => a.total_cmp(&b).is_eq(),
+            (Self::Pos(a), Self::Pos(b)) => a == b,
+            (Self::Ref(a), Self::Ref(b)) => a == b,
             _ => false,
         }
     }
@@ -631,19 +631,19 @@ impl PartialOrd for Const {
 impl Ord for Const {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         match (*self, *other) {
-            (Const::Bool(a), Const::Bool(b)) => a.cmp(&b),
-            (Const::U8(a, _), Const::U8(b, _)) => a.cmp(&b),
-            (Const::U16(a, _), Const::U16(b, _)) => a.cmp(&b),
-            (Const::U32(a, _), Const::U32(b, _)) => a.cmp(&b),
-            (Const::U64(a, _), Const::U64(b, _)) => a.cmp(&b),
-            (Const::S8(a), Const::S8(b)) => a.cmp(&b),
-            (Const::S16(a), Const::S16(b)) => a.cmp(&b),
-            (Const::S32(a), Const::S32(b)) => a.cmp(&b),
-            (Const::S64(a), Const::S64(b)) => a.cmp(&b),
-            (Const::F32(a), Const::F32(b)) => a.total_cmp(&b),
-            (Const::F64(a), Const::F64(b)) => a.total_cmp(&b),
-            (Const::Pos(a), Const::Pos(b)) => a.cmp(&b),
-            (Const::Ref(a), Const::Ref(b)) => a.cmp(&b),
+            (Self::Bool(a), Self::Bool(b)) => a.cmp(&b),
+            (Self::U8(a, _), Self::U8(b, _)) => a.cmp(&b),
+            (Self::U16(a, _), Self::U16(b, _)) => a.cmp(&b),
+            (Self::U32(a, _), Self::U32(b, _)) => a.cmp(&b),
+            (Self::U64(a, _), Self::U64(b, _)) => a.cmp(&b),
+            (Self::S8(a), Self::S8(b)) => a.cmp(&b),
+            (Self::S16(a), Self::S16(b)) => a.cmp(&b),
+            (Self::S32(a), Self::S32(b)) => a.cmp(&b),
+            (Self::S64(a), Self::S64(b)) => a.cmp(&b),
+            (Self::F32(a), Self::F32(b)) => a.total_cmp(&b),
+            (Self::F64(a), Self::F64(b)) => a.total_cmp(&b),
+            (Self::Pos(a), Self::Pos(b)) => a.cmp(&b),
+            (Self::Ref(a), Self::Ref(b)) => a.cmp(&b),
             _ => {
                 fn discriminant(r#const: &Const) -> usize {
                     match r#const {
@@ -699,10 +699,10 @@ pub trait UIntStyled<const N: usize>:
 impl UIntStyle {
     pub fn format<T: UIntStyled<N>, const N: usize>(&self, number: T) -> String {
         match self {
-            UIntStyle::Binary => format!("0b{number:b}"),
-            UIntStyle::Decimal => number.to_string(),
-            UIntStyle::Hexadecimal => format!("0x{number:x}"),
-            UIntStyle::Ascii => {
+            Self::Binary => format!("0b{number:b}"),
+            Self::Decimal => number.to_string(),
+            Self::Hexadecimal => format!("0x{number:x}"),
+            Self::Ascii => {
                 let bytes = number.to_be_bytes();
                 if bytes.iter().all(|c| c.is_ascii() && !c.is_ascii_control()) {
                     let s = std::str::from_utf8(&bytes).unwrap(); // unwrap safe due to above check
@@ -714,7 +714,7 @@ impl UIntStyle {
         }
     }
 
-    pub fn merge(left: UIntStyle, right: UIntStyle) -> UIntStyle {
+    pub fn merge(left: Self, right: Self) -> Self {
         use UIntStyle::*;
 
         match (left, right) {

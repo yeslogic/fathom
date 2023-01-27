@@ -239,14 +239,14 @@ impl BufferError {
 impl fmt::Display for BufferError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            BufferError::SetOffsetBeforeStartOfBuffer { .. } => {
+            Self::SetOffsetBeforeStartOfBuffer { .. } => {
                 f.write_str("attempt to set buffer offset before the start of the buffer")
             }
-            BufferError::SetOffsetAfterEndOfBuffer { .. } => {
+            Self::SetOffsetAfterEndOfBuffer { .. } => {
                 f.write_str("attempt to set buffer offset after the end of the buffer")
             }
-            BufferError::UnexpectedEndOfBuffer => f.write_str("unexpected end of buffer"),
-            BufferError::PositionOverflow => f.write_str("position overflow"),
+            Self::UnexpectedEndOfBuffer => f.write_str("unexpected end of buffer"),
+            Self::PositionOverflow => f.write_str("position overflow"),
         }
     }
 }

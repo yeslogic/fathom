@@ -1,4 +1,5 @@
 #![doc = include_str!("../../README.md")]
+#![warn(clippy::use_self)]
 #![allow(clippy::bool_assert_comparison)]
 #![allow(clippy::len_without_is_empty)]
 #![allow(clippy::new_without_default)]

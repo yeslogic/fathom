@@ -959,12 +959,12 @@ impl<Range> BinOp<Range> {
     /// (lhs, op, rhs)
     fn precedence_impl(&self) -> (Prec, Prec, Prec) {
         match self {
-            BinOp::Eq(_) | BinOp::Neq(_) => (Prec::Cmp, Prec::Eq, Prec::Eq),
-            BinOp::Lt(_) | BinOp::Lte(_) | BinOp::Gt(_) | BinOp::Gte(_) => {
+            Self::Eq(_) | Self::Neq(_) => (Prec::Cmp, Prec::Eq, Prec::Eq),
+            Self::Lt(_) | Self::Lte(_) | Self::Gt(_) | Self::Gte(_) => {
                 (Prec::Add, Prec::Cmp, Prec::Cmp)
             }
-            BinOp::Add(_) | BinOp::Sub(_) => (Prec::Mul, Prec::Add, Prec::Add),
-            BinOp::Mul(_) | BinOp::Div(_) => (Prec::App, Prec::Mul, Prec::Mul),
+            Self::Add(_) | Self::Sub(_) => (Prec::Mul, Prec::Add, Prec::Add),
+            Self::Mul(_) | Self::Div(_) => (Prec::App, Prec::Mul, Prec::Mul),
         }
     }
 }

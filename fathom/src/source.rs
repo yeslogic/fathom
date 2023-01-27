@@ -37,8 +37,8 @@ impl DerefMut for StringInterner {
 
 impl StringInterner {
     /// Construct an empty string interner.
-    pub fn new() -> StringInterner {
-        StringInterner {
+    pub fn new() -> Self {
+        Self {
             alphabetic_names: Vec::new(),
             tuple_labels: Vec::new(),
             strings: string_interner::StringInterner::new(),
@@ -153,11 +153,11 @@ pub struct Spanned<T> {
 
 impl<T> Spanned<T> {
     pub fn new(span: Span, inner: T) -> Self {
-        Spanned { span, inner }
+        Self { span, inner }
     }
 
     pub fn empty(inner: T) -> Self {
-        Spanned {
+        Self {
             span: Span::Empty,
             inner,
         }
@@ -169,12 +169,12 @@ impl<T> Spanned<T> {
 
     /// Merge the supplied span with the span of `other` and return `other`
     /// wrapped in that span.
-    pub fn merge(span: Span, other: Spanned<T>) -> Spanned<T> {
-        let Spanned {
+    pub fn merge(span: Span, other: Self) -> Self {
+        let Self {
             span: other_span,
             inner,
         } = other;
-        Spanned {
+        Self {
             span: span.merge(&other_span),
             inner,
         }
@@ -202,29 +202,29 @@ pub enum Span {
 }
 
 impl Span {
-    pub fn merge(&self, other: &Span) -> Span {
+    pub fn merge(&self, other: &Self) -> Self {
         match (self, other) {
-            (Span::Range(a), Span::Range(b)) => a.merge(b).map(Span::Range).unwrap_or(Span::Empty),
-            (_, _) => Span::Empty,
+            (Self::Range(a), Self::Range(b)) => a.merge(b).map(Span::Range).unwrap_or(Self::Empty),
+            (_, _) => Self::Empty,
         }
     }
 }
 
 impl From<FileRange> for Span {
     fn from(range: FileRange) -> Self {
-        Span::Range(range)
+        Self::Range(range)
     }
 }
 
 impl From<&FileRange> for Span {
     fn from(range: &FileRange) -> Self {
-        Span::Range(*range)
+        Self::Range(*range)
     }
 }
 
 impl From<Option<FileRange>> for Span {
-    fn from(range: Option<FileRange>) -> Span {
-        range.map_or(Span::Empty, Span::Range)
+    fn from(range: Option<FileRange>) -> Self {
+        range.map_or(Self::Empty, Span::Range)
     }
 }
 
@@ -249,8 +249,8 @@ impl fmt::Debug for FileRange {
 }
 
 impl FileRange {
-    pub const fn new(file_id: FileId, byte_range: ByteRange) -> FileRange {
-        FileRange {
+    pub const fn new(file_id: FileId, byte_range: ByteRange) -> Self {
+        Self {
             file_id,
             byte_range,
         }
@@ -272,9 +272,9 @@ impl FileRange {
         self.byte_range.end
     }
 
-    pub fn merge(&self, other: &FileRange) -> Option<FileRange> {
+    pub fn merge(&self, other: &Self) -> Option<Self> {
         if self.file_id == other.file_id {
-            Some(FileRange::new(
+            Some(Self::new(
                 self.file_id,
                 ByteRange::merge(self.byte_range, other.byte_range),
             ))

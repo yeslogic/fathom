@@ -227,14 +227,14 @@ pub enum Error {
 impl Error {
     pub fn description(&self) -> &str {
         match &self {
-            Error::UnboundItemVar => "unbound item variable",
-            Error::UnboundLocalVar => "unbound local variable",
-            Error::UnboundMetaVar => "unbound metavariable",
-            Error::InvalidFunctionApp => "invalid function application",
-            Error::InvalidRecordProj => "invalid record projection",
-            Error::InvalidConstMatch => "invalid constant match",
-            Error::InvalidFormatRepr => "invalid format repr",
-            Error::MissingConstDefault => "missing default expression",
+            Self::UnboundItemVar => "unbound item variable",
+            Self::UnboundLocalVar => "unbound local variable",
+            Self::UnboundMetaVar => "unbound metavariable",
+            Self::InvalidFunctionApp => "invalid function application",
+            Self::InvalidRecordProj => "invalid record projection",
+            Self::InvalidConstMatch => "invalid constant match",
+            Self::InvalidFormatRepr => "invalid format repr",
+            Self::MissingConstDefault => "missing default expression",
         }
     }
 }

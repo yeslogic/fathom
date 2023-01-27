@@ -22,8 +22,8 @@ pub enum Status {
 impl Status {
     pub fn exit_code(self) -> i32 {
         match self {
-            Status::Ok => 0,
-            Status::Error => 1,
+            Self::Ok => 0,
+            Self::Error => 1,
         }
     }
 }

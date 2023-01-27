@@ -43,7 +43,7 @@ impl From<FileId> for u32 {
 
 impl From<FileId> for usize {
     fn from(value: FileId) -> Self {
-        value.0.get() as usize
+        value.0.get() as Self
     }
 }
 
@@ -57,8 +57,8 @@ where
     Source: AsRef<str>,
 {
     /// Create a new files database.
-    pub fn new() -> Files<Name, Source> {
-        Files { files: Vec::new() }
+    pub fn new() -> Self {
+        Self { files: Vec::new() }
     }
 
     /// Add a file to the database, returning the handle that can be used to
