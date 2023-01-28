@@ -168,10 +168,6 @@ $ fathom data --module formats/opentype.fathom
             length = 262,
             language = 0,
             glyph_id_array = [
-                0,
-                0,
-                0,
-                0,
 ...
 
 ```
