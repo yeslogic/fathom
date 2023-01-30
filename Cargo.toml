@@ -1,3 +1,7 @@
+[profile.release-debug]
+inherits = "release"
+debug = true
+
 [workspace]
 members = [
     './fathom',

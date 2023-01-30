@@ -179,33 +179,44 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                     else_expr = next_else;
                 }
 
-                if branches.is_empty() {
-                    self.pretty_if(cond_expr, then_expr, else_expr)
-                } else {
-                    self.pretty_if_else_chain(cond_expr, then_expr, branches, else_expr)
-                }
+                self.text("if ")
+                    .append(self.term(cond_expr))
+                    .append(
+                        self.line()
+                            .append(self.text("then "))
+                            .append(self.term(then_expr))
+                            .nest(INDENT),
+                    )
+                    .append(self.concat(branches.iter().map(|(cond_expr, then_expr)| {
+                        self.line()
+                            .append("else if ")
+                            .append(self.term(cond_expr))
+                            .append(" then ")
+                            .append(self.term(then_expr))
+                            .nest(INDENT)
+                    })))
+                    .append(
+                        self.line()
+                            .append(self.text("else "))
+                            .append(self.term(else_expr))
+                            .nest(INDENT),
+                    )
+                    .group()
             }
-            Term::Match(_, scrutinee, equations) => self.sequence(
-                true,
-                self.concat([
-                    self.text("match"),
-                    self.space(),
-                    self.term(scrutinee),
-                    self.space(),
-                    self.text("{"),
-                ]),
-                equations.iter().map(|(pattern, body_expr)| {
-                    self.concat([
-                        self.pattern(pattern),
-                        self.space(),
-                        self.text("=>"),
-                        self.space(),
-                        self.term(r#body_expr),
-                    ])
-                }),
-                self.text(","),
-                self.text("}"),
-            ),
+            Term::Match(_, scrut, equations) => {
+                let equations = equations.iter().map(|(pattern, term)| {
+                    self.pattern(pattern)
+                        .append(self.text(" => "))
+                        .append(self.term(term))
+                });
+                self.sequence(
+                    true,
+                    self.text("match ").append(self.term(scrut)).append(" {"),
+                    equations,
+                    self.text(","),
+                    self.text("}"),
+                )
+            }
             Term::Universe(_) => self.text("Type"),
             Term::FunType(_, patterns, body_type) => self.concat([
                 self.concat([
@@ -242,62 +253,39 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 self.space(),
                 self.intersperse((args.iter()).map(|arg| self.arg(arg)), self.space()),
             ]),
-            Term::RecordType(_, type_fields) => self.sequence(
-                true,
-                self.text("{"),
-                type_fields.iter().map(|field| {
-                    self.concat([
-                        self.ident(field.label.1),
-                        self.space(),
-                        self.text(":"),
-                        self.space(),
-                        self.term(&field.r#type),
-                    ])
-                }),
-                self.text(","),
-                self.text("}"),
-            ),
-            Term::RecordLiteral(_, expr_fields) => self.sequence(
-                true,
-                self.text("{"),
-                expr_fields.iter().map(|field| {
-                    self.concat([
-                        self.ident(field.label.1),
-                        self.space(),
-                        self.text("="),
-                        self.space(),
-                        self.term(&field.expr),
-                    ])
-                }),
-                self.text(","),
-                self.text("}"),
-            ),
-            Term::Tuple(_, terms) if terms.len() == 1 => self.concat([
-                self.text("("),
-                self.term(&terms[0]),
-                self.text(","),
-                self.text(")"),
-            ]),
-            Term::Tuple(_, terms) => self.sequence(
-                false,
-                self.text("("),
-                terms.iter().map(|term| self.term(term)),
-                self.text(","),
-                self.text(")"),
-            ),
+            Term::RecordType(_, fields) => {
+                let fields = fields.iter().map(|field| {
+                    self.ident(field.label.1)
+                        .append(" : ")
+                        .append(self.term(&field.r#type))
+                });
+                self.sequence(true, self.text("{"), fields, self.text(","), self.text("}"))
+            }
+            Term::RecordLiteral(_, fields) => {
+                let fields = fields.iter().map(|field| {
+                    self.ident(field.label.1)
+                        .append(" = ")
+                        .append(self.term(&field.expr))
+                });
+                self.sequence(true, self.text("{"), fields, self.text(","), self.text("}"))
+            }
+            Term::Tuple(_, terms) if terms.len() == 1 => {
+                self.text("(").append(self.term(&terms[0]).append(",)"))
+            }
+            Term::Tuple(_, terms) => {
+                let terms = terms.iter().map(|term| self.term(term));
+                self.sequence(false, self.text("("), terms, self.text(","), self.text(")"))
+            }
             Term::Proj(_, head_expr, labels) => self.concat([
                 self.term(head_expr),
                 self.concat(
                     (labels.iter()).map(|(_, label)| self.text(".").append(self.ident(*label))),
                 ),
             ]),
-            Term::ArrayLiteral(_, exprs) => self.sequence(
-                false,
-                self.text("["),
-                exprs.iter().map(|expr| self.term(expr)),
-                self.text(","),
-                self.text("]"),
-            ),
+            Term::ArrayLiteral(_, terms) => {
+                let terms = terms.iter().map(|term| self.term(term));
+                self.sequence(false, self.text("["), terms, self.text(","), self.text("]"))
+            }
             Term::StringLiteral(_, number) => {
                 self.concat([self.text("\""), self.string_id(*number), self.text("\"")])
             }
@@ -306,13 +294,10 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 true => self.text("true"),
                 false => self.text("false"),
             },
-            Term::FormatRecord(_, format_fields) => self.sequence(
-                true,
-                self.text("{"),
-                format_fields.iter().map(|field| self.format_field(field)),
-                self.text(","),
-                self.text("}"),
-            ),
+            Term::FormatRecord(_, fields) => {
+                let fields = fields.iter().map(|field| self.format_field(field));
+                self.sequence(true, self.text("{"), fields, self.text(","), self.text("}"))
+            }
             Term::FormatCond(_, (_, label), format, cond) => self.concat([
                 self.text("{"),
                 self.space(),
@@ -328,13 +313,16 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 self.space(),
                 self.text("}"),
             ]),
-            Term::FormatOverlap(_, format_fields) => self.sequence(
-                true,
-                self.concat([self.text("overlap"), self.space(), self.text("{")]),
-                format_fields.iter().map(|field| self.format_field(field)),
-                self.text(","),
-                self.text("}"),
-            ),
+            Term::FormatOverlap(_, fields) => {
+                let fields = fields.iter().map(|field| self.format_field(field));
+                self.sequence(
+                    true,
+                    self.text("overlap {"),
+                    fields,
+                    self.text(","),
+                    self.text("}"),
+                )
+            }
             Term::BinOp(_, lhs, op, rhs) => self.concat([
                 self.term(lhs),
                 self.space(),
@@ -414,130 +402,23 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         end_delim: DocBuilder<'arena, Self>,
     ) -> DocBuilder<'arena, Self> {
         if docs.len() == 0 {
-            self.concat([start_delim, end_delim])
-        } else {
-            DocBuilder::flat_alt(
-                self.concat([
-                    start_delim.clone(),
-                    self.concat(
-                        docs.clone()
-                            .map(|doc| self.concat([self.hardline(), doc, separator.clone()])),
-                    )
-                    .nest(INDENT),
-                    self.hardline(),
-                    end_delim.clone(),
-                ]),
-                self.concat([
-                    start_delim,
-                    if space { self.space() } else { self.nil() },
-                    self.intersperse(docs, self.concat([separator, self.space()])),
-                    if space { self.space() } else { self.nil() },
-                    end_delim,
-                ]),
-            )
-            .group()
+            return self.concat([start_delim, end_delim]);
         }
-    }
 
-    fn pretty_if<Range>(
-        &'arena self,
-        cond_expr: &Term<'_, Range>,
-        then_expr: &Term<'_, Range>,
-        else_expr: &Term<'_, Range>,
-    ) -> DocBuilder<'arena, Self> {
-        let cond = self.concat([self.text("if"), self.space(), self.term(cond_expr)]);
-        let then = self.concat([self.text("then"), self.space(), self.term(then_expr)]);
-        let r#else = self.concat([self.text("else"), self.space(), self.term(else_expr)]);
-        DocBuilder::flat_alt(
+        let docs = self.intersperse(docs, self.concat([separator.clone(), self.line()]));
+        self.concat([
+            start_delim,
             self.concat([
-                cond.clone(),
-                self.concat([self.hardline(), then.clone()]).nest(INDENT),
-                self.concat([self.hardline(), r#else.clone()]).nest(INDENT),
-            ]),
-            self.concat([cond, self.space(), then, self.space(), r#else]),
-        )
+                if space { self.line() } else { self.line_() },
+                docs,
+                DocBuilder::flat_alt(separator, self.nil()),
+            ])
+            .nest(INDENT),
+            if space { self.line() } else { self.line_() },
+            end_delim,
+        ])
         .group()
     }
-
-    fn pretty_if_else_chain<Range>(
-        &'arena self,
-        cond_expr: &Term<'_, Range>,
-        then_expr: &Term<'_, Range>,
-        branches: Vec<(&Term<'_, Range>, &Term<'_, Range>)>,
-        else_expr: &Term<'_, Range>,
-    ) -> DocBuilder<'arena, Self> {
-        let single = {
-            let cond = self.concat([self.text("if"), self.space(), self.term(cond_expr)]);
-            let then = self.concat([self.text("then"), self.space(), self.term(then_expr)]);
-            let r#else = self.concat([self.text("else"), self.space(), self.term(else_expr)]);
-            let branches = branches.iter().map(|(cond_expr, then_expr)| {
-                self.concat([
-                    self.space(),
-                    self.text("else if"),
-                    self.space(),
-                    self.term(cond_expr),
-                    self.space(),
-                    self.text("then"),
-                    self.space(),
-                    self.term(then_expr),
-                ])
-            });
-            self.concat([
-                cond,
-                self.space(),
-                then,
-                self.space(),
-                self.concat(branches),
-                self.space(),
-                r#else,
-            ])
-        };
-        let multi = {
-            let cond = self.concat([self.text("if"), self.space(), self.term(cond_expr)]);
-            let then = self
-                .concat([
-                    self.hardline(),
-                    self.text("then"),
-                    self.space(),
-                    self.term(then_expr),
-                ])
-                .nest(INDENT);
-            let r#else = self
-                .concat([
-                    self.hardline(),
-                    self.text("else"),
-                    self.space(),
-                    self.term(else_expr),
-                ])
-                .nest(INDENT);
-            let branches = branches.iter().map(|(cond_expr, then_expr)| {
-                self.concat([
-                    self.hardline(),
-                    self.text("else if"),
-                    self.space(),
-                    self.term(cond_expr),
-                    self.space(),
-                    self.text("then"),
-                    self.space(),
-                    self.term(then_expr),
-                ])
-                .nest(INDENT)
-            });
-            self.concat([cond, then, self.concat(branches), r#else])
-        };
-        DocBuilder::flat_alt(multi, single).group()
-    }
-}
-
-macro_rules! borrowed_text {
-    (match $doc:expr, {$($text:literal),*}, _ => $default:expr) => {
-        match $doc {
-            $(
-            Doc::BorrowedText($text) => &Doc::BorrowedText($text),
-            )*
-            _ => $default,
-        }
-    };
 }
 
 impl<'interner, 'arena, A: 'arena> DocAllocator<'arena, A> for Context<'interner, 'arena> {
@@ -576,19 +457,7 @@ impl<'interner, 'arena, A: 'arena> DocAllocator<'arena, A> for Context<'interner
                     RefDoc(&Doc::Nil),
                 )))
             }
-
-            // Language tokens
-            _ => {
-                borrowed_text!(
-                    match doc, {
-                        "def", "else", "false", "fun", "if", "let", "match", "overlap", "then",
-                        "true", "Type", "where", "@", ":", ",", "=", "!=", "==", "=>", ">=", ">", "<=",
-                        "<", ".", "/", "->", "<-", "-", "|", "+", ";", "*", "_", "{", "}", "[",
-                        "]", "(", ")"
-                    },
-                    _ => self.scope.to_scope(doc)
-                )
-            }
+            _ => self.scope.to_scope(doc),
         })
     }
 
