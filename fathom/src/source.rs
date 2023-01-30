@@ -12,25 +12,24 @@ pub type StringId = string_interner::symbol::SymbolU32;
 pub struct StringInterner {
     alphabetic_names: Vec<StringId>,
     tuple_labels: Vec<StringId>,
-    strings: string_interner::StringInterner<
-        string_interner::backend::BucketBackend<StringId>,
-        std::hash::BuildHasherDefault<fxhash::FxHasher32>,
-    >,
+    strings: Strings,
 }
 
-impl Deref for StringInterner {
-    type Target = string_interner::StringInterner<
-        string_interner::backend::BucketBackend<StringId>,
-        std::hash::BuildHasherDefault<fxhash::FxHasher32>,
-    >;
+type Strings = string_interner::StringInterner<
+    string_interner::backend::BucketBackend<StringId>,
+    std::hash::BuildHasherDefault<fxhash::FxHasher32>,
+>;
 
-    fn deref(&self) -> &Self::Target {
+impl Deref for StringInterner {
+    type Target = Strings;
+
+    fn deref(&self) -> &Strings {
         &self.strings
     }
 }
 
 impl DerefMut for StringInterner {
-    fn deref_mut(&mut self) -> &mut Self::Target {
+    fn deref_mut(&mut self) -> &mut Strings {
         &mut self.strings
     }
 }
@@ -152,11 +151,11 @@ pub struct Spanned<T> {
 }
 
 impl<T> Spanned<T> {
-    pub fn new(span: Span, inner: T) -> Self {
+    pub fn new(span: Span, inner: T) -> Spanned<T> {
         Spanned { span, inner }
     }
 
-    pub fn empty(inner: T) -> Self {
+    pub fn empty(inner: T) -> Spanned<T> {
         Spanned {
             span: Span::Empty,
             inner,
@@ -184,13 +183,13 @@ impl<T> Spanned<T> {
 impl<T> Deref for Spanned<T> {
     type Target = T;
 
-    fn deref(&self) -> &Self::Target {
+    fn deref(&self) -> &T {
         &self.inner
     }
 }
 
 impl<T> DerefMut for Spanned<T> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
+    fn deref_mut(&mut self) -> &mut T {
         &mut self.inner
     }
 }
@@ -211,13 +210,13 @@ impl Span {
 }
 
 impl From<FileRange> for Span {
-    fn from(range: FileRange) -> Self {
+    fn from(range: FileRange) -> Span {
         Span::Range(range)
     }
 }
 
 impl From<&FileRange> for Span {
-    fn from(range: &FileRange) -> Self {
+    fn from(range: &FileRange) -> Span {
         Span::Range(*range)
     }
 }
@@ -285,7 +284,7 @@ impl FileRange {
 }
 
 impl From<FileRange> for Range<usize> {
-    fn from(file_range: FileRange) -> Self {
+    fn from(file_range: FileRange) -> Range<usize> {
         file_range.byte_range.into()
     }
 }
@@ -303,8 +302,8 @@ impl fmt::Debug for ByteRange {
 }
 
 impl ByteRange {
-    pub fn new(start: BytePos, end: BytePos) -> Self {
-        Self { start, end }
+    pub fn new(start: BytePos, end: BytePos) -> ByteRange {
+        ByteRange { start, end }
     }
 
     pub const fn start(&self) -> BytePos {
@@ -315,13 +314,13 @@ impl ByteRange {
         self.end
     }
 
-    pub fn merge(self, other: Self) -> Self {
-        Self::new(self.start.min(other.start), self.end.max(other.end))
+    pub fn merge(self, other: ByteRange) -> ByteRange {
+        ByteRange::new(self.start.min(other.start), self.end.max(other.end))
     }
 }
 
 impl From<ByteRange> for Range<usize> {
-    fn from(range: ByteRange) -> Self {
+    fn from(range: ByteRange) -> Range<usize> {
         (range.start as usize)..(range.end as usize)
     }
 }
@@ -342,7 +341,7 @@ impl fmt::Display for ProgramSource {
 impl Deref for ProgramSource {
     type Target = String;
 
-    fn deref(&self) -> &Self::Target {
+    fn deref(&self) -> &String {
         &self.0
     }
 }
@@ -354,7 +353,7 @@ impl AsRef<str> for ProgramSource {
 }
 
 impl From<ProgramSource> for String {
-    fn from(source: ProgramSource) -> Self {
+    fn from(source: ProgramSource) -> String {
         source.0
     }
 }
@@ -367,9 +366,9 @@ pub struct SourceTooBig {
 impl TryFrom<String> for ProgramSource {
     type Error = SourceTooBig;
 
-    fn try_from(string: String) -> Result<Self, Self::Error> {
+    fn try_from(string: String) -> Result<ProgramSource, SourceTooBig> {
         if string.len() <= MAX_SOURCE_LEN {
-            Ok(Self(string))
+            Ok(ProgramSource(string))
         } else {
             Err(SourceTooBig {
                 actual_len: string.len(),

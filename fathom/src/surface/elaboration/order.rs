@@ -71,7 +71,9 @@ struct ModuleOrderContext<'a, 'interner, 'arena> {
 }
 
 impl<'a, 'interner, 'arena> ModuleOrderContext<'a, 'interner, 'arena> {
-    fn new(elab_context: &'a mut elaboration::Context<'interner, 'arena>) -> Self {
+    fn new(
+        elab_context: &'a mut elaboration::Context<'interner, 'arena>,
+    ) -> ModuleOrderContext<'a, 'interner, 'arena> {
         ModuleOrderContext {
             elab_context,
             output: Vec::new(),

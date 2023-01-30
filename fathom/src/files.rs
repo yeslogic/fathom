@@ -2,7 +2,7 @@
 //! `FileId` as the file id, instead of `usize`.
 
 use std::fmt;
-use std::num::NonZeroU32;
+use std::num::{NonZeroU32, TryFromIntError};
 use std::ops::Range;
 
 use codespan_reporting::files::{Error, SimpleFile};
@@ -21,28 +21,28 @@ impl fmt::Display for FileId {
 }
 
 impl TryFrom<u32> for FileId {
-    type Error = <NonZeroU32 as TryFrom<u32>>::Error;
+    type Error = TryFromIntError;
 
-    fn try_from(value: u32) -> Result<Self, Self::Error> {
+    fn try_from(value: u32) -> Result<FileId, TryFromIntError> {
         let id = NonZeroU32::try_from(value)?;
-        Ok(Self(id))
+        Ok(FileId(id))
     }
 }
 
 impl From<FileId> for NonZeroU32 {
-    fn from(value: FileId) -> Self {
+    fn from(value: FileId) -> NonZeroU32 {
         value.0
     }
 }
 
 impl From<FileId> for u32 {
-    fn from(value: FileId) -> Self {
+    fn from(value: FileId) -> u32 {
         value.0.get()
     }
 }
 
 impl From<FileId> for usize {
-    fn from(value: FileId) -> Self {
+    fn from(value: FileId) -> usize {
         value.0.get() as usize
     }
 }
