@@ -15,7 +15,7 @@ pub enum Message {
     UnboundName {
         range: FileRange,
         name: Symbol,
-        suggestion: Option<Symbol>,
+        suggested_name: Option<Symbol>,
     },
     RefutablePattern {
         pattern_range: FileRange,
@@ -47,7 +47,7 @@ pub enum Message {
         head_type: String,
         label_range: FileRange,
         label: Symbol,
-        suggestion: Option<Symbol>,
+        suggested_label: Option<Symbol>,
     },
     MismatchedFieldLabels {
         range: FileRange,
@@ -148,21 +148,16 @@ impl Message {
             Message::UnboundName {
                 range,
                 name,
-                suggestion,
+                suggested_name,
             } => {
                 let name = name.resolve();
 
-                let mut diagnostic = Diagnostic::error()
+                Diagnostic::error()
                     .with_message(format!("cannot find `{name}` in scope"))
-                    .with_labels(vec![primary_label(range).with_message("unbound name")]);
-
-                if let Some(suggestion) = suggestion {
-                    diagnostic = diagnostic.with_notes(vec![format!(
-                        "help: did you mean `{}`?",
-                        suggestion.resolve()
-                    )])
-                }
-                diagnostic
+                    .with_labels(vec![primary_label(range).with_message("unbound name")])
+                    .with_notes(suggested_name.map_or(Vec::new(), |name| {
+                        vec![format!("help: did you mean `{}`?", name.resolve())]
+                    }))
             }
             Message::RefutablePattern { pattern_range } => Diagnostic::error()
                 .with_message("refutable patterns found in binding")
@@ -219,24 +214,20 @@ impl Message {
                 head_type,
                 label_range,
                 label,
-                suggestion,
+                suggested_label,
             } => {
                 let label = label.resolve();
 
-                let mut diagnostic = Diagnostic::error()
+                Diagnostic::error()
                     .with_message(format!("cannot find `{label}` in expression"))
                     .with_labels(vec![
                         primary_label(label_range).with_message("unknown label"),
                         secondary_label(head_range)
                             .with_message(format!("expression of type {head_type}")),
-                    ]);
-                if let Some(suggestion) = suggestion {
-                    diagnostic = diagnostic.with_notes(vec![format!(
-                        "help: did you mean `{}`?",
-                        suggestion.resolve()
-                    )]);
-                }
-                diagnostic
+                    ])
+                    .with_notes(suggested_label.map_or(Vec::new(), |label| {
+                        vec![format!("help: did you mean `{}`?", label.resolve())]
+                    }))
             }
             Message::MismatchedFieldLabels {
                 range,

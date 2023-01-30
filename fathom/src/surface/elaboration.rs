@@ -1330,20 +1330,16 @@ impl<'arena> Context<'arena> {
                     return (core::Term::Prim(file_range.into(), prim), r#type.clone());
                 }
 
-                let candidates = self
-                    .local_env
-                    .names
-                    .iter()
-                    .flatten()
-                    .copied()
-                    .chain(self.item_env.names.iter().copied());
-                let suggestion = suggest_name(*name, candidates);
-
                 self.push_message(Message::UnboundName {
                     range: file_range,
                     name: *name,
-                    suggestion,
+                    suggested_name: {
+                        let item_names = self.item_env.names.iter().copied();
+                        let local_names = self.local_env.names.iter().flatten().copied();
+                        suggest_name(*name, item_names.chain(local_names))
+                    },
                 });
+
                 self.synth_reported_error(*range)
             }
             Term::Hole(_, name) => {
@@ -1660,7 +1656,7 @@ impl<'arena> Context<'arena> {
                         head_type: self.pretty_value(&head_type),
                         label_range: self.file_range(*label_range),
                         label: *proj_label,
-                        suggestion: suggest_name(*proj_label, labels.iter().map(|(_, l)| *l)),
+                        suggested_label: suggest_name(*proj_label, labels.iter().map(|(_, l)| *l)),
                     });
                     return self.synth_reported_error(*range);
                 }
