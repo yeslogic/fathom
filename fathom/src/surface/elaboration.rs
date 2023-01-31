@@ -1965,7 +1965,9 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
             (Sub(_), Some(((S32Type, []), (S32Type, [])))) => (S32Sub, S32Type),
             (Sub(_), Some(((S64Type, []), (S64Type, [])))) => (S64Sub, S64Type),
 
-            (Eq(_), Some(((BoolType, []), (BoolType, [])))) => (U8Eq, BoolType),
+            (Eq(_), Some(((BoolType, []), (BoolType, [])))) => (BoolEq, BoolType),
+            (Neq(_), Some(((BoolType, []), (BoolType, [])))) => (BoolNeq, BoolType),
+
             (Eq(_), Some(((U8Type, []), (U8Type, [])))) => (U8Eq, BoolType),
             (Eq(_), Some(((U16Type, []), (U16Type, [])))) => (U16Eq, BoolType),
             (Eq(_), Some(((U32Type, []), (U32Type, [])))) => (U32Eq, BoolType),
@@ -1976,7 +1978,6 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
             (Eq(_), Some(((S32Type, []), (S32Type, [])))) => (S32Eq, BoolType),
             (Eq(_), Some(((S64Type, []), (S64Type, [])))) => (S64Eq, BoolType),
 
-            (Neq(_), Some(((BoolType, []), (BoolType, [])))) => (U8Neq, BoolType),
             (Neq(_), Some(((U8Type, []), (U8Type, [])))) => (U8Neq, BoolType),
             (Neq(_), Some(((U16Type, []), (U16Type, [])))) => (U16Neq, BoolType),
             (Neq(_), Some(((U32Type, []), (U32Type, [])))) => (U32Neq, BoolType),
