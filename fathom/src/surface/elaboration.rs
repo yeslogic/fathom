@@ -1300,6 +1300,9 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                     None => core::Term::Prim(file_range.into(), Prim::ReportedError),
                 }
             }
+            (Term::BinOp(range, lhs, op, rhs), _) => {
+                self.check_bin_op(*range, lhs, *op, rhs, &expected_type)
+            }
             (Term::ReportedError(_), _) => core::Term::Prim(file_range.into(), Prim::ReportedError),
             (_, _) => {
                 let surface_range = surface_term.range();
@@ -1962,7 +1965,9 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
             (Sub(_), Some(((S32Type, []), (S32Type, [])))) => (S32Sub, S32Type),
             (Sub(_), Some(((S64Type, []), (S64Type, [])))) => (S64Sub, S64Type),
 
-            (Eq(_), Some(((BoolType, []), (BoolType, [])))) => (U8Eq, BoolType),
+            (Eq(_), Some(((BoolType, []), (BoolType, [])))) => (BoolEq, BoolType),
+            (Neq(_), Some(((BoolType, []), (BoolType, [])))) => (BoolNeq, BoolType),
+
             (Eq(_), Some(((U8Type, []), (U8Type, [])))) => (U8Eq, BoolType),
             (Eq(_), Some(((U16Type, []), (U16Type, [])))) => (U16Eq, BoolType),
             (Eq(_), Some(((U32Type, []), (U32Type, [])))) => (U32Eq, BoolType),
@@ -1973,7 +1978,6 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
             (Eq(_), Some(((S32Type, []), (S32Type, [])))) => (S32Eq, BoolType),
             (Eq(_), Some(((S64Type, []), (S64Type, [])))) => (S64Eq, BoolType),
 
-            (Neq(_), Some(((BoolType, []), (BoolType, [])))) => (U8Neq, BoolType),
             (Neq(_), Some(((U8Type, []), (U8Type, [])))) => (U8Neq, BoolType),
             (Neq(_), Some(((U16Type, []), (U16Type, [])))) => (U16Neq, BoolType),
             (Neq(_), Some(((U32Type, []), (U32Type, [])))) => (U32Neq, BoolType),
@@ -2056,6 +2060,92 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         (
             fun_app,
             Spanned::empty(Arc::new(Value::prim(body_type, []))),
+        )
+    }
+
+    fn check_bin_op(
+        &mut self,
+        range: ByteRange,
+        lhs: &Term<'_, ByteRange>,
+        op: BinOp<ByteRange>,
+        rhs: &Term<'_, ByteRange>,
+        expected_type: &ArcValue<'arena>,
+    ) -> core::Term<'arena> {
+        use BinOp::*;
+        use Prim::*;
+
+        let prim = match expected_type.as_ref() {
+            Value::Stuck(Head::Prim(prim), spine) if spine.is_empty() => prim,
+            // TODO: handle metavars?
+            _ => {
+                let (expr, synth_type) = self.synth_bin_op(range, lhs, op, rhs);
+                return self.coerce(range, expr, &synth_type, expected_type);
+            }
+        };
+
+        let (fun, op_type) = match (op, prim) {
+            (Add(_), U8Type) => (U8Add, U8Type),
+            (Add(_), U16Type) => (U16Add, U16Type),
+            (Add(_), U32Type) => (U32Add, U32Type),
+            (Add(_), U64Type) => (U64Add, U64Type),
+
+            (Add(_), S8Type) => (S8Add, S8Type),
+            (Add(_), S16Type) => (S16Add, S16Type),
+            (Add(_), S32Type) => (S32Add, S32Type),
+            (Add(_), S64Type) => (S64Add, S64Type),
+
+            (Sub(_), U8Type) => (U8Sub, U8Type),
+            (Sub(_), U16Type) => (U16Sub, U16Type),
+            (Sub(_), U32Type) => (U32Sub, U32Type),
+            (Sub(_), U64Type) => (U64Sub, U64Type),
+
+            (Sub(_), S8Type) => (S8Sub, S8Type),
+            (Sub(_), S16Type) => (S16Sub, S16Type),
+            (Sub(_), S32Type) => (S32Sub, S32Type),
+            (Sub(_), S64Type) => (S64Sub, S64Type),
+
+            (Mul(_), U8Type) => (U8Mul, U8Type),
+            (Mul(_), U16Type) => (U16Mul, U16Type),
+            (Mul(_), U32Type) => (U32Mul, U32Type),
+            (Mul(_), U64Type) => (U64Mul, U64Type),
+
+            (Mul(_), S8Type) => (S8Mul, S8Type),
+            (Mul(_), S16Type) => (S16Mul, S16Type),
+            (Mul(_), S32Type) => (S32Mul, S32Type),
+            (Mul(_), S64Type) => (S64Mul, S64Type),
+
+            (Div(_), U8Type) => (U8Div, U8Type),
+            (Div(_), U16Type) => (U16Div, U16Type),
+            (Div(_), U32Type) => (U32Div, U32Type),
+            (Div(_), U64Type) => (U64Div, U64Type),
+
+            (Div(_), S8Type) => (S8Div, S8Type),
+            (Div(_), S16Type) => (S16Div, S16Type),
+            (Div(_), S32Type) => (S32Div, S32Type),
+            (Div(_), S64Type) => (S64Div, S64Type),
+
+            _ => {
+                let (expr, synth_type) = self.synth_bin_op(range, lhs, op, rhs);
+                return self.coerce(range, expr, &synth_type, expected_type);
+            }
+        };
+
+        let expected_type = Spanned::empty(Arc::new(Value::prim(op_type, [])));
+
+        let lhs_expr = self.check(lhs, &expected_type);
+        let rhs_expr = self.check(rhs, &expected_type);
+
+        let fun_head = core::Term::Prim(self.file_range(op.range()).into(), fun);
+        core::Term::FunApp(
+            self.file_range(range).into(),
+            Plicity::Explicit,
+            self.scope.to_scope(core::Term::FunApp(
+                Span::merge(&lhs_expr.span(), &rhs_expr.span()),
+                Plicity::Explicit,
+                self.scope.to_scope(fun_head),
+                self.scope.to_scope(lhs_expr),
+            )),
+            self.scope.to_scope(rhs_expr),
         )
     }
 
