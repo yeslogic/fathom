@@ -818,6 +818,18 @@ let origin : Point = {
 };
 ```
 
+The right hand side of the field definition can be omitted if it is a variable with
+the same name as the field. For example:
+
+```fathom
+let Point = { x : U32, y : U32 };
+
+let x : U32 = 0;
+let y : U32 = 0;
+
+let origin : Point = { x, y };
+```
+
 When checking dependent record types, the values assigned to field expressions
 will substituted into the types of subsequent fields. For example:
 
