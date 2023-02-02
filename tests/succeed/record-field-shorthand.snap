@@ -1,0 +1,9 @@
+stdout = '''
+let x : U32 = 1;
+let y : U32 = 2;
+let z : U32 = 3;
+let _ : { x : U32, y : U32, z : U32 } = { x, y, z };
+let _ : { x : U32, y : U32, z : U32 } = { x, y, z };
+() : ()
+'''
+stderr = ''

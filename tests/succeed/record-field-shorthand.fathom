@@ -1,0 +1,7 @@
+let x = (1 : U32);
+let y = (2 : U32);
+let z = (3 : U32);
+
+let _ = {x, y, z};
+let _ = {x = x, y = y, z = z};
+{}
