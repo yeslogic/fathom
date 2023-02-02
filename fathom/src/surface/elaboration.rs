@@ -25,7 +25,6 @@ use std::sync::Arc;
 
 use scoped_arena::Scope;
 
-use super::ExprField;
 use crate::alloc::SliceVec;
 use crate::core::semantics::{self, ArcValue, Head, Telescope, Value};
 use crate::core::{self, prim, Const, Plicity, Prim, UIntStyle};
@@ -34,7 +33,7 @@ use crate::files::FileId;
 use crate::source::{BytePos, ByteRange, FileRange, Span, Spanned};
 use crate::surface::elaboration::reporting::Message;
 use crate::surface::{
-    distillation, pretty, BinOp, FormatField, Item, Module, Param, Pattern, Term,
+    distillation, pretty, BinOp, ExprField, FormatField, Item, Module, Param, Pattern, Term,
 };
 use crate::symbol::Symbol;
 
