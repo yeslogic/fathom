@@ -79,6 +79,12 @@ enum Cli {
         #[clap(name = "BINARY_FILE")]
         binary_file: PathOrStdin,
     },
+    /// Compile to Rust
+    Compile {
+        /// Path to a module to compile
+        #[clap(long = "module", name = "MODULE_FILE", display_order = 0)]
+        module_file: PathOrStdin,
+    },
 }
 
 const DATA_COMMAND_AFTER_HELP: &str = "\
@@ -223,6 +229,16 @@ fn main() -> ! {
             // let status = driver.read_and_emit_format(module_file_id, format_file_id, &data);
 
             let status = fathom::Driver::interpret_stl(&data);
+
+            std::process::exit(status.exit_code());
+        }
+        Cli::Compile { module_file: _ } => {
+            // let _module_file_id = module_file.map(|input| load_file_or_exit(&mut driver, input));
+            // let format_file_id = driver.load_source_string("<FORMAT>".to_owned(), format);
+
+            // let status = driver.read_and_emit_format(module_file_id, format_file_id, &data);
+
+            let status = fathom::Driver::compile_stl();
 
             std::process::exit(status.exit_code());
         }

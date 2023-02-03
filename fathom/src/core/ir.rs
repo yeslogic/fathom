@@ -423,6 +423,430 @@ pub(crate) mod interpret {
     }
 }
 
+pub(crate) mod compile {
+    use super::*;
+    use crate::core::binary;
+    use format::*;
+    use host::Expr;
+    use string_interner::Symbol;
+
+    use crate::core::binary::{Buffer, BufferError, BufferReader, ReadError};
+    use crate::source::StringInterner;
+
+    pub struct Compiler<'interner> {
+        interner: &'interner mut StringInterner,
+        item_env: Vec<(StringId, Val)>,
+        defs: Vec<Def>,
+
+        type_env: TypeEnv,
+    }
+
+    #[derive(Debug, Clone)]
+    pub enum Val {
+        Record(RecordVal),
+        Const(Const),
+        Vec(Vec<Val>),
+    }
+
+    #[derive(Debug, Clone)]
+    pub struct RecordVal {
+        pub name: StringId,
+        pub fields: Vec<FieldVal>,
+    }
+
+    #[derive(Debug, Clone)]
+    pub struct FieldVal {
+        pub name: StringId,
+        pub value: Box<Val>,
+    }
+
+    // FIXME: Is this even needed?
+    // I.e. can it just parse into the value of the selected variant
+    // would we ever have variants without data?
+    #[derive(Debug, Clone)]
+    pub struct EnumVal {
+        pub tag: u8,
+        pub value: Val,
+    }
+
+    struct Struct {
+        name: StringId,
+        fields: Vec<(StringId, TypeId)>,
+    }
+
+    struct TypeId(u16);
+
+    /* So types get added to the type env */
+    /* Where do functions live? */
+
+    // Naive context for storing types
+    struct TypeEnv {
+        types: Vec<(StringId, Type)>,
+    }
+
+    impl TypeEnv {
+        fn new(interner: &mut StringInterner) -> Self {
+            let mut env = TypeEnv { types: Vec::new() };
+
+            // Pre-load prims into env
+            env.store(interner.get_or_intern("u8"), Type::Prim(host::Prim::U8));
+            env.store(interner.get_or_intern("u16"), Type::Prim(host::Prim::U16));
+            env.store(interner.get_or_intern("u32"), Type::Prim(host::Prim::U32));
+            env.store(interner.get_or_intern("f32"), Type::Prim(host::Prim::F32));
+            env.store(interner.get_or_intern("Pos"), Type::Prim(host::Prim::Pos));
+            // TODO Array
+
+            for name in [
+                "S16Be", "S16Le", "U8", "U16Be", "U16Le", "U32Be", "U32Le", "F32Le",
+            ] {
+                let name = interner.get_or_intern(name);
+                env.store(
+                    name,
+                    Type::Struct(Struct {
+                        name,
+                        fields: Vec::new(),
+                    }),
+                );
+            }
+
+            env
+        }
+
+        fn store(&mut self, name: StringId, ty: Type) -> TypeId {
+            let id = self.types.len();
+            self.types.push((name, ty));
+            TypeId(id as u16)
+        }
+
+        fn find(&self, name: StringId) -> Option<&Type> {
+            self.types
+                .iter()
+                .find_map(|(nm, ty)| if *nm == name { Some(ty) } else { None })
+        }
+
+        fn get(&self, id: TypeId) -> Option<&Type> {
+            self.types.get(usize::from(id.0)).map(|pair| &pair.1)
+        }
+    }
+
+    enum Type {
+        Struct(Struct),
+        Prim(host::Prim),
+    }
+
+    #[derive(Debug)]
+    pub enum Error {
+        UnknownItem,
+        BadIndex,
+        BufferError(BufferError),
+        /// Value exceeds the range of the target type
+        OutOfRange,
+    }
+
+    impl<'interner> Compiler<'interner> {
+        pub fn new(interner: &'interner mut StringInterner) -> Self {
+            let type_env = TypeEnv::new(interner);
+            Compiler {
+                interner,
+                item_env: Vec::new(),
+                defs: Vec::new(),
+                type_env,
+            }
+        }
+
+        pub fn compile(&mut self, module: &Module) -> Result<Val, Error> {
+            // Hmm so the definitions need to be evaluated first so that they are present in the
+            // item env (since main refers to them by index).
+            self.defs = module.definitions.clone(); // FIXME
+
+            println!("Symbols:");
+            let mut i = 0;
+            while let Some(s) = self.interner.resolve(StringId::try_from_usize(i).unwrap()) {
+                println!("- {}: '{}'", i, s);
+                i += 1;
+            }
+
+            // find the "main" def, which is the entry point
+            // TODO: Perhaps it should actually be fished out of the defs?
+            let main_sym = self.interner.get("main").expect("no main symbol");
+            let main = module
+                .definitions
+                .iter()
+                .find(|def| def.name == main_sym)
+                .expect("unable to find main item in module");
+
+            self.compile_item(Some(main.name), &main.expr)
+        }
+
+        fn compile_item(&mut self, name: Option<StringId>, item: &Item) -> Result<Val, Error> {
+            match item {
+                Item::Format(Format { params, fields }) => {
+                    if params.is_empty() {
+                        // Generate Format impl
+                        // TODO: Need to be able to generate code like this:
+                        /*
+                        struct MyFormat {
+                            data: Vec<U8::Repr>,
+                        }
+
+                        impl MyFormat {
+                            #[requires(data.len() == len)]
+                            pub fn new(len: u32, data: Vec<F>) -> MyFormat<F> {
+                                MyFormat { len, data }
+                            }
+
+                            pub data(&self) -> &[u32] {
+                                &self.data
+                            }
+                        }
+
+                        impl DepFormat for MyFormat {
+                            type Arg = u32;
+                            type Repr = MyFormat;
+
+                            fn decode_dep<'data>(len: u32, buf: &mut Buffer<'data>) -> Result<MyFormat, Error> {
+                                let data = RepeatLen::<F>::decode_dep(len as usize)?;
+                                Ok(MyFormat { data })
+                            }
+
+                            fn encode_dep<'data>(&self, len: u32, buf: &mut Buffer<'data>) -> Result<(), Error> {
+                                RepeatLen::<F>::encode_dep(self.data, self.len, buf)
+                            }
+                        }
+                         */
+
+                        // Do we structure this in a form that implies some things or do we have
+                        // a mechanism to parse that more accurately?
+
+                        /*
+                        Concepts:
+
+                        - structs (record style)
+                            - Possibly with type parameters
+                        - impl blocks, with and without traits and associated types
+                        - functions
+                          - expressions: don't think we really want to be able to describe
+                            arbitrary expressions
+
+                         */
+                        // let mut ffields = Vec::new();
+                        for field in fields {
+                            // Need to resolve the type id for each field host type
+                            let host_type_id = match &field.host_type {
+                                host::Type::Prim(prim) => {
+                                    let name = match prim {
+                                        host::Prim::U8 => self.interner.get_or_intern("u8"),
+                                        host::Prim::S16 => self.interner.get_or_intern("i16"),
+                                        host::Prim::U16 => self.interner.get_or_intern("u16"),
+                                        host::Prim::U32 => self.interner.get_or_intern("u32"),
+                                        host::Prim::F32 => self.interner.get_or_intern("f32"),
+                                        host::Prim::Pos => self.interner.get_or_intern("Pos"),
+                                        host::Prim::Array(_, _) => {
+                                            todo!()
+                                        }
+                                    };
+                                    self.type_env.find(name)
+                                    // ffields.push()
+                                }
+                                host::Type::CustomType(_) => {
+                                    todo!()
+                                }
+                            };
+                        }
+
+                        todo!()
+                    } else {
+                        // Generate FormatDep impl
+                        todo!()
+                    }
+
+                    // // TODO: handle params
+                    // let len_before = self.item_env.len();
+                    // let mut ffields = Vec::new();
+                    // for field in fields {
+                    //     let val = self.read(&field.read, reader)?;
+                    //     self.item_env.push((field.name, val.clone()));
+                    //     ffields.push(FieldVal {
+                    //         name: field.name,
+                    //         value: Box::new(val),
+                    //     });
+                    // }
+                    // self.item_env.truncate(len_before);
+                    // let record = RecordVal {
+                    //     name: name.expect("no name"),
+                    //     fields: ffields,
+                    // };
+                    //
+                    // Ok(Val::Record(record))
+                }
+                Item::Let(name, def_expression, body_expression) => {
+                    // eval the def_expression, then add the result to the env and eval body_expression
+                    let len_before = self.item_env.len();
+                    let val = self.compile_item(None, def_expression)?;
+                    self.item_env.push((*name, val));
+                    let val = self.compile_item(None, body_expression)?;
+                    // pop the def expression afterwards
+                    self.item_env.truncate(len_before);
+                    Ok(val)
+                }
+            }
+        }
+
+        fn read(&mut self, expr: &ReadExpr, reader: &mut BufferReader) -> Result<Val, Error> {
+            let val = match expr {
+                ReadExpr::Prim(ReadPrim::S16Be) => {
+                    binary::read_s16be(reader).map(|v| Val::Const(Const::S16(v)))?
+                }
+                ReadExpr::Prim(ReadPrim::S16Le) => {
+                    binary::read_s16le(reader).map(|v| Val::Const(Const::S16(v)))?
+                }
+                ReadExpr::Prim(ReadPrim::U8) => {
+                    binary::read_u8(reader).map(|v| Val::Const(Const::U8(v)))?
+                }
+                ReadExpr::Prim(ReadPrim::U16Be) => {
+                    binary::read_u16be(reader).map(|v| Val::Const(Const::U16(v)))?
+                }
+                ReadExpr::Prim(ReadPrim::U16Le) => {
+                    binary::read_u16le(reader).map(|v| Val::Const(Const::U16(v)))?
+                }
+                ReadExpr::Prim(ReadPrim::U32Be) => {
+                    binary::read_u32be(reader).map(|v| Val::Const(Const::U32(v)))?
+                }
+                ReadExpr::Prim(ReadPrim::U32Le) => {
+                    binary::read_u32le(reader).map(|v| Val::Const(Const::U32(v)))?
+                }
+                ReadExpr::Prim(ReadPrim::F32Le) => {
+                    binary::read_f32le(reader).map(|v| Val::Const(Const::F32(v)))?
+                }
+                ReadExpr::Prim(ReadPrim::Array(len_expr, read_item)) => {
+                    // Need to run the len_expr, then read that many items
+                    let len: usize = self.eval(len_expr)?.try_into()?;
+                    let items = (0..len)
+                        .map(|_| self.read(read_item, reader))
+                        .collect::<Result<Vec<_>, _>>()?;
+                    Val::Vec(items)
+                }
+                ReadExpr::Prim(ReadPrim::StreamPos) => {
+                    let pos = reader.relative_offset();
+                    Val::Const(Const::Pos(pos.try_into().map_err(|_| Error::OutOfRange)?))
+                }
+                ReadExpr::CustomType(i) => {
+                    let def = self.defs.get(*i).unwrap().clone(); // FIXME clone
+                    self.compile_item(Some(def.name), &def.expr)?
+                }
+                ReadExpr::Match(_, _) => todo! {},
+            };
+            Ok(val)
+        }
+
+        fn eval(&self, expr: &Expr) -> Result<Val, Error> {
+            match expr {
+                Expr::Item(index) => {
+                    let item = self
+                        .item_env
+                        .get(*index)
+                        .map(|pair| pair.1.clone())
+                        .ok_or(Error::UnknownItem)?;
+                    Ok(item)
+                }
+                Expr::Const(constant) => Ok(Val::Const(*constant)),
+                Expr::PrimFn(_) => todo! {},
+                Expr::Func(_) => todo! {},
+                Expr::App(_, _) => todo! {},
+            }
+        }
+    }
+
+    impl From<BufferError> for Error {
+        fn from(err: BufferError) -> Self {
+            Error::BufferError(err)
+        }
+    }
+
+    impl TryFrom<Val> for usize {
+        type Error = Error;
+
+        fn try_from(value: Val) -> Result<Self, Self::Error> {
+            match value {
+                Val::Const(Const::U8(val)) => Ok(usize::from(val)),
+                Val::Const(Const::U16(val)) => Ok(usize::from(val)),
+                Val::Const(Const::U32(val)) => usize::try_from(val).map_err(|_| Error::BadIndex),
+                Val::Const(Const::S16(_))
+                | Val::Const(Const::F32(_))
+                | Val::Const(Const::Pos(_))
+                | Val::Record(_)
+                | Val::Vec(_) => Err(Error::BadIndex),
+            }
+        }
+    }
+}
+
+/// What the generated code will use to parse data
+mod runtime {
+    use crate::core::binary;
+    use crate::core::binary::{BufferError, BufferReader as Buffer};
+
+    struct S16Be;
+    struct S16Le;
+    struct U8;
+    struct U16Be;
+    struct U16Le;
+    struct U32Be;
+    struct U32Le;
+    struct F32Le;
+
+    #[derive(Debug)]
+    pub enum Error {
+        BufferError(BufferError),
+    }
+
+    pub trait Format: Sized {
+        type Repr;
+
+        fn decode<'data>(buf: &mut Buffer<'data>) -> Result<Self::Repr, Error>;
+
+        // TODO: encode
+        // fn encode<'data>(&self, buf: &mut Buffer<'data>) -> Result<(), Error>;
+    }
+
+    pub trait FormatDep: Sized {
+        type Repr;
+        type Arg;
+
+        fn decode<'data>(buf: &mut Buffer<'data>, arg: Self::Arg) -> Result<Self, Error>;
+
+        // TODO: encode
+        // fn encode<'data>(&self, buf: &mut Buffer<'data>) -> Result<(), Error>;
+    }
+
+    macro_rules! impl_prim_format {
+        ($read:ident, $T:ty, $repr:ty) => {
+            impl Format for $T {
+                type Repr = $repr;
+
+                fn decode<'data>(buf: &mut Buffer<'data>) -> Result<Self::Repr, Error> {
+                    binary::$read(buf).map_err(Error::from)
+                }
+            }
+        };
+    }
+
+    impl_prim_format!(read_s16be, S16Be, i16);
+    impl_prim_format!(read_s16le, S16Le, i16);
+    impl_prim_format!(read_u8, U8, u8);
+    impl_prim_format!(read_u16be, U16Be, u16);
+    impl_prim_format!(read_u16le, U16Le, u16);
+    impl_prim_format!(read_u32be, U32Be, u32);
+    impl_prim_format!(read_u32le, U32Le, u32);
+    impl_prim_format!(read_f32le, F32Le, f32);
+
+    impl From<BufferError> for Error {
+        fn from(err: BufferError) -> Self {
+            Error::BufferError(err)
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

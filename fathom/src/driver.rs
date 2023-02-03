@@ -7,6 +7,7 @@ use std::path::Path;
 
 use crate::core;
 use crate::core::binary::{self, BufferError, ReadError};
+use crate::core::ir;
 use crate::source::{ByteRange, FileId, Span, StringInterner};
 use crate::surface::{self, elaboration};
 use crate::BUG_REPORT_URL;
@@ -548,134 +549,156 @@ impl<'surface, 'core> Driver<'surface, 'core> {
     }
 
     pub fn interpret_stl(data: &[u8]) -> Status {
-        use crate::core::ir::format::*;
-        use crate::core::ir::host::{self, Expr};
-        use crate::core::ir::interpret::Interpreter;
-        use crate::core::ir::Const;
-
         let mut interner = StringInterner::new();
-        /*
-        def vec3d = {
-            x <- f32le,
-            y <- f32le,
-            z <- f32le,
-        };
+        let stl = stl_ir(&mut interner);
+        Self::interpret(&stl, data, &interner)
+    }
 
-        def triangle = {
-            normal <- vec3d,
-            vertices <- array8 3 vec3d,
-            attribute_byte_count <- u16le,
-        };
-
-        def main = {
-            header <- array8 80 u8,
-            triangle_count <- u32le,
-            triangles <- array32 triangle_count triangle,
-        };
-        */
-        let vec3d_format = Format {
-            params: vec![],
-            fields: vec![
-                Field {
-                    name: interner.get_or_intern("x"),
-                    host_type: host::Type::Prim(host::Prim::F32),
-                    read: ReadExpr::Prim(ReadPrim::F32Le),
-                },
-                Field {
-                    name: interner.get_or_intern("y"),
-                    host_type: host::Type::Prim(host::Prim::F32),
-                    read: ReadExpr::Prim(ReadPrim::F32Le),
-                },
-                Field {
-                    name: interner.get_or_intern("z"),
-                    host_type: host::Type::Prim(host::Prim::F32),
-                    read: ReadExpr::Prim(ReadPrim::F32Le),
-                },
-            ],
-        };
-
-        let triangle_format = Format {
-            params: vec![],
-            fields: vec![
-                Field {
-                    name: interner.get_or_intern("normal"),
-                    host_type: host::Type::CustomType(0), // vec3d
-                    read: ReadExpr::CustomType(0),
-                },
-                Field {
-                    name: interner.get_or_intern("vertices"),
-                    host_type: host::Type::Prim(host::Prim::Array(
-                        Expr::Const(Const::U8(3)),
-                        Box::new(host::Type::CustomType(0)), // vec3d
-                    )),
-                    read: ReadExpr::Prim(ReadPrim::Array(
-                        Expr::Const(Const::U8(3)),
-                        Box::new(ReadExpr::CustomType(0)),
-                    )),
-                },
-                Field {
-                    name: interner.get_or_intern("attribute_byte_count"),
-                    host_type: host::Type::Prim(host::Prim::U16),
-                    read: ReadExpr::Prim(ReadPrim::U16Le),
-                },
-            ],
-        };
-
-        let main_format = Format {
-            params: vec![],
-            fields: vec![
-                Field {
-                    name: interner.get_or_intern("header"),
-                    host_type: host::Type::Prim(host::Prim::Array(
-                        Expr::Const(Const::U8(80)),
-                        Box::new(host::Type::Prim(host::Prim::U8)),
-                    )),
-                    read: ReadExpr::Prim(ReadPrim::Array(
-                        Expr::Const(Const::U8(80)),
-                        Box::new(ReadExpr::Prim(ReadPrim::U8)),
-                    )),
-                },
-                Field {
-                    name: interner.get_or_intern("triangle_count"),
-                    host_type: host::Type::Prim(host::Prim::U32),
-                    read: ReadExpr::Prim(ReadPrim::U32Le),
-                },
-                Field {
-                    name: interner.get_or_intern("triangles"),
-                    host_type: host::Type::Prim(host::Prim::Array(
-                        Expr::Item(1 /* triangle_count */),
-                        Box::new(host::Type::CustomType(1)), // triangle
-                    )),
-                    read: ReadExpr::Prim(ReadPrim::Array(
-                        Expr::Item(1 /* triangle_count */),
-                        Box::new(ReadExpr::CustomType(1)), // triangle
-                    )),
-                },
-            ],
-        };
-
-        let module = Module {
-            definitions: vec![
-                Def {
-                    name: interner.get_or_intern("vec3d"),
-                    expr: Item::Format(vec3d_format),
-                },
-                Def {
-                    name: interner.get_or_intern("triangle"),
-                    expr: Item::Format(triangle_format),
-                },
-                Def {
-                    name: interner.get_or_intern("main"),
-                    expr: Item::Format(main_format),
-                },
-            ],
-        };
+    fn interpret(module: &ir::format::Module, data: &[u8], interner: &StringInterner) -> Status {
+        use crate::core::ir::interpret::Interpreter;
 
         let buffer = binary::Buffer::from(data);
         let mut interpreter = Interpreter::new(buffer, &interner);
-        let val = interpreter.interpret(&module).expect("interpreter error");
+        let val = interpreter.interpret(module).expect("interpreter error");
         dbg!(val);
         Status::Ok
+    }
+
+    pub fn compile_stl() -> Status {
+        let mut interner = StringInterner::new();
+        let stl = stl_ir(&mut interner);
+        Self::compile(&stl, &mut interner)
+    }
+
+    fn compile(module: &ir::format::Module, interner: &mut StringInterner) -> Status {
+        use crate::core::ir::compile::Compiler;
+
+        let mut compiler = Compiler::new(interner);
+        let val = compiler.compile(&module).expect("compiler error");
+        dbg!(val);
+        Status::Ok
+    }
+}
+
+fn stl_ir(interner: &mut StringInterner) -> ir::format::Module {
+    use crate::core::ir::format::*;
+    use crate::core::ir::host::{self, Expr};
+    use crate::core::ir::Const;
+    /*
+    def vec3d = {
+        x <- f32le,
+        y <- f32le,
+        z <- f32le,
+    };
+
+    def triangle = {
+        normal <- vec3d,
+        vertices <- array8 3 vec3d,
+        attribute_byte_count <- u16le,
+    };
+
+    def main = {
+        header <- array8 80 u8,
+        triangle_count <- u32le,
+        triangles <- array32 triangle_count triangle,
+    };
+    */
+    let vec3d_format = Format {
+        params: vec![],
+        fields: vec![
+            Field {
+                name: interner.get_or_intern("x"),
+                host_type: host::Type::Prim(host::Prim::F32),
+                read: ReadExpr::Prim(ReadPrim::F32Le),
+            },
+            Field {
+                name: interner.get_or_intern("y"),
+                host_type: host::Type::Prim(host::Prim::F32),
+                read: ReadExpr::Prim(ReadPrim::F32Le),
+            },
+            Field {
+                name: interner.get_or_intern("z"),
+                host_type: host::Type::Prim(host::Prim::F32),
+                read: ReadExpr::Prim(ReadPrim::F32Le),
+            },
+        ],
+    };
+
+    let triangle_format = Format {
+        params: vec![],
+        fields: vec![
+            Field {
+                name: interner.get_or_intern("normal"),
+                host_type: host::Type::CustomType(0), // vec3d
+                read: ReadExpr::CustomType(0),
+            },
+            Field {
+                name: interner.get_or_intern("vertices"),
+                host_type: host::Type::Prim(host::Prim::Array(
+                    Expr::Const(Const::U8(3)),
+                    Box::new(host::Type::CustomType(0)), // vec3d
+                )),
+                read: ReadExpr::Prim(ReadPrim::Array(
+                    Expr::Const(Const::U8(3)),
+                    Box::new(ReadExpr::CustomType(0)),
+                )),
+            },
+            Field {
+                name: interner.get_or_intern("attribute_byte_count"),
+                host_type: host::Type::Prim(host::Prim::U16),
+                read: ReadExpr::Prim(ReadPrim::U16Le),
+            },
+        ],
+    };
+
+    let main_format = Format {
+        params: vec![],
+        fields: vec![
+            Field {
+                name: interner.get_or_intern("header"),
+                host_type: host::Type::Prim(host::Prim::Array(
+                    Expr::Const(Const::U8(80)),
+                    Box::new(host::Type::Prim(host::Prim::U8)),
+                )),
+                read: ReadExpr::Prim(ReadPrim::Array(
+                    Expr::Const(Const::U8(80)),
+                    Box::new(ReadExpr::Prim(ReadPrim::U8)),
+                )),
+            },
+            Field {
+                name: interner.get_or_intern("triangle_count"),
+                host_type: host::Type::Prim(host::Prim::U32),
+                read: ReadExpr::Prim(ReadPrim::U32Le),
+            },
+            Field {
+                name: interner.get_or_intern("triangles"),
+                host_type: host::Type::Prim(host::Prim::Array(
+                    Expr::Item(1 /* triangle_count */),
+                    Box::new(host::Type::CustomType(1)), // triangle
+                )),
+                read: ReadExpr::Prim(ReadPrim::Array(
+                    Expr::Item(1 /* triangle_count */),
+                    Box::new(ReadExpr::CustomType(1)), // triangle
+                )),
+            },
+        ],
+    };
+
+    Module {
+        definitions: vec![
+            Def {
+                name: interner.get_or_intern("vec3d"),
+                expr: Item::Format(vec3d_format),
+            },
+            Def {
+                name: interner.get_or_intern("triangle"),
+                expr: Item::Format(triangle_format),
+            },
+            Def {
+                name: interner.get_or_intern("main"),
+                expr: Item::Format(main_format),
+            },
+        ],
     }
 }
 
