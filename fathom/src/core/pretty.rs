@@ -57,7 +57,7 @@ impl<'interner, 'arena> Context<'interner> {
         Context { interner }
     }
 
-    fn string_id(&'arena self, name: StringId) -> RcDoc {
+    fn ident(&'arena self, name: StringId) -> RcDoc {
         match self.interner.borrow().resolve(name) {
             Some(name) if is_keyword(name) => RcDoc::text(format!("r#{name}")),
             Some(name) => RcDoc::text(name.to_owned()),
@@ -95,7 +95,7 @@ impl<'interner, 'arena> Context<'interner> {
 
     fn pattern(&'arena self, pattern: Option<StringId>) -> RcDoc {
         match pattern {
-            Some(name) => self.string_id(name),
+            Some(name) => self.ident(name),
             None => RcDoc::text("_"),
         }
     }
@@ -182,7 +182,7 @@ impl<'interner, 'arena> Context<'interner> {
                                 RcDoc::concat([
                                     self.plicity(*plicity),
                                     match param_name {
-                                        Some(name) => self.string_id(*name),
+                                        Some(name) => self.ident(*name),
                                         None => RcDoc::text("_"),
                                     },
                                     RcDoc::space(),
@@ -209,7 +209,7 @@ impl<'interner, 'arena> Context<'interner> {
                         RcDoc::space(),
                         self.plicity(*plicity),
                         match param_name {
-                            Some(name) => self.string_id(*name),
+                            Some(name) => self.ident(*name),
                             None => RcDoc::text("_"),
                         },
                         RcDoc::space(),
@@ -233,7 +233,7 @@ impl<'interner, 'arena> Context<'interner> {
                 RcDoc::text("{"),
                 labels.iter().zip(types.iter()).map(|(&label, type_)| {
                     RcDoc::concat([
-                        self.string_id(label),
+                        self.ident(label),
                         RcDoc::space(),
                         RcDoc::text(":"),
                         RcDoc::space(),
@@ -247,7 +247,7 @@ impl<'interner, 'arena> Context<'interner> {
                 RcDoc::text("{"),
                 labels.iter().zip(exprs.iter()).map(|(&label, expr)| {
                     RcDoc::concat([
-                        self.string_id(label),
+                        self.ident(label),
                         RcDoc::space(),
                         RcDoc::text("="),
                         RcDoc::space(),
@@ -257,10 +257,9 @@ impl<'interner, 'arena> Context<'interner> {
                 RcDoc::text(","),
                 RcDoc::text("}"),
             ),
-            // Term::UnitLiteral(_) => RcDoc::text("{}"),
             Term::RecordProj(_, head_expr, label) => RcDoc::concat([
                 self.term_prec(Prec::Atomic, head_expr),
-                RcDoc::text(".").append(self.string_id(*label)),
+                RcDoc::text(".").append(self.ident(*label)),
             ]),
             Term::ArrayLit(_, exprs) => self.sequence(
                 RcDoc::text("["),
@@ -281,7 +280,7 @@ impl<'interner, 'arena> Context<'interner> {
             Term::FormatCond(_, label, format, cond) => RcDoc::concat([
                 RcDoc::text("{"),
                 RcDoc::space(),
-                self.string_id(*label),
+                self.ident(*label),
                 RcDoc::space(),
                 RcDoc::text("<-"),
                 RcDoc::space(),
@@ -325,7 +324,7 @@ impl<'interner, 'arena> Context<'interner> {
                     .chain(default_expr.iter().map(|&(name, default)| {
                         RcDoc::concat([
                             match name {
-                                Some(name) => self.string_id(name),
+                                Some(name) => self.ident(name),
                                 None => RcDoc::text("_"),
                             },
                             RcDoc::space(),
@@ -344,7 +343,7 @@ impl<'interner, 'arena> Context<'interner> {
 
     fn format_field(&'arena self, label: StringId, format: &Term<'arena>) -> RcDoc {
         RcDoc::concat([
-            self.string_id(label),
+            self.ident(label),
             RcDoc::space(),
             RcDoc::text("<-"),
             RcDoc::space(),
@@ -371,28 +370,22 @@ impl<'interner, 'arena> Context<'interner> {
         end_delim: RcDoc<'arena>,
     ) -> RcDoc {
         if docs.len() == 0 {
-            RcDoc::concat([start_delim, end_delim])
-        } else {
-            RcDoc::flat_alt(
-                RcDoc::concat([
-                    start_delim.clone(),
-                    RcDoc::concat(
-                        docs.clone()
-                            .map(|doc| RcDoc::concat([RcDoc::hardline(), doc, separator.clone()])),
-                    )
-                    .nest(INDENT),
-                    RcDoc::hardline(),
-                    end_delim.clone(),
-                ]),
-                RcDoc::concat([
-                    start_delim,
-                    RcDoc::space(),
-                    RcDoc::intersperse(docs, RcDoc::concat([separator, RcDoc::space()])),
-                    RcDoc::space(),
-                    end_delim,
-                ]),
-            )
-            .group()
+            return RcDoc::concat([start_delim, end_delim]);
         }
+
+        let docs = RcDoc::intersperse(docs, RcDoc::concat([separator.clone(), RcDoc::line()]));
+
+        RcDoc::concat([
+            start_delim,
+            RcDoc::concat([
+                RcDoc::line(),
+                docs,
+                RcDoc::flat_alt(separator, RcDoc::nil()),
+            ])
+            .nest(INDENT),
+            RcDoc::line(),
+            end_delim,
+        ])
+        .group()
     }
 }
