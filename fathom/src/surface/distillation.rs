@@ -489,6 +489,17 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 )
             }
             (core::Term::FunApp(..), _) => {
+                #[rustfmt::skip]
+                // Distill appropriate primitives to binary operator expressions
+                // ((op lhs) rhs)
+                if let core::Term::FunApp(.., core::Term::FunApp(.., core::Term::Prim(_, prim), lhs), rhs,) = term {
+                    if let Some(op) = prim_to_bin_op(prim) {
+                        let lhs = self.scope.to_scope(self.synth_prec(op.lhs_prec(), lhs));
+                        let rhs = self.scope.to_scope(self.synth_prec(op.rhs_prec(), rhs));
+                        return self.paren(prec > op.precedence(), Term::BinOp((), lhs, op, rhs));
+                    }
+                };
+
                 let mut head_expr = term;
                 let mut args = Vec::new();
 
@@ -496,15 +507,6 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 while let core::Term::FunApp(_, plicity, next_head_expr, arg_expr) = *head_expr {
                     head_expr = next_head_expr;
                     args.push((plicity, arg_expr));
-                }
-
-                // Distill appropriate primitives to binary operator expressions
-                if let (core::Term::Prim(_, prim), [(_, rhs), (_, lhs)]) = (head_expr, &args[..]) {
-                    if let Some(op) = prim_to_bin_op(prim) {
-                        let lhs = (self.scope).to_scope(self.synth_prec(op.lhs_prec(), lhs));
-                        let rhs = (self.scope).to_scope(self.synth_prec(op.rhs_prec(), rhs));
-                        return self.paren(prec > op.precedence(), Term::BinOp((), lhs, op, rhs));
-                    }
                 }
 
                 let head_expr = self.scope.to_scope(self.synth_prec(Prec::Proj, head_expr));
