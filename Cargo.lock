@@ -241,6 +241,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7a81dae078cea95a014a339291cec439d2f232ebe854a9d672b796c6afafa9b7"
 
 [[package]]
+name = "dashmap"
+version = "4.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e77a43b28d0668df09411cb0bc9a8c2adc40f9a048afe863e05fd43251e8e39c"
+dependencies = [
+ "cfg-if",
+ "num_cpus",
+]
+
+[[package]]
 name = "diff"
 version = "0.1.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -331,14 +341,15 @@ dependencies = [
  "itertools",
  "lalrpop",
  "lalrpop-util 0.19.8 (registry+https://github.com/rust-lang/crates.io-index)",
+ "lasso",
  "levenshtein",
  "libtest-mimic",
  "logos",
+ "once_cell",
  "pretty",
  "rpds",
  "scoped-arena",
  "serde",
- "string-interner",
  "termsize",
  "toml",
  "trycmd",
@@ -588,6 +599,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "lasso"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "aeb7b21a526375c5ca55f1a6dfd4e1fad9fa4edd750f530252a718a44b2608f0"
+dependencies = [
+ "ahash",
+ "dashmap",
+ "hashbrown 0.11.2",
+]
+
+[[package]]
 name = "lazy_static"
 version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -721,6 +743,9 @@ name = "once_cell"
 version = "1.17.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6f61fba1741ea2b3d6a1e3178721804bb716a68a6aeba1149b5d52e3d464ea66"
+dependencies = [
+ "parking_lot_core",
+]
 
 [[package]]
 name = "os_pipe"
@@ -1050,17 +1075,6 @@ name = "static_assertions"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
-
-[[package]]
-name = "string-interner"
-version = "0.14.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "91e2531d8525b29b514d25e275a43581320d587b86db302b9a7e464bac579648"
-dependencies = [
- "cfg-if",
- "hashbrown 0.11.2",
- "serde",
-]
 
 [[package]]
 name = "string_cache"

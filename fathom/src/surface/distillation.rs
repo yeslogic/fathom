@@ -1,18 +1,17 @@
 //! Bidirectional distillation of the core language into the surface language.
 
-use std::cell::RefCell;
-
 use scoped_arena::Scope;
 
 use crate::alloc::SliceVec;
 use crate::core;
 use crate::core::{Const, Plicity, UIntStyle};
 use crate::env::{self, EnvLen, Index, Level, UniqueEnv};
-use crate::source::{Span, StringId, StringInterner};
+use crate::source::Span;
 use crate::surface::elaboration::MetaSource;
 use crate::surface::{
     Arg, BinOp, ExprField, FormatField, Item, ItemDef, Module, Param, Pattern, Term, TypeField,
 };
+use crate::symbol::Symbol;
 
 /// Term precedences
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
@@ -36,29 +35,26 @@ enum Mode {
 }
 
 /// Distillation context.
-pub struct Context<'interner, 'arena, 'env> {
-    interner: &'interner RefCell<StringInterner>,
+pub struct Context<'arena, 'env> {
     /// Scoped arena for storing distilled terms.
     scope: &'arena Scope<'arena>,
     /// Item name environment.
-    item_names: &'env UniqueEnv<StringId>,
+    item_names: &'env UniqueEnv<Symbol>,
     /// Local name environment.
-    local_names: &'env mut UniqueEnv<Option<StringId>>,
+    local_names: &'env mut UniqueEnv<Option<Symbol>>,
     /// Metavariable sources.
     meta_sources: &'env UniqueEnv<MetaSource>,
 }
 
-impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
+impl<'arena, 'env> Context<'arena, 'env> {
     /// Construct a new distillation context.
     pub fn new(
-        interner: &'interner RefCell<StringInterner>,
         scope: &'arena Scope<'arena>,
-        item_names: &'env UniqueEnv<StringId>,
-        local_names: &'env mut UniqueEnv<Option<StringId>>,
+        item_names: &'env UniqueEnv<Symbol>,
+        local_names: &'env mut UniqueEnv<Option<Symbol>>,
         meta_sources: &'env UniqueEnv<MetaSource>,
-    ) -> Context<'interner, 'arena, 'env> {
+    ) -> Context<'arena, 'env> {
         Context {
-            interner,
             scope,
             item_names,
             local_names,
@@ -66,7 +62,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
         }
     }
 
-    fn is_bound(&self, name: StringId) -> bool {
+    fn is_bound(&self, name: Symbol) -> bool {
         (self.local_names.iter()).any(|local_name| *local_name == Some(name))
             || self.item_names.iter().any(|item_name| *item_name == name)
     }
@@ -75,15 +71,15 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
         self.local_names.len()
     }
 
-    fn get_item_name(&self, var: Level) -> Option<StringId> {
+    fn get_item_name(&self, var: Level) -> Option<Symbol> {
         self.item_names.get_level(var).copied()
     }
 
-    fn get_local_name(&self, var: Index) -> Option<StringId> {
+    fn get_local_name(&self, var: Index) -> Option<Symbol> {
         self.local_names.get_index(var).copied().flatten()
     }
 
-    fn push_local(&mut self, name: Option<StringId>) -> Option<StringId> {
+    fn push_local(&mut self, name: Option<Symbol>) -> Option<Symbol> {
         // TODO: avoid globals
         // TODO: ensure we chose a correctly bound name
         self.local_names.push(name);
@@ -98,18 +94,18 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
         self.local_names.truncate(len);
     }
 
-    fn get_hole_name(&self, var: Level) -> Option<StringId> {
+    fn get_hole_name(&self, var: Level) -> Option<Symbol> {
         match self.meta_sources.get_level(var)? {
             MetaSource::HoleExpr(_, name) => Some(*name),
-            _ => Some(self.interner.borrow_mut().get_or_intern(var.to_string())),
+            _ => Some(Symbol::intern(var.to_string())),
         }
     }
 
     /// Generate a fresh name that is not currently bound in the context
-    fn gen_fresh_name(&mut self) -> StringId {
+    fn gen_fresh_name(&mut self) -> Symbol {
         let mut counter = 0;
         loop {
-            let name = self.interner.borrow_mut().get_alphabetic_name(counter);
+            let name = Symbol::get_alphabetic_name(counter);
             match self.is_bound(name) {
                 true => counter += 1,
                 false => return name,
@@ -118,7 +114,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
     }
 
     /// Replace `name` with a fresh name if it is `_` and occurs in `body`
-    fn freshen_name(&mut self, name: Option<StringId>, body: &core::Term<'_>) -> Option<StringId> {
+    fn freshen_name(&mut self, name: Option<Symbol>, body: &core::Term<'_>) -> Option<Symbol> {
         match name {
             Some(name) => Some(name),
             None => body
@@ -133,7 +129,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
         style: UIntStyle,
     ) -> Term<'arena, ()> {
         let string = style.format(number);
-        let number = self.interner.borrow_mut().get_or_intern(string);
+        let number = Symbol::intern(string);
         Term::NumberLiteral((), number)
     }
 
@@ -165,12 +161,12 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
     }
 
     fn check_number_literal<T: std::fmt::Display>(&mut self, number: T) -> Term<'arena, ()> {
-        let number = self.interner.borrow_mut().get_or_intern(number.to_string());
+        let number = Symbol::intern(number.to_string());
         Term::NumberLiteral((), number)
     }
 
     fn check_number_pattern<T: std::fmt::Display>(&mut self, number: T) -> Pattern<()> {
-        let number = self.interner.borrow_mut().get_or_intern(number.to_string());
+        let number = Symbol::intern(number.to_string());
         Pattern::NumberLiteral((), number)
     }
 
@@ -181,7 +177,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
     ) -> Pattern<()> {
         // TODO: Share with check_number_literal_styled
         let string = style.format(number);
-        let number = self.interner.borrow_mut().get_or_intern(string);
+        let number = Symbol::intern(string);
         Pattern::NumberLiteral((), number)
     }
 
@@ -205,7 +201,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
 
     fn synth_prim(&mut self, prim: core::Prim) -> Term<'arena, ()> {
         // FIXME: Check if shadowed
-        let name = self.interner.borrow_mut().get_or_intern_static(prim.name());
+        let name = Symbol::intern_static(prim.name());
         Term::Name((), name)
     }
 
@@ -242,7 +238,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
 
     fn check_dependent_tuple(
         &mut self,
-        labels: &[StringId],
+        labels: &[Symbol],
         exprs: &[core::Term<'_>],
     ) -> Term<'arena, ()> {
         self.local_names.reserve(labels.len());
@@ -260,7 +256,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
 
     fn synth_format_fields(
         &mut self,
-        labels: &[StringId],
+        labels: &[Symbol],
         core_formats: &[core::Term<'_>],
     ) -> &'arena [FormatField<'arena, ()>] {
         use crate::core::Prim::FormatSucceed;
@@ -520,9 +516,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 // Otherwise distill to a function application
                 self.paren(prec > Prec::App, Term::App((), head_expr, args))
             }
-            (core::Term::RecordType(_, labels, types), _)
-                if is_tuple_type(&mut self.interner.borrow_mut(), labels, types) =>
-            {
+            (core::Term::RecordType(_, labels, types), _) if is_tuple_type(labels, types) => {
                 let tuple = self.check_dependent_tuple(labels, types);
                 match mode {
                     Mode::Synth => Term::Ann((), self.scope.to_scope(tuple), &Term::Universe(())),
@@ -546,9 +540,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
 
                 Term::RecordType((), type_fields)
             }
-            (core::Term::RecordLit(_, labels, exprs), _)
-                if self.interner.borrow_mut().is_tuple_labels(labels) =>
-            {
+            (core::Term::RecordLit(_, labels, exprs), _) if Symbol::is_tuple_labels(labels) => {
                 let scope = self.scope;
                 let exprs = exprs
                     .iter()
@@ -598,9 +590,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 // TODO: type annotations?
                 Term::ArrayLiteral((), scope.to_scope_from_iter(elem_exprs))
             }
-            (core::Term::FormatRecord(_, labels, formats), _)
-                if is_tuple_type(&mut self.interner.borrow_mut(), labels, formats) =>
-            {
+            (core::Term::FormatRecord(_, labels, formats), _) if is_tuple_type(labels, formats) => {
                 self.check_dependent_tuple(labels, formats)
             }
             (core::Term::FormatRecord(_, labels, formats), _) => {
@@ -723,7 +713,7 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
     }
 }
 
-fn name_to_pattern(name: Option<StringId>) -> Pattern<()> {
+fn name_to_pattern(name: Option<Symbol>) -> Pattern<()> {
     match name {
         Some(name) => Pattern::Name((), name),
         None => Pattern::Placeholder(()),
@@ -732,7 +722,7 @@ fn name_to_pattern(name: Option<StringId>) -> Pattern<()> {
 
 fn match_if_then_else<'arena>(
     branches: &'arena [(Const, core::Term<'arena>)],
-    default_branch: Option<(Option<StringId>, &'arena core::Term<'arena>)>,
+    default_branch: Option<(Option<Symbol>, &'arena core::Term<'arena>)>,
 ) -> Option<(&'arena core::Term<'arena>, &'arena core::Term<'arena>)> {
     match (branches, default_branch) {
         ([(Const::Bool(false), else_expr), (Const::Bool(true), then_expr)], None)
@@ -745,12 +735,8 @@ fn match_if_then_else<'arena>(
 
 /// Returns true if `labels` is a sequence of tuple labels (`_0`, `_1`, ...),
 /// and a telescope of `types` contains independent entries.
-fn is_tuple_type(
-    interner: &mut StringInterner,
-    labels: &[StringId],
-    types: &[core::Term<'_>],
-) -> bool {
-    interner.is_tuple_labels(labels)
+fn is_tuple_type(labels: &[Symbol], types: &[core::Term<'_>]) -> bool {
+    Symbol::is_tuple_labels(labels)
         // For each type in the telescope, ensure that the subsequent types in
         // the telescope do not depend on the current field.
         && (1..=types.len()).all(|index| {

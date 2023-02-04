@@ -1,6 +1,5 @@
 //! Surface language.
 
-use std::cell::RefCell;
 use std::fmt;
 
 use codespan_reporting::diagnostic::{Diagnostic, Label};
@@ -9,7 +8,8 @@ use scoped_arena::Scope;
 
 use crate::core::Plicity;
 use crate::files::FileId;
-use crate::source::{BytePos, ByteRange, FileRange, ProgramSource, StringId, StringInterner};
+use crate::source::{BytePos, ByteRange, FileRange, ProgramSource};
+use crate::symbol::Symbol;
 
 lalrpop_mod!(
     #[allow(clippy::all)]
@@ -32,7 +32,6 @@ impl<'arena> Module<'arena, ByteRange> {
     /// Parse a term from the `source` string, interning strings to the
     /// supplied `interner` and allocating nodes to the `arena`.
     pub fn parse(
-        interner: &RefCell<StringInterner>,
         scope: &'arena Scope<'arena>,
         source: &ProgramSource,
     ) -> (Module<'arena, ByteRange>, Vec<ParseMessage>) {
@@ -40,7 +39,7 @@ impl<'arena> Module<'arena, ByteRange> {
 
         let tokens = lexer::tokens(source);
         let term = grammar::ModuleParser::new()
-            .parse(interner, scope, &mut messages, tokens)
+            .parse(scope, &mut messages, tokens)
             .unwrap_or_else(|error| {
                 messages.push(ParseMessage::from_lalrpop(error));
                 Module { items: &[] }
@@ -65,7 +64,7 @@ pub struct ItemDef<'arena, Range> {
     /// The full range of the definition
     range: Range,
     /// The label that identifies this definition
-    label: (Range, StringId),
+    label: (Range, Symbol),
     /// Parameter patterns
     params: &'arena [Param<'arena, Range>],
     /// An optional type annotation for the defined expression
@@ -78,19 +77,19 @@ pub struct ItemDef<'arena, Range> {
 #[derive(Debug, Clone)]
 pub enum Pattern<Range> {
     /// Named patterns, eg. `x`, `true`, `false`
-    Name(Range, StringId),
+    Name(Range, Symbol),
     /// Placeholder patterns, eg. `_`
     Placeholder(Range),
     /// String literal patterns, eg. `"htmx"`
     ///
     /// As with [term literals][Term::StringLiteral], these will be parsed fully
     /// during [elaboration].
-    StringLiteral(Range, StringId),
+    StringLiteral(Range, Symbol),
     /// Number literal patterns, eg. `1`, `0x00FF`
     ///
     /// As with [term literals][Term::NumberLiteral], these will be parsed fully
     /// during [elaboration].
-    NumberLiteral(Range, StringId),
+    NumberLiteral(Range, Symbol),
     /// Boolean literal patterns
     BooleanLiteral(Range, bool),
     // TODO: Record literal patterns
@@ -185,9 +184,9 @@ pub enum Term<'arena, Range> {
     /// Parenthesized term
     Paren(Range, &'arena Term<'arena, Range>),
     /// Named patterns.
-    Name(Range, StringId),
+    Name(Range, Symbol),
     /// Hole expressions.
-    Hole(Range, StringId),
+    Hole(Range, Symbol),
     /// Placeholder expressions.
     Placeholder(Range),
     /// Annotated expressions.
@@ -253,7 +252,7 @@ pub enum Term<'arena, Range> {
     Proj(
         Range,
         &'arena Term<'arena, Range>,
-        &'arena [(Range, StringId)],
+        &'arena [(Range, Symbol)],
     ),
     /// Array literals.
     ArrayLiteral(Range, &'arena [Term<'arena, Range>]),
@@ -261,12 +260,12 @@ pub enum Term<'arena, Range> {
     ///
     /// These are stored as strings, and will be parsed during [elaboration]
     /// once the target type is known.
-    StringLiteral(Range, StringId),
+    StringLiteral(Range, Symbol),
     /// Number literals.
     ///
     /// These are stored as strings, and will be parsed during [elaboration]
     /// once the target type is known.
-    NumberLiteral(Range, StringId),
+    NumberLiteral(Range, Symbol),
     /// Boolean literals.
     BooleanLiteral(Range, bool),
     /// Record format.
@@ -276,7 +275,7 @@ pub enum Term<'arena, Range> {
     /// Conditional format.
     FormatCond(
         Range,
-        (Range, StringId),
+        (Range, Symbol),
         &'arena Term<'arena, Range>,
         &'arena Term<'arena, Range>,
     ),
@@ -329,7 +328,6 @@ impl<'arena> Term<'arena, FileRange> {
     /// Parse a term from the `source` string, interning strings to the
     /// supplied `interner` and allocating nodes to the `arena`.
     pub fn parse(
-        interner: &RefCell<StringInterner>,
         scope: &'arena Scope<'arena>,
         source: &ProgramSource,
     ) -> (Term<'arena, ByteRange>, Vec<ParseMessage>) {
@@ -337,7 +335,7 @@ impl<'arena> Term<'arena, FileRange> {
 
         let tokens = lexer::tokens(source);
         let term = grammar::TermParser::new()
-            .parse(interner, scope, &mut messages, tokens)
+            .parse(scope, &mut messages, tokens)
             .unwrap_or_else(|error| {
                 let message = ParseMessage::from_lalrpop(error);
                 let range = message.range();
@@ -368,7 +366,7 @@ pub enum FormatField<'arena, Range> {
     /// Regular format field
     Format {
         /// Label identifying the field
-        label: (Range, StringId),
+        label: (Range, Symbol),
         /// The format that this field will be parsed with
         format: Term<'arena, Range>,
         /// An optional predicate that refines the format field
@@ -377,7 +375,7 @@ pub enum FormatField<'arena, Range> {
     /// Computed format field
     Computed {
         /// Label identifying the field
-        label: (Range, StringId),
+        label: (Range, Symbol),
         /// Optional type annotation
         r#type: Option<Term<'arena, Range>>,
         /// The expression that this field compute
@@ -389,7 +387,7 @@ pub enum FormatField<'arena, Range> {
 #[derive(Debug, Clone)]
 pub struct TypeField<'arena, Range> {
     /// Label identifying the field
-    label: (Range, StringId),
+    label: (Range, Symbol),
     /// The type that is expected for this field
     r#type: Term<'arena, Range>,
 }
@@ -398,7 +396,7 @@ pub struct TypeField<'arena, Range> {
 #[derive(Debug, Clone)]
 pub struct ExprField<'arena, Range> {
     /// Label identifying the field
-    label: (Range, StringId),
+    label: (Range, Symbol),
     /// The expression that this field will store.
     /// If it is `None`, it is the same as `label.1`
     expr: Option<Term<'arena, Range>>,
@@ -523,8 +521,8 @@ mod tests {
     #[test]
     fn no_drop() {
         assert!(!std::mem::needs_drop::<Term<'_, ()>>());
-        assert!(!std::mem::needs_drop::<Term<'_, StringId>>());
-        assert!(!std::mem::needs_drop::<Pattern<StringId>>());
+        assert!(!std::mem::needs_drop::<Term<'_, Symbol>>());
+        assert!(!std::mem::needs_drop::<Pattern<Symbol>>());
     }
 
     #[test]
