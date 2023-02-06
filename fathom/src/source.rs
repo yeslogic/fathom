@@ -162,6 +162,12 @@ impl fmt::Debug for ByteRange {
     }
 }
 
+impl From<(BytePos, BytePos)> for ByteRange {
+    fn from((start, end): (BytePos, BytePos)) -> Self {
+        Self { start, end }
+    }
+}
+
 impl ByteRange {
     pub fn new(start: BytePos, end: BytePos) -> ByteRange {
         ByteRange { start, end }

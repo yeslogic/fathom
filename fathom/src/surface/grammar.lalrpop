@@ -3,7 +3,8 @@ use scoped_arena::Scope;
 use crate::source::{ByteRange, BytePos};
 use crate::surface::{
     Arg, BinOp, ExprField, FormatField, Item, ItemDef, Module, ParseMessage,
-    Pattern, Param, Plicity, Term, TypeField,
+    Pattern, Param, Plicity, Term, TypeField, LetDef,
+    Builder,
 };
 use crate::surface::lexer::{Error as LexerError, Token};
 use crate::symbol::Symbol;
@@ -69,19 +70,17 @@ extern {
 }
 
 pub Module: Module<'arena, ByteRange> = {
-    <items: Item*> => Module {
-        items: scope.to_scope_from_iter(items.into_iter()),
-    },
+    <items: List<Item>> => Module { items },
 };
 
 Item: Item<'arena, ByteRange> = {
-    <start: @L> "def" <label: RangedName> <params: Param*> <r#type: (":" <LetTerm>)?> "=" <expr: Term> ";" <end: @R> => {
+    <start: @L> "def" <label: RangedName> <params: List<Param>> <r#type: (":" <LetTerm>)?> "=" <expr: Term> ";" <end: @R> => {
         Item::Def(ItemDef {
             range: ByteRange::new(start, end),
             label,
-            params: scope.to_scope_from_iter(params),
-            r#type: r#type.map(|r#type| scope.to_scope(r#type) as &_),
-            expr: scope.to_scope(expr),
+            params,
+            r#type,
+            expr,
         })
     },
     <start: @L> <error: !> <end: @R> => {
@@ -102,53 +101,34 @@ Pattern: Pattern<ByteRange> = {
 pub Term: Term<'arena, ByteRange> = {
     LetTerm,
     <start: @L> <expr: LetTerm> ":" <r#type: LetTerm> <end: @R> => {
-        Term::Ann(
-            ByteRange::new(start, end),
-            scope.to_scope(expr),
-            scope.to_scope(r#type),
-        )
+        Builder::new(scope).ann((start, end), expr, r#type)
     },
 };
 
 LetTerm: Term<'arena, ByteRange> = {
     FunTerm,
-    <start: @L> "let" <def_pattern: Pattern> <def_type: (":" <LetTerm>)?> "=" <def_expr: Term> ";" <body_expr: LetTerm> <end: @R> => {
-        Term::Let(
-            ByteRange::new(start, end),
-            def_pattern,
-            def_type.map(|def_type| scope.to_scope(def_type) as &_),
-            scope.to_scope(def_expr),
-            scope.to_scope(body_expr),
-        )
+    <start: @L> "let" <def: LetDef> ";" <body_expr: LetTerm> <end: @R> => {
+        Builder::new(scope).r#let((start, end), def, body_expr)
     },
     <start: @L> "if" <cond_expr: FunTerm> "then" <then_expr: LetTerm> "else" <else_expr: LetTerm> <end: @R> => {
-        Term::If(ByteRange::new(start, end), scope.to_scope(cond_expr), scope.to_scope(then_expr), scope.to_scope(else_expr))
+        Builder::new(scope).if_then_else((start, end), cond_expr, then_expr, else_expr)
     },
 };
+
+LetDef: LetDef<'arena, ByteRange> = {
+    <pattern: Pattern> <r#type: (":" <LetTerm>)?> "=" <expr: Term> => LetDef {pattern, r#type, expr},
+}
 
 FunTerm: Term<'arena, ByteRange> = {
     EqExpr,
     <start: @L> <plicity: Plicity> <param_type: AppTerm> "->"  <body_type: FunTerm> <end: @R> => {
-        Term::Arrow(
-            ByteRange::new(start, end),
-            plicity,
-            scope.to_scope(param_type),
-            scope.to_scope(body_type),
-        )
+        Builder::new(scope).arrow((start, end), plicity, param_type, body_type)
     },
-    <start: @L> "fun" <params: Param+> "->"  <output_type: FunTerm> <end: @R> => {
-        Term::FunType(
-            ByteRange::new(start, end),
-            scope.to_scope_from_iter(params),
-            scope.to_scope(output_type),
-        )
+    <start: @L> "fun" <params: List1<Param>> "->"  <output_type: FunTerm> <end: @R> => {
+        Builder::new(scope).fun_type((start, end), params, output_type)
     },
-    <start: @L> "fun" <params: Param+> "=>" <output_type: LetTerm> <end: @R> => {
-        Term::FunLiteral(
-            ByteRange::new(start, end),
-            scope.to_scope_from_iter(params),
-            scope.to_scope(output_type),
-        )
+    <start: @L> "fun" <params: List1<Param>> "=>" <output_expr: LetTerm> <end: @R> => {
+        Builder::new(scope).fun_lit((start, end), params, output_expr)
     },
 };
 
@@ -180,35 +160,27 @@ MulExpr: Term<'arena, ByteRange> = {
 
 AppTerm: Term<'arena, ByteRange> = {
     ProjTerm,
-    <start: @L> <head_expr: ProjTerm> <args: Arg+> <end: @R> => {
-        Term::App(
-            ByteRange::new(start, end),
-            scope.to_scope(head_expr),
-            scope.to_scope_from_iter(args),
-        )
+    <start: @L> <head_expr: ProjTerm> <args: List1<Arg>> <end: @R> => {
+        Builder::new(scope).fun_app((start, end), head_expr, args)
     },
 };
 
 ProjTerm: Term<'arena, ByteRange> = {
     AtomicTerm,
-    <start: @L> <head_expr: AtomicTerm> <labels: ("." <RangedName>)+> <end: @R> => {
-        Term::Proj(
-            ByteRange::new(start, end),
-            scope.to_scope(head_expr),
-            scope.to_scope_from_iter(labels),
-        )
+    <start: @L> <head_expr: AtomicTerm> <labels: List1<("." <RangedName>)>> <end: @R> => {
+        Builder::new(scope).record_proj((start, end), head_expr, labels)
     },
 };
 
 AtomicTerm: Term<'arena, ByteRange> = {
-    <start: @L> "(" <term: Term> ")" <end: @R> => Term::Paren(ByteRange::new(start, end), scope.to_scope(term)),
+    <start: @L> "(" <term: Term> ")" <end: @R> => Builder::new(scope).paren((start, end), term),
     <start: @L> <terms: Tuple<Term>> <end: @R> => Term::Tuple(ByteRange::new(start, end), terms),
 
     <start: @L> <name: Name> <end: @R> => Term::Name(ByteRange::new(start, end), name),
     <start: @L> "_" <end: @R> => Term::Placeholder(ByteRange::new(start, end)),
     <start: @L> <name: Hole> <end: @R> => Term::Hole(ByteRange::new(start, end), name),
     <start: @L> "match" <scrutinee: ProjTerm> "{"  <equations: Seq<(<Pattern> "=>" <Term>), ",">> "}" <end: @R> => {
-        Term::Match(ByteRange::new(start, end), scope.to_scope(scrutinee), equations)
+        Builder::new(scope).r#match((start, end), scrutinee, equations)
     },
     <start: @L> "Type" <end: @R> => Term::Universe(ByteRange::new(start, end)),
     <start: @L> <string: StringLiteral> <end: @R> => Term::StringLiteral(ByteRange::new(start, end), string),
@@ -226,7 +198,7 @@ AtomicTerm: Term<'arena, ByteRange> = {
         Term::FormatRecord(ByteRange::new(start, end), fields)
     },
     <start: @L> "{" <name: RangedName> "<-" <format:Term> "|" <cond:Term> "}" <end: @R> => {
-        Term::FormatCond(ByteRange::new(start, end), name, scope.to_scope(format), scope.to_scope(cond))
+        Builder::new(scope).format_cond((start, end), name, format, cond)
     },
     <start: @L> "overlap" "{" <fields: Seq1<FormatField, ",">> "}" <end: @R> => {
         Term::FormatOverlap(ByteRange::new(start, end), fields)
@@ -259,12 +231,7 @@ ExprField: ExprField<'arena, ByteRange> = {
 
 BinExpr<Lhs, Op, Rhs>: Term<'arena, ByteRange> = {
     <start: @L> <lhs: Lhs> <op: Op> <rhs: Rhs> <end: @R> => {
-        Term::BinOp(
-            ByteRange::new(start, end),
-            scope.to_scope(lhs),
-            op,
-            scope.to_scope(rhs),
-        )
+        Builder::new(scope).binop((start, end), lhs, op, rhs)
     },
 };
 
@@ -310,6 +277,18 @@ Arg: Arg<'arena, ByteRange> = {
 RangedName: (ByteRange, Symbol) = {
     <start: @L> <name: Name> <end: @R> => (ByteRange::new(start, end), name),
 };
+
+List<Elem>: &'arena [Elem] = {
+    <elems: Elem*> => {
+        scope.to_scope_from_iter(elems)
+    }
+}
+
+List1<Elem>: &'arena [Elem] = {
+    <elems: Elem+> => {
+        scope.to_scope_from_iter(elems)
+    }
+}
 
 Seq<Elem, Sep>: &'arena [Elem] = {
     <elems: (<Elem> Sep)*> <last: Elem?> => {

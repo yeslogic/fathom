@@ -143,17 +143,17 @@ impl<'arena> Context {
                     self.term_prec(Prec::Top, r#type),
                 ]),
             ),
-            Term::Let(_, def_pattern, def_type, def_expr, body_expr) => self.paren(
+            Term::Let(_, def, body_expr) => self.paren(
                 prec > Prec::Let,
                 RcDoc::concat([
                     RcDoc::concat([
                         RcDoc::text("let"),
                         RcDoc::space(),
-                        self.ann_pattern(Prec::Top, *def_pattern, def_type),
+                        self.ann_pattern(Prec::Top, def.name, &def.r#type),
                         RcDoc::space(),
                         RcDoc::text("="),
                         RcDoc::softline(),
-                        self.term_prec(Prec::Let, def_expr),
+                        self.term_prec(Prec::Let, &def.expr),
                         RcDoc::text(";"),
                     ])
                     .group(),

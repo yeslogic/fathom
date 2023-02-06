@@ -2,6 +2,8 @@
 
 use std::fmt;
 
+use scoped_arena::Scope;
+
 use crate::env::{Index, Level};
 use crate::source::Span;
 use crate::symbol::Symbol;
@@ -23,9 +25,9 @@ pub enum Item<'arena> {
         /// The label that identifies this definition
         label: Symbol,
         /// The type of the defined expression
-        r#type: &'arena Term<'arena>,
+        r#type: Term<'arena>,
         /// The defined expression
-        expr: &'arena Term<'arena>,
+        expr: Term<'arena>,
     },
 }
 
@@ -144,13 +146,7 @@ pub enum Term<'arena> {
     /// Annotated expressions.
     Ann(Span, &'arena Term<'arena>, &'arena Term<'arena>),
     /// Let expressions.
-    Let(
-        Span,
-        Option<Symbol>,
-        &'arena Term<'arena>,
-        &'arena Term<'arena>,
-        &'arena Term<'arena>,
-    ),
+    Let(Span, &'arena LetDef<'arena>, &'arena Term<'arena>),
 
     /// The type of types.
     Universe(Span),
@@ -205,6 +201,13 @@ pub enum Term<'arena> {
     ),
 }
 
+#[derive(Debug, Clone)]
+pub struct LetDef<'arena> {
+    pub name: Option<Symbol>,
+    pub r#type: Term<'arena>,
+    pub expr: Term<'arena>,
+}
+
 impl<'arena> Term<'arena> {
     /// Get the source span of the term.
     pub fn span(&self) -> Span {
@@ -214,7 +217,7 @@ impl<'arena> Term<'arena> {
             | Term::MetaVar(span, _)
             | Term::InsertedMeta(span, _, _)
             | Term::Ann(span, _, _)
-            | Term::Let(span, _, _, _, _)
+            | Term::Let(span, ..)
             | Term::Universe(span)
             | Term::FunType(span, ..)
             | Term::FunLit(span, ..)
@@ -233,7 +236,7 @@ impl<'arena> Term<'arena> {
     }
 
     /// Returns `true` if the term contains an occurrence of the local variable.
-    pub fn binds_local(&self, mut var: Index) -> bool {
+    pub fn binds_local(&self, var: Index) -> bool {
         match self {
             Term::LocalVar(_, v) => *v == var,
             Term::ItemVar(_, _)
@@ -244,9 +247,9 @@ impl<'arena> Term<'arena> {
             | Term::ConstLit(_, _) => false,
 
             Term::Ann(_, expr, r#type) => expr.binds_local(var) || r#type.binds_local(var),
-            Term::Let(_, _, def_type, def_expr, body_expr) => {
-                def_type.binds_local(var)
-                    || def_expr.binds_local(var)
+            Term::Let(_, def, body_expr) => {
+                def.r#type.binds_local(var)
+                    || def.r#expr.binds_local(var)
                     || body_expr.binds_local(var.prev())
             }
             Term::FunType(.., param_type, body_type) => {
@@ -259,11 +262,8 @@ impl<'arena> Term<'arena> {
             Term::RecordType(_, _, terms)
             | Term::RecordLit(_, _, terms)
             | Term::FormatRecord(_, _, terms)
-            | Term::FormatOverlap(_, _, terms) => terms.iter().any(|term| {
-                let result = term.binds_local(var);
-                var = var.prev();
-                result
-            }),
+            | Term::FormatOverlap(_, _, terms) => Iterator::zip(var.iter_from(), terms.iter())
+                .any(|(var, term)| term.binds_local(var)),
             Term::RecordProj(_, head_expr, _) => head_expr.binds_local(var),
             Term::ArrayLit(_, elem_exprs) => elem_exprs.iter().any(|term| term.binds_local(var)),
             Term::FormatCond(_, _, format, pred) => {
@@ -279,6 +279,10 @@ impl<'arena> Term<'arena> {
 
     pub fn is_error(&self) -> bool {
         matches!(self, Term::Prim(_, Prim::ReportedError))
+    }
+
+    pub fn error(span: impl Into<Span>) -> Term<'arena> {
+        Term::Prim(span.into(), Prim::ReportedError)
     }
 }
 
@@ -672,6 +676,21 @@ impl Ord for Const {
     }
 }
 
+impl Const {
+    /// Return the number of inhabitants of `self`.
+    /// `None` represents infinity
+    pub fn num_inhabitants(&self) -> Option<u128> {
+        match self {
+            Const::Bool(_) => Some(2),
+            Const::U8(_, _) | Const::S8(_) => Some(1 << 8),
+            Const::U16(_, _) | Const::S16(_) => Some(1 << 16),
+            Const::U32(_, _) | Const::S32(_) => Some(1 << 32),
+            Const::U64(_, _) | Const::S64(_) => Some(1 << 64),
+            Const::F32(_) | Const::F64(_) | Const::Pos(_) | Const::Ref(_) => None,
+        }
+    }
+}
+
 pub trait ToBeBytes<const N: usize> {
     fn to_be_bytes(self) -> [u8; N];
 }
@@ -728,6 +747,332 @@ impl UIntStyle {
             // Otherwise use the default style
             (_, _) => Decimal,
         }
+    }
+}
+
+pub struct Builder<'arena> {
+    scope: &'arena Scope<'arena>,
+}
+
+// Proxy type to allow many different types to be passed to
+// `TermBuilder::fun_apps` for convenience
+pub struct FunAppArg<'arena> {
+    span: Span,
+    plicity: Plicity,
+    term: Term<'arena>,
+}
+
+impl<'arena> From<(Span, Plicity, Term<'arena>)> for FunAppArg<'arena> {
+    fn from((span, plicity, term): (Span, Plicity, Term<'arena>)) -> Self {
+        Self {
+            span,
+            plicity,
+            term,
+        }
+    }
+}
+
+impl<'arena> From<(Plicity, Term<'arena>)> for FunAppArg<'arena> {
+    fn from((plicity, term): (Plicity, Term<'arena>)) -> Self {
+        Self {
+            span: Span::Empty,
+            plicity,
+            term,
+        }
+    }
+}
+
+impl<'arena> From<Term<'arena>> for FunAppArg<'arena> {
+    fn from(term: Term<'arena>) -> Self {
+        Self {
+            span: Span::Empty,
+            plicity: Plicity::Explicit,
+            term,
+        }
+    }
+}
+
+// Proxy type to allow many different types to be passed to
+// `TermBuilder::fun_types` for convenience
+pub struct FunTypeParam<'arena> {
+    span: Span,
+    plicity: Plicity,
+    name: Option<Symbol>,
+    r#type: Term<'arena>,
+}
+
+impl<'arena> From<(Span, Plicity, Option<Symbol>, Term<'arena>)> for FunTypeParam<'arena> {
+    fn from((span, plicity, name, term): (Span, Plicity, Option<Symbol>, Term<'arena>)) -> Self {
+        Self {
+            span,
+            plicity,
+            name,
+            r#type: term,
+        }
+    }
+}
+
+impl<'arena> From<(Plicity, Option<Symbol>, Term<'arena>)> for FunTypeParam<'arena> {
+    fn from((plicity, name, term): (Plicity, Option<Symbol>, Term<'arena>)) -> Self {
+        Self {
+            span: Span::Empty,
+            plicity,
+            name,
+            r#type: term,
+        }
+    }
+}
+
+impl<'arena> From<(Option<Symbol>, Term<'arena>)> for FunTypeParam<'arena> {
+    fn from((name, term): (Option<Symbol>, Term<'arena>)) -> Self {
+        Self {
+            span: Span::Empty,
+            plicity: Plicity::Explicit,
+            name,
+            r#type: term,
+        }
+    }
+}
+
+impl<'arena> From<(Plicity, Term<'arena>)> for FunTypeParam<'arena> {
+    fn from((plicity, term): (Plicity, Term<'arena>)) -> Self {
+        Self {
+            span: Span::Empty,
+            plicity,
+            name: None,
+            r#type: term,
+        }
+    }
+}
+
+impl<'arena> From<Term<'arena>> for FunTypeParam<'arena> {
+    fn from(term: Term<'arena>) -> Self {
+        Self {
+            span: Span::Empty,
+            plicity: Plicity::Explicit,
+            name: None,
+            r#type: term,
+        }
+    }
+}
+
+impl<'arena> Builder<'arena> {
+    pub fn new(scope: &'arena Scope<'arena>) -> Self {
+        Self { scope }
+    }
+
+    pub fn ann(
+        &self,
+        span: impl Into<Span>,
+        expr: Term<'arena>,
+        r#type: Term<'arena>,
+    ) -> Term<'arena> {
+        Term::Ann(
+            span.into(),
+            self.scope.to_scope(expr),
+            self.scope.to_scope(r#type),
+        )
+    }
+
+    pub fn r#let(
+        &self,
+        span: impl Into<Span>,
+        def: LetDef<'arena>,
+        body: Term<'arena>,
+    ) -> Term<'arena> {
+        Term::Let(
+            span.into(),
+            self.scope.to_scope(def),
+            self.scope.to_scope(body),
+        )
+    }
+
+    pub fn fun_type(
+        &self,
+        span: impl Into<Span>,
+        plicity: Plicity,
+        name: impl Into<Option<Symbol>>,
+        input: Term<'arena>,
+        output: Term<'arena>,
+    ) -> Term<'arena> {
+        Term::FunType(
+            span.into(),
+            plicity,
+            name.into(),
+            self.scope.to_scope(input),
+            self.scope.to_scope(output),
+        )
+    }
+
+    pub fn fun_types<I, T>(&self, params: I, output: Term<'arena>) -> Term<'arena>
+    where
+        I: IntoIterator<Item = T>,
+        I::IntoIter: DoubleEndedIterator,
+        T: Into<FunTypeParam<'arena>>,
+    {
+        params.into_iter().rev().fold(output, |output, param| {
+            let FunTypeParam {
+                span,
+                plicity,
+                name,
+                r#type: term,
+            } = param.into();
+            self.fun_type(span, plicity, name, term, output)
+        })
+    }
+
+    pub fn arrow(
+        &self,
+        span: impl Into<Span>,
+        plicity: Plicity,
+        input: Term<'arena>,
+        output: Term<'arena>,
+    ) -> Term<'arena> {
+        self.fun_type(span, plicity, None, input, output)
+    }
+
+    pub fn arrows<I>(&self, params: I, output: Term<'arena>) -> Term<'arena>
+    where
+        I: IntoIterator<Item = (Span, Plicity, Term<'arena>)>,
+        I::IntoIter: DoubleEndedIterator,
+    {
+        params
+            .into_iter()
+            .fold(output, |output, (span, plicity, input)| {
+                self.arrow(span, plicity, input, output)
+            })
+    }
+
+    pub fn fun_lit(
+        &self,
+        span: impl Into<Span>,
+        plicity: Plicity,
+        name: impl Into<Option<Symbol>>,
+        body: Term<'arena>,
+    ) -> Term<'arena> {
+        Term::FunLit(span.into(), plicity, name.into(), self.scope.to_scope(body))
+    }
+
+    pub fn fun_app(
+        &self,
+        span: impl Into<Span>,
+        plicity: Plicity,
+        fun: Term<'arena>,
+        arg: Term<'arena>,
+    ) -> Term<'arena> {
+        Term::FunApp(
+            span.into(),
+            plicity,
+            self.scope.to_scope(fun),
+            self.scope.to_scope(arg),
+        )
+    }
+
+    pub fn fun_apps(
+        &self,
+        fun: Term<'arena>,
+        args: impl IntoIterator<Item = impl Into<FunAppArg<'arena>>>,
+    ) -> Term<'arena> {
+        args.into_iter().fold(fun, |fun, arg| {
+            let FunAppArg {
+                span,
+                plicity,
+                term,
+            } = arg.into();
+            self.fun_app(span, plicity, fun, term)
+        })
+    }
+
+    pub fn tuple_type(&self, span: impl Into<Span>, types: &'arena [Term<'arena>]) -> Term<'arena> {
+        let labels = Symbol::get_tuple_labels(0..types.len());
+        let labels = self.scope.to_scope_from_iter(labels.iter().copied());
+        Term::RecordType(span.into(), labels, types)
+    }
+
+    pub fn record_proj(
+        &self,
+        span: impl Into<Span>,
+        head: Term<'arena>,
+        label: Symbol,
+    ) -> Term<'arena> {
+        Term::RecordProj(span.into(), self.scope.to_scope(head), label)
+    }
+
+    pub fn record_projs(
+        &self,
+        head: Term<'arena>,
+        labels: impl IntoIterator<Item = (impl Into<Span>, Symbol)>,
+    ) -> Term<'arena> {
+        labels.into_iter().fold(head, |head, (span, label)| {
+            self.record_proj(span, head, label)
+        })
+    }
+
+    pub fn format_cond(
+        &self,
+        span: impl Into<Span>,
+        name: Symbol,
+        format: Term<'arena>,
+        pred: Term<'arena>,
+    ) -> Term<'arena> {
+        Term::FormatCond(
+            span.into(),
+            name,
+            self.scope.to_scope(format),
+            self.scope.to_scope(pred),
+        )
+    }
+
+    pub fn const_match(
+        &self,
+        span: impl Into<Span>,
+        scrut: Term<'arena>,
+        branches: &'arena [(Const, Term<'arena>)],
+        default: impl Into<Option<(Option<Symbol>, Term<'arena>)>>,
+    ) -> Term<'arena> {
+        Term::ConstMatch(
+            span.into(),
+            self.scope.to_scope(scrut),
+            branches,
+            default
+                .into()
+                .map(|(name, expr)| (name, self.scope.to_scope(expr) as &_)),
+        )
+    }
+
+    pub fn if_then_else(
+        &self,
+        span: impl Into<Span>,
+        cond: Term<'arena>,
+        then: Term<'arena>,
+        r#else: Term<'arena>,
+    ) -> Term<'arena> {
+        self.const_match(
+            span,
+            cond,
+            self.scope
+                .to_scope_from_iter([(Const::Bool(false), r#else), (Const::Bool(true), then)]),
+            None,
+        )
+    }
+
+    pub fn binop(
+        &self,
+        span: impl Into<Span>,
+        op_span: impl Into<Span>,
+        op: Prim,
+        lhs: Term<'arena>,
+        rhs: Term<'arena>,
+    ) -> Term<'arena> {
+        let args_span = Span::merge(&lhs.span(), &rhs.span());
+
+        self.fun_apps(
+            Term::Prim(op_span.into(), op),
+            [
+                (span.into(), Plicity::Explicit, lhs),
+                (args_span, Plicity::Explicit, rhs),
+            ],
+        )
     }
 }
 

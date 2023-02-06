@@ -2,6 +2,7 @@
 
 use scoped_arena::Scope;
 
+use super::{Builder, LetDef};
 use crate::alloc::SliceVec;
 use crate::core;
 use crate::core::{Const, Plicity, UIntStyle};
@@ -62,6 +63,10 @@ impl<'arena, 'env> Context<'arena, 'env> {
         }
     }
 
+    fn builder(&self) -> Builder<'arena> {
+        Builder::new(self.scope)
+    }
+
     fn is_bound(&self, name: Symbol) -> bool {
         (self.local_names.iter()).any(|local_name| *local_name == Some(name))
             || self.item_names.iter().any(|item_name| *item_name == name)
@@ -86,8 +91,18 @@ impl<'arena, 'env> Context<'arena, 'env> {
         name
     }
 
-    fn pop_local(&mut self) {
+    fn with_scope<T>(&mut self, mut f: impl FnMut(&mut Self) -> T) -> T {
+        let len = self.local_len();
+        let res = f(self);
+        self.local_names.truncate(len);
+        res
+    }
+
+    fn with_local<T>(&mut self, name: Option<Symbol>, mut f: impl FnMut(&mut Self) -> T) -> T {
+        self.local_names.push(name);
+        let res = f(self);
         self.local_names.pop();
+        res
     }
 
     fn truncate_local(&mut self, len: EnvLen) {
@@ -142,8 +157,8 @@ impl<'arena, 'env> Context<'arena, 'env> {
                 r#type,
                 expr,
             } => {
-                let r#type = scope.to_scope(self.check_prec(Prec::Top, r#type));
-                let expr = scope.to_scope(self.check_prec(Prec::Let, expr));
+                let r#type = self.check_prec(Prec::Top, r#type);
+                let expr = self.check_prec(Prec::Let, expr);
 
                 Item::Def(ItemDef {
                     range: (),
@@ -214,10 +229,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
         let expr = self.check_number_literal(number);
         let r#type = self.synth_prim(prim_type);
 
-        self.paren(
-            prec > Prec::Top,
-            Term::Ann((), self.scope.to_scope(expr), self.scope.to_scope(r#type)),
-        )
+        self.paren(prec > Prec::Top, self.builder().ann((), expr, r#type))
     }
 
     fn synth_number_literal_styled<T: core::UIntStyled<N>, const N: usize>(
@@ -230,10 +242,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
         let expr = self.check_number_literal_styled(number, style);
         let r#type = self.synth_prim(prim_type);
 
-        self.paren(
-            prec > Prec::Top,
-            Term::Ann((), self.scope.to_scope(expr), self.scope.to_scope(r#type)),
-        )
+        self.paren(prec > Prec::Top, self.builder().ann((), expr, r#type))
     }
 
     fn check_dependent_tuple(
@@ -242,15 +251,15 @@ impl<'arena, 'env> Context<'arena, 'env> {
         exprs: &[core::Term<'_>],
     ) -> Term<'arena, ()> {
         self.local_names.reserve(labels.len());
-        let initial_local_len = self.local_len();
-        let exprs = (self.scope).to_scope_from_iter(
-            Iterator::zip(labels.iter(), exprs.iter()).map(|(label, expr)| {
-                let expr = self.check_prec(Prec::Top, expr);
-                self.push_local(Some(*label));
-                expr
-            }),
-        );
-        self.truncate_local(initial_local_len);
+        let exprs = self.with_scope(|this| {
+            (this.scope).to_scope_from_iter(Iterator::zip(labels.iter(), exprs.iter()).map(
+                |(label, expr)| {
+                    let expr = this.check_prec(Prec::Top, expr);
+                    this.push_local(Some(*label));
+                    expr
+                },
+            ))
+        });
         Term::Tuple((), exprs)
     }
 
@@ -315,13 +324,15 @@ impl<'arena, 'env> Context<'arena, 'env> {
     /// Wrap a term in parens.
     fn paren(&self, wrap: bool, term: Term<'arena, ()>) -> Term<'arena, ()> {
         if wrap {
-            Term::Paren((), self.scope.to_scope(term))
+            self.builder().paren((), term)
         } else {
             term
         }
     }
 
     fn term_prec(&mut self, mode: Mode, prec: Prec, term: &core::Term<'_>) -> Term<'arena, ()> {
+        let builder = self.builder();
+
         match (term, mode) {
             (core::Term::ItemVar(_, var), _) => match self.get_item_name(*var) {
                 Some(name) => Term::Name((), name),
@@ -349,7 +360,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
                 let head_expr = self.scope.to_scope(head_expr);
                 let mut args = SliceVec::new(self.scope, num_params);
 
-                for (var, info) in Iterator::zip(env::levels(), local_infos.iter()) {
+                for (var, info) in Iterator::zip(env::Level::iter(), local_infos.iter()) {
                     match info {
                         core::LocalInfo::Def => {}
                         core::LocalInfo::Param => {
@@ -373,101 +384,88 @@ impl<'arena, 'env> Context<'arena, 'env> {
                 let expr = self.check_prec(Prec::Let, expr);
                 let r#type = self.check_prec(Prec::Top, r#type);
 
-                self.paren(
-                    prec > Prec::Top,
-                    Term::Ann((), self.scope.to_scope(expr), self.scope.to_scope(r#type)),
-                )
+                self.paren(prec > Prec::Top, builder.ann((), expr, r#type))
             }
-            (core::Term::Let(_, name, r#type, expr, body), _) => {
-                let r#type = self.term_prec(mode, Prec::Top, r#type);
-                let expr = self.term_prec(mode, Prec::Let, expr);
-                let name = self.freshen_name(*name, body);
-                let name = self.push_local(name);
+            (core::Term::Let(_, def, body), _) => {
+                let r#type = self.term_prec(mode, Prec::Top, &def.r#type);
+                let expr = self.term_prec(mode, Prec::Let, &def.expr);
+                let name = self.freshen_name(def.name, body);
                 let pattern = name_to_pattern(name);
-                let body = self.term_prec(mode, Prec::Top, body);
-                self.pop_local();
+                let body = self.with_local(name, |this| this.term_prec(mode, Prec::Top, body));
 
                 self.paren(
                     prec > Prec::Let,
-                    Term::Let(
+                    builder.r#let(
                         (),
-                        pattern,
-                        Some(self.scope.to_scope(r#type)),
-                        self.scope.to_scope(expr),
-                        self.scope.to_scope(body),
+                        LetDef {
+                            pattern,
+                            r#type: Some(r#type),
+                            expr,
+                        },
+                        body,
                     ),
                 )
             }
             (core::Term::Universe(_), _) => Term::Universe(()),
             (core::Term::FunType(..), _) => {
-                let initial_local_len = self.local_len();
-
                 let mut params = Vec::new();
                 let mut body_type = term;
 
-                let body_type = loop {
-                    match body_type {
-                        // Use an explicit parameter if it is referenced in the body
-                        core::Term::FunType(_, plicity, param_name, param_type, next_body_type)
-                            if next_body_type.binds_local(Index::last()) =>
-                        {
-                            let param_type = self.check_prec(Prec::Top, param_type);
-                            let param_name = self.freshen_name(*param_name, next_body_type);
-                            let param_name = self.push_local(param_name);
-                            params.push(Param {
-                                plicity: *plicity,
-                                pattern: name_to_pattern(param_name),
-                                r#type: Some(param_type),
-                            });
-                            body_type = next_body_type;
+                let body_type = self.with_scope(|this| {
+                    loop {
+                        match body_type {
+                            // Use an explicit parameter if it is referenced in the body
+                            core::Term::FunType(
+                                _,
+                                plicity,
+                                param_name,
+                                param_type,
+                                next_body_type,
+                            ) if next_body_type.binds_local(Index::last()) => {
+                                let param_type = this.check_prec(Prec::Top, param_type);
+                                let param_name = this.freshen_name(*param_name, next_body_type);
+                                let param_name = this.push_local(param_name);
+                                params.push(Param {
+                                    plicity: *plicity,
+                                    pattern: name_to_pattern(param_name),
+                                    r#type: Some(param_type),
+                                });
+                                body_type = next_body_type;
+                            }
+                            // Use arrow sugar if the parameter is not referenced in the body type.
+                            core::Term::FunType(_, plicity, _, param_type, body_type) => {
+                                let param_type = this.check_prec(Prec::App, param_type);
+                                let body_type = this
+                                    .with_local(None, |this| this.check_prec(Prec::Fun, body_type));
+                                break builder.arrow((), *plicity, param_type, body_type);
+                            }
+                            body_type => break this.check_prec(Prec::Fun, body_type),
                         }
-                        // Use arrow sugar if the parameter is not referenced in the body type.
-                        core::Term::FunType(_, plicity, _, param_type, body_type) => {
-                            let param_type = self.check_prec(Prec::App, param_type);
-
-                            self.push_local(None);
-                            let body_type = self.check_prec(Prec::Fun, body_type);
-                            self.pop_local();
-
-                            break Term::Arrow(
-                                (),
-                                *plicity,
-                                self.scope.to_scope(param_type),
-                                self.scope.to_scope(body_type),
-                            );
-                        }
-                        body_type => break self.check_prec(Prec::Fun, body_type),
                     }
-                };
-
-                self.truncate_local(initial_local_len);
+                });
 
                 self.paren(
                     prec > Prec::Fun,
                     if params.is_empty() {
                         body_type
                     } else {
-                        Term::FunType(
-                            (),
-                            self.scope.to_scope_from_iter(params),
-                            self.scope.to_scope(body_type),
-                        )
+                        builder.fun_type((), self.scope.to_scope_from_iter(params), body_type)
                     },
                 )
             }
             (core::Term::FunLit(..), _) => {
-                let initial_local_len = self.local_len();
                 let mut params = Vec::new();
                 let mut body_expr = term;
 
-                while let core::Term::FunLit(_, plicity, param_name, next_body_expr) = body_expr {
-                    let param_name = self.freshen_name(*param_name, next_body_expr);
-                    params.push((*plicity, self.push_local(param_name)));
-                    body_expr = next_body_expr;
-                }
-
-                let body_expr = self.term_prec(mode, Prec::Let, body_expr);
-                self.truncate_local(initial_local_len);
+                let body_expr = self.with_scope(|this| {
+                    while let core::Term::FunLit(_, plicity, param_name, next_body_expr) = body_expr
+                    {
+                        let param_name = this.freshen_name(*param_name, next_body_expr);
+                        params.push((*plicity, this.push_local(param_name)));
+                        body_expr = next_body_expr;
+                    }
+                    this.term_prec(mode, Prec::Let, body_expr)
+                });
 
                 let params = params.into_iter().map(|(plicity, name)| Param {
                     plicity,
@@ -477,11 +475,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
 
                 self.paren(
                     prec > Prec::Fun,
-                    Term::FunLiteral(
-                        (),
-                        self.scope.to_scope_from_iter(params),
-                        self.scope.to_scope(body_expr),
-                    ),
+                    builder.fun_lit((), self.scope.to_scope_from_iter(params), body_expr),
                 )
             }
             (core::Term::FunApp(..), _) => {
@@ -490,9 +484,9 @@ impl<'arena, 'env> Context<'arena, 'env> {
                 // ((op lhs) rhs)
                 if let core::Term::FunApp(.., core::Term::FunApp(.., core::Term::Prim(_, prim), lhs), rhs,) = term {
                     if let Some(op) = prim_to_bin_op(prim) {
-                        let lhs = self.scope.to_scope(self.synth_prec(op.lhs_prec(), lhs));
-                        let rhs = self.scope.to_scope(self.synth_prec(op.rhs_prec(), rhs));
-                        return self.paren(prec > op.precedence(), Term::BinOp((), lhs, op, rhs));
+                        let lhs = self.synth_prec(op.lhs_prec(), lhs);
+                        let rhs = self.synth_prec(op.rhs_prec(), rhs);
+                        return self.paren(prec > op.precedence(), builder.binop((), lhs, op, rhs));
                     }
                 };
 
@@ -519,24 +513,25 @@ impl<'arena, 'env> Context<'arena, 'env> {
             (core::Term::RecordType(_, labels, types), _) if is_tuple_type(labels, types) => {
                 let tuple = self.check_dependent_tuple(labels, types);
                 match mode {
-                    Mode::Synth => Term::Ann((), self.scope.to_scope(tuple), &Term::Universe(())),
+                    Mode::Synth => builder.ann((), tuple, Term::Universe(())),
                     Mode::Check => tuple,
                 }
             }
             (core::Term::RecordType(_, labels, types), _) => {
                 self.local_names.reserve(labels.len());
-                let initial_local_len = self.local_len();
-                let type_fields = (self.scope).to_scope_from_iter(
-                    Iterator::zip(labels.iter(), types.iter()).map(|(label, r#type)| {
-                        let r#type = self.check_prec(Prec::Top, r#type);
-                        self.push_local(Some(*label));
-                        TypeField {
-                            label: ((), *label),
-                            r#type,
-                        }
-                    }),
-                );
-                self.truncate_local(initial_local_len);
+
+                let type_fields = self.with_scope(|this| {
+                    (this.scope).to_scope_from_iter(Iterator::zip(labels.iter(), types.iter()).map(
+                        |(label, r#type)| {
+                            let r#type = this.check_prec(Prec::Top, r#type);
+                            this.push_local(Some(*label));
+                            TypeField {
+                                label: ((), *label),
+                                r#type,
+                            }
+                        },
+                    ))
+                });
 
                 Term::RecordType((), type_fields)
             }
@@ -575,9 +570,9 @@ impl<'arena, 'env> Context<'arena, 'env> {
                 }
 
                 let head_expr = self.synth_prec(Prec::Atomic, head_expr);
-                Term::Proj(
+                builder.record_proj(
                     (),
-                    self.scope.to_scope(head_expr),
+                    head_expr,
                     self.scope.to_scope_from_iter(labels.into_iter().rev()),
                 )
             }
@@ -598,15 +593,8 @@ impl<'arena, 'env> Context<'arena, 'env> {
             }
             (core::Term::FormatCond(_, label, format, cond), _) => {
                 let format = self.check_prec(Prec::Top, format);
-                self.push_local(Some(*label));
-                let cond = self.check_prec(Prec::Top, cond);
-                self.pop_local();
-                Term::FormatCond(
-                    (),
-                    ((), *label),
-                    self.scope.to_scope(format),
-                    self.scope.to_scope(cond),
-                )
+                let cond = self.with_local(Some(*label), |this| this.check_prec(Prec::Top, cond));
+                builder.format_cond((), ((), *label), format, cond)
             }
             (core::Term::FormatOverlap(_, labels, formats), _) => {
                 Term::FormatOverlap((), self.synth_format_fields(labels, formats))
@@ -659,12 +647,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
                     let else_expr = self.term_prec(mode, Prec::Let, else_expr);
                     return self.paren(
                         prec > Prec::Let,
-                        Term::If(
-                            (),
-                            self.scope.to_scope(cond_expr),
-                            self.scope.to_scope(then_expr),
-                            self.scope.to_scope(else_expr),
-                        ),
+                        builder.if_then_else((), cond_expr, then_expr, else_expr),
                     );
                 }
 
@@ -683,13 +666,13 @@ impl<'arena, 'env> Context<'arena, 'env> {
 
                 if let Some((name, expr)) = default_expr {
                     let name = self.freshen_name(*name, expr);
-                    let name = self.push_local(name);
-                    let expr = self.term_prec(mode, Prec::Top, expr);
-                    branches.push((name_to_pattern(name), expr));
-                    self.pop_local();
+                    self.with_local(name, |this| {
+                        let expr = this.term_prec(mode, Prec::Top, expr);
+                        branches.push((name_to_pattern(name), expr));
+                    });
                 }
 
-                Term::Match((), self.scope.to_scope(head_expr), branches.into())
+                builder.r#match((), head_expr, branches.into())
             }
         }
     }
@@ -740,7 +723,7 @@ fn is_tuple_type(labels: &[Symbol], types: &[core::Term<'_>]) -> bool {
         // For each type in the telescope, ensure that the subsequent types in
         // the telescope do not depend on the current field.
         && (1..=types.len()).all(|index| {
-            Iterator::zip(types[index..].iter(), env::indices())
+            Iterator::zip(types[index..].iter(), env::Index::iter())
                 .all(|(expr, var)| !expr.binds_local(var))
         })
 }

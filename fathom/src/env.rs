@@ -54,6 +54,16 @@ impl Index {
     pub const fn prev(self) -> Index {
         Index(self.0 + 1)
     }
+
+    /// An iterator over indices, listed from the most recently bound.
+    pub fn iter() -> impl Iterator<Item = Self> {
+        (0..).map(Self)
+    }
+
+    /// An iterator over indices, listed from `self`
+    pub fn iter_from(self) -> impl Iterator<Item = Self> {
+        (self.0..).map(Self)
+    }
 }
 
 impl fmt::Debug for Index {
@@ -68,11 +78,6 @@ impl fmt::Display for Index {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.0.fmt(f)
     }
-}
-
-/// An iterator over indices, listed from the most recently bound.
-pub fn indices() -> impl Iterator<Item = Index> {
-    (0..).map(Index)
 }
 
 /// A de Bruijn level, which represents a variable by counting the number of
@@ -101,6 +106,16 @@ impl Level {
     pub const fn next(self) -> Level {
         Level(self.0 + 1)
     }
+
+    /// An iterator over levels, listed from the least recently bound.
+    pub fn iter() -> impl Iterator<Item = Self> {
+        (0..).map(Self)
+    }
+
+    /// An iterator over levels, listed from `self`
+    pub fn iter_from(self) -> impl Iterator<Item = Self> {
+        (self.0..).map(Self)
+    }
 }
 
 impl fmt::Debug for Level {
@@ -115,11 +130,6 @@ impl fmt::Display for Level {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.0.fmt(f)
     }
-}
-
-/// An iterator over levels, listed from the least recently bound.
-pub fn levels() -> impl Iterator<Item = Level> {
-    (0..).map(Level)
 }
 
 /// The length of an environment.
@@ -270,11 +280,12 @@ impl<Entry> SliceEnv<Entry> {
 
 impl<Entry: PartialEq> SliceEnv<Entry> {
     pub fn elem_level(&self, entry: &Entry) -> Option<Level> {
-        Iterator::zip(levels(), self.iter()).find_map(|(var, e)| (entry == e).then_some(var))
+        Iterator::zip(Level::iter(), self.iter()).find_map(|(var, e)| (entry == e).then_some(var))
     }
 
     pub fn elem_index(&self, entry: &Entry) -> Option<Index> {
-        Iterator::zip(indices(), self.iter().rev()).find_map(|(var, e)| (entry == e).then_some(var))
+        Iterator::zip(Index::iter(), self.iter().rev())
+            .find_map(|(var, e)| (entry == e).then_some(var))
     }
 }
 

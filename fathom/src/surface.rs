@@ -1,6 +1,7 @@
 //! Surface language.
 
 use std::fmt;
+use std::ops::Deref;
 
 use codespan_reporting::diagnostic::{Diagnostic, Label};
 use lalrpop_util::lalrpop_mod;
@@ -68,9 +69,9 @@ pub struct ItemDef<'arena, Range> {
     /// Parameter patterns
     params: &'arena [Param<'arena, Range>],
     /// An optional type annotation for the defined expression
-    r#type: Option<&'arena Term<'arena, Range>>,
+    r#type: Option<Term<'arena, Range>>,
     /// The defined expression
-    expr: &'arena Term<'arena, Range>,
+    expr: Term<'arena, Range>,
 }
 
 /// Surface patterns.
@@ -93,7 +94,7 @@ pub enum Pattern<Range> {
     /// Boolean literal patterns
     BooleanLiteral(Range, bool),
     // TODO: Record literal patterns
-    // RecordLiteral(Range, &'arena [((Range, StringId), Pattern<'arena, Range>)]),
+    // RecordLiteral(Range, &'arena [((Range, Symbol), Pattern<'arena, Range>)]),
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -198,9 +199,7 @@ pub enum Term<'arena, Range> {
     /// Let expressions.
     Let(
         Range,
-        Pattern<Range>,
-        Option<&'arena Term<'arena, Range>>,
-        &'arena Term<'arena, Range>,
+        &'arena LetDef<'arena, Range>,
         &'arena Term<'arena, Range>,
     ),
     /// If expressions
@@ -299,7 +298,7 @@ impl<'arena, Range: Clone> Term<'arena, Range> {
             | Term::Hole(range, _)
             | Term::Placeholder(range)
             | Term::Ann(range, _, _)
-            | Term::Let(range, _, _, _, _)
+            | Term::Let(range, ..)
             | Term::If(range, _, _, _)
             | Term::Match(range, _, _)
             | Term::Universe(range)
@@ -320,6 +319,88 @@ impl<'arena, Range: Clone> Term<'arena, Range> {
             | Term::FormatOverlap(range, _)
             | Term::BinOp(range, _, _, _)
             | Term::ReportedError(range) => range.clone(),
+        }
+    }
+}
+
+impl<'arena, Range> Term<'arena, Range> {
+    /// Apply `f` to all the child terms of self.
+    /// Useful for implementing functions that need to behave differently on a
+    /// few specific node types, but otherwise just recurse through the tree
+    /// normally
+    pub fn walk(&self, mut f: impl FnMut(&Self)) {
+        let mut recur2 = |term1, term2| {
+            f(term1);
+            f(term2)
+        };
+
+        match self {
+            Term::Name(_, _)
+            | Term::Hole(_, _)
+            | Term::Placeholder(_)
+            | Term::Universe(_)
+            | Term::StringLiteral(_, _)
+            | Term::NumberLiteral(_, _)
+            | Term::BooleanLiteral(_, _)
+            | Term::ReportedError(_) => {}
+
+            Term::Paren(_, term) => f(term),
+            Term::Ann(_, term, r#type) => recur2(term, r#type),
+            Term::Let(_, def, body) => {
+                if let Some(r#type) = def.r#type.as_ref() {
+                    f(r#type);
+                }
+                f(&def.expr);
+                f(body);
+            }
+            Term::If(_, cond, then, r#else) => {
+                f(cond);
+                f(then);
+                f(r#else)
+            }
+            Term::Match(_, scrut, branches) => {
+                f(scrut);
+                branches.iter().for_each(|(_, term)| f(term));
+            }
+            Term::Arrow(_, _, input, output) => recur2(input, output),
+            Term::FunType(_, params, body) | Term::FunLiteral(_, params, body) => {
+                params.iter().for_each(|param| {
+                    if let Some(r#type) = param.r#type.as_ref() {
+                        f(r#type)
+                    }
+                });
+                f(body)
+            }
+            Term::App(_, head, args) => {
+                f(head);
+                args.iter().for_each(|arg| f(&arg.term));
+            }
+            Term::RecordType(_, fields) => fields.iter().for_each(|field| f(&field.r#type)),
+            Term::RecordLiteral(_, field) => field.iter().for_each(|field| {
+                if let Some(term) = field.expr.as_ref() {
+                    f(term)
+                }
+            }),
+            Term::Proj(_, head, _) => f(head),
+            Term::Tuple(_, terms) | Term::ArrayLiteral(_, terms) => terms.iter().for_each(f),
+            Term::FormatRecord(_, fields) | Term::FormatOverlap(_, fields) => {
+                fields.iter().for_each(|field| match field {
+                    FormatField::Format { format, pred, .. } => {
+                        f(format);
+                        if let Some(pred) = pred {
+                            f(pred)
+                        }
+                    }
+                    FormatField::Computed { r#type, expr, .. } => {
+                        if let Some(r#type) = r#type {
+                            f(r#type);
+                        }
+                        f(expr);
+                    }
+                })
+            }
+            Term::FormatCond(_, _, format, pred) => recur2(format, pred),
+            Term::BinOp(_, lhs, _, rhs) => recur2(lhs, rhs),
         }
     }
 }
@@ -345,6 +426,13 @@ impl<'arena> Term<'arena, FileRange> {
 
         (term, messages)
     }
+}
+
+#[derive(Debug, Clone)]
+pub struct LetDef<'arena, Range> {
+    pub pattern: Pattern<Range>,
+    pub r#type: Option<Term<'arena, Range>>,
+    pub expr: Term<'arena, Range>,
 }
 
 #[derive(Debug, Clone)]
@@ -513,6 +601,215 @@ fn format_expected(expected: &[impl std::fmt::Display]) -> Option<String> {
     })
 }
 
+pub struct Builder<'arena> {
+    scope: &'arena Scope<'arena>,
+}
+
+impl<'arena> Deref for Builder<'arena> {
+    type Target = Scope<'arena>;
+
+    fn deref(&self) -> &Self::Target {
+        self.scope
+    }
+}
+
+impl<'arena> Builder<'arena> {
+    pub fn new(scope: &'arena Scope<'arena>) -> Self {
+        Self { scope }
+    }
+
+    pub fn into_scope(self) -> &'arena Scope<'arena> {
+        self.scope
+    }
+
+    pub fn paren<Range>(
+        &self,
+        range: impl Into<Range>,
+        term: Term<'arena, Range>,
+    ) -> Term<'arena, Range> {
+        Term::Paren(range.into(), self.scope.to_scope(term))
+    }
+
+    pub fn ann<Range>(
+        &self,
+        range: impl Into<Range>,
+        term: Term<'arena, Range>,
+        r#type: Term<'arena, Range>,
+    ) -> Term<'arena, Range> {
+        Term::Ann(
+            range.into(),
+            self.scope.to_scope(term),
+            self.scope.to_scope(r#type),
+        )
+    }
+
+    pub fn r#let<Range>(
+        &self,
+        range: impl Into<Range>,
+        def: LetDef<'arena, Range>,
+        body: Term<'arena, Range>,
+    ) -> Term<'arena, Range> {
+        Term::Let(
+            range.into(),
+            self.scope.to_scope(def),
+            self.scope.to_scope(body),
+        )
+    }
+
+    pub fn if_then_else<Range>(
+        &self,
+        range: impl Into<Range>,
+        cond: Term<'arena, Range>,
+        then: Term<'arena, Range>,
+        r#else: Term<'arena, Range>,
+    ) -> Term<'arena, Range> {
+        Term::If(
+            range.into(),
+            self.scope.to_scope(cond),
+            self.scope.to_scope(then),
+            self.scope.to_scope(r#else),
+        )
+    }
+
+    pub fn r#match<Range>(
+        &self,
+        range: impl Into<Range>,
+        scrut: Term<'arena, Range>,
+        branches: &'arena [(Pattern<Range>, Term<'arena, Range>)],
+    ) -> Term<'arena, Range> {
+        Term::Match(range.into(), self.scope.to_scope(scrut), branches)
+    }
+
+    pub fn arrow<Range>(
+        &self,
+        range: impl Into<Range>,
+        plicity: Plicity,
+        r#type: Term<'arena, Range>,
+        body: Term<'arena, Range>,
+    ) -> Term<'arena, Range> {
+        Term::Arrow(
+            range.into(),
+            plicity,
+            self.scope.to_scope(r#type),
+            self.scope.to_scope(body),
+        )
+    }
+
+    pub fn fun_type<Range>(
+        &self,
+        range: impl Into<Range>,
+        params: &'arena [Param<'arena, Range>],
+        body: Term<'arena, Range>,
+    ) -> Term<'arena, Range> {
+        Term::FunType(range.into(), params, self.scope.to_scope(body))
+    }
+
+    pub fn fun_lit<Range>(
+        &self,
+        range: impl Into<Range>,
+        params: &'arena [Param<'arena, Range>],
+        body: Term<'arena, Range>,
+    ) -> Term<'arena, Range> {
+        Term::FunLiteral(range.into(), params, self.scope.to_scope(body))
+    }
+
+    pub fn record_type<Range>(
+        &self,
+        range: impl Into<Range>,
+        fields: &'arena [TypeField<'arena, Range>],
+    ) -> Term<'arena, Range> {
+        Term::RecordType(range.into(), fields)
+    }
+
+    pub fn record_lit<Range>(
+        &self,
+        range: impl Into<Range>,
+        fields: &'arena [ExprField<'arena, Range>],
+    ) -> Term<'arena, Range> {
+        Term::RecordLiteral(range.into(), fields)
+    }
+
+    pub fn tuple<Range>(
+        &self,
+        range: impl Into<Range>,
+        terms: &'arena [Term<'arena, Range>],
+    ) -> Term<'arena, Range> {
+        Term::Tuple(range.into(), terms)
+    }
+
+    pub fn fun_app<Range>(
+        &self,
+        range: impl Into<Range>,
+        fun: Term<'arena, Range>,
+        args: &'arena [Arg<'arena, Range>],
+    ) -> Term<'arena, Range> {
+        Term::App(range.into(), self.scope.to_scope(fun), args)
+    }
+
+    pub fn record_proj<Range>(
+        &self,
+        range: impl Into<Range>,
+        head: Term<'arena, Range>,
+        labels: &'arena [(Range, Symbol)],
+    ) -> Term<'arena, Range> {
+        Term::Proj(range.into(), self.scope.to_scope(head), labels)
+    }
+
+    pub fn array_lit<Range>(
+        &self,
+        range: impl Into<Range>,
+        terms: &'arena [Term<'arena, Range>],
+    ) -> Term<'arena, Range> {
+        Term::ArrayLiteral(range.into(), terms)
+    }
+
+    pub fn format_record<Range>(
+        &self,
+        range: impl Into<Range>,
+        fields: &'arena [FormatField<'arena, Range>],
+    ) -> Term<'arena, Range> {
+        Term::FormatRecord(range.into(), fields)
+    }
+
+    pub fn format_overlap<Range>(
+        &self,
+        range: impl Into<Range>,
+        fields: &'arena [FormatField<'arena, Range>],
+    ) -> Term<'arena, Range> {
+        Term::FormatOverlap(range.into(), fields)
+    }
+
+    pub fn format_cond<Range>(
+        &self,
+        range: impl Into<Range>,
+        label: (Range, Symbol),
+        format: Term<'arena, Range>,
+        pred: Term<'arena, Range>,
+    ) -> Term<'arena, Range> {
+        Term::FormatCond(
+            range.into(),
+            label,
+            self.scope.to_scope(format),
+            self.scope.to_scope(pred),
+        )
+    }
+
+    pub fn binop<Range>(
+        &self,
+        range: impl Into<Range>,
+        lhs: Term<'arena, Range>,
+        op: BinOp<Range>,
+        rhs: Term<'arena, Range>,
+    ) -> Term<'arena, Range> {
+        Term::BinOp(
+            range.into(),
+            self.scope.to_scope(lhs),
+            op,
+            self.scope.to_scope(rhs),
+        )
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -528,7 +825,7 @@ mod tests {
     #[cfg(target_pointer_width = "64")]
     fn term_size() {
         assert_eq!(std::mem::size_of::<Term<()>>(), 32);
-        assert_eq!(std::mem::size_of::<Term<ByteRange>>(), 48);
+        assert_eq!(std::mem::size_of::<Term<ByteRange>>(), 40);
     }
 
     #[test]
