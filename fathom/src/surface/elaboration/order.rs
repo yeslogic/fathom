@@ -239,7 +239,9 @@ fn term_deps(
         Term::RecordLiteral(_, expr_fields) => {
             let initial_locals_names_len = local_names.len();
             for expr_field in *expr_fields {
-                term_deps(&expr_field.expr, item_names, local_names, deps);
+                if let Some(expr) = expr_field.expr.as_ref() {
+                    term_deps(expr, item_names, local_names, deps);
+                }
                 local_names.push(expr_field.label.1);
             }
             local_names.truncate(initial_locals_names_len);

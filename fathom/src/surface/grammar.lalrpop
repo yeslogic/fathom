@@ -255,7 +255,7 @@ TypeField: TypeField<'arena, ByteRange> = {
 };
 
 ExprField: ExprField<'arena, ByteRange> = {
-    <label: RangedName> "=" <expr: Term> => ExprField { label, expr },
+    <label: RangedName> <expr: ("=" <Term>)?> => ExprField { label, expr },
 };
 
 BinExpr<Lhs, Op, Rhs>: Term<'arena, ByteRange> = {

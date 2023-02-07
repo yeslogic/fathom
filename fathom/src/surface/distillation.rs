@@ -560,7 +560,15 @@ impl<'interner, 'arena, 'env> Context<'interner, 'arena, 'env> {
                 let expr_fields =
                     Iterator::zip(labels.iter(), exprs.iter()).map(|(label, expr)| ExprField {
                         label: ((), *label),
-                        expr: self.term_prec(mode, Prec::Top, expr),
+                        expr: match expr {
+                            core::Term::LocalVar(_, var)
+                                if self.get_local_name(*var) == Some(*label) =>
+                            {
+                                None
+                            }
+
+                            _ => Some(self.check_prec(Prec::Top, expr)),
+                        },
                     });
 
                 // TODO: type annotations?

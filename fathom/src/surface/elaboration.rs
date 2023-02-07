@@ -1083,7 +1083,9 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 while let Some((expr_field, (r#type, next_types))) =
                     Option::zip(expr_fields.next(), self.elim_env().split_telescope(types))
                 {
-                    let expr = self.check(&expr_field.expr, &r#type);
+                    let name_expr = Term::Name(expr_field.label.0, expr_field.label.1);
+                    let expr = expr_field.expr.as_ref().unwrap_or(&name_expr);
+                    let expr = self.check(expr, &r#type);
                     types = next_types(self.eval_env().eval(&expr));
                     exprs.push(expr);
                 }
@@ -1617,7 +1619,9 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 let mut exprs = SliceVec::new(self.scope, labels.len());
 
                 for expr_field in expr_fields {
-                    let (expr, r#type) = self.synth(&expr_field.expr);
+                    let name_expr = Term::Name(expr_field.label.0, expr_field.label.1);
+                    let expr = expr_field.expr.as_ref().unwrap_or(&name_expr);
+                    let (expr, r#type) = self.synth(expr);
                     types.push(self.quote_env().quote(self.scope, &r#type));
                     exprs.push(expr);
                 }

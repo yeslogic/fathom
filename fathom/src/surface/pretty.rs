@@ -267,10 +267,12 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 self.sequence(true, self.text("{"), fields, self.text(","), self.text("}"))
             }
             Term::RecordLiteral(_, fields) => {
-                let fields = fields.iter().map(|field| {
-                    self.ident(field.label.1)
+                let fields = fields.iter().map(|field| match field.expr.as_ref() {
+                    None => self.ident(field.label.1),
+                    Some(expr) => self
+                        .ident(field.label.1)
                         .append(" = ")
-                        .append(self.term(&field.expr))
+                        .append(self.term(expr)),
                 });
                 self.sequence(true, self.text("{"), fields, self.text(","), self.text("}"))
             }

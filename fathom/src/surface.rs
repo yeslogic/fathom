@@ -399,8 +399,9 @@ pub struct TypeField<'arena, Range> {
 pub struct ExprField<'arena, Range> {
     /// Label identifying the field
     label: (Range, StringId),
-    /// The expression that this field will store
-    expr: Term<'arena, Range>,
+    /// The expression that this field will store.
+    /// If it is `None`, it is the same as `label.1`
+    expr: Option<Term<'arena, Range>>,
 }
 
 /// Messages produced during parsing
