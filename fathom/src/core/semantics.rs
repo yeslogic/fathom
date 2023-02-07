@@ -7,8 +7,8 @@ use std::sync::Arc;
 use scoped_arena::Scope;
 
 use crate::alloc::SliceVec;
-use crate::core::{prim, Const, LocalInfo, Plicity, Prim, Term};
-use crate::env::{EnvLen, Index, Level, SharedEnv, SliceEnv};
+use crate::core::*;
+use crate::env::{self, EnvLen, Index, Level, SharedEnv, SliceEnv};
 use crate::source::{Span, Spanned, StringId};
 
 /// Atomically reference counted values. We use reference counting to increase
@@ -53,6 +53,8 @@ pub enum Value<'arena> {
 }
 
 impl<'arena> Value<'arena> {
+    pub const ERROR: Self = Self::Stuck(Head::Prim(Prim::ReportedError), Vec::new());
+
     pub fn prim(prim: Prim, params: impl IntoIterator<Item = ArcValue<'arena>>) -> Value<'arena> {
         let params = params
             .into_iter()
@@ -299,11 +301,27 @@ impl<'arena, 'env> EvalEnv<'arena, 'env> {
                 self.apply_local_infos(head_expr, local_infos)
             }
             Term::Ann(span, expr, _) => Spanned::merge(*span, self.eval(expr)),
-            Term::Let(span, _, _, def_expr, body_expr) => {
-                let def_expr = self.eval(def_expr);
+            Term::Let(span, def, body_expr) => {
+                let def_expr = self.eval(&def.expr);
                 self.local_exprs.push(def_expr);
                 let body_expr = self.eval(body_expr);
                 self.local_exprs.pop();
+                Spanned::merge(*span, body_expr)
+            }
+            Term::Letrec(span, defs, body_expr) => {
+                let initial_len = self.local_exprs.len();
+
+                for _def in defs.iter() {
+                    // TODO: lazy evaluation?
+                    (self.local_exprs).push(Spanned::empty(Arc::new(Value::ERROR)));
+                }
+                for (level, def) in Iterator::zip(env::levels(), defs.iter()) {
+                    let def_expr = self.eval(&def.expr);
+                    self.local_exprs.set_level(level, def_expr);
+                }
+
+                let body_expr = self.eval(body_expr);
+                self.local_exprs.truncate(initial_len);
                 Spanned::merge(*span, body_expr)
             }
 
@@ -879,13 +897,35 @@ impl<'arena, 'env> EvalEnv<'arena, 'env> {
                 scope.to_scope(self.unfold_metas(scope, expr)),
                 scope.to_scope(self.unfold_metas(scope, r#type)),
             ),
-            Term::Let(span, def_name, def_type, def_expr, body_expr) => Term::Let(
+            Term::Let(span, def, body_expr) => Term::Let(
                 *span,
-                *def_name,
-                scope.to_scope(self.unfold_metas(scope, def_type)),
-                scope.to_scope(self.unfold_metas(scope, def_expr)),
+                scope.to_scope(LetDef {
+                    name: def.name,
+                    r#type: self.unfold_metas(scope, &def.r#type),
+                    expr: self.unfold_metas(scope, &def.expr),
+                }),
                 self.unfold_bound_metas(scope, body_expr),
             ),
+            Term::Letrec(span, defs, body_expr) => {
+                let initial_len = self.local_exprs.len();
+
+                for _def in defs.iter() {
+                    let var = Arc::new(Value::local_var(self.local_exprs.len().next_level()));
+                    self.local_exprs.push(Spanned::empty(var));
+                }
+
+                let defs = scope.to_scope_from_iter(defs.iter().map(|def| {
+                    let name = def.name;
+                    let r#type = self.unfold_metas(scope, &def.r#type);
+                    let expr = self.unfold_metas(scope, &def.expr);
+                    LetDef { name, r#type, expr }
+                }));
+
+                let body_expr = self.unfold_metas(scope, body_expr);
+                self.local_exprs.truncate(initial_len);
+
+                Term::Letrec(*span, defs, scope.to_scope(body_expr))
+            }
 
             Term::Universe(span) => Term::Universe(*span),
 

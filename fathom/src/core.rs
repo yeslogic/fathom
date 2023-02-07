@@ -143,13 +143,8 @@ pub enum Term<'arena> {
     /// Annotated expressions.
     Ann(Span, &'arena Term<'arena>, &'arena Term<'arena>),
     /// Let expressions.
-    Let(
-        Span,
-        Option<StringId>,
-        &'arena Term<'arena>,
-        &'arena Term<'arena>,
-        &'arena Term<'arena>,
-    ),
+    Let(Span, &'arena LetDef<'arena>, &'arena Term<'arena>),
+    Letrec(Span, &'arena [LetDef<'arena>], &'arena Term<'arena>),
 
     /// The type of types.
     Universe(Span),
@@ -204,6 +199,13 @@ pub enum Term<'arena> {
     ),
 }
 
+#[derive(Debug, Clone)]
+pub struct LetDef<'arena> {
+    pub name: Option<StringId>,
+    pub r#type: Term<'arena>,
+    pub expr: Term<'arena>,
+}
+
 impl<'arena> Term<'arena> {
     /// Get the source span of the term.
     pub fn span(&self) -> Span {
@@ -213,7 +215,8 @@ impl<'arena> Term<'arena> {
             | Term::MetaVar(span, _)
             | Term::InsertedMeta(span, _, _)
             | Term::Ann(span, _, _)
-            | Term::Let(span, _, _, _, _)
+            | Term::Let(span, ..)
+            | Term::Letrec(span, ..)
             | Term::Universe(span)
             | Term::FunType(span, ..)
             | Term::FunLit(span, ..)
@@ -243,10 +246,22 @@ impl<'arena> Term<'arena> {
             | Term::ConstLit(_, _) => false,
 
             Term::Ann(_, expr, r#type) => expr.binds_local(var) || r#type.binds_local(var),
-            Term::Let(_, _, def_type, def_expr, body_expr) => {
-                def_type.binds_local(var)
-                    || def_expr.binds_local(var)
+            Term::Let(_, def, body_expr) => {
+                def.r#type.binds_local(var)
+                    || def.expr.binds_local(var)
                     || body_expr.binds_local(var.prev())
+            }
+            Term::Letrec(_, defs, body_expr) => {
+                for _def in defs.iter() {
+                    var = var.prev();
+                }
+
+                if (defs.iter()).any(|def| def.r#type.binds_local(var) || def.expr.binds_local(var))
+                {
+                    return true;
+                }
+
+                body_expr.binds_local(var)
             }
             Term::FunType(.., param_type, body_type) => {
                 param_type.binds_local(var) || body_type.binds_local(var.prev())

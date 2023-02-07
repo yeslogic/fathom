@@ -183,14 +183,31 @@ fn term_deps(
             term_deps(expr, item_names, local_names, deps);
             term_deps(r#type, item_names, local_names, deps);
         }
-        Term::Let(_, pattern, r#type, def_expr, body_expr) => {
-            push_pattern(pattern, local_names);
-            if let Some(r#type) = r#type {
+        Term::Let(_, def, body_expr) => {
+            push_pattern(&def.pattern, local_names);
+            if let Some(r#type) = def.r#type.as_ref() {
                 term_deps(r#type, item_names, local_names, deps);
             }
-            term_deps(def_expr, item_names, local_names, deps);
+            term_deps(&def.expr, item_names, local_names, deps);
             term_deps(body_expr, item_names, local_names, deps);
-            pop_pattern(pattern, local_names);
+            pop_pattern(&def.pattern, local_names);
+        }
+        Term::Letrec(_, defs, body_expr) => {
+            for def in defs.iter() {
+                push_pattern(&def.pattern, local_names);
+            }
+
+            for def in defs.iter() {
+                if let Some(r#type) = def.r#type.as_ref() {
+                    term_deps(r#type, item_names, local_names, deps);
+                }
+                term_deps(&def.expr, item_names, local_names, deps);
+            }
+
+            term_deps(body_expr, item_names, local_names, deps);
+            for def in defs.iter() {
+                pop_pattern(&def.pattern, local_names);
+            }
         }
         Term::If(_, cond_expr, then_expr, else_expr) => {
             term_deps(cond_expr, item_names, local_names, deps);

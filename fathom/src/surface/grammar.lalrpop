@@ -2,10 +2,7 @@ use scoped_arena::Scope;
 use std::cell::RefCell;
 
 use crate::source::{ByteRange, BytePos, StringId, StringInterner};
-use crate::surface::{
-    Arg, BinOp, ExprField, FormatField, Item, ItemDef, Module, ParseMessage,
-    Pattern, Param, Plicity, Term, TypeField,
-};
+use crate::surface::*;
 use crate::surface::lexer::{Error as LexerError, Token};
 
 grammar<'arena, 'source>(
@@ -29,6 +26,7 @@ extern {
         "fun" => Token::KeywordFun,
         "if" => Token::KeywordIf,
         "let" => Token::KeywordLet,
+        "letrec" => Token::KeywordLetrec,
         "match" => Token::KeywordMatch,
         "overlap" => Token::KeywordOverlap,
         "Type" => Token::KeywordType,
@@ -113,18 +111,19 @@ pub Term: Term<'arena, ByteRange> = {
 
 LetTerm: Term<'arena, ByteRange> = {
     FunTerm,
-    <start: @L> "let" <def_pattern: Pattern> <def_type: (":" <LetTerm>)?> "=" <def_expr: Term> ";" <body_expr: LetTerm> <end: @R> => {
-        Term::Let(
-            ByteRange::new(start, end),
-            def_pattern,
-            def_type.map(|def_type| scope.to_scope(def_type) as &_),
-            scope.to_scope(def_expr),
-            scope.to_scope(body_expr),
-        )
+    <start: @L> "let" <def: LetDef> ";" <body_expr: LetTerm> <end: @R> => {
+        Term::Let(ByteRange::new(start, end), scope.to_scope(def), scope.to_scope(body_expr))
+    },
+    <start: @L> "letrec" <defs: Seq1<LetDef, ",">> ";" <body_expr: LetTerm> <end: @R> => {
+        Term::Letrec(ByteRange::new(start, end), defs, scope.to_scope(body_expr))
     },
     <start: @L> "if" <cond_expr: FunTerm> "then" <then_expr: LetTerm> "else" <else_expr: LetTerm> <end: @R> => {
         Term::If(ByteRange::new(start, end), scope.to_scope(cond_expr), scope.to_scope(then_expr), scope.to_scope(else_expr))
     },
+};
+
+LetDef: LetDef<'arena, ByteRange> = {
+    <pattern: Pattern> <r#type: (":" <LetTerm>)?> "=" <expr: Term> => LetDef {pattern, r#type, expr},
 };
 
 FunTerm: Term<'arena, ByteRange> = {

@@ -179,6 +179,15 @@ impl<Range: Clone> Pattern<Range> {
     }
 }
 
+impl<Range> Pattern<Range> {
+    pub fn name(&self) -> Option<StringId> {
+        match self {
+            Pattern::Name(_, name) => Some(*name),
+            _ => None,
+        }
+    }
+}
+
 /// Surface terms.
 #[derive(Debug, Clone)]
 pub enum Term<'arena, Range> {
@@ -199,9 +208,13 @@ pub enum Term<'arena, Range> {
     /// Let expressions.
     Let(
         Range,
-        Pattern<Range>,
-        Option<&'arena Term<'arena, Range>>,
+        &'arena LetDef<'arena, Range>,
         &'arena Term<'arena, Range>,
+    ),
+    /// Letrec expressions.
+    Letrec(
+        Range,
+        &'arena [LetDef<'arena, Range>],
         &'arena Term<'arena, Range>,
     ),
     /// If expressions
@@ -291,6 +304,13 @@ pub enum Term<'arena, Range> {
     ReportedError(Range),
 }
 
+#[derive(Debug, Clone)]
+pub struct LetDef<'arena, Range> {
+    pub pattern: Pattern<Range>,
+    pub r#type: Option<Term<'arena, Range>>,
+    pub expr: Term<'arena, Range>,
+}
+
 impl<'arena, Range: Clone> Term<'arena, Range> {
     /// Get the source range of the term.
     pub fn range(&self) -> Range {
@@ -300,7 +320,8 @@ impl<'arena, Range: Clone> Term<'arena, Range> {
             | Term::Hole(range, _)
             | Term::Placeholder(range)
             | Term::Ann(range, _, _)
-            | Term::Let(range, _, _, _, _)
+            | Term::Let(range, ..)
+            | Term::Letrec(range, ..)
             | Term::If(range, _, _, _)
             | Term::Match(range, _, _)
             | Term::Universe(range)
@@ -531,7 +552,7 @@ mod tests {
     #[cfg(target_pointer_width = "64")]
     fn term_size() {
         assert_eq!(std::mem::size_of::<Term<()>>(), 32);
-        assert_eq!(std::mem::size_of::<Term<ByteRange>>(), 48);
+        assert_eq!(std::mem::size_of::<Term<ByteRange>>(), 40);
     }
 
     #[test]

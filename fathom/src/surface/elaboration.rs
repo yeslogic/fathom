@@ -26,7 +26,7 @@ use std::sync::Arc;
 
 use scoped_arena::Scope;
 
-use super::ExprField;
+use super::{ExprField, LetDef};
 use crate::alloc::SliceVec;
 use crate::core::semantics::{self, ArcValue, Head, Telescope, Value};
 use crate::core::{self, prim, Const, Plicity, Prim, UIntStyle};
@@ -177,6 +177,8 @@ impl<'arena> LocalEnv<'arena> {
 #[derive(Debug, Copy, Clone)]
 pub enum MetaSource {
     ImplicitArg(FileRange, Option<StringId>),
+    /// The type of a letrec definition
+    LetrecType(FileRange, Option<StringId>),
     /// The type of a hole.
     HoleType(FileRange, StringId),
     /// The expression of a hole.
@@ -199,6 +201,7 @@ impl MetaSource {
     pub fn range(&self) -> FileRange {
         match self {
             MetaSource::ImplicitArg(range, _)
+            | MetaSource::LetrecType(range, ..)
             | MetaSource::HoleType(range, _)
             | MetaSource::HoleExpr(range, _)
             | MetaSource::PlaceholderType(range)
@@ -1000,6 +1003,51 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         }))
     }
 
+    fn synth_let_def(&mut self, def: &LetDef<'_, ByteRange>) -> core::LetDef<'arena> {
+        let (def_pattern, def_type, def_type_value) =
+            self.synth_ann_pattern(&def.pattern, def.r#type.as_ref());
+        let def_expr = self.check(&def.expr, &def_type_value);
+        let def_expr_value = self.eval_env().eval(&def_expr);
+        let def_name = self.push_local_def(def_pattern, def_expr_value, def_type_value); // TODO: split on constants
+        core::LetDef {
+            name: def_name,
+            r#type: def_type,
+            expr: def_expr,
+        }
+    }
+
+    fn synth_letrec_defs(
+        &mut self,
+        defs: &[LetDef<'_, ByteRange>],
+    ) -> &'arena [core::LetDef<'arena>] {
+        // Insert a fresh type variable for each definition
+        let types: Vec<_> = (defs.iter())
+            .map(|def| {
+                let name = def.pattern.name();
+                let source = MetaSource::LetrecType(self.file_range(def.pattern.range()), name);
+                let r#type = self.push_unsolved_type(source);
+                let expr = Spanned::empty(Arc::new(Value::ERROR)); // TODO: lazy evaluation?
+                self.local_env.push_def(name, expr, r#type.clone());
+                r#type
+            })
+            .collect();
+
+        // Check each definition's pattern against its type variable
+        for (r#type, def) in Iterator::zip(types.iter(), defs.iter()) {
+            let _pattern = self.check_ann_pattern(&def.pattern, def.r#type.as_ref(), r#type);
+        }
+
+        // Check each definition's rhs against its type variable
+        (self.scope).to_scope_from_iter(Iterator::zip(types.iter(), defs.iter()).map(
+            |(type_value, def)| {
+                let name = def.pattern.name();
+                let r#type = self.quote_env().quote(self.scope, type_value);
+                let expr = self.check(&def.expr, type_value);
+                core::LetDef { name, r#type, expr }
+            },
+        ))
+    }
+
     /// Check that a surface term conforms to the given type.
     ///
     /// Returns the elaborated term in the core language.
@@ -1013,24 +1061,25 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
 
         match (surface_term, expected_type.as_ref()) {
             (Term::Paren(_, term), _) => self.check(term, &expected_type),
-            (Term::Let(_, def_pattern, def_type, def_expr, body_expr), _) => {
-                let (def_pattern, def_type, def_type_value) =
-                    self.synth_ann_pattern(def_pattern, *def_type);
-                let def_expr = self.check(def_expr, &def_type_value);
-                let def_expr_value = self.eval_env().eval(&def_expr);
-
-                let def_name = self.push_local_def(def_pattern, def_expr_value, def_type_value); // TODO: split on constants
+            (Term::Let(_, def, body_expr), _) => {
+                let def = self.synth_let_def(def);
                 let body_expr = self.check(body_expr, &expected_type);
                 self.local_env.pop();
 
                 core::Term::Let(
                     file_range.into(),
-                    def_name,
-                    self.scope.to_scope(def_type),
-                    self.scope.to_scope(def_expr),
+                    self.scope.to_scope(def),
                     self.scope.to_scope(body_expr),
                 )
             }
+            (Term::Letrec(_, defs, body_expr), _) => {
+                let initial_len = self.local_env.len();
+                let defs = self.synth_letrec_defs(defs);
+                let body_expr = self.check(body_expr, &expected_type);
+                self.local_env.truncate(initial_len);
+                core::Term::Letrec(file_range.into(), defs, self.scope.to_scope(body_expr))
+            }
+
             (Term::If(_, cond_expr, then_expr, else_expr), _) => {
                 let cond_expr = self.check(cond_expr, &self.bool_type.clone());
                 let then_expr = self.check(then_expr, &expected_type);
@@ -1425,25 +1474,27 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
 
                 (ann_expr, type_value)
             }
-            Term::Let(_, def_pattern, def_type, def_expr, body_expr) => {
-                let (def_pattern, def_type, def_type_value) =
-                    self.synth_ann_pattern(def_pattern, *def_type);
-                let def_expr = self.check(def_expr, &def_type_value);
-                let def_expr_value = self.eval_env().eval(&def_expr);
-
-                let def_name = self.push_local_def(def_pattern, def_expr_value, def_type_value);
+            Term::Let(_, def, body_expr) => {
+                let def = self.synth_let_def(def);
                 let (body_expr, body_type) = self.synth(body_expr);
                 self.local_env.pop();
 
                 let let_expr = core::Term::Let(
                     file_range.into(),
-                    def_name,
-                    self.scope.to_scope(def_type),
-                    self.scope.to_scope(def_expr),
+                    self.scope.to_scope(def),
                     self.scope.to_scope(body_expr),
                 );
 
                 (let_expr, body_type)
+            }
+            Term::Letrec(_, defs, body_expr) => {
+                let initial_len = self.local_env.len();
+                let defs = self.synth_letrec_defs(defs);
+                let (body_expr, body_type) = self.synth(body_expr);
+                self.local_env.truncate(initial_len);
+                let letrec_expr =
+                    core::Term::Letrec(file_range.into(), defs, self.scope.to_scope(body_expr));
+                (letrec_expr, body_type)
             }
             Term::If(_, cond_expr, then_expr, else_expr) => {
                 let cond_expr = self.check(cond_expr, &self.bool_type.clone());
@@ -2314,9 +2365,11 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
 
                         core::Term::Let(
                             Span::merge(&range.into(), &body_expr.span()),
-                            def_name,
-                            self.scope.to_scope(def_type),
-                            match_info.scrutinee.expr,
+                            self.scope.to_scope(core::LetDef {
+                                name: def_name,
+                                r#type: def_type,
+                                expr: match_info.scrutinee.expr.clone(),
+                            }),
                             self.scope.to_scope(body_expr),
                         )
                     }
