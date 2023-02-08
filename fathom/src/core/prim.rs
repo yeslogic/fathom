@@ -1,4 +1,3 @@
-use std::cell::RefCell;
 use std::sync::Arc;
 
 use fxhash::FxHashMap;
@@ -7,27 +6,25 @@ use scoped_arena::Scope;
 use crate::core::semantics::{ArcValue, Elim, ElimEnv, Head, Value};
 use crate::core::{self, Const, Plicity, Prim, UIntStyle};
 use crate::env::{self, SharedEnv, UniqueEnv};
-use crate::source::{Span, Spanned, StringId, StringInterner};
+use crate::source::{Span, Spanned};
+use crate::symbol::Symbol;
 
 /// Environment of primitives
 pub struct Env<'arena> {
     // TODO: Provide a way to reflect these as top-level items in a module for
     //       improved documentation and error messages.
-    entries: FxHashMap<StringId, (Prim, ArcValue<'arena>)>,
+    entries: FxHashMap<Symbol, (Prim, ArcValue<'arena>)>,
 }
 
 impl<'arena> Env<'arena> {
     /// Lookup a primitive name in the context.
-    pub fn get_name(&self, name: StringId) -> Option<(Prim, &ArcValue<'arena>)> {
+    pub fn get_name(&self, name: Symbol) -> Option<(Prim, &ArcValue<'arena>)> {
         let (prim, r#type) = self.entries.get(&name)?;
 
         Some((*prim, r#type))
     }
 
-    pub fn default(
-        interner: &RefCell<StringInterner>,
-        scope: &'arena Scope<'arena>,
-    ) -> Env<'arena> {
+    pub fn default(scope: &'arena Scope<'arena>) -> Env<'arena> {
         // TODO: Clean this up somehow!
 
         use crate::core::Prim::*;
@@ -55,7 +52,7 @@ impl<'arena> Env<'arena> {
         const ARRAY64_TYPE: Term<'_> = Term::Prim(Span::Empty, Array64Type);
         const POS_TYPE: Term<'_> = Term::Prim(Span::Empty, PosType);
 
-        let mut env = EnvBuilder::new(interner, scope);
+        let mut env = EnvBuilder::new(scope);
 
         env.define_prim(VoidType, &UNIVERSE);
         env.define_prim(BoolType, &UNIVERSE);
@@ -507,23 +504,18 @@ impl<'arena> Env<'arena> {
     }
 }
 
-struct EnvBuilder<'interner, 'arena> {
-    entries: FxHashMap<StringId, (Prim, ArcValue<'arena>)>,
-    interner: &'interner RefCell<StringInterner>,
+struct EnvBuilder<'arena> {
+    entries: FxHashMap<Symbol, (Prim, ArcValue<'arena>)>,
     scope: &'arena Scope<'arena>,
     meta_exprs: UniqueEnv<Option<ArcValue<'arena>>>,
     item_exprs: UniqueEnv<ArcValue<'arena>>,
     local_exprs: SharedEnv<ArcValue<'arena>>,
 }
 
-impl<'interner, 'arena> EnvBuilder<'interner, 'arena> {
-    fn new(
-        interner: &'interner RefCell<StringInterner>,
-        scope: &'arena Scope<'arena>,
-    ) -> EnvBuilder<'interner, 'arena> {
+impl<'arena> EnvBuilder<'arena> {
+    fn new(scope: &'arena Scope<'arena>) -> EnvBuilder<'arena> {
         EnvBuilder {
             entries: FxHashMap::with_hasher(fxhash::FxBuildHasher::default()),
-            interner,
             scope,
             meta_exprs: UniqueEnv::new(),
             item_exprs: UniqueEnv::new(),
@@ -531,12 +523,12 @@ impl<'interner, 'arena> EnvBuilder<'interner, 'arena> {
         }
     }
 
-    fn name(&self, name: &'static str) -> Option<StringId> {
-        Some(self.interner.borrow_mut().get_or_intern_static(name))
+    fn name(&self, name: &'static str) -> Option<Symbol> {
+        Some(Symbol::intern_static(name))
     }
 
     fn define_prim(&mut self, prim: Prim, r#type: &core::Term<'arena>) {
-        let name = self.interner.borrow_mut().get_or_intern_static(prim.name());
+        let name = Symbol::intern_static(prim.name());
         let r#type = ElimEnv::new(&self.item_exprs, &self.meta_exprs)
             .eval_env(&mut self.local_exprs)
             .eval(r#type);

@@ -20,9 +20,10 @@
 
 use fxhash::{FxHashMap, FxHashSet};
 
-use crate::source::{ByteRange, StringId};
+use crate::source::ByteRange;
 use crate::surface::elaboration::reporting::Message;
 use crate::surface::{elaboration, FormatField, Item, Module, Param, Pattern, Term};
+use crate::symbol::Symbol;
 
 enum Error {
     CycleDetected,
@@ -39,7 +40,7 @@ pub fn elaboration_order(
     context.determine_order(surface_module.items, &item_names, &item_deps)
 }
 
-fn item_names(surface_module: &Module<'_, ByteRange>) -> FxHashMap<StringId, usize> {
+fn item_names(surface_module: &Module<'_, ByteRange>) -> FxHashMap<Symbol, usize> {
     surface_module
         .items
         .iter()
@@ -53,8 +54,8 @@ fn item_names(surface_module: &Module<'_, ByteRange>) -> FxHashMap<StringId, usi
 
 fn collect_item_dependencies(
     surface_module: &Module<'_, ByteRange>,
-    item_names: &FxHashMap<StringId, usize>,
-) -> Vec<Vec<StringId>> {
+    item_names: &FxHashMap<Symbol, usize>,
+) -> Vec<Vec<Symbol>> {
     let mut local_names = Vec::new();
     surface_module
         .items
@@ -63,17 +64,15 @@ fn collect_item_dependencies(
         .collect()
 }
 
-struct ModuleOrderContext<'a, 'interner, 'arena> {
-    elab_context: &'a mut elaboration::Context<'interner, 'arena>,
+struct ModuleOrderContext<'a, 'arena> {
+    elab_context: &'a mut elaboration::Context<'arena>,
     output: Vec<usize>,
-    visited: FxHashSet<StringId>,
-    stack: Vec<StringId>,
+    visited: FxHashSet<Symbol>,
+    stack: Vec<Symbol>,
 }
 
-impl<'a, 'interner, 'arena> ModuleOrderContext<'a, 'interner, 'arena> {
-    fn new(
-        elab_context: &'a mut elaboration::Context<'interner, 'arena>,
-    ) -> ModuleOrderContext<'a, 'interner, 'arena> {
+impl<'a, 'arena> ModuleOrderContext<'a, 'arena> {
+    fn new(elab_context: &'a mut elaboration::Context<'arena>) -> ModuleOrderContext<'a, 'arena> {
         ModuleOrderContext {
             elab_context,
             output: Vec::new(),
@@ -85,8 +84,8 @@ impl<'a, 'interner, 'arena> ModuleOrderContext<'a, 'interner, 'arena> {
     fn determine_order(
         mut self,
         items: &[Item<'_, ByteRange>],
-        item_names: &FxHashMap<StringId, usize>,
-        dependencies: &[Vec<StringId>],
+        item_names: &FxHashMap<Symbol, usize>,
+        dependencies: &[Vec<Symbol>],
     ) -> Vec<usize> {
         let mut erroneous = FxHashSet::default();
         for item in items {
@@ -108,9 +107,9 @@ impl<'a, 'interner, 'arena> ModuleOrderContext<'a, 'interner, 'arena> {
 
     fn visit_item(
         &mut self,
-        name: StringId,
-        item_names: &FxHashMap<StringId, usize>,
-        dependencies: &[Vec<StringId>],
+        name: Symbol,
+        item_names: &FxHashMap<Symbol, usize>,
+        dependencies: &[Vec<Symbol>],
     ) -> Result<(), Error> {
         if self.visited.contains(&name) {
             return Ok(());
@@ -143,9 +142,9 @@ impl<'a, 'interner, 'arena> ModuleOrderContext<'a, 'interner, 'arena> {
 
 fn item_dependencies(
     item: &Item<'_, ByteRange>,
-    item_names: &FxHashMap<StringId, usize>,
-    local_names: &mut Vec<StringId>,
-) -> Vec<StringId> {
+    item_names: &FxHashMap<Symbol, usize>,
+    local_names: &mut Vec<Symbol>,
+) -> Vec<Symbol> {
     let mut deps = Vec::new();
     match item {
         Item::Def(item) => {
@@ -164,9 +163,9 @@ fn item_dependencies(
 
 fn term_deps(
     term: &Term<ByteRange>,
-    item_names: &FxHashMap<StringId, usize>,
-    local_names: &mut Vec<StringId>,
-    deps: &mut Vec<StringId>,
+    item_names: &FxHashMap<Symbol, usize>,
+    local_names: &mut Vec<Symbol>,
+    deps: &mut Vec<Symbol>,
 ) {
     match term {
         Term::Paren(_, term) => term_deps(term, item_names, local_names, deps),
@@ -285,9 +284,9 @@ fn term_deps(
 
 fn push_param_deps(
     params: &[Param<'_, ByteRange>],
-    item_names: &FxHashMap<StringId, usize>,
-    local_names: &mut Vec<StringId>,
-    deps: &mut Vec<StringId>,
+    item_names: &FxHashMap<Symbol, usize>,
+    local_names: &mut Vec<Symbol>,
+    deps: &mut Vec<Symbol>,
 ) {
     for param in params {
         if let Some(r#type) = &param.r#type {
@@ -299,9 +298,9 @@ fn push_param_deps(
 
 fn field_deps(
     fields: &[FormatField<ByteRange>],
-    item_names: &FxHashMap<StringId, usize>,
-    local_names: &mut Vec<StringId>,
-    deps: &mut Vec<StringId>,
+    item_names: &FxHashMap<Symbol, usize>,
+    local_names: &mut Vec<Symbol>,
+    deps: &mut Vec<Symbol>,
 ) {
     let initial_locals_names_len = local_names.len();
     for field in fields {
@@ -330,7 +329,7 @@ fn field_deps(
     local_names.truncate(initial_locals_names_len);
 }
 
-fn push_pattern(pattern: &Pattern<ByteRange>, local_names: &mut Vec<StringId>) {
+fn push_pattern(pattern: &Pattern<ByteRange>, local_names: &mut Vec<Symbol>) {
     match pattern {
         Pattern::Name(_, name) => local_names.push(*name),
         Pattern::Placeholder(_) => {}
@@ -340,7 +339,7 @@ fn push_pattern(pattern: &Pattern<ByteRange>, local_names: &mut Vec<StringId>) {
     }
 }
 
-fn pop_pattern(pattern: &Pattern<ByteRange>, local_names: &mut Vec<StringId>) {
+fn pop_pattern(pattern: &Pattern<ByteRange>, local_names: &mut Vec<Symbol>) {
     match pattern {
         Pattern::Name(_, _) => {
             local_names.pop();

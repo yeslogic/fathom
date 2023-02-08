@@ -20,7 +20,6 @@
 //! - [Lecture Notes on Bidirectional Type Checking](https://www.cs.cmu.edu/~fp/courses/15312-f04/handouts/15-bidirectional.pdf)
 //! - [elaboration-zoo](https://github.com/AndrasKovacs/elaboration-zoo/)
 
-use std::cell::RefCell;
 use std::str::FromStr;
 use std::sync::Arc;
 
@@ -32,11 +31,12 @@ use crate::core::semantics::{self, ArcValue, Head, Telescope, Value};
 use crate::core::{self, prim, Const, Plicity, Prim, UIntStyle};
 use crate::env::{self, EnvLen, Level, SharedEnv, UniqueEnv};
 use crate::files::FileId;
-use crate::source::{BytePos, ByteRange, FileRange, Span, Spanned, StringId, StringInterner};
+use crate::source::{BytePos, ByteRange, FileRange, Span, Spanned};
 use crate::surface::elaboration::reporting::Message;
 use crate::surface::{
     distillation, pretty, BinOp, FormatField, Item, Module, Param, Pattern, Term,
 };
+use crate::symbol::Symbol;
 
 mod order;
 mod reporting;
@@ -45,7 +45,7 @@ mod unification;
 /// Top-level item environment.
 pub struct ItemEnv<'arena> {
     /// Names of items.
-    names: UniqueEnv<StringId>,
+    names: UniqueEnv<Symbol>,
     /// Types of items.
     types: UniqueEnv<ArcValue<'arena>>,
     /// Expressions of items.
@@ -62,12 +62,7 @@ impl<'arena> ItemEnv<'arena> {
         }
     }
 
-    fn push_definition(
-        &mut self,
-        name: StringId,
-        r#type: ArcValue<'arena>,
-        expr: ArcValue<'arena>,
-    ) {
+    fn push_definition(&mut self, name: Symbol, r#type: ArcValue<'arena>, expr: ArcValue<'arena>) {
         self.names.push(name);
         self.types.push(r#type);
         self.exprs.push(expr);
@@ -95,7 +90,7 @@ impl<'arena> ItemEnv<'arena> {
 /// [local variables]: core::Term::LocalVar
 struct LocalEnv<'arena> {
     /// Names of local variables.
-    names: UniqueEnv<Option<StringId>>,
+    names: UniqueEnv<Option<Symbol>>,
     /// Types of local variables.
     types: UniqueEnv<ArcValue<'arena>>,
     /// Information about the local binders. Used when inserting new
@@ -130,12 +125,7 @@ impl<'arena> LocalEnv<'arena> {
     }
 
     /// Push a local definition onto the context.
-    fn push_def(
-        &mut self,
-        name: Option<StringId>,
-        expr: ArcValue<'arena>,
-        r#type: ArcValue<'arena>,
-    ) {
+    fn push_def(&mut self, name: Option<Symbol>, expr: ArcValue<'arena>, r#type: ArcValue<'arena>) {
         self.names.push(name);
         self.types.push(r#type);
         self.infos.push(core::LocalInfo::Def);
@@ -143,7 +133,7 @@ impl<'arena> LocalEnv<'arena> {
     }
 
     /// Push a local parameter onto the context.
-    fn push_param(&mut self, name: Option<StringId>, r#type: ArcValue<'arena>) -> ArcValue<'arena> {
+    fn push_param(&mut self, name: Option<Symbol>, r#type: ArcValue<'arena>) -> ArcValue<'arena> {
         // An expression that refers to itself once it is pushed onto the local
         // expression environment.
         let expr = Spanned::empty(Arc::new(Value::local_var(self.exprs.len().next_level())));
@@ -176,11 +166,11 @@ impl<'arena> LocalEnv<'arena> {
 /// The reason why a metavariable was inserted.
 #[derive(Debug, Copy, Clone)]
 pub enum MetaSource {
-    ImplicitArg(FileRange, Option<StringId>),
+    ImplicitArg(FileRange, Option<Symbol>),
     /// The type of a hole.
-    HoleType(FileRange, StringId),
+    HoleType(FileRange, Symbol),
     /// The expression of a hole.
-    HoleExpr(FileRange, StringId),
+    HoleExpr(FileRange, Symbol),
     /// The type of a placeholder
     PlaceholderType(FileRange),
     /// The expression of a placeholder
@@ -188,7 +178,7 @@ pub enum MetaSource {
     /// The type of a placeholder pattern.
     PlaceholderPatternType(FileRange),
     /// The type of a named pattern.
-    NamedPatternType(FileRange, StringId),
+    NamedPatternType(FileRange, Symbol),
     /// The overall type of a match expression
     MatchExprType(FileRange),
     /// The type of a reported error.
@@ -256,10 +246,8 @@ impl<'arena> MetaEnv<'arena> {
 }
 
 /// Elaboration context.
-pub struct Context<'interner, 'arena> {
+pub struct Context<'arena> {
     file_id: FileId,
-    /// Global string interner.
-    interner: &'interner RefCell<StringInterner>,
     /// Scoped arena for storing elaborated terms.
     //
     // TODO: Make this local to the elaboration context, and reallocate
@@ -286,36 +274,30 @@ pub struct Context<'interner, 'arena> {
     messages: Vec<Message>,
 }
 
-fn suggest_name(
-    interner: &StringInterner,
-    name: StringId,
-    candidates: impl Iterator<Item = StringId>,
-) -> Option<StringId> {
-    let name = interner.resolve(name).unwrap();
+fn suggest_name(name: Symbol, candidates: impl Iterator<Item = Symbol>) -> Option<Symbol> {
+    let name = name.resolve();
     candidates.min_by_key(|candidate| {
-        let candidate = interner.resolve(*candidate).unwrap();
+        let candidate = candidate.resolve();
         levenshtein::levenshtein(name, candidate)
     })
 }
 
-impl<'interner, 'arena> Context<'interner, 'arena> {
+impl<'arena> Context<'arena> {
     /// Construct a new elaboration context, backed by the supplied arena.
     pub fn new(
         file_id: FileId,
-        interner: &'interner RefCell<StringInterner>,
         scope: &'arena Scope<'arena>,
         item_env: ItemEnv<'arena>,
-    ) -> Context<'interner, 'arena> {
+    ) -> Context<'arena> {
         Context {
             file_id,
-            interner,
             scope,
 
             universe: Spanned::empty(Arc::new(Value::Universe)),
             format_type: Spanned::empty(Arc::new(Value::prim(Prim::FormatType, []))),
             bool_type: Spanned::empty(Arc::new(Value::prim(Prim::BoolType, []))),
 
-            prim_env: prim::Env::default(interner, scope),
+            prim_env: prim::Env::default(scope),
             item_env,
             meta_env: MetaEnv::new(),
             local_env: LocalEnv::new(),
@@ -333,7 +315,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
     }
 
     /// Lookup an item name in the context.
-    fn get_item_name(&self, name: StringId) -> Option<(Level, &ArcValue<'arena>)> {
+    fn get_item_name(&self, name: Symbol) -> Option<(Level, &ArcValue<'arena>)> {
         let item_var = self.item_env.names.elem_level(&name)?;
         let item_type = self.item_env.types.get_level(item_var)?;
 
@@ -341,7 +323,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
     }
 
     /// Lookup a local name in the context.
-    fn get_local_name(&self, name: StringId) -> Option<(env::Index, &ArcValue<'arena>)> {
+    fn get_local_name(&self, name: Symbol) -> Option<(env::Index, &ArcValue<'arena>)> {
         let local_var = self.local_env.names.elem_index(&Some(name))?;
         let local_type = self.local_env.types.get_index(local_var)?;
 
@@ -395,7 +377,6 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 (Some(expr), MetaSource::HoleExpr(range, name)) => {
                     let term = self.quote_env().quote(self.scope, expr);
                     let surface_term = distillation::Context::new(
-                        self.interner,
                         self.scope,
                         &self.item_env.names,
                         &mut self.local_env.names,
@@ -403,7 +384,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                     )
                     .check(&term);
 
-                    let pretty_context = pretty::Context::new(self.interner, self.scope);
+                    let pretty_context = pretty::Context::new(self.scope);
                     let doc = pretty_context.term(&surface_term).into_doc();
                     let expr = doc.pretty(usize::MAX).to_string();
 
@@ -441,9 +422,8 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
     pub fn distillation_context<'out_arena>(
         &mut self,
         scope: &'out_arena Scope<'out_arena>,
-    ) -> distillation::Context<'interner, 'out_arena, '_> {
+    ) -> distillation::Context<'out_arena, '_> {
         distillation::Context::new(
-            self.interner,
             scope,
             &self.item_env.names,
             &mut self.local_env.names,
@@ -457,7 +437,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         let term = self.quote_env().unfolding_metas().quote(scope, value);
         let surface_term = self.distillation_context(scope).check(&term);
 
-        pretty::Context::new(self.interner, scope)
+        pretty::Context::new(scope)
             .term(&surface_term)
             .pretty(usize::MAX)
             .to_string()
@@ -469,8 +449,8 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         &mut self,
         range: ByteRange,
         fields: &'fields [F],
-        get_label: fn(&F) -> (ByteRange, StringId),
-    ) -> (&'arena [StringId], impl Iterator<Item = &'fields F>) {
+        get_label: fn(&F) -> (ByteRange, Symbol),
+    ) -> (&'arena [Symbol], impl Iterator<Item = &'fields F>) {
         let mut labels = SliceVec::new(self.scope, fields.len());
         // Will only allocate when duplicates are encountered
         let mut duplicate_indices = Vec::new();
@@ -504,7 +484,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
     fn parse_ascii<T>(
         &mut self,
         range: ByteRange,
-        string_id: StringId,
+        symbol: Symbol,
         make: fn(T, UIntStyle) -> Const,
     ) -> Option<Const>
     where
@@ -514,8 +494,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         // TODO: Alternate byte orders
         // TODO: Non-ASCII encodings
 
-        let interner = self.interner.borrow();
-        let source = interner.resolve(string_id).unwrap();
+        let source = symbol.resolve();
         let mut num = Some(T::from(0));
         let mut count: u8 = 0;
 
@@ -555,14 +534,14 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
     fn parse_number<T: FromStr>(
         &mut self,
         range: ByteRange,
-        string_id: StringId,
+        symbol: Symbol,
         make: fn(T) -> Const,
     ) -> Option<Const>
     where
         T::Err: std::fmt::Display,
     {
         // TODO: Custom parsing and improved errors
-        match self.interner.borrow().resolve(string_id).unwrap().parse() {
+        match symbol.resolve().parse() {
             Ok(data) => Some(make(data)),
             Err(error) => {
                 let message = error.to_string();
@@ -579,12 +558,11 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
     fn parse_number_radix<T: FromStrRadix>(
         &mut self,
         range: ByteRange,
-        string_id: StringId,
+        symbol: Symbol,
         make: fn(T, UIntStyle) -> Const,
     ) -> Option<Const> {
         // TODO: Custom parsing and improved errors
-        let interner = self.interner.borrow();
-        let s = interner.resolve(string_id).unwrap();
+        let s = symbol.resolve();
         let (s, radix, style) = if let Some(s) = s.strip_prefix("0x") {
             (s, 16, UIntStyle::Hexadecimal)
         } else if let Some(s) = s.strip_prefix("0b") {
@@ -939,7 +917,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         pattern: CheckedPattern,
         expr: ArcValue<'arena>,
         r#type: ArcValue<'arena>,
-    ) -> Option<StringId> {
+    ) -> Option<Symbol> {
         let name = match pattern {
             CheckedPattern::Binder(_, name) => Some(name),
             CheckedPattern::Placeholder(_) => None,
@@ -964,7 +942,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         &mut self,
         pattern: CheckedPattern,
         r#type: ArcValue<'arena>,
-    ) -> (Option<StringId>, ArcValue<'arena>) {
+    ) -> (Option<Symbol>, ArcValue<'arena>) {
         let name = match pattern {
             CheckedPattern::Binder(_, name) => Some(name),
             CheckedPattern::Placeholder(_) => None,
@@ -987,7 +965,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
     fn synth_and_push_params(
         &mut self,
         params: &[Param<ByteRange>],
-    ) -> Vec<(ByteRange, Plicity, Option<StringId>, core::Term<'arena>)> {
+    ) -> Vec<(ByteRange, Plicity, Option<Symbol>, core::Term<'arena>)> {
         self.local_env.reserve(params.len());
 
         Vec::from_iter(params.iter().map(|param| {
@@ -1094,8 +1072,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
             }
             (Term::Tuple(_, elem_exprs), Value::Universe) => {
                 self.local_env.reserve(elem_exprs.len());
-                let mut interner = self.interner.borrow_mut();
-                let labels = interner.get_tuple_labels(0..elem_exprs.len());
+                let labels = Symbol::get_tuple_labels(0..elem_exprs.len());
                 let labels = self.scope.to_scope_from_iter(labels.iter().copied());
 
                 let initial_local_len = self.local_env.len();
@@ -1117,8 +1094,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 if args.is_empty() =>
             {
                 self.local_env.reserve(elem_exprs.len());
-                let mut interner = self.interner.borrow_mut();
-                let labels = interner.get_tuple_labels(0..elem_exprs.len());
+                let labels = Symbol::get_tuple_labels(0..elem_exprs.len());
                 let labels = self.scope.to_scope_from_iter(labels.iter().copied());
 
                 let initial_local_len = self.local_env.len();
@@ -1155,7 +1131,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                     for (index, elem_expr) in elem_exprs {
                         expr_labels.push((
                             self.file_range(elem_expr.range()),
-                            self.interner.borrow_mut().get_tuple_label(index),
+                            Symbol::get_tuple_label(index),
                         ));
                     }
 
@@ -1385,7 +1361,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                     .flatten()
                     .copied()
                     .chain(self.item_env.names.iter().copied());
-                let suggestion = suggest_name(&self.interner.borrow(), *name, candidates);
+                let suggestion = suggest_name(*name, candidates);
 
                 self.push_message(Message::UnboundName {
                     range: file_range,
@@ -1634,8 +1610,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 )
             }
             Term::Tuple(_, elem_exprs) => {
-                let mut interner = self.interner.borrow_mut();
-                let labels = interner.get_tuple_labels(0..elem_exprs.len());
+                let labels = Symbol::get_tuple_labels(0..elem_exprs.len());
                 let labels = self.scope.to_scope_from_iter(labels.iter().copied());
 
                 let mut exprs = SliceVec::new(self.scope, labels.len());
@@ -1707,11 +1682,8 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                     }
 
                     let head_type = self.pretty_print_value(&head_type);
-                    let suggestion = suggest_name(
-                        &self.interner.borrow(),
-                        *proj_label,
-                        labels.iter().map(|(_, label)| *label),
-                    );
+                    let suggestion =
+                        suggest_name(*proj_label, labels.iter().map(|(_, label)| *label));
                     self.push_message(Message::UnknownField {
                         head_range: self.file_range(head_range),
                         head_type,
@@ -2165,7 +2137,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         &mut self,
         range: ByteRange,
         format_fields: &[FormatField<'_, ByteRange>],
-    ) -> (&'arena [StringId], &'arena [core::Term<'arena>]) {
+    ) -> (&'arena [Symbol], &'arena [core::Term<'arena>]) {
         let universe = self.universe.clone();
         let format_type = self.format_type.clone();
 
@@ -2521,7 +2493,7 @@ impl_from_str_radix!(u64);
 #[derive(Debug)]
 enum CheckedPattern {
     /// Pattern that binds local variable
-    Binder(FileRange, StringId),
+    Binder(FileRange, Symbol),
     /// Placeholder patterns that match everything
     Placeholder(FileRange),
     /// Constant literals

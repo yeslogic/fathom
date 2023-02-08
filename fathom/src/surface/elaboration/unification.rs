@@ -25,8 +25,9 @@ use crate::core::semantics::{
 };
 use crate::core::{Prim, Term};
 use crate::env::{EnvLen, Index, Level, SharedEnv, SliceEnv, UniqueEnv};
-use crate::source::{Spanned, StringId};
+use crate::source::Spanned;
 use crate::surface::Plicity;
+use crate::symbol::Symbol;
 
 /// Errors encountered during unification.
 ///
@@ -109,7 +110,7 @@ pub enum SpineError {
     /// A metavariable was found in the problem spine.
     NonLocalFunApp,
     /// A record projection was found in the problem spine.
-    RecordProj(StringId),
+    RecordProj(Symbol),
     /// A constant match was found in the problem spine.
     ConstMatch,
 }
@@ -450,7 +451,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
     /// ```
     fn unify_record_lit(
         &mut self,
-        labels: &[StringId],
+        labels: &[Symbol],
         exprs: &[ArcValue<'arena>],
         value: &ArcValue<'arena>,
     ) -> Result<(), Error> {

@@ -9,7 +9,8 @@ use scoped_arena::Scope;
 use crate::alloc::SliceVec;
 use crate::core::{prim, Const, LocalInfo, Plicity, Prim, Term};
 use crate::env::{EnvLen, Index, Level, SharedEnv, SliceEnv};
-use crate::source::{Span, Spanned, StringId};
+use crate::source::{Span, Spanned};
+use crate::symbol::Symbol;
 
 /// Atomically reference counted values. We use reference counting to increase
 /// the amount of sharing we can achieve during evaluation.
@@ -28,25 +29,25 @@ pub enum Value<'arena> {
     Universe,
 
     /// Dependent function types.
-    FunType(Plicity, Option<StringId>, ArcValue<'arena>, Closure<'arena>),
+    FunType(Plicity, Option<Symbol>, ArcValue<'arena>, Closure<'arena>),
     /// Function literals.
-    FunLit(Plicity, Option<StringId>, Closure<'arena>),
+    FunLit(Plicity, Option<Symbol>, Closure<'arena>),
 
     /// Record types.
-    RecordType(&'arena [StringId], Telescope<'arena>),
+    RecordType(&'arena [Symbol], Telescope<'arena>),
     /// Record literals.
-    RecordLit(&'arena [StringId], Vec<ArcValue<'arena>>),
+    RecordLit(&'arena [Symbol], Vec<ArcValue<'arena>>),
 
     /// Array literals.
     ArrayLit(Vec<ArcValue<'arena>>),
 
     /// Record formats, consisting of a list of dependent formats.
-    FormatRecord(&'arena [StringId], Telescope<'arena>),
+    FormatRecord(&'arena [Symbol], Telescope<'arena>),
     /// Conditional format, consisting of a format and predicate.
-    FormatCond(StringId, ArcValue<'arena>, Closure<'arena>),
+    FormatCond(Symbol, ArcValue<'arena>, Closure<'arena>),
     /// Overlap formats, consisting of a list of dependent formats, overlapping
     /// in memory.
-    FormatOverlap(&'arena [StringId], Telescope<'arena>),
+    FormatOverlap(&'arena [Symbol], Telescope<'arena>),
 
     /// Constant literals.
     ConstLit(Const),
@@ -99,7 +100,7 @@ pub enum Elim<'arena> {
     /// Function applications.
     FunApp(Plicity, ArcValue<'arena>),
     /// Record projections.
-    RecordProj(StringId),
+    RecordProj(Symbol),
     /// Match on a constant.
     ConstMatch(Branches<'arena, Const>),
 }
@@ -178,7 +179,7 @@ impl<'arena> Telescope<'arena> {
 pub struct Branches<'arena, P> {
     local_exprs: SharedEnv<ArcValue<'arena>>,
     pattern_branches: &'arena [(P, Term<'arena>)],
-    default_branch: Option<(Option<StringId>, &'arena Term<'arena>)>,
+    default_branch: Option<(Option<Symbol>, &'arena Term<'arena>)>,
 }
 
 impl<'arena, P> Branches<'arena, P> {
@@ -186,7 +187,7 @@ impl<'arena, P> Branches<'arena, P> {
     pub fn new(
         local_exprs: SharedEnv<ArcValue<'arena>>,
         pattern_branches: &'arena [(P, Term<'arena>)],
-        default_branch: Option<(Option<StringId>, &'arena Term<'arena>)>,
+        default_branch: Option<(Option<Symbol>, &'arena Term<'arena>)>,
     ) -> Branches<'arena, P> {
         Branches {
             local_exprs,
@@ -206,7 +207,7 @@ pub type PatternBranch<'arena, P> = (P, ArcValue<'arena>);
 #[derive(Clone, Debug)]
 pub enum SplitBranches<'arena, P> {
     Branch(PatternBranch<'arena, P>, Branches<'arena, P>),
-    Default(Option<StringId>, Closure<'arena>),
+    Default(Option<Symbol>, Closure<'arena>),
     None,
 }
 
@@ -542,11 +543,7 @@ impl<'arena, 'env> ElimEnv<'arena, 'env> {
     /// [beta-reduction] if possible.
     ///
     /// [beta-reduction]: https://ncatlab.org/nlab/show/beta-reduction
-    pub fn record_proj(
-        &self,
-        mut head_expr: ArcValue<'arena>,
-        label: StringId,
-    ) -> ArcValue<'arena> {
+    pub fn record_proj(&self, mut head_expr: ArcValue<'arena>, label: Symbol) -> ArcValue<'arena> {
         match Arc::make_mut(&mut head_expr) {
             // Beta-reduction
             Value::RecordLit(labels, exprs) => (labels.iter())
@@ -1291,7 +1288,7 @@ impl<'arena, 'env> ConversionEnv<'arena, 'env> {
     /// ```
     fn is_equal_record_lit(
         &mut self,
-        labels: &[StringId],
+        labels: &[Symbol],
         exprs: &[ArcValue<'_>],
         value: &ArcValue<'_>,
     ) -> bool {

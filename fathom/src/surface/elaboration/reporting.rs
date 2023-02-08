@@ -1,12 +1,11 @@
-use std::cell::RefCell;
-
 use codespan_reporting::diagnostic::{Diagnostic, Label};
 use itertools::Itertools;
 
 use crate::files::FileId;
-use crate::source::{FileRange, StringId, StringInterner};
+use crate::source::FileRange;
 use crate::surface::elaboration::{unification, MetaSource};
 use crate::surface::{BinOp, Plicity};
+use crate::symbol::Symbol;
 use crate::BUG_REPORT_URL;
 
 /// Elaboration diagnostic messages.
@@ -15,8 +14,8 @@ pub enum Message {
     /// The name was not previously bound in the current scope.
     UnboundName {
         range: FileRange,
-        name: StringId,
-        suggestion: Option<StringId>,
+        name: Symbol,
+        suggestion: Option<Symbol>,
     },
     RefutablePattern {
         pattern_range: FileRange,
@@ -47,19 +46,19 @@ pub enum Message {
         head_range: FileRange,
         head_type: String,
         label_range: FileRange,
-        label: StringId,
-        suggestion: Option<StringId>,
+        label: Symbol,
+        suggestion: Option<Symbol>,
     },
     MismatchedFieldLabels {
         range: FileRange,
-        expr_labels: Vec<(FileRange, StringId)>,
-        type_labels: Vec<StringId>,
+        expr_labels: Vec<(FileRange, Symbol)>,
+        type_labels: Vec<Symbol>,
         // TODO: add expected type
         // expected_type: Doc<_>,
     },
     DuplicateFieldLabels {
         range: FileRange,
-        labels: Vec<(FileRange, StringId)>,
+        labels: Vec<(FileRange, Symbol)>,
     },
     ArrayLiteralNotSupported {
         range: FileRange,
@@ -125,14 +124,14 @@ pub enum Message {
     },
     HoleSolution {
         range: FileRange,
-        name: StringId,
+        name: Symbol,
         // TODO: add type
         // type: Doc<_>,
         expr: String,
     },
     /// A cycle between module items was detected.
     CycleDetected {
-        names: Vec<StringId>,
+        names: Vec<Symbol>,
     },
     /// Core term lacked span information
     MissingSpan {
@@ -141,7 +140,7 @@ pub enum Message {
 }
 
 impl Message {
-    pub fn to_diagnostic(&self, interner: &RefCell<StringInterner>) -> Diagnostic<FileId> {
+    pub fn to_diagnostic(&self) -> Diagnostic<FileId> {
         let primary_label = |range: &FileRange| Label::primary(range.file_id(), *range);
         let secondary_label = |range: &FileRange| Label::secondary(range.file_id(), *range);
 
@@ -151,8 +150,7 @@ impl Message {
                 name,
                 suggestion,
             } => {
-                let interner = interner.borrow();
-                let name = interner.resolve(*name).unwrap();
+                let name = name.resolve();
 
                 let mut diagnostic = Diagnostic::error()
                     .with_message(format!("cannot find `{name}` in scope"))
@@ -161,7 +159,7 @@ impl Message {
                 if let Some(suggestion) = suggestion {
                     diagnostic = diagnostic.with_notes(vec![format!(
                         "help: did you mean `{}`?",
-                        interner.resolve(*suggestion).unwrap()
+                        suggestion.resolve()
                     )])
                 }
                 diagnostic
@@ -223,8 +221,7 @@ impl Message {
                 label,
                 suggestion,
             } => {
-                let interner = interner.borrow();
-                let label = interner.resolve(*label).unwrap();
+                let label = label.resolve();
 
                 let mut diagnostic = Diagnostic::error()
                     .with_message(format!("cannot find `{label}` in expression"))
@@ -236,7 +233,7 @@ impl Message {
                 if let Some(suggestion) = suggestion {
                     diagnostic = diagnostic.with_notes(vec![format!(
                         "help: did you mean `{}`?",
-                        interner.resolve(*suggestion).unwrap()
+                        suggestion.resolve()
                     )]);
                 }
                 diagnostic
@@ -246,7 +243,6 @@ impl Message {
                 expr_labels,
                 type_labels,
             } => {
-                let interner = interner.borrow();
                 let mut diagnostic_labels = Vec::with_capacity(expr_labels.len());
                 {
                     let mut type_labels = type_labels.iter().peekable();
@@ -255,7 +251,7 @@ impl Message {
                         'type_labels: loop {
                             match type_labels.next() {
                                 None => {
-                                    let expr_label = interner.resolve(*expr_label).unwrap();
+                                    let expr_label = expr_label.resolve();
                                     diagnostic_labels.push(
                                         primary_label(range).with_message(format!(
                                             "unexpected field `{expr_label}`"
@@ -267,7 +263,7 @@ impl Message {
                                     continue 'expr_labels;
                                 }
                                 Some(type_label) => {
-                                    let type_label = interner.resolve(*type_label).unwrap();
+                                    let type_label = type_label.resolve();
                                     diagnostic_labels.push(
                                         primary_label(range).with_message(format!(
                                             "expected field `{type_label}`",
@@ -283,7 +279,7 @@ impl Message {
                         diagnostic_labels.push(primary_label(range).with_message(format!(
                             "missing fields {}",
                             type_labels
-                                .map(|label| interner.resolve(*label).unwrap())
+                                .map(|label|label.resolve())
                                 .format_with(", ", |label, f| f(&format_args!("`{label}`"))),
                         )));
                     } else {
@@ -293,10 +289,10 @@ impl Message {
                 }
 
                 let found_labels = (expr_labels.iter())
-                    .map(|(_, label)| interner.resolve(*label).unwrap())
+                    .map(|(_, label)| label.resolve())
                     .format_with(", ", |label, f| f(&format_args!("`{label}`")));
                 let expected_labels = (type_labels.iter())
-                    .map(|label| interner.resolve(*label).unwrap())
+                    .map(|label| label.resolve())
                     .format_with(", ", |label, f| f(&format_args!("`{label}`")));
 
                 Diagnostic::error()
@@ -308,7 +304,6 @@ impl Message {
                     ])
             }
             Message::DuplicateFieldLabels { range, labels } => {
-                let interner = interner.borrow();
                 let diagnostic_labels = (labels.iter())
                     .map(|(range, _)| primary_label(range).with_message("duplicate field"))
                     .chain(std::iter::once(
@@ -322,7 +317,7 @@ impl Message {
                     .with_notes(vec![format!(
                         "duplicate fields {}",
                         (labels.iter())
-                            .map(|(_, label)| interner.resolve(*label).unwrap())
+                            .map(|(_, label)| label.resolve())
                             .format_with(", ", |label, f| f(&format_args!("`{label}`")))
                     )])
             }
@@ -466,8 +461,7 @@ impl Message {
                 }
             }
             Message::HoleSolution { range, name, expr } => {
-                let interner = interner.borrow();
-                let name = interner.resolve(*name).unwrap();
+                let name = name.resolve();
 
                 Diagnostic::note()
                     .with_message(format!("solution found for hole `?{name}`"))
@@ -500,11 +494,7 @@ impl Message {
                     ])
             }
             Message::CycleDetected { names } => {
-                let interner = interner.borrow();
-                let names: Vec<_> = names
-                    .iter()
-                    .map(|id| interner.resolve(*id).unwrap())
-                    .collect();
+                let names: Vec<_> = names.iter().map(|id| id.resolve()).collect();
                 let cycle = names.join(" → ");
                 Diagnostic::error()
                     .with_message("cycle detected")

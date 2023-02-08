@@ -1,55 +1,42 @@
-use std::cell::RefCell;
-
 use pretty::{Doc, DocAllocator, DocPtr, RefDoc};
 use scoped_arena::Scope;
 
-use crate::source::{StringId, StringInterner};
 use crate::surface::lexer::is_keyword;
 use crate::surface::{Arg, FormatField, Item, Module, Param, Pattern, Plicity, Term};
+use crate::symbol::Symbol;
 
 const INDENT: isize = 4;
 
-type DocBuilder<'interner, 'arena> = pretty::DocBuilder<'arena, Context<'interner, 'arena>>;
+type DocBuilder<'arena> = pretty::DocBuilder<'arena, Context<'arena>>;
 
-pub struct Context<'interner, 'arena> {
-    interner: &'interner RefCell<StringInterner>,
+pub struct Context<'arena> {
     scope: &'arena Scope<'arena>,
 }
 
-impl<'interner, 'arena> Context<'interner, 'arena> {
-    pub fn new(
-        interner: &'interner RefCell<StringInterner>,
-        scope: &'arena Scope<'arena>,
-    ) -> Context<'interner, 'arena> {
-        Context { interner, scope }
+impl<'arena> Context<'arena> {
+    pub fn new(scope: &'arena Scope<'arena>) -> Context<'arena> {
+        Context { scope }
     }
 
-    fn string_id(&'arena self, name: StringId) -> DocBuilder<'interner, 'arena> {
-        match self.interner.borrow().resolve(name) {
-            Some(name) => self.text(name.to_owned()),
-            None => self.text("#error"),
+    fn symbol(&'arena self, name: Symbol) -> DocBuilder<'arena> {
+        self.text(name.resolve().to_owned())
+    }
+
+    fn ident(&'arena self, name: Symbol) -> DocBuilder<'arena> {
+        match name.resolve() {
+            name if is_keyword(name) => self.text("r#").append(self.text(name.to_owned())),
+            name => self.text(name.to_owned()),
         }
     }
 
-    fn ident(&'arena self, name: StringId) -> DocBuilder<'interner, 'arena> {
-        match self.interner.borrow().resolve(name) {
-            Some(name) if is_keyword(name) => self.text(format!("r#{name}")),
-            Some(name) => self.text(name.to_owned()),
-            None => self.text("#error"),
-        }
-    }
-
-    pub fn module<Range>(
-        &'arena self,
-        module: &Module<'_, Range>,
-    ) -> DocBuilder<'interner, 'arena> {
+    pub fn module<Range>(&'arena self, module: &Module<'_, Range>) -> DocBuilder<'arena> {
         self.intersperse(
             module.items.iter().map(|item| self.item(item)),
             self.hardline(),
         )
     }
 
-    fn item<Range>(&'arena self, item: &Item<'_, Range>) -> DocBuilder<'interner, 'arena> {
+    fn item<Range>(&'arena self, item: &Item<'_, Range>) -> DocBuilder<'arena> {
         match item {
             Item::Def(item) => self
                 .concat([
@@ -84,12 +71,12 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         }
     }
 
-    fn pattern<Range>(&'arena self, pattern: &Pattern<Range>) -> DocBuilder<'interner, 'arena> {
+    fn pattern<Range>(&'arena self, pattern: &Pattern<Range>) -> DocBuilder<'arena> {
         match pattern {
             Pattern::Placeholder(_) => self.text("_"),
             Pattern::Name(_, name) => self.ident(*name),
-            Pattern::StringLiteral(_, number) => self.string_id(*number),
-            Pattern::NumberLiteral(_, number) => self.string_id(*number),
+            Pattern::StringLiteral(_, number) => self.symbol(*number),
+            Pattern::NumberLiteral(_, number) => self.symbol(*number),
             Pattern::BooleanLiteral(_, boolean) => match *boolean {
                 true => self.text("true"),
                 false => self.text("false"),
@@ -97,7 +84,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         }
     }
 
-    fn plicity(&'arena self, plicity: Plicity) -> DocBuilder<'interner, 'arena> {
+    fn plicity(&'arena self, plicity: Plicity) -> DocBuilder<'arena> {
         match plicity {
             Plicity::Explicit => self.nil(),
             Plicity::Implicit => self.text("@"),
@@ -108,7 +95,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         &'arena self,
         pattern: &Pattern<Range>,
         r#type: Option<&Term<'_, Range>>,
-    ) -> DocBuilder<'interner, 'arena> {
+    ) -> DocBuilder<'arena> {
         match r#type {
             None => self.pattern(pattern),
             Some(r#type) => self.concat([
@@ -120,7 +107,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         }
     }
 
-    fn param<Range>(&'arena self, param: &Param<'_, Range>) -> DocBuilder<'interner, 'arena> {
+    fn param<Range>(&'arena self, param: &Param<'_, Range>) -> DocBuilder<'arena> {
         match &param.r#type {
             None => self.concat([self.plicity(param.plicity), self.pattern(&param.pattern)]),
             Some(r#type) => self.concat([
@@ -139,15 +126,15 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
         }
     }
 
-    fn params<Range>(&'arena self, params: &[Param<'_, Range>]) -> DocBuilder<'interner, 'arena> {
+    fn params<Range>(&'arena self, params: &[Param<'_, Range>]) -> DocBuilder<'arena> {
         self.concat((params.iter()).map(|param| self.concat([self.space(), self.param(param)])))
     }
 
-    fn arg<Range>(&'arena self, arg: &Arg<'_, Range>) -> DocBuilder<'interner, 'arena> {
+    fn arg<Range>(&'arena self, arg: &Arg<'_, Range>) -> DocBuilder<'arena> {
         self.concat([self.plicity(arg.plicity), self.term(&arg.term)])
     }
 
-    pub fn term<Range>(&'arena self, term: &Term<'_, Range>) -> DocBuilder<'interner, 'arena> {
+    pub fn term<Range>(&'arena self, term: &Term<'_, Range>) -> DocBuilder<'arena> {
         // FIXME: indentation and grouping
 
         match term {
@@ -294,9 +281,9 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
                 self.sequence(false, self.text("["), terms, self.text(","), self.text("]"))
             }
             Term::StringLiteral(_, number) => {
-                self.concat([self.text("\""), self.string_id(*number), self.text("\"")])
+                self.concat([self.text("\""), self.symbol(*number), self.text("\"")])
             }
-            Term::NumberLiteral(_, number) => self.string_id(*number),
+            Term::NumberLiteral(_, number) => self.symbol(*number),
             Term::BooleanLiteral(_, boolean) => match *boolean {
                 true => self.text("true"),
                 false => self.text("false"),
@@ -344,7 +331,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
     fn format_field<Range>(
         &'arena self,
         format_field: &FormatField<'_, Range>,
-    ) -> DocBuilder<'interner, 'arena> {
+    ) -> DocBuilder<'arena> {
         match format_field {
             FormatField::Format {
                 label,
@@ -392,7 +379,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
     }
 
     /// Wrap a document in parens.
-    fn paren(&'arena self, doc: DocBuilder<'interner, 'arena>) -> DocBuilder<'interner, 'arena> {
+    fn paren(&'arena self, doc: DocBuilder<'arena>) -> DocBuilder<'arena> {
         self.concat([self.text("("), doc, self.text(")")])
     }
 
@@ -403,11 +390,11 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
     pub fn sequence(
         &'arena self,
         space: bool,
-        start_delim: DocBuilder<'interner, 'arena>,
-        docs: impl ExactSizeIterator<Item = DocBuilder<'interner, 'arena>> + Clone,
-        separator: DocBuilder<'interner, 'arena>,
-        end_delim: DocBuilder<'interner, 'arena>,
-    ) -> DocBuilder<'interner, 'arena> {
+        start_delim: DocBuilder<'arena>,
+        docs: impl ExactSizeIterator<Item = DocBuilder<'arena>> + Clone,
+        separator: DocBuilder<'arena>,
+        end_delim: DocBuilder<'arena>,
+    ) -> DocBuilder<'arena> {
         if docs.len() == 0 {
             return self.concat([start_delim, end_delim]);
         }
@@ -428,7 +415,7 @@ impl<'interner, 'arena> Context<'interner, 'arena> {
     }
 }
 
-impl<'interner, 'arena, A: 'arena> DocAllocator<'arena, A> for Context<'interner, 'arena> {
+impl<'arena, A: 'arena> DocAllocator<'arena, A> for Context<'arena> {
     type Doc = RefDoc<'arena, A>;
 
     #[inline]

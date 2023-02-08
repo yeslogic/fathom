@@ -24,12 +24,13 @@ codespan-reporting = "0.11.1"
 fxhash = "0.2"
 itertools = "0.10"
 lalrpop-util = "0.19.5"
+lasso = { version = "0.6.0", features = ["multi-threaded", "ahasher", "inline-more"] }
 levenshtein = "1.0.5"
 logos = "0.12"
+once_cell = { version = "1.17.0", features = ["parking_lot"] }
 pretty = "0.11.2"
 rpds = "0.12.0"
 scoped-arena = "0.4.1"
-string-interner = "0.14.0"
 termsize = "0.1.6"
 
 [build-dependencies]

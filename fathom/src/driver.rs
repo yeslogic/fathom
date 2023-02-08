@@ -8,7 +8,7 @@ use codespan_reporting::term::termcolor::{BufferedStandardStream, ColorChoice, W
 
 use crate::core::binary::{self, BufferError, ReadError};
 use crate::files::{FileId, Files};
-use crate::source::{ByteRange, ProgramSource, SourceTooBig, Span, StringInterner, MAX_SOURCE_LEN};
+use crate::source::{ByteRange, ProgramSource, SourceTooBig, Span, MAX_SOURCE_LEN};
 use crate::surface::elaboration::ItemEnv;
 use crate::surface::{self, elaboration};
 use crate::{core, BUG_REPORT_URL};
@@ -30,7 +30,6 @@ impl Status {
 
 pub struct Driver<'surface, 'core> {
     files: Files<String, ProgramSource>,
-    interner: RefCell<StringInterner>,
     surface_scope: scoped_arena::Scope<'surface>,
     core_scope: scoped_arena::Scope<'core>,
 
@@ -46,7 +45,6 @@ pub struct Driver<'surface, 'core> {
 impl<'surface, 'core> Driver<'surface, 'core> {
     pub fn new() -> Driver<'surface, 'core> {
         Driver {
-            interner: RefCell::new(StringInterner::new()),
             surface_scope: scoped_arena::Scope::new(),
             core_scope: scoped_arena::Scope::new(),
             files: Files::new(),
@@ -204,12 +202,11 @@ impl<'surface, 'core> Driver<'surface, 'core> {
     }
 
     pub fn elaborate_and_emit_module(&mut self, file_id: FileId, pretty_core: bool) -> Status {
-        let mut context =
-            elaboration::Context::new(file_id, &self.interner, &self.core_scope, ItemEnv::new());
+        let mut context = elaboration::Context::new(file_id, &self.core_scope, ItemEnv::new());
 
         let surface_module = self.parse_module(file_id);
         let module = context.elab_module(&self.core_scope, &surface_module, &mut |m| {
-            self.emit_diagnostic(m.to_diagnostic(&self.interner));
+            self.emit_diagnostic(m.to_diagnostic());
         });
 
         // Return early if we’ve seen any errors, unless `allow_errors` is enabled
@@ -230,13 +227,12 @@ impl<'surface, 'core> Driver<'surface, 'core> {
     }
 
     pub fn elaborate_and_emit_term(&mut self, file_id: FileId) -> Status {
-        let mut context =
-            elaboration::Context::new(file_id, &self.interner, &self.core_scope, ItemEnv::new());
+        let mut context = elaboration::Context::new(file_id, &self.core_scope, ItemEnv::new());
 
         // Parse and elaborate the term
         let surface_term = self.parse_term(file_id);
         let (term, r#type) = context.elab_term(&self.core_scope, &surface_term, &mut |m| {
-            self.emit_diagnostic(m.to_diagnostic(&self.interner));
+            self.emit_diagnostic(m.to_diagnostic());
         });
 
         // Return early if we’ve seen any errors, unless `allow_errors` is enabled
@@ -255,13 +251,12 @@ impl<'surface, 'core> Driver<'surface, 'core> {
     }
 
     pub fn normalize_and_emit_term(&mut self, file_id: FileId) -> Status {
-        let mut context =
-            elaboration::Context::new(file_id, &self.interner, &self.core_scope, ItemEnv::new());
+        let mut context = elaboration::Context::new(file_id, &self.core_scope, ItemEnv::new());
 
         // Parse and elaborate the term
         let surface_term = self.parse_term(file_id);
         let (term, r#type) = context.elab_term(&self.core_scope, &surface_term, &mut |m| {
-            self.emit_diagnostic(m.to_diagnostic(&self.interner));
+            self.emit_diagnostic(m.to_diagnostic());
         });
 
         // Return early if we’ve seen any errors, unless `allow_errors` is enabled
@@ -296,11 +291,10 @@ impl<'surface, 'core> Driver<'surface, 'core> {
 
         // Parse and elaborate a module if one was provided
         if let Some(file_id) = module_file_id {
-            let mut elab_context =
-                elaboration::Context::new(file_id, &self.interner, &self.core_scope, item_env);
+            let mut elab_context = elaboration::Context::new(file_id, &self.core_scope, item_env);
             let surface_module = self.parse_module(file_id);
             let module = elab_context.elab_module(&self.core_scope, &surface_module, &mut |m| {
-                self.emit_diagnostic(m.to_diagnostic(&self.interner));
+                self.emit_diagnostic(m.to_diagnostic());
             });
             // Add it to the binary context
             binary_context.add_module(&module);
@@ -312,10 +306,10 @@ impl<'surface, 'core> Driver<'surface, 'core> {
         // will need to be revisited if we need to support multiple modules, but
         // it works for now!
         let mut elab_context =
-            elaboration::Context::new(format_file_id, &self.interner, &self.core_scope, item_env);
+            elaboration::Context::new(format_file_id, &self.core_scope, item_env);
         let surface_format = self.parse_term(format_file_id);
         let format = elab_context.elab_format(&self.core_scope, &surface_format, &mut |m| {
-            self.emit_diagnostic(m.to_diagnostic(&self.interner));
+            self.emit_diagnostic(m.to_diagnostic());
         });
 
         // Return early if we’ve seen any errors, unless `allow_errors` is enabled
@@ -352,8 +346,7 @@ impl<'surface, 'core> Driver<'surface, 'core> {
 
     fn parse_module(&'surface self, file_id: FileId) -> surface::Module<'surface, ByteRange> {
         let source = self.files.get(file_id).unwrap().source();
-        let (module, messages) =
-            surface::Module::parse(&self.interner, &self.surface_scope, source);
+        let (module, messages) = surface::Module::parse(&self.surface_scope, source);
         self.emit_diagnostics(messages.into_iter().map(|m| m.to_diagnostic(file_id)));
 
         module
@@ -361,19 +354,19 @@ impl<'surface, 'core> Driver<'surface, 'core> {
 
     fn parse_term(&'surface self, file_id: FileId) -> surface::Term<'surface, ByteRange> {
         let source = self.files.get(file_id).unwrap().source();
-        let (term, messages) = surface::Term::parse(&self.interner, &self.surface_scope, source);
+        let (term, messages) = surface::Term::parse(&self.surface_scope, source);
         self.emit_diagnostics(messages.into_iter().map(move |m| m.to_diagnostic(file_id)));
 
         term
     }
 
     fn emit_module(&self, module: &surface::Module<'_, ()>) {
-        let context = surface::pretty::Context::new(&self.interner, &self.surface_scope);
+        let context = surface::pretty::Context::new(&self.surface_scope);
         self.emit_doc(context.module(module).into_doc());
     }
 
     fn emit_core_module(&self, module: &core::Module<'_>) {
-        let context = core::pretty::Context::new(&self.interner);
+        let context = core::pretty::Context::new();
         // TODO: Ideally this would be a call to emit_doc
         let doc = context.module(module);
         let mut emit_writer = self.emit_writer.borrow_mut();
@@ -382,14 +375,14 @@ impl<'surface, 'core> Driver<'surface, 'core> {
     }
 
     fn emit_term(&self, term: &surface::Term<'_, ()>) {
-        let context = surface::pretty::Context::new(&self.interner, &self.surface_scope);
+        let context = surface::pretty::Context::new(&self.surface_scope);
         self.emit_doc(context.term(term).into_doc());
     }
 
     fn emit_ref(&self, pos: usize, exprs: Vec<surface::Term<'_, ()>>) {
         use pretty::DocAllocator;
 
-        let context = surface::pretty::Context::new(&self.interner, &self.surface_scope);
+        let context = surface::pretty::Context::new(&self.surface_scope);
         let pos = pos.to_string();
         let doc = context
             .concat([
@@ -465,7 +458,7 @@ impl<'surface, 'core> Driver<'surface, 'core> {
                 let surface_scope = &self.surface_scope;
                 let expr = context.quote_env().quote(core_scope, value);
                 let surface_term = context.distillation_context(surface_scope).check(&expr);
-                let pretty_context = surface::pretty::Context::new(&self.interner, surface_scope);
+                let pretty_context = surface::pretty::Context::new(surface_scope);
                 let doc = pretty_context.term(&surface_term).into_doc();
 
                 Diagnostic::error()

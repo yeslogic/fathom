@@ -3,7 +3,8 @@
 use std::fmt;
 
 use crate::env::{Index, Level};
-use crate::source::{Span, StringId};
+use crate::source::Span;
+use crate::symbol::Symbol;
 
 pub mod binary;
 pub mod pretty;
@@ -20,7 +21,7 @@ pub enum Item<'arena> {
     /// Top-level definitions
     Def {
         /// The label that identifies this definition
-        label: StringId,
+        label: Symbol,
         /// The type of the defined expression
         r#type: &'arena Term<'arena>,
         /// The defined expression
@@ -145,7 +146,7 @@ pub enum Term<'arena> {
     /// Let expressions.
     Let(
         Span,
-        Option<StringId>,
+        Option<Symbol>,
         &'arena Term<'arena>,
         &'arena Term<'arena>,
         &'arena Term<'arena>,
@@ -160,34 +161,34 @@ pub enum Term<'arena> {
     FunType(
         Span,
         Plicity,
-        Option<StringId>,
+        Option<Symbol>,
         &'arena Term<'arena>,
         &'arena Term<'arena>,
     ),
     /// Function literals.
     ///
     /// Also known as: lambda expressions, anonymous functions.
-    FunLit(Span, Plicity, Option<StringId>, &'arena Term<'arena>),
+    FunLit(Span, Plicity, Option<Symbol>, &'arena Term<'arena>),
     /// Function applications.
     FunApp(Span, Plicity, &'arena Term<'arena>, &'arena Term<'arena>),
 
     /// Dependent record types.
-    RecordType(Span, &'arena [StringId], &'arena [Term<'arena>]),
+    RecordType(Span, &'arena [Symbol], &'arena [Term<'arena>]),
     /// Record literals.
-    RecordLit(Span, &'arena [StringId], &'arena [Term<'arena>]),
+    RecordLit(Span, &'arena [Symbol], &'arena [Term<'arena>]),
     /// Record projections.
-    RecordProj(Span, &'arena Term<'arena>, StringId),
+    RecordProj(Span, &'arena Term<'arena>, Symbol),
 
     /// Array literals.
     ArrayLit(Span, &'arena [Term<'arena>]),
 
     /// Record formats, consisting of a list of dependent formats.
-    FormatRecord(Span, &'arena [StringId], &'arena [Term<'arena>]),
+    FormatRecord(Span, &'arena [Symbol], &'arena [Term<'arena>]),
     /// Conditional format, consisting of a format and predicate.
-    FormatCond(Span, StringId, &'arena Term<'arena>, &'arena Term<'arena>),
+    FormatCond(Span, Symbol, &'arena Term<'arena>, &'arena Term<'arena>),
     /// Overlap formats, consisting of a list of dependent formats, overlapping
     /// in memory.
-    FormatOverlap(Span, &'arena [StringId], &'arena [Term<'arena>]),
+    FormatOverlap(Span, &'arena [Symbol], &'arena [Term<'arena>]),
 
     /// Primitives.
     Prim(Span, Prim),
@@ -200,7 +201,7 @@ pub enum Term<'arena> {
         Span,
         &'arena Term<'arena>,
         &'arena [(Const, Term<'arena>)],
-        Option<(Option<StringId>, &'arena Term<'arena>)>,
+        Option<(Option<Symbol>, &'arena Term<'arena>)>,
     ),
 }
 

@@ -12,13 +12,11 @@
 //! use fathom::core::pretty::Context;
 //! use fathom::core::Module;
 //! use fathom::files::FileId;
-//! use fathom::source::StringInterner;
 //!
 //! // These are created for demonstration
-//! let interner = RefCell::new(StringInterner::new());
 //! let module = Module { items: &[] };
 //!
-//! let pp = Context::new(&interner);
+//! let pp = Context::new();
 //! let doc = pp.module(&module);
 //! let mut stream = BufferedStandardStream::stdout(ColorChoice::Auto);
 //! let emit_width = 100;
@@ -26,13 +24,11 @@
 //! stream.flush().unwrap();
 //! ```
 
-use std::cell::RefCell;
-
 use pretty::RcDoc;
 
 use crate::core::{Item, Module, Plicity, Term};
-use crate::source::{StringId, StringInterner};
 use crate::surface::lexer::is_keyword;
+use crate::symbol::Symbol;
 
 /// Term precedences
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
@@ -48,20 +44,17 @@ enum Prec {
 
 const INDENT: isize = 4;
 
-pub struct Context<'interner> {
-    interner: &'interner RefCell<StringInterner>,
-}
+pub struct Context {}
 
-impl<'interner, 'arena> Context<'interner> {
-    pub fn new(interner: &'interner RefCell<StringInterner>) -> Context<'interner> {
-        Context { interner }
+impl<'arena> Context {
+    pub fn new() -> Context {
+        Context {}
     }
 
-    fn ident(&'arena self, name: StringId) -> RcDoc {
-        match self.interner.borrow().resolve(name) {
-            Some(name) if is_keyword(name) => RcDoc::text(format!("r#{name}")),
-            Some(name) => RcDoc::text(name.to_owned()),
-            None => RcDoc::text("#error"),
+    fn ident(&'arena self, name: Symbol) -> RcDoc {
+        match name.resolve() {
+            name if is_keyword(name) => RcDoc::text("r#").append(RcDoc::text(name.to_owned())),
+            name => RcDoc::text(name.to_owned()),
         }
     }
 
@@ -93,7 +86,7 @@ impl<'interner, 'arena> Context<'interner> {
         }
     }
 
-    fn pattern(&'arena self, pattern: Option<StringId>) -> RcDoc {
+    fn pattern(&'arena self, pattern: Option<Symbol>) -> RcDoc {
         match pattern {
             Some(name) => self.ident(name),
             None => RcDoc::text("_"),
@@ -103,7 +96,7 @@ impl<'interner, 'arena> Context<'interner> {
     fn ann_pattern(
         &'arena self,
         prec: Prec,
-        pattern: Option<StringId>,
+        pattern: Option<Symbol>,
         r#type: &Term<'arena>,
     ) -> RcDoc {
         self.paren(
@@ -341,7 +334,7 @@ impl<'interner, 'arena> Context<'interner> {
         }
     }
 
-    fn format_field(&'arena self, label: StringId, format: &Term<'arena>) -> RcDoc {
+    fn format_field(&'arena self, label: Symbol, format: &Term<'arena>) -> RcDoc {
         RcDoc::concat([
             self.ident(label),
             RcDoc::space(),
