@@ -25,7 +25,6 @@ use std::sync::Arc;
 
 use scoped_arena::Scope;
 
-use super::ExprField;
 use crate::alloc::SliceVec;
 use crate::core::semantics::{self, ArcValue, Head, Telescope, Value};
 use crate::core::{self, prim, Const, Plicity, Prim, UIntStyle};
@@ -34,7 +33,7 @@ use crate::files::FileId;
 use crate::source::{BytePos, ByteRange, FileRange, Span, Spanned};
 use crate::surface::elaboration::reporting::Message;
 use crate::surface::{
-    distillation, pretty, BinOp, FormatField, Item, Module, Param, Pattern, Term,
+    distillation, pretty, BinOp, ExprField, FormatField, Item, Module, Param, Pattern, Term,
 };
 use crate::symbol::Symbol;
 
@@ -375,19 +374,7 @@ impl<'arena> Context<'arena> {
                 (None, source) => on_message(Message::UnsolvedMetaVar { source }),
                 // Yield messages of solved named holes
                 (Some(expr), MetaSource::HoleExpr(range, name)) => {
-                    let term = self.quote_env().quote(self.scope, expr);
-                    let surface_term = distillation::Context::new(
-                        self.scope,
-                        &self.item_env.names,
-                        &mut self.local_env.names,
-                        &self.meta_env.sources,
-                    )
-                    .check(&term);
-
-                    let pretty_context = pretty::Context::new(self.scope);
-                    let doc = pretty_context.term(&surface_term).into_doc();
-                    let expr = doc.pretty(usize::MAX).to_string();
-
+                    let expr = self.pretty_value(expr);
                     on_message(Message::HoleSolution { range, name, expr });
                 }
                 // Ignore solutions of anything else
@@ -420,24 +407,22 @@ impl<'arena> Context<'arena> {
     }
 
     pub fn distillation_context<'out_arena>(
-        &mut self,
+        &self,
         scope: &'out_arena Scope<'out_arena>,
     ) -> distillation::Context<'out_arena, '_> {
         distillation::Context::new(
             scope,
             &self.item_env.names,
-            &mut self.local_env.names,
+            self.local_env.names.clone(),
             &self.meta_env.sources,
         )
     }
 
-    fn pretty_print_value(&mut self, value: &ArcValue<'_>) -> String {
-        let scope = self.scope;
+    fn pretty_value(&self, value: &ArcValue<'_>) -> String {
+        let term = self.quote_env().unfolding_metas().quote(self.scope, value);
+        let surface_term = self.distillation_context(self.scope).check(&term);
 
-        let term = self.quote_env().unfolding_metas().quote(scope, value);
-        let surface_term = self.distillation_context(scope).check(&term);
-
-        pretty::Context::new(scope)
+        pretty::Context::new(self.scope)
             .term(&surface_term)
             .pretty(usize::MAX)
             .to_string()
@@ -625,12 +610,10 @@ impl<'arena> Context<'arena> {
                         }
                     };
 
-                    let from = self.pretty_print_value(&from);
-                    let to = self.pretty_print_value(&to);
                     self.push_message(Message::FailedToUnify {
                         range,
-                        found: from,
-                        expected: to,
+                        found: self.pretty_value(&from),
+                        expected: self.pretty_value(&to),
                         error,
                     });
                     core::Term::Prim(span, Prim::ReportedError)
@@ -757,10 +740,9 @@ impl<'arena> Context<'arena> {
                     // Some((Prim::Array64Type, [len, _])) => todo!(),
                     Some((Prim::ReportedError, _)) => None,
                     _ => {
-                        let expected_type = self.pretty_print_value(expected_type);
                         self.push_message(Message::StringLiteralNotSupported {
                             range: file_range,
-                            expected_type,
+                            expected_type: self.pretty_value(expected_type),
                         });
                         None
                     }
@@ -785,10 +767,9 @@ impl<'arena> Context<'arena> {
                     Some((Prim::F64Type, [])) => self.parse_number(*range, *lit, Const::F64),
                     Some((Prim::ReportedError, _)) => None,
                     _ => {
-                        let expected_type = self.pretty_print_value(expected_type);
                         self.push_message(Message::NumericLiteralNotSupported {
                             range: file_range,
-                            expected_type,
+                            expected_type: self.pretty_value(expected_type),
                         });
                         None
                     }
@@ -875,12 +856,10 @@ impl<'arena> Context<'arena> {
                 match self.unification_context().unify(&r#type, expected_type) {
                     Ok(()) => self.check_pattern(pattern, &r#type),
                     Err(error) => {
-                        let lhs = self.pretty_print_value(&r#type);
-                        let rhs = self.pretty_print_value(expected_type);
                         self.push_message(Message::FailedToUnify {
                             range: file_range,
-                            found: lhs,
-                            expected: rhs,
+                            found: self.pretty_value(&r#type),
+                            expected: self.pretty_value(expected_type),
                             error,
                         });
                         CheckedPattern::ReportedError(file_range)
@@ -1178,10 +1157,9 @@ impl<'arena> Context<'arena> {
                         return core::Term::Prim(file_range.into(), Prim::ReportedError)
                     }
                     _ => {
-                        let expected_type = self.pretty_print_value(&expected_type);
                         self.push_message(Message::ArrayLiteralNotSupported {
                             range: file_range,
-                            expected_type,
+                            expected_type: self.pretty_value(&expected_type),
                         });
                         return core::Term::Prim(file_range.into(), Prim::ReportedError);
                     }
@@ -1213,11 +1191,10 @@ impl<'arena> Context<'arena> {
                             self.check(elem_expr, elem_type);
                         }
 
-                        let expected_len = self.pretty_print_value(len_value.unwrap());
                         self.push_message(Message::MismatchedArrayLength {
                             range: file_range,
                             found_len: elem_exprs.len(),
-                            expected_len,
+                            expected_len: self.pretty_value(len_value.unwrap()),
                         });
 
                         core::Term::Prim(file_range.into(), Prim::ReportedError)
@@ -1236,10 +1213,9 @@ impl<'arena> Context<'arena> {
                     // Some((Prim::Array64Type, [len, _])) => todo!(),
                     Some((Prim::ReportedError, _)) => None,
                     _ => {
-                        let expected_type = self.pretty_print_value(&expected_type);
                         self.push_message(Message::StringLiteralNotSupported {
                             range: file_range,
-                            expected_type,
+                            expected_type: self.pretty_value(&expected_type),
                         });
                         None
                     }
@@ -1264,10 +1240,9 @@ impl<'arena> Context<'arena> {
                     Some((Prim::F64Type, [])) => self.parse_number(*range, *lit, Const::F64),
                     Some((Prim::ReportedError, _)) => None,
                     _ => {
-                        let expected_type = self.pretty_print_value(&expected_type);
                         self.push_message(Message::NumericLiteralNotSupported {
                             range: file_range,
-                            expected_type,
+                            expected_type: self.pretty_value(&expected_type),
                         });
                         return core::Term::Prim(file_range.into(), Prim::ReportedError);
                     }
@@ -1354,20 +1329,16 @@ impl<'arena> Context<'arena> {
                     return (core::Term::Prim(file_range.into(), prim), r#type.clone());
                 }
 
-                let candidates = self
-                    .local_env
-                    .names
-                    .iter()
-                    .flatten()
-                    .copied()
-                    .chain(self.item_env.names.iter().copied());
-                let suggestion = suggest_name(*name, candidates);
-
                 self.push_message(Message::UnboundName {
                     range: file_range,
                     name: *name,
-                    suggestion,
+                    suggested_name: {
+                        let item_names = self.item_env.names.iter().copied();
+                        let local_names = self.local_env.names.iter().flatten().copied();
+                        suggest_name(*name, item_names.chain(local_names))
+                    },
                 });
+
                 self.synth_reported_error(*range)
             }
             Term::Hole(_, name) => {
@@ -1521,11 +1492,10 @@ impl<'arena> Context<'arena> {
                             if arg.plicity == *plicity {
                                 (param_type, body_type)
                             } else {
-                                let head_type = self.pretty_print_value(&head_type);
                                 self.messages.push(Message::PlicityArgumentMismatch {
                                     head_range: self.file_range(head_range),
                                     head_plicity: Plicity::Explicit,
-                                    head_type,
+                                    head_type: self.pretty_value(&head_type),
                                     arg_range: self.file_range(arg.term.range()),
                                     arg_plicity: arg.plicity,
                                 });
@@ -1542,10 +1512,9 @@ impl<'arena> Context<'arena> {
                         _ => {
                             // NOTE: We could try to infer that this is a function type,
                             // but this takes more work to prevent cascading type errors
-                            let head_type = self.pretty_print_value(&head_type);
                             self.push_message(Message::UnexpectedArgument {
                                 head_range: self.file_range(head_range),
-                                head_type,
+                                head_type: self.pretty_value(&head_type),
                                 arg_range: self.file_range(arg.term.range()),
                             });
                             return self.synth_reported_error(*range);
@@ -1681,15 +1650,12 @@ impl<'arena> Context<'arena> {
                         _ => {}
                     }
 
-                    let head_type = self.pretty_print_value(&head_type);
-                    let suggestion =
-                        suggest_name(*proj_label, labels.iter().map(|(_, label)| *label));
                     self.push_message(Message::UnknownField {
                         head_range: self.file_range(head_range),
-                        head_type,
+                        head_type: self.pretty_value(&head_type),
                         label_range: self.file_range(*label_range),
                         label: *proj_label,
-                        suggestion,
+                        suggested_label: suggest_name(*proj_label, labels.iter().map(|(_, l)| *l)),
                     });
                     return self.synth_reported_error(*range);
                 }
@@ -2005,15 +1971,13 @@ impl<'arena> Context<'arena> {
             (Gte(_), Some(((S64Type, []), (S64Type, [])))) => (S64Gte, BoolType),
 
             _ => {
-                let lhs_pretty = self.pretty_print_value(&lhs_type);
-                let rhs_pretty = self.pretty_print_value(&rhs_type);
                 self.push_message(Message::BinOpMismatchedTypes {
                     range: self.file_range(range),
                     lhs_range: self.file_range(lhs.range()),
                     rhs_range: self.file_range(rhs.range()),
                     op: op.map_range(|range| self.file_range(range)),
-                    lhs: lhs_pretty,
-                    rhs: rhs_pretty,
+                    lhs: self.pretty_value(&lhs_type),
+                    rhs: self.pretty_value(&rhs_type),
                 });
                 return self.synth_reported_error(range);
             }

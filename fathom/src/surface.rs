@@ -516,7 +516,6 @@ fn format_expected(expected: &[impl std::fmt::Display]) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::source::ByteRange;
 
     #[test]
     fn no_drop() {

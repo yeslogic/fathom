@@ -15,7 +15,7 @@ pub enum Message {
     UnboundName {
         range: FileRange,
         name: Symbol,
-        suggestion: Option<Symbol>,
+        suggested_name: Option<Symbol>,
     },
     RefutablePattern {
         pattern_range: FileRange,
@@ -47,7 +47,7 @@ pub enum Message {
         head_type: String,
         label_range: FileRange,
         label: Symbol,
-        suggestion: Option<Symbol>,
+        suggested_label: Option<Symbol>,
     },
     MismatchedFieldLabels {
         range: FileRange,
@@ -148,22 +148,13 @@ impl Message {
             Message::UnboundName {
                 range,
                 name,
-                suggestion,
-            } => {
-                let name = name.resolve();
-
-                let mut diagnostic = Diagnostic::error()
-                    .with_message(format!("cannot find `{name}` in scope"))
-                    .with_labels(vec![primary_label(range).with_message("unbound name")]);
-
-                if let Some(suggestion) = suggestion {
-                    diagnostic = diagnostic.with_notes(vec![format!(
-                        "help: did you mean `{}`?",
-                        suggestion.resolve()
-                    )])
-                }
-                diagnostic
-            }
+                suggested_name,
+            } => Diagnostic::error()
+                .with_message(format!("cannot find `{}` in scope", name.resolve()))
+                .with_labels(vec![primary_label(range).with_message("unbound name")])
+                .with_notes(suggested_name.map_or(Vec::new(), |name| {
+                    vec![format!("help: did you mean `{}`?", name.resolve())]
+                })),
             Message::RefutablePattern { pattern_range } => Diagnostic::error()
                 .with_message("refutable patterns found in binding")
                 .with_labels(vec![
@@ -219,25 +210,17 @@ impl Message {
                 head_type,
                 label_range,
                 label,
-                suggestion,
-            } => {
-                let label = label.resolve();
-
-                let mut diagnostic = Diagnostic::error()
-                    .with_message(format!("cannot find `{label}` in expression"))
-                    .with_labels(vec![
-                        primary_label(label_range).with_message("unknown label"),
-                        secondary_label(head_range)
-                            .with_message(format!("expression of type {head_type}")),
-                    ]);
-                if let Some(suggestion) = suggestion {
-                    diagnostic = diagnostic.with_notes(vec![format!(
-                        "help: did you mean `{}`?",
-                        suggestion.resolve()
-                    )]);
-                }
-                diagnostic
-            }
+                suggested_label,
+            } => Diagnostic::error()
+                .with_message(format!("cannot find `{}` in expression", label.resolve()))
+                .with_labels(vec![
+                    primary_label(label_range).with_message("unknown label"),
+                    secondary_label(head_range)
+                        .with_message(format!("expression of type {head_type}")),
+                ])
+                .with_notes(suggested_label.map_or(Vec::new(), |label| {
+                    vec![format!("help: did you mean `{}`?", label.resolve())]
+                })),
             Message::MismatchedFieldLabels {
                 range,
                 expr_labels,
@@ -251,24 +234,18 @@ impl Message {
                         'type_labels: loop {
                             match type_labels.next() {
                                 None => {
-                                    let expr_label = expr_label.resolve();
-                                    diagnostic_labels.push(
-                                        primary_label(range).with_message(format!(
-                                            "unexpected field `{expr_label}`"
-                                        )),
-                                    );
+                                    diagnostic_labels.push(primary_label(range).with_message(
+                                        format!("unexpected field `{}`", expr_label.resolve()),
+                                    ));
                                     continue 'expr_labels;
                                 }
                                 Some(type_label) if expr_label == type_label => {
                                     continue 'expr_labels;
                                 }
                                 Some(type_label) => {
-                                    let type_label = type_label.resolve();
-                                    diagnostic_labels.push(
-                                        primary_label(range).with_message(format!(
-                                            "expected field `{type_label}`",
-                                        )),
-                                    );
+                                    diagnostic_labels.push(primary_label(range).with_message(
+                                        format!("expected field `{}`", type_label.resolve()),
+                                    ));
                                     continue 'type_labels;
                                 }
                             }
@@ -494,8 +471,7 @@ impl Message {
                     ])
             }
             Message::CycleDetected { names } => {
-                let names: Vec<_> = names.iter().map(|id| id.resolve()).collect();
-                let cycle = names.join(" → ");
+                let cycle = names.iter().map(|name| name.resolve()).join(" → ");
                 Diagnostic::error()
                     .with_message("cycle detected")
                     .with_notes(vec![cycle])

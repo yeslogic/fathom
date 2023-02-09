@@ -41,7 +41,7 @@ pub struct Context<'arena, 'env> {
     /// Item name environment.
     item_names: &'env UniqueEnv<Symbol>,
     /// Local name environment.
-    local_names: &'env mut UniqueEnv<Option<Symbol>>,
+    local_names: UniqueEnv<Option<Symbol>>,
     /// Metavariable sources.
     meta_sources: &'env UniqueEnv<MetaSource>,
 }
@@ -51,7 +51,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
     pub fn new(
         scope: &'arena Scope<'arena>,
         item_names: &'env UniqueEnv<Symbol>,
-        local_names: &'env mut UniqueEnv<Option<Symbol>>,
+        local_names: UniqueEnv<Option<Symbol>>,
         meta_sources: &'env UniqueEnv<MetaSource>,
     ) -> Context<'arena, 'env> {
         Context {
