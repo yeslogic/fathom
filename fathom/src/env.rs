@@ -20,7 +20,7 @@
 use std::fmt;
 
 /// Underlying variable representation.
-type RawVar = u16;
+type RawVar = usize;
 
 /// A [de Bruijn index], which represents a variable counting the number of
 /// binders between a variable occurrence and the binder that introduced the
@@ -52,7 +52,7 @@ impl Index {
 
     /// Returns the previously bound variable, relative to this one.
     pub const fn prev(self) -> Index {
-        Index(self.0 + 1) // FIXME: check overflow?
+        Index(self.0 + 1)
     }
 }
 
@@ -99,7 +99,7 @@ impl Level {
 
     /// Returns the next bound variable, relative to this one.
     pub const fn next(self) -> Level {
-        Level(self.0 + 1) // FIXME: check overflow?
+        Level(self.0 + 1)
     }
 }
 
@@ -154,12 +154,12 @@ impl EnvLen {
 
     /// Push an entry onto the environment.
     pub fn push(&mut self) {
-        self.0 += 1; // FIXME: check overflow?
+        self.0 += 1;
     }
 
     /// Pop an entry off the environment.
     pub fn pop(&mut self) {
-        self.0 -= 1; // FIXME: check underflow?
+        self.0 -= 1;
     }
 
     /// Truncate the environment to the given length.
@@ -193,7 +193,7 @@ impl<Entry> UniqueEnv<Entry> {
     where
         Entry: Clone,
     {
-        self.entries.resize(usize::from(new_len.0), entry)
+        self.entries.resize(new_len.0, entry)
     }
 
     /// Push an entry onto the environment.
@@ -209,7 +209,7 @@ impl<Entry> UniqueEnv<Entry> {
 
     /// Truncate the environment to the given length.
     pub fn truncate(&mut self, len: EnvLen) {
-        self.entries.truncate(len.0 as usize);
+        self.entries.truncate(len.0);
     }
 
     pub fn reserve(&mut self, additional: usize) {
@@ -249,7 +249,7 @@ impl<Entry> SliceEnv<Entry> {
 
     /// Lookup an entry in the environment using a level
     pub fn get_level(&self, level: Level) -> Option<&Entry> {
-        self.entries.get(usize::from(level.0))
+        self.entries.get(level.0)
     }
 
     /// Lookup an entry in the environment using an index
@@ -259,7 +259,7 @@ impl<Entry> SliceEnv<Entry> {
 
     /// Set an entry in the environment using a level
     pub fn set_level(&mut self, level: Level, entry: Entry) {
-        self.entries[usize::from(level.0)] = entry;
+        self.entries[level.0] = entry;
     }
 
     /// Iterate over the elements in the environment.
@@ -329,7 +329,7 @@ impl<Entry> SharedEnv<Entry> {
 
     /// Lookup an entry in the environment using a level
     pub fn get_level(&self, level: Level) -> Option<&Entry> {
-        self.entries.get(usize::from(level.0))
+        self.entries.get(level.0)
     }
 
     /// Lookup an entry in the environment using an index
@@ -339,7 +339,6 @@ impl<Entry> SharedEnv<Entry> {
 
     /// Push an entry onto the environment.
     pub fn push(&mut self, entry: Entry) {
-        assert!(self.entries.len() < usize::from(u16::MAX));
         self.entries.push_back_mut(entry);
     }
 
