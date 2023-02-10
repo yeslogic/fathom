@@ -21,6 +21,7 @@ pub mod pretty;
 
 pub mod distillation;
 pub mod elaboration;
+pub mod scope_tree;
 
 /// Modules, consisting of a sequence of top-level items.
 #[derive(Debug, Clone)]
@@ -344,6 +345,96 @@ impl<'arena> Term<'arena, FileRange> {
             });
 
         (term, messages)
+    }
+}
+
+impl<'arena, Range> Term<'arena, Range> {
+    /// Apply `f` to all the child terms of self.
+    /// Useful for implementing functions that need to function differently on a
+    /// few specific node types, but otherwise just recurse through the tree
+    /// normally
+    pub fn walk_child_terms(&'arena self, mut f: impl FnMut(&'arena Self)) {
+        match self {
+            Term::Name(_, _)
+            | Term::Hole(_, _)
+            | Term::Placeholder(_)
+            | Term::Universe(_)
+            | Term::StringLiteral(_, _)
+            | Term::NumberLiteral(_, _)
+            | Term::BooleanLiteral(_, _)
+            | Term::ReportedError(_) => {}
+
+            Term::Paren(_, term) => f(term),
+            Term::Ann(_, term, r#type) => {
+                f(term);
+                f(r#type);
+            }
+            Term::Let(_, _, r#type, expr, body) => {
+                if let Some(r#type) = r#type {
+                    f(r#type);
+                }
+                f(expr);
+                f(body);
+            }
+            Term::If(_, cond, then, r#else) => {
+                f(cond);
+                f(then);
+                f(r#else)
+            }
+            Term::Match(_, scrut, branches) => {
+                f(scrut);
+                branches.iter().for_each(|(_, term)| f(term));
+            }
+            Term::Arrow(_, _, r#type, body) => {
+                f(r#type);
+                f(body)
+            }
+            Term::FunType(_, params, body) | Term::FunLiteral(_, params, body) => {
+                params.iter().for_each(|param| {
+                    if let Some(r#type) = param.r#type.as_ref() {
+                        f(r#type)
+                    }
+                });
+                f(body)
+            }
+            Term::App(_, head, args) => {
+                f(head);
+                args.iter().for_each(|arg| f(&arg.term));
+            }
+            Term::RecordType(_, fields) => fields.iter().for_each(|field| f(&field.r#type)),
+            Term::RecordLiteral(_, field) => field.iter().for_each(|field| {
+                if let Some(term) = field.expr.as_ref() {
+                    f(term)
+                }
+            }),
+            Term::Tuple(_, terms) => terms.iter().for_each(f),
+            Term::Proj(_, head, _) => f(head),
+            Term::ArrayLiteral(_, terms) => terms.iter().for_each(f),
+            Term::FormatRecord(_, fields) | Term::FormatOverlap(_, fields) => {
+                fields.iter().for_each(|field| match field {
+                    FormatField::Format { format, pred, .. } => {
+                        f(format);
+                        if let Some(pred) = pred {
+                            f(pred)
+                        }
+                    }
+                    FormatField::Computed { r#type, expr, .. } => {
+                        if let Some(r#type) = r#type {
+                            f(r#type);
+                        }
+                        f(expr);
+                    }
+                })
+            }
+            Term::FormatCond(_, _, format, pred) => {
+                f(format);
+                f(pred)
+            }
+            Term::BinOp(_, lhs, _, rhs) => {
+                f(lhs);
+                f(rhs);
+            }
+        }
     }
 }
 

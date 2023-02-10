@@ -338,6 +338,7 @@ dependencies = [
  "diff",
  "fxhash",
  "globwalk",
+ "index_vec",
  "itertools",
  "lalrpop",
  "lalrpop-util 0.19.8 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -501,6 +502,12 @@ dependencies = [
  "walkdir",
  "winapi-util",
 ]
+
+[[package]]
+name = "index_vec"
+version = "0.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "74086667896a940438f2118212f313abba4aff3831fef6f4b17d02add5c8bb60"
 
 [[package]]
 name = "indexmap"

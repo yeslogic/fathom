@@ -10,6 +10,8 @@ pub mod files;
 pub mod source;
 pub mod symbol;
 
+pub mod by_addr;
+
 // Intermediate languages
 pub mod core;
 pub mod surface;

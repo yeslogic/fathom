@@ -174,6 +174,14 @@ pub struct UniqueEnv<Entry> {
     entries: Vec<Entry>,
 }
 
+impl<Entry> Default for UniqueEnv<Entry> {
+    fn default() -> Self {
+        Self {
+            entries: Default::default(),
+        }
+    }
+}
+
 impl<Entry> UniqueEnv<Entry> {
     /// Construct a new, empty environment.
     pub fn new() -> UniqueEnv<Entry> {
