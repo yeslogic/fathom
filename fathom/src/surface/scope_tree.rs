@@ -24,12 +24,12 @@ use fxhash::FxHashMap;
 use index_vec::IndexVec;
 
 use crate::by_addr::ByAddr;
-use crate::env::UniqueEnv;
+use crate::env::{EnvLen, Index, UniqueEnv};
 use crate::source::ByteRange;
 use crate::surface::{FormatField, Pattern, Term};
 use crate::symbol::Symbol;
 
-type TermAddr<'a> = ByAddr<'a, Term<'a, ByteRange>>;
+pub type TermAddr<'a> = ByAddr<'a, Term<'a, ByteRange>>;
 
 index_vec::define_index_type! {
     pub struct ScopeId = u32;
@@ -42,7 +42,15 @@ pub struct Scope {
     infos: UniqueEnv<LocalInfo>,
 }
 
-#[derive(Debug, Clone)]
+impl Scope {
+    pub fn lookup(&self, name: Symbol) -> Option<(Index, LocalInfo)> {
+        let level = self.names.elem_index(&Some(name))?;
+        let info = self.infos.get_index(level)?;
+        Some((level, *info))
+    }
+}
+
+#[derive(Debug, Copy, Clone)]
 pub enum LocalInfo {
     Def,
     Param,
@@ -52,6 +60,29 @@ pub enum LocalInfo {
 pub struct ScopeTree<'surface> {
     scopes: IndexVec<ScopeId, Scope>,
     scope_of_term: FxHashMap<TermAddr<'surface>, ScopeId>,
+}
+
+impl<'surface> ScopeTree<'surface> {
+    pub fn term_scope(&self, term: TermAddr<'surface>) -> &Scope {
+        &self.scopes[self.scope_of_term[&term]]
+    }
+
+    pub fn scope_chain(&self, term: TermAddr<'surface>) -> impl Iterator<Item = &Scope> {
+        let scope = self.term_scope(term);
+        std::iter::successors(Some(scope), |scope| Some(&self.scopes[scope.parent?]))
+    }
+
+    /// Lookup `name` in the scope of `term` and its ancestors
+    pub fn lookup(&self, name: Symbol, term: TermAddr<'surface>) -> Option<(Index, LocalInfo)> {
+        let mut len = EnvLen::new();
+        for scope in self.scope_chain(term) {
+            if let Some((index, info)) = scope.lookup(name) {
+                return Some((index + len, info));
+            }
+            len += scope.names.len();
+        }
+        None
+    }
 }
 
 pub struct ScopeTreeBuilder<'surface> {

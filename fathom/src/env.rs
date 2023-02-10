@@ -18,6 +18,7 @@
 //! [`SharedEnv`] to increase the amount of sharing at the expense of locality.
 
 use std::fmt;
+use std::ops::{Add, AddAssign};
 
 /// Underlying variable representation.
 type RawVar = u16;
@@ -43,6 +44,20 @@ type RawVar = u16;
 /// [alpha-equivalence]: https://ncatlab.org/nlab/show/alpha-equivalence
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Index(RawVar);
+
+impl Add<EnvLen> for Index {
+    type Output = Self;
+
+    fn add(self, rhs: EnvLen) -> Self::Output {
+        Self(self.0 + rhs.0)
+    }
+}
+
+impl AddAssign<EnvLen> for Index {
+    fn add_assign(&mut self, rhs: EnvLen) {
+        self.0 += rhs.0
+    }
+}
 
 impl Index {
     /// The last variable to be bound in the environment.
@@ -125,6 +140,19 @@ pub fn levels() -> impl Iterator<Item = Level> {
 /// The length of an environment.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct EnvLen(RawVar);
+
+impl Add for EnvLen {
+    type Output = Self;
+    fn add(self, rhs: Self) -> Self::Output {
+        Self(self.0 + rhs.0)
+    }
+}
+
+impl AddAssign for EnvLen {
+    fn add_assign(&mut self, rhs: Self) {
+        self.0 += rhs.0
+    }
+}
 
 impl EnvLen {
     /// Construct a new, empty environment.
