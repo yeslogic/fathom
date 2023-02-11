@@ -27,7 +27,7 @@ lalrpop-util = "0.19.5"
 lasso = { version = "0.6.0", features = ["multi-threaded", "ahasher", "inline-more"] }
 levenshtein = "1.0.5"
 logos = "0.12"
-once_cell = { version = "1.17.0", features = ["parking_lot"] }
+once_cell = { version = "1.17.0", features = ["parking_lot"] } # TODO: remove once `std::cell::once_cell` is stabilized
 pretty = "0.11.2"
 rpds = "0.12.0"
 scoped-arena = "0.4.1"

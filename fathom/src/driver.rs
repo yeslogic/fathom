@@ -7,6 +7,7 @@ use codespan_reporting::files::SimpleFiles;
 use codespan_reporting::term::termcolor::{BufferedStandardStream, ColorChoice, WriteColor};
 
 use crate::core::binary::{self, BufferError, ReadError};
+use crate::core::semantics::EvalMode;
 use crate::files::{FileId, Files};
 use crate::source::{ByteRange, ProgramSource, SourceTooBig, Span, MAX_SOURCE_LEN};
 use crate::surface::elaboration::ItemEnv;
@@ -264,8 +265,14 @@ impl<'surface, 'core> Driver<'surface, 'core> {
             return Status::Error;
         }
 
-        let term = context.eval_env().normalize(&self.core_scope, &term);
-        let r#type = context.eval_env().normalize(&self.core_scope, &r#type);
+        let term = context
+            .eval_env()
+            .with_mode(EvalMode::Strict)
+            .normalize(&self.core_scope, &term);
+        let r#type = context
+            .eval_env()
+            .with_mode(EvalMode::Strict)
+            .normalize(&self.core_scope, &r#type);
 
         self.surface_scope.reset(); // Reuse the surface scope for distillation
         let mut context = context.distillation_context(&self.surface_scope);
@@ -443,8 +450,8 @@ impl<'surface, 'core> Driver<'surface, 'core> {
 
     fn read_error_to_diagnostic(
         &self,
-        err: ReadError<'_>,
-        context: &mut elaboration::Context,
+        err: ReadError<'core>,
+        context: &mut elaboration::Context<'core>,
     ) -> Diagnostic<FileId> {
         match err {
             ReadError::ReadFailFormat(span) => Diagnostic::error()
