@@ -160,6 +160,13 @@ impl<'arena> LocalEnv<'arena> {
         self.infos.truncate(len);
         self.exprs.truncate(len);
     }
+
+    fn clear(&mut self) {
+        self.names.clear();
+        self.types.clear();
+        self.infos.clear();
+        self.exprs.clear();
+    }
 }
 
 /// The reason why a metavariable was inserted.
@@ -241,6 +248,12 @@ impl<'arena> MetaEnv<'arena> {
         self.exprs.push(None);
 
         var
+    }
+
+    fn clear(&mut self) {
+        self.sources.clear();
+        self.types.clear();
+        self.exprs.clear();
     }
 }
 
@@ -630,7 +643,7 @@ impl<'arena> Context<'arena> {
         on_message: &mut dyn FnMut(Message),
     ) -> core::Module<'out_arena> {
         let elab_order = order::elaboration_order(self, surface_module);
-        let mut items = Vec::with_capacity(surface_module.items.len());
+        let mut items = SliceVec::new(scope, surface_module.items.len());
         self.item_env.reserve(surface_module.items.len());
 
         for item in elab_order.iter().copied().map(|i| &surface_module.items[i]) {
@@ -638,47 +651,45 @@ impl<'arena> Context<'arena> {
                 Item::Def(item) => {
                     let (expr, r#type) =
                         self.synth_fun_lit(item.range, item.params, item.expr, item.r#type);
+
+                    let (r#type, expr) = {
+                        let scope = self.scope;
+                        let mut eval_env = self.eval_env();
+                        let r#type = eval_env.unfold_metas(scope, &r#type);
+                        let expr = eval_env.unfold_metas(scope, &expr);
+                        (r#type, expr)
+                    };
+
                     let expr_value = self.eval_env().eval(&expr);
                     let type_value = self.eval_env().eval(&r#type);
+
+                    let r#type = self.eval_env().unfold_metas(scope, &r#type);
+                    let expr = self.eval_env().unfold_metas(scope, &expr);
+
+                    self.handle_messages(on_message);
+                    self.local_env.clear();
+                    self.meta_env.clear();
+                    self.renaming.clear();
 
                     self.item_env
                         .push_definition(item.label.1, type_value, expr_value);
 
                     items.push(core::Item::Def {
                         label: item.label.1,
-                        r#type: self.scope.to_scope(r#type),
-                        expr: self.scope.to_scope(expr),
+                        r#type: scope.to_scope(r#type),
+                        expr: scope.to_scope(expr),
                     });
                 }
                 Item::ReportedError(_) => {}
             }
         }
 
-        // Unfold all unification solutions
-        let items = scope.to_scope_from_iter(items.into_iter().map(|item| match item {
-            core::Item::Def {
-                label,
-                r#type,
-                expr,
-            } => {
-                // TODO: Unfold unsolved metas to reported errors
-                let r#type = self.eval_env().unfold_metas(scope, r#type);
-                let expr = self.eval_env().unfold_metas(scope, expr);
-
-                core::Item::Def {
-                    label,
-                    r#type: scope.to_scope(r#type),
-                    expr: scope.to_scope(expr),
-                }
-            }
-        }));
-
-        self.handle_messages(on_message);
-
         // TODO: Clear environments
         // TODO: Reset scopes
 
-        core::Module { items }
+        core::Module {
+            items: items.into(),
+        }
     }
 
     /// Elaborate a term, returning its synthesized type.

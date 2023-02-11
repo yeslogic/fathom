@@ -953,19 +953,14 @@ impl<'arena, 'env> EvalEnv<'arena, 'env> {
                 // The metavariable has a solution, so unfold it.
                 Some(value) => TermOrValue::Value(value.clone()),
                 // No solution was found for the metavariable.
-                // NOTE: We might want to replace this with `ReportedError`.
-                None => TermOrValue::Term(Term::MetaVar(*span, *var)),
+                None => TermOrValue::Term(Term::Prim(*span, Prim::ReportedError)),
             },
             Term::InsertedMeta(span, var, infos) => {
                 match self.elim_env.get_meta_expr(*var) {
                     // The metavariable has a solution, so unfold it.
                     Some(value) => TermOrValue::Value(self.apply_local_infos(value.clone(), infos)),
                     // No solution was found for the metavariable.
-                    // NOTE: We might want to replace this with `ReportedError`.
-                    None => {
-                        let infos = scope.to_scope_from_iter(infos.iter().copied());
-                        TermOrValue::Term(Term::InsertedMeta(*span, *var, infos))
-                    }
+                    None => TermOrValue::Term(Term::Prim(*span, Prim::ReportedError)),
                 }
             }
 

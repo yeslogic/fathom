@@ -1,0 +1,11 @@
+//~ exit-code = 1
+//~ mode = "module"
+
+// metavars in `f` are updated by type annotation because whole expression is contained in one def
+def h =
+    let f = fun x => x;
+    f : U32 -> U32;
+
+// metavars in `f` are not updated by type annotated in `g` becaues they are in different defs
+def f = fun x => x;
+def g : U32 -> U32 = f;
