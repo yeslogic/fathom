@@ -804,4 +804,9 @@ impl PartialRenaming {
         self.source.truncate(len.0);
         self.target.truncate(len.1);
     }
+
+    pub fn clear(&mut self) {
+        self.source.clear();
+        self.target.clear();
+    }
 }

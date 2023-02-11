@@ -319,6 +319,11 @@ impl<Entry> SharedEnv<Entry> {
         }
     }
 
+    /// Clear the renaming. This is useful for reusing environment allocations.
+    pub fn clear(&mut self) {
+        self.truncate(EnvLen(0));
+    }
+
     /// The length of the environment.
     pub fn len(&self) -> EnvLen {
         // SAFETY:

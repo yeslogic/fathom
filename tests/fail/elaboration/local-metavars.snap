@@ -1,0 +1,9 @@
+stdout = ''
+stderr = '''
+error: failed to infer named pattern type
+   ┌─ tests/fail/elaboration/local-metavars.fathom:10:13
+   │
+10 │ def f = fun x => x;
+   │             ^ unsolved named pattern type
+
+'''
