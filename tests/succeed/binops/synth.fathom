@@ -1,39 +1,109 @@
-let device_table = (
-    let u16_div_ceil = fun (numerator : U16) => fun (denominator : U16) => (
-        let quotient = numerator / denominator;
-        match ((quotient * denominator) < numerator) {
-            true => quotient + (1 : U16),
-            false => quotient,
-        }
-    );
+let _ = (1 : U8 ) + 1;
+let _ = (1 : U16) + 1;
+let _ = (1 : U32) + 1;
+let _ = (1 : U64) + 1;
 
-    let delta_bits = fun (delta_format : U16) => fun (num_sizes : U16) =>
-        match delta_format {
-            // Signed 2-bit value, 8 values per u16be
-            0x0001 => num_sizes * (2 : U16),
-            // Signed 4-bit value, 4 values per u16be
-            0x0002 => num_sizes * (4 : U16),
-            // Signed 8-bit value, 2 values per u16be
-            0x0003 => num_sizes * (8 : U16),
-            // Unreachable due to match done in device_or_variation_index_table
-            _ => 0,
-        };
+let _ = (1 : S8 ) + 1;
+let _ = (1 : S16) + 1;
+let _ = (1 : S32) + 1;
+let _ = (1 : S64) + 1;
 
-    let num_sizes = fun (start : U16) => fun (end : U16) =>
-        (end - start) + (1 : U16);
+let _ = (1 : U8 ) - 1;
+let _ = (1 : U16) - 1;
+let _ = (1 : U32) - 1;
+let _ = (1 : U64) - 1;
 
-    {
-        /// Smallest size to correct, in ppem
-        start_size <- u16be,
-        /// Largest size to correct, in ppem
-        end_size <- u16be,
-        /// Format of deltaValue array data
-        delta_format <- u16be,
-        /// Array of compressed data
-        delta_values <-
-            let delta_bits = delta_bits delta_format (num_sizes start_size end_size);
-            repeat_len16 (u16_div_ceil delta_bits 16) u16be,
-    }
-);
+let _ = (1 : S8 ) - 1;
+let _ = (1 : S16) - 1;
+let _ = (1 : S32) - 1;
+let _ = (1 : S64) - 1;
+
+let _ = (1 : U8 ) * 1;
+let _ = (1 : U16) * 1;
+let _ = (1 : U32) * 1;
+let _ = (1 : U64) * 1;
+
+let _ = (1 : S8 ) * 1;
+let _ = (1 : S16) * 1;
+let _ = (1 : S32) * 1;
+let _ = (1 : S64) * 1;
+
+let _ = (1 : U8 ) / 1;
+let _ = (1 : U16) / 1;
+let _ = (1 : U32) / 1;
+let _ = (1 : U64) / 1;
+
+let _ = (1 : S8 ) / 1;
+let _ = (1 : S16) / 1;
+let _ = (1 : S32) / 1;
+let _ = (1 : S64) / 1;
+
+let _ = true == true;
+let _ = true != true;
+
+let _ = (1 : U8 ) == 1;
+let _ = (1 : U16) == 1;
+let _ = (1 : U32) == 1;
+let _ = (1 : U64) == 1;
+
+let _ = (1 : S8 ) == 1;
+let _ = (1 : S16) == 1;
+let _ = (1 : S32) == 1;
+let _ = (1 : S64) == 1;
+
+let _ = (1 : U8 ) != 1;
+let _ = (1 : U16) != 1;
+let _ = (1 : U32) != 1;
+let _ = (1 : U64) != 1;
+
+let _ = (1 : S8 ) != 1;
+let _ = (1 : S16) != 1;
+let _ = (1 : S32) != 1;
+let _ = (1 : S64) != 1;
+
+let _ = (1 : U8 ) > 1;
+let _ = (1 : U16) > 1;
+let _ = (1 : U32) > 1;
+let _ = (1 : U64) > 1;
+
+let _ = (1 : S8 ) > 1;
+let _ = (1 : S16) > 1;
+let _ = (1 : S32) > 1;
+let _ = (1 : S64) > 1;
+
+let _ = (1 : U8 ) >= 1;
+let _ = (1 : U16) >= 1;
+let _ = (1 : U32) >= 1;
+let _ = (1 : U64) >= 1;
+
+let _ = (1 : S8 ) >= 1;
+let _ = (1 : S16) >= 1;
+let _ = (1 : S32) >= 1;
+let _ = (1 : S64) >= 1;
+
+let _ = (1 : U8 ) < 1;
+let _ = (1 : U16) < 1;
+let _ = (1 : U32) < 1;
+let _ = (1 : U64) < 1;
+
+let _ = (1 : S8 ) < 1;
+let _ = (1 : S16) < 1;
+let _ = (1 : S32) < 1;
+let _ = (1 : S64) < 1;
+
+let _ = (1 : U8 ) <= 1;
+let _ = (1 : U16) <= 1;
+let _ = (1 : U32) <= 1;
+let _ = (1 : U64) <= 1;
+
+let _ = (1 : S8 ) <= 1;
+let _ = (1 : S16) <= 1;
+let _ = (1 : S32) <= 1;
+let _ = (1 : S64) <= 1;
+
+let _ = fun (x : Pos) => x + (1 : U8);
+let _ = fun (x : Pos) => x + (1 : U16);
+let _ = fun (x : Pos) => x + (1 : U32);
+let _ = fun (x : Pos) => x + (1 : U64);
 
 {}
