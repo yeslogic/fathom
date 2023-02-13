@@ -509,6 +509,9 @@ def_prims! {
     S8Div => "s8_div",
     S8Abs => "s8_abs",
     S8UAbs => "s8_unsigned_abs",
+    S8ExtendS16 => "s8_extend_s16",
+    S8ExtendS32 => "s8_extend_s32",
+    S8ExtendS64 => "s8_extend_s64",
 
     S16Eq  => "s16_eq",
     S16Neq => "s16_neq",
@@ -523,6 +526,9 @@ def_prims! {
     S16Div => "s16_div",
     S16Abs => "s16_abs",
     S16UAbs => "s16_unsigned_abs",
+    S16TruncateS8 => "s16_truncate_s8",
+    S16ExtendS32 => "s16_extend_s32",
+    S16ExtendS64 => "s16_extend_s64",
 
     S32Eq  => "s32_eq",
     S32Neq => "s32_neq",
@@ -537,6 +543,9 @@ def_prims! {
     S32Div => "s32_div",
     S32Abs => "s32_abs",
     S32UAbs => "s32_unsigned_abs",
+    S32TruncateS8 => "s32_truncate_s8",
+    S32TruncateS16 => "s32_truncate_s16",
+    S32ExtendS64 => "s32_extend_s64",
 
     S64Eq  => "s64_eq",
     S64Neq => "s64_neq",
@@ -551,6 +560,9 @@ def_prims! {
     S64Div => "s64_div",
     S64Abs => "s64_abs",
     S64UAbs => "s64_unsigned_abs",
+    S64TruncateS8 => "s64_truncate_s8",
+    S64TruncateS16 => "s64_truncate_s16",
+    S64TruncateS32 => "s64_truncate_s32",
 
     OptionSome => "some",
     OptionNone => "none",
