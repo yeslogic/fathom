@@ -104,6 +104,7 @@ let _ = u16_shr : U16 -> U8 -> U16;
 let _ = u16_and : U16 -> U16 -> U16;
 let _ = u16_or : U16 -> U16 -> U16;
 let _ = u16_xor : U16 -> U16 -> U16;
+let _ = u16_truncate_u8 : U16 -> U8;
 let _ = u16_extend_u32 : U16 -> U32;
 let _ = u16_extend_u64 : U16 -> U64;
 
@@ -123,6 +124,8 @@ let _ = u32_shr : U32 -> U8 -> U32;
 let _ = u32_and : U32 -> U32 -> U32;
 let _ = u32_or : U32 -> U32 -> U32;
 let _ = u32_xor : U32 -> U32 -> U32;
+let _ = u32_truncate_u8 : U32 -> U8;
+let _ = u32_truncate_u16 : U32 -> U16;
 let _ = u32_extend_u64 : U32 -> U64;
 
 let _ = u64_eq : U64 -> U64 -> Bool;
@@ -141,6 +144,9 @@ let _ = u64_shr : U64 -> U8 -> U64;
 let _ = u64_and : U64 -> U64 -> U64;
 let _ = u64_or : U64 -> U64 -> U64;
 let _ = u64_xor : U64 -> U64 -> U64;
+let _ = u64_truncate_u8 : U64 -> U8;
+let _ = u64_truncate_u16 : U64 -> U16;
+let _ = u64_truncate_u32 : U64 -> U32;
 
 let _ = s8_eq : S8 -> S8 -> Bool;
 let _ = s8_neq : S8 -> S8 -> Bool;

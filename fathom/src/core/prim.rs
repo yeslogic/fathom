@@ -208,6 +208,7 @@ impl<'arena> Env<'arena> {
         env.define_prim_fun(U16And, [&U16_TYPE, &U16_TYPE], &U16_TYPE);
         env.define_prim_fun(U16Or, [&U16_TYPE, &U16_TYPE], &U16_TYPE);
         env.define_prim_fun(U16Xor, [&U16_TYPE, &U16_TYPE], &U16_TYPE);
+        env.define_prim_fun(U16TruncateU8, [&U16_TYPE], &U8_TYPE);
         env.define_prim_fun(U16ExtendU32, [&U16_TYPE], &U32_TYPE);
         env.define_prim_fun(U16ExtendU64, [&U16_TYPE], &U64_TYPE);
 
@@ -227,6 +228,8 @@ impl<'arena> Env<'arena> {
         env.define_prim_fun(U32And, [&U32_TYPE, &U32_TYPE], &U32_TYPE);
         env.define_prim_fun(U32Or, [&U32_TYPE, &U32_TYPE], &U32_TYPE);
         env.define_prim_fun(U32Xor, [&U32_TYPE, &U32_TYPE], &U32_TYPE);
+        env.define_prim_fun(U32TruncateU8, [&U32_TYPE], &U8_TYPE);
+        env.define_prim_fun(U32TruncateU16, [&U32_TYPE], &U16_TYPE);
         env.define_prim_fun(U32ExtendU64, [&U32_TYPE], &U64_TYPE);
 
         env.define_prim_fun(U64Eq, [&U64_TYPE, &U64_TYPE], &BOOL_TYPE);
@@ -245,6 +248,9 @@ impl<'arena> Env<'arena> {
         env.define_prim_fun(U64And, [&U64_TYPE, &U64_TYPE], &U64_TYPE);
         env.define_prim_fun(U64Or, [&U64_TYPE, &U64_TYPE], &U64_TYPE);
         env.define_prim_fun(U64Xor, [&U64_TYPE, &U64_TYPE], &U64_TYPE);
+        env.define_prim_fun(U64TruncateU8, [&U64_TYPE], &U8_TYPE);
+        env.define_prim_fun(U64TruncateU16, [&U64_TYPE], &U16_TYPE);
+        env.define_prim_fun(U64TruncateU32, [&U64_TYPE], &U32_TYPE);
 
         env.define_prim_fun(S8Eq, [&S8_TYPE, &S8_TYPE], &BOOL_TYPE);
         env.define_prim_fun(S8Neq, [&S8_TYPE, &S8_TYPE], &BOOL_TYPE);
@@ -668,6 +674,7 @@ pub fn step(prim: Prim) -> Step {
         Prim::U16And => const_step!([x, xst: U16, y, yst: U16] => Const::U16(u16::bitand(*x, *y), UIntStyle::merge(*xst, *yst))),
         Prim::U16Or => const_step!([x, xst: U16, y, yst: U16] => Const::U16(u16::bitor(*x, *y), UIntStyle::merge(*xst, *yst))),
         Prim::U16Xor => const_step!([x, xst: U16, y, yst: U16] => Const::U16(u16::bitxor(*x, *y), UIntStyle::merge(*xst, *yst))),
+        Prim::U16TruncateU8 => const_step!([x, xst: U16] => Const::U8(*x as u8, *xst)),
         Prim::U16ExtendU32 => const_step!([x, xst: U16] => Const::U32(u32::from(*x), *xst)),
         Prim::U16ExtendU64 => const_step!([x, xst: U16] => Const::U64(u64::from(*x), *xst)),
 
@@ -687,6 +694,8 @@ pub fn step(prim: Prim) -> Step {
         Prim::U32And => const_step!([x, xst: U32, y, yst: U32] => Const::U32(u32::bitand(*x, *y), UIntStyle::merge(*xst, *yst))),
         Prim::U32Or => const_step!([x, xst: U32, y, yst: U32] => Const::U32(u32::bitor(*x, *y), UIntStyle::merge(*xst, *yst))),
         Prim::U32Xor => const_step!([x, xst: U32, y, yst: U32] => Const::U32(u32::bitxor(*x, *y), UIntStyle::merge(*xst, *yst))),
+        Prim::U32TruncateU8 => const_step!([x, xst: U32] => Const::U8(*x as u8, *xst)),
+        Prim::U32TruncateU16 => const_step!([x, xst: U32] => Const::U16(*x as u16, *xst)),
         Prim::U32ExtendU64 => const_step!([x, xst: U32] => Const::U64(u64::from(*x), *xst)),
 
         Prim::U64Eq => const_step!([x: U64, y: U64] => Const::Bool(x == y)),
@@ -705,6 +714,9 @@ pub fn step(prim: Prim) -> Step {
         Prim::U64And => const_step!([x, xst: U64, y, yst: U64] => Const::U64(u64::bitand(*x, *y), UIntStyle::merge(*xst, *yst))),
         Prim::U64Or => const_step!([x, xst: U64, y, yst: U64] => Const::U64(u64::bitor(*x, *y), UIntStyle::merge(*xst, *yst))),
         Prim::U64Xor => const_step!([x, xst: U64, y, yst: U64] => Const::U64(u64::bitxor(*x, *y), UIntStyle::merge(*xst, *yst))),
+        Prim::U64TruncateU8 => const_step!([x, xst: U64] => Const::U8(*x as u8, *xst)),
+        Prim::U64TruncateU16 => const_step!([x, xst: U64] => Const::U16(*x as u16, *xst)),
+        Prim::U64TruncateU32 => const_step!([x, xst: U64] => Const::U32(*x as u32, *xst)),
 
         Prim::S8Eq => const_step!([x: S8, y: S8] => Const::Bool(x == y)),
         Prim::S8Neq => const_step!([x: S8, y: S8] => Const::Bool(x != y)),

@@ -452,6 +452,7 @@ def_prims! {
     U16And => "u16_and",
     U16Or  => "u16_or",
     U16Xor => "u16_xor",
+    U16TruncateU8 => "u16_truncate_u8",
     U16ExtendU32 => "u16_extend_u32",
     U16ExtendU64 => "u16_extend_u64",
 
@@ -471,6 +472,8 @@ def_prims! {
     U32And => "u32_and",
     U32Or  => "u32_or",
     U32Xor => "u32_xor",
+    U32TruncateU8 => "u32_truncate_u8",
+    U32TruncateU16 => "u32_truncate_u16",
     U32ExtendU64 => "u32_extend_u64",
 
     U64Eq  => "u64_eq",
@@ -489,6 +492,9 @@ def_prims! {
     U64And => "u64_and",
     U64Or  => "u64_or",
     U64Xor => "u64_xor",
+    U64TruncateU8 => "u64_truncate_u8",
+    U64TruncateU16 => "u64_truncate_u16",
+    U64TruncateU32 => "u64_truncate_u32",
 
     S8Eq  => "s8_eq",
     S8Neq => "s8_neq",
