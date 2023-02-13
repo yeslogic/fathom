@@ -140,12 +140,12 @@ If no binding is found, names can refer to one of the built-in primitives:
 - `u8`, `u16be`, `u16le`, `u32be`, `u32le`, `u64be`, `u64le`
 - `s8`, `s16be`, `s16le`, `s32be`, `s32le`, `s64be`, `s64le`
 - `f32be`, `f32le`, `f64be`, `f64le`
-- `repeat_len8`, `repeat_len16`, `repeat_len32`, `repeat_len64`
+- `repeat_len64`
 - `link8`, `link16`, `link32`, `link64`
 - `stream_pos`
 - `succeed`, `fail`
 - `Bool`, `U8`, `U16`, `U32`, `U64`, `S8`, `S16`, `S32`, `S64`, `F32`, `F64`
-- `Array8`, `Array16`, `Array32`, `Array64`
+- `Array64`
 - `Pos`, `Ref`
 - `Void`
 
@@ -183,7 +183,7 @@ For example:
 match x {
     1 => { one : {} },
     2 => { two : {} },
-    n => { any : Array32 n {} },
+    n => { any : Array64 n {} },
 }
 ```
 
@@ -239,7 +239,7 @@ Parentheses can be used to explicitly group terms.
 For example:
 
 ```fathom
-Array32 len (Repr point)
+Array64 len (Repr point)
 ```
 
 ## Universes
@@ -379,15 +379,15 @@ more convenient:
     seg_count_x2 <- u16be,
 
     /// Number of contiguous ranges of character codes
-    let seg_count = u16_div seg_count_x2 2,
+    let seg_count = u16_extend_u64 (u16_div seg_count_x2 2),
     //  ▲
     //  └─── the value computed for `seg_count` will be
     //       available for use in subsequent fields
 
     ⋮
 
-    start_code <- repeat_len16 seg_count u16be,
-    id_delta <- repeat_len16 seg_count s16be,
+    start_code <- repeat_len64 seg_count u16be,
+    id_delta <- repeat_len64 seg_count s16be,
     //                       ▲
     //                       └──── `seg_count` is used here
 }
@@ -434,9 +434,9 @@ Some some examples of record formats and their representations are:
 | format                                                | `Repr` format                          |
 | ----------------------------------------------------- | -------------------------------------- |
 | `{ x <- f32le, y <- f32le }`                          | `{ x : F32, y : F32 }`                 |
-| `{ len <- u16be, data <- repeat_len16 len s8 }`       | `{ len : U16, data : Array16 len S8 }` |
+| `{ len <- u64be, data <- repeat_len64 len s8 }`       | `{ len : U64, data : Array64 len S8 }` |
 | `{ magic <- u32be where u32_eq magic "icns" }`        | `{ magic : U32 }`                      |
-| `{ let len = 4 : U32, data <- repeat_len32 len s8 }`  | `{ len : U32, data : Array32 len S8 }` |
+| `{ let len = 4 : U64, data <- repeat_len64 len s8 }`  | `{ len : U64, data : Array64 len S8 }` |
 
 ### Conditional formats
 
@@ -479,8 +479,8 @@ enriched with information that occurs later on in the stream:
 
 ```fathom
 overlap {
-    records0 : repeat_len16 len array_record0,
-    records1 : repeat_len16 len (array_record0 records0),
+    records0 : repeat_len64 len array_record0,
+    records1 : repeat_len64 len (array_record0 records0),
 }
 ```
 
@@ -537,15 +537,12 @@ corresponding host representation:
 
 ### Exact-length repetition formats
 
-There are four length constrained repetition formats, corresponding to the four
-[array types](#arrays):
+There is one length constrained repetition formats, corresponding to the one fixed size
+[array type](#arrays):
 
-- `repeat_len8 : U8 -> Format -> Format`
-- `repeat_len16 : U16 -> Format -> Format`
-- `repeat_len32 : U32 -> Format -> Format`
 - `repeat_len64 : U64 -> Format -> Format`
 
-These formats will parse the specified number of elements, failing if one of
+This format will parse the specified number of elements, failing if one of
 those elements failed to parse, or if the end of the current binary stream was
 reached.
 
@@ -556,9 +553,6 @@ the lengths in a corresponding [array type](#array-types):
 
 | format                      | `Repr` format                       |
 | --------------------------- | ----------------------------------- |
-| `repeat_len8 len format`    | `Array8 len (Repr format)`          |
-| `repeat_len16 len format`   | `Array16 len (Repr format)`         |
-| `repeat_len32 len format`   | `Array32 len (Repr format)`         |
 | `repeat_len64 len format`   | `Array64 len (Repr format)`         |
 
 ### Repeat until end formats
@@ -784,7 +778,7 @@ The types of later fields and depend on previous fields:
 ```fathom
 {
     len : U32,
-    data : Array32 len S32,
+    data : Array64 len S32,
     //        ▲
     //        └─── error: expected `Array 3 S32`, found `Array 2 S32`
 }
@@ -835,8 +829,8 @@ will substituted into the types of subsequent fields. For example:
 
 ```fathom
 let Data = {
-    len : U32,
-    data : Array32 len S32,
+    len : U64,
+    data : Array64 len S32,
     //              ▲
     //              └─── this type depends on the value of the `len` field
 };
@@ -895,8 +889,8 @@ Record projections preserve data dependencies. For example:
 
 ```fathom
 let Data = {
-    len : U32,
-    data : Array32 len S32,
+    len : U64,
+    data : Array64 len S32,
 };
 
 let some-data : Data = {
@@ -968,6 +962,9 @@ infix operators as noted.
 | `u8_and : U8 -> U8 -> U8`   |          |
 | `u8_or : U8 -> U8 -> U8`    |          |
 | `u8_xor : U8 -> U8 -> U8`   |          |
+| `u8_extend_u16 : U8 -> U16` |          |
+| `u8_extend_u32 : U8 -> U32` |          |
+| `u8_extend_u64 : U8 -> U64` |          |
 
 #### U16
 
@@ -989,6 +986,9 @@ infix operators as noted.
 | `u16_and : U16 -> U16 -> U16`  |          |
 | `u16_or : U16 -> U16 -> U16`   |          |
 | `u16_xor : U16 -> U16 -> U16`  |          |
+| `u16_truncate_u8 : U16 -> U8`  |          |
+| `u16_extend_u32 : U16 -> U32`  |          |
+| `u16_extend_u64 : U16 -> U64`  |          |
 
 #### U32
 
@@ -1010,6 +1010,9 @@ infix operators as noted.
 | `u32_and : U32 -> U32 -> U32`  |          |
 | `u32_or : U32 -> U32 -> U32`   |          |
 | `u32_xor : U32 -> U32 -> U32`  |          |
+| `u32_truncate_u8 : U32 -> U8`  |          |
+| `u32_truncate_u16 : U32 -> U16`|          |
+| `u32_extend_u64 : U32 -> U64`  |          |
 
 #### U64
 
@@ -1031,6 +1034,9 @@ infix operators as noted.
 | `u64_and : U64 -> U64 -> U64`  |          |
 | `u64_or : U64 -> U64 -> U64`   |          |
 | `u64_xor : U64 -> U64 -> U64`  |          |
+| `u64_truncate_u8 : U64 -> U8`  |          |
+| `u64_truncate_u16 : U64 -> U16`|          |
+| `u64_truncate_u32 : U64 -> U32`|          |
 
 #### S8
 
@@ -1049,6 +1055,9 @@ infix operators as noted.
 | `s8_div : S8 -> S8 -> S8`    |   `/`    |
 | `s8_abs : S8 -> S8`          |          |
 | `s8_unsigned_abs : S8 -> U8` |          |
+| `s8_extend_s16 : S8 -> S16`  |          |
+| `s8_extend_s32 : S8 -> S32`  |          |
+| `s8_extend_s64 : S8 -> S64`  |          |
 
 #### S16
 
@@ -1067,6 +1076,9 @@ infix operators as noted.
 | `s16_div : S16 -> S16 -> S16`   |   `/`    |
 | `s16_abs : S16 -> S16`          |          |
 | `s16_unsigned_abs : S16 -> U16` |          |
+| `s16_truncate_s8 : S16 -> S8`   |          |
+| `s16_extend_s32 : S16 -> S32`   |          |
+| `s16_extend_s64 : S16 -> S64`   |          |
 
 #### S32
 
@@ -1085,6 +1097,9 @@ infix operators as noted.
 | `s32_div : S32 -> S32 -> S32`   |   `/`    |
 | `s32_abs : S32 -> S32`          |          |
 | `s32_unsigned_abs : S32 -> U32` |          |
+| `s32_truncate_s8 : S32 -> S8`   |          |
+| `s32_truncate_s16 : S32 -> S16` |          |
+| `s32_extend_s64 : S32 -> S64`   |          |
 
 #### S64
 
@@ -1103,6 +1118,9 @@ infix operators as noted.
 | `s64_div : S64 -> S64 -> S64`   |   `/`    |
 | `s64_abs : S64 -> S64`          |          |
 | `s64_unsigned_abs : S64 -> U64` |          |
+| `s64_truncate_s8 : S64 -> S8`   |          |
+| `s64_truncate_s16 : S64 -> S16` |          |
+| `s64_truncate_s32 : S64 -> S32` |          |
 
 ## Options
 
@@ -1131,17 +1149,14 @@ Arrays with dynamic lengths are formed with the following primitive:
 
 - `Array : Type -> Type`
 
-Fixed-length array types are formed with the following primitives:
+Fixed-length array types are formed with the following primitive:
 
-- `Array8 : U8 -> Type -> Type`
-- `Array16 : U16 -> Type -> Type`
-- `Array32 : U32 -> Type -> Type`
 - `Array64 : U64 -> Type -> Type`
 
 For example, this is the type of an array of three signed 32-bit integers:
 
 ```fathom
-Array8 3 S32
+Array64 3 S32
 ```
 
 ### Array literals
@@ -1151,8 +1166,8 @@ brackets. For example:
 
 ```fathom
 [1, 2, 3] : Array S16
-[] : Array32 0 S32
-[3, 32, -6] : Array8 3 S32
+[] : Array64 0 S32
+[3, 32, -6] : Array64 3 S32
 ```
 
 The number of terms in an array literal must match the length parameter of a
@@ -1164,25 +1179,19 @@ The following operations are defined on arrays:
 
 #### find
 
-`array*_find` takes a function that returns true or false. It applies this
+`array64_find` takes a function that returns true or false. It applies this
 function to each element of the array. If the function returns true, then
 `array*_find` returns `some element`. If they all return false, it returns
 `none`.
 
-- `array8_find : fun (@len : U8) (@A : Type) -> (A -> Bool) -> Array8 len A -> Option A`
-- `array16_find : fun (@len : U16) (@A : Type) -> (A -> Bool) -> Array16 len A -> Option A`
-- `array32_find : fun (@len : U32) (@A : Type) -> (A -> Bool) -> Array32 len A -> Option A`
 - `array64_find : fun (@len : U64) (@A : Type) -> (A -> Bool) -> Array64 len A -> Option A`
 
 #### index
 
-`array*_index` returns the item at the supplied index in the array. The
+`array64_index` returns the item at the supplied index in the array. The
 operation will not evaluate fully if the index is out of bounds. If this
 happens when parsing a binary format, a parse failure will be triggered.
 
-- `array8_index : fun (@len : U8) (@A : Type) (index : U8) -> Array8 len A -> A`
-- `array16_index : fun (@len : U16) (@A : Type) (index : U16) -> Array16 len A -> A`
-- `array32_index : fun (@len : U32) (@A : Type) (index : U32) -> Array32 len A -> A`
 - `array64_index : fun (@len : U64) (@A : Type) (index : U64) -> Array64 len A -> A`
 
 ## Positions
