@@ -1,4 +1,0 @@
-stdout = '''
-[3, 4] : Array8 2 U32
-'''
-stderr = ''

@@ -46,9 +46,6 @@ impl<'arena> Env<'arena> {
         const S16_TYPE: Term<'_> = Term::Prim(Span::Empty, S16Type);
         const S32_TYPE: Term<'_> = Term::Prim(Span::Empty, S32Type);
         const S64_TYPE: Term<'_> = Term::Prim(Span::Empty, S64Type);
-        const ARRAY8_TYPE: Term<'_> = Term::Prim(Span::Empty, Array8Type);
-        const ARRAY16_TYPE: Term<'_> = Term::Prim(Span::Empty, Array16Type);
-        const ARRAY32_TYPE: Term<'_> = Term::Prim(Span::Empty, Array32Type);
         const ARRAY64_TYPE: Term<'_> = Term::Prim(Span::Empty, Array64Type);
         const POS_TYPE: Term<'_> = Term::Prim(Span::Empty, PosType);
 
@@ -68,9 +65,6 @@ impl<'arena> Env<'arena> {
         env.define_prim(F64Type, &UNIVERSE);
         env.define_prim_fun(OptionType, [&UNIVERSE], &UNIVERSE);
         env.define_prim_fun(ArrayType, [&UNIVERSE], &UNIVERSE);
-        env.define_prim_fun(Array8Type, [&U8_TYPE, &UNIVERSE], &UNIVERSE);
-        env.define_prim_fun(Array16Type, [&U16_TYPE, &UNIVERSE], &UNIVERSE);
-        env.define_prim_fun(Array32Type, [&U32_TYPE, &UNIVERSE], &UNIVERSE);
         env.define_prim_fun(Array64Type, [&U64_TYPE, &UNIVERSE], &UNIVERSE);
         env.define_prim(PosType, &UNIVERSE);
         env.define_prim_fun(RefType, [&FORMAT_TYPE], &UNIVERSE);
@@ -94,9 +88,6 @@ impl<'arena> Env<'arena> {
         env.define_prim(FormatF32Le, &FORMAT_TYPE);
         env.define_prim(FormatF64Be, &FORMAT_TYPE);
         env.define_prim(FormatF64Le, &FORMAT_TYPE);
-        env.define_prim_fun(FormatRepeatLen8, [&U8_TYPE, &FORMAT_TYPE], &FORMAT_TYPE);
-        env.define_prim_fun(FormatRepeatLen16, [&U16_TYPE, &FORMAT_TYPE], &FORMAT_TYPE);
-        env.define_prim_fun(FormatRepeatLen32, [&U32_TYPE, &FORMAT_TYPE], &FORMAT_TYPE);
         env.define_prim_fun(FormatRepeatLen64, [&U64_TYPE, &FORMAT_TYPE], &FORMAT_TYPE);
         env.define_prim_fun(FormatRepeatUntilEnd, [&FORMAT_TYPE], &FORMAT_TYPE);
         env.define_prim_fun(FormatLimit8, [&U8_TYPE, &FORMAT_TYPE], &FORMAT_TYPE);
@@ -197,6 +188,9 @@ impl<'arena> Env<'arena> {
         env.define_prim_fun(U8And, [&U8_TYPE, &U8_TYPE], &U8_TYPE);
         env.define_prim_fun(U8Or, [&U8_TYPE, &U8_TYPE], &U8_TYPE);
         env.define_prim_fun(U8Xor, [&U8_TYPE, &U8_TYPE], &U8_TYPE);
+        env.define_prim_fun(U8ExtendU16, [&U8_TYPE], &U16_TYPE);
+        env.define_prim_fun(U8ExtendU32, [&U8_TYPE], &U32_TYPE);
+        env.define_prim_fun(U8ExtendU64, [&U8_TYPE], &U64_TYPE);
 
         env.define_prim_fun(U16Eq, [&U16_TYPE, &U16_TYPE], &BOOL_TYPE);
         env.define_prim_fun(U16Neq, [&U16_TYPE, &U16_TYPE], &BOOL_TYPE);
@@ -214,6 +208,8 @@ impl<'arena> Env<'arena> {
         env.define_prim_fun(U16And, [&U16_TYPE, &U16_TYPE], &U16_TYPE);
         env.define_prim_fun(U16Or, [&U16_TYPE, &U16_TYPE], &U16_TYPE);
         env.define_prim_fun(U16Xor, [&U16_TYPE, &U16_TYPE], &U16_TYPE);
+        env.define_prim_fun(U16ExtendU32, [&U16_TYPE], &U32_TYPE);
+        env.define_prim_fun(U16ExtendU64, [&U16_TYPE], &U64_TYPE);
 
         env.define_prim_fun(U32Eq, [&U32_TYPE, &U32_TYPE], &BOOL_TYPE);
         env.define_prim_fun(U32Neq, [&U32_TYPE, &U32_TYPE], &BOOL_TYPE);
@@ -231,6 +227,7 @@ impl<'arena> Env<'arena> {
         env.define_prim_fun(U32And, [&U32_TYPE, &U32_TYPE], &U32_TYPE);
         env.define_prim_fun(U32Or, [&U32_TYPE, &U32_TYPE], &U32_TYPE);
         env.define_prim_fun(U32Xor, [&U32_TYPE, &U32_TYPE], &U32_TYPE);
+        env.define_prim_fun(U32ExtendU64, [&U32_TYPE], &U64_TYPE);
 
         env.define_prim_fun(U64Eq, [&U64_TYPE, &U64_TYPE], &BOOL_TYPE);
         env.define_prim_fun(U64Neq, [&U64_TYPE, &U64_TYPE], &BOOL_TYPE);
@@ -437,13 +434,7 @@ impl<'arena> Env<'arena> {
                 )),
             ))
         };
-        let array8_find_type = find_type(&U8_TYPE, &ARRAY8_TYPE);
-        let array16_find_type = find_type(&U16_TYPE, &ARRAY16_TYPE);
-        let array32_find_type = find_type(&U32_TYPE, &ARRAY32_TYPE);
         let array64_find_type = find_type(&U64_TYPE, &ARRAY64_TYPE);
-        env.define_prim(Array8Find, array8_find_type);
-        env.define_prim(Array16Find, array16_find_type);
-        env.define_prim(Array32Find, array32_find_type);
         env.define_prim(Array64Find, array64_find_type);
 
         // fun (@len : UN) (@A : Type) (index : UN) -> ArrayN len   A   -> A
@@ -486,13 +477,7 @@ impl<'arena> Env<'arena> {
                 )),
             ))
         };
-        let array8_index_type = array_index_type(&U8_TYPE, &ARRAY8_TYPE);
-        let array16_index_type = array_index_type(&U16_TYPE, &ARRAY16_TYPE);
-        let array32_index_type = array_index_type(&U32_TYPE, &ARRAY32_TYPE);
         let array64_index_type = array_index_type(&U64_TYPE, &ARRAY64_TYPE);
-        env.define_prim(Array8Index, array8_index_type);
-        env.define_prim(Array16Index, array16_index_type);
-        env.define_prim(Array32Index, array32_index_type);
         env.define_prim(Array64Index, array64_index_type);
 
         env.define_prim_fun(PosAddU8, [&POS_TYPE, &U8_TYPE], &POS_TYPE);
@@ -611,9 +596,6 @@ pub fn repr(prim: Prim) -> Step {
         Prim::FormatF32Le => step!(_, [] => Spanned::empty(Arc::new(Value::prim(Prim::F32Type, [])))),
         Prim::FormatF64Be => step!(_, [] => Spanned::empty(Arc::new(Value::prim(Prim::F64Type, [])))),
         Prim::FormatF64Le => step!(_, [] => Spanned::empty(Arc::new(Value::prim(Prim::F64Type, [])))),
-        Prim::FormatRepeatLen8 => step!(env, [len, elem] => Spanned::empty(Arc::new(Value::prim(Prim::Array8Type, [len.clone(), env.format_repr(elem)])))),
-        Prim::FormatRepeatLen16 => step!(env, [len, elem] => Spanned::empty(Arc::new(Value::prim(Prim::Array16Type, [len.clone(), env.format_repr(elem)])))),
-        Prim::FormatRepeatLen32 => step!(env, [len, elem] => Spanned::empty(Arc::new(Value::prim(Prim::Array32Type, [len.clone(), env.format_repr(elem)])))),
         Prim::FormatRepeatLen64 => step!(env, [len, elem] => Spanned::empty(Arc::new(Value::prim(Prim::Array64Type, [len.clone(), env.format_repr(elem)])))),
         Prim::FormatLimit8 => step!(env, [_, elem] => env.format_repr(elem)),
         Prim::FormatLimit16 => step!(env, [_, elem] => env.format_repr(elem)),
@@ -666,6 +648,9 @@ pub fn step(prim: Prim) -> Step {
         Prim::U8And => const_step!([x, xst: U8, y, yst: U8] => Const::U8(u8::bitand(*x, *y), UIntStyle::merge(*xst, *yst))),
         Prim::U8Or => const_step!([x, xst: U8, y, yst: U8] => Const::U8(u8::bitor(*x, *y), UIntStyle::merge(*xst, *yst))),
         Prim::U8Xor => const_step!([x, xst: U8, y, yst: U8] => Const::U8(u8::bitxor(*x, *y), UIntStyle::merge(*xst, *yst))),
+        Prim::U8ExtendU16 => const_step!([x, xst: U8] => Const::U16(u16::from(*x), *xst)),
+        Prim::U8ExtendU32 => const_step!([x, xst: U8] => Const::U32(u32::from(*x), *xst)),
+        Prim::U8ExtendU64 => const_step!([x, xst: U8] => Const::U64(u64::from(*x), *xst)),
 
         Prim::U16Eq => const_step!([x: U16, y: U16] => Const::Bool(x == y)),
         Prim::U16Neq => const_step!([x: U16, y: U16] => Const::Bool(x != y)),
@@ -683,6 +668,8 @@ pub fn step(prim: Prim) -> Step {
         Prim::U16And => const_step!([x, xst: U16, y, yst: U16] => Const::U16(u16::bitand(*x, *y), UIntStyle::merge(*xst, *yst))),
         Prim::U16Or => const_step!([x, xst: U16, y, yst: U16] => Const::U16(u16::bitor(*x, *y), UIntStyle::merge(*xst, *yst))),
         Prim::U16Xor => const_step!([x, xst: U16, y, yst: U16] => Const::U16(u16::bitxor(*x, *y), UIntStyle::merge(*xst, *yst))),
+        Prim::U16ExtendU32 => const_step!([x, xst: U16] => Const::U32(u32::from(*x), *xst)),
+        Prim::U16ExtendU64 => const_step!([x, xst: U16] => Const::U64(u64::from(*x), *xst)),
 
         Prim::U32Eq => const_step!([x: U32, y: U32] => Const::Bool(x == y)),
         Prim::U32Neq => const_step!([x: U32, y: U32] => Const::Bool(x != y)),
@@ -700,6 +687,7 @@ pub fn step(prim: Prim) -> Step {
         Prim::U32And => const_step!([x, xst: U32, y, yst: U32] => Const::U32(u32::bitand(*x, *y), UIntStyle::merge(*xst, *yst))),
         Prim::U32Or => const_step!([x, xst: U32, y, yst: U32] => Const::U32(u32::bitor(*x, *y), UIntStyle::merge(*xst, *yst))),
         Prim::U32Xor => const_step!([x, xst: U32, y, yst: U32] => Const::U32(u32::bitxor(*x, *y), UIntStyle::merge(*xst, *yst))),
+        Prim::U32ExtendU64 => const_step!([x, xst: U32] => Const::U64(u64::from(*x), *xst)),
 
         Prim::U64Eq => const_step!([x: U64, y: U64] => Const::Bool(x == y)),
         Prim::U64Neq => const_step!([x: U64, y: U64] => Const::Bool(x != y)),

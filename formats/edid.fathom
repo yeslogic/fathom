@@ -47,7 +47,7 @@ def chromacity_coordinates = {
 };
 
 def established_timing = {
-    mode_bitmap <- repeat_len8 3 u8,         // TODO: bit patterns
+    mode_bitmap <- repeat_len64 3 u8,         // TODO: bit patterns
 };
 
 def standard_timing_information : Format = {

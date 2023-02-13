@@ -32,7 +32,7 @@ let device_table = (
         /// Array of compressed data
         delta_values <-
             let delta_bits = delta_bits delta_format (num_sizes start_size end_size);
-            repeat_len16 (u16_div_ceil delta_bits 16) u16be,
+            repeat_len64 (u16_div_ceil delta_bits 16) u16be,
     }
 );
 

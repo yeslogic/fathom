@@ -1,4 +1,4 @@
 def main = {
-    let ary : Array16 3 U16 = [1, 2, 3],
-    x <- unwrap (array16_find (fun (el : U16) => el == (4 : U16)) ary),
+    let ary : Array64 3 U16 = [1, 2, 3],
+    x <- unwrap (array64_find (fun (el : U16) => el == (4 : U16)) ary),
 };

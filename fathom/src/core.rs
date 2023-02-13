@@ -333,13 +333,7 @@ def_prims! {
     OptionType => "Option",
     /// Type of dynamically sized arrays.
     ArrayType => "Array",
-    /// Type of arrays, with 8-bit indices.
-    Array8Type => "Array8",
-    /// Type of arrays, with 16-bit indices.
-    Array16Type => "Array16",
-    /// Type of arrays, with 32-bit indices.
-    Array32Type => "Array32",
-    /// Type of arrays, with 64-bit indices.
+    /// Type of fixed size arrays, with 64-bit indices.
     Array64Type => "Array64",
     /// Type of stream positions.
     PosType => "Pos",
@@ -384,12 +378,6 @@ def_prims! {
     FormatF64Be => "f64be",
     /// 64-bit, IEEE-754 floating point formats (little-endian).
     FormatF64Le => "f64le",
-    /// Repeat formats up to an unsigned 8-bit length.
-    FormatRepeatLen8 => "repeat_len8",
-    /// Repeat formats up to an unsigned 16-bit length.
-    FormatRepeatLen16 => "repeat_len16",
-    /// Repeat formats up to an unsigned 32-bit length.
-    FormatRepeatLen32 => "repeat_len32",
     /// Repeat formats up to an unsigned 64-bit length.
     FormatRepeatLen64 => "repeat_len64",
     /// Repeat a format until the length of the given parse scope is reached.
@@ -444,6 +432,9 @@ def_prims! {
     U8And => "u8_and",
     U8Or  => "u8_or",
     U8Xor => "u8_xor",
+    U8ExtendU16 => "u8_extend_u16",
+    U8ExtendU32 => "u8_extend_u32",
+    U8ExtendU64 => "u8_extend_u64",
 
     U16Eq  => "u16_eq",
     U16Neq => "u16_neq",
@@ -461,6 +452,8 @@ def_prims! {
     U16And => "u16_and",
     U16Or  => "u16_or",
     U16Xor => "u16_xor",
+    U16ExtendU32 => "u16_extend_u32",
+    U16ExtendU64 => "u16_extend_u64",
 
     U32Eq  => "u32_eq",
     U32Neq => "u32_neq",
@@ -478,6 +471,7 @@ def_prims! {
     U32And => "u32_and",
     U32Or  => "u32_or",
     U32Xor => "u32_xor",
+    U32ExtendU64 => "u32_extend_u64",
 
     U64Eq  => "u64_eq",
     U64Neq => "u64_neq",

@@ -14,9 +14,6 @@ let _ = F32 : Type;
 let _ = F64 : Type;
 let _ = Option : Type -> Type;
 let _ = Array : Type -> Type;
-let _ = Array8 : U8 -> Type -> Type;
-let _ = Array16 : U16 -> Type -> Type;
-let _ = Array32 : U32 -> Type -> Type;
 let _ = Array64 : U64 -> Type -> Type;
 let _ = Pos : Type;
 let _ = Ref : Format -> Type;
@@ -51,14 +48,8 @@ let _ = f32be : Format;
 let _ = f32le : Format;
 let _ = f64be : Format;
 let _ = f64le : Format;
-let _ = repeat_len8 : U8 -> Format -> Format;
-let _ = repeat_len16 : U16 -> Format -> Format;
-let _ = repeat_len32 : U32 -> Format -> Format;
 let _ = repeat_len64 : U64 -> Format -> Format;
 let _ = repeat_until_end : Format -> Format;
-let _ = repeat_len8 : U8 -> Format -> Format;
-let _ = repeat_len16 : U16 -> Format -> Format;
-let _ = repeat_len32 : U32 -> Format -> Format;
 let _ = repeat_len64 : U64 -> Format -> Format;
 let _ = link : Pos -> Format -> Format;
 let _ = deref : fun (@f : Format) -> Ref f -> Format;
@@ -93,6 +84,9 @@ let _ = u8_shr : U8 -> U8 -> U8;
 let _ = u8_and : U8 -> U8 -> U8;
 let _ = u8_or : U8 -> U8 -> U8;
 let _ = u8_xor : U8 -> U8 -> U8;
+let _ = u8_extend_u16 : U8 -> U16;
+let _ = u8_extend_u32 : U8 -> U32;
+let _ = u8_extend_u64 : U8 -> U64;
 
 let _ = u16_eq : U16 -> U16 -> Bool;
 let _ = u16_neq : U16 -> U16 -> Bool;
@@ -110,6 +104,8 @@ let _ = u16_shr : U16 -> U8 -> U16;
 let _ = u16_and : U16 -> U16 -> U16;
 let _ = u16_or : U16 -> U16 -> U16;
 let _ = u16_xor : U16 -> U16 -> U16;
+let _ = u16_extend_u32 : U16 -> U32;
+let _ = u16_extend_u64 : U16 -> U64;
 
 let _ = u32_eq : U32 -> U32 -> Bool;
 let _ = u32_neq : U32 -> U32 -> Bool;
@@ -127,6 +123,7 @@ let _ = u32_shr : U32 -> U8 -> U32;
 let _ = u32_and : U32 -> U32 -> U32;
 let _ = u32_or : U32 -> U32 -> U32;
 let _ = u32_xor : U32 -> U32 -> U32;
+let _ = u32_extend_u64 : U32 -> U64;
 
 let _ = u64_eq : U64 -> U64 -> Bool;
 let _ = u64_neq : U64 -> U64 -> Bool;
@@ -205,14 +202,8 @@ let _ = some : fun (@A : Type) -> A -> Option A;
 let _ = none : fun (@A : Type) -> Option A;
 let _ = option_fold : fun (@A : Type) (@B : Type) -> B -> (A -> B) -> Option A -> B;
 
-let _ = array8_find : fun (@len : U8) (@A : Type) -> (A -> Bool) -> Array8 len A -> Option A;
-let _ = array16_find : fun (@len : U16) (@A : Type) -> (A -> Bool) -> Array16 len A -> Option A;
-let _ = array32_find : fun (@len : U32) (@A : Type) -> (A -> Bool) -> Array32 len A -> Option A;
 let _ = array64_find : fun (@len : U64) (@A : Type) -> (A -> Bool) -> Array64 len A -> Option A;
 
-let _ = array8_index : fun (@len : U8) (@A : Type) -> U8 -> Array8 len A -> A;
-let _ = array16_index : fun (@len : U16) (@A : Type) -> U16 -> Array16 len A -> A;
-let _ = array32_index : fun (@len : U32) (@A : Type) -> U32 -> Array32 len A -> A;
 let _ = array64_index : fun (@len : U64) (@A : Type) -> U64 -> Array64 len A -> A;
 
 let _ = pos_add_u8 : Pos -> U8 -> Pos;

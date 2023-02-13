@@ -28,7 +28,7 @@ def chromacity_coordinates : Format = {
     white_x_msb <- u8,
     white_y_msb <- u8,
 };
-def established_timing : Format = { mode_bitmap <- repeat_len8 3 u8 };
+def established_timing : Format = { mode_bitmap <- repeat_len64 3 u8 };
 def standard_timing_information : Format = ();
 def main : Format = {
     header <- header,

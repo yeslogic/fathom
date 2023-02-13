@@ -75,7 +75,7 @@ def table_directory (file_start : Pos) = {
 
     /// An array of table records
     // FIXME: sorted in ascending order by tag
-    table_records <- repeat_len16 num_tables table_record,
+    table_records <- repeat_len64 num_tables table_record,
 
     /// Font table links
     ///
@@ -230,7 +230,7 @@ def ttc_header (start : Pos) = (
         /// Number of fonts in TTC
         num_fonts <- u32be,
         /// Array of offsets to the TableDirectory for each font from the beginning of the file
-        table_directories <- repeat_len32 num_fonts (offset32 start (table_directory start)),
+        table_directories <- repeat_len64 num_fonts (offset32 start (table_directory start)),
     };
 
     /// TTC Header Version 2.0
@@ -238,7 +238,7 @@ def ttc_header (start : Pos) = (
         /// Number of fonts in TTC
         num_fonts <- u32be,
         /// Array of offsets to the TableDirectory for each font from the beginning of the file
-        table_directories <- repeat_len32 num_fonts (offset32 start (table_directory start)),
+        table_directories <- repeat_len64 num_fonts (offset32 start (table_directory start)),
         /// Tag indicating that a DSIG table exists, 0x44534947 ('DSIG') (null if no signature)
         dsig_tag <- u32be,
         /// The length (in bytes) of the DSIG table (null if no signature)
@@ -292,13 +292,13 @@ def table_record = {
 /// Find a table record using the given `table_id`.
 def find_table =
     fun (@num_tables : U16) =>
-    fun (table_records : Array16 num_tables (Repr table_record)) =>
+    fun (table_records : Array64 num_tables (Repr table_record)) =>
     fun (table_id : Repr tag) =>
         // TODO: accelerate using binary search
         // TODO: make use of `table_record.search_range`
         // TODO: make use of `table_record.entry_selector`
         // TODO: make use of `table_record.range_shift`
-        array16_find
+        array64_find
             (fun (table_record : Repr table_record) => table_record.table_id == table_id)
             table_records;
 
@@ -368,7 +368,7 @@ def f2dot14 : Format = s16be;
 /// ## References
 ///
 /// - [Microsoft's OpenType Spec: uint24](https://docs.microsoft.com/en-us/typography/opentype/spec/otff#dt_uint24)
-def u24be : Format = repeat_len8 3 u8;
+def u24be : Format = repeat_len64 3 u8;
 
 /// Date represented in number of seconds since 12:00 midnight, January 1, 1904.
 ///
@@ -389,7 +389,7 @@ def long_date_time : Format = s64be;
 def tag : Format =
     // TODO: constrain array elements to the range 0x20 to 0x7E.
     // TODO: pattern matching on arrays
-    // repeat_len8 4 u8;
+    // repeat_len64 4 u8;
     u32be;
 
 /// # Unknown table format
@@ -515,7 +515,7 @@ def class_def_format_1 = {
     /// Size of the class_value_array
     glyph_count <- u16be,
     /// Array of Class Values — one per glyph ID
-    class_value_array <- repeat_len16 glyph_count u16be,
+    class_value_array <- repeat_len64 glyph_count u16be,
 };
 
 /// # Class Definition Table Format 2
@@ -538,7 +538,7 @@ def class_def_format_2 = (
         /// Number of ClassRangeRecords
         class_range_count <- u16be,
         /// Array of ClassRangeRecords — ordered by startGlyphID
-        class_range_records <- repeat_len16 class_range_count class_range_record,
+        class_range_records <- repeat_len64 class_range_count class_range_record,
     }
 );
 
@@ -567,7 +567,7 @@ def coverage_format_1 = {
     /// Number of glyphs in the glyph array
     glyph_count <- u16be,
     /// Array of glyph IDs — in numerical order
-    glyph_array <- repeat_len16 glyph_count u16be,
+    glyph_array <- repeat_len64 glyph_count u16be,
 };
 
 /// # Coverage Format 2
@@ -590,7 +590,7 @@ def coverage_format_2 = (
         /// Number of RangeRecords
         range_count <- u16be,
         /// Array of glyph ranges — ordered by startGlyphID
-        range_records <- repeat_len16 range_count range_record,
+        range_records <- repeat_len64 range_count range_record,
     }
 );
 
@@ -687,7 +687,7 @@ def device_table = (
         /// Array of compressed data
         delta_values <-
             let delta_bits = delta_bits delta_format (num_sizes start_size end_size);
-            repeat_len16 (u16_div_ceil delta_bits 16) u16be,
+            repeat_len64 (u16_div_ceil delta_bits 16) u16be,
     }
 );
 
@@ -704,7 +704,7 @@ def variation_index_table = {
 def device_or_variation_index_table = overlap {
     // Initial pass to figure out the table format
     init <- {
-        _skipped <- repeat_len8 4 u8,
+        _skipped <- repeat_len64 4 u8,
         table_format <- u16be,
     },
     // Device and VariationIndex Tables
@@ -732,7 +732,7 @@ def lang_sys = {
     /// Number of feature index values for this language system — excludes the required feature
     feature_index_count <- u16be,
     /// Array of indices into the FeatureList, in arbitrary order
-    feature_indices <- repeat_len16 feature_index_count u16be,
+    feature_indices <- repeat_len64 feature_index_count u16be,
 };
 
 /// # Language System Record
@@ -762,7 +762,7 @@ def script_table = {
     /// Number of LangSysRecords for this script — excluding the default LangSys
     lang_sys_count <- u16be,
     /// Array of LangSysRecords, listed alphabetically by LangSys tag
-    lang_sys_records <- repeat_len16 lang_sys_count (lang_sys_record table_start),
+    lang_sys_records <- repeat_len64 lang_sys_count (lang_sys_record table_start),
 };
 
 /// # Script list table
@@ -785,7 +785,7 @@ def script_list = (
         /// Number of ScriptRecords
         script_count <- u16be,
         /// Array of ScriptRecords, listed alphabetically by script tag
-        script_records <- repeat_len16 script_count (script_record table_start),
+        script_records <- repeat_len64 script_count (script_record table_start),
     }
 );
 
@@ -803,7 +803,7 @@ def feature_table = {
     /// Number of LookupList indices for this feature
     lookup_index_count <- u16be,
     /// Array of indices into the LookupList — zero-based (first lookup is LookupListIndex = 0)
-    lookup_list_indices <- repeat_len16 lookup_index_count u16be,
+    lookup_list_indices <- repeat_len64 lookup_index_count u16be,
 };
 
 /// # Feature List Table
@@ -826,7 +826,7 @@ def feature_list = (
         feature_count <- u16be,
         /// Array of FeatureRecords — zero-based (first feature has FeatureIndex = 0), listed
         /// alphabetically by feature tag
-        feature_records <- repeat_len16 feature_count (feature_record table_start),
+        feature_records <- repeat_len64 feature_count (feature_record table_start),
     }
 );
 
@@ -843,9 +843,9 @@ def sequence_context_format1 = (
         /// Number of SequenceLookupRecords
         seq_lookup_count <- u16be,
         /// Array of input glyph IDs—starting with the second glyph
-        input_sequence <- repeat_len16 (u16_sub glyph_count 1) u16be,
+        input_sequence <- repeat_len64 (u16_sub glyph_count 1) u16be,
         /// Array of Sequence lookup records
-        seq_lookup_records <- repeat_len16 seq_lookup_count sequence_lookup_record,
+        seq_lookup_records <- repeat_len64 seq_lookup_count sequence_lookup_record,
     };
 
     /// SequenceRuleSet table—all contexts beginning with the same glyph
@@ -855,7 +855,7 @@ def sequence_context_format1 = (
         /// Number of SequenceRule tables
         seq_rule_count <- u16be,
         /// Array of offsets to SequenceRule tables, from beginning of the SequenceRuleSet table
-        seq_rules <- repeat_len16 seq_rule_count (offset16 table_start sequence_rule),
+        seq_rules <- repeat_len64 seq_rule_count (offset16 table_start sequence_rule),
     };
 
     {
@@ -867,7 +867,7 @@ def sequence_context_format1 = (
         seq_rule_set_count <- u16be,
         /// Array of offsets to SequenceRuleSet tables, from beginning of
         /// SequenceContextFormat1 table (offsets may be NULL)
-        seq_rule_sets <- repeat_len16 seq_rule_set_count (offset16 table_start sequence_rule_set),
+        seq_rule_sets <- repeat_len64 seq_rule_set_count (offset16 table_start sequence_rule_set),
     }
 );
 
@@ -885,9 +885,9 @@ def sequence_context_format2 = (
         seq_lookup_count <- u16be,
         /// Sequence of classes to be matched to the input glyph sequence, beginning with the
         /// second glyph position
-        input_sequence <- repeat_len16 (u16_sub glyph_count 1) u16be,
+        input_sequence <- repeat_len64 (u16_sub glyph_count 1) u16be,
         /// Array of SequenceLookupRecords
-        seqLookupRecords <- repeat_len16 seq_lookup_count sequence_lookup_record,
+        seqLookupRecords <- repeat_len64 seq_lookup_count sequence_lookup_record,
     };
 
     /// ClassSequenceRuleSet table
@@ -898,7 +898,7 @@ def sequence_context_format2 = (
         class_seq_rule_count <- u16be,
         /// Array of offsets to ClassSequenceRule tables, from beginning of ClassSequenceRuleSet
         /// table
-        class_seq_rules <- repeat_len16 class_seq_rule_count (offset16 table_start class_sequence_rule),
+        class_seq_rules <- repeat_len64 class_seq_rule_count (offset16 table_start class_sequence_rule),
     };
 
     {
@@ -912,7 +912,7 @@ def sequence_context_format2 = (
         class_seq_rule_set_count <- u16be,
         /// Array of offsets to ClassSequenceRuleSet tables, from beginning of
         /// SequenceContextFormat2 table (may be NULL)
-        class_seq_rule_sets <- repeat_len16 class_seq_rule_set_count (offset16 table_start class_sequence_rule_set),
+        class_seq_rule_sets <- repeat_len64 class_seq_rule_set_count (offset16 table_start class_sequence_rule_set),
     }
 );
 
@@ -929,9 +929,9 @@ def sequence_context_format3 = {
     /// Number of SequenceLookupRecords
     seq_lookup_count <- u16be,
     /// Array of offsets to Coverage tables, from beginning of SequenceContextFormat3 subtable
-    coverage_tables <- repeat_len16 glyph_count (offset16 table_start coverage_table),
+    coverage_tables <- repeat_len64 glyph_count (offset16 table_start coverage_table),
     /// Array of SequenceLookupRecords
-    seq_lookup_records <- repeat_len16 seq_lookup_count sequence_lookup_record,
+    seq_lookup_records <- repeat_len64 seq_lookup_count sequence_lookup_record,
 };
 
 def sequence_context = {
@@ -956,19 +956,19 @@ def chained_sequence_context_format_1 = (
         /// Number of glyphs in the backtrack sequence
         backtrack_glyph_count <- u16be,
         /// Array of backtrack glyph IDs
-        backtrack_sequence <- repeat_len16 backtrack_glyph_count u16be,
+        backtrack_sequence <- repeat_len64 backtrack_glyph_count u16be,
         /// Number of glyphs in the input sequence
         input_glyph_count <- u16be,
         /// Array of input glyph IDs—start with second glyph
-        input_sequence <- repeat_len16 (u16_sub input_glyph_count 1) u16be,
+        input_sequence <- repeat_len64 (u16_sub input_glyph_count 1) u16be,
         /// Number of glyphs in the lookahead sequence
         lookahead_glyph_count <- u16be,
         /// Array of lookahead glyph IDs
-        lookahead_sequence <- repeat_len16 lookahead_glyph_count u16be,
+        lookahead_sequence <- repeat_len64 lookahead_glyph_count u16be,
         /// Number of SequenceLookupRecords
         seq_lookup_count <- u16be,
         /// Array of SequenceLookupRecords
-        seq_lookup_records <- repeat_len16 seq_lookup_count sequence_lookup_record,
+        seq_lookup_records <- repeat_len64 seq_lookup_count sequence_lookup_record,
     };
 
     let chained_sequence_rule_set = {
@@ -978,7 +978,7 @@ def chained_sequence_context_format_1 = (
         chained_seq_rule_count <- u16be,
         /// Array of offsets to ChainedSequenceRule tables, from beginning of
         /// ChainedSequenceRuleSet table
-        chained_seq_rules <- repeat_len16 chained_seq_rule_count (offset16 table_start chained_sequence_rule),
+        chained_seq_rules <- repeat_len64 chained_seq_rule_count (offset16 table_start chained_sequence_rule),
     };
 
     {
@@ -990,7 +990,7 @@ def chained_sequence_context_format_1 = (
         chained_seq_rule_set_count <- u16be,
         /// Array of offsets to ChainedSeqRuleSet tables, from beginning of
         /// ChainedSequenceContextFormat1 table (may be NULL)
-        chained_seq_rule_sets <- repeat_len16 chained_seq_rule_set_count (offset16 table_start chained_sequence_rule_set),
+        chained_seq_rule_sets <- repeat_len64 chained_seq_rule_set_count (offset16 table_start chained_sequence_rule_set),
     }
 );
 
@@ -1005,19 +1005,19 @@ def chained_sequence_context_format_2 = (
         /// Number of glyphs in the backtrack sequence
         backtrack_glyph_count <- u16be,
         /// Array of backtrack-sequence classes
-        backtrack_sequence <- repeat_len16 backtrack_glyph_count u16be,
+        backtrack_sequence <- repeat_len64 backtrack_glyph_count u16be,
         /// Total number of glyphs in the input sequence
         input_glyph_count <- u16be,
         /// Array of input sequence classes, beginning with the second glyph position
-        input_sequence <- repeat_len16 (u16_sub input_glyph_count 1) u16be,
+        input_sequence <- repeat_len64 (u16_sub input_glyph_count 1) u16be,
         /// Number of glyphs in the lookahead sequence
         lookahead_glyph_count <- u16be,
         /// Array of lookahead-sequence classes
-        lookahead_sequence <- repeat_len16 lookahead_glyph_count u16be,
+        lookahead_sequence <- repeat_len64 lookahead_glyph_count u16be,
         /// Number of SequenceLookupRecords
         seq_lookup_count <- u16be,
         /// Array of SequenceLookupRecords
-        seq_lookup_records <- repeat_len16 seq_lookup_count sequence_lookup_record,
+        seq_lookup_records <- repeat_len64 seq_lookup_count sequence_lookup_record,
     };
 
     /// ChainedClassSequenceRuleSet table
@@ -1028,7 +1028,7 @@ def chained_sequence_context_format_2 = (
         chained_class_seq_rule_count <- u16be,
         /// Array of offsets to ChainedClassSequenceRule tables, from beginning of
         /// ChainedClassSequenceRuleSet
-        chained_class_seq_rules <- repeat_len16 chained_class_seq_rule_count (offset16 table_start chained_class_sequence_rule),
+        chained_class_seq_rules <- repeat_len64 chained_class_seq_rule_count (offset16 table_start chained_class_sequence_rule),
     };
 
     {
@@ -1049,7 +1049,7 @@ def chained_sequence_context_format_2 = (
         chained_class_seq_rule_set_count <- u16be,
         /// Array of offsets to ChainedClassSequenceRuleSet tables, from beginning of
         /// ChainedSequenceContextFormat2 table (may be NULL)
-        chained_class_seq_rule_sets <- repeat_len16 chained_class_seq_rule_set_count (offset16 table_start chained_class_sequence_rule_set),
+        chained_class_seq_rule_sets <- repeat_len64 chained_class_seq_rule_set_count (offset16 table_start chained_class_sequence_rule_set),
     }
 );
 
@@ -1064,19 +1064,19 @@ def chained_sequence_context_format_3 = {
     /// Number of glyphs in the backtrack sequence
     backtrack_glyph_count <- u16be,
     /// Array of offsets to coverage tables for the backtrack sequence
-    backtrack_coverages <- repeat_len16 backtrack_glyph_count (offset16 table_start coverage_table),
+    backtrack_coverages <- repeat_len64 backtrack_glyph_count (offset16 table_start coverage_table),
     /// Number of glyphs in the input sequence
     input_glyph_count <- u16be,
     /// Array of offsets to coverage tables for the input sequence
-    input_coverage_tables <- repeat_len16 input_glyph_count (offset16 table_start coverage_table),
+    input_coverage_tables <- repeat_len64 input_glyph_count (offset16 table_start coverage_table),
     /// Number of glyphs in the lookahead sequence
     lookahead_glyph_count <- u16be,
     /// Array of offsets to coverage tables for the lookahead sequence
-    lookahead_coverages <- repeat_len16 lookahead_glyph_count (offset16 table_start coverage_table),
+    lookahead_coverages <- repeat_len64 lookahead_glyph_count (offset16 table_start coverage_table),
     /// Number of SequenceLookupRecords
     seq_lookup_count <- u16be,
     /// Array of SequenceLookupRecords
-    seq_lookup_records <- repeat_len16 seq_lookup_count sequence_lookup_record,
+    seq_lookup_records <- repeat_len64 seq_lookup_count sequence_lookup_record,
 };
 
 def chained_sequence_context = {
@@ -1117,7 +1117,7 @@ def single_substitution = {
             /// Number of glyph IDs in the substitute_glyph_ids array
             glyph_count <- u16be,
             /// Array of substitute glyph IDs — ordered by Coverage index
-            substitute_glyph_ids <- repeat_len16 glyph_count u16be,
+            substitute_glyph_ids <- repeat_len64 glyph_count u16be,
         },
         _ => unknown_table
     },
@@ -1134,7 +1134,7 @@ def multiple_substitution = (
         /// 0.
         glyph_count <- u16be,
         /// String of glyph IDs to substitute
-        substitute_glyph_ids <- repeat_len16 glyph_count u16be,
+        substitute_glyph_ids <- repeat_len64 glyph_count u16be,
     };
 
     {
@@ -1150,7 +1150,7 @@ def multiple_substitution = (
                 sequence_count <- u16be,
                 /// Array of offsets to Sequence tables. Offsets are from beginning of substitution
                 /// subtable, ordered by Coverage index
-                sequences <- repeat_len16 sequence_count (offset16 table_start sequence_table),
+                sequences <- repeat_len64 sequence_count (offset16 table_start sequence_table),
             },
             _ => unknown_table,
         },
@@ -1168,7 +1168,7 @@ def alternate_substitution = (
         /// Number of glyph IDs in the alternate_glyph_ids array
         glyph_count <- u16be,
         /// Array of alternate glyph IDs, in arbitrary order
-        alternate_glyph_ids <- repeat_len16 glyph_count u16be,
+        alternate_glyph_ids <- repeat_len64 glyph_count u16be,
     };
 
     {
@@ -1184,7 +1184,7 @@ def alternate_substitution = (
                 alternate_set_count <- u16be,
                 /// Array of offsets to AlternateSet tables. Offsets are from beginning of
                 /// substitution subtable, ordered by Coverage index
-                alternate_sets <- repeat_len16 alternate_set_count (offset16 table_start alternate_set),
+                alternate_sets <- repeat_len64 alternate_set_count (offset16 table_start alternate_set),
             },
             _ => unknown_table,
         },
@@ -1205,7 +1205,7 @@ def ligature_substitution = (
         component_count <- u16be,
         /// Array of component glyph IDs — start with the second component, ordered in writing
         /// direction
-        component_glyph_ids <- repeat_len16 (u16_sub component_count 1) u16be,
+        component_glyph_ids <- repeat_len64 (u16_sub component_count 1) u16be,
     };
 
     /// LigatureSet table: All ligatures beginning with the same glyph
@@ -1223,7 +1223,7 @@ def ligature_substitution = (
         /// the components (componentGlyphIDs). The array starts with the second component glyph in
         /// the ligature (glyph sequence index = 1, componentGlyphIDs array index = 0) because the
         /// first component glyph is specified in the Coverage table.
-        ligatures <- repeat_len16 ligature_count (offset16 table_start ligature_table),
+        ligatures <- repeat_len64 ligature_count (offset16 table_start ligature_table),
     };
 
     {
@@ -1239,7 +1239,7 @@ def ligature_substitution = (
                 ligature_set_count <- u16be,
                 /// Array of offsets to LigatureSet tables. Offsets are from beginning of
                 /// substitution subtable, ordered by Coverage index
-                ligature_sets <- repeat_len16 ligature_set_count (offset16 table_start ligature_set),
+                ligature_sets <- repeat_len64 ligature_set_count (offset16 table_start ligature_set),
             },
             _ => unknown_table,
         },
@@ -1275,15 +1275,15 @@ def reverse_chaining_contextual_single_substitution = (
         /// Number of glyphs in the backtrack sequence.
         backtrack_glyph_count <- u16be,
         /// Array of offsets to coverage tables in backtrack sequence, in glyph sequence order.
-        backtrack_coverage_tables <- repeat_len16 backtrack_glyph_count (offset16 table_start coverage_table),
+        backtrack_coverage_tables <- repeat_len64 backtrack_glyph_count (offset16 table_start coverage_table),
         /// Number of glyphs in lookahead sequence.
         lookahead_glyph_count <- u16be,
         /// Array of offsets to coverage tables in lookahead sequence, in glyph sequence order.
-        lookahead_coverage_tables <- repeat_len16 lookahead_glyph_count (offset16 table_start coverage_table),
+        lookahead_coverage_tables <- repeat_len64 lookahead_glyph_count (offset16 table_start coverage_table),
         /// Number of glyph IDs in the substituteGlyphIDs array.
         glyph_count <- u16be,
         /// Array of substitute glyph IDs — ordered by Coverage index.
-        substitute_glyph_ids <- repeat_len16 glyph_count u16be,
+        substitute_glyph_ids <- repeat_len64 glyph_count u16be,
     };
 
     {
@@ -1505,7 +1505,7 @@ def mark_array_table = (
         /// Number of MarkRecords
         mark_count <- u16be,
         /// Array of MarkRecords, ordered by corresponding glyphs in the associated mark Coverage table.
-        mark_records <- repeat_len16 mark_count (mark_record table_start),
+        mark_records <- repeat_len64 mark_count (mark_record table_start),
     }
 );
 
@@ -1536,7 +1536,7 @@ def single_adjustment = (
         /// Number of ValueRecords — must equal glyphCount in the Coverage table.
         value_count <- u16be,
         /// Array of ValueRecords — positioning values applied to glyphs.
-        value_records <- repeat_len16 value_count (value_record table_start value_format),
+        value_records <- repeat_len64 value_count (value_record table_start value_format),
     };
 
     {
@@ -1578,7 +1578,7 @@ def pair_adjustment = (
         /// Number of PairValueRecords
         pair_value_count <- u16be,
         /// Array of PairValueRecords, ordered by glyph ID of the second glyph.
-        pair_value_records <- repeat_len16 pair_value_count (pair_value_record table_start value_format1 value_format2),
+        pair_value_records <- repeat_len64 pair_value_count (pair_value_record table_start value_format1 value_format2),
     };
 
     /// Pair Adjustment Positioning Format 1: Adjustments for Glyph Pairs (PairPosFormat1)
@@ -1595,7 +1595,7 @@ def pair_adjustment = (
         pair_set_count <- u16be,
         /// Array of offsets to PairSet tables. Offsets are from beginning of PairPos subtable,
         /// ordered by Coverage Index.
-        pair_sets <- repeat_len16 pair_set_count (offset16 table_start (pair_set value_format1 value_format2)),
+        pair_sets <- repeat_len64 pair_set_count (offset16 table_start (pair_set value_format1 value_format2)),
     };
 
     /// Class2Record
@@ -1609,7 +1609,7 @@ def pair_adjustment = (
     /// Class1Record
     let class1_record = fun (table_start : Pos) (class2_count : U16) (value_format1 : U16) (value_format2 : U16) => {
         /// Array of Class2 records, ordered by classes in classDef2.
-        class2_records <- repeat_len16 class2_count (class2_record table_start value_format1 value_format2),
+        class2_records <- repeat_len64 class2_count (class2_record table_start value_format1 value_format2),
     };
 
     /// Pair Adjustment Positioning Format 2: Class Pair Adjustment (PairPosFormat2)
@@ -1631,7 +1631,7 @@ def pair_adjustment = (
         /// Number of classes in classDef2 table — includes Class 0.
         class2_count <- u16be,
         /// Array of Class1 records, ordered by classes in classDef1.
-        class1_records <- repeat_len16 class1_count (class1_record pair_pos_start class2_count value_format1 value_format2),
+        class1_records <- repeat_len64 class1_count (class1_record pair_pos_start class2_count value_format1 value_format2),
     };
 
     {
@@ -1672,7 +1672,7 @@ def cursive_attachment = (
         /// Number of EntryExit records
         entry_exit_count <- u16be,
         /// Array of EntryExit records, in Coverage index order.
-        entry_exit_record <- repeat_len16 entry_exit_count (entry_exit_record table_start),
+        entry_exit_record <- repeat_len64 entry_exit_count (entry_exit_record table_start),
     };
 
     {
@@ -1700,7 +1700,7 @@ def mark_to_base_attachment = (
     let base_record = fun (table_start : Pos) (mark_class_count : U16) => {
         /// Array of offsets (one per mark class) to Anchor tables. Offsets are from beginning of
         /// BaseArray table, ordered by class (offsets may be NULL).
-        base_anchors <- repeat_len16 mark_class_count (offset16 table_start anchor_table),
+        base_anchors <- repeat_len64 mark_class_count (offset16 table_start anchor_table),
     };
 
     /// BaseArray Table
@@ -1708,7 +1708,7 @@ def mark_to_base_attachment = (
         /// Number of BaseRecords
         base_count <- u16be,
         /// Array of BaseRecords, in order of baseCoverage Index.
-        base_records <- repeat_len16 base_count (base_record table_start mark_class_count),
+        base_records <- repeat_len64 base_count (base_record table_start mark_class_count),
     };
 
     /// MarkBasePosFormat1 Subtable
@@ -1749,7 +1749,7 @@ def mark_to_ligature_attachment = (
     let component_record = fun (table_start : Pos) (mark_class_count : U16) => {
         /// Array of offsets (one per class) to Anchor tables. Offsets are from beginning of
         /// LigatureAttach table, ordered by class (offsets may be NULL).
-        ligature_anchors <- repeat_len16 mark_class_count (offset16 table_start anchor_table),
+        ligature_anchors <- repeat_len64 mark_class_count (offset16 table_start anchor_table),
     };
 
     /// LigatureAttach Table
@@ -1757,7 +1757,7 @@ def mark_to_ligature_attachment = (
         /// Number of ComponentRecords in this ligature
         component_count <- u16be,
         /// Array of Component records, ordered in writing direction.
-        component_records <- repeat_len16 component_count (component_record table_start mark_class_count),
+        component_records <- repeat_len64 component_count (component_record table_start mark_class_count),
     };
 
     /// LigatureArray Table
@@ -1766,7 +1766,7 @@ def mark_to_ligature_attachment = (
         ligature_count <- u16be,
         /// Array of offsets to LigatureAttach tables. Offsets are from beginning of LigatureArray
         /// table, ordered by ligatureCoverage index.
-        ligature_attaches <- repeat_len16 ligature_count (offset16 table_start (ligature_attach table_start mark_class_count)),
+        ligature_attaches <- repeat_len64 ligature_count (offset16 table_start (ligature_attach table_start mark_class_count)),
     };
 
     /// MarkLigPosFormat1 Subtable
@@ -1910,7 +1910,7 @@ def lookup_table (tag : U32) = (
         /// Number of subtables for this lookup
         sub_table_count <- u16be,
         /// Array of offsets to lookup subtables, from beginning of Lookup table
-        subtables <- repeat_len16 sub_table_count (offset16 table_start (lookup_subtable tag lookup_type)),
+        subtables <- repeat_len64 sub_table_count (offset16 table_start (lookup_subtable tag lookup_type)),
         /// Index (base 0) into GDEF mark glyph sets structure. This field is only present if the
         /// USE_MARK_FILTERING_SET lookup flag is set.
         mark_filtering_set <- match (u16_and lookup_flag USE_MARK_FILTERING_SET != (0 : U16)) {
@@ -1931,7 +1931,7 @@ def lookup_list (tag : U32) = {
     /// Number of lookups in this table
     lookup_count <- u16be,
     /// Array of offsets to Lookup tables, from beginning of LookupList
-    lookups <- repeat_len16 lookup_count (offset16 table_start (lookup_table tag)),
+    lookups <- repeat_len64 lookup_count (offset16 table_start (lookup_table tag)),
 };
 
 // -----------------------------------------------------------------------------
@@ -2031,7 +2031,7 @@ def default_uvs_table = {
     /// Number of Unicode character ranges.
     num_unicode_value_ranges <- u32be,
     /// Array of UnicodeRange records.
-    ranges <- repeat_len32 num_unicode_value_ranges unicode_range,
+    ranges <- repeat_len64 num_unicode_value_ranges unicode_range,
 };
 
 /// # UVSMapping Record
@@ -2062,7 +2062,7 @@ def non_default_uvs_table = {
     /// Number of UVS Mappings that follow
     num_uvs_mappings <- u32be,
     /// Array of UVSMapping records.
-    uvs_mappings <- repeat_len32 num_uvs_mappings uvs_mapping,
+    uvs_mappings <- repeat_len64 num_uvs_mappings uvs_mapping,
 };
 
 /// # VariationSelector Record for cmap sub-table format 14
@@ -2104,7 +2104,7 @@ def cmap_subtable_format0 (platform : platform_id) = {
     /// A 1 to 1 mapping that converts character codes to glyph indexes (limited
     /// to 256 glyphs). Only the first 256 glyphs will be accessible for larger
     /// glyph sets.
-    glyph_id_array <- repeat_len16 256 small_glyph_id,
+    glyph_id_array <- repeat_len64 256 small_glyph_id,
 };
 
 /// # Format 2: High-byte mapping through table
@@ -2123,7 +2123,7 @@ def cmap_subtable_format2 (platform : platform_id) = {
     /// The language ID of the subtable
     language <- cmap_language_id platform,
     /// Array that maps high bytes to subHeaders: value is subHeader index × 8.
-    sub_header_keys <- repeat_len16 256 u16be,
+    sub_header_keys <- repeat_len64 256 u16be,
     // TODO: These probably need length limiting formats
     // https://github.com/yeslogic/fathom/pull/310
     // /// Variable-length array of SubHeader records.
@@ -2159,15 +2159,15 @@ def cmap_subtable_format4 (platform : platform_id) = {
     /// segCount times 2, minus searchRange ((segCount * 2) - searchRange)
     range_shift <- u16be,
     /// End characterCode for each segment, last=0xFFFF.
-    end_code <- repeat_len16 seg_count u16be,
+    end_code <- repeat_len64 seg_count u16be,
     /// Set to 0.
     _reserved_pad <- reserved s16be 0,
     /// Start character code for each segment.
-    start_code <- repeat_len16 seg_count u16be,
+    start_code <- repeat_len64 seg_count u16be,
     /// Delta for all character codes in segment.
-    id_delta <- repeat_len16 seg_count s16be,
+    id_delta <- repeat_len64 seg_count s16be,
     /// Offsets into glyphIdArray or 0
-    id_range_offsets <- repeat_len16 seg_count u16be,
+    id_range_offsets <- repeat_len64 seg_count u16be,
     // TODO: Needs length limiting formats
     // /// Glyph index array (arbitrary length)
     // glyph_id_array[ ]  <- u16be,
@@ -2192,7 +2192,7 @@ def cmap_subtable_format6 (platform : platform_id) = {
     /// Number of character codes in subrange.
     entry_count <- u16be,
     /// Array of glyph index values for character codes in the range.
-    glyph_id_array <- repeat_len16 entry_count u16be,
+    glyph_id_array <- repeat_len64 entry_count u16be,
 };
 
 /// # Format 8: mixed 16-bit and 32-bit coverage
@@ -2215,11 +2215,11 @@ def cmap_subtable_format8 (platform : platform_id) = {
     language <- cmap_language_id32 platform,
     /// Tightly packed array of bits (8K bytes total) indicating whether the particular 16-bit
     /// (index) value is the start of a 32-bit character code
-    is32 <- repeat_len16 8192 u8,
+    is32 <- repeat_len64 8192 u8,
     /// Number of groupings which follow
     num_groups <- u32be,
     /// Array of SequentialMapGroup records.
-    groups <- repeat_len32 num_groups sequential_map_group,
+    groups <- repeat_len64 num_groups sequential_map_group,
 };
 
 /// # Format 10: Trimmed table mapping
@@ -2244,7 +2244,7 @@ def cmap_subtable_format10 (platform : platform_id) = {
     /// Number of character codes covered
     num_chars <- u32be,
     /// Array of glyph indices for the character codes covered
-    glyph_id_array <- repeat_len32 num_chars u16be,
+    glyph_id_array <- repeat_len64 num_chars u16be,
 };
 
 /// # Format 12: Segmented coverage
@@ -2266,7 +2266,7 @@ def cmap_subtable_format12 (platform : platform_id) = {
     /// Number of groupings which follow
     num_groups <- u32be,
     /// Array of SequentialMapGroup records.
-    groups <- repeat_len32 num_groups sequential_map_group,
+    groups <- repeat_len64 num_groups sequential_map_group,
 };
 
 /// # Format 13: Many-to-one range mappings
@@ -2290,7 +2290,7 @@ def cmap_subtable_format13 (platform : platform_id) = {
     /// Number of groupings which follow
     num_groups <- u32be,
     /// Array of ConstantMapGroup records.
-    groups <- repeat_len32 num_groups constant_map_group,
+    groups <- repeat_len64 num_groups constant_map_group,
 };
 
 /// # Format 14: Unicode Variation Sequences
@@ -2311,7 +2311,7 @@ def cmap_subtable_format14 (platform : platform_id) (table_start : Pos) = {
     /// Number of variation Selector Records
     num_var_selector_records <- u32be,
     /// Array of VariationSelector records.
-    var_selector <- repeat_len32 num_var_selector_records (variation_selector table_start),
+    var_selector <- repeat_len64 num_var_selector_records (variation_selector table_start),
 };
 
 /// # Character Mapping subtable
@@ -2363,7 +2363,7 @@ def cmap_table = {
     /// The number of encoding tables that follow
     num_tables <- u16be,
     /// An array of encoding records in the character mapping table
-    encoding_records <- repeat_len16 num_tables (encoding_record table_start),
+    encoding_records <- repeat_len64 num_tables (encoding_record table_start),
 };
 
 
@@ -2555,10 +2555,10 @@ def long_horizontal_metric = {
 /// - [Apple's TrueType Reference Manual: The `'hmtx'` table](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6hmtx.html)
 def htmx_table (number_of_long_horizontal_metrics : U16) (num_glyphs : U16) = {
     /// Long horizontal metrics, indexed by the glyph ID.
-    h_metrics <- repeat_len16 number_of_long_horizontal_metrics long_horizontal_metric,
+    h_metrics <- repeat_len64 number_of_long_horizontal_metrics long_horizontal_metric,
     /// Left side bearings for glyph IDs greater than or equal to the
     /// `number_of_long_horizontal_metrics`.
-    left_side_bearings <- repeat_len16 (u16_sub num_glyphs number_of_long_horizontal_metrics) s16be,
+    left_side_bearings <- repeat_len64 (u16_sub num_glyphs number_of_long_horizontal_metrics) s16be,
 };
 
 
@@ -2702,7 +2702,7 @@ def name_record (storage_start : Pos) = {
     /// String length
     length <- u16be,
     /// Offset to the string data, relative to the start of the storage area
-    offset <- offset16 storage_start (repeat_len16 length u8),
+    offset <- offset16 storage_start (repeat_len64 length u8),
 };
 
 /// # Language tag record
@@ -2715,14 +2715,14 @@ def lang_tag_record (storage_start : Pos) = {
     /// Language tag string length
     length <- u16be,
     /// Offset to the language tag string data
-    offset <- offset16 storage_start (repeat_len16 length u8),
+    offset <- offset16 storage_start (repeat_len64 length u8),
 };
 
 def name_version_1 (storage_start : Pos) = {
     /// The number of language tags to expect
     lang_tag_count <- u16be,
     /// The array of language tag records
-    lang_tag_records <- repeat_len16 lang_tag_count (lang_tag_record storage_start),
+    lang_tag_records <- repeat_len64 lang_tag_count (lang_tag_record storage_start),
 };
 
 /// # Naming table
@@ -2742,7 +2742,7 @@ def name_table = {
     /// The offset to the string storage area, relative to the start of the naming table.
     storage_offset <- u16be,
     /// The array of name records
-    name_records <- repeat_len16 name_count (name_record (pos_add_u16 table_start storage_offset)),
+    name_records <- repeat_len64 name_count (name_record (pos_add_u16 table_start storage_offset)),
 
     /// Version specific data
     data <- match version {
@@ -2761,9 +2761,9 @@ def name_table = {
 def loca_table (num_glyphs : U16) (index_to_loc_format : S16) = {
     offsets <- match index_to_loc_format {
         // short offsets
-        0 => repeat_len16 (u16_add num_glyphs 1) u16be, // TODO Offset16
+        0 => repeat_len64 (u16_add num_glyphs 1) u16be, // TODO Offset16
         // long offsets
-        1 => repeat_len16 (u16_add num_glyphs 1) u32be, // TODO Offset32
+        1 => repeat_len64 (u16_add num_glyphs 1) u32be, // TODO Offset32
         _ => unknown_table
     }
 };
@@ -2796,13 +2796,13 @@ def glyph_header = {
 /// - [Apple's TrueType Reference Manual: The `'loca'` table](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6glyf.html)
 def simple_glyph (number_of_contours : U16) = {
     /// Array of point indices for the last point of each contour, in increasing numeric order.
-    end_pts_of_contours <- repeat_len16 number_of_contours u16be,
+    end_pts_of_contours <- repeat_len64 number_of_contours u16be,
     /// Total number of bytes for instructions. If instructionLength is zero, no instructions are
     /// present for this glyph, and this field is followed directly by the flags field.
     instruction_length <- u16be,
     /// Array of instruction byte code for the glyph.
-    instructions <- repeat_len16 instruction_length u8,
-    let last_end_point_index = array16_index (number_of_contours - (1 : U16)) end_pts_of_contours,
+    instructions <- repeat_len64 instruction_length u8,
+    let last_end_point_index = array64_index (number_of_contours - (1 : U16)) end_pts_of_contours,
     let number_of_coords = last_end_point_index + (1 : U16),
     /// Array of flag elements.
     // flags[variable] <- uint8,
@@ -2864,7 +2864,7 @@ def glyph = {
 /// - [Microsoft's OpenType Spec: Glyph Data](https://docs.microsoft.com/en-us/typography/opentype/spec/glyf)
 /// - [Apple's TrueType Reference Manual: The `'glyf'` table](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6glyf.html)
 def glyf_table (num_glyphs : U16) = {
-    glyphs <- repeat_len16 num_glyphs glyph,
+    glyphs <- repeat_len64 num_glyphs glyph,
 };
 
 // -----------------------------------------------------------------------------
@@ -2945,7 +2945,7 @@ def os2_table (table_length : U32) = {
     y_strikeout_size <- s16be,
     y_strikeout_position <- s16be,
     s_family_class <- s16be,
-    panose <- repeat_len8 10 u8,
+    panose <- repeat_len64 10 u8,
     ul_unicode_range1 <- u32be,
     ul_unicode_range2 <- u32be,
     ul_unicode_range3 <- u32be,
@@ -3021,7 +3021,7 @@ def post_table = {
             /// Number of glyphs (this should be the same as numGlyphs in 'maxp' table).
             num_glyphs <- u16be,
             /// Array of indices into the string data.
-            glyph_name_index <- repeat_len16 num_glyphs u16be,
+            glyph_name_index <- repeat_len64 num_glyphs u16be,
             /// Storage for the string data.
             string_data <- stream_pos,
         },
@@ -3030,7 +3030,7 @@ def post_table = {
             /// Number of glyphs
             num_glyphs <- u16be,
             /// Difference between graphic index and standard order of glyph
-            offset <- repeat_len16 num_glyphs s8,
+            offset <- repeat_len64 num_glyphs s8,
         },
         /// Version 3, no glyph names stored in font
         ///
@@ -3075,7 +3075,7 @@ def attach_list = (
         /// Number of attachment points on this glyph
         point_count <- u16be,
         /// Array of contour point indices -in increasing numerical order
-        point_indices <- repeat_len16 point_count u16be,
+        point_indices <- repeat_len64 point_count u16be,
     };
 
     {
@@ -3087,7 +3087,7 @@ def attach_list = (
         glyph_count <- u16be,
         /// Array of offsets to AttachPoint tables-from beginning of AttachList table-in Coverage Index
         /// order
-        attach_point_offsets <- repeat_len16 glyph_count (offset16 table_start attach_point_table),
+        attach_point_offsets <- repeat_len64 glyph_count (offset16 table_start attach_point_table),
     }
 );
 
@@ -3156,7 +3156,7 @@ def lig_glyph = {
     caret_count <- u16be,
     /// Array of offsets to CaretValue tables, from beginning of LigGlyph table — in increasing
     /// coordinate order
-    caret_values <- repeat_len16 caret_count (offset16 table_start caret_value),
+    caret_values <- repeat_len64 caret_count (offset16 table_start caret_value),
 };
 
 /// # Ligature Caret List Table
@@ -3173,7 +3173,7 @@ def lig_caret_list = {
     lig_glyph_count <- u16be,
     /// Array of offsets to LigGlyph tables, from beginning of LigCaretList table — in Coverage
     /// Index order
-    lig_glyph_offsets <- repeat_len16 lig_glyph_count (offset16 table_start lig_glyph),
+    lig_glyph_offsets <- repeat_len64 lig_glyph_count (offset16 table_start lig_glyph),
 };
 
 /// # Mark Glyph Sets table
@@ -3190,7 +3190,7 @@ def mark_glyph_sets = {
     mark_glyph_set_count <- u16be,
     /// Array of offsets to mark glyph set coverage tables, from the start of the MarkGlyphSets
     /// table.
-    coverage <- repeat_len16 mark_glyph_set_count (offset32 table_start coverage_table),
+    coverage <- repeat_len64 mark_glyph_set_count (offset32 table_start coverage_table),
 };
 
 /// # GDEF — Glyph Definition Table
