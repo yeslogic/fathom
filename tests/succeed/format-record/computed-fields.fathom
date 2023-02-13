@@ -3,7 +3,7 @@ let format = {
     seg_count_x2 <- u16be,
 
     /// Number of contiguous ranges of character codes
-    let seg_count = u16_div seg_count_x2 2,
+    let seg_count = u16_extend_u64 (u16_div seg_count_x2 2),
 
     start_code <- repeat_len64 seg_count u16be,
     id_delta <- repeat_len64 seg_count s16be,
@@ -11,7 +11,7 @@ let format = {
 
 let _ : Repr format -> {
     seg_count_x2 : U16,
-    seg_count : U16,
+    seg_count : U64,
     start_code : Array64 seg_count U16,
     id_delta : Array64 seg_count S16,
 } = fun x => x;

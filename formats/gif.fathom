@@ -50,7 +50,7 @@ def color_table_entry = {
 ///
 /// - [GIF89a Specification: Section 19](https://www.w3.org/Graphics/GIF/spec-gif89a.txt)
 def global_color_table (len : U16) = {
-    entries <- repeat_len64 len color_table_entry,
+    entries <- repeat_len64 (u16_extend_u64 len) color_table_entry,
 };
 
 def main = {

@@ -596,31 +596,7 @@ impl<'arena> Context<'arena> {
                     self.scope.to_scope(expr),
                 )
             }
-
-            (_, _) => {
-                // Implictly extend unsigned integer types
-                let extend_prim = match Option::zip(from.match_prim_spine(), to.match_prim_spine())
-                {
-                    Some(((Prim::U8Type, []), (Prim::U16Type, []))) => Prim::U8ExtendU16,
-                    Some(((Prim::U8Type, []), (Prim::U32Type, []))) => Prim::U8ExtendU32,
-                    Some(((Prim::U8Type, []), (Prim::U64Type, []))) => Prim::U8ExtendU64,
-
-                    Some(((Prim::U16Type, []), (Prim::U32Type, []))) => Prim::U16ExtendU32,
-                    Some(((Prim::U16Type, []), (Prim::U64Type, []))) => Prim::U16ExtendU64,
-
-                    Some(((Prim::U32Type, []), (Prim::U64Type, []))) => Prim::U32ExtendU64,
-
-                    // Otherwise, unify the types
-                    _ => return self.convert(surface_range, expr, &from, &to),
-                };
-
-                core::Term::FunApp(
-                    span,
-                    Plicity::Explicit,
-                    self.scope.to_scope(core::Term::Prim(span, extend_prim)),
-                    self.scope.to_scope(expr),
-                )
-            }
+            _ => return self.convert(surface_range, expr, &from, &to),
         }
     }
 

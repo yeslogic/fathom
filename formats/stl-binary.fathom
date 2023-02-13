@@ -28,5 +28,5 @@ def triangle = {
 def main = {
     header <- repeat_len64 80 u8,
     triangle_count <- u32le,
-    triangles <- repeat_len64 triangle_count triangle,
+    triangles <- repeat_len64 (u32_extend_u64 triangle_count) triangle,
 };

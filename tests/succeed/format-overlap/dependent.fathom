@@ -7,7 +7,7 @@ let record0 = {
 
 let record1 = fun (length : U8) => {
     _length <- u8, // Skip length
-    data <- repeat_len64 length u8,
+    data <- repeat_len64 (u8_extend_u64 length) u8,
 };
 
 let silly = overlap {
@@ -18,7 +18,7 @@ let silly = overlap {
 let _ :
         Repr silly -> {
             record0 : { length : U8 },
-            record1 : { _length : U8, data : Array64 record0.length U8 },
+            record1 : { _length : U8, data : Array64 (u8_extend_u64 record0.length) U8 },
         }
     = fun silly => silly;
 

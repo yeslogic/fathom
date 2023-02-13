@@ -57,15 +57,15 @@ def cmap_subtable_format4 : Repr platform_id -> Format = fun platform => {
     length <- u16be,
     language <- cmap_language_id platform,
     seg_count_x2 <- u16be,
-    let seg_count : U16 = seg_count_x2 / (2 : U16),
+    let seg_count : U64 = u16_extend_u64 (seg_count_x2 / (2 : U16)),
     search_range <- u16be,
     entry_selector <- u16be,
     range_shift <- u16be,
-    end_code <- repeat_len64 (u16_extend_u64 seg_count) u16be,
+    end_code <- repeat_len64 seg_count u16be,
     _reserved_pad <- reserved s16be 0,
-    start_code <- repeat_len64 (u16_extend_u64 seg_count) u16be,
-    id_delta <- repeat_len64 (u16_extend_u64 seg_count) s16be,
-    id_range_offsets <- repeat_len64 (u16_extend_u64 seg_count) u16be,
+    start_code <- repeat_len64 seg_count u16be,
+    id_delta <- repeat_len64 seg_count s16be,
+    id_range_offsets <- repeat_len64 seg_count u16be,
 };
 def cmap_subtable_format6 : Repr platform_id -> Format = fun platform => {
     length <- u16be,
@@ -384,7 +384,8 @@ def simple_glyph : U16 -> Format = fun number_of_contours => {
     end_pts_of_contours <- repeat_len64 (u16_extend_u64 number_of_contours) u16be,
     instruction_length <- u16be,
     instructions <- repeat_len64 (u16_extend_u64 instruction_length) u8,
-    let last_end_point_index : U16 = array64_index @(u16_extend_u64 number_of_contours) @U16 (u16_extend_u64 number_of_contours - u16_extend_u64 1) end_pts_of_contours,
+    let last_end_point_index : U16 = array64_index @(u16_extend_u64 number_of_contours) @U16 (u16_extend_u64 (number_of_contours - (1 :
+    U16))) end_pts_of_contours,
     let number_of_coords : U16 = last_end_point_index + (1 : U16),
 };
 def glyph : Format = {
