@@ -333,13 +333,7 @@ def_prims! {
     OptionType => "Option",
     /// Type of dynamically sized arrays.
     ArrayType => "Array",
-    /// Type of arrays, with 8-bit indices.
-    Array8Type => "Array8",
-    /// Type of arrays, with 16-bit indices.
-    Array16Type => "Array16",
-    /// Type of arrays, with 32-bit indices.
-    Array32Type => "Array32",
-    /// Type of arrays, with 64-bit indices.
+    /// Type of fixed size arrays, with 64-bit indices.
     Array64Type => "Array64",
     /// Type of stream positions.
     PosType => "Pos",
@@ -384,12 +378,6 @@ def_prims! {
     FormatF64Be => "f64be",
     /// 64-bit, IEEE-754 floating point formats (little-endian).
     FormatF64Le => "f64le",
-    /// Repeat formats up to an unsigned 8-bit length.
-    FormatRepeatLen8 => "repeat_len8",
-    /// Repeat formats up to an unsigned 16-bit length.
-    FormatRepeatLen16 => "repeat_len16",
-    /// Repeat formats up to an unsigned 32-bit length.
-    FormatRepeatLen32 => "repeat_len32",
     /// Repeat formats up to an unsigned 64-bit length.
     FormatRepeatLen64 => "repeat_len64",
     /// Repeat a format until the length of the given parse scope is reached.
@@ -444,6 +432,9 @@ def_prims! {
     U8And => "u8_and",
     U8Or  => "u8_or",
     U8Xor => "u8_xor",
+    U8ExtendU16 => "u8_extend_u16",
+    U8ExtendU32 => "u8_extend_u32",
+    U8ExtendU64 => "u8_extend_u64",
 
     U16Eq  => "u16_eq",
     U16Neq => "u16_neq",
@@ -461,6 +452,9 @@ def_prims! {
     U16And => "u16_and",
     U16Or  => "u16_or",
     U16Xor => "u16_xor",
+    U16TruncateU8 => "u16_truncate_u8",
+    U16ExtendU32 => "u16_extend_u32",
+    U16ExtendU64 => "u16_extend_u64",
 
     U32Eq  => "u32_eq",
     U32Neq => "u32_neq",
@@ -478,6 +472,9 @@ def_prims! {
     U32And => "u32_and",
     U32Or  => "u32_or",
     U32Xor => "u32_xor",
+    U32TruncateU8 => "u32_truncate_u8",
+    U32TruncateU16 => "u32_truncate_u16",
+    U32ExtendU64 => "u32_extend_u64",
 
     U64Eq  => "u64_eq",
     U64Neq => "u64_neq",
@@ -495,6 +492,9 @@ def_prims! {
     U64And => "u64_and",
     U64Or  => "u64_or",
     U64Xor => "u64_xor",
+    U64TruncateU8 => "u64_truncate_u8",
+    U64TruncateU16 => "u64_truncate_u16",
+    U64TruncateU32 => "u64_truncate_u32",
 
     S8Eq  => "s8_eq",
     S8Neq => "s8_neq",
@@ -509,6 +509,9 @@ def_prims! {
     S8Div => "s8_div",
     S8Abs => "s8_abs",
     S8UAbs => "s8_unsigned_abs",
+    S8ExtendS16 => "s8_extend_s16",
+    S8ExtendS32 => "s8_extend_s32",
+    S8ExtendS64 => "s8_extend_s64",
 
     S16Eq  => "s16_eq",
     S16Neq => "s16_neq",
@@ -523,6 +526,9 @@ def_prims! {
     S16Div => "s16_div",
     S16Abs => "s16_abs",
     S16UAbs => "s16_unsigned_abs",
+    S16TruncateS8 => "s16_truncate_s8",
+    S16ExtendS32 => "s16_extend_s32",
+    S16ExtendS64 => "s16_extend_s64",
 
     S32Eq  => "s32_eq",
     S32Neq => "s32_neq",
@@ -537,6 +543,9 @@ def_prims! {
     S32Div => "s32_div",
     S32Abs => "s32_abs",
     S32UAbs => "s32_unsigned_abs",
+    S32TruncateS8 => "s32_truncate_s8",
+    S32TruncateS16 => "s32_truncate_s16",
+    S32ExtendS64 => "s32_extend_s64",
 
     S64Eq  => "s64_eq",
     S64Neq => "s64_neq",
@@ -551,6 +560,9 @@ def_prims! {
     S64Div => "s64_div",
     S64Abs => "s64_abs",
     S64UAbs => "s64_unsigned_abs",
+    S64TruncateS8 => "s64_truncate_s8",
+    S64TruncateS16 => "s64_truncate_s16",
+    S64TruncateS32 => "s64_truncate_s32",
 
     OptionSome => "some",
     OptionNone => "none",

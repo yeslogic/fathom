@@ -15,5 +15,5 @@ def main = {
     /// The height of the image, in pixels.
     height <- u32be,
     /// The pixel data.
-    pixels <- repeat_len32 (width * height) pixel,
+    pixels <- repeat_len64 (u32_extend_u64 (width * height)) pixel,
 };

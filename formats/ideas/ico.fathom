@@ -24,7 +24,7 @@ def image = {
 
 def main = {
     // NOTE: Could be useful to have invertible patterns here?
-    magic <- repeat_len8 4 u8 match {
+    magic <- repeat_len64 4 u8 match {
         [0, 0, 1, 0] => icon,   // TODO
         [0, 0, 2, 0] => cursor, // TODO
     },

@@ -596,29 +596,39 @@ impl<'arena> Context<'arena> {
                     self.scope.to_scope(expr),
                 )
             }
+            _ => return self.convert(surface_range, expr, &from, &to),
+        }
+    }
 
-            // Otherwise, unify the types
-            (_, _) => match self.unification_context().unify(&from, &to) {
-                Ok(()) => expr,
-                Err(error) => {
-                    let range = match span {
-                        Span::Range(range) => range,
-                        Span::Empty => {
-                            let range = self.file_range(surface_range);
-                            self.push_message(Message::MissingSpan { range });
-                            range
-                        }
-                    };
+    fn convert(
+        &mut self,
+        surface_range: ByteRange, /* TODO: could be removed if we never encounter empty spans in
+                                   * the core term */
+        expr: core::Term<'arena>,
+        from: &ArcValue<'arena>,
+        to: &ArcValue<'arena>,
+    ) -> core::Term<'arena> {
+        let span = expr.span();
+        match self.unification_context().unify(from, to) {
+            Ok(()) => expr,
+            Err(error) => {
+                let range = match span {
+                    Span::Range(range) => range,
+                    Span::Empty => {
+                        let range = self.file_range(surface_range);
+                        self.push_message(Message::MissingSpan { range });
+                        range
+                    }
+                };
 
-                    self.push_message(Message::FailedToUnify {
-                        range,
-                        found: self.pretty_value(&from),
-                        expected: self.pretty_value(&to),
-                        error,
-                    });
-                    core::Term::Prim(span, Prim::ReportedError)
-                }
-            },
+                self.push_message(Message::FailedToUnify {
+                    range,
+                    found: self.pretty_value(from),
+                    expected: self.pretty_value(to),
+                    error,
+                });
+                core::Term::Prim(span, Prim::ReportedError)
+            }
         }
     }
 
@@ -734,9 +744,6 @@ impl<'arena> Context<'arena> {
                     Some((Prim::U16Type, [])) => self.parse_ascii(*range, *lit, Const::U16),
                     Some((Prim::U32Type, [])) => self.parse_ascii(*range, *lit, Const::U32),
                     Some((Prim::U64Type, [])) => self.parse_ascii(*range, *lit, Const::U64),
-                    // Some((Prim::Array8Type, [len, _])) => todo!(),
-                    // Some((Prim::Array16Type, [len, _])) => todo!(),
-                    // Some((Prim::Array32Type, [len, _])) => todo!(),
                     // Some((Prim::Array64Type, [len, _])) => todo!(),
                     Some((Prim::ReportedError, _)) => None,
                     _ => {
@@ -1141,15 +1148,6 @@ impl<'arena> Context<'arena> {
 
                 let (len_value, elem_type) = match expected_type.match_prim_spine() {
                     Some((Prim::ArrayType, [App(_, elem_type)])) => (None, elem_type),
-                    Some((Prim::Array8Type, [App(_, len), App(_, elem_type)])) => {
-                        (Some(len), elem_type)
-                    }
-                    Some((Prim::Array16Type, [App(_, len), App(_, elem_type)])) => {
-                        (Some(len), elem_type)
-                    }
-                    Some((Prim::Array32Type, [App(_, len), App(_, elem_type)])) => {
-                        (Some(len), elem_type)
-                    }
                     Some((Prim::Array64Type, [App(_, len), App(_, elem_type)])) => {
                         (Some(len), elem_type)
                     }
@@ -1167,9 +1165,6 @@ impl<'arena> Context<'arena> {
 
                 let len = match len_value.map(|val| val.as_ref()) {
                     None => Some(elem_exprs.len() as u64),
-                    Some(Value::ConstLit(Const::U8(len, _))) => Some(*len as u64),
-                    Some(Value::ConstLit(Const::U16(len, _))) => Some(*len as u64),
-                    Some(Value::ConstLit(Const::U32(len, _))) => Some(*len as u64),
                     Some(Value::ConstLit(Const::U64(len, _))) => Some(*len),
                     Some(Value::Stuck(Head::Prim(Prim::ReportedError), _)) => {
                         return core::Term::Prim(file_range.into(), Prim::ReportedError);
@@ -1207,9 +1202,6 @@ impl<'arena> Context<'arena> {
                     Some((Prim::U16Type, [])) => self.parse_ascii(*range, *lit, Const::U16),
                     Some((Prim::U32Type, [])) => self.parse_ascii(*range, *lit, Const::U32),
                     Some((Prim::U64Type, [])) => self.parse_ascii(*range, *lit, Const::U64),
-                    // Some((Prim::Array8Type, [len, _])) => todo!(),
-                    // Some((Prim::Array16Type, [len, _])) => todo!(),
-                    // Some((Prim::Array32Type, [len, _])) => todo!(),
                     // Some((Prim::Array64Type, [len, _])) => todo!(),
                     Some((Prim::ReportedError, _)) => None,
                     _ => {

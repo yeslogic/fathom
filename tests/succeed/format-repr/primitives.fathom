@@ -17,16 +17,10 @@ let test_f32le_repr : Repr f32le -> F32 = fun x => x;
 let test_f64be_repr : Repr f64be -> F64 = fun x => x;
 let test_f64le_repr : Repr f64le -> F64 = fun x => x;
 
-let test_repeat_len8 : fun n f -> Repr (repeat_len8 n f) -> Array8 n (Repr f) = fun _ => fun _ => fun x => x;
-let test_repeat_len16 : fun n f -> Repr (repeat_len16 n f) -> Array16 n (Repr f) = fun _ => fun _ => fun x => x;
-let test_repeat_len32 : fun n f -> Repr (repeat_len32 n f) -> Array32 n (Repr f) = fun _ => fun _ => fun x => x;
 let test_repeat_len64 : fun n f -> Repr (repeat_len64 n f) -> Array64 n (Repr f) = fun _ => fun _ => fun x => x;
 
 let test_repeat_until_end : fun f -> Repr (repeat_until_end f) -> Array (Repr f) = fun _ => fun x => x;
 
-let test_limit8 : fun n f -> Repr (limit8 n f) -> Repr f = fun _ => fun _ => fun x => x;
-let test_limit16 : fun n f -> Repr (limit16 n f) -> Repr f = fun _ => fun _ => fun x => x;
-let test_limit32 : fun n f -> Repr (limit32 n f) -> Repr f = fun _ => fun _ => fun x => x;
 let test_limit64 : fun n f -> Repr (limit64 n f) -> Repr f = fun _ => fun _ => fun x => x;
 
 let test_link : fun pos f -> Repr (link pos f) -> Ref f = fun _ => fun _ => fun x => x;

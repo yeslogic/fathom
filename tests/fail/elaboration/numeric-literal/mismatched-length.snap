@@ -3,7 +3,7 @@ stderr = '''
 error: mismatched array length
   ┌─ tests/fail/elaboration/numeric-literal/mismatched-length.fathom:3:1
   │
-3 │ [3, 4] : Array8 12 U32
+3 │ [3, 4] : Array64 12 U32
   │ ^^^^^^ array with invalid length
   │
   = expected length 12

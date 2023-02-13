@@ -3,5 +3,5 @@
   link <- link start u16be,
   len <- deref link,
   _reserved <- u16be,
-  data <- repeat_len16 len u16be,
+  data <- repeat_len64 (u16_extend_u64 len) u16be,
 }

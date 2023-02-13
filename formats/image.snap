@@ -3,7 +3,7 @@ def pixel : Format = { red <- s32be, green <- s32be, blue <- s32be };
 def main : Format = {
     width <- u32be,
     height <- u32be,
-    pixels <- repeat_len32 (width * height) pixel,
+    pixels <- repeat_len64 (u32_extend_u64 (width * height)) pixel,
 };
 '''
 stderr = ''

@@ -21,12 +21,12 @@ def vec3d = {
 
 def triangle = {
     normal <- vec3d,
-    vertices <- repeat_len8 3 vec3d,
+    vertices <- repeat_len64 3 vec3d,
     attribute_byte_count <- u16le,
 };
 
 def main = {
-    header <- repeat_len8 80 u8,
+    header <- repeat_len64 80 u8,
     triangle_count <- u32le,
-    triangles <- repeat_len32 triangle_count triangle,
+    triangles <- repeat_len64 (u32_extend_u64 triangle_count) triangle,
 };
