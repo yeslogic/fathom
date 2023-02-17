@@ -77,6 +77,13 @@ impl<'arena> Value<'arena> {
         }
     }
 
+    pub fn is_unit_type(&self) -> bool {
+        match self {
+            Value::RecordType(labels, _) => labels.is_empty(),
+            _ => false,
+        }
+    }
+
     pub fn is_error(&self) -> bool {
         matches!(self, Value::Stuck(Head::Prim(Prim::ReportedError), _))
     }

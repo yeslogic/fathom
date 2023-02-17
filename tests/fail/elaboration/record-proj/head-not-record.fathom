@@ -1,0 +1,6 @@
+//~ exit-code = 1
+
+let _ : Bool = Bool.foo;
+let _ : Bool = {x=false}.x.foo;
+
+{}
