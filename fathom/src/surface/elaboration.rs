@@ -1597,14 +1597,24 @@ impl<'arena> Context<'arena> {
                 (term, r#type)
             }
             Term::Proj(range, head_expr, labels) => {
-                let head_range = head_expr.range();
+                let mut head_range = head_expr.range();
                 let (mut head_expr, mut head_type) = self.synth_and_insert_implicit_apps(head_expr);
 
                 'labels: for (label_range, proj_label) in *labels {
                     head_type = self.elim_env().force(&head_type);
-                    match (&head_expr, head_type.as_ref()) {
+                    match head_type.as_ref() {
+                        r#type if r#type.is_unit_type() => {
+                            self.push_message(Message::RecordProjUnit {
+                                head_range: self.file_range(head_range),
+                                head_type: self.pretty_value(&head_type),
+                                label_range: self.file_range(*label_range),
+                                label: *proj_label,
+                            });
+                            return self.synth_reported_error(*range);
+                        }
+
                         // Ensure that the head of the projection is a record
-                        (_, Value::RecordType(labels, types)) => {
+                        Value::RecordType(labels, types) => {
                             let mut labels = labels.iter().copied();
                             let mut types = types.clone();
 
@@ -1618,9 +1628,9 @@ impl<'arena> Context<'arena> {
                                 if *proj_label == label {
                                     // The field was found. Update the head expression
                                     // and continue elaborating the next projection.
+                                    head_range = ByteRange::merge(head_range, *label_range);
                                     head_expr = core::Term::RecordProj(
-                                        self.file_range(ByteRange::merge(head_range, *label_range))
-                                            .into(),
+                                        self.file_range(head_range).into(),
                                         self.scope.to_scope(head_expr),
                                         *proj_label,
                                     );
@@ -1636,28 +1646,32 @@ impl<'arena> Context<'arena> {
                                 }
                             }
                             // Couldn't find the field in the record type.
-                            // Fallthrough with an error.
+                            self.push_message(Message::RecordProjNotFound {
+                                head_range: self.file_range(head_range),
+                                head_type: self.pretty_value(&head_type),
+                                label_range: self.file_range(*label_range),
+                                label: *proj_label,
+                                suggested_label: suggest_name(*proj_label, labels),
+                            });
+                            return self.synth_reported_error(*range);
                         }
                         // There's been an error when elaborating the head of
                         // the projection, so avoid trying to elaborate any
                         // further to prevent cascading type errors.
-                        (core::Term::Prim(_, Prim::ReportedError), _)
-                        | (_, Value::Stuck(Head::Prim(Prim::ReportedError), _)) => {
+                        _ if head_expr.is_error() || head_type.is_error() => {
                             return self.synth_reported_error(*range);
                         }
                         // The head expression was not a record type.
-                        // Fallthrough with an error.
-                        _ => {}
+                        _ => {
+                            self.push_message(Message::RecordProjNotRecord {
+                                head_range: self.file_range(head_range),
+                                head_type: self.pretty_value(&head_type),
+                                label_range: self.file_range(*label_range),
+                                label: *proj_label,
+                            });
+                            return self.synth_reported_error(*range);
+                        }
                     }
-
-                    self.push_message(Message::UnknownField {
-                        head_range: self.file_range(head_range),
-                        head_type: self.pretty_value(&head_type),
-                        label_range: self.file_range(*label_range),
-                        label: *proj_label,
-                        suggested_label: suggest_name(*proj_label, labels.iter().map(|(_, l)| *l)),
-                    });
-                    return self.synth_reported_error(*range);
                 }
 
                 (head_expr, head_type)

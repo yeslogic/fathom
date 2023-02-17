@@ -1,0 +1,11 @@
+stdout = ''
+stderr = '''
+error: tried to access field `foo` of empty record
+  ┌─ tests/fail/elaboration/record-proj/head-is-unit.fathom:3:16
+  │
+3 │ let _ : Bool = {}.foo;
+  │                ^^ --- field access
+  │                │   
+  │                expression of type `()`
+
+'''

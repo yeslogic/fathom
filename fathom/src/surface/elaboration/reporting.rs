@@ -42,7 +42,19 @@ pub enum Message {
         arg_range: FileRange,
         arg_plicity: Plicity,
     },
-    UnknownField {
+    RecordProjNotRecord {
+        head_range: FileRange,
+        head_type: String,
+        label_range: FileRange,
+        label: Symbol,
+    },
+    RecordProjUnit {
+        head_range: FileRange,
+        head_type: String,
+        label_range: FileRange,
+        label: Symbol,
+    },
+    RecordProjNotFound {
         head_range: FileRange,
         head_type: String,
         label_range: FileRange,
@@ -205,18 +217,48 @@ impl Message {
                     secondary_label(head_range)
                         .with_message(format!("{head_plicity} function of type {head_type}")),
                 ]),
-            Message::UnknownField {
+            Message::RecordProjNotRecord {
+                head_range,
+                head_type,
+                label_range,
+                label,
+            } => Diagnostic::error()
+                .with_message(format!(
+                    "tried to access field `{}` of non-record expression",
+                    label.resolve()
+                ))
+                .with_labels(vec![
+                    primary_label(head_range)
+                        .with_message(format!("expression of type `{head_type}`")),
+                    secondary_label(label_range).with_message("field access"),
+                ]),
+            Message::RecordProjUnit {
+                head_range,
+                head_type,
+                label_range,
+                label,
+            } => Diagnostic::error()
+                .with_message(format!(
+                    "tried to access field `{}` of empty record",
+                    label.resolve()
+                ))
+                .with_labels(vec![
+                    primary_label(head_range)
+                        .with_message(format!("expression of type `{head_type}`")),
+                    secondary_label(label_range).with_message("field access"),
+                ]),
+            Message::RecordProjNotFound {
                 head_range,
                 head_type,
                 label_range,
                 label,
                 suggested_label,
             } => Diagnostic::error()
-                .with_message(format!("cannot find `{}` in expression", label.resolve()))
+                .with_message(format!("no field named `{}` in record", label.resolve()))
                 .with_labels(vec![
-                    primary_label(label_range).with_message("unknown label"),
-                    secondary_label(head_range)
-                        .with_message(format!("expression of type {head_type}")),
+                    primary_label(head_range)
+                        .with_message(format!("expression of type `{head_type}`")),
+                    secondary_label(label_range).with_message("unknown field"),
                 ])
                 .with_notes(suggested_label.map_or(Vec::new(), |label| {
                     vec![format!("help: did you mean `{}`?", label.resolve())]

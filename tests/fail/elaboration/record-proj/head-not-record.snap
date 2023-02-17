@@ -1,0 +1,19 @@
+stdout = ''
+stderr = '''
+error: tried to access field `foo` of non-record expression
+  ┌─ tests/fail/elaboration/record-proj/head-not-record.fathom:3:16
+  │
+3 │ let _ : Bool = Bool.foo;
+  │                ^^^^ --- field access
+  │                │     
+  │                expression of type `Type`
+
+error: tried to access field `foo` of non-record expression
+  ┌─ tests/fail/elaboration/record-proj/head-not-record.fathom:4:16
+  │
+4 │ let _ : Bool = {x=false}.x.foo;
+  │                ^^^^^^^^^^^ --- field access
+  │                │            
+  │                expression of type `Bool`
+
+'''

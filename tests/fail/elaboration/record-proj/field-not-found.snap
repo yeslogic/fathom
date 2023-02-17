@@ -1,0 +1,19 @@
+stdout = ''
+stderr = '''
+error: no field named `y` in record
+  ┌─ tests/fail/elaboration/record-proj/field-not-found.fathom:3:16
+  │
+3 │ let _ : Bool = {x=false}.y;
+  │                ^^^^^^^^^ - unknown field
+  │                │          
+  │                expression of type `{ x : Bool }`
+
+error: tried to access field `y` of non-record expression
+  ┌─ tests/fail/elaboration/record-proj/field-not-found.fathom:4:16
+  │
+4 │ let _ : Bool = {x=false}.x.y;
+  │                ^^^^^^^^^^^ - field access
+  │                │            
+  │                expression of type `Bool`
+
+'''
