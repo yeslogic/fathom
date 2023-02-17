@@ -150,10 +150,10 @@ fn item_dependencies(
         Item::Def(item) => {
             let initial_locals_names_len = local_names.len();
             push_param_deps(item.params, item_names, local_names, &mut deps);
-            if let Some(r#type) = item.r#type {
+            if let Some(r#type) = item.r#type.as_ref() {
                 term_deps(r#type, item_names, local_names, &mut deps);
             }
-            term_deps(item.expr, item_names, local_names, &mut deps);
+            term_deps(&item.expr, item_names, local_names, &mut deps);
             local_names.truncate(initial_locals_names_len);
         }
         Item::ReportedError(_) => {}
@@ -168,7 +168,6 @@ fn term_deps(
     deps: &mut Vec<Symbol>,
 ) {
     match term {
-        Term::Paren(_, term) => term_deps(term, item_names, local_names, deps),
         Term::Name(_, name) => {
             if local_names.iter().rev().any(|local| name == local) {
                 // local binding, do nothing
@@ -178,23 +177,15 @@ fn term_deps(
                 deps.push(*name);
             }
         }
-        Term::Ann(_, expr, r#type) => {
-            term_deps(expr, item_names, local_names, deps);
-            term_deps(r#type, item_names, local_names, deps);
-        }
-        Term::Let(_, pattern, r#type, def_expr, body_expr) => {
-            push_pattern(pattern, local_names);
-            if let Some(r#type) = r#type {
+        Term::Let(_, def, body_expr) => {
+            let initial_locals_names_len = local_names.len();
+            if let Some(r#type) = def.r#type.as_ref() {
                 term_deps(r#type, item_names, local_names, deps);
             }
-            term_deps(def_expr, item_names, local_names, deps);
+            term_deps(&def.expr, item_names, local_names, deps);
+            push_pattern(&def.pattern, local_names);
             term_deps(body_expr, item_names, local_names, deps);
-            pop_pattern(pattern, local_names);
-        }
-        Term::If(_, cond_expr, then_expr, else_expr) => {
-            term_deps(cond_expr, item_names, local_names, deps);
-            term_deps(then_expr, item_names, local_names, deps);
-            term_deps(else_expr, item_names, local_names, deps);
+            local_names.truncate(initial_locals_names_len);
         }
         Term::Match(_, scrutinee, equations) => {
             let initial_locals_names_len = local_names.len();
@@ -205,27 +196,11 @@ fn term_deps(
             }
             local_names.truncate(initial_locals_names_len);
         }
-        Term::Arrow(.., param_type, body_type) => {
-            term_deps(param_type, item_names, local_names, deps);
-            term_deps(body_type, item_names, local_names, deps);
-        }
-        Term::FunType(_, patterns, body_type) => {
+        Term::FunType(_, params, body) | Term::FunLiteral(_, params, body) => {
             let initial_locals_names_len = local_names.len();
-            push_param_deps(patterns, item_names, local_names, deps);
-            term_deps(body_type, item_names, local_names, deps);
+            push_param_deps(params, item_names, local_names, deps);
+            term_deps(body, item_names, local_names, deps);
             local_names.truncate(initial_locals_names_len);
-        }
-        Term::FunLiteral(_, patterns, body_type) => {
-            let initial_locals_names_len = local_names.len();
-            push_param_deps(patterns, item_names, local_names, deps);
-            term_deps(body_type, item_names, local_names, deps);
-            local_names.truncate(initial_locals_names_len);
-        }
-        Term::App(_, head_expr, args) => {
-            term_deps(head_expr, item_names, local_names, deps);
-            for arg in *args {
-                term_deps(&arg.term, item_names, local_names, deps);
-            }
         }
         Term::RecordType(_, type_fields) => {
             let initial_locals_names_len = local_names.len();
@@ -235,32 +210,35 @@ fn term_deps(
             }
             local_names.truncate(initial_locals_names_len);
         }
-        Term::RecordLiteral(_, expr_fields) => {
+        Term::FormatRecord(_, fields) | Term::FormatOverlap(_, fields) => {
             let initial_locals_names_len = local_names.len();
-            for expr_field in *expr_fields {
-                if let Some(expr) = expr_field.expr.as_ref() {
-                    term_deps(expr, item_names, local_names, deps);
+            for field in fields.iter() {
+                match field {
+                    FormatField::Format {
+                        label: (_, name),
+                        format,
+                        pred,
+                    } => {
+                        term_deps(format, item_names, local_names, deps);
+                        if let Some(pred) = pred {
+                            term_deps(pred, item_names, local_names, deps);
+                        }
+                        local_names.push(*name)
+                    }
+                    FormatField::Computed {
+                        label: (_, name),
+                        r#type,
+                        expr,
+                    } => {
+                        if let Some(r#type) = r#type {
+                            term_deps(r#type, item_names, local_names, deps);
+                        }
+                        term_deps(expr, item_names, local_names, deps);
+                        local_names.push(*name)
+                    }
                 }
-                local_names.push(expr_field.label.1);
             }
             local_names.truncate(initial_locals_names_len);
-        }
-        Term::Tuple(_, terms) => terms
-            .iter()
-            .for_each(|term| term_deps(term, item_names, local_names, deps)),
-        Term::Proj(_, head_expr, _) => {
-            term_deps(head_expr, item_names, local_names, deps);
-        }
-        Term::ArrayLiteral(_, terms) => {
-            for term in *terms {
-                term_deps(term, item_names, local_names, deps);
-            }
-        }
-        Term::FormatRecord(_, fields) => {
-            field_deps(fields, item_names, local_names, deps);
-        }
-        Term::FormatOverlap(_, format_fields) => {
-            field_deps(format_fields, item_names, local_names, deps);
         }
         Term::FormatCond(_, (_, name), format, cond) => {
             local_names.push(*name);
@@ -268,17 +246,7 @@ fn term_deps(
             term_deps(cond, item_names, local_names, deps);
             local_names.pop();
         }
-        Term::BinOp(_, lhs, _, rhs) => {
-            term_deps(lhs, item_names, local_names, deps);
-            term_deps(rhs, item_names, local_names, deps);
-        }
-        Term::Hole(_, _)
-        | Term::Placeholder(_)
-        | Term::Universe(_)
-        | Term::StringLiteral(_, _)
-        | Term::NumberLiteral(_, _)
-        | Term::BooleanLiteral(_, _)
-        | Term::ReportedError(_) => {}
+        _ => term.walk(|term| term_deps(term, item_names, local_names, deps)),
     }
 }
 
@@ -296,54 +264,9 @@ fn push_param_deps(
     }
 }
 
-fn field_deps(
-    fields: &[FormatField<ByteRange>],
-    item_names: &FxHashMap<Symbol, usize>,
-    local_names: &mut Vec<Symbol>,
-    deps: &mut Vec<Symbol>,
-) {
-    let initial_locals_names_len = local_names.len();
-    for field in fields {
-        match field {
-            FormatField::Format {
-                label: (_, label),
-                format,
-                ..
-            } => {
-                term_deps(format, item_names, local_names, deps);
-                local_names.push(*label)
-            }
-            FormatField::Computed {
-                label: (_, label),
-                r#type,
-                expr,
-            } => {
-                if let Some(r#type) = r#type {
-                    term_deps(r#type, item_names, local_names, deps);
-                }
-                term_deps(expr, item_names, local_names, deps);
-                local_names.push(*label)
-            }
-        }
-    }
-    local_names.truncate(initial_locals_names_len);
-}
-
 fn push_pattern(pattern: &Pattern<ByteRange>, local_names: &mut Vec<Symbol>) {
     match pattern {
         Pattern::Name(_, name) => local_names.push(*name),
-        Pattern::Placeholder(_) => {}
-        Pattern::StringLiteral(_, _) => {}
-        Pattern::NumberLiteral(_, _) => {}
-        Pattern::BooleanLiteral(_, _) => {}
-    }
-}
-
-fn pop_pattern(pattern: &Pattern<ByteRange>, local_names: &mut Vec<Symbol>) {
-    match pattern {
-        Pattern::Name(_, _) => {
-            local_names.pop();
-        }
         Pattern::Placeholder(_) => {}
         Pattern::StringLiteral(_, _) => {}
         Pattern::NumberLiteral(_, _) => {}

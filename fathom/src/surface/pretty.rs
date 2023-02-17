@@ -42,7 +42,7 @@ impl<'arena> Context<'arena> {
                 .concat([
                     self.text("def"),
                     self.space(),
-                    match item.r#type {
+                    match item.r#type.as_ref() {
                         None => self.concat([
                             self.ident(item.label.1),
                             self.params(item.params),
@@ -63,7 +63,7 @@ impl<'arena> Context<'arena> {
                     self.space(),
                     self.text("="),
                     self.softline(),
-                    self.term(item.expr),
+                    self.term(&item.expr),
                     self.text(";"),
                 ])
                 .group(),
@@ -148,15 +148,15 @@ impl<'arena> Context<'arena> {
                 self.softline(),
                 self.term(r#type),
             ]),
-            Term::Let(_, def_pattern, def_type, def_expr, body_expr) => self.concat([
+            Term::Let(_, def, body_expr) => self.concat([
                 self.concat([
                     self.text("let"),
                     self.space(),
-                    self.ann_pattern(def_pattern, *def_type),
+                    self.ann_pattern(&def.pattern, def.r#type.as_ref()),
                     self.space(),
                     self.text("="),
                     self.softline(),
-                    self.term(def_expr),
+                    self.term(&def.expr),
                     self.text(";"),
                 ])
                 .group(),

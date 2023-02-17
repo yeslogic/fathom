@@ -33,7 +33,7 @@ use crate::files::FileId;
 use crate::source::{BytePos, ByteRange, FileRange, Span, Spanned};
 use crate::surface::elaboration::reporting::Message;
 use crate::surface::{
-    distillation, pretty, BinOp, ExprField, FormatField, Item, Module, Param, Pattern, Term,
+    distillation, pretty, BinOp, FormatField, Item, LetDef, Module, Param, Pattern, Term,
 };
 use crate::symbol::Symbol;
 
@@ -329,6 +329,40 @@ impl<'arena> Context<'arena> {
         Some((local_var, local_type))
     }
 
+    /// Run `f`, potentially modifying the local environment, then restore the
+    /// local environment to its previous state.
+    fn with_scope<T>(&mut self, mut f: impl FnMut(&mut Self) -> T) -> T {
+        let initial_len = self.local_env.len();
+        let result = f(self);
+        self.local_env.truncate(initial_len);
+        result
+    }
+
+    fn with_def<T>(
+        &mut self,
+        name: impl Into<Option<Symbol>>,
+        expr: ArcValue<'arena>,
+        r#type: ArcValue<'arena>,
+        mut f: impl FnMut(&mut Self) -> T,
+    ) -> T {
+        self.local_env.push_def(name.into(), expr, r#type);
+        let result = f(self);
+        self.local_env.pop();
+        result
+    }
+
+    fn with_param<T>(
+        &mut self,
+        name: impl Into<Option<Symbol>>,
+        r#type: ArcValue<'arena>,
+        mut f: impl FnMut(&mut Self) -> T,
+    ) -> T {
+        self.local_env.push_param(name.into(), r#type);
+        let result = f(self);
+        self.local_env.pop();
+        result
+    }
+
     /// Push an unsolved term onto the context, to be updated later during
     /// unification.
     fn push_unsolved_term(
@@ -381,6 +415,10 @@ impl<'arena> Context<'arena> {
                 (Some(_), _) => {}
             }
         }
+    }
+
+    pub fn builder(&self) -> core::Builder<'arena> {
+        core::Builder::new(self.scope)
     }
 
     pub fn eval_env(&mut self) -> semantics::EvalEnv<'arena, '_> {
@@ -588,12 +626,11 @@ impl<'arena> Context<'arena> {
             (Value::Stuck(Head::Prim(Prim::FormatType), elims), Value::Universe)
                 if elims.is_empty() =>
             {
-                core::Term::FunApp(
+                self.builder().fun_app(
                     span,
                     Plicity::Explicit,
-                    self.scope
-                        .to_scope(core::Term::Prim(span, core::Prim::FormatRepr)),
-                    self.scope.to_scope(expr),
+                    core::Term::Prim(span, core::Prim::FormatRepr),
+                    expr,
                 )
             }
 
@@ -616,7 +653,7 @@ impl<'arena> Context<'arena> {
                         expected: self.pretty_value(&to),
                         error,
                     });
-                    core::Term::Prim(span, Prim::ReportedError)
+                    core::Term::error(span)
                 }
             },
         }
@@ -636,8 +673,12 @@ impl<'arena> Context<'arena> {
         for item in elab_order.iter().copied().map(|i| &surface_module.items[i]) {
             match item {
                 Item::Def(item) => {
-                    let (expr, r#type) =
-                        self.synth_fun_lit(item.range, item.params, item.expr, item.r#type);
+                    let (expr, r#type) = self.synth_fun_lit(
+                        item.range,
+                        item.params,
+                        &item.expr,
+                        item.r#type.as_ref(),
+                    );
                     let expr_value = self.eval_env().eval(&expr);
                     let type_value = self.eval_env().eval(&r#type);
 
@@ -646,8 +687,8 @@ impl<'arena> Context<'arena> {
 
                     items.push(core::Item::Def {
                         label: item.label.1,
-                        r#type: self.scope.to_scope(r#type),
-                        expr: self.scope.to_scope(expr),
+                        r#type,
+                        expr,
                     });
                 }
                 Item::ReportedError(_) => {}
@@ -662,13 +703,13 @@ impl<'arena> Context<'arena> {
                 expr,
             } => {
                 // TODO: Unfold unsolved metas to reported errors
-                let r#type = self.eval_env().unfold_metas(scope, r#type);
-                let expr = self.eval_env().unfold_metas(scope, expr);
+                let r#type = self.eval_env().unfold_metas(scope, &r#type);
+                let expr = self.eval_env().unfold_metas(scope, &expr);
 
                 core::Item::Def {
                     label,
-                    r#type: scope.to_scope(r#type),
-                    expr: scope.to_scope(expr),
+                    r#type,
+                    expr,
                 }
             }
         }));
@@ -889,72 +930,48 @@ impl<'arena> Context<'arena> {
         }
     }
 
-    /// Push a local definition onto the context.
-    /// The supplied `pattern` is expected to be irrefutable.
-    fn push_local_def(
-        &mut self,
-        pattern: CheckedPattern,
-        expr: ArcValue<'arena>,
-        r#type: ArcValue<'arena>,
-    ) -> Option<Symbol> {
-        let name = match pattern {
-            CheckedPattern::Binder(_, name) => Some(name),
-            CheckedPattern::Placeholder(_) => None,
-            // FIXME: generate failing parameter expressions?
-            CheckedPattern::ConstLit(range, _) => {
-                self.push_message(Message::RefutablePattern {
-                    pattern_range: range,
-                });
-                None
-            }
-            CheckedPattern::ReportedError(_) => None,
-        };
-
-        self.local_env.push_def(name, expr, r#type);
-
-        name
-    }
-
-    /// Push a local parameter onto the context.
-    /// The supplied `pattern` is expected to be irrefutable.
-    fn push_local_param(
-        &mut self,
-        pattern: CheckedPattern,
-        r#type: ArcValue<'arena>,
-    ) -> (Option<Symbol>, ArcValue<'arena>) {
-        let name = match pattern {
-            CheckedPattern::Binder(_, name) => Some(name),
-            CheckedPattern::Placeholder(_) => None,
-            // FIXME: generate failing parameter expressions?
-            CheckedPattern::ConstLit(range, _) => {
-                self.push_message(Message::RefutablePattern {
-                    pattern_range: range,
-                });
-                None
-            }
-            CheckedPattern::ReportedError(_) => None,
-        };
-
-        let expr = self.local_env.push_param(name, r#type);
-
-        (name, expr)
+    /// Report an error if `pattern` is refutable
+    fn check_pattern_refutability(&mut self, pattern: &CheckedPattern) {
+        if let CheckedPattern::ConstLit(range, _) = pattern {
+            self.push_message(Message::RefutablePattern {
+                pattern_range: *range,
+            });
+        }
     }
 
     /// Elaborate a list of parameters, pushing them onto the context.
     fn synth_and_push_params(
         &mut self,
+        mut range: FileRange,
         params: &[Param<ByteRange>],
-    ) -> Vec<(ByteRange, Plicity, Option<Symbol>, core::Term<'arena>)> {
+    ) -> Vec<(Span, Plicity, Option<Symbol>, core::Term<'arena>)> {
         self.local_env.reserve(params.len());
 
         Vec::from_iter(params.iter().map(|param| {
-            let range = param.pattern.range();
+            let old_range = range;
+            range = self.file_range(ByteRange::merge(param.pattern.range(), range.byte_range()));
+
             let (pattern, r#type, type_value) =
                 self.synth_ann_pattern(&param.pattern, param.r#type.as_ref());
-            let (name, _) = self.push_local_param(pattern, type_value);
+            self.check_pattern_refutability(&pattern);
 
-            (range, param.plicity, name, r#type)
+            let name = pattern.name();
+            self.local_env.push_param(name, type_value);
+            (old_range.into(), param.plicity, name, r#type)
         }))
+    }
+
+    fn synth_let_def(
+        &mut self,
+        def: &LetDef<'_, ByteRange>,
+    ) -> (core::LetDef<'arena>, ArcValue<'arena>) {
+        let (pattern, r#type, type_value) =
+            self.synth_ann_pattern(&def.pattern, def.r#type.as_ref());
+        let name = pattern.name();
+        self.check_pattern_refutability(&pattern);
+
+        let expr = self.check(&def.expr, &type_value);
+        (core::LetDef { name, r#type, expr }, type_value)
     }
 
     /// Check that a surface term conforms to the given type.
@@ -970,39 +987,23 @@ impl<'arena> Context<'arena> {
 
         match (surface_term, expected_type.as_ref()) {
             (Term::Paren(_, term), _) => self.check(term, &expected_type),
-            (Term::Let(_, def_pattern, def_type, def_expr, body_expr), _) => {
-                let (def_pattern, def_type, def_type_value) =
-                    self.synth_ann_pattern(def_pattern, *def_type);
-                let def_expr = self.check(def_expr, &def_type_value);
-                let def_expr_value = self.eval_env().eval(&def_expr);
+            (Term::Let(_, def, body_expr), _) => {
+                let (def, type_value) = self.synth_let_def(def);
+                let expr_value = self.eval_env().eval(&def.expr);
 
-                let def_name = self.push_local_def(def_pattern, def_expr_value, def_type_value); // TODO: split on constants
-                let body_expr = self.check(body_expr, &expected_type);
-                self.local_env.pop();
+                let body_expr = self.with_def(def.name, expr_value, type_value, |this| {
+                    this.check(body_expr, &expected_type)
+                });
 
-                core::Term::Let(
-                    file_range.into(),
-                    def_name,
-                    self.scope.to_scope(def_type),
-                    self.scope.to_scope(def_expr),
-                    self.scope.to_scope(body_expr),
-                )
+                self.builder().r#let(file_range, def, body_expr)
             }
             (Term::If(_, cond_expr, then_expr, else_expr), _) => {
                 let cond_expr = self.check(cond_expr, &self.bool_type.clone());
                 let then_expr = self.check(then_expr, &expected_type);
                 let else_expr = self.check(else_expr, &expected_type);
 
-                core::Term::ConstMatch(
-                    file_range.into(),
-                    self.scope.to_scope(cond_expr),
-                    // NOTE: in lexicographic order: in Rust, `false < true`
-                    self.scope.to_scope_from_iter([
-                        (Const::Bool(false), else_expr),
-                        (Const::Bool(true), then_expr),
-                    ]),
-                    None,
-                )
+                self.builder()
+                    .if_then_else(file_range, cond_expr, then_expr, else_expr)
             }
             (Term::Match(range, scrutinee_expr, equations), _) => {
                 self.check_match(*range, scrutinee_expr, equations, &expected_type)
@@ -1017,20 +1018,13 @@ impl<'arena> Context<'arena> {
                 let (synth_term, synth_type) = self.synth_and_insert_implicit_apps(surface_term);
                 self.coerce(surface_range, synth_term, &synth_type, &expected_type)
             }
-            (Term::RecordLiteral(_, expr_fields), Value::RecordType(labels, types)) => {
+            (Term::RecordLiteral(range, expr_fields), Value::RecordType(labels, types)) => {
                 // TODO: improve handling of duplicate labels
-                if expr_fields.len() != labels.len()
-                    || Iterator::zip(expr_fields.iter(), labels.iter())
-                        .any(|(expr_field, type_label)| expr_field.label.1 != *type_label)
+                if self
+                    .check_record_fields(*range, expr_fields, |field| field.label, labels)
+                    .is_err()
                 {
-                    self.push_message(Message::MismatchedFieldLabels {
-                        range: file_range,
-                        expr_labels: (expr_fields.iter())
-                            .map(|ExprField { label, .. }| (self.file_range(label.0), label.1))
-                            .collect(),
-                        type_labels: labels.to_vec(),
-                    });
-                    return core::Term::Prim(file_range.into(), Prim::ReportedError);
+                    return core::Term::error(file_range);
                 }
 
                 let mut types = types.clone();
@@ -1054,20 +1048,17 @@ impl<'arena> Context<'arena> {
                 let labels = Symbol::get_tuple_labels(0..elem_exprs.len());
                 let labels = self.scope.to_scope_from_iter(labels.iter().copied());
 
-                let initial_local_len = self.local_env.len();
-                let universe = &self.universe.clone();
-                let types = self.scope.to_scope_from_iter(
-                    Iterator::zip(labels.iter(), elem_exprs.iter()).map(|(label, elem_expr)| {
-                        let r#type = self.check(elem_expr, universe);
-                        let type_value = self.eval_env().eval(&r#type);
-                        self.local_env.push_param(Some(*label), type_value);
-                        r#type
-                    }),
-                );
-
-                self.local_env.truncate(initial_local_len);
-
-                core::Term::RecordType(file_range.into(), labels, types)
+                self.with_scope(|this| {
+                    let universe = &this.universe.clone();
+                    let types =
+                        (this.scope).to_scope_from_iter(elem_exprs.iter().map(|elem_expr| {
+                            let r#type = this.check(elem_expr, universe);
+                            let type_value = this.eval_env().eval(&r#type);
+                            this.local_env.push_param(None, type_value);
+                            r#type
+                        }));
+                    core::Term::RecordType(file_range.into(), labels, types)
+                })
             }
             (Term::Tuple(_, elem_exprs), Value::Stuck(Head::Prim(Prim::FormatType), args))
                 if args.is_empty() =>
@@ -1076,50 +1067,25 @@ impl<'arena> Context<'arena> {
                 let labels = Symbol::get_tuple_labels(0..elem_exprs.len());
                 let labels = self.scope.to_scope_from_iter(labels.iter().copied());
 
-                let initial_local_len = self.local_env.len();
-                let format_type = self.format_type.clone();
-                let formats = self.scope.to_scope_from_iter(
-                    Iterator::zip(labels.iter(), elem_exprs.iter()).map(|(label, elem_expr)| {
-                        let format = self.check(elem_expr, &format_type);
-                        let format_value = self.eval_env().eval(&format);
-                        let r#type = self.elim_env().format_repr(&format_value);
-                        self.local_env.push_param(Some(*label), r#type);
-                        format
-                    }),
-                );
-
-                self.local_env.truncate(initial_local_len);
-
-                core::Term::FormatRecord(file_range.into(), labels, formats)
+                self.with_scope(|this| {
+                    let format_type = this.format_type.clone();
+                    let formats =
+                        (this.scope).to_scope_from_iter(elem_exprs.iter().map(|elem_expr| {
+                            let format = this.check(elem_expr, &format_type);
+                            let format_value = this.eval_env().eval(&format);
+                            let r#type = this.elim_env().format_repr(&format_value);
+                            this.local_env.push_param(None, r#type);
+                            format
+                        }));
+                    core::Term::FormatRecord(file_range.into(), labels, formats)
+                })
             }
-            (Term::Tuple(_, elem_exprs), Value::RecordType(labels, types)) => {
-                if elem_exprs.len() != labels.len() {
-                    let mut expr_labels = Vec::with_capacity(elem_exprs.len());
-                    let mut elem_exprs = elem_exprs.iter().enumerate().peekable();
-                    let mut label_iter = labels.iter();
-
-                    // use the label names from the expected type
-                    while let Some(((_, elem_expr), label)) =
-                        Option::zip(elem_exprs.peek(), label_iter.next())
-                    {
-                        expr_labels.push((self.file_range(elem_expr.range()), *label));
-                        elem_exprs.next();
-                    }
-
-                    // use numeric labels for excess elems
-                    for (index, elem_expr) in elem_exprs {
-                        expr_labels.push((
-                            self.file_range(elem_expr.range()),
-                            Symbol::get_tuple_label(index),
-                        ));
-                    }
-
-                    self.push_message(Message::MismatchedFieldLabels {
-                        range: file_range,
-                        expr_labels,
-                        type_labels: labels.to_vec(),
-                    });
-                    return core::Term::Prim(file_range.into(), Prim::ReportedError);
+            (Term::Tuple(range, elem_exprs), Value::RecordType(labels, types)) => {
+                if self
+                    .check_tuple_fields(*range, elem_exprs, Term::range, labels)
+                    .is_err()
+                {
+                    return core::Term::error(file_range);
                 }
 
                 let mut types = types.clone();
@@ -1141,27 +1107,20 @@ impl<'arena> Context<'arena> {
 
                 let (len_value, elem_type) = match expected_type.match_prim_spine() {
                     Some((Prim::ArrayType, [App(_, elem_type)])) => (None, elem_type),
-                    Some((Prim::Array8Type, [App(_, len), App(_, elem_type)])) => {
-                        (Some(len), elem_type)
-                    }
-                    Some((Prim::Array16Type, [App(_, len), App(_, elem_type)])) => {
-                        (Some(len), elem_type)
-                    }
-                    Some((Prim::Array32Type, [App(_, len), App(_, elem_type)])) => {
-                        (Some(len), elem_type)
-                    }
-                    Some((Prim::Array64Type, [App(_, len), App(_, elem_type)])) => {
-                        (Some(len), elem_type)
-                    }
-                    Some((Prim::ReportedError, _)) => {
-                        return core::Term::Prim(file_range.into(), Prim::ReportedError)
-                    }
+                    Some((
+                        Prim::Array8Type
+                        | Prim::Array16Type
+                        | Prim::Array32Type
+                        | Prim::Array64Type,
+                        [App(_, len), App(_, elem_type)],
+                    )) => (Some(len), elem_type),
+                    Some((Prim::ReportedError, _)) => return core::Term::error(file_range),
                     _ => {
                         self.push_message(Message::ArrayLiteralNotSupported {
                             range: file_range,
                             expected_type: self.pretty_value(&expected_type),
                         });
-                        return core::Term::Prim(file_range.into(), Prim::ReportedError);
+                        return core::Term::error(file_range);
                     }
                 };
 
@@ -1172,7 +1131,7 @@ impl<'arena> Context<'arena> {
                     Some(Value::ConstLit(Const::U32(len, _))) => Some(*len as u64),
                     Some(Value::ConstLit(Const::U64(len, _))) => Some(*len),
                     Some(Value::Stuck(Head::Prim(Prim::ReportedError), _)) => {
-                        return core::Term::Prim(file_range.into(), Prim::ReportedError);
+                        return core::Term::error(file_range)
                     }
                     _ => None,
                 };
@@ -1197,7 +1156,7 @@ impl<'arena> Context<'arena> {
                             expected_len: self.pretty_value(len_value.unwrap()),
                         });
 
-                        core::Term::Prim(file_range.into(), Prim::ReportedError)
+                        return core::Term::error(file_range);
                     }
                 }
             }
@@ -1223,7 +1182,7 @@ impl<'arena> Context<'arena> {
 
                 match constant {
                     Some(constant) => core::Term::ConstLit(file_range.into(), constant),
-                    None => core::Term::Prim(file_range.into(), Prim::ReportedError),
+                    None => core::Term::error(file_range),
                 }
             }
             (Term::NumberLiteral(range, lit), _) => {
@@ -1244,19 +1203,19 @@ impl<'arena> Context<'arena> {
                             range: file_range,
                             expected_type: self.pretty_value(&expected_type),
                         });
-                        return core::Term::Prim(file_range.into(), Prim::ReportedError);
+                        return core::Term::error(file_range);
                     }
                 };
 
                 match constant {
                     Some(constant) => core::Term::ConstLit(file_range.into(), constant),
-                    None => core::Term::Prim(file_range.into(), Prim::ReportedError),
+                    None => core::Term::error(file_range),
                 }
             }
             (Term::BinOp(range, lhs, op, rhs), _) => {
                 self.check_bin_op(*range, lhs, *op, rhs, &expected_type)
             }
-            (Term::ReportedError(_), _) => core::Term::Prim(file_range.into(), Prim::ReportedError),
+            (Term::ReportedError(_), _) => core::Term::error(file_range),
             (_, _) => {
                 let surface_range = surface_term.range();
                 let (synth_term, synth_type) = self.synth(surface_term);
@@ -1281,12 +1240,9 @@ impl<'arena> Context<'arena> {
             let arg_term = self.push_unsolved_term(source, param_type.clone());
             let arg_value = self.eval_env().eval(&arg_term);
 
-            term = core::Term::FunApp(
-                file_range.into(),
-                Plicity::Implicit,
-                self.scope.to_scope(term),
-                self.scope.to_scope(arg_term),
-            );
+            term = self
+                .builder()
+                .fun_app(file_range, Plicity::Implicit, term, arg_term);
             r#type = self.elim_env().apply_closure(body_type, arg_value);
         }
         (term, r#type)
@@ -1364,32 +1320,18 @@ impl<'arena> Context<'arena> {
                 let type_value = self.eval_env().eval(&r#type);
                 let expr = self.check(expr, &type_value);
 
-                let ann_expr = core::Term::Ann(
-                    file_range.into(),
-                    self.scope.to_scope(expr),
-                    self.scope.to_scope(r#type),
-                );
-
+                let ann_expr = self.builder().ann(file_range, expr, r#type);
                 (ann_expr, type_value)
             }
-            Term::Let(_, def_pattern, def_type, def_expr, body_expr) => {
-                let (def_pattern, def_type, def_type_value) =
-                    self.synth_ann_pattern(def_pattern, *def_type);
-                let def_expr = self.check(def_expr, &def_type_value);
-                let def_expr_value = self.eval_env().eval(&def_expr);
+            Term::Let(_, def, body_expr) => {
+                let (def, type_value) = self.synth_let_def(def);
+                let expr_value = self.eval_env().eval(&def.expr);
 
-                let def_name = self.push_local_def(def_pattern, def_expr_value, def_type_value);
-                let (body_expr, body_type) = self.synth(body_expr);
-                self.local_env.pop();
+                let (body, body_type) = self.with_def(def.name, expr_value, r#type_value, |this| {
+                    this.synth(body_expr)
+                });
 
-                let let_expr = core::Term::Let(
-                    file_range.into(),
-                    def_name,
-                    self.scope.to_scope(def_type),
-                    self.scope.to_scope(def_expr),
-                    self.scope.to_scope(body_expr),
-                );
-
+                let let_expr = self.builder().r#let(file_range, def, body);
                 (let_expr, body_type)
             }
             Term::If(_, cond_expr, then_expr, else_expr) => {
@@ -1397,16 +1339,9 @@ impl<'arena> Context<'arena> {
                 let (then_expr, r#type) = self.synth(then_expr);
                 let else_expr = self.check(else_expr, &r#type);
 
-                let match_expr = core::Term::ConstMatch(
-                    file_range.into(),
-                    self.scope.to_scope(cond_expr),
-                    // NOTE: in lexicographic order: in Rust, `false < true`
-                    self.scope.to_scope_from_iter([
-                        (Const::Bool(false), else_expr),
-                        (Const::Bool(true), then_expr),
-                    ]),
-                    None,
-                );
+                let match_expr = self
+                    .builder()
+                    .if_then_else(file_range, cond_expr, then_expr, else_expr);
 
                 (match_expr, r#type)
             }
@@ -1427,46 +1362,29 @@ impl<'arena> Context<'arena> {
                 let param_type = self.check(param_type, &universe);
                 let param_type_value = self.eval_env().eval(&param_type);
 
-                self.local_env.push_param(None, param_type_value);
-                let body_type = self.check(body_type, &universe);
-                self.local_env.pop();
+                let body_type = self.with_param(None, param_type_value, |this| {
+                    this.check(body_type, &universe)
+                });
 
-                let fun_type = core::Term::FunType(
-                    file_range.into(),
-                    *plicity,
-                    None,
-                    self.scope.to_scope(param_type),
-                    self.scope.to_scope(body_type),
-                );
+                let fun_type = self
+                    .builder()
+                    .arrow(file_range, *plicity, param_type, body_type);
 
-                (fun_type, self.universe.clone())
+                (fun_type, universe)
             }
-            Term::FunType(range, params, body_type) => {
-                let initial_local_len = self.local_env.len();
+            Term::FunType(_, params, body_type) => {
+                let universe = self.universe.clone();
 
-                let params = self.synth_and_push_params(params);
-                let mut fun_type = self.check(body_type, &self.universe.clone());
-                self.local_env.truncate(initial_local_len);
+                let (params, fun_type) = self.with_scope(|this| {
+                    let params = this.synth_and_push_params(file_range, params);
+                    let fun_type = this.check(body_type, &universe);
+                    (params, fun_type)
+                });
 
-                // Construct the function type from the parameters in reverse
-                for (i, (param_range, plicity, name, r#type)) in
-                    params.into_iter().enumerate().rev()
-                {
-                    let range = match i {
-                        0 => *range, // Use the range of the full function type
-                        _ => ByteRange::merge(param_range, body_type.range()),
-                    };
+                // Construct the function type from the parameters
+                let fun_type = self.builder().fun_types(params, fun_type);
 
-                    fun_type = core::Term::FunType(
-                        self.file_range(range).into(),
-                        plicity,
-                        name,
-                        self.scope.to_scope(r#type),
-                        self.scope.to_scope(fun_type),
-                    );
-                }
-
-                (fun_type, self.universe.clone())
+                (fun_type, universe)
             }
             Term::FunLiteral(range, params, body_expr) => {
                 let (expr, r#type) = self.synth_fun_lit(*range, params, body_expr, None);
@@ -1527,36 +1445,34 @@ impl<'arena> Context<'arena> {
                     let arg_expr = self.check(&arg.term, param_type);
                     let arg_expr_value = self.eval_env().eval(&arg_expr);
 
-                    head_expr = core::Term::FunApp(
-                        self.file_range(head_range).into(),
+                    head_expr = self.builder().fun_app(
+                        self.file_range(head_range),
                         arg.plicity,
-                        self.scope.to_scope(head_expr),
-                        self.scope.to_scope(arg_expr),
+                        head_expr,
+                        arg_expr,
                     );
                     head_type = self.elim_env().apply_closure(body_type, arg_expr_value);
                 }
                 (head_expr, head_type)
             }
-            Term::RecordType(range, type_fields) => {
-                let universe = self.universe.clone();
-                let initial_local_len = self.local_env.len();
+            Term::RecordType(range, type_fields) => self.with_scope(|this| {
                 let (labels, type_fields) =
-                    self.report_duplicate_labels(*range, type_fields, |f| f.label);
-                let mut types = SliceVec::new(self.scope, labels.len());
+                    this.report_duplicate_labels(*range, type_fields, |f| f.label);
+
+                let universe = this.universe.clone();
+                let mut types = SliceVec::new(this.scope, labels.len());
 
                 for type_field in type_fields {
-                    let r#type = self.check(&type_field.r#type, &universe);
-                    let type_value = self.eval_env().eval(&r#type);
-                    self.local_env
+                    let r#type = this.check(&type_field.r#type, &universe);
+                    let type_value = this.eval_env().eval(&r#type);
+                    this.local_env
                         .push_param(Some(type_field.label.1), type_value);
                     types.push(r#type);
                 }
-                self.local_env.truncate(initial_local_len);
 
                 let record_type = core::Term::RecordType(file_range.into(), labels, types.into());
-
                 (record_type, universe)
-            }
+            }),
             Term::RecordLiteral(range, expr_fields) => {
                 let (labels, expr_fields) =
                     self.report_duplicate_labels(*range, expr_fields, |f| f.label);
@@ -1582,8 +1498,8 @@ impl<'arena> Context<'arena> {
                 let labels = Symbol::get_tuple_labels(0..elem_exprs.len());
                 let labels = self.scope.to_scope_from_iter(labels.iter().copied());
 
-                let mut exprs = SliceVec::new(self.scope, labels.len());
-                let mut types = SliceVec::new(self.scope, labels.len());
+                let mut exprs = SliceVec::new(self.scope, elem_exprs.len());
+                let mut types = SliceVec::new(self.scope, elem_exprs.len());
 
                 for elem_exprs in elem_exprs.iter() {
                     let (expr, r#type) = self.synth(elem_exprs);
@@ -1591,9 +1507,10 @@ impl<'arena> Context<'arena> {
                     exprs.push(expr);
                 }
 
-                let types = Telescope::new(self.local_env.exprs.clone(), types.into());
                 let term = core::Term::RecordLit(file_range.into(), labels, exprs.into());
-                let r#type = Spanned::empty(Arc::new(Value::RecordType(labels, types)));
+                let r#type = core::Term::RecordType(Span::Empty, labels, types.into());
+                let r#type = self.eval_env().eval(&r#type);
+
                 (term, r#type)
             }
             Term::Proj(range, head_expr, labels) => {
@@ -1618,10 +1535,9 @@ impl<'arena> Context<'arena> {
                                 if *proj_label == label {
                                     // The field was found. Update the head expression
                                     // and continue elaborating the next projection.
-                                    head_expr = core::Term::RecordProj(
-                                        self.file_range(ByteRange::merge(head_range, *label_range))
-                                            .into(),
-                                        self.scope.to_scope(head_expr),
+                                    head_expr = self.builder().record_proj(
+                                        self.file_range(ByteRange::merge(head_range, *label_range)),
+                                        head_expr,
                                         *proj_label,
                                     );
                                     head_type = r#type;
@@ -1641,9 +1557,8 @@ impl<'arena> Context<'arena> {
                         // There's been an error when elaborating the head of
                         // the projection, so avoid trying to elaborate any
                         // further to prevent cascading type errors.
-                        (core::Term::Prim(_, Prim::ReportedError), _)
-                        | (_, Value::Stuck(Head::Prim(Prim::ReportedError), _)) => {
-                            return self.synth_reported_error(*range);
+                        (expr, r#type) if expr.is_error() || r#type.is_error() => {
+                            return self.synth_reported_error(*range)
                         }
                         // The head expression was not a record type.
                         // Fallthrough with an error.
@@ -1687,21 +1602,17 @@ impl<'arena> Context<'arena> {
             }
             Term::FormatCond(_, (_, name), format, pred) => {
                 let format_type = self.format_type.clone();
+                let bool_type = self.bool_type.clone();
                 let format = self.check(format, &format_type);
                 let format_value = self.eval_env().eval(&format);
                 let repr_type = self.elim_env().format_repr(&format_value);
 
-                self.local_env.push_param(Some(*name), repr_type);
-                let bool_type = self.bool_type.clone();
-                let pred_expr = self.check(pred, &bool_type);
-                self.local_env.pop();
+                let pred_expr =
+                    self.with_param(*name, repr_type, |this| this.check(pred, &bool_type));
 
-                let cond_format = core::Term::FormatCond(
-                    file_range.into(),
-                    *name,
-                    self.scope.to_scope(format),
-                    self.scope.to_scope(pred_expr),
-                );
+                let cond_format = self
+                    .builder()
+                    .format_cond(file_range, *name, format, pred_expr);
 
                 (cond_format, format_type)
             }
@@ -1737,18 +1648,20 @@ impl<'arena> Context<'arena> {
                             param.r#type.as_ref(),
                             param_type,
                         );
-                        let (name, arg_expr) = self.push_local_param(pattern, param_type.clone());
+                        self.check_pattern_refutability(&pattern);
+                        let name = pattern.name();
+                        let arg_expr = self.local_env.push_param(name, param_type.clone());
 
                         let body_type = self.elim_env().apply_closure(next_body_type, arg_expr);
                         let body_expr =
                             self.check_fun_lit(range, next_params, body_expr, &body_type);
                         self.local_env.pop();
 
-                        core::Term::FunLit(
-                            self.file_range(range).into(),
+                        self.builder().fun_lit(
+                            self.file_range(range),
                             param.plicity,
                             name,
-                            self.scope.to_scope(body_expr),
+                            body_expr,
                         )
                     }
                     // If an implicit function is expected, try to generalize the
@@ -1760,11 +1673,11 @@ impl<'arena> Context<'arena> {
                         let body_type = self.elim_env().apply_closure(next_body_type, arg_expr);
                         let body_expr = self.check_fun_lit(range, params, body_expr, &body_type);
                         self.local_env.pop();
-                        core::Term::FunLit(
-                            file_range.into(),
+                        self.builder().fun_lit(
+                            file_range,
                             Plicity::Implicit,
                             *param_name,
-                            self.scope.to_scope(body_expr),
+                            body_expr,
                         )
                     }
                     // Attempt to elaborate the the body of the function in synthesis
@@ -1776,7 +1689,7 @@ impl<'arena> Context<'arena> {
                         self.coerce(range, expr, &type_value, expected_type)
                     }
                     Value::Stuck(Head::Prim(Prim::ReportedError), _) => {
-                        core::Term::Prim(file_range.into(), Prim::ReportedError)
+                        core::Term::error(file_range)
                     }
                     _ => {
                         self.push_message(Message::UnexpectedParameter {
@@ -1785,7 +1698,7 @@ impl<'arena> Context<'arena> {
                         // TODO: For improved error recovery, bind the rest of
                         // the parameters, and check the body of the function
                         // literal using the expected body type.
-                        core::Term::Prim(file_range.into(), Prim::ReportedError)
+                        core::Term::error(file_range)
                     }
                 }
             }
@@ -1800,45 +1713,32 @@ impl<'arena> Context<'arena> {
         body_expr: &Term<'_, ByteRange>,
         body_type: Option<&Term<'_, ByteRange>>,
     ) -> (core::Term<'arena>, core::Term<'arena>) {
+        let file_range = self.file_range(range);
         self.local_env.reserve(params.len());
-        let initial_local_len = self.local_env.len();
 
-        let params = self.synth_and_push_params(params);
+        let (params, mut fun_lit, mut fun_type) = self.with_scope(|this| {
+            let params = this.synth_and_push_params(file_range, params);
 
-        let (mut fun_lit, mut fun_type) = match body_type {
-            Some(body_type) => {
-                let body_type = self.check(body_type, &self.universe.clone());
-                let body_type_value = self.eval_env().eval(&body_type);
-                (self.check(body_expr, &body_type_value), body_type)
-            }
-            None => {
-                let (body_expr, body_type) = self.synth(body_expr);
-                (body_expr, self.quote_env().quote(self.scope, &body_type))
-            }
-        };
-
-        self.local_env.truncate(initial_local_len);
+            let (fun_lit, fun_type) = match body_type {
+                Some(body_type) => {
+                    let body_type = this.check(body_type, &this.universe.clone());
+                    let body_type_value = this.eval_env().eval(&body_type);
+                    (this.check(body_expr, &body_type_value), body_type)
+                }
+                None => {
+                    let (body_expr, body_type) = this.synth(body_expr);
+                    (body_expr, this.quote_env().quote(this.scope, &body_type))
+                }
+            };
+            (params, fun_lit, fun_type)
+        });
 
         // Construct the function literal and type from the parameters in reverse
-        for (i, (param_range, plicity, name, r#type)) in params.into_iter().enumerate().rev() {
-            let range = match i {
-                0 => range, // Use the range of the full function literal
-                _ => ByteRange::merge(param_range, body_expr.range()),
-            };
-
-            fun_lit = core::Term::FunLit(
-                self.file_range(range).into(),
-                plicity,
-                name,
-                self.scope.to_scope(fun_lit),
-            );
-            fun_type = core::Term::FunType(
-                Span::Empty,
-                plicity,
-                name,
-                self.scope.to_scope(r#type),
-                self.scope.to_scope(fun_type),
-            );
+        for (param_range, plicity, name, r#type) in params.into_iter().rev() {
+            fun_lit = self.builder().fun_lit(param_range, plicity, name, fun_lit);
+            fun_type = self
+                .builder()
+                .fun_type(Span::Empty, plicity, name, r#type, fun_type);
         }
 
         (fun_lit, fun_type)
@@ -1983,18 +1883,12 @@ impl<'arena> Context<'arena> {
             }
         };
 
-        let fun_head = core::Term::Prim(self.file_range(op.range()).into(), fun);
-        let fun_app = core::Term::FunApp(
-            self.file_range(range).into(),
-            Plicity::Explicit,
-            self.scope.to_scope(core::Term::FunApp(
-                Span::merge(&lhs_expr.span(), &rhs_expr.span()),
-                Plicity::Explicit,
-                self.scope.to_scope(fun_head),
-                self.scope.to_scope(lhs_expr),
-            )),
-            self.scope.to_scope(rhs_expr),
-        );
+        let term_span = self.file_range(range);
+        let op_span = self.file_range(op.range());
+
+        let fun_app = self
+            .builder()
+            .binop(term_span, op_span, fun, lhs_expr, rhs_expr);
 
         // TODO: Maybe it would be good to reuse lhs_type here if body_type is the same
         (
@@ -2075,23 +1969,16 @@ impl<'arena> Context<'arena> {
         let lhs_expr = self.check(lhs, &expected_type);
         let rhs_expr = self.check(rhs, &expected_type);
 
-        let fun_head = core::Term::Prim(self.file_range(op.range()).into(), fun);
-        core::Term::FunApp(
-            self.file_range(range).into(),
-            Plicity::Explicit,
-            self.scope.to_scope(core::Term::FunApp(
-                Span::merge(&lhs_expr.span(), &rhs_expr.span()),
-                Plicity::Explicit,
-                self.scope.to_scope(fun_head),
-                self.scope.to_scope(lhs_expr),
-            )),
-            self.scope.to_scope(rhs_expr),
-        )
+        let term_span = self.file_range(range);
+        let op_span = self.file_range(op.range());
+
+        self.builder()
+            .binop(term_span, op_span, fun, lhs_expr, rhs_expr)
     }
 
     fn synth_reported_error(&mut self, range: ByteRange) -> (core::Term<'arena>, ArcValue<'arena>) {
         let file_range = self.file_range(range);
-        let expr = core::Term::Prim(file_range.into(), Prim::ReportedError);
+        let expr = core::Term::error(file_range);
         let r#type = self.push_unsolved_type(MetaSource::ReportedErrorType(file_range));
         (expr, r#type)
     }
@@ -2135,12 +2022,10 @@ impl<'arena> Context<'arena> {
                             let cond_expr = self.check(pred, &self.bool_type.clone());
 
                             let field_span = Span::merge(&label_range.into(), &cond_expr.span());
-                            formats.push(core::Term::FormatCond(
-                                field_span,
-                                *label,
-                                self.scope.to_scope(format),
-                                self.scope.to_scope(cond_expr),
-                            ));
+                            let format = self
+                                .builder()
+                                .format_cond(field_span, *label, format, cond_expr);
+                            formats.push(format);
                         }
                     }
                 }
@@ -2164,19 +2049,13 @@ impl<'arena> Context<'arena> {
                     };
 
                     let field_span = Span::merge(&label_range.into(), &expr.span());
-                    let format = core::Term::FunApp(
-                        field_span,
-                        Plicity::Explicit,
-                        self.scope.to_scope(core::Term::FunApp(
-                            field_span,
-                            Plicity::Explicit,
-                            self.scope
-                                .to_scope(core::Term::Prim(field_span, Prim::FormatSucceed)),
-                            self.scope.to_scope(r#type),
-                        )),
-                        self.scope.to_scope(expr),
+                    let format = self.builder().fun_apps(
+                        core::Term::Prim(field_span, Prim::FormatSucceed),
+                        [
+                            (field_span, Plicity::Explicit, r#type),
+                            (field_span, Plicity::Explicit, expr),
+                        ],
                     );
-
                     // Assume that `Repr ${type_value} ${expr} = ${type_value}`
                     self.local_env.push_param(Some(*label), type_value);
                     formats.push(format);
@@ -2187,6 +2066,76 @@ impl<'arena> Context<'arena> {
         self.local_env.truncate(initial_local_len);
 
         (labels, formats.into())
+    }
+
+    fn check_tuple_fields<F>(
+        &mut self,
+        range: ByteRange,
+        fields: &[F],
+        get_range: fn(&F) -> ByteRange,
+        expected_labels: &[Symbol],
+    ) -> Result<(), ()> {
+        if fields.len() == expected_labels.len() {
+            return Ok(());
+        }
+
+        let mut found_labels = Vec::with_capacity(fields.len());
+        let mut fields_iter = fields.iter().enumerate().peekable();
+        let mut expected_labels_iter = expected_labels.iter();
+
+        // use the label names from the expected labels
+        while let Some(((_, field), label)) =
+            Option::zip(fields_iter.peek(), expected_labels_iter.next())
+        {
+            found_labels.push((self.file_range(get_range(field)), *label));
+            fields_iter.next();
+        }
+
+        // use numeric labels for excess fields
+        for (index, field) in fields_iter {
+            found_labels.push((
+                self.file_range(get_range(field)),
+                Symbol::get_tuple_label(index),
+            ));
+        }
+
+        self.push_message(Message::MismatchedFieldLabels {
+            range: self.file_range(range),
+            found_labels,
+            expected_labels: expected_labels.to_vec(),
+        });
+        Err(())
+    }
+
+    fn check_record_fields<F>(
+        &mut self,
+        range: ByteRange,
+        fields: &[F],
+        get_label: impl Fn(&F) -> (ByteRange, Symbol),
+        labels: &'arena [Symbol],
+    ) -> Result<(), ()> {
+        if fields.len() == labels.len()
+            && fields
+                .iter()
+                .zip(labels.iter())
+                .all(|(field, type_label)| get_label(field).1 == *type_label)
+        {
+            return Ok(());
+        }
+
+        // TODO: improve handling of duplicate labels
+        self.push_message(Message::MismatchedFieldLabels {
+            range: self.file_range(range),
+            found_labels: fields
+                .iter()
+                .map(|field| {
+                    let (range, label) = get_label(field);
+                    (self.file_range(range), label)
+                })
+                .collect(),
+            expected_labels: labels.to_vec(),
+        });
+        Err(())
     }
 
     /// Elaborate a match expression in checking mode
@@ -2242,18 +2191,20 @@ impl<'arena> Context<'arena> {
                         let def_type_value = match_info.scrutinee.r#type.clone();
                         let def_type = self.quote_env().quote(self.scope, &def_type_value);
 
-                        self.local_env.push_def(def_name, def_expr, def_type_value);
-                        let body_expr = self.check(body_expr, &match_info.expected_type);
-                        self.local_env.pop();
+                        let body_expr = self.with_def(def_name, def_expr, def_type_value, |this| {
+                            this.check(body_expr, &match_info.expected_type)
+                        });
 
                         self.elab_match_unreachable(match_info, equations);
 
-                        core::Term::Let(
+                        self.builder().r#let(
                             Span::merge(&range.into(), &body_expr.span()),
-                            def_name,
-                            self.scope.to_scope(def_type),
-                            match_info.scrutinee.expr,
-                            self.scope.to_scope(body_expr),
+                            core::LetDef {
+                                name: def_name,
+                                r#type: def_type,
+                                expr: match_info.scrutinee.expr.clone(),
+                            },
+                            body_expr,
                         )
                     }
                     // Placeholder patterns just elaborate to the body
@@ -2281,7 +2232,7 @@ impl<'arena> Context<'arena> {
                     CheckedPattern::ReportedError(range) => {
                         self.check(body_expr, &match_info.expected_type);
                         self.elab_match_unreachable(match_info, equations);
-                        core::Term::Prim(range.into(), Prim::ReportedError)
+                        core::Term::error(range)
                     }
                 }
             }
@@ -2311,24 +2262,18 @@ impl<'arena> Context<'arena> {
         let mut branches = vec![(r#const, body_expr)];
 
         // Elaborate a run of constant patterns.
-        'patterns: while let Some((pattern, body_expr)) = equations.next() {
+        while let Some((pattern, body_expr)) = equations.next() {
             // Update the range up to the end of the next body expression
             full_span = Span::merge(&full_span, &self.file_range(body_expr.range()).into());
 
-            // Default expression, defined if we arrive at a default case
-            let default_branch;
-
-            match self.check_pattern(pattern, &match_info.scrutinee.r#type) {
-                // Accumulate constant pattern. Search for it in the accumulated
-                // branches and insert it in order.
+            let pattern = self.check_pattern(pattern, &match_info.scrutinee.r#type);
+            match pattern {
                 CheckedPattern::ConstLit(range, r#const) => {
                     let body_expr = self.check(body_expr, &match_info.expected_type);
 
                     // Find insertion index of the branch
-                    let insertion_index = branches.binary_search_by(|(probe_const, _)| {
-                        Const::partial_cmp(probe_const, &r#const)
-                            .expect("attempt to compare non-ordered value")
-                    });
+                    let insertion_index = branches
+                        .binary_search_by(|(probe_const, _)| Const::cmp(probe_const, &r#const));
 
                     match insertion_index {
                         Ok(_) => self.push_message(Message::UnreachablePattern { range }),
@@ -2339,66 +2284,56 @@ impl<'arena> Context<'arena> {
                         }
                     }
 
-                    // No default case yet, continue looking for constant patterns.
-                    continue 'patterns;
+                    if let Some(n) = r#const.num_inhabitants() {
+                        if branches.len() as u128 >= n {
+                            // The match is exhaustive.
+                            // No need to elaborate the rest of the patterns
+                            self.elab_match_unreachable(match_info, equations);
+
+                            return core::Term::ConstMatch(
+                                full_span,
+                                match_info.scrutinee.expr,
+                                self.scope.to_scope_from_iter(branches.into_iter()),
+                                None,
+                            );
+                        }
+                    }
                 }
+                CheckedPattern::Binder(_, _)
+                | CheckedPattern::Placeholder(_)
+                | CheckedPattern::ReportedError(_) => {
+                    let name = pattern.name();
+                    let range = pattern.range();
 
-                // Time to elaborate the default pattern. The default case of
-                // `core::Term::ConstMatch` binds a variable, so both
-                // the named and  placeholder patterns should bind this.
-                CheckedPattern::Binder(range, name) => {
-                    self.check_match_reachable(is_reachable, range);
+                    if !pattern.is_err() {
+                        self.check_match_reachable(is_reachable, range);
+                        self.elab_match_unreachable(match_info, equations);
+                    }
 
-                    // TODO: If we know this is an exhaustive match, bind the
-                    // scrutinee to a let binding with the elaborated body, and
-                    // add it to the branches. This will simplify the
-                    // distillation of if expressions.
-                    (self.local_env).push_param(Some(name), match_info.scrutinee.r#type.clone());
-                    let default_expr = self.check(body_expr, &match_info.expected_type);
-                    default_branch = (Some(name), self.scope.to_scope(default_expr) as &_);
-                    self.local_env.pop();
+                    let default_expr =
+                        self.with_param(name, match_info.scrutinee.r#type.clone(), |this| {
+                            this.check(body_expr, &match_info.expected_type)
+                        });
+
+                    return core::Term::ConstMatch(
+                        full_span,
+                        match_info.scrutinee.expr,
+                        self.scope.to_scope_from_iter(branches.into_iter()),
+                        Some((name, self.scope.to_scope(default_expr))),
+                    );
                 }
-                CheckedPattern::Placeholder(range) => {
-                    self.check_match_reachable(is_reachable, range);
-
-                    (self.local_env).push_param(None, match_info.scrutinee.r#type.clone());
-                    let default_expr = self.check(body_expr, &match_info.expected_type);
-                    default_branch = (None, self.scope.to_scope(default_expr) as &_);
-                    self.local_env.pop();
-                }
-                CheckedPattern::ReportedError(range) => {
-                    (self.local_env).push_param(None, match_info.scrutinee.r#type.clone());
-                    let default_expr = core::Term::Prim(range.into(), Prim::ReportedError);
-                    default_branch = (None, self.scope.to_scope(default_expr) as &_);
-                    self.local_env.pop();
-                }
-            };
-
-            // A default pattern was found, check any unreachable patterns.
-            self.elab_match_unreachable(match_info, equations);
-
-            return core::Term::ConstMatch(
-                full_span,
-                match_info.scrutinee.expr,
-                self.scope.to_scope_from_iter(branches.into_iter()),
-                Some(default_branch),
-            );
+            }
         }
 
         // Finished all the constant patterns without encountering a default
-        // case. This should have been an exhaustive match, so check to see if
-        // all the cases were covered.
-        let default_expr = match match_info.scrutinee.r#type.match_prim_spine() {
-            // No need for a default case if all the values were covered
-            Some((Prim::BoolType, [])) if branches.len() >= 2 => None,
-            _ => Some(self.elab_match_absurd(is_reachable, match_info)),
-        };
+        // case or an exhaustive match
+        let default_expr = self.elab_match_absurd(is_reachable, match_info);
 
         core::Term::ConstMatch(
             full_span,
             match_info.scrutinee.expr,
             self.scope.to_scope_from_iter(branches.into_iter()),
-            default_expr.map(|expr| (None, self.scope.to_scope(expr) as &_)),
+            Some((None, self.scope.to_scope(default_expr))),
         )
     }
 
@@ -2426,10 +2361,7 @@ impl<'arena> Context<'arena> {
                 scrutinee_expr_range: self.file_range(match_info.scrutinee.range),
             });
         }
-        core::Term::Prim(
-            self.file_range(match_info.range).into(),
-            Prim::ReportedError,
-        )
+        core::Term::error(self.file_range(match_info.range))
     }
 }
 
@@ -2464,6 +2396,27 @@ enum CheckedPattern {
     ConstLit(FileRange, Const),
     /// Error sentinel
     ReportedError(FileRange),
+}
+impl CheckedPattern {
+    fn name(&self) -> Option<Symbol> {
+        match self {
+            CheckedPattern::Binder(_, name) => Some(*name),
+            _ => None,
+        }
+    }
+
+    fn range(&self) -> FileRange {
+        match self {
+            CheckedPattern::Binder(range, ..)
+            | CheckedPattern::Placeholder(range, ..)
+            | CheckedPattern::ConstLit(range, ..)
+            | CheckedPattern::ReportedError(range, ..) => *range,
+        }
+    }
+
+    fn is_err(&self) -> bool {
+        matches!(self, Self::ReportedError(..))
+    }
 }
 
 /// Scrutinee of a match expression

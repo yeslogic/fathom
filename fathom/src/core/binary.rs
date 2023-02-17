@@ -425,15 +425,11 @@ impl<'arena, 'data> Context<'arena, 'data> {
             (Prim::FormatF32Le, []) => read_const(reader, span, read_f32le, Const::F32),
             (Prim::FormatF64Be, []) => read_const(reader, span, read_f64be, Const::F64),
             (Prim::FormatF64Le, []) => read_const(reader, span, read_f64le, Const::F64),
-            (Prim::FormatRepeatLen8, [FunApp(_, len), FunApp(_, format)]) => self.read_repeat_len(reader, span, len, format),
-            (Prim::FormatRepeatLen16, [FunApp(_, len), FunApp(_, format)]) => self.read_repeat_len(reader, span, len, format),
-            (Prim::FormatRepeatLen32, [FunApp(_, len), FunApp(_, format)]) => self.read_repeat_len(reader, span, len, format),
-            (Prim::FormatRepeatLen64, [FunApp(_, len), FunApp(_, format)]) => self.read_repeat_len(reader, span, len, format),
+            (Prim::FormatRepeatLen8 | Prim::FormatRepeatLen16 | Prim::FormatRepeatLen32 | Prim::FormatRepeatLen64,
+                [FunApp(_, len), FunApp(_, format)]) => self.read_repeat_len(reader, span, len, format),
             (Prim::FormatRepeatUntilEnd, [FunApp(_,format)]) => self.read_repeat_until_end(reader, format),
-            (Prim::FormatLimit8, [FunApp(_, limit), FunApp(_, format)]) => self.read_limit(reader, limit, format),
-            (Prim::FormatLimit16, [FunApp(_, limit), FunApp(_, format)]) => self.read_limit(reader, limit, format),
-            (Prim::FormatLimit32, [FunApp(_, limit), FunApp(_, format)]) => self.read_limit(reader, limit, format),
-            (Prim::FormatLimit64, [FunApp(_, limit), FunApp(_, format)]) => self.read_limit(reader, limit, format),
+            (Prim::FormatLimit8 | Prim::FormatLimit16 | Prim::FormatLimit32 | Prim::FormatLimit64,
+                [FunApp(_, limit), FunApp(_, format)]) => self.read_limit(reader, limit, format),
             (Prim::FormatLink, [FunApp(_, pos), FunApp(_, format)]) => self.read_link(span, pos, format),
             (Prim::FormatDeref, [FunApp(_, format), FunApp(_, r#ref)]) => self.read_deref(format, r#ref),
             (Prim::FormatStreamPos, []) => read_stream_pos(reader, span),
@@ -642,9 +638,7 @@ fn read_s8(reader: &mut BufferReader<'_>) -> Result<i8, BufferError> {
 /// Generates a function that reads a multi-byte primitive.
 macro_rules! read_multibyte_prim {
     ($read_multibyte_prim:ident, $from_bytes:ident, $T:ident) => {
-        fn $read_multibyte_prim<'data>(
-            reader: &mut BufferReader<'data>,
-        ) -> Result<$T, BufferError> {
+        fn $read_multibyte_prim(reader: &mut BufferReader) -> Result<$T, BufferError> {
             Ok($T::$from_bytes(*reader.read_byte_array()?))
         }
     };

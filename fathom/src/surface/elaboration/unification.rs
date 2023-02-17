@@ -23,7 +23,7 @@ use crate::alloc::SliceVec;
 use crate::core::semantics::{
     self, ArcValue, Branches, Closure, Elim, Head, SplitBranches, Telescope, Value,
 };
-use crate::core::{Prim, Term};
+use crate::core::{Builder, Prim, Term};
 use crate::env::{EnvLen, Index, Level, SharedEnv, SliceEnv, UniqueEnv};
 use crate::source::Spanned;
 use crate::surface::Plicity;
@@ -192,6 +192,38 @@ impl<'arena, 'env> Context<'arena, 'env> {
         semantics::ElimEnv::new(self.item_exprs, self.meta_exprs)
     }
 
+    fn builder(&self) -> Builder<'arena> {
+        Builder::new(self.scope)
+    }
+
+    fn with_local_scope<T>(&mut self, mut f: impl FnMut(&mut Self) -> T) -> T {
+        let len = self.local_exprs;
+        let res = f(self);
+        self.local_exprs.truncate(len);
+        res
+    }
+
+    fn with_renaming_scope<T>(&mut self, mut f: impl FnMut(&mut Self) -> T) -> T {
+        let len = self.renaming.len();
+        let res = f(self);
+        self.renaming.truncate(len);
+        res
+    }
+
+    fn with_local<T>(&mut self, mut f: impl FnMut(&mut Self) -> T) -> T {
+        self.local_exprs.push();
+        let res = f(self);
+        self.local_exprs.pop();
+        res
+    }
+
+    fn with_renaming_local<T>(&mut self, mut f: impl FnMut(&mut Self) -> T) -> T {
+        self.renaming.push_local();
+        let res = f(self);
+        self.renaming.pop_local();
+        res
+    }
+
     /// Unify two values, updating the solution environment if necessary.
     pub fn unify(
         &mut self,
@@ -251,16 +283,14 @@ impl<'arena, 'env> Context<'arena, 'env> {
                 self.unify_fun_lit(*plicity, body_expr, &value0)
             }
 
-            (Value::RecordType(labels0, types0), Value::RecordType(labels1, types1)) => {
-                if labels0 != labels1 {
-                    return Err(Error::Mismatch);
-                }
+            (Value::RecordType(labels0, types0), Value::RecordType(labels1, types1))
+                if labels0 == labels1 =>
+            {
                 self.unify_telescopes(types0, types1)
             }
-            (Value::RecordLit(labels0, exprs0), Value::RecordLit(labels1, exprs1)) => {
-                if labels0 != labels1 {
-                    return Err(Error::Mismatch);
-                }
+            (Value::RecordLit(labels0, exprs0), Value::RecordLit(labels1, exprs1))
+                if labels0 == labels1 =>
+            {
                 for (expr0, expr1) in Iterator::zip(exprs0.iter(), exprs1.iter()) {
                     self.unify(expr0, expr1)?;
                 }
@@ -269,7 +299,9 @@ impl<'arena, 'env> Context<'arena, 'env> {
             (Value::RecordLit(labels, exprs), _) => self.unify_record_lit(labels, exprs, &value1),
             (_, Value::RecordLit(labels, exprs)) => self.unify_record_lit(labels, exprs, &value0),
 
-            (Value::ArrayLit(elem_exprs0), Value::ArrayLit(elem_exprs1)) => {
+            (Value::ArrayLit(elem_exprs0), Value::ArrayLit(elem_exprs1))
+                if elem_exprs0.len() == elem_exprs1.len() =>
+            {
                 for (elem_expr0, elem_expr1) in
                     Iterator::zip(elem_exprs0.iter(), elem_exprs1.iter())
                 {
@@ -278,20 +310,16 @@ impl<'arena, 'env> Context<'arena, 'env> {
                 Ok(())
             }
 
-            (Value::FormatRecord(labels0, formats0), Value::FormatRecord(labels1, formats1)) => {
-                if labels0 != labels1 {
-                    return Err(Error::Mismatch);
-                }
+            (Value::FormatRecord(labels0, formats0), Value::FormatRecord(labels1, formats1))
+                if labels0 == labels1 =>
+            {
                 self.unify_telescopes(formats0, formats1)
             }
 
             (
                 Value::FormatCond(label0, format0, cond0),
                 Value::FormatCond(label1, format1, cond1),
-            ) => {
-                if label0 != label1 {
-                    return Err(Error::Mismatch);
-                }
+            ) if label0 == label1 => {
                 self.unify(format0, format1)?;
                 self.unify_closures(cond0, cond1)
             }
@@ -347,11 +375,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
         let value0 = self.elim_env().apply_closure(closure0, var.clone());
         let value1 = self.elim_env().apply_closure(closure1, var);
 
-        self.local_exprs.push();
-        let result = self.unify(&value0, &value1);
-        self.local_exprs.pop();
-
-        result
+        self.with_local(|this| this.unify(&value0, &value1))
     }
 
     /// Unify two [telescopes][Telescope].
@@ -364,27 +388,22 @@ impl<'arena, 'env> Context<'arena, 'env> {
             return Err(Error::Mismatch);
         }
 
-        let initial_local_len = self.local_exprs;
-        let mut telescope0 = telescope0.clone();
-        let mut telescope1 = telescope1.clone();
+        self.with_local_scope(|this| {
+            let mut telescope0 = telescope0.clone();
+            let mut telescope1 = telescope1.clone();
 
-        while let Some(((value0, next_telescope0), (value1, next_telescope1))) = Option::zip(
-            self.elim_env().split_telescope(telescope0),
-            self.elim_env().split_telescope(telescope1),
-        ) {
-            if let Err(error) = self.unify(&value0, &value1) {
-                self.local_exprs.truncate(initial_local_len);
-                return Err(error);
+            while let Some(((value0, next_telescope0), (value1, next_telescope1))) = Option::zip(
+                this.elim_env().split_telescope(telescope0),
+                this.elim_env().split_telescope(telescope1),
+            ) {
+                this.unify(&value0, &value1)?;
+                let var = Spanned::empty(Arc::new(Value::local_var(this.local_exprs.next_level())));
+                telescope0 = next_telescope0(var.clone());
+                telescope1 = next_telescope1(var);
+                this.local_exprs.push();
             }
-
-            let var = Spanned::empty(Arc::new(Value::local_var(self.local_exprs.next_level())));
-            telescope0 = next_telescope0(var.clone());
-            telescope1 = next_telescope1(var);
-            self.local_exprs.push();
-        }
-
-        self.local_exprs.truncate(initial_local_len);
-        Ok(())
+            Ok(())
+        })
     }
 
     /// Unify two [constant branches][Branches].
@@ -437,11 +456,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
         let value = self.elim_env().fun_app(plicity, value.clone(), var.clone());
         let body_expr = self.elim_env().apply_closure(body_expr, var);
 
-        self.local_exprs.push();
-        let result = self.unify(&body_expr, &value);
-        self.local_exprs.pop();
-
-        result
+        self.with_local(|this| this.unify(&body_expr, &value))
     }
 
     /// Unify a record literal with a value, using eta-conversion.
@@ -519,9 +534,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
     /// correspond to the given `spine`.
     fn fun_intros(&self, spine: &[Elim<'arena>], term: Term<'arena>) -> Term<'arena> {
         spine.iter().fold(term, |term, elim| match elim {
-            Elim::FunApp(plicity, _) => {
-                Term::FunLit(term.span(), *plicity, None, self.scope.to_scope(term))
-            }
+            Elim::FunApp(plicity, _) => self.builder().fun_lit(term.span(), *plicity, None, term),
             Elim::RecordProj(_) | Elim::ConstMatch(_) => {
                 unreachable!("should have been caught by `init_renaming`")
             }
@@ -559,14 +572,14 @@ impl<'arena, 'env> Context<'arena, 'env> {
 
                 spine.iter().try_fold(head_expr, |head_expr, elim| {
                     Ok(match elim {
-                        Elim::FunApp(plicity, arg_expr) => Term::FunApp(
+                        Elim::FunApp(plicity, arg_expr) => self.builder().fun_app(
                             span,
                             *plicity,
-                            self.scope.to_scope(head_expr),
-                            self.scope.to_scope(self.rename(meta_var, arg_expr)?),
+                            head_expr,
+                            self.rename(meta_var, arg_expr)?,
                         ),
                         Elim::RecordProj(label) => {
-                            Term::RecordProj(span, self.scope.to_scope(head_expr), *label)
+                            self.builder().record_proj(span, head_expr, *label)
                         }
                         Elim::ConstMatch(branches) => {
                             let mut branches = branches.clone();
@@ -608,23 +621,16 @@ impl<'arena, 'env> Context<'arena, 'env> {
                 let param_type = self.rename(meta_var, param_type)?;
                 let body_type = self.rename_closure(meta_var, body_type)?;
 
-                Ok(Term::FunType(
-                    span,
-                    *plicity,
-                    *param_name,
-                    self.scope.to_scope(param_type),
-                    self.scope.to_scope(body_type),
-                ))
+                Ok(self
+                    .builder()
+                    .fun_type(span, *plicity, *param_name, param_type, body_type))
             }
             Value::FunLit(plicity, param_name, body_expr) => {
                 let body_expr = self.rename_closure(meta_var, body_expr)?;
 
-                Ok(Term::FunLit(
-                    span,
-                    *plicity,
-                    *param_name,
-                    self.scope.to_scope(body_expr),
-                ))
+                Ok(self
+                    .builder()
+                    .fun_lit(span, *plicity, *param_name, body_expr))
             }
 
             Value::RecordType(labels, types) => {
@@ -658,12 +664,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
             Value::FormatCond(label, format, cond) => {
                 let format = self.rename(meta_var, format)?;
                 let cond = self.rename_closure(meta_var, cond)?;
-                Ok(Term::FormatCond(
-                    span,
-                    *label,
-                    self.scope.to_scope(format),
-                    self.scope.to_scope(cond),
-                ))
+                Ok(self.builder().format_cond(span, *label, format, cond))
             }
             Value::FormatOverlap(labels, formats) => {
                 let formats = self.rename_telescope(meta_var, formats)?;
@@ -684,11 +685,7 @@ impl<'arena, 'env> Context<'arena, 'env> {
         let source_var = self.renaming.next_local_var();
         let value = self.elim_env().apply_closure(closure, source_var);
 
-        self.renaming.push_local();
-        let term = self.rename(meta_var, &value);
-        self.renaming.pop_local();
-
-        term
+        self.with_renaming_local(|this| this.rename(meta_var, &value))
     }
 
     /// Rename a telescope back into a [`Term`].
@@ -697,27 +694,22 @@ impl<'arena, 'env> Context<'arena, 'env> {
         meta_var: Level,
         telescope: &Telescope<'arena>,
     ) -> Result<&'arena [Term<'arena>], RenameError> {
-        let initial_renaming_len = self.renaming.len();
-        let mut telescope = telescope.clone();
-        let mut terms = SliceVec::new(self.scope, telescope.len());
+        self.with_renaming_scope(|this| {
+            let mut telescope = telescope.clone();
+            let mut terms = SliceVec::new(this.scope, telescope.len());
 
-        while let Some((value, next_telescope)) = self.elim_env().split_telescope(telescope) {
-            match self.rename(meta_var, &value) {
-                Ok(term) => {
-                    terms.push(term);
-                    let source_var = self.renaming.next_local_var();
-                    telescope = next_telescope(source_var);
-                    self.renaming.push_local();
-                }
-                Err(error) => {
-                    self.renaming.truncate(initial_renaming_len);
-                    return Err(error);
-                }
+            while let Some((value, next_telescope)) =
+                this.elim_env().split_telescope(telescope.clone())
+            {
+                let term = this.rename(meta_var, &value)?;
+                terms.push(term);
+                let source_var = this.renaming.next_local_var();
+                telescope = next_telescope(source_var);
+                this.renaming.push_local();
             }
-        }
 
-        self.renaming.truncate(initial_renaming_len);
-        Ok(terms.into())
+            Ok(terms.into())
+        })
     }
 }
 

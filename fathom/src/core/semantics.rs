@@ -6,6 +6,7 @@ use std::sync::Arc;
 
 use scoped_arena::Scope;
 
+use super::{Builder, LetDef};
 use crate::alloc::SliceVec;
 use crate::core::{prim, Const, LocalInfo, Plicity, Prim, Term};
 use crate::env::{EnvLen, Index, Level, SharedEnv, SliceEnv};
@@ -300,8 +301,8 @@ impl<'arena, 'env> EvalEnv<'arena, 'env> {
                 self.apply_local_infos(head_expr, local_infos)
             }
             Term::Ann(span, expr, _) => Spanned::merge(*span, self.eval(expr)),
-            Term::Let(span, _, _, def_expr, body_expr) => {
-                let def_expr = self.eval(def_expr);
+            Term::Let(span, def, body_expr) => {
+                let def_expr = self.eval(&def.expr);
                 self.local_exprs.push(def_expr);
                 let body_expr = self.eval(body_expr);
                 self.local_exprs.pop();
@@ -667,21 +668,17 @@ impl<'in_arena, 'env> QuoteEnv<'in_arena, 'env> {
         // NOTE: this copies more than is necessary when `'in_arena == 'out_arena`:
         // for example when copying label slices.
 
+        let builder = Builder::new(scope);
         let value = self.elim_env.force(value);
         let span = value.span();
         match value.as_ref() {
             Value::Stuck(head, spine) => spine.iter().fold(
                 self.quote_head(scope, span, head),
                 |head_expr, elim| match elim {
-                    Elim::FunApp(plicity, arg_expr) => Term::FunApp(
-                        span,
-                        *plicity,
-                        scope.to_scope(head_expr),
-                        scope.to_scope(self.quote(scope, arg_expr)),
-                    ),
-                    Elim::RecordProj(label) => {
-                        Term::RecordProj(span, scope.to_scope(head_expr), *label)
+                    Elim::FunApp(plicity, arg_expr) => {
+                        builder.fun_app(span, *plicity, head_expr, self.quote(scope, arg_expr))
                     }
+                    Elim::RecordProj(label) => builder.record_proj(span, head_expr, *label),
                     Elim::ConstMatch(branches) => {
                         let mut branches = branches.clone();
                         let mut pattern_branches = SliceVec::new(scope, branches.num_patterns());
@@ -699,9 +696,9 @@ impl<'in_arena, 'env> QuoteEnv<'in_arena, 'env> {
                             }
                         };
 
-                        Term::ConstMatch(
+                        builder.const_match(
                             span,
-                            scope.to_scope(head_expr),
+                            head_expr,
                             pattern_branches.into(),
                             default_branch
                                 .map(|(name, expr)| (name, self.quote_closure(scope, &expr))),
@@ -712,20 +709,19 @@ impl<'in_arena, 'env> QuoteEnv<'in_arena, 'env> {
 
             Value::Universe => Term::Universe(span),
 
-            Value::FunType(plicity, param_name, param_type, body_type) => Term::FunType(
+            Value::FunType(plicity, param_name, param_type, body_type) => builder.fun_type(
                 span,
                 *plicity,
                 *param_name,
-                scope.to_scope(self.quote(scope, param_type)),
+                self.quote(scope, param_type),
                 self.quote_closure(scope, body_type),
             ),
-            Value::FunLit(plicity, param_name, body_expr) => Term::FunLit(
+            Value::FunLit(plicity, param_name, body_expr) => builder.fun_lit(
                 span,
                 *plicity,
                 *param_name,
                 self.quote_closure(scope, body_expr),
             ),
-
             Value::RecordType(labels, types) => Term::RecordType(
                 span,
                 scope.to_scope_from_iter(labels.iter().copied()),
@@ -746,10 +742,10 @@ impl<'in_arena, 'env> QuoteEnv<'in_arena, 'env> {
                 scope.to_scope_from_iter(labels.iter().copied()),
                 self.quote_telescope(scope, formats),
             ),
-            Value::FormatCond(label, format, cond) => Term::FormatCond(
+            Value::FormatCond(label, format, cond) => builder.format_cond(
                 span,
                 *label,
-                scope.to_scope(self.quote(scope, format)),
+                self.quote(scope, format),
                 self.quote_closure(scope, cond),
             ),
             Value::FormatOverlap(labels, formats) => Term::FormatOverlap(
@@ -792,7 +788,7 @@ impl<'in_arena, 'env> QuoteEnv<'in_arena, 'env> {
         &mut self,
         scope: &'out_arena Scope<'out_arena>,
         closure: &Closure<'in_arena>,
-    ) -> &'out_arena Term<'out_arena> {
+    ) -> Term<'out_arena> {
         let var = Arc::new(Value::local_var(self.local_exprs.next_level()));
         let value = self.elim_env.apply_closure(closure, Spanned::empty(var));
 
@@ -800,7 +796,7 @@ impl<'in_arena, 'env> QuoteEnv<'in_arena, 'env> {
         let term = self.quote(scope, &value);
         self.pop_local();
 
-        scope.to_scope(term)
+        term
     }
 
     /// Quote a [telescope][Telescope] back into a slice of [terms][Term].
@@ -848,6 +844,8 @@ impl<'arena, 'env> EvalEnv<'arena, 'env> {
         scope: &'out_arena Scope<'out_arena>,
         term: &Term<'arena>,
     ) -> Term<'out_arena> {
+        let builder = Builder::new(scope);
+
         match term {
             Term::ItemVar(span, var) => Term::ItemVar(*span, *var),
             Term::LocalVar(span, var) => Term::LocalVar(*span, *var),
@@ -871,29 +869,31 @@ impl<'arena, 'env> EvalEnv<'arena, 'env> {
                     Term::InsertedMeta(*span, *var, infos)
                 }
             },
-            Term::Ann(span, expr, r#type) => Term::Ann(
+            Term::Ann(span, expr, r#type) => builder.ann(
                 *span,
-                scope.to_scope(self.unfold_metas(scope, expr)),
-                scope.to_scope(self.unfold_metas(scope, r#type)),
+                self.unfold_metas(scope, expr),
+                self.unfold_metas(scope, r#type),
             ),
-            Term::Let(span, def_name, def_type, def_expr, body_expr) => Term::Let(
+            Term::Let(span, def, body_expr) => builder.r#let(
                 *span,
-                *def_name,
-                scope.to_scope(self.unfold_metas(scope, def_type)),
-                scope.to_scope(self.unfold_metas(scope, def_expr)),
+                LetDef {
+                    name: def.name,
+                    r#type: (self.unfold_metas(scope, &def.r#type)),
+                    expr: (self.unfold_metas(scope, &def.expr)),
+                },
                 self.unfold_bound_metas(scope, body_expr),
             ),
 
             Term::Universe(span) => Term::Universe(*span),
 
-            Term::FunType(span, plicity, param_name, param_type, body_type) => Term::FunType(
+            Term::FunType(span, plicity, param_name, param_type, body_type) => builder.fun_type(
                 *span,
                 *plicity,
                 *param_name,
-                scope.to_scope(self.unfold_metas(scope, param_type)),
+                self.unfold_metas(scope, param_type),
                 self.unfold_bound_metas(scope, body_type),
             ),
-            Term::FunLit(span, plicity, param_name, body_expr) => Term::FunLit(
+            Term::FunLit(span, plicity, param_name, body_expr) => builder.fun_lit(
                 *span,
                 *plicity,
                 *param_name,
@@ -921,10 +921,10 @@ impl<'arena, 'env> EvalEnv<'arena, 'env> {
                 scope.to_scope_from_iter(labels.iter().copied()),
                 self.unfold_telescope_metas(scope, formats),
             ),
-            Term::FormatCond(span, name, format, pred) => Term::FormatCond(
+            Term::FormatCond(span, name, format, pred) => builder.format_cond(
                 *span,
                 *name,
-                scope.to_scope(self.unfold_metas(scope, format)),
+                self.unfold_metas(scope, format),
                 self.unfold_bound_metas(scope, pred),
             ),
             Term::FormatOverlap(span, labels, formats) => Term::FormatOverlap(
@@ -945,6 +945,8 @@ impl<'arena, 'env> EvalEnv<'arena, 'env> {
         scope: &'out_arena Scope<'out_arena>,
         term: &Term<'arena>,
     ) -> TermOrValue<'arena, 'out_arena> {
+        let builder = Builder::new(scope);
+
         // Recurse to find the head of an elimination, checking if it's a
         // metavariable. If so, check if it has a solution, and then apply
         // eliminations to the solution in turn on our way back out.
@@ -971,11 +973,11 @@ impl<'arena, 'env> EvalEnv<'arena, 'env> {
 
             Term::FunApp(span, plicity, head_expr, arg_expr) => {
                 match self.unfold_meta_var_spines(scope, head_expr) {
-                    TermOrValue::Term(head_expr) => TermOrValue::Term(Term::FunApp(
+                    TermOrValue::Term(head_expr) => TermOrValue::Term(builder.fun_app(
                         *span,
                         *plicity,
-                        scope.to_scope(head_expr),
-                        scope.to_scope(self.unfold_metas(scope, arg_expr)),
+                        head_expr,
+                        self.unfold_metas(scope, arg_expr),
                     )),
                     TermOrValue::Value(head_expr) => {
                         let arg_expr = self.eval(arg_expr);
@@ -985,11 +987,9 @@ impl<'arena, 'env> EvalEnv<'arena, 'env> {
             }
             Term::RecordProj(span, head_expr, label) => {
                 match self.unfold_meta_var_spines(scope, head_expr) {
-                    TermOrValue::Term(head_expr) => TermOrValue::Term(Term::RecordProj(
-                        *span,
-                        scope.to_scope(head_expr),
-                        *label,
-                    )),
+                    TermOrValue::Term(head_expr) => {
+                        TermOrValue::Term(builder.record_proj(*span, head_expr, *label))
+                    }
                     TermOrValue::Value(head_expr) => {
                         TermOrValue::Value(self.elim_env.record_proj(head_expr, *label))
                     }
@@ -997,16 +997,19 @@ impl<'arena, 'env> EvalEnv<'arena, 'env> {
             }
             Term::ConstMatch(span, head_expr, branches, default_branch) => {
                 match self.unfold_meta_var_spines(scope, head_expr) {
-                    TermOrValue::Term(head_expr) => TermOrValue::Term(Term::ConstMatch(
-                        *span,
-                        scope.to_scope(head_expr),
-                        scope.to_scope_from_iter(
-                            (branches.iter())
-                                .map(|(r#const, expr)| (*r#const, self.unfold_metas(scope, expr))),
+                    TermOrValue::Term(head_expr) => TermOrValue::Term(
+                        builder.const_match(
+                            *span,
+                            head_expr,
+                            scope.to_scope_from_iter(
+                                branches.iter().map(|(r#const, expr)| {
+                                    (*r#const, self.unfold_metas(scope, expr))
+                                }),
+                            ),
+                            default_branch
+                                .map(|(name, expr)| (name, self.unfold_bound_metas(scope, expr))),
                         ),
-                        default_branch
-                            .map(|(name, expr)| (name, self.unfold_bound_metas(scope, expr))),
-                    )),
+                    ),
                     TermOrValue::Value(head_expr) => {
                         let branches =
                             Branches::new(self.local_exprs.clone(), branches, *default_branch);
@@ -1023,14 +1026,14 @@ impl<'arena, 'env> EvalEnv<'arena, 'env> {
         &mut self,
         scope: &'out_arena Scope<'out_arena>,
         term: &Term<'arena>,
-    ) -> &'out_arena Term<'out_arena> {
+    ) -> Term<'out_arena> {
         let var = Arc::new(Value::local_var(self.local_exprs.len().next_level()));
 
         self.local_exprs.push(Spanned::empty(var));
         let term = self.unfold_metas(scope, term);
         self.local_exprs.pop();
 
-        scope.to_scope(term)
+        term
     }
 
     fn unfold_telescope_metas<'out_arena>(
