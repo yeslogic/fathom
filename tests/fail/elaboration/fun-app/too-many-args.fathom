@@ -1,0 +1,21 @@
+//~ exit-code = 1
+
+let id = fun (x : Bool) => x;
+let always = fun (x : Bool) (y : Bool) => y;
+
+let _ : Bool = id true false;
+let _ : Bool = id true false false;
+
+let _ : Bool = always true true false;
+let _ : Bool = always true true false false;
+
+let id_poly = fun (@A : Type) (a : A) => a;
+let always_poly = fun (@A : Type) (@B : Type) (a : A) (b: B) => B;
+
+let _ : Bool = id_poly true false;
+let _ : Bool = id_poly true false false;
+
+let _ : Bool = always_poly true true false;
+let _ : Bool = always_poly true true false false;
+
+{}

@@ -1,0 +1,83 @@
+stdout = ''
+stderr = '''
+error: tried to apply too many arguments to function
+  ┌─ tests/fail/elaboration/fun-app/too-many-args.fathom:6:16
+  │
+6 │ let _ : Bool = id true false;
+  │                ^^      ----- extra argument
+  │                │        
+  │                expression of type `Bool -> Bool`
+  │
+  = help: function expects 1 argument, but recieved 2 arguments
+
+error: tried to apply too many arguments to function
+  ┌─ tests/fail/elaboration/fun-app/too-many-args.fathom:7:16
+  │
+7 │ let _ : Bool = id true false false;
+  │                ^^      ----------- extra arguments
+  │                │        
+  │                expression of type `Bool -> Bool`
+  │
+  = help: function expects 1 argument, but recieved 3 arguments
+
+error: tried to apply too many arguments to function
+  ┌─ tests/fail/elaboration/fun-app/too-many-args.fathom:9:16
+  │
+9 │ let _ : Bool = always true true false;
+  │                ^^^^^^           ----- extra argument
+  │                │                 
+  │                expression of type `Bool -> Bool -> Bool`
+  │
+  = help: function expects 2 arguments, but recieved 3 arguments
+
+error: tried to apply too many arguments to function
+   ┌─ tests/fail/elaboration/fun-app/too-many-args.fathom:10:16
+   │
+10 │ let _ : Bool = always true true false false;
+   │                ^^^^^^           ----------- extra arguments
+   │                │                 
+   │                expression of type `Bool -> Bool -> Bool`
+   │
+   = help: function expects 2 arguments, but recieved 4 arguments
+
+error: tried to apply too many arguments to function
+   ┌─ tests/fail/elaboration/fun-app/too-many-args.fathom:15:16
+   │
+15 │ let _ : Bool = id_poly true false;
+   │                ^^^^^^^      ----- extra argument
+   │                │             
+   │                expression of type `fun (@A : Type) -> A -> A`
+   │
+   = help: function expects 1 argument, but recieved 2 arguments
+
+error: tried to apply too many arguments to function
+   ┌─ tests/fail/elaboration/fun-app/too-many-args.fathom:16:16
+   │
+16 │ let _ : Bool = id_poly true false false;
+   │                ^^^^^^^      ----------- extra arguments
+   │                │             
+   │                expression of type `fun (@A : Type) -> A -> A`
+   │
+   = help: function expects 1 argument, but recieved 3 arguments
+
+error: tried to apply too many arguments to function
+   ┌─ tests/fail/elaboration/fun-app/too-many-args.fathom:18:16
+   │
+18 │ let _ : Bool = always_poly true true false;
+   │                ^^^^^^^^^^^           ----- extra argument
+   │                │                      
+   │                expression of type `fun (@A : Type) (@B : Type) -> A -> B -> Type`
+   │
+   = help: function expects 2 arguments, but recieved 3 arguments
+
+error: tried to apply too many arguments to function
+   ┌─ tests/fail/elaboration/fun-app/too-many-args.fathom:19:16
+   │
+19 │ let _ : Bool = always_poly true true false false;
+   │                ^^^^^^^^^^^           ----------- extra arguments
+   │                │                      
+   │                expression of type `fun (@A : Type) (@B : Type) -> A -> B -> Type`
+   │
+   = help: function expects 2 arguments, but recieved 4 arguments
+
+'''

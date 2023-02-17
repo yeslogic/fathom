@@ -1,9 +1,0 @@
-stdout = ''
-stderr = '''
-error: cannot find `f` in scope
-  ┌─ tests/fail/elaboration/unexpected-argument/unbound-head-2.fathom:3:1
-  │
-3 │ f x y
-  │ ^ unbound name
-
-'''

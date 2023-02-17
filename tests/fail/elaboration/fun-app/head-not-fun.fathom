@@ -1,0 +1,5 @@
+//~ exit-code = 1
+
+let _ : Type = Type true;
+let _ : Type = Type true false;
+{}
