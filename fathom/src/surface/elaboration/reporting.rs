@@ -30,10 +30,18 @@ pub enum Message {
     UnexpectedParameter {
         param_range: FileRange,
     },
-    UnexpectedArgument {
+    FunAppNotFun {
         head_range: FileRange,
         head_type: String,
-        arg_range: FileRange,
+        num_args: usize,
+        args_range: FileRange,
+    },
+    FunAppTooManyArgs {
+        head_range: FileRange,
+        head_type: String,
+        expected_arity: usize,
+        actual_arity: usize,
+        extra_args_range: FileRange,
     },
     PlicityArgumentMismatch {
         head_range: FileRange,
@@ -179,17 +187,48 @@ impl Message {
                     primary_label(param_range).with_message("unexpected parameter")
                 ])
                 .with_notes(vec!["this parameter can be removed".to_owned()]),
-            Message::UnexpectedArgument {
+            Message::FunAppNotFun {
                 head_range,
                 head_type,
-                arg_range,
+                num_args,
+                args_range,
             } => Diagnostic::error()
-                .with_message("expression was applied to an unexpected argument")
+                .with_message(pluralize(
+                    *num_args,
+                    "tried to apply argument to non-function expression",
+                    "tried to apply arguments to non-function expression",
+                ))
                 .with_labels(vec![
-                    primary_label(arg_range).with_message("unexpected argument"),
-                    secondary_label(head_range)
-                        .with_message(format!("expression of type {head_type}")),
+                    primary_label(head_range)
+                        .with_message(format!("expression of type `{head_type}`")),
+                    secondary_label(args_range).with_message(pluralize(
+                        *num_args,
+                        "argument",
+                        "arguments",
+                    )),
                 ]),
+            Message::FunAppTooManyArgs {
+                head_range,
+                head_type,
+                expected_arity,
+                actual_arity,
+                extra_args_range,
+            } => Diagnostic::error()
+                .with_message("tried to apply too many arguments to function")
+                .with_labels(vec![
+                    primary_label(head_range)
+                        .with_message(format!("expression of type `{head_type}`")),
+                    secondary_label(extra_args_range).with_message(pluralize(
+                        actual_arity - expected_arity,
+                        "extra argument",
+                        "extra arguments",
+                    )),
+                ])
+                .with_notes(vec![format!(
+                    "help: function expects {expected_arity} {}, but recieved {actual_arity} {}",
+                    pluralize(*expected_arity, "argument", "arguments"),
+                    pluralize(*actual_arity, "argument", "arguments"),
+                )]),
             Message::PlicityArgumentMismatch {
                 head_range,
                 head_plicity,
@@ -483,5 +522,13 @@ impl Message {
                     "please file a bug report at: {BUG_REPORT_URL}"
                 )]),
         }
+    }
+}
+
+fn pluralize<T>(amount: usize, single: T, plural: T) -> T {
+    if amount == 1 {
+        single
+    } else {
+        plural
     }
 }

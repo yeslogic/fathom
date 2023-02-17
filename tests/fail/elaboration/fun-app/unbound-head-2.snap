@@ -1,9 +1,9 @@
 stdout = ''
 stderr = '''
 error: cannot find `f` in scope
-  ┌─ tests/fail/elaboration/unexpected-argument/unbound-head-1.fathom:3:1
+  ┌─ tests/fail/elaboration/fun-app/unbound-head-2.fathom:3:1
   │
-3 │ f x
+3 │ f x y
   │ ^ unbound name
 
 '''

@@ -1474,9 +1474,13 @@ impl<'arena> Context<'arena> {
             }
             Term::App(range, head_expr, args) => {
                 let mut head_range = head_expr.range();
-                let (mut head_expr, mut head_type) = self.synth(head_expr);
+                let (mut head_expr, head_type) = self.synth(head_expr);
 
-                for arg in *args {
+                let original_head_range = head_range;
+                let original_head_type = self.elim_env().force(&head_type);
+                let mut head_type = original_head_type.clone();
+
+                for (arity, arg) in args.iter().enumerate() {
                     head_type = self.elim_env().force(&head_type);
 
                     match arg.plicity {
@@ -1509,13 +1513,39 @@ impl<'arena> Context<'arena> {
                         _ if head_expr.is_error() || head_type.is_error() => {
                             return self.synth_reported_error(*range);
                         }
+                        // NOTE: We could try to infer that this is a function type,
+                        // but this takes more work to prevent cascading type errors
+                        _ if arity == 0 => {
+                            self.push_message(Message::FunAppNotFun {
+                                head_range: self.file_range(original_head_range),
+                                head_type: self.pretty_value(&original_head_type),
+                                num_args: args.len(),
+                                args_range: {
+                                    let first = args.first().unwrap();
+                                    let last = args.last().unwrap();
+                                    self.file_range(ByteRange::merge(
+                                        first.term.range(),
+                                        last.term.range(),
+                                    ))
+                                },
+                            });
+                            return self.synth_reported_error(*range);
+                        }
                         _ => {
-                            // NOTE: We could try to infer that this is a function type,
-                            // but this takes more work to prevent cascading type errors
-                            self.push_message(Message::UnexpectedArgument {
-                                head_range: self.file_range(head_range),
-                                head_type: self.pretty_value(&head_type),
-                                arg_range: self.file_range(arg.term.range()),
+                            self.push_message(Message::FunAppTooManyArgs {
+                                head_range: self.file_range(original_head_range),
+                                head_type: self.pretty_value(&original_head_type),
+                                expected_arity: arity,
+                                actual_arity: args.len(),
+                                extra_args_range: {
+                                    let extra_args = &args[arity..];
+                                    let first = extra_args.first().unwrap();
+                                    let last = extra_args.last().unwrap();
+                                    self.file_range(ByteRange::merge(
+                                        first.term.range(),
+                                        last.term.range(),
+                                    ))
+                                },
                             });
                             return self.synth_reported_error(*range);
                         }

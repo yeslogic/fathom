@@ -1,0 +1,19 @@
+stdout = ''
+stderr = '''
+error: tried to apply argument to non-function expression
+  ┌─ tests/fail/elaboration/fun-app/head-not-fun.fathom:3:16
+  │
+3 │ let _ : Type = Type true;
+  │                ^^^^ ---- argument
+  │                │     
+  │                expression of type `Type`
+
+error: tried to apply arguments to non-function expression
+  ┌─ tests/fail/elaboration/fun-app/head-not-fun.fathom:4:16
+  │
+4 │ let _ : Type = Type true false;
+  │                ^^^^ ---------- arguments
+  │                │     
+  │                expression of type `Type`
+
+'''
