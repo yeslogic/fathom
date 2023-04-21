@@ -34,7 +34,7 @@ scoped-arena = "0.4.1"
 termsize = "0.1.6"
 
 [build-dependencies]
-lalrpop = { git = "https://github.com/kmeakin/lalrpop", branch = "raw-identifiers" }
+lalrpop = "0.19.9"
 
 [dev-dependencies]
 diff = "0.1.12"

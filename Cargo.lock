@@ -340,7 +340,7 @@ dependencies = [
  "globwalk",
  "itertools",
  "lalrpop",
- "lalrpop-util 0.19.8 (registry+https://github.com/rust-lang/crates.io-index)",
+ "lalrpop-util",
  "lasso",
  "levenshtein",
  "libtest-mimic",
@@ -564,16 +564,17 @@ dependencies = [
 
 [[package]]
 name = "lalrpop"
-version = "0.19.8"
-source = "git+https://github.com/kmeakin/lalrpop?branch=raw-identifiers#a945c2a68032f833142bdf6874cf280270c0ec8a"
+version = "0.19.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f34313ec00c2eb5c3c87ca6732ea02dcf3af99c3ff7a8fb622ffb99c9d860a87"
 dependencies = [
  "ascii-canvas",
- "atty",
  "bit-set",
  "diff",
  "ena",
+ "is-terminal",
  "itertools",
- "lalrpop-util 0.19.8 (git+https://github.com/kmeakin/lalrpop?branch=raw-identifiers)",
+ "lalrpop-util",
  "petgraph",
  "pico-args",
  "regex",
@@ -586,14 +587,9 @@ dependencies = [
 
 [[package]]
 name = "lalrpop-util"
-version = "0.19.8"
+version = "0.19.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bcf796c978e9b4d983414f4caedc9273aa33ee214c5b887bd55fde84c85d2dc4"
-
-[[package]]
-name = "lalrpop-util"
-version = "0.19.8"
-source = "git+https://github.com/kmeakin/lalrpop?branch=raw-identifiers#a945c2a68032f833142bdf6874cf280270c0ec8a"
+checksum = "e5c1f7869c94d214466c5fd432dfed12c379fd87786768d36455892d46b18edd"
 dependencies = [
  "regex",
 ]
