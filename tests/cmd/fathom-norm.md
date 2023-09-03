@@ -13,7 +13,7 @@ Usage: fathom norm [OPTIONS] --term <TERM_FILE>
 Options:
       --term <TERM_FILE>  Path to a term to normalize
       --allow-errors      Continue even if errors were encountered
-  -h, --help              Print help information
+  -h, --help              Print help
 
 ```
 
@@ -28,7 +28,7 @@ Usage: fathom norm [OPTIONS] --term <TERM_FILE>
 Options:
       --term <TERM_FILE>  Path to a term to normalize
       --allow-errors      Continue even if errors were encountered
-  -h, --help              Print help information
+  -h, --help              Print help
 
 ```
 
@@ -53,12 +53,12 @@ At least a `--term` must be provided
 ```console
 $ fathom norm
 ? failed
-error: The following required arguments were not provided:
+error: the following required arguments were not provided:
   --term <TERM_FILE>
 
 Usage: fathom norm --term <TERM_FILE>
 
-For more information try '--help'
+For more information, try '--help'.
 
 ```
 

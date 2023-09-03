@@ -15,7 +15,7 @@ Options:
       --term <TERM_FILE>      Path to a term to elaborate
       --allow-errors          Continue even if errors were encountered
       --pretty-core           Pretty print core module
-  -h, --help                  Print help information
+  -h, --help                  Print help
 
 ```
 
@@ -32,7 +32,7 @@ Options:
       --term <TERM_FILE>      Path to a term to elaborate
       --allow-errors          Continue even if errors were encountered
       --pretty-core           Pretty print core module
-  -h, --help                  Print help information
+  -h, --help                  Print help
 
 ```
 
@@ -72,13 +72,13 @@ Either a `--module` or a `--term` must be provided
 ```console
 $ fathom elab
 ? failed
-error: The following required arguments were not provided:
+error: the following required arguments were not provided:
   --module <MODULE_FILE>
   --term <TERM_FILE>
 
 Usage: fathom elab --module <MODULE_FILE> --term <TERM_FILE>
 
-For more information try '--help'
+For more information, try '--help'.
 
 ```
 
@@ -90,11 +90,11 @@ The `--module` and `--term` inputs conflict with each other
 $ fathom elab --module formats/object-id.fathom
 >             --term tests/succeed/record-type/pair-dependent.fathom
 ? failed
-error: The argument '--module <MODULE_FILE>' cannot be used with '--term <TERM_FILE>'
+error: the argument '--module <MODULE_FILE>' cannot be used with '--term <TERM_FILE>'
 
 Usage: fathom elab --module <MODULE_FILE>
 
-For more information try '--help'
+For more information, try '--help'.
 
 ```
 
