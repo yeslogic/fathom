@@ -1,0 +1,3 @@
+let fst = fun (A : Type) (B : Type) (p : (A, B)) => match p { (x, _) => x };
+let snd = fun (A : Type) (B : Type) (p : (A, B)) => match p { (_, y) => y };
+{}

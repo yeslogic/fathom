@@ -51,8 +51,8 @@ pub enum Message {
     },
     MismatchedFieldLabels {
         range: FileRange,
-        expr_labels: Vec<(FileRange, Symbol)>,
-        type_labels: Vec<Symbol>,
+        found_labels: Vec<(FileRange, Symbol)>,
+        expected_labels: Vec<Symbol>,
         // TODO: add expected type
         // expected_type: Doc<_>,
     },
@@ -223,8 +223,8 @@ impl Message {
                 })),
             Message::MismatchedFieldLabels {
                 range,
-                expr_labels,
-                type_labels,
+                found_labels: expr_labels,
+                expected_labels: type_labels,
             } => {
                 let mut diagnostic_labels = Vec::with_capacity(expr_labels.len());
                 {

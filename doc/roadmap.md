@@ -39,14 +39,14 @@
 - [ ] refinement types
 - [x] match expressions
   - [x] single-layer pattern matching
-  - [ ] multi-layer pattern matching
+  - [x] multi-layer pattern matching
   - [ ] dependent pattern matching
-- [ ] patterns
+- [x] patterns
   - [x] wildcard patterns
   - [x] named patterns
   - [x] annotated patterns
   - [x] numeric literal patterns
-  - [ ] record literal patterns
+  - [x] record literal patterns
 - [ ] invertible format descriptions
 
 ## Implementation

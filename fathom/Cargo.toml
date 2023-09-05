@@ -1,20 +1,20 @@
 [package]
-name = "fathom"
-version = "0.1.0"
-authors = ["YesLogic Pty. Ltd. <info@yeslogic.com>"]
-repository = "https://github.com/yeslogic/fathom"
-edition = "2021"
+name         = "fathom"
+version      = "0.1.0"
+authors      = ["YesLogic Pty. Ltd. <info@yeslogic.com>"]
+repository   = "https://github.com/yeslogic/fathom"
+edition      = "2021"
 rust-version = "1.67.0"
-publish = false
+publish      = false
 
 description = "A language for declaratively specifying binary data formats"
-readme = "../README.md"
-license = "Apache-2.0"
+readme      = "../README.md"
+license     = "Apache-2.0"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [[test]]
-name = "source_tests"
+name    = "source_tests"
 harness = false
 
 [dependencies]
@@ -23,10 +23,14 @@ clap = { version = "4.0", features = ["derive"] }
 codespan-reporting = "0.11.1"
 fxhash = "0.2"
 itertools = "0.10"
-lalrpop-util = "0.19.5"
-lasso = { version = "0.6.0", features = ["multi-threaded", "ahasher", "inline-more"] }
+lalrpop-util = "0.20.0"
 levenshtein = "1.0.5"
 logos = "0.12"
+lasso = { version = "0.6.0", features = [
+    "multi-threaded",
+    "ahasher",
+    "inline-more",
+] }
 once_cell = { version = "1.17.0", features = ["parking_lot"] }
 pretty = "0.11.2"
 rpds = "0.12.0"
@@ -34,14 +38,14 @@ scoped-arena = "0.4.1"
 termsize = "0.1.6"
 
 [build-dependencies]
-lalrpop = { git = "https://github.com/kmeakin/lalrpop", branch = "raw-identifiers" }
+lalrpop = "0.20.0"
 
 [dev-dependencies]
-diff = "0.1.12"
-globwalk = "0.8"
-itertools = "0.10.1"
+diff          = "0.1.12"
+globwalk      = "0.8"
+itertools     = "0.10.1"
 libtest-mimic = "0.6.0"
-serde = { version = "1.0", features = ["derive"] }
-toml = "0.5"
-trycmd = "0.14.10"
-walkdir = "2.3.2"
+serde         = { version = "1.0", features = ["derive"] }
+toml          = "0.5"
+trycmd        = "0.14.10"
+walkdir       = "2.3.2"

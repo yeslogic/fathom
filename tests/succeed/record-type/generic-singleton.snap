@@ -1,6 +1,6 @@
 stdout = '''
 let Singleton : Type -> Type = fun A => { x : A };
-let test_point : fun (A : Type) -> Singleton A -> { x : A } = fun A p => p;
+let test_point : fun (A : Type) -> { x : A } -> { x : A } = fun A p => p;
 Type : Type
 '''
 stderr = ''

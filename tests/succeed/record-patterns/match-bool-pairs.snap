@@ -1,0 +1,22 @@
+stdout = '''
+let and1 : Bool -> Bool -> Bool = fun x y => let a : (Bool, Bool) = (x, y);
+if a._0 then if a._1 then true else false else false;
+let and2 : Bool -> Bool -> Bool = fun x y => let a : (Bool, Bool) = (x, y);
+if a._0 then if a._1 then true else false else false;
+let and3 : Bool -> Bool -> Bool = fun x y => let a : (Bool, Bool) = (x, y);
+if a._0 then if a._1 then true else false else if a._1 then false else false;
+let or1 : Bool -> Bool -> Bool = fun x y => let a : (Bool, Bool) = (x, y);
+if a._0 then true else if a._1 then true else false;
+let or2 : Bool -> Bool -> Bool = fun x y => let a : (Bool, Bool) = (x, y);
+if a._0 then true else if a._1 then true else false;
+let or3 : Bool -> Bool -> Bool = fun x y => let a : (Bool, Bool) = (x, y);
+if a._0 then if a._1 then true else true else if a._1 then true else false;
+let xor1 : Bool -> Bool -> Bool = fun x y => let a : (Bool, Bool) = (x, y);
+if a._0 then if a._1 then false else true else if a._1 then true else false;
+let xor2 : Bool -> Bool -> Bool = fun x y => let a : (Bool, Bool) = (x, y);
+if a._0 then if a._1 then false else true else if a._1 then true else false;
+let xor3 : Bool -> Bool -> Bool = fun x y => let a : (Bool, Bool) = (x, y);
+if a._0 then if a._1 then false else true else if a._1 then true else false;
+() : ()
+'''
+stderr = ''
