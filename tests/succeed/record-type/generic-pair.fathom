@@ -1,3 +1,8 @@
 let fst = fun (A: Type) (B: Type) (p: {x: A, y: B}) => p.x;
 let snd = fun (A: Type) (B: Type) (p: {x: A, y: B}) => p.y;
+
+// Regression tests for https://github.com/yeslogic/fathom/issues/507
+let pair_make = fun (A: Type) (B: Type) (x: A) (y: B)     => {x = x, y = y};
+let pair_id   = fun (A: Type) (B: Type) (p: {x: A, y: B}) => {x = p.x, y = p.y};
+let pair_swap = fun (A: Type) (B: Type) (p: {x: A, y: B}) => {x = p.y, y = p.x};
 {}

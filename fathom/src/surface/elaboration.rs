@@ -1563,15 +1563,17 @@ impl<'arena> Context<'arena> {
                 let mut types = SliceVec::new(self.scope, labels.len());
                 let mut exprs = SliceVec::new(self.scope, labels.len());
 
+                let mut offset = EnvLen::new();
                 for expr_field in expr_fields {
                     let name_expr = Term::Name(expr_field.label.0, expr_field.label.1);
                     let expr = expr_field.expr.as_ref().unwrap_or(&name_expr);
                     let (expr, r#type) = self.synth(expr);
-                    types.push(self.quote_env().quote(self.scope, &r#type));
+                    types.push(self.quote_env().quote_offset(self.scope, &r#type, offset));
                     exprs.push(expr);
+                    offset.push();
                 }
 
-                let types = Telescope::new(self.local_env.exprs.clone(), types.into());
+                let types = Telescope::new(self.local_env.exprs.clone(), (types.into()));
 
                 (
                     core::Term::RecordLit(file_range.into(), labels, exprs.into()),
@@ -1585,10 +1587,12 @@ impl<'arena> Context<'arena> {
                 let mut exprs = SliceVec::new(self.scope, labels.len());
                 let mut types = SliceVec::new(self.scope, labels.len());
 
+                let mut offset = EnvLen::new();
                 for elem_exprs in elem_exprs.iter() {
                     let (expr, r#type) = self.synth(elem_exprs);
-                    types.push(self.quote_env().quote(self.scope, &r#type));
+                    types.push(self.quote_env().quote_offset(self.scope, &r#type, offset));
                     exprs.push(expr);
+                    offset.push();
                 }
 
                 let types = Telescope::new(self.local_env.exprs.clone(), types.into());

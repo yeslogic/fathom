@@ -658,6 +658,21 @@ impl<'in_arena, 'env> QuoteEnv<'in_arena, 'env> {
         self.local_exprs.pop();
     }
 
+    /// Quote a [value][Value] back into a [term][Term], with `self.local_exprs`
+    /// offset by `offset`.
+    pub fn quote_offset<'out_arena>(
+        &mut self,
+        scope: &'out_arena Scope<'out_arena>,
+        value: &ArcValue<'in_arena>,
+        offset: EnvLen,
+    ) -> Term<'out_arena> {
+        let len = self.local_exprs;
+        self.local_exprs.append(offset);
+        let expr = self.quote(scope, value);
+        self.local_exprs.truncate(len);
+        expr
+    }
+
     /// Quote a [value][Value] back into a [term][Term].
     pub fn quote<'out_arena>(
         &mut self,
