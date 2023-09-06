@@ -440,7 +440,7 @@ impl ParseMessage {
             LalrpopParseError::InvalidToken { location } => ParseMessage::InvalidToken {
                 range: ByteRange::new(location, location),
             },
-            LalrpopParseError::UnrecognizedEOF { location, expected } => {
+            LalrpopParseError::UnrecognizedEof { location, expected } => {
                 ParseMessage::UnrecognizedEof {
                     range: ByteRange::new(location, location),
                     expected, // TODO: convert to descriptions?

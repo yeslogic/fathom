@@ -3,6 +3,7 @@ inherits = "release"
 debug = true
 
 [workspace]
+resolver = "2"
 members = [
     './fathom',
 ]

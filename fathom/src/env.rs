@@ -162,6 +162,10 @@ impl EnvLen {
         self.0 -= 1;
     }
 
+    pub fn append(&mut self, other: EnvLen) {
+        self.0 += other.0;
+    }
+
     /// Truncate the environment to the given length.
     pub fn truncate(&mut self, len: EnvLen) {
         *self = len;

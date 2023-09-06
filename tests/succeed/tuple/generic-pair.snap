@@ -1,6 +1,18 @@
 stdout = '''
 let fst : fun (A : Type) (B : Type) -> (A, B) -> A = fun A B p => p._0;
 let snd : fun (A : Type) (B : Type) -> (A, B) -> B = fun A B p => p._1;
+let pair_make : fun (A : Type) (B : Type) -> A -> B -> (A, B) = fun A B x y => (
+    x,
+    y,
+);
+let pair_id : fun (A : Type) (B : Type) -> (A, B) -> (A, B) = fun A B p => (
+    p._0,
+    p._1,
+);
+let pair_swap : fun (A : Type) (B : Type) -> (A, B) -> (B, A) = fun A B p => (
+    p._1,
+    p._0,
+);
 () : ()
 '''
 stderr = ''
